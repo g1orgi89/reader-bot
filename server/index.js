@@ -11,6 +11,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const mongoose = require('mongoose');
 
 // Import configuration and services
 const config = require('./config');
@@ -29,6 +30,16 @@ const io = socketIo(server, {
     methods: ['GET', 'POST']
   }
 });
+
+// Database connection
+mongoose.connect(config.getDatabaseConfig().uri, config.getDatabaseConfig().options)
+  .then(() => {
+    logger.info('Connected to MongoDB successfully');
+  })
+  .catch((error) => {
+    logger.error('MongoDB connection error:', error);
+    process.exit(1);
+  });
 
 // Initialize Claude Service
 let claudeService;
@@ -70,7 +81,8 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
     services: {
-      claude: claudeService.getStatus()
+      claude: claudeService.getStatus(),
+      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
     }
   });
 });
@@ -197,6 +209,7 @@ server.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  mongoose.disconnect();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);
@@ -205,6 +218,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
+  mongoose.disconnect();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);
