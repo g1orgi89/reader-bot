@@ -12,6 +12,12 @@ const claudeService = require('../services/claude');
 const messageService = require('../services/message');
 const ticketService = require('../services/ticketing');
 const languageDetect = require('../utils/languageDetect');
+const { 
+  createErrorResponse,
+  VALIDATION_ERRORS,
+  CHAT_ERRORS,
+  GENERIC_ERRORS
+} = require('../constants/errorCodes');
 
 const router = express.Router();
 
@@ -34,15 +40,13 @@ function validateChatMiddleware(req, res, next) {
       error: error.message
     });
     
-    /** @type {ChatError} */
-    const errorResponse = {
-      success: false,
-      error: error.message,
-      errorCode: 'VALIDATION_ERROR',
-      details: { field: extractFieldFromError(error.message) }
-    };
+    const errorResponse = createErrorResponse(
+      'VALIDATION_ERROR',
+      error.message,
+      { field: extractFieldFromError(error.message) }
+    );
     
-    res.status(400).json(errorResponse);
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 }
 
@@ -73,11 +77,8 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
     const vectorStoreService = req.app.get('vectorStoreService');
     if (!vectorStoreService) {
       logger.error('VectorStore service not available');
-      return res.status(500).json({
-        success: false,
-        error: 'Vector search temporarily unavailable',
-        errorCode: 'VECTOR_SERVICE_UNAVAILABLE'
-      });
+      const errorResponse = createErrorResponse('VECTOR_SERVICE_UNAVAILABLE');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     // Auto-detect language if not provided
@@ -205,18 +206,17 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
       conversationId: req.body?.conversationId
     });
     
-    /** @type {ChatError} */
-    const errorResponse = {
-      success: false,
-      error: 'An error occurred while processing your message. Please try again.',
-      errorCode: determineErrorCode(error),
-      details: {
+    const errorCode = determineErrorCode(error);
+    const errorResponse = createErrorResponse(
+      errorCode,
+      'An error occurred while processing your message. Please try again.',
+      {
         timestamp: new Date().toISOString(),
         ...(process.env.NODE_ENV === 'development' ? { originalError: error.message } : {})
       }
-    };
+    );
     
-    res.status(500).json(errorResponse);
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -232,11 +232,11 @@ router.get('/conversation/:conversationId', async (req, res) => {
     const { page = '1', limit = '50' } = req.query;
     
     if (!conversationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Conversation ID is required',
-        errorCode: 'MISSING_CONVERSATION_ID'
-      });
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Conversation ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     const pageNum = Math.max(1, parseInt(page));
@@ -273,11 +273,8 @@ router.get('/conversation/:conversationId', async (req, res) => {
       conversationId: req.params.conversationId
     });
     
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch conversation history',
-      errorCode: 'CONVERSATION_FETCH_ERROR'
-    });
+    const errorResponse = createErrorResponse('CONVERSATION_FETCH_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -299,7 +296,7 @@ function extractSubjectFromMessage(message) {
  */
 function determineErrorCode(error) {
   if (error.message.includes('Claude')) return 'CLAUDE_ERROR';
-  if (error.message.includes('vector')) return 'VECTOR_SEARCH_ERROR';
+  if (error.message.includes('vector')) return 'VECTOR_SERVICE_UNAVAILABLE';
   if (error.message.includes('database')) return 'DATABASE_ERROR';
   return 'INTERNAL_ERROR';
 }
