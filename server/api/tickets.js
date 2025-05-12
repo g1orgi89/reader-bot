@@ -17,13 +17,11 @@ const {
   validateTicketData
 } = require('../types/ticket');
 const {
-  createSuccessResponse,
   createErrorResponse,
-  createPaginatedResponse,
-  validateRequiredFields,
-  validatePaginationOptions,
-  validateTicketQueryParams
-} = require('../types/api');
+  VALIDATION_ERRORS,
+  TICKET_ERRORS,
+  GENERIC_ERRORS
+} = require('../constants/errorCodes');
 
 const router = express.Router();
 
@@ -34,7 +32,6 @@ const router = express.Router();
  * @typedef {import('../types/ticket').TicketUpdateData} TicketUpdateData
  * @typedef {import('../types/ticket').TicketFilter} TicketFilter
  * @typedef {import('../types/ticket').TicketQueryOptions} TicketQueryOptions
- * @typedef {import('../types/api').ApiResponse} ApiResponse
  * @typedef {import('../types/api').PaginatedResponse} PaginatedResponse
  * @typedef {import('../types/api').TicketQueryParams} TicketQueryParams
  */
@@ -49,63 +46,88 @@ function getTicketService() {
 }
 
 /**
- * @swagger
- * /api/tickets:
- *   post:
- *     summary: Create a new support ticket
- *     tags: [Tickets]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *               - conversationId
- *               - subject
- *               - initialMessage
- *             properties:
- *               userId:
- *                 type: string
- *               conversationId:
- *                 type: string
- *               subject:
- *                 type: string
- *               initialMessage:
- *                 type: string
- *               context:
- *                 type: string
- *               language:
- *                 type: string
- *                 enum: ['en', 'es', 'ru']
- *               priority:
- *                 type: string
- *                 enum: ['low', 'medium', 'high', 'urgent']
- *               category:
- *                 type: string
- *                 enum: ['technical', 'account', 'billing', 'feature', 'other']
- *               email:
- *                 type: string
+ * Validate required fields
+ * @param {Object} body - Request body
+ * @param {string[]} requiredFields - Fields to validate
+ * @returns {Object|null} Error response or null if valid
+ */
+function validateRequiredFields(body, requiredFields) {
+  for (const field of requiredFields) {
+    if (!body[field]) {
+      return createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        `${field} is required`,
+        { field }
+      );
+    }
+  }
+  return null;
+}
+
+/**
+ * Create paginated response helper
+ * @param {Array} items - Data items
+ * @param {number} totalCount - Total count
+ * @param {number} page - Current page
+ * @param {number} limit - Items per page
+ * @returns {Object} Paginated response
+ */
+function createPaginatedResponse(items, totalCount, page, limit) {
+  return {
+    items,
+    totalCount,
+    page,
+    limit,
+    totalPages: Math.ceil(totalCount / limit)
+  };
+}
+
+/**
+ * Validate ticket query parameters
+ * @param {Object} query - Query parameters
+ * @returns {Object} Parsed and validated parameters
+ */
+function validateTicketQueryParams(query) {
+  const pagination = {
+    page: Math.max(1, parseInt(query.page) || 1),
+    limit: Math.min(100, Math.max(1, parseInt(query.limit) || 20)),
+    sort: query.sort || 'createdAt',
+    order: query.order === 'asc' ? 'asc' : 'desc'
+  };
+
+  const filter = {};
+  if (query.status) filter.status = query.status;
+  if (query.priority) filter.priority = query.priority;
+  if (query.category) filter.category = query.category;
+  if (query.assignedTo) filter.assignedTo = query.assignedTo;
+  if (query.userId) filter.userId = query.userId;
+
+  const search = {};
+  if (query.search) search.search = query.search;
+
+  return { pagination, filter, search };
+}
+
+/**
+ * POST /api/tickets
+ * Create a new support ticket
  */
 router.post('/', async (req, res) => {
   try {
     // Validate required fields
     const validationError = validateRequiredFields(req.body, ['userId', 'conversationId', 'subject', 'initialMessage']);
     if (validationError) {
-      return res.status(validationError.statusCode).json(validationError);
+      return res.status(validationError.httpStatus).json(validationError);
     }
 
     // Validate ticket data using schema validator
     const validation = validateTicketData(req.body);
     if (!validation.isValid) {
       const errorResponse = createErrorResponse(
-        'Validation failed',
         'VALIDATION_ERROR',
-        400
+        validation.errors.join(', ')
       );
-      errorResponse.error = validation.errors.join(', ');
-      return res.status(400).json(errorResponse);
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Creating new ticket', { 
@@ -128,79 +150,17 @@ router.post('/', async (req, res) => {
 
     const ticket = await getTicketService().createTicket(ticketData);
     
-    res.status(201).json(createSuccessResponse(ticket, 'Ticket created successfully'));
+    res.status(201).json({ success: true, data: ticket, message: 'Ticket created successfully' });
   } catch (error) {
     logger.error('Error creating ticket', { error: error.message });
-    res.status(500).json(createErrorResponse('Failed to create ticket'));
+    const errorResponse = createErrorResponse('TICKET_CREATE_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets:
- *   get:
- *     summary: Get tickets with filtering and pagination
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *         description: Items per page
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: ['open', 'in_progress', 'resolved', 'closed']
- *         description: Filter by ticket status
- *       - in: query
- *         name: priority
- *         schema:
- *           type: string
- *           enum: ['low', 'medium', 'high', 'urgent']
- *         description: Filter by ticket priority
- *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *           enum: ['technical', 'account', 'billing', 'feature', 'other']
- *         description: Filter by ticket category
- *       - in: query
- *         name: assignedTo
- *         schema:
- *           type: string
- *         description: Filter by assigned agent
- *       - in: query
- *         name: userId
- *         schema:
- *           type: string
- *         description: Filter by user ID
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search in subject and initial message
- *       - in: query
- *         name: sort
- *         schema:
- *           type: string
- *         description: Sort field
- *       - in: query
- *         name: order
- *         schema:
- *           type: string
- *           enum: ['asc', 'desc']
- *         description: Sort order
+ * GET /api/tickets
+ * Get tickets with filtering and pagination
  */
 router.get('/', requireAdminAuth, async (req, res) => {
   try {
@@ -218,7 +178,6 @@ router.get('/', requireAdminAuth, async (req, res) => {
 
     const result = await getTicketService().getTickets({ ...filter, ...search }, queryOptions);
     
-    /** @type {PaginatedResponse} */
     const response = createPaginatedResponse(
       result.items,
       result.totalCount,
@@ -226,34 +185,28 @@ router.get('/', requireAdminAuth, async (req, res) => {
       pagination.limit
     );
     
-    res.json(createSuccessResponse(response));
+    res.json({ success: true, data: response });
   } catch (error) {
     logger.error('Error fetching tickets', { error: error.message });
-    res.status(500).json(createErrorResponse('Failed to fetch tickets'));
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch tickets');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/{ticketId}:
- *   get:
- *     summary: Get specific ticket by ID
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: ticketId
- *         required: true
- *         schema:
- *           type: string
+ * GET /api/tickets/:ticketId
+ * Get specific ticket by ID
  */
 router.get('/:ticketId', requireAdminAuth, async (req, res) => {
   try {
     const { ticketId } = req.params;
     
     if (!ticketId) {
-      return res.status(400).json(createErrorResponse('Ticket ID is required', 'TICKET_ID_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Ticket ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Fetching ticket', { ticketId, admin: req.admin?.id });
@@ -261,64 +214,41 @@ router.get('/:ticketId', requireAdminAuth, async (req, res) => {
     const ticket = await getTicketService().getTicketById(ticketId);
     
     if (!ticket) {
-      return res.status(404).json(createErrorResponse('Ticket not found', 'TICKET_NOT_FOUND', 404));
+      const errorResponse = createErrorResponse('TICKET_NOT_FOUND');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    res.json(createSuccessResponse(ticket));
+    res.json({ success: true, data: ticket });
   } catch (error) {
     logger.error('Error fetching ticket', { ticketId: req.params.ticketId, error: error.message });
     
     if (error.name === 'CastError') {
-      return res.status(400).json(createErrorResponse('Invalid ticket ID format', 'INVALID_TICKET_ID', 400));
+      const errorResponse = createErrorResponse(
+        'INVALID_FORMAT',
+        'Invalid ticket ID format'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    res.status(500).json(createErrorResponse('Failed to fetch ticket'));
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch ticket');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/{ticketId}:
- *   put:
- *     summary: Update ticket
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: ticketId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               status:
- *                 type: string
- *                 enum: ['open', 'in_progress', 'resolved', 'closed']
- *               priority:
- *                 type: string
- *                 enum: ['low', 'medium', 'high', 'urgent']
- *               category:
- *                 type: string
- *                 enum: ['technical', 'account', 'billing', 'feature', 'other']
- *               assignedTo:
- *                 type: string
- *               resolution:
- *                 type: string
- *               subject:
- *                 type: string
+ * PUT /api/tickets/:ticketId
+ * Update ticket
  */
 router.put('/:ticketId', requireAdminAuth, async (req, res) => {
   try {
     const { ticketId } = req.params;
     
     if (!ticketId) {
-      return res.status(400).json(createErrorResponse('Ticket ID is required', 'TICKET_ID_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Ticket ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Updating ticket', { ticketId, updates: req.body, admin: req.admin?.id });
@@ -329,33 +259,33 @@ router.put('/:ticketId', requireAdminAuth, async (req, res) => {
     
     if (req.body.status !== undefined) {
       if (!isValidStatus(req.body.status)) {
-        return res.status(400).json(createErrorResponse(
-          `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`,
-          'INVALID_STATUS',
-          400
-        ));
+        const errorResponse = createErrorResponse(
+          'INVALID_TICKET_STATUS',
+          `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+        );
+        return res.status(errorResponse.httpStatus).json(errorResponse);
       }
       updateData.status = req.body.status;
     }
     
     if (req.body.priority !== undefined) {
       if (!isValidPriority(req.body.priority)) {
-        return res.status(400).json(createErrorResponse(
-          `Invalid priority. Must be one of: ${Object.values(TicketPriority).join(', ')}`,
-          'INVALID_PRIORITY',
-          400
-        ));
+        const errorResponse = createErrorResponse(
+          'INVALID_TICKET_PRIORITY',
+          `Invalid priority. Must be one of: ${Object.values(TicketPriority).join(', ')}`
+        );
+        return res.status(errorResponse.httpStatus).json(errorResponse);
       }
       updateData.priority = req.body.priority;
     }
     
     if (req.body.category !== undefined) {
       if (!isValidCategory(req.body.category)) {
-        return res.status(400).json(createErrorResponse(
-          `Invalid category. Must be one of: ${Object.values(TicketCategory).join(', ')}`,
-          'INVALID_CATEGORY',
-          400
-        ));
+        const errorResponse = createErrorResponse(
+          'INVALID_TICKET_CATEGORY',
+          `Invalid category. Must be one of: ${Object.values(TicketCategory).join(', ')}`
+        );
+        return res.status(errorResponse.httpStatus).json(errorResponse);
       }
       updateData.category = req.body.category;
     }
@@ -376,48 +306,30 @@ router.put('/:ticketId', requireAdminAuth, async (req, res) => {
     const ticket = await getTicketService().updateTicket(ticketId, updateData);
     
     if (!ticket) {
-      return res.status(404).json(createErrorResponse('Ticket not found', 'TICKET_NOT_FOUND', 404));
+      const errorResponse = createErrorResponse('TICKET_NOT_FOUND');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    res.json(createSuccessResponse(ticket, 'Ticket updated successfully'));
+    res.json({ success: true, data: ticket, message: 'Ticket updated successfully' });
   } catch (error) {
     logger.error('Error updating ticket', { ticketId: req.params.ticketId, error: error.message });
     
     if (error.name === 'CastError') {
-      return res.status(400).json(createErrorResponse('Invalid ticket ID format', 'INVALID_TICKET_ID', 400));
+      const errorResponse = createErrorResponse(
+        'INVALID_FORMAT',
+        'Invalid ticket ID format'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    res.status(500).json(createErrorResponse('Failed to update ticket'));
+    const errorResponse = createErrorResponse('TICKET_UPDATE_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/{ticketId}/close:
- *   post:
- *     summary: Close a ticket with resolution
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: ticketId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - resolution
- *             properties:
- *               resolution:
- *                 type: string
- *               closedBy:
- *                 type: string
+ * POST /api/tickets/:ticketId/close
+ * Close a ticket with resolution
  */
 router.post('/:ticketId/close', requireAdminAuth, async (req, res) => {
   try {
@@ -425,11 +337,19 @@ router.post('/:ticketId/close', requireAdminAuth, async (req, res) => {
     const { resolution, closedBy } = req.body;
     
     if (!ticketId) {
-      return res.status(400).json(createErrorResponse('Ticket ID is required', 'TICKET_ID_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Ticket ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     if (!resolution) {
-      return res.status(400).json(createErrorResponse('Resolution is required', 'RESOLUTION_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Resolution is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Closing ticket', { ticketId, resolution, admin: req.admin?.id });
@@ -439,46 +359,30 @@ router.post('/:ticketId/close', requireAdminAuth, async (req, res) => {
     const ticket = await getTicketService().closeTicket(ticketId, resolution, finalClosedBy);
     
     if (!ticket) {
-      return res.status(404).json(createErrorResponse('Ticket not found', 'TICKET_NOT_FOUND', 404));
+      const errorResponse = createErrorResponse('TICKET_NOT_FOUND');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    res.json(createSuccessResponse(ticket, 'Ticket closed successfully'));
+    res.json({ success: true, data: ticket, message: 'Ticket closed successfully' });
   } catch (error) {
     logger.error('Error closing ticket', { ticketId: req.params.ticketId, error: error.message });
     
     if (error.name === 'CastError') {
-      return res.status(400).json(createErrorResponse('Invalid ticket ID format', 'INVALID_TICKET_ID', 400));
+      const errorResponse = createErrorResponse(
+        'INVALID_FORMAT',
+        'Invalid ticket ID format'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    res.status(500).json(createErrorResponse('Failed to close ticket'));
+    const errorResponse = createErrorResponse('TICKET_UPDATE_ERROR', 'Failed to close ticket');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/{ticketId}/assign:
- *   post:
- *     summary: Assign ticket to agent
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: ticketId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - assignedTo
- *             properties:
- *               assignedTo:
- *                 type: string
+ * POST /api/tickets/:ticketId/assign
+ * Assign ticket to agent
  */
 router.post('/:ticketId/assign', requireAdminAuth, async (req, res) => {
   try {
@@ -486,11 +390,19 @@ router.post('/:ticketId/assign', requireAdminAuth, async (req, res) => {
     const { assignedTo } = req.body;
     
     if (!ticketId) {
-      return res.status(400).json(createErrorResponse('Ticket ID is required', 'TICKET_ID_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Ticket ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     if (!assignedTo) {
-      return res.status(400).json(createErrorResponse('assignedTo is required', 'ASSIGNED_TO_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'assignedTo is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Assigning ticket', { ticketId, assignedTo, admin: req.admin?.id });
@@ -498,46 +410,30 @@ router.post('/:ticketId/assign', requireAdminAuth, async (req, res) => {
     const ticket = await getTicketService().assignTicket(ticketId, assignedTo);
     
     if (!ticket) {
-      return res.status(404).json(createErrorResponse('Ticket not found', 'TICKET_NOT_FOUND', 404));
+      const errorResponse = createErrorResponse('TICKET_NOT_FOUND');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    res.json(createSuccessResponse(ticket, 'Ticket assigned successfully'));
+    res.json({ success: true, data: ticket, message: 'Ticket assigned successfully' });
   } catch (error) {
     logger.error('Error assigning ticket', { ticketId: req.params.ticketId, error: error.message });
     
     if (error.name === 'CastError') {
-      return res.status(400).json(createErrorResponse('Invalid ticket ID format', 'INVALID_TICKET_ID', 400));
+      const errorResponse = createErrorResponse(
+        'INVALID_FORMAT',
+        'Invalid ticket ID format'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    res.status(500).json(createErrorResponse('Failed to assign ticket'));
+    const errorResponse = createErrorResponse('TICKET_UPDATE_ERROR', 'Failed to assign ticket');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/assigned/{agentId}:
- *   get:
- *     summary: Get tickets assigned to specific agent
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: ['open', 'in_progress', 'resolved', 'closed']
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
+ * GET /api/tickets/assigned/:agentId
+ * Get tickets assigned to specific agent
  */
 router.get('/assigned/:agentId', requireAdminAuth, async (req, res) => {
   try {
@@ -546,51 +442,36 @@ router.get('/assigned/:agentId', requireAdminAuth, async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
     
     if (!agentId) {
-      return res.status(400).json(createErrorResponse('Agent ID is required', 'AGENT_ID_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Agent ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     if (!isValidStatus(status)) {
-      return res.status(400).json(createErrorResponse(
-        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`,
-        'INVALID_STATUS',
-        400
-      ));
+      const errorResponse = createErrorResponse(
+        'INVALID_TICKET_STATUS',
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Fetching assigned tickets', { agentId, status, limit, admin: req.admin?.id });
 
     const tickets = await getTicketService().getAssignedTickets(agentId, { status, limit });
     
-    res.json(createSuccessResponse(tickets));
+    res.json({ success: true, data: tickets });
   } catch (error) {
     logger.error('Error fetching assigned tickets', { agentId: req.params.agentId, error: error.message });
-    res.status(500).json(createErrorResponse('Failed to fetch assigned tickets'));
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch assigned tickets');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/user/{userId}:
- *   get:
- *     summary: Get tickets for a specific user
- *     tags: [Tickets]
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: ['open', 'in_progress', 'resolved', 'closed']
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
+ * GET /api/tickets/user/:userId
+ * Get tickets for a specific user
  */
 router.get('/user/:userId', optionalAdminAuth, async (req, res) => {
   try {
@@ -599,116 +480,81 @@ router.get('/user/:userId', optionalAdminAuth, async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     
     if (!userId) {
-      return res.status(400).json(createErrorResponse('User ID is required', 'USER_ID_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'User ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     // Allow users to see their own tickets, but require admin auth to see other users' tickets
     if (!req.admin && req.query.userId !== userId) {
-      return res.status(403).json(createErrorResponse('Access denied', 'FORBIDDEN', 403));
+      const errorResponse = createErrorResponse('FORBIDDEN');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     if (status && !isValidStatus(status)) {
-      return res.status(400).json(createErrorResponse(
-        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`,
-        'INVALID_STATUS',
-        400
-      ));
+      const errorResponse = createErrorResponse(
+        'INVALID_TICKET_STATUS',
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Fetching user tickets', { userId, status, limit, admin: req.admin?.id });
 
     const tickets = await getTicketService().getUserTickets(userId, { status, limit });
     
-    res.json(createSuccessResponse(tickets));
+    res.json({ success: true, data: tickets });
   } catch (error) {
     logger.error('Error fetching user tickets', { userId: req.params.userId, error: error.message });
-    res.status(500).json(createErrorResponse('Failed to fetch user tickets'));
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch user tickets');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/search:
- *   get:
- *     summary: Search tickets
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: q
- *         required: true
- *         schema:
- *           type: string
- *         description: Search query
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: ['open', 'in_progress', 'resolved', 'closed']
+ * GET /api/tickets/search
+ * Search tickets
  */
 router.get('/search', requireAdminAuth, async (req, res) => {
   try {
     const query = req.query.q;
     
     if (!query) {
-      return res.status(400).json(createErrorResponse('Search query is required', 'QUERY_REQUIRED', 400));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Search query is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const status = req.query.status;
     
     if (status && !isValidStatus(status)) {
-      return res.status(400).json(createErrorResponse(
-        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`,
-        'INVALID_STATUS',
-        400
-      ));
+      const errorResponse = createErrorResponse(
+        'INVALID_TICKET_STATUS',
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Searching tickets', { query, limit, status, admin: req.admin?.id });
 
     const tickets = await getTicketService().searchTickets(query, { limit, status });
     
-    res.json(createSuccessResponse(tickets));
+    res.json({ success: true, data: tickets });
   } catch (error) {
     logger.error('Error searching tickets', { query: req.query.q, error: error.message });
-    res.status(500).json(createErrorResponse('Failed to search tickets'));
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to search tickets');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/status/{status}:
- *   get:
- *     summary: Get tickets by status
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: status
- *         required: true
- *         schema:
- *           type: string
- *           enum: ['open', 'in_progress', 'resolved', 'closed']
- *       - in: query
- *         name: assignedTo
- *         schema:
- *           type: string
- *         description: Filter by assigned agent
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
+ * GET /api/tickets/status/:status
+ * Get tickets by status
  */
 router.get('/status/:status', requireAdminAuth, async (req, res) => {
   try {
@@ -717,32 +563,28 @@ router.get('/status/:status', requireAdminAuth, async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
     
     if (!isValidStatus(status)) {
-      return res.status(400).json(createErrorResponse(
-        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`,
-        'INVALID_STATUS',
-        400
-      ));
+      const errorResponse = createErrorResponse(
+        'INVALID_TICKET_STATUS',
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Fetching tickets by status', { status, assignedTo, limit, admin: req.admin?.id });
 
     const tickets = await getTicketService().getTicketsByStatus(status, { assignedTo, limit });
     
-    res.json(createSuccessResponse(tickets));
+    res.json({ success: true, data: tickets });
   } catch (error) {
     logger.error('Error fetching tickets by status', { status: req.params.status, error: error.message });
-    res.status(500).json(createErrorResponse('Failed to fetch tickets by status'));
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch tickets by status');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * @swagger
- * /api/tickets/stats:
- *   get:
- *     summary: Get ticket statistics
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
+ * GET /api/tickets/stats
+ * Get ticket statistics
  */
 router.get('/stats', requireAdminAuth, async (req, res) => {
   try {
@@ -750,10 +592,11 @@ router.get('/stats', requireAdminAuth, async (req, res) => {
 
     const stats = await getTicketService().getTicketStatistics();
     
-    res.json(createSuccessResponse(stats));
+    res.json({ success: true, data: stats });
   } catch (error) {
     logger.error('Error fetching ticket statistics', { error: error.message });
-    res.status(500).json(createErrorResponse('Failed to fetch ticket statistics'));
+    const errorResponse = createErrorResponse('STATS_ERROR', 'Failed to fetch ticket statistics');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
