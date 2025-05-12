@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot
+ * Main server file for Shrooms Support Bot - Refactored to use ServiceManager
  * @file server/index.js
  */
 
@@ -13,11 +13,10 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const mongoose = require('mongoose');
 
-// Import configuration and services
+// Import configuration and ServiceManager
 const config = require('./config');
 const logger = require('./utils/logger');
-const ClaudeService = require('./services/claude');
-const VectorStoreService = require('./services/vectorStore');
+const ServiceManager = require('./core/ServiceManager');
 
 // Import middleware
 const { basicAdminAuth, requireAdmin } = require('./middleware/auth');
@@ -38,14 +37,30 @@ const io = socketIo(server, {
   }
 });
 
-// Database connection
-mongoose.connect(config.getDatabaseConfig().uri, config.getDatabaseConfig().options)
-  .then(async () => {
-    logger.info('Connected to MongoDB successfully');
-    
-    // Initialize VectorStore Service after MongoDB connection
-    try {
-      const vectorStoreService = new VectorStoreService({
+/**
+ * Register all services with ServiceManager
+ */
+function registerServices() {
+  logger.info('Registering services with ServiceManager...');
+
+  // Register Claude Service
+  ServiceManager.register('claudeService', 
+    (mongoClient) => {
+      const ClaudeService = require('./services/claude');
+      return new ClaudeService(config.getClaudeConfig());
+    },
+    {
+      dependencies: ['mongoClient'],
+      singleton: true,
+      lazy: false
+    }
+  );
+
+  // Register Vector Store Service
+  ServiceManager.register('vectorStoreService',
+    (mongoClient) => {
+      const VectorStoreService = require('./services/vectorStore');
+      return new VectorStoreService({
         url: config.getVectorStoreConfig().url,
         collectionName: 'shrooms_knowledge',
         dimensions: 1536,
@@ -56,222 +71,365 @@ mongoose.connect(config.getDatabaseConfig().uri, config.getDatabaseConfig().opti
           model: 'text-embedding-ada-002'
         }
       });
-      
-      const initResult = await vectorStoreService.initialize();
-      if (initResult.success) {
-        logger.info('VectorStore Service initialized successfully');
-        
-        // Make VectorStore service available to routes
-        app.set('vectorStoreService', vectorStoreService);
-      } else {
-        logger.error('Failed to initialize VectorStore Service', { error: initResult.error });
-        process.exit(1);
-      }
-    } catch (error) {
-      logger.error('Failed to initialize VectorStore Service', { error: error.message });
-      process.exit(1);
+    },
+    {
+      dependencies: ['mongoClient'],
+      singleton: true,
+      lazy: false
     }
-  })
-  .catch((error) => {
-    logger.error('MongoDB connection error:', error);
-    process.exit(1);
-  });
+  );
 
-// Initialize Claude Service
-let claudeService;
-try {
-  claudeService = new ClaudeService(config.getClaudeConfig());
-  logger.info('Claude Service initialized successfully');
-  
-  // Make Claude service available to routes
-  app.set('claudeService', claudeService);
-} catch (error) {
-  logger.error('Failed to initialize Claude Service', { error: error.message });
-  process.exit(1);
+  // Register Ticket Service
+  ServiceManager.register('ticketService',
+    (mongoClient) => {
+      const TicketService = require('./services/ticketing');
+      return new TicketService();
+    },
+    {
+      dependencies: ['mongoClient'],
+      singleton: true,
+      lazy: true
+    }
+  );
+
+  // Register MongoDB client as a service
+  ServiceManager.register('mongoClient',
+    () => {
+      return mongoose.connection;
+    },
+    {
+      dependencies: [],
+      singleton: true,
+      lazy: false
+    }
+  );
+
+  logger.info('All services registered successfully');
 }
 
-// Middleware
-app.use(helmet());
-app.use(cors({
-  origin: config.CORS_ORIGIN,
-  credentials: true
-}));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+/**
+ * Initialize all services in correct order
+ */
+async function initializeServices() {
+  logger.info('Initializing services...');
 
-// Rate limiting
-const limiter = rateLimit(config.getRateLimitConfig());
-app.use('/api', limiter);
-
-// Static files
-app.use('/widget', express.static(path.join(__dirname, '../client/chat-widget')));
-app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')));
-
-// API Routes
-app.use('/api/chat', chatRoutes);
-app.use('/api/tickets', ticketRoutes);
-app.use('/api/knowledge', knowledgeRoutes);
-
-// Admin routes with authentication
-app.use('/api/admin', basicAdminAuth, requireAdmin, adminRoutes);
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || '1.0.0',
-    services: {
-      claude: claudeService.getStatus(),
-      vectorStore: {
-        service: 'vectorStore',
-        status: app.get('vectorStoreService') ? 'active' : 'inactive',
-        timestamp: new Date().toISOString()
-      },
-      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-    }
-  });
-});
-
-// Basic chat endpoint for testing (backward compatibility)
-app.post('/api/chat-simple', async (req, res) => {
   try {
-    const { message, language = 'en', context = [], history = [] } = req.body;
+    // Connect to MongoDB first
+    await mongoose.connect(config.getDatabaseConfig().uri, config.getDatabaseConfig().options);
+    logger.info('Connected to MongoDB successfully');
+
+    // Force registration of mongoClient service with actual connection
+    ServiceManager.register('mongoClient',
+      () => mongoose.connection,
+      {
+        dependencies: [],
+        singleton: true,
+        lazy: false
+      }
+    );
+
+    // Initialize all registered services
+    await ServiceManager.initializeAll();
+
+    // Initialize VectorStore after registration
+    const vectorStoreService = ServiceManager.get('vectorStoreService');
+    const initResult = await vectorStoreService.initialize();
     
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        error: 'Message is required'
+    if (!initResult.success) {
+      throw new Error(`VectorStore initialization failed: ${initResult.error}`);
+    }
+
+    logger.info('VectorStore Service initialized successfully');
+
+    // Make services available to routes through ServiceManager
+    app.use((req, res, next) => {
+      req.services = {
+        claude: ServiceManager.get('claudeService'),
+        vectorStore: ServiceManager.get('vectorStoreService'),
+        ticket: ServiceManager.get('ticketService')
+      };
+      next();
+    });
+
+    logger.info('All services initialized successfully');
+  } catch (error) {
+    logger.error('Service initialization failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Setup middleware
+ */
+function setupMiddleware() {
+  // Security middleware
+  app.use(helmet());
+  app.use(cors({
+    origin: config.CORS_ORIGIN,
+    credentials: true
+  }));
+
+  // Body parsing
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true }));
+
+  // Rate limiting
+  const limiter = rateLimit(config.getRateLimitConfig());
+  app.use('/api', limiter);
+
+  // Static files
+  app.use('/widget', express.static(path.join(__dirname, '../client/chat-widget')));
+  app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')));
+}
+
+/**
+ * Setup API routes
+ */
+function setupRoutes() {
+  // API Routes
+  app.use('/api/chat', chatRoutes);
+  app.use('/api/tickets', ticketRoutes);
+  app.use('/api/knowledge', knowledgeRoutes);
+
+  // Admin routes with authentication
+  app.use('/api/admin', basicAdminAuth, requireAdmin, adminRoutes);
+
+  // Health check endpoint with ServiceManager integration
+  app.get('/api/health', async (req, res) => {
+    try {
+      const health = await ServiceManager.healthCheck();
+      const stats = ServiceManager.getStats();
+
+      res.json({
+        status: health.status,
+        timestamp: health.timestamp,
+        version: process.env.npm_package_version || '1.0.0',
+        services: health.services,
+        serviceStats: {
+          totalServices: stats.totalServices,
+          initializedServices: stats.initializedServices,
+          singletonServices: stats.singletonServices
+        },
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+      });
+    } catch (error) {
+      logger.error('Health check error:', error);
+      res.status(500).json({
+        status: 'error',
+        error: 'Health check failed'
       });
     }
-    
-    const response = await claudeService.generateResponse(message, {
-      language,
-      context,
-      history
-    });
-    
-    res.json({
-      success: true,
-      data: response
-    });
-  } catch (error) {
-    logger.error('Chat endpoint error', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-});
+  });
 
-// Socket.IO for real-time chat
-io.on('connection', (socket) => {
-  logger.info('User connected', { socketId: socket.id });
-  
-  // Handle new messages
-  socket.on('sendMessage', async (data) => {
+  // Backward compatibility endpoint
+  app.post('/api/chat-simple', async (req, res) => {
     try {
-      const { message, language, context, history, userId } = data;
+      const { message, language = 'en', context = [], history = [] } = req.body;
       
       if (!message) {
-        socket.emit('error', { message: 'Message is required' });
-        return;
+        return res.status(400).json({
+          success: false,
+          error: 'Message is required'
+        });
       }
       
-      // Add user message to history
-      const userMessage = {
-        role: 'user',
-        text: message,
-        timestamp: Date.now()
-      };
-      
-      // Generate response from Claude
+      const claudeService = ServiceManager.get('claudeService');
       const response = await claudeService.generateResponse(message, {
         language,
         context,
-        history: [...(history || []), userMessage]
+        history
       });
       
-      // Send response back to user
-      socket.emit('messageResponse', {
-        message: response.message,
-        needsTicket: response.needsTicket,
-        language: response.language,
-        timestamp: Date.now()
-      });
-      
-      logger.debug('Message processed', {
-        socketId: socket.id,
-        userId,
-        tokensUsed: response.tokensUsed
+      res.json({
+        success: true,
+        data: response
       });
     } catch (error) {
-      logger.error('Socket message error', {
-        error: error.message,
-        socketId: socket.id
+      logger.error('Chat endpoint error', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
       });
-      socket.emit('error', { message: 'Error processing message' });
     }
   });
+}
+
+/**
+ * Setup Socket.IO for real-time chat
+ */
+function setupSocketIO() {
+  io.on('connection', (socket) => {
+    logger.info('User connected', { socketId: socket.id });
+    
+    // Handle new messages
+    socket.on('sendMessage', async (data) => {
+      try {
+        const { message, language, context, history, userId } = data;
+        
+        if (!message) {
+          socket.emit('error', { message: 'Message is required' });
+          return;
+        }
+        
+        // Add user message to history
+        const userMessage = {
+          role: 'user',
+          text: message,
+          timestamp: Date.now()
+        };
+        
+        // Generate response from Claude via ServiceManager
+        const claudeService = ServiceManager.get('claudeService');
+        const response = await claudeService.generateResponse(message, {
+          language,
+          context,
+          history: [...(history || []), userMessage]
+        });
+        
+        // Send response back to user
+        socket.emit('messageResponse', {
+          message: response.message,
+          needsTicket: response.needsTicket,
+          language: response.language,
+          timestamp: Date.now()
+        });
+        
+        logger.debug('Message processed', {
+          socketId: socket.id,
+          userId,
+          tokensUsed: response.tokensUsed
+        });
+      } catch (error) {
+        logger.error('Socket message error', {
+          error: error.message,
+          socketId: socket.id
+        });
+        socket.emit('error', { message: 'Error processing message' });
+      }
+    });
+    
+    // Handle disconnect
+    socket.on('disconnect', () => {
+      logger.info('User disconnected', { socketId: socket.id });
+    });
+  });
+}
+
+/**
+ * Setup error handlers
+ */
+function setupErrorHandlers() {
+  // Global error handler
+  app.use((err, req, res, next) => {
+    logger.error('Unhandled error', {
+      error: err.message,
+      stack: err.stack,
+      url: req.url,
+      method: req.method
+    });
+    
+    res.status(err.status || 500).json({
+      success: false,
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
+  });
+
+  // Handle 404
+  app.use((req, res) => {
+    res.status(404).json({
+      success: false,
+      error: 'Not found'
+    });
+  });
+}
+
+/**
+ * Start the server
+ */
+async function startServer() {
+  try {
+    // 1. Register all services
+    registerServices();
+    
+    // 2. Initialize services
+    await initializeServices();
+    
+    // 3. Setup middleware
+    setupMiddleware();
+    
+    // 4. Setup routes
+    setupRoutes();
+    
+    // 5. Setup Socket.IO
+    setupSocketIO();
+    
+    // 6. Setup error handlers
+    setupErrorHandlers();
+    
+    // 7. Start listening
+    const PORT = config.PORT;
+    server.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`, {
+        environment: config.NODE_ENV,
+        pid: process.pid
+      });
+    });
+
+    // Service health monitoring
+    setInterval(async () => {
+      try {
+        const health = await ServiceManager.healthCheck();
+        if (health.status !== 'healthy') {
+          logger.warn('Service health check warning', { health });
+        }
+      } catch (error) {
+        logger.error('Health check error:', error);
+      }
+    }, 60000); // Check every minute
+
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+/**
+ * Graceful shutdown handler
+ */
+async function gracefulShutdown(signal) {
+  logger.info(`${signal} received, shutting down gracefully`);
   
-  // Handle disconnect
-  socket.on('disconnect', () => {
-    logger.info('User disconnected', { socketId: socket.id });
-  });
-});
+  try {
+    // 1. Stop accepting new requests
+    server.close(async () => {
+      logger.info('HTTP server closed');
+      
+      try {
+        // 2. Shutdown all services
+        await ServiceManager.shutdown();
+        
+        // 3. Close database connection
+        await mongoose.disconnect();
+        logger.info('Database disconnected');
+        
+        logger.info('Graceful shutdown completed');
+        process.exit(0);
+      } catch (error) {
+        logger.error('Error during graceful shutdown:', error);
+        process.exit(1);
+      }
+    });
+  } catch (error) {
+    logger.error('Error during shutdown initiation:', error);
+    process.exit(1);
+  }
+}
 
-// Global error handler
-app.use((err, req, res, next) => {
-  logger.error('Unhandled error', {
-    error: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method
-  });
-  
-  res.status(err.status || 500).json({
-    success: false,
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-  });
-});
+// Setup shutdown handlers
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Handle 404
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Not found'
-  });
-});
-
-// Start server
-const PORT = config.PORT;
-server.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`, {
-    environment: config.NODE_ENV,
-    pid: process.pid
-  });
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  mongoose.disconnect();
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  mongoose.disconnect();
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
-  });
-});
-
-// Handle unhandled promises
+// Handle unhandled promises and exceptions
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection', {
     reason: reason.toString(),
@@ -287,4 +445,10 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-module.exports = { app, server, io, claudeService };
+// Start the application
+startServer().catch((error) => {
+  logger.error('Application startup failed:', error);
+  process.exit(1);
+});
+
+module.exports = { app, server, io, ServiceManager };
