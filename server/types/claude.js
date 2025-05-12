@@ -4,10 +4,23 @@
  */
 
 /**
+ * Message type alias - using ChatMessage from api.js
+ * @typedef {import('./api').ChatMessage} Message
+ */
+
+/**
+ * Token usage statistics
+ * @typedef {Object} TokenUsage
+ * @property {number} inputTokens - Input tokens used
+ * @property {number} outputTokens - Output tokens used
+ * @property {number} totalTokens - Total tokens used
+ */
+
+/**
  * Options for generating Claude response
  * @typedef {Object} ClaudeGenerateOptions
  * @property {string[]} [context] - RAG context from knowledge base
- * @property {import('./').Message[]} [history] - Conversation history
+ * @property {Message[]} [history] - Conversation history
  * @property {string} [language='en'] - Language code (en, es, ru)
  * @property {number} [maxTokens] - Maximum tokens for response
  * @property {number} [temperature] - Temperature for response generation
@@ -21,15 +34,7 @@
  * @property {number} tokensUsed - Number of tokens used in generation
  * @property {string} [ticketReason] - Reason for ticket creation (if needsTicket is true)
  * @property {string} language - Detected or specified language
- * @property {import('./').TokenUsage} [usage] - Detailed token usage statistics
- */
-
-/**
- * Token usage statistics
- * @typedef {Object} TokenUsage
- * @property {number} inputTokens - Input tokens used
- * @property {number} outputTokens - Output tokens used
- * @property {number} totalTokens - Total tokens used
+ * @property {TokenUsage} [usage] - Detailed token usage statistics
  */
 
 /**
@@ -37,9 +42,12 @@
  * @typedef {'en'|'es'|'ru'} Language
  */
 
+// Export types (for JSDoc the export doesn't actually export the types, just documents them)
 module.exports = {
+  // These objects are empty because JSDoc types are defined above
   ClaudeGenerateOptions: {},
   ClaudeResponse: {},
   TokenUsage: {},
-  Language: {}
+  Language: {},
+  Message: {} // Re-export for convenience
 };
