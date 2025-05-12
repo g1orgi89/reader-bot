@@ -7,118 +7,26 @@
 const mongoose = require('mongoose');
 const Ticket = require('../models/ticket');
 const logger = require('../utils/logger');
+const {
+  TicketStatus,
+  TicketPriority,
+  TicketCategory,
+  isValidStatus,
+  isValidPriority,
+  isValidCategory,
+  validateTicketData
+} = require('../types/ticket');
 
 /**
  * @typedef {import('../types/index.js').Ticket} TicketType
  * @typedef {import('../types/index.js').PaginatedResponse} PaginatedResponse
  * @typedef {import('../types/index.js').SuccessResponse} SuccessResponse
  * @typedef {import('../types/index.js').ErrorResponse} ErrorResponse
+ * @typedef {import('../types/ticket.js').TicketCreateData} TicketCreateData
+ * @typedef {import('../types/ticket.js').TicketUpdateData} TicketUpdateData
+ * @typedef {import('../types/ticket.js').TicketFilter} TicketFilter
+ * @typedef {import('../types/ticket.js').TicketQueryOptions} TicketQueryOptions
  */
-
-/**
- * Enum for ticket statuses
- * @readonly
- * @enum {string}
- */
-const TicketStatus = Object.freeze({
-  OPEN: 'open',
-  IN_PROGRESS: 'in_progress',
-  RESOLVED: 'resolved',
-  CLOSED: 'closed'
-});
-
-/**
- * Enum for ticket priorities
- * @readonly
- * @enum {string}
- */
-const TicketPriority = Object.freeze({
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
-  URGENT: 'urgent'
-});
-
-/**
- * Enum for ticket categories
- * @readonly
- * @enum {string}
- */
-const TicketCategory = Object.freeze({
-  TECHNICAL: 'technical',
-  ACCOUNT: 'account',
-  BILLING: 'billing',
-  FEATURE: 'feature',
-  OTHER: 'other'
-});
-
-/**
- * Type guard to check if a value is a valid ticket status
- * @param {any} value - Value to check
- * @returns {value is TicketStatus} True if value is a valid ticket status
- */
-function isValidStatus(value) {
-  return Object.values(TicketStatus).includes(value);
-}
-
-/**
- * Type guard to check if a value is a valid ticket priority
- * @param {any} value - Value to check
- * @returns {value is TicketPriority} True if value is a valid ticket priority
- */
-function isValidPriority(value) {
-  return Object.values(TicketPriority).includes(value);
-}
-
-/**
- * Type guard to check if a value is a valid ticket category
- * @param {any} value - Value to check
- * @returns {value is TicketCategory} True if value is a valid ticket category
- */
-function isValidCategory(value) {
-  return Object.values(TicketCategory).includes(value);
-}
-
-/**
- * Helper to validate ticket data
- * @param {Object} ticketData - Ticket data to validate
- * @throws {Error} If ticket data is invalid
- */
-function validateTicketData(ticketData) {
-  const errors = [];
-
-  if (!ticketData.userId || typeof ticketData.userId !== 'string') {
-    errors.push('userId is required and must be a string');
-  }
-
-  if (!ticketData.conversationId) {
-    errors.push('conversationId is required');
-  }
-
-  if (!ticketData.subject || typeof ticketData.subject !== 'string') {
-    errors.push('subject is required and must be a string');
-  }
-
-  if (!ticketData.initialMessage || typeof ticketData.initialMessage !== 'string') {
-    errors.push('initialMessage is required and must be a string');
-  }
-
-  if (ticketData.status && !isValidStatus(ticketData.status)) {
-    errors.push(`Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`);
-  }
-
-  if (ticketData.priority && !isValidPriority(ticketData.priority)) {
-    errors.push(`Invalid priority. Must be one of: ${Object.values(TicketPriority).join(', ')}`);
-  }
-
-  if (ticketData.category && !isValidCategory(ticketData.category)) {
-    errors.push(`Invalid category. Must be one of: ${Object.values(TicketCategory).join(', ')}`);
-  }
-
-  if (errors.length > 0) {
-    throw new Error(`Validation errors: ${errors.join(', ')}`);
-  }
-}
 
 /**
  * TicketService class for managing tickets
@@ -126,23 +34,17 @@ function validateTicketData(ticketData) {
 class TicketService {
   /**
    * Create a new ticket
-   * @param {Object} ticketData - Ticket creation data
-   * @param {string} ticketData.userId - User ID who created the ticket
-   * @param {string} ticketData.conversationId - Associated conversation ID
-   * @param {string} ticketData.subject - Ticket subject
-   * @param {string} ticketData.initialMessage - Initial message or description
-   * @param {string} [ticketData.context] - Context from the conversation
-   * @param {string} [ticketData.language='en'] - Ticket language
-   * @param {string} [ticketData.priority='medium'] - Ticket priority
-   * @param {string} [ticketData.category='other'] - Ticket category
-   * @param {string} [ticketData.email] - User email
+   * @param {TicketCreateData} ticketData - Ticket creation data
    * @returns {Promise<TicketType>} Created ticket
    * @throws {Error} If ticket creation fails
    */
   async createTicket(ticketData) {
     try {
-      // Validate input data
-      validateTicketData(ticketData);
+      // Validate input data using the utility function
+      const validation = validateTicketData(ticketData);
+      if (!validation.isValid) {
+        throw new Error(`Validation errors: ${validation.errors.join(', ')}`);
+      }
 
       // Set defaults
       const ticket = new Ticket({
@@ -177,16 +79,8 @@ class TicketService {
 
   /**
    * Get tickets with pagination and filtering
-   * @param {Object} [filter={}] - MongoDB filter object
-   * @param {string} [filter.status] - Filter by ticket status
-   * @param {string} [filter.priority] - Filter by ticket priority
-   * @param {string} [filter.category] - Filter by ticket category
-   * @param {string} [filter.assignedTo] - Filter by assigned agent
-   * @param {string} [filter.userId] - Filter by user ID
-   * @param {Object} [options={}] - Query options
-   * @param {number} [options.page=1] - Page number
-   * @param {number} [options.limit=20] - Items per page
-   * @param {string} [options.sort='-createdAt'] - Sort order
+   * @param {TicketFilter} [filter={}] - MongoDB filter object
+   * @param {TicketQueryOptions} [options={}] - Query options
    * @returns {Promise<PaginatedResponse>} Paginated tickets
    */
   async getTickets(filter = {}, options = {}) {
@@ -253,13 +147,7 @@ class TicketService {
   /**
    * Update a ticket
    * @param {string} ticketId - Ticket ID or MongoDB ObjectId
-   * @param {Object} updateData - Data to update
-   * @param {string} [updateData.status] - New ticket status
-   * @param {string} [updateData.priority] - New ticket priority
-   * @param {string} [updateData.category] - New ticket category
-   * @param {string} [updateData.assignedTo] - Assign to agent
-   * @param {string} [updateData.resolution] - Resolution text
-   * @param {string} [updateData.subject] - Update subject
+   * @param {TicketUpdateData} updateData - Data to update
    * @returns {Promise<TicketType|null>} Updated ticket or null if not found
    * @throws {Error} If update fails or data is invalid
    */
@@ -401,9 +289,7 @@ class TicketService {
   /**
    * Search tickets by text in subject or initial message
    * @param {string} searchTerm - Search term
-   * @param {Object} [options={}] - Search options
-   * @param {number} [options.limit=20] - Maximum results
-   * @param {TicketStatus} [options.status] - Filter by status
+   * @param {import('../types/ticket.js').SearchOptions} [options={}] - Search options
    * @returns {Promise<Array<TicketType>>} Array of matching tickets
    */
   async searchTickets(searchTerm, options = {}) {
@@ -525,9 +411,7 @@ class TicketService {
   /**
    * Get tickets assigned to a specific agent
    * @param {string} agentId - Agent ID
-   * @param {Object} [options={}] - Query options
-   * @param {TicketStatus} [options.status=IN_PROGRESS] - Filter by status
-   * @param {number} [options.limit=50] - Maximum results
+   * @param {import('../types/ticket.js').AssignedTicketsOptions} [options={}] - Query options
    * @returns {Promise<Array<TicketType>>} Array of assigned tickets
    */
   async getAssignedTickets(agentId, options = {}) {
