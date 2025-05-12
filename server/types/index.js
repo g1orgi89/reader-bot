@@ -6,7 +6,7 @@
 /**
  * @typedef {Object} Message
  * @property {string} role - Role of the message sender ('user' | 'assistant' | 'system')
- * @property {string} content - Content of the message
+ * @property {string} text - Content of the message (FIXED: was 'content')
  * @property {number} [timestamp] - Message timestamp
  * @property {string} [messageId] - Unique message identifier
  */
@@ -75,6 +75,8 @@
  * @property {boolean} needsTicket - Whether a ticket should be created
  * @property {number} tokensUsed - Number of tokens used
  * @property {string} [ticketReason] - Reason for ticket creation
+ * @property {string} [language] - Response language
+ * @property {TokenUsage} [usage] - Token usage details
  */
 
 /**
