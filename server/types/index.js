@@ -6,7 +6,7 @@
 /**
  * @typedef {Object} Message
  * @property {string} role - Role of the message sender ('user' | 'assistant' | 'system')
- * @property {string} text - Content of the message (FIXED: was 'content')
+ * @property {string} text - Content of the message
  * @property {number} [timestamp] - Message timestamp
  * @property {string} [messageId] - Unique message identifier
  */
@@ -77,6 +77,77 @@
  * @property {string} [ticketReason] - Reason for ticket creation
  * @property {string} [language] - Response language
  * @property {TokenUsage} [usage] - Token usage details
+ */
+
+/**
+ * @typedef {Object} VectorDocument
+ * @property {string} id - Document identifier
+ * @property {string} content - Document content
+ * @property {VectorDocumentMetadata} metadata - Document metadata
+ */
+
+/**
+ * @typedef {Object} VectorDocumentMetadata
+ * @property {string} source - Document source
+ * @property {string} language - Document language
+ * @property {string} category - Document category
+ * @property {string[]} tags - Document tags
+ * @property {string} [title] - Document title
+ * @property {Date} [createdAt] - Creation timestamp
+ */
+
+/**
+ * @typedef {Object} SearchOptions
+ * @property {number} [limit] - Maximum number of results
+ * @property {string} [language] - Filter by language
+ * @property {string} [category] - Filter by category
+ * @property {string[]} [tags] - Filter by tags
+ * @property {number} [threshold] - Minimum similarity threshold
+ */
+
+/**
+ * @typedef {Object} SearchResult
+ * @property {VectorDocument} document - Found document
+ * @property {number} score - Similarity score
+ * @property {string} snippet - Text snippet
+ */
+
+/**
+ * @typedef {Object} VectorStoreOptions
+ * @property {string} url - Vector database URL
+ * @property {string} collectionName - Collection name
+ * @property {number} [dimensions] - Vector dimensions
+ * @property {string} [metric] - Distance metric
+ * @property {EmbeddingProvider} embeddingProvider - Embedding provider config
+ */
+
+/**
+ * @typedef {Object} EmbeddingProvider
+ * @property {string} provider - Provider name (voyage, openai)
+ * @property {string} apiKey - API key
+ * @property {string} [model] - Model name
+ */
+
+/**
+ * @typedef {Object} VectorStoreInit
+ * @property {boolean} success - Whether initialization succeeded
+ * @property {string} [error] - Error message if failed
+ */
+
+/**
+ * @typedef {Object} BulkOperationResult
+ * @property {number} processed - Number of documents processed
+ * @property {number} succeeded - Number of successful operations
+ * @property {number} failed - Number of failed operations
+ * @property {Array<{documentId: string, error: string}>} errors - List of errors
+ */
+
+/**
+ * @typedef {Object} VectorStoreStats
+ * @property {number} totalDocuments - Total number of documents
+ * @property {number} totalVectors - Total number of vectors
+ * @property {Object} languageDistribution - Distribution by language
+ * @property {Object} categoryDistribution - Distribution by category
  */
 
 /**
@@ -209,6 +280,23 @@
  * @property {number} page - Current page number
  * @property {number} totalPages - Total number of pages
  * @property {number} limit - Items per page
+ */
+
+// For backward compatibility - alias types
+/**
+ * @typedef {Message} MessageType
+ */
+
+/**
+ * @typedef {Ticket} TicketType
+ */
+
+/**
+ * @typedef {Conversation} ConversationType
+ */
+
+/**
+ * @typedef {KnowledgeDocument} KnowledgeDocumentType
  */
 
 // Export all types for use in other modules
