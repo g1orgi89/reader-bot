@@ -73,7 +73,7 @@ class ClaudeService {
         systemPrompt = SYSTEM_PROMPTS.rag;
       }
 
-      // Build messages array
+      // Build messages array - FIX: use 'text' instead of 'content'
       const messages = await this._buildMessageArray(
         message,
         history,
@@ -188,7 +188,12 @@ class ClaudeService {
     const messages = [];
 
     // Add conversation history (excluding system messages, they go in system parameter)
-    const conversationHistory = history.filter(msg => msg.role !== 'system');
+    // FIX: Handle both 'text' and 'content' fields for compatibility
+    const conversationHistory = history.filter(msg => msg.role !== 'system')
+      .map(msg => ({
+        role: msg.role,
+        content: msg.text || msg.content || msg.message || ''
+      }));
     messages.push(...conversationHistory);
 
     // Add RAG context if available
@@ -342,10 +347,10 @@ PRIORITY: [low/medium/high/urgent] (если нужен тикет)`
     // Take the most recent messages
     const recentHistory = history.slice(-maxHistory);
     
-    // Ensure proper format
+    // Ensure proper format - FIX: handle both text and content fields
     return recentHistory.map(msg => ({
       role: msg.role,
-      content: msg.content || msg.text,
+      text: msg.text || msg.content || msg.message || '',
       timestamp: msg.timestamp || msg.createdAt
     }));
   }
