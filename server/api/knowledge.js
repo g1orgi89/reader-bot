@@ -18,19 +18,34 @@ const VectorStoreService = require('../services/vectorStore');
 const TextProcessor = require('../utils/textProcessor');
 const { getVectorStoreConfig } = require('../config/vectorStore');
 const logger = require('../utils/logger');
-
-// Импорт типов и валидаторов
 const {
-  API_ERROR_CODES,
-  SUPPORTED_LANGUAGES,
-  DOCUMENT_CATEGORIES,
-  SUPPORTED_FILE_TYPES,
-  validateSearchQuery,
-  validateDocumentRequest,
-  validateFileUpload,
-  validateDocumentDelete,
-  validateReindexRequest
-} = require('../types/knowledgeApi');
+  createErrorResponse,
+  VALIDATION_ERRORS,
+  KNOWLEDGE_ERRORS,
+  GENERIC_ERRORS
+} = require('../constants/errorCodes');
+
+// Импорт констант и валидаторов (используем наши коды ошибок вместо)
+const SUPPORTED_LANGUAGES = {
+  ENGLISH: 'en',
+  SPANISH: 'es',
+  RUSSIAN: 'ru'
+};
+
+const DOCUMENT_CATEGORIES = {
+  GENERAL: 'general',
+  USER_GUIDE: 'user-guide',
+  TOKENOMICS: 'tokenomics',
+  TECHNICAL: 'technical',
+  TROUBLESHOOTING: 'troubleshooting'
+};
+
+const SUPPORTED_FILE_TYPES = {
+  TEXT: '.txt',
+  MARKDOWN: '.md',
+  PDF: '.pdf',
+  CSV: '.csv'
+};
 
 /**
  * @typedef {import('../types/knowledgeApi').SearchQuery} SearchQuery
@@ -43,7 +58,6 @@ const {
  * @typedef {import('../types/knowledgeApi').HealthCheckResponse} HealthCheckResponse
  * @typedef {import('../types/knowledgeApi').ReindexRequest} ReindexRequest
  * @typedef {import('../types/knowledgeApi').ReindexResponse} ReindexResponse
- * @typedef {import('../types/knowledgeApi').APIErrorResponse} APIErrorResponse
  */
 
 const router = express.Router();
@@ -83,27 +97,62 @@ const upload = multer({
   }
 });
 
+// Validation functions (simplified)
+function validateSearchQuery(query) {
+  const errors = [];
+  if (!query.query) errors.push('Query is required');
+  if (query.limit && (query.limit < 1 || query.limit > 100)) errors.push('Limit must be between 1 and 100');
+  if (query.threshold && (query.threshold < 0 || query.threshold > 1)) errors.push('Threshold must be between 0 and 1');
+  return { isValid: errors.length === 0, errors };
+}
+
+function validateDocumentRequest(doc) {
+  const errors = [];
+  if (!doc.title) errors.push('Title is required');
+  if (!doc.content) errors.push('Content is required');
+  if (!Object.values(DOCUMENT_CATEGORIES).includes(doc.category)) errors.push('Invalid category');
+  if (doc.language && !Object.values(SUPPORTED_LANGUAGES).includes(doc.language)) errors.push('Invalid language');
+  return { isValid: errors.length === 0, errors };
+}
+
+function validateFileUpload(data) {
+  const errors = [];
+  if (!data.files || data.files.length === 0) errors.push('No files provided');
+  return { isValid: errors.length === 0, errors };
+}
+
+function validateDocumentDelete(data) {
+  const errors = [];
+  if (!data.id) errors.push('Document ID is required');
+  return { isValid: errors.length === 0, errors };
+}
+
+function validateReindexRequest(data) {
+  const errors = [];
+  // Reindex validation is minimal, just check it's an object
+  if (typeof data !== 'object') errors.push('Invalid request format');
+  return { isValid: errors.length === 0, errors };
+}
+
 // Middleware для валидации и типизации ответов
 function validateAndRespond(validationFunction) {
   return (req, res, next) => {
     const validation = validationFunction(req.body);
     
     if (!validation.isValid) {
-      const response = {
-        success: false,
-        error: 'Validation failed',
-        errorCode: API_ERROR_CODES.VALIDATION_ERROR,
-        details: {
+      const errorResponse = createErrorResponse(
+        'VALIDATION_ERROR',
+        validation.errors.join(', '),
+        {
           validationErrors: validation.errors.map(msg => ({
             field: 'body',
             message: msg,
             code: 'INVALID_VALUE'
           }))
-        },
-        timestamp: new Date()
-      };
+        }
+      );
       
-      return res.status(400).json(response);
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     next();
@@ -173,15 +222,8 @@ router.post('/documents', validateAndRespond(validateDocumentRequest), async (re
   } catch (error) {
     logger.error(`Error adding document: ${error.message}`, { error });
     
-    /** @type {APIErrorResponse} */
-    const errorResponse = {
-      success: false,
-      error: error.message,
-      errorCode: API_ERROR_CODES.DOCUMENT_ADD_ERROR,
-      timestamp: new Date()
-    };
-    
-    res.status(500).json(errorResponse);
+    const errorResponse = createErrorResponse('DOCUMENT_ADD_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -195,15 +237,11 @@ router.post('/documents', validateAndRespond(validateDocumentRequest), async (re
 router.post('/upload', upload.array('files', 5), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
-      /** @type {APIErrorResponse} */
-      const errorResponse = {
-        success: false,
-        error: 'No files uploaded',
-        errorCode: API_ERROR_CODES.NO_FILES,
-        timestamp: new Date()
-      };
-      
-      return res.status(400).json(errorResponse);
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'No files uploaded'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     // Создаем объект для валидации
@@ -217,22 +255,18 @@ router.post('/upload', upload.array('files', 5), async (req, res) => {
     // Валидация
     const validation = validateFileUpload(uploadData);
     if (!validation.isValid) {
-      /** @type {APIErrorResponse} */
-      const errorResponse = {
-        success: false,
-        error: 'File upload validation failed',
-        errorCode: API_ERROR_CODES.VALIDATION_ERROR,
-        details: {
+      const errorResponse = createErrorResponse(
+        'VALIDATION_ERROR',
+        'File upload validation failed',
+        {
           validationErrors: validation.errors.map(msg => ({
             field: 'files',
             message: msg,
             code: 'INVALID_FORMAT'
           }))
-        },
-        timestamp: new Date()
-      };
-      
-      return res.status(400).json(errorResponse);
+        }
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     const { category, language, tags } = uploadData;
@@ -289,7 +323,7 @@ router.post('/upload', upload.array('files', 5), async (req, res) => {
           filename: file.originalname,
           success: false,
           error: error.message,
-          errorCode: API_ERROR_CODES.PROCESSING_ERROR
+          errorCode: 'PROCESSING_ERROR'
         });
       }
     }
@@ -312,15 +346,8 @@ router.post('/upload', upload.array('files', 5), async (req, res) => {
   } catch (error) {
     logger.error(`Upload error: ${error.message}`, { error });
     
-    /** @type {APIErrorResponse} */
-    const errorResponse = {
-      success: false,
-      error: error.message,
-      errorCode: API_ERROR_CODES.UPLOAD_ERROR,
-      timestamp: new Date()
-    };
-    
-    res.status(500).json(errorResponse);
+    const errorResponse = createErrorResponse('UPLOAD_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -350,22 +377,18 @@ router.get('/search', async (req, res) => {
     // Валидация
     const validation = validateSearchQuery(searchQuery);
     if (!validation.isValid) {
-      /** @type {APIErrorResponse} */
-      const errorResponse = {
-        success: false,
-        error: 'Search query validation failed',
-        errorCode: API_ERROR_CODES.VALIDATION_ERROR,
-        details: {
+      const errorResponse = createErrorResponse(
+        'VALIDATION_ERROR',
+        'Search query validation failed',
+        {
           validationErrors: validation.errors.map(msg => ({
             field: 'query',
             message: msg,
             code: 'INVALID_VALUE'
           }))
-        },
-        timestamp: new Date()
-      };
-      
-      return res.status(400).json(errorResponse);
+        }
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     const startTime = Date.now();
@@ -413,15 +436,8 @@ router.get('/search', async (req, res) => {
   } catch (error) {
     logger.error(`Search error: ${error.message}`, { error });
     
-    /** @type {APIErrorResponse} */
-    const errorResponse = {
-      success: false,
-      error: error.message,
-      errorCode: API_ERROR_CODES.SEARCH_ERROR,
-      timestamp: new Date()
-    };
-    
-    res.status(500).json(errorResponse);
+    const errorResponse = createErrorResponse('SEARCH_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -442,28 +458,23 @@ router.delete('/documents/:id', async (req, res) => {
     const validation = validateDocumentDelete(deleteRequest);
     
     if (!validation.isValid) {
-      /** @type {APIErrorResponse} */
-      const errorResponse = {
-        success: false,
-        error: 'Delete request validation failed',
-        errorCode: API_ERROR_CODES.VALIDATION_ERROR,
-        details: {
+      const errorResponse = createErrorResponse(
+        'VALIDATION_ERROR',
+        'Delete request validation failed',
+        {
           validationErrors: validation.errors.map(msg => ({
             field: 'id',
             message: msg,
             code: 'INVALID_VALUE'
           }))
-        },
-        timestamp: new Date()
-      };
-      
-      return res.status(400).json(errorResponse);
+        }
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     const result = await vectorStore.deleteDocument(id);
     
     if (result) {
-      /** @type {DocumentDeleteResponse} */
       const response = {
         success: true,
         message: 'Document deleted successfully',
@@ -477,28 +488,14 @@ router.delete('/documents/:id', async (req, res) => {
       
       res.json(response);
     } else {
-      /** @type {APIErrorResponse} */
-      const errorResponse = {
-        success: false,
-        error: 'Document not found',
-        errorCode: API_ERROR_CODES.DOCUMENT_NOT_FOUND,
-        timestamp: new Date()
-      };
-      
-      res.status(404).json(errorResponse);
+      const errorResponse = createErrorResponse('DOCUMENT_NOT_FOUND');
+      res.status(errorResponse.httpStatus).json(errorResponse);
     }
   } catch (error) {
     logger.error(`Delete error: ${error.message}`, { error });
     
-    /** @type {APIErrorResponse} */
-    const errorResponse = {
-      success: false,
-      error: error.message,
-      errorCode: API_ERROR_CODES.DELETE_ERROR,
-      timestamp: new Date()
-    };
-    
-    res.status(500).json(errorResponse);
+    const errorResponse = createErrorResponse('DELETE_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -537,15 +534,8 @@ router.get('/stats', async (req, res) => {
   } catch (error) {
     logger.error(`Stats error: ${error.message}`, { error });
     
-    /** @type {APIErrorResponse} */
-    const errorResponse = {
-      success: false,
-      error: error.message,
-      errorCode: API_ERROR_CODES.STATS_ERROR,
-      timestamp: new Date()
-    };
-    
-    res.status(500).json(errorResponse);
+    const errorResponse = createErrorResponse('STATS_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -563,7 +553,6 @@ router.get('/health', async (req, res) => {
     if (!vectorStore.isInitialized) {
       const initResult = await vectorStore.initialize();
       if (!initResult.success) {
-        /** @type {HealthCheckResponse} */
         const errorResponse = {
           success: false,
           status: 'unhealthy',
@@ -640,7 +629,6 @@ router.get('/health', async (req, res) => {
       overallStatus = 'healthy';
     }
     
-    /** @type {HealthCheckResponse} */
     const response = {
       success: true,
       status: overallStatus,
@@ -652,7 +640,6 @@ router.get('/health', async (req, res) => {
   } catch (error) {
     logger.error(`Health check error: ${error.message}`, { error });
     
-    /** @type {HealthCheckResponse} */
     const errorResponse = {
       success: false,
       status: 'unhealthy',
@@ -677,22 +664,18 @@ router.post('/reindex', async (req, res) => {
     // Валидация запроса
     const validation = validateReindexRequest(req.body);
     if (!validation.isValid) {
-      /** @type {APIErrorResponse} */
-      const errorResponse = {
-        success: false,
-        error: 'Reindex request validation failed',
-        errorCode: API_ERROR_CODES.VALIDATION_ERROR,
-        details: {
+      const errorResponse = createErrorResponse(
+        'VALIDATION_ERROR',
+        'Reindex request validation failed',
+        {
           validationErrors: validation.errors.map(msg => ({
             field: 'body',
             message: msg,
             code: 'INVALID_VALUE'
           }))
-        },
-        timestamp: new Date()
-      };
-      
-      return res.status(400).json(errorResponse);
+        }
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     const startTime = Date.now();
@@ -706,15 +689,11 @@ router.post('/reindex', async (req, res) => {
       const clearResult = await vectorStore.clearCollection();
       
       if (!clearResult) {
-        /** @type {APIErrorResponse} */
-        const errorResponse = {
-          success: false,
-          error: 'Failed to clear collection',
-          errorCode: API_ERROR_CODES.CLEAR_FAILED,
-          timestamp: new Date()
-        };
-        
-        return res.status(500).json(errorResponse);
+        const errorResponse = createErrorResponse(
+          'GENERIC_ERROR',
+          'Failed to clear collection'
+        );
+        return res.status(errorResponse.httpStatus).json(errorResponse);
       }
       
       cleared = true;
@@ -723,7 +702,6 @@ router.post('/reindex', async (req, res) => {
     // Переиндексация может быть реализована позднее при необходимости
     // Пока что возвращаем базовый ответ о том, что коллекция очищена
     
-    /** @type {ReindexResponse} */
     const response = {
       success: true,
       message: cleared ? 'Collection cleared. Please re-upload documents.' : 'Reindex completed',
@@ -741,15 +719,8 @@ router.post('/reindex', async (req, res) => {
   } catch (error) {
     logger.error(`Reindex error: ${error.message}`, { error });
     
-    /** @type {APIErrorResponse} */
-    const errorResponse = {
-      success: false,
-      error: error.message,
-      errorCode: API_ERROR_CODES.REINDEX_ERROR,
-      timestamp: new Date()
-    };
-    
-    res.status(500).json(errorResponse);
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Reindex operation failed');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
