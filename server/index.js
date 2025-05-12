@@ -20,6 +20,8 @@ const ClaudeService = require('./services/claude');
 
 // Import API routes
 const chatRoutes = require('./api/chat');
+const ticketRoutes = require('./api/tickets');
+const knowledgeRoutes = require('./api/knowledge');
 
 // Initialize Express app
 const app = express();
@@ -73,6 +75,8 @@ app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')))
 
 // API Routes
 app.use('/api/chat', chatRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/knowledge', knowledgeRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
