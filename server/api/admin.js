@@ -5,7 +5,11 @@
 
 const express = require('express');
 const logger = require('../utils/logger');
-const { createSuccessResponse, createErrorResponse } = require('../types/api');
+const { 
+  createErrorResponse,
+  ADMIN_ERRORS,
+  VALIDATION_ERRORS
+} = require('../constants/errorCodes');
 
 const router = express.Router();
 
@@ -58,10 +62,11 @@ router.get('/stats', async (req, res) => {
       }
     };
 
-    res.json(createSuccessResponse(stats));
+    res.json({ success: true, data: stats });
   } catch (error) {
     logger.error('Error fetching admin stats:', error);
-    res.status(500).json(createErrorResponse('Failed to fetch statistics', 'STATS_ERROR'));
+    const errorResponse = createErrorResponse('STATS_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -82,10 +87,11 @@ router.get('/farming-yield', (req, res) => {
       updatedBy: farmingYield.updatedBy
     };
 
-    res.json(createSuccessResponse(config));
+    res.json({ success: true, data: config });
   } catch (error) {
     logger.error('Error fetching farming yield:', error);
-    res.status(500).json(createErrorResponse('Failed to fetch farming yield', 'YIELD_FETCH_ERROR'));
+    const errorResponse = createErrorResponse('FARMING_YIELD_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -101,12 +107,20 @@ router.put('/farming-yield', (req, res) => {
 
     // Validate input
     if (value === undefined || value === null) {
-      return res.status(400).json(createErrorResponse('Value is required', 'MISSING_VALUE'));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Value is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     const numericValue = parseFloat(value);
     if (isNaN(numericValue) || numericValue < 0 || numericValue > 100) {
-      return res.status(400).json(createErrorResponse('Value must be a number between 0 and 100', 'INVALID_VALUE'));
+      const errorResponse = createErrorResponse(
+        'VALUE_OUT_OF_RANGE',
+        'Value must be a number between 0 and 100'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     // Update farming yield
@@ -129,10 +143,11 @@ router.put('/farming-yield', (req, res) => {
       updatedBy: farmingYield.updatedBy
     };
 
-    res.json(createSuccessResponse(config, 'Farming yield updated successfully'));
+    res.json({ success: true, data: config, message: 'Farming yield updated successfully' });
   } catch (error) {
     logger.error('Error updating farming yield:', error);
-    res.status(500).json(createErrorResponse('Failed to update farming yield', 'YIELD_UPDATE_ERROR'));
+    const errorResponse = createErrorResponse('FARMING_YIELD_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -157,18 +172,22 @@ router.get('/users', (req, res) => {
       ticketsCount: Math.floor(Math.random() * 5)
     }));
 
-    res.json(createSuccessResponse({
-      users,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: 1000, // Placeholder
-        totalPages: Math.ceil(1000 / parseInt(limit))
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 1000, // Placeholder
+          totalPages: Math.ceil(1000 / parseInt(limit))
+        }
       }
-    }));
+    });
   } catch (error) {
     logger.error('Error fetching users:', error);
-    res.status(500).json(createErrorResponse('Failed to fetch users', 'USERS_FETCH_ERROR'));
+    const errorResponse = createErrorResponse('STATS_ERROR', 'Failed to fetch users');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -183,7 +202,11 @@ router.post('/broadcast', async (req, res) => {
     const { message, language = 'en', targetUsers = [] } = req.body;
 
     if (!message) {
-      return res.status(400).json(createErrorResponse('Message is required', 'MISSING_MESSAGE'));
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Message is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
     logger.info('Broadcasting message', {
@@ -205,10 +228,11 @@ router.post('/broadcast', async (req, res) => {
       sentAt: new Date().toISOString()
     };
 
-    res.json(createSuccessResponse(result, 'Broadcast sent successfully'));
+    res.json({ success: true, data: result, message: 'Broadcast sent successfully' });
   } catch (error) {
     logger.error('Error sending broadcast:', error);
-    res.status(500).json(createErrorResponse('Failed to send broadcast', 'BROADCAST_ERROR'));
+    const errorResponse = createErrorResponse('BROADCAST_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -230,10 +254,11 @@ router.get('/system-info', (req, res) => {
       timestamp: new Date().toISOString()
     };
 
-    res.json(createSuccessResponse(systemInfo));
+    res.json({ success: true, data: systemInfo });
   } catch (error) {
     logger.error('Error fetching system info:', error);
-    res.status(500).json(createErrorResponse('Failed to fetch system info', 'SYSTEM_INFO_ERROR'));
+    const errorResponse = createErrorResponse('SYSTEM_INFO_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
@@ -250,13 +275,15 @@ router.post('/cache/clear', (req, res) => {
     // Placeholder implementation
     // In real app, this would clear actual caches
     
-    res.json(createSuccessResponse(
-      { clearedAt: new Date().toISOString() },
-      'Cache cleared successfully'
-    ));
+    res.json({ 
+      success: true, 
+      data: { clearedAt: new Date().toISOString() },
+      message: 'Cache cleared successfully'
+    });
   } catch (error) {
     logger.error('Error clearing cache:', error);
-    res.status(500).json(createErrorResponse('Failed to clear cache', 'CACHE_CLEAR_ERROR'));
+    const errorResponse = createErrorResponse('CACHE_CLEAR_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
