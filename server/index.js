@@ -17,6 +17,9 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const ClaudeService = require('./services/claude');
 
+// Import API routes
+const chatRoutes = require('./api/chat');
+
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
@@ -32,6 +35,9 @@ let claudeService;
 try {
   claudeService = new ClaudeService(config.getClaudeConfig());
   logger.info('Claude Service initialized successfully');
+  
+  // Make Claude service available to routes
+  app.set('claudeService', claudeService);
 } catch (error) {
   logger.error('Failed to initialize Claude Service', { error: error.message });
   process.exit(1);
@@ -54,6 +60,9 @@ app.use('/api', limiter);
 app.use('/widget', express.static(path.join(__dirname, '../client/chat-widget')));
 app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')));
 
+// API Routes
+app.use('/api/chat', chatRoutes);
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -66,8 +75,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Basic chat endpoint for testing
-app.post('/api/chat', async (req, res) => {
+// Basic chat endpoint for testing (backward compatibility)
+app.post('/api/chat-simple', async (req, res) => {
   try {
     const { message, language = 'en', context = [], history = [] } = req.body;
     
