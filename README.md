@@ -1,196 +1,268 @@
-# Shrooms AI Support Bot 🍄
+# Shrooms Support Bot
 
-AI-powered support bot for the Shrooms Web3 project, built with Claude API integration and inspired by [Anthropic Cookbook](https://github.com/anthropics/anthropic-cookbook) best practices.
+AI-powered support bot for the Shrooms Web3 project, built with Claude API and MongoDB. This bot provides intelligent customer support through web chat and Telegram integration.
 
-## 🚀 Project Overview
+## Features
 
-The Shrooms Support Bot provides multilingual (EN/ES/RU) customer support for the Shrooms Web3 platform using advanced RAG (Retrieval-Augmented Generation) techniques and document reranking algorithms adapted from Anthropic's examples.
+- 🤖 AI-powered responses using Claude API
+- 🎫 Ticket management system
+- 📚 Knowledge base with vector search
+- 🌐 Multiple language support (English, Spanish, Russian)
+- 💬 Web chat widget
+- 📱 Telegram bot integration
+- 🔍 Full-text search in tickets
+- 📊 Analytics and statistics
+- 🍄 Mushroom-themed personality
 
-### Key Features
+## Architecture
 
-- **🧠 Advanced RAG System**: Implements retrieval and reranking patterns from anthropic-cookbook
-- **🍄 Mushroom-themed AI**: Unique personality with Web3 expertise and fungal metaphors
-- **🌐 Multi-platform Support**: Web widget and Telegram bot
-- **📚 Smart Knowledge Base**: Contextual responses with document reranking
-- **🎫 Intelligent Ticketing**: Automatic escalation for complex issues
-- **🔒 Security First**: Rate limiting, authentication, and input validation
+### Technology Stack
 
-## 🏗️ Architecture
+- **Backend**: Node.js, Express
+- **Database**: MongoDB with Mongoose
+- **Vector Database**: Qdrant for knowledge base
+- **AI**: Anthropic Claude API
+- **Testing**: Jest with MongoDB Memory Server
+- **Logging**: Winston
+- **Type Safety**: JSDoc with TypeScript-style annotations
 
-Our architecture follows patterns from anthropic-cookbook, specifically:
+### Key Components
 
-```
-shrooms-support-bot/
-├── server/              # Main API server with Claude integration
-│   ├── api/            # RESTful endpoints
-│   ├── config/         # Configuration and prompts
-│   │   ├── index.js    # Main config following Anthropic patterns
-│   │   └── prompts.js  # Multi-language prompt templates
-│   ├── models/         # Database models with enhanced metadata
-│   ├── services/       # Business logic (Claude, RAG, Ticketing)
-│   ├── types/          # Comprehensive JSDoc type definitions
-│   └── utils/          # Utility functions
-├── client/             # Frontend components
-├── telegram/           # Telegram bot implementation
-├── scripts/            # Automation scripts
-└── knowledge/          # Structured knowledge base
-```
+- **TicketService**: Manages ticket CRUD operations with full type safety
+- **VectorStore**: Handles knowledge base searches
+- **ClaudeService**: Integrates with Claude API for generating responses
+- **Logger**: Structured logging with context support
 
-## 🧠 RAG Implementation
+## Installation
 
-Following [anthropic-cookbook/skills/retrieval_augmented_generation](https://github.com/anthropics/anthropic-cookbook/tree/main/skills/retrieval_augmented_generation):
-
-### 1. Three-Tier Retrieval System
-
-- **Level 1**: Basic vector similarity search
-- **Level 2**: Enhanced with document summaries
-- **Level 3**: Advanced reranking using Claude API
-
-### 2. Document Reranking
-
-Implements the reranking strategy from anthropic-cookbook:
-```javascript
-// Adapted from anthropic-cookbook patterns
-function rerankDocuments(query, documents, k = 3) {
-  // Send documents to Claude for intelligent reranking
-  // Return top k most relevant documents
-}
-```
-
-### 3. Context Management
-
-- Smart context window management
-- Token counting and optimization
-- Graceful degradation for long conversations
-
-## 🍄 Mushroom-Themed Prompts
-
-Our prompts blend Anthropic's best practices with Shrooms' unique personality:
-
-```javascript
-// Multi-language support with mushroom theming
-const systemPrompt = `You are a wise, friendly mushroom 🍄 
-who knows everything about crypto and Web3...`;
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- MongoDB 5.0+
-- Qdrant (vector database)
-- Anthropic API key
-- OpenAI API key (for embeddings)
-
-### Installation
-
-1. **Clone & Install**
+1. Clone the repository:
 ```bash
 git clone https://github.com/g1orgi89/shrooms-support-bot.git
 cd shrooms-support-bot
+```
+
+2. Install dependencies:
+```bash
 npm install
 ```
 
-2. **Configure Environment**
+3. Set up environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your API keys and configuration
 ```
 
-3. **Load Knowledge Base**
+4. Start MongoDB and Qdrant (using Docker):
 ```bash
-npm run load-kb
+docker run -d --name mongodb -p 27017:27017 mongo:5.0
+docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant
 ```
 
-4. **Start Development Server**
+## Development
+
+### Running the Application
+
 ```bash
+# Development mode with hot reload
 npm run dev
+
+# Production mode
+npm start
+
+# Telegram bot only
+npm run telegram
 ```
 
-## 🛠️ Development
+### Environment Variables
 
-### Type Safety with JSDoc
+Create a `.env` file with the following variables:
 
-Following Anthropic's documentation standards:
+```env
+# Claude API
+ANTHROPIC_API_KEY=your_claude_api_key
 
-```javascript
-/**
- * Enhanced Claude API response with retrieval details
- * @typedef {Object} ClaudeResponse
- * @property {string} message - AI generated response
- * @property {RetrievalDetails} [retrievalDetails] - RAG metrics
- * @property {RerankingDetails} [rerankingDetails] - Reranking stats
- */
+# Database
+MONGODB_URI=mongodb://localhost:27017/shrooms-support
+
+# Vector Database
+VECTOR_DB_URL=http://localhost:6333
+
+# Telegram (optional)
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+
+# Logging
+LOG_LEVEL=info
+NODE_ENV=development
 ```
 
-### Code Quality
-
-- ✅ ESLint with JSDoc enforcement
-- ✅ Comprehensive type definitions
-- ✅ Anthropic-inspired patterns
-- ✅ Test coverage for all components
-
-## 📚 Anthropic Cookbook Adaptations
-
-### 1. Retrieval Patterns
-- Adapted vector search with metadata filtering
-- Multi-stage retrieval pipeline
-- Document relevance scoring
-
-### 2. Prompt Engineering
-- Context-aware prompt templates
-- Multi-language support
-- Consistent personality maintenance
-
-### 3. Error Handling
-- Graceful degradation patterns
-- Informative error messages with mushroom theming
-- Retry mechanisms for API calls
-
-## 🧪 Testing
+### Testing
 
 ```bash
 # Run all tests
 npm test
 
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+### Code Quality
+
+```bash
 # Lint code
 npm run lint
 
-# Type check
-npm run type-check
+# Fix linting issues
+npm run lint:fix
 ```
 
-## 📊 Performance
+## API Documentation
 
-- Average response time: < 500ms
-- RAG retrieval: < 100ms
-- Document reranking: < 200ms
-- 99.9% uptime target
+### Tickets Endpoint
 
-## 🤝 Contributing
+The tickets API provides full CRUD operations for ticket management:
 
-We follow Anthropic's standards:
+#### Create Ticket
+```
+POST /api/tickets
+Content-Type: application/json
 
-1. **Type Safety**: All functions must have JSDoc comments
-2. **Testing**: Write tests for new features
-3. **Documentation**: Update relevant docs
-4. **Code Style**: Follow ESLint rules
+{
+  "userId": "string",
+  "conversationId": "string",
+  "subject": "string",
+  "initialMessage": "string",
+  "priority": "low|medium|high|urgent",
+  "category": "technical|account|billing|feature|other",
+  "language": "en|es|ru"
+}
+```
 
-## 📄 License
+#### Get Tickets
+```
+GET /api/tickets?status=open&priority=high&page=1&limit=20
+```
 
-MIT License - see [LICENSE](LICENSE) file
+#### Update Ticket
+```
+PATCH /api/tickets/:ticketId
+Content-Type: application/json
 
-## 🔗 Links
+{
+  "status": "open|in_progress|resolved|closed",
+  "priority": "low|medium|high|urgent",
+  "assignedTo": "string",
+  "resolution": "string"
+}
+```
 
-- [Shrooms Project](https://shrooms.io)
-- [Anthropic Cookbook](https://github.com/anthropics/anthropic-cookbook)
-- [Claude API Docs](https://docs.anthropic.com)
-- [Project Issues](https://github.com/g1orgi89/shrooms-support-bot/issues)
+#### Close Ticket
+```
+PATCH /api/tickets/:ticketId/close
+Content-Type: application/json
+
+{
+  "resolution": "string",
+  "closedBy": "string"
+}
+```
+
+## Type System
+
+This project uses comprehensive JSDoc typing for type safety without TypeScript:
+
+```javascript
+/**
+ * @typedef {Object} Ticket
+ * @property {string} ticketId - Unique ticket identifier
+ * @property {string} userId - User identifier
+ * @property {string} conversationId - Associated conversation ID
+ * @property {('open'|'in_progress'|'resolved'|'closed')} status - Ticket status
+ * @property {('low'|'medium'|'high'|'urgent')} priority - Ticket priority
+ * @property {('technical'|'account'|'billing'|'feature'|'other')} category - Ticket category
+ * @property {string} subject - Ticket subject
+ * @property {string} initialMessage - Initial message
+ * @property {Date} createdAt - Creation timestamp
+ * @property {Date} [resolvedAt] - Resolution timestamp
+ */
+```
+
+## Testing Strategy
+
+The project includes comprehensive testing:
+
+1. **Unit Tests**: Test individual services and utilities
+2. **Integration Tests**: Test API endpoints with real database
+3. **Type Guards**: Validate enum values and data structures
+
+Example test structure:
+```javascript
+describe('TicketService', () => {
+  describe('createTicket', () => {
+    test('should create a ticket with required fields', async () => {
+      const ticketData = {
+        userId: 'user123',
+        subject: 'Test ticket',
+        initialMessage: 'This is a test'
+      };
+      
+      const ticket = await ticketService.createTicket(ticketData);
+      
+      expect(ticket).toBeDefined();
+      expect(ticket.status).toBe('open');
+    });
+  });
+});
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Write tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
+
+### Code Style
+
+- Use JSDoc for type annotations
+- Follow the existing code style
+- Write comprehensive tests
+- Use descriptive variable names
+- Add logging for important operations
+
+## Deployment
+
+### Docker
+
+```bash
+# Build the application
+docker build -t shrooms-support-bot .
+
+# Run with Docker Compose
+docker-compose up -d
+```
+
+### Environment Setup
+
+1. Set up MongoDB Atlas or self-hosted MongoDB
+2. Configure Qdrant vector database
+3. Set up environment variables
+4. Deploy to your preferred platform (AWS, GCP, Azure)
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support or questions about this bot:
+- Create an issue on GitHub
+- Join our Telegram community
+- Email: support@shrooms.io
 
 ---
 
-<p align="center">
-  Built with 🍄 for the Shrooms community<br>
-  <em>Inspired by Anthropic Cookbook patterns</em>
-</p>
+Built with 🍄 by the Shrooms team
