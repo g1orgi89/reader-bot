@@ -70,7 +70,7 @@ class ClaudeService {
         temperature = this.config.temperature
       } = options;
 
-      // Auto-detect language if not provided - FIX: Use correct method name
+      // Auto-detect language if not provided
       const detectedLanguage = language === 'en' ? 
         languageDetector.detect(message) : 
         language;
@@ -81,7 +81,7 @@ class ClaudeService {
         systemPrompt = SYSTEM_PROMPTS.rag;
       }
 
-      // Build messages array - FIX: use 'text' instead of 'content'
+      // Build messages array
       const messages = await this._buildMessageArray(
         message,
         history,
@@ -120,10 +120,15 @@ class ClaudeService {
         messages
       });
 
-      const answer = response.content[0].text;
+      let answer = response.content[0].text;
       
-      // Check if ticket creation is needed
-      const needsTicket = await this._shouldCreateTicket(answer, message, detectedLanguage);
+      // Check if ticket creation is needed and get ticket info
+      const ticketInfo = await this._analyzeTicketNeed(answer, message, detectedLanguage);
+      
+      // If ticket is needed, modify the response to include ticket information
+      if (ticketInfo.needsTicket) {
+        answer = await this._incorporateTicketInfo(answer, ticketInfo, detectedLanguage);
+      }
       
       // Log usage statistics
       const tokenUsage = tokenCounter.getTokenUsage(
@@ -138,14 +143,18 @@ class ClaudeService {
         language: detectedLanguage,
         tokensUsed: tokenUsage.totalTokens,
         estimatedCost,
-        needsTicket
+        needsTicket: ticketInfo.needsTicket,
+        ticketId: ticketInfo.ticketId || null
       });
 
       return {
         message: answer,
-        needsTicket,
+        needsTicket: ticketInfo.needsTicket,
         tokensUsed: tokenUsage.totalTokens,
-        ticketReason: needsTicket ? 'Auto-detected based on message content' : null,
+        ticketReason: ticketInfo.reason || null,
+        ticketId: ticketInfo.ticketId || null,
+        ticketCategory: ticketInfo.category || null,
+        ticketPriority: ticketInfo.priority || null,
         language: detectedLanguage,
         usage: tokenUsage
       };
@@ -171,7 +180,6 @@ class ClaudeService {
     try {
       const greeting = GREETINGS[language] || GREETINGS.en;
       
-      // FIX: Correct newline escaping
       return {
         message: `${greeting.welcome}\\n\\n${greeting.how_can_help}`,
         needsTicket: false,
@@ -197,7 +205,6 @@ class ClaudeService {
     const messages = [];
 
     // Add conversation history (excluding system messages, they go in system parameter)
-    // FIX: Handle both 'text' and 'content' fields for compatibility
     const conversationHistory = history.filter(msg => msg.role !== 'system')
       .map(msg => ({
         role: msg.role,
@@ -205,7 +212,7 @@ class ClaudeService {
       }));
     messages.push(...conversationHistory);
 
-    // Add RAG context if available - FIX: Correct newline escaping
+    // Add RAG context if available
     if (context && context.length > 0) {
       const contextMessage = {
         role: 'user',
@@ -224,54 +231,131 @@ class ClaudeService {
   }
 
   /**
-   * Check if a ticket should be created based on the response
+   * Analyze if a ticket is needed and gather ticket information
    * @private
    * @param {string} response - Claude's response
    * @param {string} originalMessage - Original user message
    * @param {string} language - Language code
-   * @returns {Promise<boolean>} Whether to create a ticket
+   * @returns {Promise<Object>} Ticket analysis result
    */
-  async _shouldCreateTicket(response, originalMessage, language) {
+  async _analyzeTicketNeed(response, originalMessage, language) {
     try {
-      // Use a separate prompt for ticket detection
+      // First check if the assistant already mentioned creating a ticket
+      const mentionsTicket = this._checkTicketMentioned(response);
+      if (mentionsTicket) {
+        return {
+          needsTicket: true,
+          reason: 'Assistant already mentioned creating a ticket',
+          category: 'general',
+          priority: 'medium',
+          ticketId: this._generateTicketId()
+        };
+      }
+
+      // Use Claude to analyze if ticket creation is needed
       const ticketDetectionPrompt = SYSTEM_PROMPTS.ticketCreation;
       
       const detectionMessage = {
         role: 'user',
-        content: `Проанализируй следующие сообщения и определи, нужно ли создать тикет:\\n\\nСообщение пользователя: \\\"${originalMessage}\\\"\\nОтвет ассистента: \\\"${response}\\\"\\n\\nЯзык общения: ${language}\\n\\nОтвечай только в формате:\\nCREATE_TICKET: true/false\\nREASON: [причина решения]\\nCATEGORY: [technical/account/billing/feature/other] (если нужен тикет)\\nPRIORITY: [low/medium/high/urgent] (если нужен тикет)`
+        content: `Проанализируй следующие сообщения и определи, нужно ли создать тикет:\\n\\nСообщение пользователя: "${originalMessage}"\\nОтвет ассистента: "${response}"\\n\\nЯзык общения: ${language}\\n\\nОтвечай только в формате:\\nCREATE_TICKET: true/false\\nREASON: [причина решения]\\nCATEGORY: [technical/account/billing/feature/other] (если нужен тикет)\\nPRIORITY: [low/medium/high/urgent] (если нужен тикет)`
       };
 
       const ticketResponse = await this.client.messages.create({
-        model: 'claude-3-haiku-20240307', // Use faster model for detection
+        model: 'claude-3-haiku-20240307',
         max_tokens: 200,
-        temperature: 0.3, // Lower temperature for more consistent results
+        temperature: 0.3,
         system: ticketDetectionPrompt,
         messages: [detectionMessage]
       });
 
       const analysisText = ticketResponse.content[0].text;
       
-      // Parse the response - FIX: Correct regex escaping
+      // Parse the response
       const createTicketMatch = analysisText.match(/CREATE_TICKET:\\s*(true|false)/i);
+      const reasonMatch = analysisText.match(/REASON:\\s*(.+?)(?:\\n|$)/i);
+      const categoryMatch = analysisText.match(/CATEGORY:\\s*(\\w+)/i);
+      const priorityMatch = analysisText.match(/PRIORITY:\\s*(\\w+)/i);
+      
       const shouldCreate = createTicketMatch && createTicketMatch[1].toLowerCase() === 'true';
       
-      // Also check for explicit ticket keywords in assistant response
-      const ticketKeywords = [
-        'создал тикет', 'created.*ticket', 'creé.*ticket',
-        'ticket.*#', 'тикет.*#', 'ticket número',
-        'создать тикет', 'create.*ticket', 'crear.*ticket'
-      ];
-      
-      const hasTicketKeywords = ticketKeywords.some(keyword => 
-        new RegExp(keyword, 'i').test(response)
-      );
-
-      return shouldCreate || hasTicketKeywords;
+      if (shouldCreate) {
+        return {
+          needsTicket: true,
+          reason: reasonMatch ? reasonMatch[1].trim() : 'Auto-detected based on message content',
+          category: categoryMatch ? categoryMatch[1] : 'other',
+          priority: priorityMatch ? priorityMatch[1] : 'medium',
+          ticketId: this._generateTicketId()
+        };
+      } else {
+        return {
+          needsTicket: false,
+          reason: reasonMatch ? reasonMatch[1].trim() : 'No ticket needed'
+        };
+      }
 
     } catch (error) {
-      logger.error('Error in ticket detection', { error: error.message });
+      logger.error('Error in ticket analysis', { error: error.message });
       // Fallback to keyword detection
       return this._fallbackTicketDetection(response, originalMessage);
+    }
+  }
+
+  /**
+   * Check if the response already mentions creating a ticket
+   * @private
+   * @param {string} response - Claude's response
+   * @returns {boolean} Whether ticket creation is mentioned
+   */
+  _checkTicketMentioned(response) {
+    const ticketKeywords = [
+      'создал тикет', 'создаю тикет', 'создам тикет',
+      'created.*ticket', 'creating.*ticket', 'create.*ticket',
+      'creé.*ticket', 'creando.*ticket', 'crear.*ticket',
+      'ticket.*#', 'тикет.*#', 'ticket.*número',
+      '#TICKET_ID'
+    ];
+    
+    return ticketKeywords.some(keyword => 
+      new RegExp(keyword, 'i').test(response)
+    );
+  }
+
+  /**
+   * Generate a unique ticket ID
+   * @private
+   * @returns {string} Generated ticket ID
+   */
+  _generateTicketId() {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 8);
+    return `SHROOM${timestamp}${random}`.toUpperCase();
+  }
+
+  /**
+   * Incorporate ticket information into the response
+   * @private
+   * @param {string} response - Original response
+   * @param {Object} ticketInfo - Ticket information
+   * @param {string} language - Language code
+   * @returns {Promise<string>} Modified response with ticket info
+   */
+  async _incorporateTicketInfo(response, ticketInfo, language) {
+    try {
+      // Get ticket message template
+      const ticketMessage = TICKET_MESSAGES[language] || TICKET_MESSAGES.en;
+      const ticketText = ticketMessage.created.replace('{ticketId}', ticketInfo.ticketId);
+      
+      // If the response already mentions creating a ticket, replace placeholder
+      if (response.includes('#TICKET_ID')) {
+        return response.replace('#TICKET_ID', ticketInfo.ticketId);
+      }
+      
+      // Otherwise, append ticket information to the response
+      return `${response}\\n\\n${ticketText}`;
+      
+    } catch (error) {
+      logger.error('Error incorporating ticket info', { error: error.message });
+      return response;
     }
   }
 
@@ -280,24 +364,42 @@ class ClaudeService {
    * @private
    * @param {string} response - Claude's response
    * @param {string} originalMessage - Original user message
-   * @returns {boolean} Whether to create a ticket
+   * @returns {Object} Ticket detection result
    */
   _fallbackTicketDetection(response, originalMessage) {
-    const ticketIndicators = [
-      // Response indicators
-      'создал тикет', 'created a ticket', 'creé un ticket',
-      'ticket #', 'тикет #', 'número de ticket',
-      'команда поддержки', 'support team', 'equipo de soporte',
-      
-      // Message indicators
+    const troubleIndicators = [
+      // Problem keywords
       'не работает', 'not working', 'no funciona',
       'ошибка', 'error', 'error',
       'проблема', 'problem', 'problema',
-      'связаться с поддержкой', 'contact support', 'contactar soporte'
+      'сбой', 'bug', 'fallo',
+      'не могу', 'can\'t', 'cannot', 'no puedo',
+      
+      // Support request keywords
+      'поддержка', 'support', 'soporte',
+      'помощь', 'help', 'ayuda',
+      'связаться', 'contact', 'contactar'
     ];
 
     const combined = `${response} ${originalMessage}`.toLowerCase();
-    return ticketIndicators.some(indicator => combined.includes(indicator.toLowerCase()));
+    const hasProblems = troubleIndicators.some(indicator => 
+      combined.includes(indicator.toLowerCase())
+    );
+
+    if (hasProblems) {
+      return {
+        needsTicket: true,
+        reason: 'Detected problem keywords in conversation',
+        category: 'other',
+        priority: 'medium',
+        ticketId: this._generateTicketId()
+      };
+    }
+
+    return {
+      needsTicket: false,
+      reason: 'No issues detected in conversation'
+    };
   }
 
   /**
@@ -341,7 +443,7 @@ class ClaudeService {
     // Take the most recent messages
     const recentHistory = history.slice(-maxHistory);
     
-    // Ensure proper format - FIX: handle both text and content fields
+    // Ensure proper format
     return recentHistory.map(msg => ({
       role: msg.role,
       text: msg.text || msg.content || msg.message || '',
