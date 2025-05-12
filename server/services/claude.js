@@ -163,8 +163,9 @@ class ClaudeService {
     try {
       const greeting = GREETINGS[language] || GREETINGS.en;
       
+      // FIX: Correct newline escaping
       return {
-        message: `${greeting.welcome}\\n\\n${greeting.how_can_help}`,
+        message: `${greeting.welcome}\n\n${greeting.how_can_help}`,
         needsTicket: false,
         tokensUsed: 0,
         language
@@ -196,11 +197,11 @@ class ClaudeService {
       }));
     messages.push(...conversationHistory);
 
-    // Add RAG context if available
+    // Add RAG context if available - FIX: Correct newline escaping
     if (context && context.length > 0) {
       const contextMessage = {
         role: 'user',
-        content: `### Релевантная информация из базы знаний:\n\n${context.join('\\n\\n')}\n\n### Используй приведенную выше информацию, чтобы ответить на следующий вопрос от пользователя.`
+        content: `### Релевантная информация из базы знаний:\n\n${context.join('\n\n')}\n\n### Используй приведенную выше информацию, чтобы ответить на следующий вопрос от пользователя.`
       };
       messages.push(contextMessage);
     }
@@ -242,8 +243,8 @@ class ClaudeService {
 
       const analysisText = ticketResponse.content[0].text;
       
-      // Parse the response
-      const createTicketMatch = analysisText.match(/CREATE_TICKET:\\s*(true|false)/i);
+      // Parse the response - FIX: Correct regex escaping
+      const createTicketMatch = analysisText.match(/CREATE_TICKET:\s*(true|false)/i);
       const shouldCreate = createTicketMatch && createTicketMatch[1].toLowerCase() === 'true';
       
       // Also check for explicit ticket keywords in assistant response
