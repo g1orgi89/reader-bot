@@ -5,7 +5,7 @@ AI-powered support bot for the Shrooms Web3 project, built with Claude API and M
 ## Features
 
 - 🤖 AI-powered responses using Claude API
-- 🎫 Ticket management system
+- 🎫 Ticket management system with full CRUD operations
 - 📚 Knowledge base with vector search
 - 🌐 Multiple language support (English, Spanish, Russian)
 - 💬 Web chat widget
@@ -13,6 +13,8 @@ AI-powered support bot for the Shrooms Web3 project, built with Claude API and M
 - 🔍 Full-text search in tickets
 - 📊 Analytics and statistics
 - 🍄 Mushroom-themed personality
+- 🔐 Secure admin authentication
+- 📊 Comprehensive API with full type safety
 
 ## Architecture
 
@@ -22,15 +24,17 @@ AI-powered support bot for the Shrooms Web3 project, built with Claude API and M
 - **Database**: MongoDB with Mongoose
 - **Vector Database**: Qdrant for knowledge base
 - **AI**: Anthropic Claude API
-- **Testing**: Jest with MongoDB Memory Server
+- **Testing**: Jest with comprehensive unit and integration tests
 - **Logging**: Winston
 - **Type Safety**: JSDoc with TypeScript-style annotations
+- **Authentication**: Bearer token middleware
 
 ### Key Components
 
 - **TicketService**: Manages ticket CRUD operations with full type safety
 - **VectorStore**: Handles knowledge base searches
 - **ClaudeService**: Integrates with Claude API for generating responses
+- **AdminAuth**: Secure authentication middleware for protected endpoints
 - **Logger**: Structured logging with context support
 
 ## Installation
@@ -87,6 +91,9 @@ MONGODB_URI=mongodb://localhost:27017/shrooms-support
 # Vector Database
 VECTOR_DB_URL=http://localhost:6333
 
+# Authentication
+ADMIN_TOKEN=your_secure_admin_token
+
 # Telegram (optional)
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 
@@ -106,6 +113,9 @@ npm run test:coverage
 
 # Run tests in watch mode
 npm run test:watch
+
+# Run specific test file
+npm test -- server/tests/api/tickets.test.js
 ```
 
 ### Code Quality
@@ -120,53 +130,67 @@ npm run lint:fix
 
 ## API Documentation
 
-### Tickets Endpoint
+### 📚 Comprehensive API Documentation
+For detailed API documentation including all endpoints, authentication, types, and examples, see:
 
-The tickets API provides full CRUD operations for ticket management:
+**📁 [Tickets API Documentation](docs/API_TICKETS.md)**
 
-#### Create Ticket
+This documentation covers:
+- All 11 ticket management endpoints
+- Authentication requirements
+- Type definitions (TicketStatus, TicketPriority, TicketCategory)
+- Request/response examples
+- Error codes and handling
+- Query parameters for filtering and pagination
+
+### Quick API Overview
+
+The Tickets API provides comprehensive ticket management functionality:
+
+- **Public Access**: Create tickets
+- **User Access**: View own tickets
+- **Admin Access**: Full ticket management
+
+#### Authentication
 ```
+Authorization: Bearer <your-admin-token>
+```
+
+#### Key Endpoints
+
+```javascript
+// Create ticket (public)
 POST /api/tickets
-Content-Type: application/json
 
-{
-  "userId": "string",
-  "conversationId": "string",
-  "subject": "string",
-  "initialMessage": "string",
-  "priority": "low|medium|high|urgent",
-  "category": "technical|account|billing|feature|other",
-  "language": "en|es|ru"
-}
-```
+// Get tickets with filtering (admin)
+GET /api/tickets?status=open&priority=high&search=connection
 
-#### Get Tickets
-```
-GET /api/tickets?status=open&priority=high&page=1&limit=20
-```
+// Get specific ticket (admin)
+GET /api/tickets/TKT-001
 
-#### Update Ticket
-```
-PATCH /api/tickets/:ticketId
-Content-Type: application/json
+// Update ticket (admin)
+PUT /api/tickets/TKT-001
 
-{
-  "status": "open|in_progress|resolved|closed",
-  "priority": "low|medium|high|urgent",
-  "assignedTo": "string",
-  "resolution": "string"
-}
-```
+// Close ticket (admin)
+POST /api/tickets/TKT-001/close
 
-#### Close Ticket
-```
-PATCH /api/tickets/:ticketId/close
-Content-Type: application/json
+// Assign ticket (admin)
+POST /api/tickets/TKT-001/assign
 
-{
-  "resolution": "string",
-  "closedBy": "string"
-}
+// Get assigned tickets (admin)
+GET /api/tickets/assigned/agent123
+
+// Get user tickets (user/admin)
+GET /api/tickets/user/user123
+
+// Search tickets (admin)
+GET /api/tickets/search?q=connection+issue
+
+// Get tickets by status (admin)
+GET /api/tickets/status/open
+
+// Get statistics (admin)
+GET /api/tickets/stats
 ```
 
 ## Type System
@@ -175,18 +199,33 @@ This project uses comprehensive JSDoc typing for type safety without TypeScript:
 
 ```javascript
 /**
- * @typedef {Object} Ticket
- * @property {string} ticketId - Unique ticket identifier
+ * @typedef {Object} TicketCreateData
  * @property {string} userId - User identifier
  * @property {string} conversationId - Associated conversation ID
- * @property {('open'|'in_progress'|'resolved'|'closed')} status - Ticket status
- * @property {('low'|'medium'|'high'|'urgent')} priority - Ticket priority
- * @property {('technical'|'account'|'billing'|'feature'|'other')} category - Ticket category
  * @property {string} subject - Ticket subject
  * @property {string} initialMessage - Initial message
- * @property {Date} createdAt - Creation timestamp
- * @property {Date} [resolvedAt] - Resolution timestamp
+ * @property {string} [context] - Additional context
+ * @property {'en'|'es'|'ru'} [language='en'] - Language
+ * @property {'low'|'medium'|'high'|'urgent'} [priority='medium'] - Priority
+ * @property {'technical'|'account'|'billing'|'feature'|'other'} [category='other'] - Category
+ * @property {string} [email] - User email
  */
+```
+
+### Type Guards and Validation
+
+All enum values are validated using type guards:
+
+```javascript
+// Type guard example
+function isValidStatus(value) {
+  return Object.values(TicketStatus).includes(value);
+}
+
+// Usage in API
+if (!isValidStatus(req.body.status)) {
+  return res.status(400).json(createErrorResponse('Invalid status'));
+}
 ```
 
 ## Testing Strategy
@@ -194,25 +233,29 @@ This project uses comprehensive JSDoc typing for type safety without TypeScript:
 The project includes comprehensive testing:
 
 1. **Unit Tests**: Test individual services and utilities
-2. **Integration Tests**: Test API endpoints with real database
+2. **Integration Tests**: Test API endpoints with mocked dependencies
 3. **Type Guards**: Validate enum values and data structures
+4. **Error Handling**: Test all error scenarios
+5. **Authentication**: Test protected endpoints
 
 Example test structure:
 ```javascript
-describe('TicketService', () => {
-  describe('createTicket', () => {
-    test('should create a ticket with required fields', async () => {
-      const ticketData = {
-        userId: 'user123',
-        subject: 'Test ticket',
-        initialMessage: 'This is a test'
-      };
-      
-      const ticket = await ticketService.createTicket(ticketData);
-      
-      expect(ticket).toBeDefined();
-      expect(ticket.status).toBe('open');
-    });
+describe('POST /api/tickets', () => {
+  it('should create a new ticket successfully', async () => {
+    const ticketData = {
+      userId: 'user123',
+      conversationId: 'conv123',
+      subject: 'Test ticket',
+      initialMessage: 'This is a test ticket'
+    };
+
+    const response = await request(app)
+      .post('/api/tickets')
+      .send(ticketData)
+      .expect(201);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.ticketId).toBeDefined();
   });
 });
 ```
@@ -232,6 +275,7 @@ describe('TicketService', () => {
 - Write comprehensive tests
 - Use descriptive variable names
 - Add logging for important operations
+- Protect admin endpoints appropriately
 
 ## Deployment
 
@@ -251,6 +295,23 @@ docker-compose up -d
 2. Configure Qdrant vector database
 3. Set up environment variables
 4. Deploy to your preferred platform (AWS, GCP, Azure)
+5. Configure secure admin tokens for production
+
+## Monitoring and Logging
+
+The application includes comprehensive logging:
+
+- **Info Level**: Successful operations, admin actions
+- **Warn Level**: Authentication failures, deprecated usage
+- **Error Level**: Service errors, failed operations
+
+All logs include contextual information:
+```javascript
+logger.info('Creating new ticket', { 
+  userId: req.body.userId,
+  subject: req.body.subject 
+});
+```
 
 ## License
 
