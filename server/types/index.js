@@ -1,6 +1,7 @@
 /**
  * Shared types for Shrooms Support Bot
  * @fileoverview Defines all shared TypeScript-like types for the entire project
+ * Inspired by anthropic-cookbook patterns and best practices
  */
 
 /**
@@ -27,7 +28,7 @@
  */
 
 /**
- * Message in conversation
+ * Message in conversation with enhanced metadata
  * @typedef {Object} Message
  * @property {string} id - Unique message ID
  * @property {string} conversationId - ID of conversation this message belongs to
@@ -39,13 +40,17 @@
  */
 
 /**
- * Metadata for messages
+ * Enhanced metadata for messages following anthropic-cookbook patterns
  * @typedef {Object} MessageMetadata
  * @property {string} [language] - Language of the message
  * @property {number} [tokensUsed] - Tokens consumed by AI for this message
  * @property {string} [sentiment] - Detected sentiment (positive/negative/neutral)
  * @property {boolean} [createdTicket] - Whether this message created a support ticket
  * @property {string} [ticketId] - ID of created ticket if applicable
+ * @property {number} [retrievalScore] - RAG retrieval confidence score
+ * @property {string[]} [retrievedDocs] - IDs of documents used for context
+ * @property {string} [intent] - Detected user intent/category
+ * @property {boolean} [requiresReranking] - Whether documents needed reranking
  */
 
 /**
@@ -63,12 +68,15 @@
  */
 
 /**
- * Metadata for conversations
+ * Enhanced metadata for conversations following anthropic-cookbook patterns
  * @typedef {Object} ConversationMetadata
  * @property {string} [initialQuery] - First user question that started conversation
  * @property {string[]} [categories] - Detected categories/topics discussed
  * @property {boolean} [escalatedToHuman] - Whether conversation needed human intervention
  * @property {number} [satisfactionScore] - User satisfaction rating (1-5)
+ * @property {string[]} [topRetrievedDocs] - Most relevant documents used
+ * @property {number} [avgRetrievalScore] - Average retrieval confidence
+ * @property {boolean} [usedReranking] - Whether reranking was used
  */
 
 /**
@@ -93,7 +101,7 @@
  */
 
 /**
- * Knowledge base document
+ * Knowledge base document with enhanced structure
  * @typedef {Object} KnowledgeDocument
  * @property {string} id - Unique document ID
  * @property {string} title - Document title
@@ -104,45 +112,100 @@
  * @property {string} vectorId - ID in vector database
  * @property {string} [authorId] - ID of document author
  * @property {'draft'|'published'|'archived'} status - Document status
+ * @property {DocumentMetadata} [metadata] - Additional document metadata
  * @property {Date} createdAt - When document was created
  * @property {Date} updatedAt - Last modification date
  */
 
 /**
- * Claude API request options
+ * Enhanced document metadata following anthropic-cookbook patterns
+ * @typedef {Object} DocumentMetadata
+ * @property {string} [summary] - Document summary for retrieval
+ * @property {string} [heading] - Document section heading
+ * @property {number} [chunkIndex] - Index of document chunk
+ * @property {number} [totalChunks] - Total number of chunks for this document
+ * @property {string[]} [keywords] - Extracted keywords for better retrieval
+ * @property {number} [relevanceScore] - Current relevance score in retrieval
+ * @property {Date} [lastRetrieved] - Last time this document was retrieved
+ */
+
+/**
+ * Claude API request options with enhanced features
  * @typedef {Object} ClaudeRequestOptions
  * @property {string[]} [context] - Relevant knowledge base context
  * @property {Message[]} [history] - Conversation history for context
  * @property {string} [language] - Language for response (en/es/ru)
  * @property {number} [maxTokens] - Maximum tokens for response
  * @property {number} [temperature] - Temperature for response generation
+ * @property {string} [model] - Claude model to use
+ * @property {boolean} [useReranking] - Whether to use document reranking
+ * @property {number} [retrievalK] - Number of documents to retrieve
+ * @property {boolean} [includeSummaries] - Include document summaries in context
  */
 
 /**
- * Claude API response
+ * Enhanced Claude API response
  * @typedef {Object} ClaudeResponse
  * @property {string} message - AI generated response
  * @property {boolean} needsTicket - Whether a support ticket should be created
  * @property {number} tokensUsed - Tokens consumed by this request
  * @property {string} [detectedIntent] - Detected user intent/category
  * @property {string[]} [suggestedActions] - Suggested follow-up actions
+ * @property {RetrievalDetails} [retrievalDetails] - Details about document retrieval
+ * @property {RerankingDetails} [rerankingDetails] - Details about document reranking
+ * @property {number} [confidence] - AI confidence in response
  */
 
 /**
- * Vector store search options
+ * Retrieval details for transparency
+ * @typedef {Object} RetrievalDetails
+ * @property {number} documentsRetrieved - Number of documents retrieved
+ * @property {number} averageScore - Average retrieval score
+ * @property {string[]} documentIds - IDs of retrieved documents
+ * @property {number} retrievalTime - Time taken for retrieval (ms)
+ */
+
+/**
+ * Reranking details following anthropic-cookbook patterns
+ * @typedef {Object} RerankingDetails
+ * @property {boolean} wasCalled - Whether reranking was performed
+ * @property {number} originalCount - Original number of documents
+ * @property {number} finalCount - Final number after reranking
+ * @property {Array<{id: string, originalRank: number, newRank: number}>} rankings - Ranking changes
+ * @property {number} rerankingTime - Time taken for reranking (ms)
+ */
+
+/**
+ * Vector store search options with reranking support
  * @typedef {Object} SearchOptions
  * @property {number} [limit] - Maximum number of results to return
  * @property {string} [language] - Language filter for search
  * @property {number} [threshold] - Similarity threshold for results
  * @property {string[]} [categories] - Categories to filter by
+ * @property {boolean} [useReranking] - Whether to use document reranking
+ * @property {number} [initialK] - Initial number of documents to retrieve for reranking
+ * @property {boolean} [includeSummaries] - Include document summaries
+ * @property {string[]} [excludeIds] - Document IDs to exclude
  */
 
 /**
- * Vector store search result
+ * Enhanced vector store search result
  * @typedef {Object} SearchResult
  * @property {KnowledgeDocument} document - The matched document
  * @property {number} score - Similarity score (0-1)
  * @property {string} snippet - Relevant text snippet from document
+ * @property {number} [relevanceScore] - Reranking relevance score
+ * @property {boolean} [wasReranked] - Whether this result was reranked
+ * @property {SearchResultMetadata} [metadata] - Additional result metadata
+ */
+
+/**
+ * Search result metadata
+ * @typedef {Object} SearchResultMetadata
+ * @property {string} [highlightedText] - Text with highlighted matches
+ * @property {string} [expandedContext] - Expanded context around match
+ * @property {number} [originalRank] - Original rank before reranking
+ * @property {number} [finalRank] - Final rank after reranking
  */
 
 /**
@@ -187,13 +250,15 @@
  */
 
 /**
- * API response wrapper
+ * API response wrapper with enhanced error handling
  * @typedef {Object} ApiResponse
  * @property {boolean} success - Whether request was successful
  * @property {*} [data] - Response data if successful
  * @property {string} [error] - Error message if failed
  * @property {string} [errorCode] - Error code for programmatic handling
  * @property {any} [details] - Additional error details
+ * @property {number} [timestamp] - Response timestamp
+ * @property {string} [requestId] - Unique request ID for tracking
  */
 
 /**
@@ -214,7 +279,28 @@
  * @property {PaginationMeta} pagination - Pagination metadata
  */
 
-module.exports = {
-  // This file exports types via JSDoc comments
-  // Types are used throughout the project for documentation and IDE support
+/**
+ * Shrooms-specific prompt context
+ * @typedef {Object} ShroomsPromptContext
+ * @property {string} query - User query
+ * @property {string} language - Preferred language
+ * @property {string} platform - Source platform (web/telegram)
+ * @property {boolean} isNewUser - Whether user is new to the platform
+ * @property {string[]} previousTopics - Previous conversation topics
+ * @property {boolean} hasWalletConnected - Whether user has connected wallet
+ */
+
+/**
+ * Shrooms-specific response metadata
+ * @typedef {Object} ShroomsResponseMeta
+ * @property {boolean} usedGrapeTheme - Whether grape/mushroom theme was applied
+ * @property {string} detectedCategory - Detected question category
+ * @property {boolean} suggestedWalletConnection - Whether wallet connection was suggested
+ * @property {string[]} relatedTopics - Related topics for follow-up
+ * @property {boolean} escalationRecommended - Whether escalation is recommended
+ */
+
+export {
+  // Type exports for IDE support and documentation
+  // All types are available via JSDoc comments
 };
