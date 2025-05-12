@@ -1,155 +1,163 @@
 #!/usr/bin/env node
 /**
- * Script to track repair progress
- * Usage: node check-progress.js
+ * Check Progress Script for Shrooms Support Bot
+ * @file scripts/check-progress.js
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// Define all repair items
-const repairItems = [
-  {
-    id: 'types-addition',
-    name: 'Add missing types to api.js',
-    files: ['server/types/api.js'],
-    check: (content) => {
-      return content.includes('ChatMessage') && 
-             content.includes('ChatRequest') && 
-             content.includes('ChatResponse');
-    }
-  },
-  {
-    id: 'message-service-fix',
-    name: 'Fix content->text in message service',
-    files: ['server/services/message.js'],
-    check: (content) => {
-      return !content.includes('content: messageData.content') &&
-             content.includes('text: messageData.text');
-    }
-  },
-  {
-    id: 'chat-api-fix',
-    name: 'Fix content->text in chat API',
-    files: ['server/api/chat.js'],
-    check: (content) => {
-      return !content.includes("role: 'user',\n        content:") &&
-             content.includes("role: 'user',\n        text:");
-    }
-  },
-  {
-    id: 'claude-service-fix',
-    name: 'Remove FIX comments in claude service',
-    files: ['server/services/claude.js'],
-    check: (content) => {
-      return !content.includes('// FIX:');
-    }
-  },
-  {
-    id: 'mongodb-connection',
-    name: 'Add MongoDB connection to index.js',
-    files: ['server/index.js'],
-    check: (content) => {
-      return content.includes('mongoose.connect') &&
-             content.includes('const mongoose = require');
-    }
-  },
-  {
-    id: 'api-routes-registration',
-    name: 'Register API routes in index.js',
-    files: ['server/index.js'],
-    check: (content) => {
-      return content.includes("app.use('/api/tickets'") &&
-             content.includes("app.use('/api/knowledge'") &&
-             content.includes("app.use('/api/admin'");
-    }
-  },
-  {
-    id: 'admin-api-creation',
-    name: 'Create admin API file',
-    files: ['server/api/admin.js'],
-    check: (content) => {
-      return content && content.includes('router.get') && content.includes('require(');
-    }
-  }
-];
+const CONTEXT_FILE = path.join(__dirname, '../CONTEXT_FIXES.md');
+const PLAN_FILE = path.join(__dirname, '../DETAILED_REPAIR_PLAN.md');
 
-function checkFileExists(filePath) {
-  return fs.existsSync(filePath);
+function main() {
+  console.log('🔍 ПРОВЕРКА ПРОГРЕССА ИСПРАВЛЕНИЙ\n');
+  
+  // Check if context files exist
+  if (!fs.existsSync(CONTEXT_FILE)) {
+    console.error('❌ Файл CONTEXT_FIXES.md не найден!');
+    process.exit(1);
+  }
+  
+  if (!fs.existsSync(PLAN_FILE)) {
+    console.error('❌ Файл DETAILED_REPAIR_PLAN.md не найден!');
+    process.exit(1);
+  }
+  
+  // Read context file
+  const contextContent = fs.readFileSync(CONTEXT_FILE, 'utf8');
+  
+  // Extract statistics
+  const stats = extractStatistics(contextContent);
+  
+  // Display summary
+  displaySummary(stats);
+  
+  // Show next steps
+  showNextSteps(contextContent);
+  
+  console.log('\n📂 ФАЙЛЫ ДЛЯ РАБОТЫ:');
+  console.log(`- CONTEXT_FIXES.md: ${CONTEXT_FILE}`);
+  console.log(`- DETAILED_REPAIR_PLAN.md: ${PLAN_FILE}`);
+  console.log('\n💡 СОВЕТ: Всегда обновляйте CONTEXT_FIXES.md после каждого исправления');
 }
 
-function getFileContent(filePath) {
-  try {
-    return fs.readFileSync(filePath, 'utf8');
-  } catch (error) {
-    return null;
-  }
-}
-
-function checkRepairStatus() {
-  console.log('🔧 Checking repair progress...\n');
+function extractStatistics(content) {
+  const lines = content.split('\n');
+  const stats = {
+    total: 0,
+    fixed: 0,
+    inProgress: 0,
+    pending: 0,
+    fixedList: [],
+    inProgressList: [],
+    pendingList: []
+  };
   
-  let completed = 0;
-  let total = repairItems.length;
+  let currentStatus = null;
+  let currentItem = null;
   
-  for (const item of repairItems) {
-    let status = '❌';
-    let details = '';
-    
-    // Check if all required files exist
-    const allFilesExist = item.files.every(file => checkFileExists(file));
-    
-    if (!allFilesExist) {
-      const missingFiles = item.files.filter(file => !checkFileExists(file));
-      details = `Missing files: ${missingFiles.join(', ')}`;
-    } else {
-      // Check content of files
-      const fileContents = item.files.map(file => getFileContent(file));
-      const allValid = fileContents.every((content, index) => {
-        if (!content) return false;
-        return item.check(content);
-      });
-      
-      if (allValid) {
-        status = '✅';
-        completed++;
-        details = 'Completed';
-      } else {
-        details = 'Files exist but content not updated';
+  for (const line of lines) {
+    if (line.includes('### ✅ ИСПРАВЛЕННЫЕ ОШИБКИ')) {
+      currentStatus = 'fixed';
+      const match = line.match(/\((\d+)\/(\d+)\)/);
+      if (match) {
+        stats.fixed = parseInt(match[1]);
       }
-    }
-    
-    console.log(`${status} ${item.name}`);
-    if (details) {
-      console.log(`   ${details}`);
+    } else if (line.includes('### 🔄 В РАБОТЕ')) {
+      currentStatus = 'inProgress';
+      const match = line.match(/\((\d+)\/(\d+)\)/);
+      if (match) {
+        stats.inProgress = parseInt(match[1]);
+      }
+    } else if (line.includes('### ❌ КРИТИЧЕСКИЕ ПРОБЛЕМЫ')) {
+      currentStatus = 'pending';
+      const match = line.match(/\((\d+)\/(\d+)\)/);
+      if (match) {
+        stats.pending = parseInt(match[1]);
+        stats.total = parseInt(match[2]);
+      }
+    } else if (line.startsWith('#### ') && currentStatus) {
+      currentItem = {
+        title: line.replace('#### ', '').replace(/^\d+\.\s*/, ''),
+        details: []
+      };
+    } else if (currentItem && line.startsWith('- **')) {
+      const [key, value] = line.split(': ');
+      if (key && value) {
+        currentItem.details.push({
+          key: key.replace('- **', '').replace('**', ''),
+          value: value
+        });
+      }
+    } else if (currentItem && line.trim() === '' && currentStatus) {
+      stats[currentStatus + 'List'].push(currentItem);
+      currentItem = null;
     }
   }
   
-  console.log(`\n📊 Progress: ${completed}/${total} (${Math.round(completed/total*100)}%)`);
+  return stats;
+}
+
+function displaySummary(stats) {
+  console.log('📊 ОБЩАЯ СТАТИСТИКА:');
+  console.log('─'.repeat(50));
+  console.log(`📋 Всего ошибок:        ${stats.total}`);
+  console.log(`✅ Исправлено:          ${stats.fixed} (${Math.round(stats.fixed/stats.total*100)}%)`);
+  console.log(`🔄 В работе:            ${stats.inProgress} (${Math.round(stats.inProgress/stats.total*100)}%)`);
+  console.log(`❌ Ожидают:             ${stats.pending} (${Math.round(stats.pending/stats.total*100)}%)`);
+  console.log('─'.repeat(50));
   
-  if (completed === total) {
-    console.log('🎉 All repairs completed!');
+  // Progress bar
+  const progress = stats.fixed / stats.total;
+  const barLength = 30;
+  const filledLength = Math.round(barLength * progress);
+  const bar = '█'.repeat(filledLength) + '░'.repeat(barLength - filledLength);
+  console.log(`\n📈 Прогресс: [${bar}] ${Math.round(progress * 100)}%\n`);
+  
+  // Show recently fixed
+  if (stats.fixedList.length > 0) {
+    console.log('✅ НЕДАВНО ИСПРАВЛЕННЫЕ:');
+    stats.fixedList.slice(-3).forEach(item => {
+      console.log(`  • ${item.title}`);
+    });
+    console.log('');
+  }
+  
+  // Show in progress
+  if (stats.inProgressList.length > 0) {
+    console.log('🔄 В РАБОТЕ:');
+    stats.inProgressList.forEach(item => {
+      console.log(`  • ${item.title}`);
+    });
+    console.log('');
+  }
+}
+
+function showNextSteps(content) {
+  console.log('🎯 СЛЕДУЮЩИЕ ШАГИ:');
+  console.log('─'.repeat(50));
+  
+  const nextStepMatch = content.match(/## 🎯 ПЛАН ДЕЙСТВИЙ\n\n(.*?)\n\n##/s);
+  if (nextStepMatch) {
+    const steps = nextStepMatch[1].split('\n').filter(line => line.trim().startsWith('**'));
+    steps.slice(0, 3).forEach((step, index) => {
+      console.log(`${index + 1}. ${step.replace(/\*\*/g, '')}`);
+    });
   } else {
-    console.log(`\n📝 Next steps:`);
-    const pending = repairItems.filter((item, index) => {
-      if (!checkFileExists(item.files[0])) return true;
-      const content = getFileContent(item.files[0]);
-      return !content || !item.check(content);
-    });
-    
-    pending.slice(0, 3).forEach(item => {
-      console.log(`   - ${item.name}`);
-    });
+    console.log('1. Прочитать DETAILED_REPAIR_PLAN.md');
+    console.log('2. Выбрать первую неисправленную ошибку');
+    console.log('3. Следовать инструкциям в плане');
   }
+  
+  console.log('\n💡 ПОЛЕЗНЫЕ КОМАНДЫ:');
+  console.log('  • git status                 - проверить состояние репозитория');
+  console.log('  • npm test                   - запустить тесты (если есть)');
+  console.log('  • npm start                  - запустить сервер');
 }
 
-// Export for programmatic use
-module.exports = {
-  repairItems,
-  checkRepairStatus
-};
-
-// Run if called directly
 if (require.main === module) {
-  checkRepairStatus();
+  main();
 }
+
+module.exports = { main, extractStatistics, displaySummary, showNextSteps };
