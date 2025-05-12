@@ -9,6 +9,7 @@
  * @property {any} [data] - Response data
  * @property {string} [error] - Error message
  * @property {string} [errorCode] - Error code
+ * @property {string} [message] - Success message
  */
 
 /**
@@ -26,6 +27,7 @@
  * @property {number} page - Current page
  * @property {number} pages - Total pages
  * @property {boolean} hasMore - Whether there are more items
+ * @property {number} limit - Items per page
  */
 
 /**
@@ -54,6 +56,45 @@
  * @property {string} [category] - Ticket category
  * @property {string} [priority] - Ticket priority
  * @property {string} [language] - Language code
+ */
+
+/**
+ * @typedef {Object} TicketQueryParams
+ * @property {number} [page=1] - Page number
+ * @property {number} [limit=20] - Items per page
+ * @property {import('./ticket').TicketStatus} [status] - Filter by status
+ * @property {import('./ticket').TicketPriority} [priority] - Filter by priority
+ * @property {import('./ticket').TicketCategory} [category] - Filter by category
+ * @property {string} [assignedTo] - Filter by assigned agent
+ * @property {string} [userId] - Filter by user ID
+ * @property {string} [search] - Search query
+ * @property {string} [sort] - Sort field
+ * @property {string} [order] - Sort order (asc/desc)
+ */
+
+/**
+ * @typedef {Object} TicketSearchParams
+ * @property {string} q - Search query
+ * @property {number} [limit=20] - Maximum results
+ * @property {import('./ticket').TicketStatus} [status] - Filter by status
+ */
+
+/**
+ * @typedef {Object} AssignedTicketsParams
+ * @property {string} agentId - Agent ID
+ * @property {import('./ticket').TicketStatus} [status='in_progress'] - Filter by status
+ * @property {number} [limit=50] - Maximum results
+ */
+
+/**
+ * @typedef {Object} TicketStatsResponse
+ * @property {number} total - Total tickets
+ * @property {Object<string, number>} byStatus - Count by status
+ * @property {Object<string, number>} byPriority - Count by priority
+ * @property {Object<string, number>} byCategory - Count by category
+ * @property {number} averageResolutionTime - Average resolution time in minutes
+ * @property {number} openTickets - Number of open tickets
+ * @property {number} resolvedToday - Number of tickets resolved today
  */
 
 /**
@@ -181,10 +222,43 @@ function validatePaginationOptions(query) {
   return { page, limit, sort, order };
 }
 
+/**
+ * Validates ticket query parameters
+ * @param {Object} query - Query parameters
+ * @returns {{pagination: PaginationOptions, filter: import('./ticket').TicketFilter, search?: Object}} Validated parameters
+ */
+function validateTicketQueryParams(query) {
+  const pagination = validatePaginationOptions(query);
+  
+  // Build filter object
+  const filter = {};
+  
+  if (query.status) filter.status = query.status;
+  if (query.priority) filter.priority = query.priority;
+  if (query.category) filter.category = query.category;
+  if (query.assignedTo) filter.assignedTo = query.assignedTo;
+  if (query.userId) filter.userId = query.userId;
+  
+  // Build search object if search query exists
+  let search;
+  if (query.search) {
+    search = {
+      $or: [
+        { subject: { $regex: query.search, $options: 'i' } },
+        { initialMessage: { $regex: query.search, $options: 'i' } },
+        { ticketId: { $regex: query.search, $options: 'i' } }
+      ]
+    };
+  }
+  
+  return { pagination, filter, search };
+}
+
 module.exports = {
   createSuccessResponse,
   createErrorResponse,
   createPaginatedResponse,
   validateRequiredFields,
-  validatePaginationOptions
+  validatePaginationOptions,
+  validateTicketQueryParams
 };
