@@ -19,6 +19,9 @@ const logger = require('./utils/logger');
 const ClaudeService = require('./services/claude');
 const VectorStoreService = require('./services/vectorStore');
 
+// Import middleware
+const { basicAdminAuth, requireAdmin } = require('./middleware/auth');
+
 // Import API routes
 const chatRoutes = require('./api/chat');
 const ticketRoutes = require('./api/tickets');
@@ -108,7 +111,9 @@ app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')))
 app.use('/api/chat', chatRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
-app.use('/api/admin', adminRoutes);
+
+// Admin routes with authentication
+app.use('/api/admin', basicAdminAuth, requireAdmin, adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
