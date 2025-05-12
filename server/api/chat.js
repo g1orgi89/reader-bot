@@ -1,5 +1,5 @@
 /**
- * Chat API routes with type safety
+ * Chat API routes with ServiceManager integration
  * @file server/api/chat.js
  */
 
@@ -7,10 +7,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
 const { validateChatRequest } = require('../utils/validators');
-const claudeService = require('../services/claude');
-// Remove direct import of vectorStoreService - it will be obtained from app settings
 const messageService = require('../services/message');
-const ticketService = require('../services/ticketing');
 const languageDetect = require('../utils/languageDetect');
 const { 
   createErrorResponse,
@@ -73,8 +70,15 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
     /** @type {ChatRequest} */
     const chatRequest = req.body;
     
-    // Get VectorStore service from app settings
-    const vectorStoreService = req.app.get('vectorStoreService');
+    // Get services from request (injected by ServiceManager middleware in index.js)
+    const { claude: claudeService, vectorStore: vectorStoreService, ticket: ticketService } = req.services;
+    
+    if (!claudeService) {
+      logger.error('Claude service not available');
+      const errorResponse = createErrorResponse('CLAUDE_SERVICE_UNAVAILABLE');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
     if (!vectorStoreService) {
       logger.error('VectorStore service not available');
       const errorResponse = createErrorResponse('VECTOR_SERVICE_UNAVAILABLE');
@@ -138,21 +142,28 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
       role: 'assistant',
       text: claudeResponse.message,
       language: chatRequest.language,
-      tokensUsed: claudeResponse.tokensUsed
+      tokensUsed: claudeResponse.tokensUsed,
+      needsTicket: claudeResponse.needsTicket
     });
     
     // Handle ticket creation if needed
     let ticketId = null;
-    if (claudeResponse.needsTicket) {
+    let ticketError = null;
+    
+    if (claudeResponse.needsTicket && claudeResponse.ticketInfo) {
       try {
         const ticket = await ticketService.createTicket({
           userId: chatRequest.userId,
           conversationId,
-          subject: extractSubjectFromMessage(chatRequest.message),
+          subject: claudeResponse.ticketInfo.subject || extractSubjectFromMessage(chatRequest.message),
           initialMessage: chatRequest.message,
-          priority: 'medium',
-          category: 'technical',
-          language: chatRequest.language
+          priority: claudeResponse.ticketInfo.priority || 'medium',
+          category: claudeResponse.ticketInfo.category || 'technical',
+          language: chatRequest.language,
+          context: JSON.stringify({
+            claudeAnalysis: claudeResponse.ticketInfo.reason,
+            messageHistory: history.slice(-3) // Last 3 messages for context
+          })
         });
         
         ticketId = ticket.ticketId;
@@ -166,14 +177,17 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
         logger.info('Ticket created for conversation', {
           ticketId,
           conversationId,
-          userId: chatRequest.userId
+          userId: chatRequest.userId,
+          category: claudeResponse.ticketInfo.category,
+          priority: claudeResponse.ticketInfo.priority
         });
-      } catch (ticketError) {
+      } catch (error) {
         logger.error('Failed to create ticket', {
-          error: ticketError.message,
+          error: error.message,
           conversationId,
           userId: chatRequest.userId
         });
+        ticketError = error.message;
       }
     }
     
@@ -184,9 +198,14 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
       messageId: assistantMessage.id,
       needsTicket: claudeResponse.needsTicket,
       ticketId,
+      ticketError,
       tokensUsed: claudeResponse.tokensUsed,
       language: chatRequest.language,
-      timestamp: new Date()
+      timestamp: new Date(),
+      metadata: {
+        knowledgeResultsCount: knowledgeResults.length,
+        historyMessagesCount: history.length
+      }
     };
     
     logger.info('Chat message processed successfully', {
@@ -194,7 +213,8 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
       userId: chatRequest.userId,
       responseLength: response.message.length,
       tokensUsed: response.tokensUsed,
-      ticketCreated: Boolean(ticketId)
+      ticketCreated: Boolean(ticketId),
+      knowledgeResultsUsed: knowledgeResults.length
     });
     
     res.json(response);
@@ -212,6 +232,7 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
       'An error occurred while processing your message. Please try again.',
       {
         timestamp: new Date().toISOString(),
+        service: determineFailedService(error),
         ...(process.env.NODE_ENV === 'development' ? { originalError: error.message } : {})
       }
     );
@@ -229,7 +250,7 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
 router.get('/conversation/:conversationId', async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { page = '1', limit = '50' } = req.query;
+    const { page = '1', limit = '50', includeMetadata = 'false' } = req.query;
     
     if (!conversationId) {
       const errorResponse = createErrorResponse(
@@ -241,16 +262,19 @@ router.get('/conversation/:conversationId', async (req, res) => {
     
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const shouldIncludeMetadata = includeMetadata === 'true';
     
     logger.info('Fetching conversation history', {
       conversationId,
       page: pageNum,
-      limit: limitNum
+      limit: limitNum,
+      includeMetadata: shouldIncludeMetadata
     });
     
     const messages = await messageService.getMessages(conversationId, {
       page: pageNum,
-      limit: limitNum
+      limit: limitNum,
+      includeMetadata: shouldIncludeMetadata
     });
     
     const totalCount = await messageService.getMessageCount(conversationId);
@@ -264,7 +288,9 @@ router.get('/conversation/:conversationId', async (req, res) => {
           limit: limitNum,
           totalCount,
           totalPages: Math.ceil(totalCount / limitNum)
-        }
+        },
+        conversationId,
+        fetchedAt: new Date().toISOString()
       }
     });
   } catch (error) {
@@ -274,6 +300,99 @@ router.get('/conversation/:conversationId', async (req, res) => {
     });
     
     const errorResponse = createErrorResponse('CONVERSATION_FETCH_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * DELETE /api/chat/conversation/:conversationId
+ * Delete conversation history
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.delete('/conversation/:conversationId', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { userId } = req.query;
+    
+    if (!conversationId) {
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Conversation ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
+    logger.info('Deleting conversation', {
+      conversationId,
+      userId
+    });
+    
+    const deletedCount = await messageService.deleteConversation(conversationId, userId);
+    
+    if (deletedCount === 0) {
+      const errorResponse = createErrorResponse(
+        'CONVERSATION_NOT_FOUND',
+        'Conversation not found or already deleted'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        conversationId,
+        deletedMessages: deletedCount,
+        deletedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Error deleting conversation', {
+      error: error.message,
+      conversationId: req.params.conversationId
+    });
+    
+    const errorResponse = createErrorResponse('CONVERSATION_DELETE_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * GET /api/chat/stats/:userId
+ * Get chat statistics for a user
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.get('/stats/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { days = '30' } = req.query;
+    
+    const dayCount = Math.min(365, Math.max(1, parseInt(days)));
+    
+    logger.info('Fetching chat statistics', {
+      userId,
+      days: dayCount
+    });
+    
+    const stats = await messageService.getUserStats(userId, dayCount);
+    
+    res.json({
+      success: true,
+      data: {
+        ...stats,
+        userId,
+        periodDays: dayCount,
+        calculatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching chat statistics', {
+      error: error.message,
+      userId: req.params.userId
+    });
+    
+    const errorResponse = createErrorResponse('STATS_FETCH_ERROR');
     res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
@@ -298,7 +417,22 @@ function determineErrorCode(error) {
   if (error.message.includes('Claude')) return 'CLAUDE_ERROR';
   if (error.message.includes('vector')) return 'VECTOR_SERVICE_UNAVAILABLE';
   if (error.message.includes('database')) return 'DATABASE_ERROR';
+  if (error.message.includes('ticket')) return 'TICKET_CREATION_ERROR';
+  if (error.message.includes('validation')) return 'VALIDATION_ERROR';
   return 'INTERNAL_ERROR';
+}
+
+/**
+ * Determine which service failed based on error
+ * @param {Error} error 
+ * @returns {string}
+ */
+function determineFailedService(error) {
+  if (error.message.includes('Claude')) return 'claude';
+  if (error.message.includes('vector')) return 'vectorStore';
+  if (error.message.includes('database')) return 'database';
+  if (error.message.includes('ticket')) return 'ticket';
+  return 'unknown';
 }
 
 module.exports = router;
