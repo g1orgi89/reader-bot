@@ -20,7 +20,8 @@ const {
   createErrorResponse,
   createPaginatedResponse,
   validateRequiredFields,
-  validatePaginationOptions
+  validatePaginationOptions,
+  validateTicketQueryParams
 } = require('../types/api');
 
 const router = express.Router();
@@ -34,6 +35,7 @@ const router = express.Router();
  * @typedef {import('../types/ticket').TicketQueryOptions} TicketQueryOptions
  * @typedef {import('../types/api').ApiResponse} ApiResponse
  * @typedef {import('../types/api').PaginatedResponse} PaginatedResponse
+ * @typedef {import('../types/api').TicketQueryParams} TicketQueryParams
  */
 
 // Lazy load services to avoid circular dependencies
@@ -96,11 +98,13 @@ router.post('/', async (req, res) => {
     // Validate ticket data using schema validator
     const validation = validateTicketData(req.body);
     if (!validation.isValid) {
-      return res.status(400).json(createErrorResponse(
+      const errorResponse = createErrorResponse(
         'Validation failed',
         'VALIDATION_ERROR',
         400
-      ).error = validation.errors.join(', '));
+      );
+      errorResponse.error = validation.errors.join(', ');
+      return res.status(400).json(errorResponse);
     }
 
     logger.info('Creating new ticket', { 
@@ -179,6 +183,11 @@ router.post('/', async (req, res) => {
  *           type: string
  *         description: Filter by user ID
  *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search in subject and initial message
+ *       - in: query
  *         name: sort
  *         schema:
  *           type: string
@@ -194,56 +203,21 @@ router.get('/', async (req, res) => {
   try {
     logger.info('Fetching tickets', { query: req.query });
 
-    // Validate and parse pagination options
-    const pagination = validatePaginationOptions(req.query);
+    // Use new validation function from API types
+    const { pagination, filter, search } = validateTicketQueryParams(req.query);
 
-    // Build filter object with type safety
-    /** @type {TicketFilter} */
-    const filter = {};
-    
-    if (req.query.status && isValidStatus(req.query.status)) {
-      filter.status = req.query.status;
-    }
-    
-    if (req.query.priority && isValidPriority(req.query.priority)) {
-      filter.priority = req.query.priority;
-    }
-    
-    if (req.query.category && isValidCategory(req.query.category)) {
-      filter.category = req.query.category;
-    }
-    
-    if (req.query.assignedTo) {
-      filter.assignedTo = req.query.assignedTo;
-    }
-    
-    if (req.query.userId) {
-      filter.userId = req.query.userId;
-    }
-
-    // Add search functionality
-    let searchQuery = {};
-    if (req.query.search) {
-      searchQuery = {
-        $or: [
-          { subject: { $regex: req.query.search, $options: 'i' } },
-          { initialMessage: { $regex: req.query.search, $options: 'i' } },
-          { ticketId: { $regex: req.query.search, $options: 'i' } }
-        ]
-      };
-    }
-
+    // Combine filter and search into a single query object for the service
     const queryOptions = {
       page: pagination.page,
       limit: pagination.limit,
       sort: `${pagination.order === 'desc' ? '-' : ''}${pagination.sort}`
     };
 
-    const result = await getTicketService().getTickets({ ...filter, ...searchQuery }, queryOptions);
+    const result = await getTicketService().getTickets({ ...filter, ...search }, queryOptions);
     
     /** @type {PaginatedResponse} */
     const response = createPaginatedResponse(
-      result.tickets,
+      result.items,
       result.totalCount,
       pagination.page,
       pagination.limit
@@ -433,11 +407,13 @@ router.put('/:ticketId', async (req, res) => {
  *             properties:
  *               resolution:
  *                 type: string
+ *               closedBy:
+ *                 type: string
  */
 router.post('/:ticketId/close', async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { resolution } = req.body;
+    const { resolution, closedBy } = req.body;
     
     if (!ticketId) {
       return res.status(400).json(createErrorResponse('Ticket ID is required', 'TICKET_ID_REQUIRED', 400));
@@ -449,7 +425,7 @@ router.post('/:ticketId/close', async (req, res) => {
 
     logger.info('Closing ticket', { ticketId, resolution });
 
-    const ticket = await getTicketService().closeTicket(ticketId, resolution);
+    const ticket = await getTicketService().closeTicket(ticketId, resolution, closedBy);
     
     if (!ticket) {
       return res.status(404).json(createErrorResponse('Ticket not found', 'TICKET_NOT_FOUND', 404));
@@ -579,6 +555,59 @@ router.get('/assigned/:agentId', async (req, res) => {
 
 /**
  * @swagger
+ * /api/tickets/user/{userId}:
+ *   get:
+ *     summary: Get tickets for a specific user
+ *     tags: [Tickets]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: ['open', 'in_progress', 'resolved', 'closed']
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ */
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const status = req.query.status;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    
+    if (!userId) {
+      return res.status(400).json(createErrorResponse('User ID is required', 'USER_ID_REQUIRED', 400));
+    }
+    
+    if (status && !isValidStatus(status)) {
+      return res.status(400).json(createErrorResponse(
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`,
+        'INVALID_STATUS',
+        400
+      ));
+    }
+
+    logger.info('Fetching user tickets', { userId, status, limit });
+
+    const tickets = await getTicketService().getUserTickets(userId, { status, limit });
+    
+    res.json(createSuccessResponse(tickets));
+  } catch (error) {
+    logger.error('Error fetching user tickets', { userId: req.params.userId, error: error.message });
+    res.status(500).json(createErrorResponse('Failed to fetch user tickets'));
+  }
+});
+
+/**
+ * @swagger
  * /api/tickets/search:
  *   get:
  *     summary: Search tickets
@@ -634,6 +663,56 @@ router.get('/search', async (req, res) => {
 
 /**
  * @swagger
+ * /api/tickets/status/{status}:
+ *   get:
+ *     summary: Get tickets by status
+ *     tags: [Tickets]
+ *     parameters:
+ *       - in: path
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: ['open', 'in_progress', 'resolved', 'closed']
+ *       - in: query
+ *         name: assignedTo
+ *         schema:
+ *           type: string
+ *         description: Filter by assigned agent
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ */
+router.get('/status/:status', async (req, res) => {
+  try {
+    const { status } = req.params;
+    const assignedTo = req.query.assignedTo;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    
+    if (!isValidStatus(status)) {
+      return res.status(400).json(createErrorResponse(
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`,
+        'INVALID_STATUS',
+        400
+      ));
+    }
+
+    logger.info('Fetching tickets by status', { status, assignedTo, limit });
+
+    const tickets = await getTicketService().getTicketsByStatus(status, { assignedTo, limit });
+    
+    res.json(createSuccessResponse(tickets));
+  } catch (error) {
+    logger.error('Error fetching tickets by status', { status: req.params.status, error: error.message });
+    res.status(500).json(createErrorResponse('Failed to fetch tickets by status'));
+  }
+});
+
+/**
+ * @swagger
  * /api/tickets/stats:
  *   get:
  *     summary: Get ticket statistics
@@ -643,7 +722,7 @@ router.get('/stats', async (req, res) => {
   try {
     logger.info('Fetching ticket statistics');
 
-    const stats = await getTicketService().getTicketStats();
+    const stats = await getTicketService().getTicketStatistics();
     
     res.json(createSuccessResponse(stats));
   } catch (error) {
