@@ -33,6 +33,9 @@
  * @property {boolean} needsTicket - Whether a support ticket should be created
  * @property {number} tokensUsed - Number of tokens used in generation
  * @property {string} [ticketReason] - Reason for ticket creation (if needsTicket is true)
+ * @property {string} [ticketId] - Generated ticket ID (if needsTicket is true)
+ * @property {string} [ticketCategory] - Ticket category: technical/account/billing/feature/other
+ * @property {string} [ticketPriority] - Ticket priority: low/medium/high/urgent
  * @property {string} language - Detected or specified language
  * @property {TokenUsage} [usage] - Detailed token usage statistics
  */
