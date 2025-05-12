@@ -115,7 +115,7 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
       conversationId,
       userId: chatRequest.userId,
       role: 'user',
-      content: chatRequest.message,
+      text: chatRequest.message,
       language: chatRequest.language
     });
     
@@ -124,7 +124,7 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
       conversationId,
       userId: chatRequest.userId,
       role: 'assistant',
-      content: claudeResponse.message,
+      text: claudeResponse.message,
       language: chatRequest.language,
       tokensUsed: claudeResponse.tokensUsed
     });
