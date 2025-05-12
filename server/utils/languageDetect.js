@@ -1,221 +1,214 @@
 /**
- * Language detection utility for Shrooms Support Bot
+ * Language detection utility
  * @file server/utils/languageDetect.js
  */
 
+// Import types for JSDoc
+require('../types');
+
 /**
- * Simple language detection utility
+ * Language patterns for simple detection
  */
-class LanguageDetector {
-  constructor() {
-    // Language patterns and keywords
-    this.patterns = {
-      en: {
-        keywords: [
-          'hello', 'hi', 'hey', 'how', 'what', 'when', 'where', 'why', 'who', 'could', 'should', 'would',
-          'please', 'thank', 'thanks', 'sorry', 'help', 'support', 'issue', 'problem', 'error',
-          'token', 'wallet', 'connect', 'balance', 'transaction', 'farming', 'staking', 'shrooms'
-        ],
-        common: [
-          'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-          'from', 'into', 'onto', 'upon', 'below', 'under', 'above', 'over', 'across', 'through'
-        ]
-      },
-      es: {
-        keywords: [
-          'hola', 'buenos', 'días', 'tardes', 'noches', 'cómo', 'qué', 'cuándo', 'dónde', 'por', 'para',
-          'por favor', 'gracias', 'perdón', 'ayuda', 'soporte', 'problema', 'error',
-          'token', 'cartera', 'conectar', 'saldo', 'transacción', 'cultivo', 'staking', 'shrooms'
-        ],
-        common: [
-          'el', 'la', 'los', 'las', 'un', 'una', 'de', 'en', 'a', 'con', 'por', 'para',
-          'es', 'son', 'está', 'están', 'ser', 'estar', 'haber', 'tener', 'hacer', 'decir'
-        ]
-      },
-      ru: {
-        keywords: [
-          'привет', 'здравствуйте', 'как', 'что', 'когда', 'где', 'зачем', 'почему', 'кто',
-          'пожалуйста', 'спасибо', 'извините', 'помощь', 'поддержка', 'проблема', 'ошибка',
-          'токен', 'кошелек', 'подключить', 'баланс', 'транзакция', 'фарминг', 'стейкинг', 'шрумс'
-        ],
-        common: [
-          'и', 'в', 'не', 'на', 'с', 'по', 'для', 'за', 'о', 'об', 'от', 'к',
-          'у', 'до', 'из', 'без', 'под', 'над', 'через', 'между', 'при', 'про'
-        ]
-      }
-    };
+const LANGUAGE_PATTERNS = {
+  en: {
+    patterns: [
+      /\b(the|and|of|to|in|is|for|with|on|at|from|by|as|or|but|this|that|a|an)\b/gi,
+      /\b(how|what|when|where|why|which|who|can|could|would|should|will)\b/gi,
+      /\b(hello|hi|help|please|thank|thanks|sorry)\b/gi
+    ],
+    stopWords: ['the', 'and', 'of', 'to', 'in', 'is', 'for', 'with']
+  },
+  es: {
+    patterns: [
+      /\b(el|la|de|en|y|a|que|es|por|para|con|su|se|del|al|un|una|lo)\b/gi,
+      /\b(como|que|cuando|donde|por|porque|quien|cual|puede|podria|seria|debe)\b/gi,
+      /\b(hola|ayuda|ayudar|por favor|gracias|perdon|disculpe)\b/gi
+    ],
+    stopWords: ['el', 'la', 'de', 'en', 'y', 'a', 'que', 'es']
+  },
+  ru: {
+    patterns: [
+      /\b(в|и|на|с|по|от|за|к|из|для|о|об|при|у|до|без|через|со|под|над)\b/gi,
+      /\b(как|что|когда|где|почему|который|кто|может|мог|должен|будет|есть)\b/gi,
+      /\b(привет|помощь|помогите|пожалуйста|спасибо|извините|простите)\b/gi
+    ],
+    stopWords: ['в', 'и', 'на', 'с', 'по', 'от', 'за', 'к']
+  }
+};
 
-    // Character set patterns
-    this.characterSets = {
-      cyrillic: /[\u0400-\u04FF]/,
-      latin: /[a-zA-Z]/,
-      spanish: /[ñáéíóúü]/,
-      punctuation: /[¿¡]/
-    };
+/**
+ * Detect language from text using pattern matching
+ * @param {string} text - Text to analyze
+ * @returns {Language} Detected language (en, es, or ru)
+ */
+function detect(text) {
+  if (!text || typeof text !== 'string') {
+    return 'en'; // Default to English for invalid input
   }
 
-  /**
-   * Detect language from text
-   * @param {string} text - Text to analyze
-   * @param {string} [fallback='en'] - Fallback language if detection fails
-   * @returns {string} Detected language code (en, es, ru)
-   */
-  detectLanguage(text, fallback = 'en') {
-    if (!text || typeof text !== 'string') {
-      return fallback;
-    }
-
-    // Clean and normalize text
-    const cleanText = text.toLowerCase().trim();
-    
-    // Quick check for Cyrillic characters (Russian)
-    if (this.characterSets.cyrillic.test(text)) {
-      return 'ru';
-    }
-    
-    // Check for Spanish-specific characters or punctuation
-    if (this.characterSets.spanish.test(text) || this.characterSets.punctuation.test(text)) {
-      return 'es';
-    }
-    
-    // Count language-specific keywords
-    const scores = {
-      en: 0,
-      es: 0,
-      ru: 0
-    };
-    
-    // Score based on keywords
-    Object.keys(this.patterns).forEach(lang => {
-      const keywords = this.patterns[lang].keywords;
-      const common = this.patterns[lang].common;
-      
-      keywords.forEach(keyword => {
-        if (cleanText.includes(keyword)) {
-          scores[lang] += 3; // Higher weight for specific keywords
-        }
-      });
-      
-      common.forEach(word => {
-        if (cleanText.includes(word)) {
-          scores[lang] += 1; // Lower weight for common words
-        }
-      });
-    });
-    
-    // Find the language with the highest score
-    const detectedLanguage = Object.keys(scores).reduce((a, b) => 
-      scores[a] > scores[b] ? a : b
-    );
-    
-    // Only return detected language if it has a reasonable score
-    if (scores[detectedLanguage] > 0) {
-      return detectedLanguage;
-    }
-    
-    return fallback;
-  }
-
-  /**
-   * Validate if a language code is supported
-   * @param {string} langCode - Language code to validate
-   * @returns {boolean} Whether the language is supported
-   */
-  isLanguageSupported(langCode) {
-    return ['en', 'es', 'ru'].includes(langCode);
-  }
-
-  /**
-   * Get language from browser language code
-   * @param {string} browserLang - Browser language code (e.g., 'en-US', 'es-ES')
-   * @returns {string} Simplified language code (en, es, ru)
-   */
-  getLanguageFromBrowserCode(browserLang) {
-    if (!browserLang || typeof browserLang !== 'string') {
-      return 'en';
-    }
-    
-    const lang = browserLang.split('-')[0].toLowerCase();
-    
-    if (this.isLanguageSupported(lang)) {
-      return lang;
-    }
-    
+  // Normalize text: lowercase and remove extra whitespace
+  const normalizedText = text.toLowerCase().trim();
+  
+  // If text is too short, default to English
+  if (normalizedText.length < 10) {
     return 'en';
   }
 
-  /**
-   * Get language display name
-   * @param {string} langCode - Language code
-   * @returns {string} Display name of the language
-   */
-  getLanguageName(langCode) {
-    const names = {
-      en: 'English',
-      es: 'Español',
-      ru: 'Русский'
-    };
-    
-    return names[langCode] || 'English';
-  }
+  // Count matches for each language
+  const scores = {
+    en: 0,
+    es: 0,
+    ru: 0
+  };
 
-  /**
-   * Get language flag emoji
-   * @param {string} langCode - Language code
-   * @returns {string} Flag emoji
-   */
-  getLanguageFlag(langCode) {
-    const flags = {
-      en: '🇺🇸',
-      es: '🇪🇸',
-      ru: '🇷🇺'
-    };
-    
-    return flags[langCode] || '🇺🇸';
-  }
-
-  /**
-   * Detect and validate language from multiple sources
-   * @param {Object} options - Options for language detection
-   * @param {string} [options.text] - Text to analyze
-   * @param {string} [options.browserLang] - Browser language
-   * @param {string} [options.userPreference] - User's preferred language
-   * @param {string} [options.fallback='en'] - Fallback language
-   * @returns {string} Best guess for user's language
-   */
-  getBestLanguageGuess(options = {}) {
-    const {
-      text,
-      browserLang,
-      userPreference,
-      fallback = 'en'
-    } = options;
-    
-    // Priority 1: User's explicit preference
-    if (userPreference && this.isLanguageSupported(userPreference)) {
-      return userPreference;
-    }
-    
-    // Priority 2: Language detected from text
-    if (text) {
-      const textLang = this.detectLanguage(text, null);
-      if (textLang && textLang !== fallback) {
-        return textLang;
+  // Check each language pattern
+  for (const [language, config] of Object.entries(LANGUAGE_PATTERNS)) {
+    for (const pattern of config.patterns) {
+      const matches = normalizedText.match(pattern);
+      if (matches) {
+        scores[language] += matches.length;
       }
     }
     
-    // Priority 3: Browser language
-    if (browserLang) {
-      const browserLangCode = this.getLanguageFromBrowserCode(browserLang);
-      if (browserLangCode !== 'en' || !text) {
-        return browserLangCode;
+    // Bonus points for stop words
+    for (const stopWord of config.stopWords) {
+      const regex = new RegExp(`\\b${stopWord}\\b`, 'gi');
+      const matches = normalizedText.match(regex);
+      if (matches) {
+        scores[language] += matches.length * 2; // Double weight for stop words
       }
     }
-    
-    // Default fallback
-    return fallback;
   }
+
+  // Additional checks for Cyrillic (Russian)
+  const cyrillicRegex = /[а-яё]/gi;
+  const cyrillicMatches = normalizedText.match(cyrillicRegex);
+  if (cyrillicMatches && cyrillicMatches.length > normalizedText.length * 0.3) {
+    scores.ru += 10; // Strong bonus for Cyrillic script
+  }
+
+  // Additional checks for Spanish
+  const spanishSpecialChars = /[ñáéíóúü]/gi;
+  const spanishMatches = normalizedText.match(spanishSpecialChars);
+  if (spanishMatches) {
+    scores.es += spanishMatches.length * 2;
+  }
+
+  // Find the language with the highest score
+  let detectedLanguage = 'en';
+  let maxScore = scores.en;
+
+  for (const [language, score] of Object.entries(scores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      detectedLanguage = language;
+    }
+  }
+
+  // Fallback to English if no clear winner
+  return maxScore > 0 ? detectedLanguage : 'en';
 }
 
-// Export singleton instance
-module.exports = new LanguageDetector();
+/**
+ * Get confidence score for language detection
+ * @param {string} text - Text to analyze
+ * @param {Language} language - Language to check confidence for
+ * @returns {number} Confidence score (0-1)
+ */
+function getConfidence(text, language) {
+  if (!text || typeof text !== 'string') {
+    return 0;
+  }
+
+  const normalizedText = text.toLowerCase().trim();
+  
+  if (normalizedText.length < 10) {
+    return language === 'en' ? 0.5 : 0; // Default to English for short text
+  }
+
+  const config = LANGUAGE_PATTERNS[language];
+  if (!config) {
+    return 0;
+  }
+
+  let matches = 0;
+  let totalPossible = 0;
+
+  // Count pattern matches
+  for (const pattern of config.patterns) {
+    const found = normalizedText.match(pattern);
+    if (found) {
+      matches += found.length;
+    }
+    totalPossible += 3; // Assume max 3 matches per pattern
+  }
+
+  // Count stop word matches
+  for (const stopWord of config.stopWords) {
+    const regex = new RegExp(`\\b${stopWord}\\b`, 'gi');
+    const found = normalizedText.match(regex);
+    if (found) {
+      matches += found.length * 2;
+    }
+    totalPossible += 4; // Assume max 2 matches per stop word with double weight
+  }
+
+  // Calculate confidence as ratio of matches to total possible
+  const confidence = Math.min(1, matches / totalPossible);
+  
+  return confidence;
+}
+
+/**
+ * Detect multiple languages in text (if mixed language content)
+ * @param {string} text - Text to analyze
+ * @returns {Object} Object with language scores
+ */
+function detectMultiple(text) {
+  if (!text || typeof text !== 'string') {
+    return { en: 1, es: 0, ru: 0 }; // Default to English
+  }
+
+  const normalizedText = text.toLowerCase().trim();
+  const scores = { en: 0, es: 0, ru: 0 };
+  
+  // Get raw scores for all languages
+  for (const [language, config] of Object.entries(LANGUAGE_PATTERNS)) {
+    for (const pattern of config.patterns) {
+      const matches = normalizedText.match(pattern);
+      if (matches) {
+        scores[language] += matches.length;
+      }
+    }
+  }
+
+  // Normalize scores to percentages
+  const totalScore = Object.values(scores).reduce((sum, score) => sum + score, 0);
+  if (totalScore === 0) {
+    return { en: 1, es: 0, ru: 0 }; // Default to English if no matches
+  }
+
+  for (const language in scores) {
+    scores[language] = scores[language] / totalScore;
+  }
+
+  return scores;
+}
+
+/**
+ * Check if text is likely to be in a specific language
+ * @param {string} text - Text to analyze
+ * @param {Language} language - Language to check
+ * @param {number} [threshold=0.5] - Confidence threshold (0-1)
+ * @returns {boolean} True if text is likely in the specified language
+ */
+function isLanguage(text, language, threshold = 0.5) {
+  return getConfidence(text, language) >= threshold;
+}
+
+module.exports = {
+  detect,
+  getConfidence,
+  detectMultiple,
+  isLanguage
+};
