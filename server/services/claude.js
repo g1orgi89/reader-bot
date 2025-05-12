@@ -62,9 +62,9 @@ class ClaudeService {
         temperature = this.config.temperature
       } = options;
 
-      // Auto-detect language if not provided
+      // Auto-detect language if not provided - FIX: Use correct method name
       const detectedLanguage = language === 'en' ? 
-        languageDetector.detectLanguage(message, 'en') : 
+        languageDetector.detect(message) : 
         language;
 
       // Prepare system prompt based on context availability
@@ -164,7 +164,7 @@ class ClaudeService {
       const greeting = GREETINGS[language] || GREETINGS.en;
       
       return {
-        message: `${greeting.welcome}\n\n${greeting.how_can_help}`,
+        message: `${greeting.welcome}\\n\\n${greeting.how_can_help}`,
         needsTicket: false,
         tokensUsed: 0,
         language
@@ -200,11 +200,7 @@ class ClaudeService {
     if (context && context.length > 0) {
       const contextMessage = {
         role: 'user',
-        content: `### Релевантная информация из базы знаний:
-
-${context.join('\n\n')}
-
-### Используй приведенную выше информацию, чтобы ответить на следующий вопрос от пользователя.`
+        content: `### Релевантная информация из базы знаний:\n\n${context.join('\\n\\n')}\n\n### Используй приведенную выше информацию, чтобы ответить на следующий вопрос от пользователя.`
       };
       messages.push(contextMessage);
     }
@@ -233,18 +229,7 @@ ${context.join('\n\n')}
       
       const detectionMessage = {
         role: 'user',
-        content: `Проанализируй следующие сообщения и определи, нужно ли создать тикет:
-
-Сообщение пользователя: "${originalMessage}"
-Ответ ассистента: "${response}"
-
-Язык общения: ${language}
-
-Отвечай только в формате:
-CREATE_TICKET: true/false
-REASON: [причина решения]
-CATEGORY: [technical/account/billing/feature/other] (если нужен тикет)
-PRIORITY: [low/medium/high/urgent] (если нужен тикет)`
+        content: `Проанализируй следующие сообщения и определи, нужно ли создать тикет:\n\nСообщение пользователя: \"${originalMessage}\"\nОтвет ассистента: \"${response}\"\n\nЯзык общения: ${language}\n\nОтвечай только в формате:\nCREATE_TICKET: true/false\nREASON: [причина решения]\nCATEGORY: [technical/account/billing/feature/other] (если нужен тикет)\nPRIORITY: [low/medium/high/urgent] (если нужен тикет)`
       };
 
       const ticketResponse = await this.client.messages.create({
@@ -258,7 +243,7 @@ PRIORITY: [low/medium/high/urgent] (если нужен тикет)`
       const analysisText = ticketResponse.content[0].text;
       
       // Parse the response
-      const createTicketMatch = analysisText.match(/CREATE_TICKET:\s*(true|false)/i);
+      const createTicketMatch = analysisText.match(/CREATE_TICKET:\\s*(true|false)/i);
       const shouldCreate = createTicketMatch && createTicketMatch[1].toLowerCase() === 'true';
       
       // Also check for explicit ticket keywords in assistant response
