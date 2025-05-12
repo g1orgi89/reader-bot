@@ -31,6 +31,52 @@
  */
 
 /**
+ * @typedef {'user' | 'assistant' | 'system'} MessageRole
+ */
+
+/**
+ * @typedef {Object} ChatMessage
+ * @property {string} id - Message ID
+ * @property {string} text - Message content (ВАЖНО: text, не content!)
+ * @property {MessageRole} role - Message role
+ * @property {string} userId - User ID
+ * @property {string} conversationId - Conversation ID
+ * @property {string} language - Language code
+ * @property {Date} createdAt - Creation timestamp
+ * @property {number} [tokensUsed] - Tokens used
+ * @property {boolean} [ticketCreated] - Whether ticket was created
+ * @property {string} [ticketId] - Ticket ID if created
+ */
+
+/**
+ * @typedef {Object} ChatRequest
+ * @property {string} message - Message content
+ * @property {string} userId - User ID
+ * @property {string} [conversationId] - Conversation ID
+ * @property {string} [language] - Language code (en/es/ru)
+ */
+
+/**
+ * @typedef {Object} ChatResponse
+ * @property {string} message - AI response
+ * @property {string} conversationId - Conversation ID
+ * @property {string} messageId - Message ID
+ * @property {boolean} needsTicket - Whether ticket was created
+ * @property {string} [ticketId] - Ticket ID if created
+ * @property {number} tokensUsed - Tokens used
+ * @property {string} language - Response language
+ * @property {Date} timestamp - Response timestamp
+ */
+
+/**
+ * @typedef {Object} ChatError
+ * @property {boolean} success - Always false
+ * @property {string} error - Error message
+ * @property {string} errorCode - Error code
+ * @property {Object} [details] - Error details
+ */
+
+/**
  * @typedef {Object} ChatMessageRequest
  * @property {string} message - Message content
  * @property {string} userId - User ID
