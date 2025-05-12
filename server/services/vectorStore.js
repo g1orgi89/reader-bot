@@ -1,22 +1,21 @@
 /**
  * @file VectorStore Service for Shrooms AI Support Bot
- * @description Сервис для работы с векторной базой знаний с поддержкой Qdrant и других векторных БД
- * 
- * Основан на лучших практиках из Anthropic Cookbook:
- * - Contextual Embeddings для улучшения релевантности
- * - Поддержка многоязычности 
- * - Эффективное кэширование запросов
- * - Типизированные операции
+ * @description Сервис для работы с векторной базой знаний с поддержкой Qdrant
  */
 
-const { QdrantClient } = require('@qdrant/js-client-rest');
-const voyageai = require('voyageai');
+const { QdrantClient } = require('qdrant-js');
 const logger = require('../utils/logger');
 
 /**
- * @import {VectorDocument, VectorDocumentMetadata, SearchOptions, SearchResult, 
- *          VectorStoreOptions, DocumentChunk, EmbeddingProvider, VectorStoreInit,
- *          BulkOperationResult, VectorStoreStats} from '../types/index.js'
+ * @typedef {import('../types/index.js').VectorDocument} VectorDocument
+ * @typedef {import('../types/index.js').VectorDocumentMetadata} VectorDocumentMetadata
+ * @typedef {import('../types/index.js').SearchOptions} SearchOptions
+ * @typedef {import('../types/index.js').SearchResult} SearchResult
+ * @typedef {import('../types/index.js').VectorStoreOptions} VectorStoreOptions
+ * @typedef {import('../types/index.js').EmbeddingProvider} EmbeddingProvider
+ * @typedef {import('../types/index.js').VectorStoreInit} VectorStoreInit
+ * @typedef {import('../types/index.js').BulkOperationResult} BulkOperationResult
+ * @typedef {import('../types/index.js').VectorStoreStats} VectorStoreStats
  */
 
 /**
@@ -24,7 +23,6 @@ const logger = require('../utils/logger');
  * @description Сервис для работы с векторной базой знаний
  * 
  * Поддерживаемые провайдеры embeddings:
- * - Voyage AI (рекомендуется для проектов Anthropic)
  * - OpenAI
  * - Настраиваемые провайдеры
  */
@@ -35,13 +33,12 @@ class VectorStoreService {
    */
   constructor(options) {
     this.options = {
-      dimensions: 1024,
+      dimensions: 1536,  // Default for OpenAI ada-002
       metric: 'cosine',
       ...options
     };
     
     this.client = null;
-    this.embeddingClient = null;
     this.isInitialized = false;
     this.queryCache = new Map();
     this.collectionName = options.collectionName || 'shrooms_knowledge';
@@ -58,15 +55,7 @@ class VectorStoreService {
     const { provider, apiKey, model } = this.options.embeddingProvider;
     
     switch (provider) {
-      case 'voyage':
-        this.embeddingClient = new voyageai.VoyageAI({
-          apiKey: apiKey
-        });
-        this.embeddingModel = model || 'voyage-2';
-        break;
-      
       case 'openai':
-        // Инициализация OpenAI клиента
         const OpenAI = require('openai');
         this.embeddingClient = new OpenAI({
           apiKey: apiKey
@@ -134,29 +123,21 @@ class VectorStoreService {
   /**
    * Генерация embeddings для текста
    * @param {string} text - Текст для обработки
-   * @param {Object} options - Опции генерации
-   * @param {string} options.inputType - Тип входных данных (query или document)
    * @returns {Promise<number[]>} Векторное представление
    */
-  async generateEmbedding(text, options = {}) {
+  async generateEmbedding(text) {
     try {
       const { provider } = this.options.embeddingProvider;
-      const { inputType = 'document' } = options;
 
-      if (provider === 'voyage') {
-        const response = await this.embeddingClient.embed({
-          input: [text],
-          model: this.embeddingModel,
-          inputType: inputType // Оптимизация для query или document
-        });
-        return response.embeddings[0];
-      } else if (provider === 'openai') {
+      if (provider === 'openai') {
         const response = await this.embeddingClient.embeddings.create({
           model: this.embeddingModel,
           input: text,
         });
         return response.data[0].embedding;
       }
+      
+      throw new Error(`Unsupported provider: ${provider}`);
     } catch (error) {
       logger.error(`Error generating embedding: ${error.message}`);
       throw error;
@@ -192,9 +173,7 @@ class VectorStoreService {
               result.processed++;
 
               // Генерация embedding для документа
-              const embedding = await this.generateEmbedding(doc.content, {
-                inputType: 'document'
-              });
+              const embedding = await this.generateEmbedding(doc.content);
 
               return {
                 id: doc.id,
@@ -265,9 +244,7 @@ class VectorStoreService {
       }
 
       // Генерация embedding для запроса
-      const queryEmbedding = await this.generateEmbedding(query, {
-        inputType: 'query'
-      });
+      const queryEmbedding = await this.generateEmbedding(query);
 
       // Формирование фильтров
       const filters = this._buildFilters({ language, category, tags });
@@ -440,7 +417,7 @@ class VectorStoreService {
       return {
         totalDocuments: info.vectors_count,
         totalVectors: info.vectors_count,
-        languageDistribution: {}, // Может быть расширено при необходимости
+        languageDistribution: {},
         categoryDistribution: {}
       };
     } catch (error) {
