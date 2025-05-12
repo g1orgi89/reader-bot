@@ -21,25 +21,24 @@ class MessageService {
    * @param {string} messageData.conversationId - Conversation ID
    * @param {string} messageData.userId - User ID
    * @param {MessageRole} messageData.role - Message role
-   * @param {string} messageData.content - Message content
+   * @param {string} messageData.text - Message text (not content!)
    * @param {Language} messageData.language - Message language
    * @param {number} [messageData.tokensUsed] - Tokens used
    * @returns {Promise<ChatMessage>} Created message
    */
   async createMessage(messageData) {
-    try {
-      logger.debug('Creating message', {
+    try {\n      logger.debug('Creating message', {
         conversationId: messageData.conversationId,
         userId: messageData.userId,
         role: messageData.role,
-        contentLength: messageData.content.length
+        textLength: messageData.text.length
       });
 
       const message = new Message({
         conversationId: new mongoose.Types.ObjectId(messageData.conversationId),
         userId: messageData.userId,
         role: messageData.role,
-        content: messageData.content,
+        text: messageData.text,
         language: messageData.language,
         tokensUsed: messageData.tokensUsed
       });
@@ -52,7 +51,7 @@ class MessageService {
         conversationId: messageData.conversationId,
         userId: savedMessage.userId,
         role: savedMessage.role,
-        content: savedMessage.content,
+        text: savedMessage.text,
         language: savedMessage.language,
         createdAt: savedMessage.createdAt,
         tokensUsed: savedMessage.tokensUsed
@@ -99,7 +98,7 @@ class MessageService {
         conversationId,
         userId: message.userId,
         role: message.role,
-        content: message.content,
+        text: message.text,
         language: message.language,
         createdAt: message.createdAt,
         tokensUsed: message.tokensUsed,
@@ -148,7 +147,7 @@ class MessageService {
         conversationId,
         userId: message.userId,
         role: message.role,
-        content: message.content,
+        text: message.text,
         language: message.language,
         createdAt: message.createdAt,
         tokensUsed: message.tokensUsed,
@@ -223,7 +222,7 @@ class MessageService {
         conversationId: updatedMessage.conversationId.toString(),
         userId: updatedMessage.userId,
         role: updatedMessage.role,
-        content: updatedMessage.content,
+        text: updatedMessage.text,
         language: updatedMessage.language,
         createdAt: updatedMessage.createdAt,
         tokensUsed: updatedMessage.tokensUsed,
