@@ -17,6 +17,7 @@ const mongoose = require('mongoose');
 const config = require('./config');
 const logger = require('./utils/logger');
 const ClaudeService = require('./services/claude');
+const VectorStoreService = require('./services/vectorStore');
 
 // Import API routes
 const chatRoutes = require('./api/chat');
@@ -36,8 +37,37 @@ const io = socketIo(server, {
 
 // Database connection
 mongoose.connect(config.getDatabaseConfig().uri, config.getDatabaseConfig().options)
-  .then(() => {
+  .then(async () => {
     logger.info('Connected to MongoDB successfully');
+    
+    // Initialize VectorStore Service after MongoDB connection
+    try {
+      const vectorStoreService = new VectorStoreService({
+        url: config.getVectorStoreConfig().url,
+        collectionName: 'shrooms_knowledge',
+        dimensions: 1536,
+        metric: 'cosine',
+        embeddingProvider: {
+          provider: 'openai',
+          apiKey: config.getVectorStoreConfig().embeddingApiKey,
+          model: 'text-embedding-ada-002'
+        }
+      });
+      
+      const initResult = await vectorStoreService.initialize();
+      if (initResult.success) {
+        logger.info('VectorStore Service initialized successfully');
+        
+        // Make VectorStore service available to routes
+        app.set('vectorStoreService', vectorStoreService);
+      } else {
+        logger.error('Failed to initialize VectorStore Service', { error: initResult.error });
+        process.exit(1);
+      }
+    } catch (error) {
+      logger.error('Failed to initialize VectorStore Service', { error: error.message });
+      process.exit(1);
+    }
   })
   .catch((error) => {
     logger.error('MongoDB connection error:', error);
@@ -88,6 +118,11 @@ app.get('/api/health', (req, res) => {
     version: process.env.npm_package_version || '1.0.0',
     services: {
       claude: claudeService.getStatus(),
+      vectorStore: {
+        service: 'vectorStore',
+        status: app.get('vectorStoreService') ? 'active' : 'inactive',
+        timestamp: new Date().toISOString()
+      },
       database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
     }
   });
