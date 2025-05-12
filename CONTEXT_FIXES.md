@@ -5,7 +5,7 @@
 - Статус: В процессе исправления критических ошибок
 
 ## Критические проблемы
-1. [ ] Несовместимость полей content/text
+1. [x] Несовместимость полей content/text (message service исправлен)
 2. [ ] MongoDB не подключен
 3. [ ] API routes не зарегистрированы  
 4. [x] Отсутствуют типы ChatRequest/ChatResponse
@@ -14,9 +14,9 @@
 
 ## Порядок исправлений
 ### Первочередные (блокируют работу)
-1. Исправить Models (text field)
-2. Обновить Services (text field) 
-3. Обновить API (text field)
+1. Исправить Models (text field) ✅
+2. Обновить Services (text field) ✅ ВЫПОЛНЕНО
+3. Обновить API (text field) ← СЛЕДУЮЩИЙ ЭТАП
 4. Подключить MongoDB
 5. Зарегистрировать routes
 
@@ -27,7 +27,7 @@
 
 ## История изменений
 - [x] **Исправление 1**: Добавлены недостающие типы ChatMessage, ChatRequest, ChatResponse в server/types/api.js (commit: 3ea0668)
-- [ ] Исправление 2:
+- [x] **Исправление 2**: Исправлено использование поля content->text в server/services/message.js (commit: f397c25)
 - [ ] Исправление 3:
 
 ## Важные заметки
