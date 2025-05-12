@@ -10,12 +10,16 @@ const knowledgeTypes = require('./knowledgeApi');
 const apiTypes = require('./api');
 const ticketTypes = require('./ticket');
 const vectorStoreTypes = require('./vectorStore');
+const claudeTypes = require('./claude'); // Новые Claude типы
 
 // Импорт старых типов knowledge для обратной совместимости
 const legacyKnowledgeTypes = require('./knowledge');
 
 // Экспорт всех типов через единый интерфейс
 module.exports = {
+  // Claude types - теперь доступны как import('../types').ClaudeGenerateOptions
+  ...claudeTypes,
+  
   // Новые типизированные API types
   ...knowledgeTypes,
   
@@ -39,5 +43,6 @@ module.exports = {
   },
   
   Ticket: ticketTypes,
-  VectorStore: vectorStoreTypes
+  VectorStore: vectorStoreTypes,
+  Claude: claudeTypes // Добавляем Claude типы в составной экспорт
 };
