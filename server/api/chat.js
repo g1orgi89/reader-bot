@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
 const { validateChatRequest } = require('../utils/validators');
 const claudeService = require('../services/claude');
-const vectorStoreService = require('../services/vectorStore');
+// Remove direct import of vectorStoreService - it will be obtained from app settings
 const messageService = require('../services/message');
 const ticketService = require('../services/ticketing');
 const languageDetect = require('../utils/languageDetect');
@@ -68,6 +68,17 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
   try {
     /** @type {ChatRequest} */
     const chatRequest = req.body;
+    
+    // Get VectorStore service from app settings
+    const vectorStoreService = req.app.get('vectorStoreService');
+    if (!vectorStoreService) {
+      logger.error('VectorStore service not available');
+      return res.status(500).json({
+        success: false,
+        error: 'Vector search temporarily unavailable',
+        errorCode: 'VECTOR_SERVICE_UNAVAILABLE'
+      });
+    }
     
     // Auto-detect language if not provided
     if (!chatRequest.language) {
