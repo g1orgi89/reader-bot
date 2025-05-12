@@ -7,8 +7,9 @@ yarn-error.log*
 # Environment variables
 .env
 .env.local
-.env.production
-.env.test
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Logs
 logs/
@@ -18,12 +19,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
@@ -31,12 +26,12 @@ coverage/
 # nyc test coverage
 .nyc_output
 
+# ESLint cache
+.eslintcache
+
 # Dependency directories
 node_modules/
 jspm_packages/
-
-# TypeScript cache
-*.tsbuildinfo
 
 # Optional npm cache directory
 .npm
@@ -49,6 +44,10 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.test
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -64,13 +63,6 @@ dist
 # Gatsby files
 .cache/
 public
-
-# vue build output
-dist/
-
-# Storybook build outputs
-.out
-.storybook-out
 
 # Vuepress build output
 .vuepress/dist
@@ -101,23 +93,44 @@ dist/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-thumbs.db
-
-# Docker
-docker-compose.override.yml
-
-# Temporary files
-tmp/
-temp/
-
-# Build output
-build/
-dist/
-
-# Test output
-test-results/
-coverage/
+Thumbs.db
 
 # Backup files
 *.bak
 *.backup
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+build/
+dist/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Key files
+*.pem
+*.key
+*.crt
+
+# Local configuration
+config/local.json
+
+# Docker
+.dockerignore
+Dockerfile.dev
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Kubernetes
+*.yaml.local
+*.yml.local
