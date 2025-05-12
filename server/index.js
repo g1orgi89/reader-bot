@@ -22,6 +22,7 @@ const ClaudeService = require('./services/claude');
 const chatRoutes = require('./api/chat');
 const ticketRoutes = require('./api/tickets');
 const knowledgeRoutes = require('./api/knowledge');
+const adminRoutes = require('./api/admin');
 
 // Initialize Express app
 const app = express();
@@ -77,6 +78,7 @@ app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')))
 app.use('/api/chat', chatRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
