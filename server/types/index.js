@@ -1,102 +1,216 @@
 /**
- * Shared types for Shrooms AI Support Bot
- * @fileoverview Общие типы для всех модулей системы
+ * Shared type definitions for Shrooms Support Bot
+ * @file server/types/index.js
  */
 
 /**
- * @typedef {Object} VectorDocument
- * @property {string} id - Уникальный идентификатор документа
- * @property {string} content - Текстовое содержимое документа
- * @property {VectorDocumentMetadata} metadata - Метаданные документа
- * @property {number[]} [embedding] - Векторное представление документа (опционально)
+ * @typedef {Object} Message
+ * @property {string} role - Role of the message sender ('user' | 'assistant' | 'system')
+ * @property {string} content - Content of the message
+ * @property {number} [timestamp] - Message timestamp
+ * @property {string} [messageId] - Unique message identifier
  */
 
 /**
- * @typedef {Object} VectorDocumentMetadata
- * @property {string} source - Источник документа (путь к файлу)
- * @property {string} category - Категория документа (general, user-guide, etc.)
- * @property {string} language - Язык документа (en, es, ru)
- * @property {string[]} [tags] - Теги документа
- * @property {string} [title] - Заголовок документа
- * @property {number} [chunkIndex] - Индекс чанка в документе (если документ разделен)
- * @property {Date} createdAt - Дата создания
- * @property {Date} [updatedAt] - Дата обновления
+ * @typedef {Object} ConversationMessage
+ * @property {string} text - Message text
+ * @property {string} role - Message role ('user' | 'assistant' | 'system')
+ * @property {string} userId - User identifier
+ * @property {string} conversationId - Conversation identifier
+ * @property {MessageMetadata} [metadata] - Message metadata
+ * @property {Date} createdAt - Creation timestamp
  */
 
 /**
- * @typedef {Object} SearchOptions
- * @property {number} [limit=10] - Максимальное количество результатов
- * @property {string} [language] - Фильтр по языку
- * @property {string} [category] - Фильтр по категории
- * @property {string[]} [tags] - Фильтр по тегам
- * @property {number} [threshold=0.7] - Минимальный порог схожести (0-1)
+ * @typedef {Object} MessageMetadata
+ * @property {string} [language] - Message language (en, es, ru)
+ * @property {number} [tokensUsed] - Number of tokens used
+ * @property {string} [sentiment] - Message sentiment
+ * @property {boolean} [createdTicket] - Whether a ticket was created
+ * @property {string} [ticketId] - Ticket ID if created
  */
 
 /**
- * @typedef {Object} SearchResult
- * @property {VectorDocument} document - Найденный документ
- * @property {number} score - Оценка релевантности (0-1)
- * @property {string} snippet - Фрагмент содержимого
+ * @typedef {Object} Conversation
+ * @property {string} id - Conversation identifier
+ * @property {string} userId - User identifier
+ * @property {Message[]} messages - Array of messages
+ * @property {string} language - Conversation language
+ * @property {Date} createdAt - Creation timestamp
+ * @property {Date} updatedAt - Last update timestamp
  */
 
 /**
- * @typedef {Object} EmbeddingProvider
- * @property {string} provider - Название провайдера (voyage, openai, etc.)
- * @property {string} model - Модель для генерации embeddings
- * @property {string} apiKey - API ключ
- * @property {string} [apiUrl] - URL API (для custom провайдеров)
+ * @typedef {Object} Ticket
+ * @property {string} ticketId - Unique ticket identifier
+ * @property {string} userId - User identifier
+ * @property {string} conversationId - Associated conversation ID
+ * @property {string} status - Ticket status ('open' | 'in_progress' | 'resolved' | 'closed')
+ * @property {string} priority - Ticket priority ('low' | 'medium' | 'high' | 'urgent')
+ * @property {string} category - Ticket category ('technical' | 'account' | 'billing' | 'feature' | 'other')
+ * @property {string} subject - Ticket subject
+ * @property {string} initialMessage - Initial message that triggered ticket creation
+ * @property {string} [context] - Context from conversation
+ * @property {string} [email] - User email
+ * @property {string} [assignedTo] - Assigned support agent
+ * @property {string} [resolution] - Ticket resolution
+ * @property {string} language - Ticket language
+ * @property {Date} createdAt - Creation timestamp
+ * @property {Date} updatedAt - Last update timestamp
+ * @property {Date} [resolvedAt] - Resolution timestamp
  */
 
 /**
- * @typedef {Object} VectorStoreOptions
- * @property {string} url - URL к векторной базе данных
- * @property {string} collectionName - Название коллекции
- * @property {EmbeddingProvider} embeddingProvider - Параметры провайдера embeddings
- * @property {number} [dimensions=1024] - Размерность векторов
- * @property {string} [metric='cosine'] - Метрика для поиска (cosine, dot, euclidean)
+ * @typedef {Object} ClaudeGenerateOptions
+ * @property {string[]} [context] - Context from knowledge base
+ * @property {Message[]} [history] - Conversation history
+ * @property {string} [language] - Language for response (en, es, ru)
+ * @property {number} [maxTokens] - Maximum tokens for response
+ * @property {number} [temperature] - Temperature for response generation
  */
 
 /**
- * @typedef {Object} DocumentChunk
- * @property {string} id - Уникальный ID чанка
- * @property {string} text - Текст чанка
- * @property {VectorDocumentMetadata} metadata - Метаданные
- * @property {number} startIndex - Начальная позиция в исходном документе
- * @property {number} endIndex - Конечная позиция в исходном документе
+ * @typedef {Object} ClaudeResponse
+ * @property {string} message - Generated response message
+ * @property {boolean} needsTicket - Whether a ticket should be created
+ * @property {number} tokensUsed - Number of tokens used
+ * @property {string} [ticketReason] - Reason for ticket creation
  */
 
 /**
- * @typedef {Object} ContextualEmbeddingConfig
- * @property {boolean} enabled - Включено ли создание контекстных embeddings
- * @property {string} contextPrompt - Промпт для создания контекста
- * @property {number} maxContextTokens - Максимальное количество токенов контекста
+ * @typedef {Object} VectorSearchResult
+ * @property {string} content - Document content
+ * @property {number} score - Relevance score
+ * @property {VectorSearchMetadata} metadata - Document metadata
  */
 
 /**
- * @typedef {Object} VectorStoreInit
- * @property {boolean} success - Успешна ли инициализация
- * @property {string} [error] - Сообщение об ошибке
- * @property {Object} [info] - Дополнительная информация
+ * @typedef {Object} VectorSearchMetadata
+ * @property {string} source - Document source
+ * @property {string} language - Document language
+ * @property {string} category - Document category
+ * @property {string[]} tags - Document tags
  */
 
 /**
- * @typedef {Object} BulkOperationResult
- * @property {number} processed - Количество обработанных документов
- * @property {number} succeeded - Количество успешных операций
- * @property {number} failed - Количество неудачных операций
- * @property {Object[]} errors - Массив ошибок
+ * @typedef {Object} KnowledgeDocument
+ * @property {string} title - Document title
+ * @property {string} content - Document content
+ * @property {string} category - Document category
+ * @property {string[]} tags - Document tags
+ * @property {string} language - Document language
+ * @property {string} vectorId - Vector database ID
+ * @property {string} [authorId] - Author identifier
+ * @property {string} status - Document status ('draft' | 'published' | 'archived')
+ * @property {Date} createdAt - Creation timestamp
+ * @property {Date} updatedAt - Last update timestamp
  */
 
 /**
- * @typedef {Object} VectorStoreStats
- * @property {number} totalDocuments - Общее количество документов
- * @property {number} totalVectors - Общее количество векторов
- * @property {Object} languageDistribution - Распределение по языкам
- * @property {Object} categoryDistribution - Распределение по категориям
+ * @typedef {Object} WebhookEvent
+ * @property {string} eventType - Type of webhook event
+ * @property {Object} data - Event data
+ * @property {Date} timestamp - Event timestamp
+ * @property {string} source - Event source
  */
 
-// Экспорт типов для использования в других модулях
+/**
+ * @typedef {Object} UserSession
+ * @property {string} userId - User identifier
+ * @property {string} conversationId - Current conversation ID
+ * @property {string} language - User language preference
+ * @property {Date} lastActivity - Last activity timestamp
+ * @property {Object} preferences - User preferences
+ */
+
+/**
+ * @typedef {Object} AdminConfig
+ * @property {number} farmingYield - Current farming yield percentage
+ * @property {string} lastUpdatedBy - Last updated by admin ID
+ * @property {Date} lastUpdated - Last update timestamp
+ */
+
+/**
+ * @typedef {Object} SystemPrompts
+ * @property {string} basic - Basic system prompt
+ * @property {string} rag - RAG (Retrieval Augmented Generation) prompt
+ * @property {string} ticketCreation - Ticket creation detection prompt
+ */
+
+/**
+ * @typedef {Object} TelegramMessage
+ * @property {string} messageId - Telegram message ID
+ * @property {TelegramUser} from - Sender information
+ * @property {string} text - Message text
+ * @property {Date} date - Message date
+ * @property {TelegramChat} chat - Chat information
+ */
+
+/**
+ * @typedef {Object} TelegramUser
+ * @property {string} id - Telegram user ID
+ * @property {string} firstName - User first name
+ * @property {string} [lastName] - User last name
+ * @property {string} [username] - User username
+ * @property {string} languageCode - User language code
+ */
+
+/**
+ * @typedef {Object} TelegramChat
+ * @property {string} id - Chat ID
+ * @property {string} type - Chat type
+ * @property {string} [title] - Chat title
+ */
+
+/**
+ * @typedef {Object} Widget
+ * @property {string} containerId - Widget container ID
+ * @property {Object} styles - Widget styles
+ * @property {string} apiUrl - API server URL
+ * @property {string} language - Widget language
+ */
+
+/**
+ * @typedef {Object} TokenUsage
+ * @property {number} inputTokens - Input tokens used
+ * @property {number} outputTokens - Output tokens used
+ * @property {number} totalTokens - Total tokens used
+ */
+
+/**
+ * @typedef {Object} AnalyticsEvent
+ * @property {string} eventName - Event name
+ * @property {Object} properties - Event properties
+ * @property {string} userId - User identifier
+ * @property {Date} timestamp - Event timestamp
+ */
+
+/**
+ * @typedef {Object} ErrorResponse
+ * @property {boolean} success - Always false for errors
+ * @property {string} error - Error message
+ * @property {string} errorCode - Error code
+ * @property {number} timestamp - Error timestamp
+ */
+
+/**
+ * @typedef {Object} SuccessResponse
+ * @property {boolean} success - Always true for success
+ * @property {*} data - Response data
+ * @property {number} timestamp - Response timestamp
+ */
+
+/**
+ * @typedef {Object} PaginatedResponse
+ * @property {*[]} items - Array of items
+ * @property {number} totalCount - Total number of items
+ * @property {number} page - Current page number
+ * @property {number} totalPages - Total number of pages
+ * @property {number} limit - Items per page
+ */
+
+// Export all types for use in other modules
 module.exports = {
-  // Типы экспортируются через комментарии JSDoc
-  // Это позволяет TypeScript и IDE понимать доступные типы
+  // These are just JSDoc typedefs, no actual exports needed
+  // All types are available through @typedef declarations
 };
