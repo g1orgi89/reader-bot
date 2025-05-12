@@ -6,6 +6,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
+const { requireAdminAuth, optionalAdminAuth } = require('../middleware/adminAuth');
 const {
   TicketStatus,
   TicketPriority,
@@ -140,6 +141,8 @@ router.post('/', async (req, res) => {
  *   get:
  *     summary: Get tickets with filtering and pagination
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: page
@@ -199,9 +202,9 @@ router.post('/', async (req, res) => {
  *           enum: ['asc', 'desc']
  *         description: Sort order
  */
-router.get('/', async (req, res) => {
+router.get('/', requireAdminAuth, async (req, res) => {
   try {
-    logger.info('Fetching tickets', { query: req.query });
+    logger.info('Fetching tickets', { query: req.query, admin: req.admin?.id });
 
     // Use new validation function from API types
     const { pagination, filter, search } = validateTicketQueryParams(req.query);
@@ -236,6 +239,8 @@ router.get('/', async (req, res) => {
  *   get:
  *     summary: Get specific ticket by ID
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: ticketId
@@ -243,7 +248,7 @@ router.get('/', async (req, res) => {
  *         schema:
  *           type: string
  */
-router.get('/:ticketId', async (req, res) => {
+router.get('/:ticketId', requireAdminAuth, async (req, res) => {
   try {
     const { ticketId } = req.params;
     
@@ -251,7 +256,7 @@ router.get('/:ticketId', async (req, res) => {
       return res.status(400).json(createErrorResponse('Ticket ID is required', 'TICKET_ID_REQUIRED', 400));
     }
 
-    logger.info('Fetching ticket', { ticketId });
+    logger.info('Fetching ticket', { ticketId, admin: req.admin?.id });
 
     const ticket = await getTicketService().getTicketById(ticketId);
     
@@ -277,6 +282,8 @@ router.get('/:ticketId', async (req, res) => {
  *   put:
  *     summary: Update ticket
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: ticketId
@@ -306,7 +313,7 @@ router.get('/:ticketId', async (req, res) => {
  *               subject:
  *                 type: string
  */
-router.put('/:ticketId', async (req, res) => {
+router.put('/:ticketId', requireAdminAuth, async (req, res) => {
   try {
     const { ticketId } = req.params;
     
@@ -314,7 +321,7 @@ router.put('/:ticketId', async (req, res) => {
       return res.status(400).json(createErrorResponse('Ticket ID is required', 'TICKET_ID_REQUIRED', 400));
     }
 
-    logger.info('Updating ticket', { ticketId, updates: req.body });
+    logger.info('Updating ticket', { ticketId, updates: req.body, admin: req.admin?.id });
 
     // Validate enum values if provided
     /** @type {TicketUpdateData} */
@@ -390,6 +397,8 @@ router.put('/:ticketId', async (req, res) => {
  *   post:
  *     summary: Close a ticket with resolution
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: ticketId
@@ -410,7 +419,7 @@ router.put('/:ticketId', async (req, res) => {
  *               closedBy:
  *                 type: string
  */
-router.post('/:ticketId/close', async (req, res) => {
+router.post('/:ticketId/close', requireAdminAuth, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { resolution, closedBy } = req.body;
@@ -423,9 +432,11 @@ router.post('/:ticketId/close', async (req, res) => {
       return res.status(400).json(createErrorResponse('Resolution is required', 'RESOLUTION_REQUIRED', 400));
     }
 
-    logger.info('Closing ticket', { ticketId, resolution });
+    logger.info('Closing ticket', { ticketId, resolution, admin: req.admin?.id });
 
-    const ticket = await getTicketService().closeTicket(ticketId, resolution, closedBy);
+    // Use admin ID as closedBy if not provided
+    const finalClosedBy = closedBy || req.admin?.id;
+    const ticket = await getTicketService().closeTicket(ticketId, resolution, finalClosedBy);
     
     if (!ticket) {
       return res.status(404).json(createErrorResponse('Ticket not found', 'TICKET_NOT_FOUND', 404));
@@ -449,6 +460,8 @@ router.post('/:ticketId/close', async (req, res) => {
  *   post:
  *     summary: Assign ticket to agent
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: ticketId
@@ -467,7 +480,7 @@ router.post('/:ticketId/close', async (req, res) => {
  *               assignedTo:
  *                 type: string
  */
-router.post('/:ticketId/assign', async (req, res) => {
+router.post('/:ticketId/assign', requireAdminAuth, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { assignedTo } = req.body;
@@ -480,7 +493,7 @@ router.post('/:ticketId/assign', async (req, res) => {
       return res.status(400).json(createErrorResponse('assignedTo is required', 'ASSIGNED_TO_REQUIRED', 400));
     }
 
-    logger.info('Assigning ticket', { ticketId, assignedTo });
+    logger.info('Assigning ticket', { ticketId, assignedTo, admin: req.admin?.id });
 
     const ticket = await getTicketService().assignTicket(ticketId, assignedTo);
     
@@ -506,6 +519,8 @@ router.post('/:ticketId/assign', async (req, res) => {
  *   get:
  *     summary: Get tickets assigned to specific agent
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -524,7 +539,7 @@ router.post('/:ticketId/assign', async (req, res) => {
  *           minimum: 1
  *           maximum: 100
  */
-router.get('/assigned/:agentId', async (req, res) => {
+router.get('/assigned/:agentId', requireAdminAuth, async (req, res) => {
   try {
     const { agentId } = req.params;
     const status = req.query.status || TicketStatus.IN_PROGRESS;
@@ -542,7 +557,7 @@ router.get('/assigned/:agentId', async (req, res) => {
       ));
     }
 
-    logger.info('Fetching assigned tickets', { agentId, status, limit });
+    logger.info('Fetching assigned tickets', { agentId, status, limit, admin: req.admin?.id });
 
     const tickets = await getTicketService().getAssignedTickets(agentId, { status, limit });
     
@@ -577,7 +592,7 @@ router.get('/assigned/:agentId', async (req, res) => {
  *           minimum: 1
  *           maximum: 100
  */
-router.get('/user/:userId', async (req, res) => {
+router.get('/user/:userId', optionalAdminAuth, async (req, res) => {
   try {
     const { userId } = req.params;
     const status = req.query.status;
@@ -585,6 +600,11 @@ router.get('/user/:userId', async (req, res) => {
     
     if (!userId) {
       return res.status(400).json(createErrorResponse('User ID is required', 'USER_ID_REQUIRED', 400));
+    }
+    
+    // Allow users to see their own tickets, but require admin auth to see other users' tickets
+    if (!req.admin && req.query.userId !== userId) {
+      return res.status(403).json(createErrorResponse('Access denied', 'FORBIDDEN', 403));
     }
     
     if (status && !isValidStatus(status)) {
@@ -595,7 +615,7 @@ router.get('/user/:userId', async (req, res) => {
       ));
     }
 
-    logger.info('Fetching user tickets', { userId, status, limit });
+    logger.info('Fetching user tickets', { userId, status, limit, admin: req.admin?.id });
 
     const tickets = await getTicketService().getUserTickets(userId, { status, limit });
     
@@ -612,6 +632,8 @@ router.get('/user/:userId', async (req, res) => {
  *   get:
  *     summary: Search tickets
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: q
@@ -631,7 +653,7 @@ router.get('/user/:userId', async (req, res) => {
  *           type: string
  *           enum: ['open', 'in_progress', 'resolved', 'closed']
  */
-router.get('/search', async (req, res) => {
+router.get('/search', requireAdminAuth, async (req, res) => {
   try {
     const query = req.query.q;
     
@@ -650,7 +672,7 @@ router.get('/search', async (req, res) => {
       ));
     }
 
-    logger.info('Searching tickets', { query, limit, status });
+    logger.info('Searching tickets', { query, limit, status, admin: req.admin?.id });
 
     const tickets = await getTicketService().searchTickets(query, { limit, status });
     
@@ -667,6 +689,8 @@ router.get('/search', async (req, res) => {
  *   get:
  *     summary: Get tickets by status
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: status
@@ -686,7 +710,7 @@ router.get('/search', async (req, res) => {
  *           minimum: 1
  *           maximum: 100
  */
-router.get('/status/:status', async (req, res) => {
+router.get('/status/:status', requireAdminAuth, async (req, res) => {
   try {
     const { status } = req.params;
     const assignedTo = req.query.assignedTo;
@@ -700,7 +724,7 @@ router.get('/status/:status', async (req, res) => {
       ));
     }
 
-    logger.info('Fetching tickets by status', { status, assignedTo, limit });
+    logger.info('Fetching tickets by status', { status, assignedTo, limit, admin: req.admin?.id });
 
     const tickets = await getTicketService().getTicketsByStatus(status, { assignedTo, limit });
     
@@ -717,10 +741,12 @@ router.get('/status/:status', async (req, res) => {
  *   get:
  *     summary: Get ticket statistics
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', requireAdminAuth, async (req, res) => {
   try {
-    logger.info('Fetching ticket statistics');
+    logger.info('Fetching ticket statistics', { admin: req.admin?.id });
 
     const stats = await getTicketService().getTicketStatistics();
     
