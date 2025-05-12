@@ -37,7 +37,9 @@ const config = {
   // Security configuration
   JWT_SECRET: process.env.JWT_SECRET || 'shrooms-secret-key',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
+  ADMIN_USERNAME: process.env.ADMIN_USERNAME || 'admin',
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin123',
+  API_KEYS: process.env.API_KEYS ? process.env.API_KEYS.split(',') : [],
   
   // Telegram Bot configuration
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
@@ -216,7 +218,9 @@ function getSecurityConfig() {
   return {
     jwtSecret: config.JWT_SECRET,
     jwtExpiresIn: config.JWT_EXPIRES_IN,
+    adminUsername: config.ADMIN_USERNAME,
     adminPassword: config.ADMIN_PASSWORD,
+    apiKeys: config.API_KEYS,
     sessionSecret: config.SESSION_SECRET,
     sessionCookieMaxAge: config.SESSION_COOKIE_MAX_AGE,
     webhookSecret: config.WEBHOOK_SECRET
@@ -248,6 +252,19 @@ function getLoggingConfig() {
   };
 }
 
+/**
+ * Get VectorStore configuration 
+ * @returns {Object} VectorStore configuration
+ */
+function getVectorStoreConfig() {
+  return {
+    url: config.VECTOR_DB_URL,
+    collectionName: config.VECTOR_COLLECTION_NAME,
+    embeddingModel: config.EMBEDDING_MODEL,
+    embeddingApiKey: config.OPENAI_API_KEY
+  };
+}
+
 // Validate configuration on load
 if (process.env.NODE_ENV !== 'test') {
   validateConfig();
@@ -260,6 +277,7 @@ module.exports = {
   getDatabaseConfig,
   getClaudeConfig,
   getVectorDBConfig,
+  getVectorStoreConfig,
   getServerConfig,
   getSecurityConfig,
   getRateLimitConfig,
