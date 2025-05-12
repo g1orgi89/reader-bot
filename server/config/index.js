@@ -1,222 +1,267 @@
 /**
- * Main configuration file for the Shrooms Support Bot
- * @fileoverview Contains all configuration settings and environment variables
- * Adapted from anthropic-cookbook best practices
+ * Main configuration file for Shrooms Support Bot
+ * @file server/config/index.js
  */
 
-import { config as dotenvConfig } from 'dotenv';
+const dotenv = require('dotenv');
 
 // Load environment variables
-dotenvConfig();
+dotenv.config();
 
 /**
- * Environment configuration
- * @readonly
- * @enum {string}
+ * Application configuration
  */
-export const NODE_ENV = process.env.NODE_ENV || 'development';
+const config = {
+  // Server configuration
+  PORT: process.env.PORT || 3000,
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  API_PREFIX: process.env.API_PREFIX || '/api',
 
-/**
- * Server configuration
- * @readonly
- * @type {Object}
- * @property {number} PORT - Server port
- * @property {string} CORS_ORIGIN - CORS origin setting
- */
-export const SERVER_CONFIG = {
-  PORT: parseInt(process.env.PORT, 10) || 3000,
-  CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
-};
-
-/**
- * Database configuration
- * @readonly
- * @type {Object}
- * @property {string} MONGODB_URI - MongoDB connection string
- * @property {string} MONGODB_DB_NAME - Database name
- */
-export const DATABASE_CONFIG = {
+  // Database configuration
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/shrooms-support',
-  MONGODB_DB_NAME: process.env.MONGODB_DB_NAME || 'shrooms-support',
-};
-
-/**
- * Claude AI configuration following anthropic-cookbook patterns
- * @readonly
- * @type {Object}
- * @property {string} API_KEY - Anthropic API key
- * @property {string} MODEL - Default Claude model to use
- * @property {number} MAX_TOKENS - Default max tokens for responses
- * @property {number} TEMPERATURE - Default temperature for generation
- * @property {number} TIMEOUT - Request timeout in milliseconds
- */
-export const CLAUDE_CONFIG = {
-  API_KEY: process.env.ANTHROPIC_API_KEY,
-  MODEL: process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307',
-  MAX_TOKENS: parseInt(process.env.MAX_TOKENS, 10) || 1000,
-  TEMPERATURE: parseFloat(process.env.TEMPERATURE) || 0.7,
-  TIMEOUT: parseInt(process.env.CLAUDE_TIMEOUT, 10) || 30000,
-};
-
-/**
- * Vector database configuration (Qdrant)
- * @readonly
- * @type {Object}
- * @property {string} TYPE - Vector database type
- * @property {string} URL - Vector database URL
- * @property {string} COLLECTION_NAME - Collection name for knowledge base
- * @property {number} DIMENSION - Vector dimension
- */
-export const VECTOR_DB_CONFIG = {
-  TYPE: process.env.VECTOR_DB_TYPE || 'qdrant',
-  URL: process.env.VECTOR_DB_URL || 'http://localhost:6333',
-  COLLECTION_NAME: process.env.VECTOR_COLLECTION_NAME || 'shrooms_knowledge',
-  DIMENSION: parseInt(process.env.VECTOR_DIMENSION, 10) || 1536,
-};
-
-/**
- * OpenAI configuration for embeddings
- * @readonly
- * @type {Object}
- * @property {string} API_KEY - OpenAI API key
- * @property {string} EMBEDDING_MODEL - Embedding model to use
- */
-export const OPENAI_CONFIG = {
-  API_KEY: process.env.OPENAI_API_KEY,
-  EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-ada-002',
-};
-
-/**
- * Telegram bot configuration
- * @readonly
- * @type {Object}
- * @property {string} BOT_TOKEN - Telegram bot token
- * @property {string} WEBHOOK_URL - Webhook URL for production
- */
-export const TELEGRAM_CONFIG = {
-  BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
-  WEBHOOK_URL: process.env.TELEGRAM_WEBHOOK_URL,
-};
-
-/**
- * Logging configuration
- * @readonly
- * @type {Object}
- * @property {string} LEVEL - Log level (debug, info, warn, error)
- * @property {boolean} TO_FILE - Whether to log to file
- * @property {string} FILE_PATH - Log file path
- */
-export const LOG_CONFIG = {
-  LEVEL: process.env.LOG_LEVEL || 'info',
-  TO_FILE: process.env.LOG_TO_FILE === 'true',
-  FILE_PATH: process.env.LOG_FILE_PATH || './logs/app.log',
-};
-
-/**
- * Security configuration
- * @readonly
- * @type {Object}
- * @property {string} JWT_SECRET - JWT secret for authentication
- * @property {string} ADMIN_PASSWORD - Admin panel password
- * @property {number} BCRYPT_ROUNDS - Bcrypt salt rounds
- */
-export const SECURITY_CONFIG = {
-  JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key',
+  
+  // Anthropic/Claude configuration
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  CLAUDE_MODEL: process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307',
+  CLAUDE_MAX_TOKENS: parseInt(process.env.CLAUDE_MAX_TOKENS) || 1000,
+  CLAUDE_TEMPERATURE: parseFloat(process.env.CLAUDE_TEMPERATURE) || 0.7,
+  
+  // Vector database configuration
+  VECTOR_DB_URL: process.env.VECTOR_DB_URL || 'http://localhost:6333',
+  VECTOR_COLLECTION_NAME: process.env.VECTOR_COLLECTION_NAME || 'shrooms_knowledge',
+  
+  // Embedding configuration
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY, // For embeddings
+  EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
+  
+  // Security configuration
+  JWT_SECRET: process.env.JWT_SECRET || 'shrooms-secret-key',
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin123',
-  BCRYPT_ROUNDS: parseInt(process.env.BCRYPT_ROUNDS, 10) || 10,
+  
+  // Telegram Bot configuration
+  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+  TELEGRAM_WEBHOOK_URL: process.env.TELEGRAM_WEBHOOK_URL,
+  
+  // Rate limiting
+  RATE_LIMIT_WINDOW: parseInt(process.env.RATE_LIMIT_WINDOW) || 900000, // 15 minutes
+  RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  
+  // Logging configuration
+  LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+  LOG_DIR: process.env.LOG_DIR || 'logs',
+  ENABLE_FILE_LOGGING: process.env.ENABLE_FILE_LOGGING !== 'false',
+  
+  // CORS configuration
+  CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
+  
+  // Session configuration
+  SESSION_SECRET: process.env.SESSION_SECRET || 'shrooms-session-secret',
+  SESSION_COOKIE_MAX_AGE: parseInt(process.env.SESSION_COOKIE_MAX_AGE) || 86400000, // 24 hours
+  
+  // File upload configuration
+  MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE) || 5242880, // 5MB
+  UPLOAD_DIR: process.env.UPLOAD_DIR || 'uploads',
+  
+  // External services
+  WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || 'shrooms-webhook-secret',
+  
+  // Feature flags
+  ENABLE_RAG: process.env.ENABLE_RAG !== 'false',
+  ENABLE_ANALYTICS: process.env.ENABLE_ANALYTICS !== 'false',
+  ENABLE_CACHING: process.env.ENABLE_CACHING !== 'false',
+  
+  // Cache configuration
+  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+  CACHE_TTL: parseInt(process.env.CACHE_TTL) || 3600, // 1 hour
+  
+  // Metrics and monitoring
+  ENABLE_METRICS: process.env.ENABLE_METRICS !== 'false',
+  METRICS_PORT: process.env.METRICS_PORT || 9090,
+  
+  // Backup configuration
+  BACKUP_SCHEDULE: process.env.BACKUP_SCHEDULE || '0 2 * * *', // Daily at 2 AM
+  BACKUP_RETENTION_DAYS: parseInt(process.env.BACKUP_RETENTION_DAYS) || 7,
+  
+  // Performance configuration
+  MAX_CONCURRENT_REQUESTS: parseInt(process.env.MAX_CONCURRENT_REQUESTS) || 100,
+  REQUEST_TIMEOUT: parseInt(process.env.REQUEST_TIMEOUT) || 30000, // 30 seconds
+  
+  // Development configuration
+  ENABLE_HOT_RELOAD: process.env.ENABLE_HOT_RELOAD === 'true',
+  ENABLE_DEBUG_MODE: process.env.ENABLE_DEBUG_MODE === 'true',
+  
+  // Health check configuration
+  HEALTH_CHECK_INTERVAL: parseInt(process.env.HEALTH_CHECK_INTERVAL) || 60000, // 1 minute
+  
+  // Shrooms-specific configuration
+  SHROOMS_FARMING_YIELD: parseFloat(process.env.SHROOMS_FARMING_YIELD) || 12.5,
+  SHROOMS_CONTRACT_ADDRESS: process.env.SHROOMS_CONTRACT_ADDRESS,
+  STACKS_RPC_URL: process.env.STACKS_RPC_URL || 'https://stacks-node-api.mainnet.stacks.co',
+  
+  // Widget configuration
+  WIDGET_BASE_URL: process.env.WIDGET_BASE_URL || 'http://localhost:3000',
+  WIDGET_THEME: process.env.WIDGET_THEME || 'dark',
+  
+  // Notification configuration
+  EMAIL_FROM: process.env.EMAIL_FROM,
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: parseInt(process.env.SMTP_PORT) || 587,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  
+  // Language support
+  DEFAULT_LANGUAGE: process.env.DEFAULT_LANGUAGE || 'en',
+  SUPPORTED_LANGUAGES: (process.env.SUPPORTED_LANGUAGES || 'en,es,ru').split(','),
+  
+  // API versioning
+  API_VERSION: process.env.API_VERSION || 'v1',
+  
+  // Timeouts and retries
+  API_TIMEOUT: parseInt(process.env.API_TIMEOUT) || 5000,
+  MAX_RETRIES: parseInt(process.env.MAX_RETRIES) || 3,
+  RETRY_DELAY: parseInt(process.env.RETRY_DELAY) || 1000,
 };
 
 /**
- * Rate limiting configuration
- * @readonly
- * @type {Object}
- * @property {number} WINDOW_MS - Time window in milliseconds
- * @property {number} MAX_REQUESTS - Max requests per window
+ * Validate required configuration
  */
-export const RATE_LIMIT_CONFIG = {
-  WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000, // 15 minutes
-  MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
-};
-
-/**
- * Knowledge base configuration following anthropic-cookbook patterns
- * @readonly
- * @type {Object}
- * @property {number} CHUNK_SIZE - Size of text chunks
- * @property {number} CHUNK_OVERLAP - Overlap between chunks
- * @property {number} RETRIEVAL_K - Default number of documents to retrieve
- * @property {number} RERANK_K - Number of documents after reranking
- * @property {boolean} USE_RERANKING - Whether to use reranking by default
- * @property {boolean} INCLUDE_SUMMARIES - Whether to include document summaries
- */
-export const KNOWLEDGE_BASE_CONFIG = {
-  CHUNK_SIZE: parseInt(process.env.CHUNK_SIZE, 10) || 1000,
-  CHUNK_OVERLAP: parseInt(process.env.CHUNK_OVERLAP, 10) || 200,
-  RETRIEVAL_K: parseInt(process.env.RETRIEVAL_K, 10) || 5,
-  RERANK_K: parseInt(process.env.RERANK_K, 10) || 3,
-  USE_RERANKING: process.env.USE_RERANKING === 'true',
-  INCLUDE_SUMMARIES: process.env.INCLUDE_SUMMARIES === 'true',
-};
-
-/**
- * Shrooms-specific configuration
- * @readonly
- * @type {Object}
- * @property {string[]} SUPPORTED_LANGUAGES - Supported languages
- * @property {string} DEFAULT_LANGUAGE - Default language
- * @property {number} TICKET_ID_LENGTH - Length of ticket IDs
- * @property {string} TICKET_PREFIX - Prefix for ticket IDs
- */
-export const SHROOMS_CONFIG = {
-  SUPPORTED_LANGUAGES: ['en', 'es', 'ru'],
-  DEFAULT_LANGUAGE: 'en',
-  TICKET_ID_LENGTH: 8,
-  TICKET_PREFIX: 'SHR',
-};
-
-/**
- * Validates that all required environment variables are present
- * @function validateConfig
- * @throws {Error} If required environment variables are missing
- */
-export function validateConfig() {
-  const requiredVars = [
+function validateConfig() {
+  const requiredFields = [
     'ANTHROPIC_API_KEY',
-    'MONGODB_URI',
+    'MONGODB_URI'
   ];
-
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
-
-  if (missingVars.length > 0) {
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  
+  const missingFields = requiredFields.filter(field => !config[field]);
+  
+  if (missingFields.length > 0) {
+    throw new Error(`Missing required configuration fields: ${missingFields.join(', ')}`);
+  }
+  
+  // Validate specific formats
+  if (config.CLAUDE_TEMPERATURE < 0 || config.CLAUDE_TEMPERATURE > 1) {
+    throw new Error('CLAUDE_TEMPERATURE must be between 0 and 1');
+  }
+  
+  if (config.CLAUDE_MAX_TOKENS < 1 || config.CLAUDE_MAX_TOKENS > 4096) {
+    throw new Error('CLAUDE_MAX_TOKENS must be between 1 and 4096');
   }
 }
 
 /**
- * Gets configuration for a specific module
- * @function getModuleConfig
- * @param {string} module - Module name
- * @returns {Object} Module configuration
+ * Get database configuration
+ * @returns {Object} Database configuration
  */
-export function getModuleConfig(module) {
-  const configs = {
-    server: SERVER_CONFIG,
-    database: DATABASE_CONFIG,
-    claude: CLAUDE_CONFIG,
-    vector: VECTOR_DB_CONFIG,
-    openai: OPENAI_CONFIG,
-    telegram: TELEGRAM_CONFIG,
-    logging: LOG_CONFIG,
-    security: SECURITY_CONFIG,
-    rateLimit: RATE_LIMIT_CONFIG,
-    knowledgeBase: KNOWLEDGE_BASE_CONFIG,
-    shrooms: SHROOMS_CONFIG,
+function getDatabaseConfig() {
+  return {
+    uri: config.MONGODB_URI,
+    options: {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4
+    }
   };
-
-  return configs[module] || {};
 }
 
-// Validate configuration on import
-if (NODE_ENV !== 'test') {
+/**
+ * Get Claude configuration
+ * @returns {Object} Claude configuration
+ */
+function getClaudeConfig() {
+  return {
+    apiKey: config.ANTHROPIC_API_KEY,
+    model: config.CLAUDE_MODEL,
+    maxTokens: config.CLAUDE_MAX_TOKENS,
+    temperature: config.CLAUDE_TEMPERATURE,
+    enableRAG: config.ENABLE_RAG
+  };
+}
+
+/**
+ * Get vector database configuration
+ * @returns {Object} Vector database configuration
+ */
+function getVectorDBConfig() {
+  return {
+    url: config.VECTOR_DB_URL,
+    collectionName: config.VECTOR_COLLECTION_NAME,
+    embeddingModel: config.EMBEDDING_MODEL,
+    openaiApiKey: config.OPENAI_API_KEY
+  };
+}
+
+/**
+ * Get server configuration
+ * @returns {Object} Server configuration
+ */
+function getServerConfig() {
+  return {
+    port: config.PORT,
+    nodeEnv: config.NODE_ENV,
+    apiPrefix: config.API_PREFIX,
+    corsOrigin: config.CORS_ORIGIN,
+    maxConcurrentRequests: config.MAX_CONCURRENT_REQUESTS,
+    requestTimeout: config.REQUEST_TIMEOUT
+  };
+}
+
+/**
+ * Get security configuration
+ * @returns {Object} Security configuration
+ */
+function getSecurityConfig() {
+  return {
+    jwtSecret: config.JWT_SECRET,
+    jwtExpiresIn: config.JWT_EXPIRES_IN,
+    adminPassword: config.ADMIN_PASSWORD,
+    sessionSecret: config.SESSION_SECRET,
+    sessionCookieMaxAge: config.SESSION_COOKIE_MAX_AGE,
+    webhookSecret: config.WEBHOOK_SECRET
+  };
+}
+
+/**
+ * Get rate limiting configuration
+ * @returns {Object} Rate limiting configuration
+ */
+function getRateLimitConfig() {
+  return {
+    windowMs: config.RATE_LIMIT_WINDOW,
+    max: config.RATE_LIMIT_MAX_REQUESTS,
+    standardHeaders: true,
+    legacyHeaders: false
+  };
+}
+
+/**
+ * Get logging configuration
+ * @returns {Object} Logging configuration
+ */
+function getLoggingConfig() {
+  return {
+    level: config.LOG_LEVEL,
+    dir: config.LOG_DIR,
+    enableFileLogging: config.ENABLE_FILE_LOGGING
+  };
+}
+
+// Validate configuration on load
+if (process.env.NODE_ENV !== 'test') {
   validateConfig();
 }
+
+// Export configuration and helper functions
+module.exports = {
+  ...config,
+  validateConfig,
+  getDatabaseConfig,
+  getClaudeConfig,
+  getVectorDBConfig,
+  getServerConfig,
+  getSecurityConfig,
+  getRateLimitConfig,
+  getLoggingConfig
+};
