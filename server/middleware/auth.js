@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 const config = require('../config');
 
 /**
- * Authentication middleware for protecting admin routes
+ * Authentication middleware for protecting admin routes using JWT
  * @param {import('express').Request} req - Express request object
  * @param {import('express').Response} res - Express response object  
  * @param {import('express').NextFunction} next - Express next function
