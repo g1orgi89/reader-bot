@@ -1,23 +1,43 @@
 /**
- * @file Barrel export для всех типов
- * @description Центральная точка импорта всех типов проекта
+ * @file Центральный файл экспорта типов для проекта Shrooms Support Bot
+ * @description Объединяет все типы и обеспечивает единое место для импорта
  */
 
-// Re-export типов для базы знаний
-const knowledgeTypes = require('./knowledge');
+// Импорт типов Knowledge API
+const knowledgeTypes = require('./knowledgeApi');
 
-// Re-export типов для векторной базы
+// Импорт остальных типов
+const apiTypes = require('./api');
+const ticketTypes = require('./ticket');
 const vectorStoreTypes = require('./vectorStore');
 
-// Export всех типов для удобного импорта
+// Импорт старых типов knowledge для обратной совместимости
+const legacyKnowledgeTypes = require('./knowledge');
+
+// Экспорт всех типов через единый интерфейс
 module.exports = {
-  // Типы из knowledge.js доступны напрямую
+  // Новые типизированные API types
   ...knowledgeTypes,
   
-  // Типы из vectorStore.js доступны напрямую
+  // Остальные типы
+  ...apiTypes,
+  ...ticketTypes,
   ...vectorStoreTypes,
   
-  // Также можно импортировать как отдельные модули
-  knowledge: knowledgeTypes,
-  vectorStore: vectorStoreTypes
+  // Legacy types для обратной совместимости
+  ...legacyKnowledgeTypes,
+  
+  // Составные экспорты
+  API: {
+    ...apiTypes,
+    Knowledge: knowledgeTypes
+  },
+  
+  Knowledge: {
+    ...knowledgeTypes,
+    Legacy: legacyKnowledgeTypes
+  },
+  
+  Ticket: ticketTypes,
+  VectorStore: vectorStoreTypes
 };
