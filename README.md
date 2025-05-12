@@ -131,32 +131,28 @@ npm run lint:fix
 ## API Documentation
 
 ### 📚 Comprehensive API Documentation
-For detailed API documentation including all endpoints, authentication, types, and examples, see:
+Our API documentation covers all major components:
 
 **📁 [Tickets API Documentation](docs/API_TICKETS.md)**
-
-This documentation covers:
 - All 11 ticket management endpoints
-- Authentication requirements
-- Type definitions (TicketStatus, TicketPriority, TicketCategory)
-- Request/response examples
+- Authentication requirements  
+- Type definitions and examples
 - Error codes and handling
-- Query parameters for filtering and pagination
+
+**📁 [Knowledge API Documentation](docs/KNOWLEDGE_API_TYPES.md)**
+- Typизированный API для управления базой знаний
+- Search операции с фильтрацией
+- Типы для добавления документов
+- Валидация и совместимость с админ-панелью
 
 ### Quick API Overview
 
-The Tickets API provides comprehensive ticket management functionality:
+#### Tickets API
+Provides comprehensive ticket management functionality:
 
 - **Public Access**: Create tickets
 - **User Access**: View own tickets
 - **Admin Access**: Full ticket management
-
-#### Authentication
-```
-Authorization: Bearer <your-admin-token>
-```
-
-#### Key Endpoints
 
 ```javascript
 // Create ticket (public)
@@ -173,42 +169,62 @@ PUT /api/tickets/TKT-001
 
 // Close ticket (admin)
 POST /api/tickets/TKT-001/close
+```
 
-// Assign ticket (admin)
-POST /api/tickets/TKT-001/assign
+#### Knowledge API
+Provides typesafe knowledge base management:
 
-// Get assigned tickets (admin)
-GET /api/tickets/assigned/agent123
+```javascript
+// Search knowledge base with filters
+GET /api/knowledge/search?q=token&language=ru&category=tokenomics
 
-// Get user tickets (user/admin)
-GET /api/tickets/user/user123
+// Add document to knowledge base
+POST /api/knowledge/documents
+{
+  "title": "Staking Guide",
+  "content": "Step by step...",
+  "category": "user-guide",
+  "language": "en",
+  "tags": ["staking", "guide"]
+}
 
-// Search tickets (admin)
-GET /api/tickets/search?q=connection+issue
+// Upload files to knowledge base
+POST /api/knowledge/upload
 
-// Get tickets by status (admin)
-GET /api/tickets/status/open
+// Get knowledge base statistics
+GET /api/knowledge/stats
+```
 
-// Get statistics (admin)
-GET /api/tickets/stats
+#### Authentication
+```
+Authorization: Bearer <your-admin-token>
 ```
 
 ## Type System
 
 This project uses comprehensive JSDoc typing for type safety without TypeScript:
 
+### Tickets Types
 ```javascript
 /**
  * @typedef {Object} TicketCreateData
  * @property {string} userId - User identifier
  * @property {string} conversationId - Associated conversation ID
  * @property {string} subject - Ticket subject
- * @property {string} initialMessage - Initial message
- * @property {string} [context] - Additional context
- * @property {'en'|'es'|'ru'} [language='en'] - Language
  * @property {'low'|'medium'|'high'|'urgent'} [priority='medium'] - Priority
  * @property {'technical'|'account'|'billing'|'feature'|'other'} [category='other'] - Category
- * @property {string} [email] - User email
+ */
+```
+
+### Knowledge API Types  
+```javascript
+/**
+ * @typedef {Object} SearchQuery
+ * @property {string} query - Search query string
+ * @property {number} [limit=10] - Maximum results
+ * @property {string} [language] - Language filter (en/es/ru)
+ * @property {string} [category] - Category filter
+ * @property {string[]} [tags] - Tags filter
  */
 ```
 
@@ -259,6 +275,18 @@ describe('POST /api/tickets', () => {
   });
 });
 ```
+
+## Recent Updates
+
+### ✅ Knowledge API Типизация (Чат #9)
+Завершена полная типизация Knowledge API:
+
+- **Типы для search операций**: Полностью типизированные поисковые запросы с фильтрацией
+- **Типы для добавления документов**: Валидация входящих данных
+- **Фильтрация**: Поддержка языков, категорий и тегов  
+- **Совместимость**: Полная интеграция с админ-панелью
+
+Подробности в [Knowledge API Types Documentation](docs/KNOWLEDGE_API_TYPES.md)
 
 ## Contributing
 
