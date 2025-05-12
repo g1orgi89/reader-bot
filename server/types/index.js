@@ -3,6 +3,9 @@
  * @file server/types/index.js
  */
 
+// Re-export API types
+const apiTypes = require('./api');
+
 /**
  * @typedef {Object} BaseModel
  * @property {string} _id - MongoDB ObjectId
@@ -108,7 +111,45 @@ function isTicket(obj) {
   );
 }
 
+/**
+ * Checks if an object is a valid Conversation
+ * @param {any} obj - Object to check
+ * @returns {obj is ConversationType} Type guard
+ */
+function isConversation(obj) {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof obj.userId === 'string' &&
+    Array.isArray(obj.messageIds) &&
+    ['active', 'closed', 'archived'].includes(obj.status)
+  );
+}
+
+/**
+ * Checks if an object is a valid KnowledgeDocument
+ * @param {any} obj - Object to check
+ * @returns {obj is KnowledgeDocumentType} Type guard
+ */
+function isKnowledgeDocument(obj) {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof obj.title === 'string' &&
+    typeof obj.content === 'string' &&
+    typeof obj.category === 'string' &&
+    Array.isArray(obj.tags) &&
+    ['en', 'es', 'ru'].includes(obj.language)
+  );
+}
+
 module.exports = {
+  // Type guards
   isMessage,
-  isTicket
+  isTicket,
+  isConversation,
+  isKnowledgeDocument,
+  
+  // API utilities
+  ...apiTypes
 };
