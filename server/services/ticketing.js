@@ -4,6 +4,7 @@
  * @file server/services/ticketing.js
  */
 
+const mongoose = require('mongoose');
 const Ticket = require('../models/ticket');
 const logger = require('../utils/logger');
 
