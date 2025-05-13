@@ -110,10 +110,13 @@ function validateTicketQueryParams(query) {
 
 /**
  * POST /api/tickets
- * Create a new support ticket
+ * Create a new support ticket - PUBLIC endpoint (no auth required)
  */
 router.post('/', async (req, res) => {
   try {
+    // Check if we need admin auth for tickets - we don't, but check for error logging
+    const needsAuth = false;
+    
     // Validate required fields
     const validationError = validateRequiredFields(req.body, ['userId', 'conversationId', 'subject', 'initialMessage']);
     if (validationError) {
@@ -152,7 +155,7 @@ router.post('/', async (req, res) => {
     
     res.status(201).json({ success: true, data: ticket, message: 'Ticket created successfully' });
   } catch (error) {
-    logger.error('Error creating ticket', { error: error.message });
+    logger.error('Error creating ticket', { error: error.message, stack: error.stack });
     const errorResponse = createErrorResponse('TICKET_CREATE_ERROR');
     res.status(errorResponse.httpStatus).json(errorResponse);
   }
@@ -160,7 +163,7 @@ router.post('/', async (req, res) => {
 
 /**
  * GET /api/tickets
- * Get tickets with filtering and pagination
+ * Get tickets with filtering and pagination - ADMIN only
  */
 router.get('/', requireAdminAuth, async (req, res) => {
   try {
@@ -195,7 +198,7 @@ router.get('/', requireAdminAuth, async (req, res) => {
 
 /**
  * GET /api/tickets/:ticketId
- * Get specific ticket by ID
+ * Get specific ticket by ID - ADMIN only
  */
 router.get('/:ticketId', requireAdminAuth, async (req, res) => {
   try {
@@ -237,7 +240,7 @@ router.get('/:ticketId', requireAdminAuth, async (req, res) => {
 
 /**
  * PUT /api/tickets/:ticketId
- * Update ticket
+ * Update ticket - ADMIN only
  */
 router.put('/:ticketId', requireAdminAuth, async (req, res) => {
   try {
@@ -329,7 +332,7 @@ router.put('/:ticketId', requireAdminAuth, async (req, res) => {
 
 /**
  * POST /api/tickets/:ticketId/close
- * Close a ticket with resolution
+ * Close a ticket with resolution - ADMIN only
  */
 router.post('/:ticketId/close', requireAdminAuth, async (req, res) => {
   try {
@@ -382,7 +385,7 @@ router.post('/:ticketId/close', requireAdminAuth, async (req, res) => {
 
 /**
  * POST /api/tickets/:ticketId/assign
- * Assign ticket to agent
+ * Assign ticket to agent - ADMIN only
  */
 router.post('/:ticketId/assign', requireAdminAuth, async (req, res) => {
   try {
@@ -433,7 +436,7 @@ router.post('/:ticketId/assign', requireAdminAuth, async (req, res) => {
 
 /**
  * GET /api/tickets/assigned/:agentId
- * Get tickets assigned to specific agent
+ * Get tickets assigned to specific agent - ADMIN only
  */
 router.get('/assigned/:agentId', requireAdminAuth, async (req, res) => {
   try {
@@ -471,7 +474,7 @@ router.get('/assigned/:agentId', requireAdminAuth, async (req, res) => {
 
 /**
  * GET /api/tickets/user/:userId
- * Get tickets for a specific user
+ * Get tickets for a specific user - Allow users to see their own tickets
  */
 router.get('/user/:userId', optionalAdminAuth, async (req, res) => {
   try {
@@ -515,7 +518,7 @@ router.get('/user/:userId', optionalAdminAuth, async (req, res) => {
 
 /**
  * GET /api/tickets/search
- * Search tickets
+ * Search tickets - ADMIN only
  */
 router.get('/search', requireAdminAuth, async (req, res) => {
   try {
@@ -554,7 +557,7 @@ router.get('/search', requireAdminAuth, async (req, res) => {
 
 /**
  * GET /api/tickets/status/:status
- * Get tickets by status
+ * Get tickets by status - ADMIN only
  */
 router.get('/status/:status', requireAdminAuth, async (req, res) => {
   try {
@@ -584,7 +587,7 @@ router.get('/status/:status', requireAdminAuth, async (req, res) => {
 
 /**
  * GET /api/tickets/stats
- * Get ticket statistics
+ * Get ticket statistics - ADMIN only
  */
 router.get('/stats', requireAdminAuth, async (req, res) => {
   try {
