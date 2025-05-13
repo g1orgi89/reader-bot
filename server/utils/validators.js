@@ -1,146 +1,143 @@
 /**
- * Type validation utilities
+ * Validators for Shrooms Support Bot
  * @file server/utils/validators.js
  */
 
+const logger = require('./logger');
+
 /**
- * Check if a value is one of the allowed enum values
- * @param {any} value - Value to check
- * @param {string[]} allowedValues - Array of allowed values
- * @param {string} fieldName - Name of the field for error messages
- * @throws {Error} If value is not in allowed values
+ * Validate chat request
+ * @param {Object} chatRequest - Chat request object
+ * @throws {Error} If validation fails
  */
-function validateEnum(value, allowedValues, fieldName) {
-  if (!allowedValues.includes(value)) {
-    throw new Error(`Invalid ${fieldName}: ${value}. Must be one of: ${allowedValues.join(', ')}`);
+function validateChatRequest(chatRequest) {
+  if (!chatRequest) {
+    throw new Error('Chat request is required');
+  }
+
+  if (!chatRequest.message || typeof chatRequest.message !== 'string') {
+    throw new Error('Message is required and must be a string');
+  }
+
+  if (chatRequest.message.trim().length === 0) {
+    throw new Error('Message cannot be empty');
+  }
+
+  if (chatRequest.message.length > 5000) {
+    throw new Error('Message is too long (maximum 5000 characters)');
+  }
+
+  if (chatRequest.userId && typeof chatRequest.userId !== 'string') {
+    throw new Error('UserId must be a string');
+  }
+
+  if (chatRequest.language && !['en', 'es', 'ru'].includes(chatRequest.language)) {
+    throw new Error('Language must be one of: en, es, ru');
+  }
+
+  if (chatRequest.context && !Array.isArray(chatRequest.context)) {
+    throw new Error('Context must be an array');
+  }
+
+  if (chatRequest.history && !Array.isArray(chatRequest.history)) {
+    throw new Error('History must be an array');
+  }
+
+  logger.debug('Chat request validated successfully', {
+    messageLength: chatRequest.message.length,
+    userId: chatRequest.userId,
+    language: chatRequest.language
+  });
+}
+
+/**
+ * Validate knowledge document
+ * @param {Object} doc - Knowledge document
+ * @throws {Error} If validation fails
+ */
+function validateKnowledgeDocument(doc) {
+  if (!doc) {
+    throw new Error('Document is required');
+  }
+
+  if (!doc.title || typeof doc.title !== 'string') {
+    throw new Error('Title is required and must be a string');
+  }
+
+  if (doc.title.length > 200) {
+    throw new Error('Title is too long (maximum 200 characters)');
+  }
+
+  if (!doc.content || typeof doc.content !== 'string') {
+    throw new Error('Content is required and must be a string');
+  }
+
+  if (doc.content.length > 50000) {
+    throw new Error('Content is too long (maximum 50000 characters)');
+  }
+
+  if (!doc.category || typeof doc.category !== 'string') {
+    throw new Error('Category is required and must be a string');
+  }
+
+  if (doc.tags && !Array.isArray(doc.tags)) {
+    throw new Error('Tags must be an array');
+  }
+
+  if (doc.language && !['en', 'es', 'ru'].includes(doc.language)) {
+    throw new Error('Language must be one of: en, es, ru');
   }
 }
 
 /**
- * Validate language enum
- * @param {any} language - Language to validate
- * @throws {Error} If language is invalid
- */
-function validateLanguage(language) {
-  const allowedLanguages = ['en', 'es', 'ru'];
-  validateEnum(language, allowedLanguages, 'language');
-}
-
-/**
- * Validate message role enum
- * @param {any} role - Role to validate
- * @throws {Error} If role is invalid
- */
-function validateMessageRole(role) {
-  const allowedRoles = ['user', 'assistant', 'system'];
-  validateEnum(role, allowedRoles, 'role');
-}
-
-/**
- * Validate ticket status enum
- * @param {any} status - Status to validate
- * @throws {Error} If status is invalid
- */
-function validateTicketStatus(status) {
-  const allowedStatuses = ['open', 'in_progress', 'resolved', 'closed'];
-  validateEnum(status, allowedStatuses, 'status');
-}
-
-/**
- * Validate ticket priority enum
- * @param {any} priority - Priority to validate
- * @throws {Error} If priority is invalid
- */
-function validateTicketPriority(priority) {
-  const allowedPriorities = ['low', 'medium', 'high', 'urgent'];
-  validateEnum(priority, allowedPriorities, 'priority');
-}
-
-/**
- * Validate ticket category enum
- * @param {any} category - Category to validate
- * @throws {Error} If category is invalid
- */
-function validateTicketCategory(category) {
-  const allowedCategories = ['technical', 'account', 'billing', 'feature', 'other'];
-  validateEnum(category, allowedCategories, 'category');
-}
-
-/**
- * Validate chat request object
- * @param {Object} request - Request object to validate
- * @returns {boolean} True if valid
- * @throws {Error} If request is invalid
- */
-function validateChatRequest(request) {
-  if (!request) {
-    throw new Error('Request object is required');
-  }
-
-  if (!request.message || typeof request.message !== 'string' || request.message.trim().length === 0) {
-    throw new Error('message is required and must be a non-empty string');
-  }
-
-  if (!request.userId || typeof request.userId !== 'string') {
-    throw new Error('userId is required and must be a string');
-  }
-
-  if (request.conversationId && typeof request.conversationId !== 'string') {
-    throw new Error('conversationId must be a string');
-  }
-
-  if (request.language) {
-    validateLanguage(request.language);
-  }
-
-  return true;
-}
-
-/**
- * Validate ticket data object
- * @param {Object} ticketData - Ticket data to validate
- * @returns {boolean} True if valid
- * @throws {Error} If ticket data is invalid
+ * Validate ticket data
+ * @param {Object} ticketData - Ticket data
+ * @throws {Error} If validation fails
  */
 function validateTicketData(ticketData) {
   if (!ticketData) {
-    throw new Error('Ticket data object is required');
+    throw new Error('Ticket data is required');
   }
 
   if (!ticketData.userId || typeof ticketData.userId !== 'string') {
-    throw new Error('userId is required and must be a string');
+    throw new Error('UserId is required and must be a string');
   }
 
-  if (!ticketData.subject || typeof ticketData.subject !== 'string' || ticketData.subject.trim().length === 0) {
-    throw new Error('subject is required and must be a non-empty string');
+  if (!ticketData.subject || typeof ticketData.subject !== 'string') {
+    throw new Error('Subject is required and must be a string');
   }
 
-  if (!ticketData.initialMessage || typeof ticketData.initialMessage !== 'string' || ticketData.initialMessage.trim().length === 0) {
-    throw new Error('initialMessage is required and must be a non-empty string');
+  if (ticketData.subject.length > 200) {
+    throw new Error('Subject is too long (maximum 200 characters)');
   }
 
-  if (ticketData.priority) {
-    validateTicketPriority(ticketData.priority);
+  if (!ticketData.initialMessage || typeof ticketData.initialMessage !== 'string') {
+    throw new Error('Initial message is required and must be a string');
   }
 
-  if (ticketData.category) {
-    validateTicketCategory(ticketData.category);
+  if (ticketData.initialMessage.length > 2000) {
+    throw new Error('Initial message is too long (maximum 2000 characters)');
   }
 
-  if (ticketData.language) {
-    validateLanguage(ticketData.language);
+  if (ticketData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ticketData.email)) {
+    throw new Error('Email format is invalid');
   }
 
-  return true;
+  if (ticketData.priority && !['low', 'medium', 'high', 'urgent'].includes(ticketData.priority)) {
+    throw new Error('Priority must be one of: low, medium, high, urgent');
+  }
+
+  if (ticketData.category && !['technical', 'account', 'billing', 'feature', 'other'].includes(ticketData.category)) {
+    throw new Error('Category must be one of: technical, account, billing, feature, other');
+  }
+
+  if (ticketData.language && !['en', 'es', 'ru'].includes(ticketData.language)) {
+    throw new Error('Language must be one of: en, es, ru');
+  }
 }
 
 module.exports = {
-  validateEnum,
-  validateLanguage,
-  validateMessageRole,
-  validateTicketStatus,
-  validateTicketPriority,
-  validateTicketCategory,
   validateChatRequest,
+  validateKnowledgeDocument,
   validateTicketData
 };
