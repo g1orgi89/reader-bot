@@ -185,6 +185,25 @@ function setupMiddleware() {
  * Setup API routes
  */
 function setupRoutes() {
+  // Root route - API information
+  app.get('/', (req, res) => {
+    res.json({
+      name: 'Shrooms Support Bot API',
+      version: '1.0.0',
+      status: 'running',
+      environment: process.env.NODE_ENV || 'development',
+      endpoints: {
+        chat: '/api/chat/*',
+        tickets: '/api/tickets/*',
+        knowledge: '/api/knowledge/*',
+        admin: '/api/admin/*',
+        health: '/api/health',
+        chatSimple: '/api/chat-simple'
+      },
+      documentation: 'https://github.com/g1orgi89/shrooms-support-bot'
+    });
+  });
+
   // API Routes
   app.use('/api/chat', chatRoutes);
   app.use('/api/tickets', ticketRoutes);
