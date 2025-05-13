@@ -161,8 +161,47 @@ async function initializeServices() {
  * Setup middleware
  */
 function setupMiddleware() {
-  // Security middleware
-  app.use(helmet());
+  // Security middleware - Updated CSP settings for development
+  const helmetConfig = {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'", // Allow inline scripts for Socket.IO test page
+          "cdnjs.cloudflare.com"
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'" // Allow inline styles
+        ],
+        connectSrc: [
+          "'self'",
+          "ws://localhost:*", // Allow WebSocket connections
+          "wss://localhost:*"
+        ],
+        objectSrc: ["'none'"],
+        imageSrc: ["'self'", "data:", "https:"],
+        fontSrc: ["'self'", "https:", "data:"],
+        frameSrc: ["'self'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"]
+      }
+    }
+  };
+
+  // Use different CSP settings based on environment
+  if (process.env.NODE_ENV === 'development') {
+    // More permissive CSP for development
+    helmetConfig.contentSecurityPolicy.directives.scriptSrc.push("'unsafe-eval'");
+    helmetConfig.contentSecurityPolicy.directives.connectSrc.push(
+      "ws://localhost:*",
+      "wss://localhost:*",
+      "http://localhost:*"
+    );
+  }
+
+  app.use(helmet(helmetConfig));
   app.use(cors({
     origin: config.CORS_ORIGIN,
     credentials: true
