@@ -4,6 +4,7 @@
  */
 
 const dotenv = require('dotenv');
+const constants = require('./constants');
 
 // Load environment variables
 dotenv.config();
@@ -270,9 +271,10 @@ if (process.env.NODE_ENV !== 'test') {
   validateConfig();
 }
 
-// Export configuration and helper functions
+// Export configuration, helper functions, and constants
 module.exports = {
   ...config,
+  ...constants, // Include all constants directly
   validateConfig,
   getDatabaseConfig,
   getClaudeConfig,
