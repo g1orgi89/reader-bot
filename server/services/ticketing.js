@@ -445,7 +445,7 @@ class TicketService {
   }
 }
 
-// Export the class instead of a singleton instance
+// Export the class itself
 module.exports = TicketService;
 
 // Also export as named export for consistency
