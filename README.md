@@ -1,186 +1,215 @@
-# Shrooms AI Support Bot
+# Shrooms Support Bot
 
-AI Support Bot для проекта "Shrooms" с интеграцией Claude API.
+AI-powered support bot for the Shrooms Web3 project, built with Claude API and featuring mushroom-themed assistance.
 
-## Быстрый старт
+## Features
 
-### 1. Клонируйте репозиторий
+- 🍄 AI-powered chat support with Claude 3
+- 📚 RAG (Retrieval-Augmented Generation) with Qdrant vector database
+- 🎯 Multi-language support (English, Spanish, Russian)
+- 🎫 Ticket management system
+- 📊 Admin panel for managing the knowledge base
+- 🔒 Secure authentication with rate limiting
+- 📱 WebSocket support for real-time chat
+- 🏗️ Service Manager for dependency injection
+
+## Prerequisites
+
+- Node.js (v16 or higher)
+- MongoDB
+- Qdrant vector database
+- Anthropic API key
+- OpenAI API key (for embeddings)
+
+## Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/g1orgi89/shrooms-support-bot.git
+   cd shrooms-support-bot
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   ```
+   Edit the `.env` file and fill in the required values:
+   - `ANTHROPIC_API_KEY` - Your Claude API key
+   - `OPENAI_API_KEY` - Your OpenAI API key for embeddings
+   - `MONGODB_URI` - Your MongoDB connection string
+   - Other optional configurations
+
+4. **Start the required services**
+   - MongoDB
+   - Qdrant (default: http://localhost:6333)
+
+5. **Run the development server**
+   ```bash
+   npm run dev
+   ```
+
+The server will start on http://localhost:3000
+
+## Configuration
+
+### Required Environment Variables
+
+- `ANTHROPIC_API_KEY` - API key from Anthropic for Claude access
+- `OPENAI_API_KEY` - API key from OpenAI for embeddings
+- `MONGODB_URI` - MongoDB connection string
+
+### Optional Environment Variables
+
+See `.env.example` for a full list of configurable options.
+
+## Development
+
+### Starting the development server
+
 ```bash
-git clone https://github.com/g1orgi89/shrooms-support-bot.git
-cd shrooms-support-bot
-```
-
-### 2. Установите зависимости
-```bash
-npm install
-```
-
-### 3. Настройте переменные окружения
-```bash
-cp .env.example .env
-# Отредактируйте .env файл, добавив необходимые API ключи
-```
-
-### 4. Запустите MongoDB и Qdrant
-```bash
-# MongoDB
-mongod
-
-# Qdrant (используя Docker)
-docker run -p 6333:6333 qdrant/qdrant
-```
-
-### 5. Загрузите базу знаний
-```bash
-npm run load-kb
-```
-
-### 6. Запустите проект
-```bash
-# Режим разработки
 npm run dev
-
-# Production режим
-npm start
-
-# Отдельно Telegram bot
-npm run telegram
 ```
 
-## Переменные окружения
+### Running tests
 
-Создайте `.env` файл на основе `.env.example` и заполните следующие обязательные переменные:
-
-- `ANTHROPIC_API_KEY` - Ключ API Claude от Anthropic
-- `MONGODB_URI` - Строка подключения к MongoDB
-- `VECTOR_DB_URL` - URL Qdrant сервера (по умолчанию: http://localhost:6333)
-- `OPENAI_API_KEY` - Ключ API OpenAI для создания эмбеддингов
-
-Опциональные переменные:
-- `TELEGRAM_BOT_TOKEN` - Токен Telegram бота
-- `JWT_SECRET` - Секретный ключ для JWT
-- `PORT` - Порт для веб-сервера (по умолчанию: 3000)
-
-## Архитектура проекта
-
-```
-server/
-├── api/          # REST API endpoints
-├── config/       # Настройки и конфигурация
-├── models/       # MongoDB модели
-├── services/     # Бизнес-логика
-└── utils/        # Утилиты и хелперы
-
-client/
-├── chat-widget/  # Виджет чата для сайта
-└── admin-panel/  # Панель администратора
-
-telegram/         # Telegram бот
-scripts/          # Скрипты для загрузки данных
-tests/            # Тесты
+```bash
+npm test
 ```
 
-## Функциональность
+### Linting
 
-### Основные возможности:
-- Обработка вопросов пользователей с помощью Claude API
-- Интеграция с векторной базой знаний (Qdrant)
-- Система тикетов поддержки
-- Telegram бот
-- Веб-интерфейс чата
-- Админ-панель для управления
-
-### Техническая реализация:
-- Node.js + Express.js для API
-- MongoDB для хранения данных
-- Qdrant для векторной базы знаний
-- Socket.IO для real-time чата
-- Telegraf для Telegram бота
-
-## Скрипты
-
-- `npm start` - Запуск в production режиме
-- `npm run dev` - Запуск в development режиме
-- `npm run telegram` - Запуск только Telegram бота
-- `npm run load-kb` - Загрузка базы знаний
-- `npm test` - Запуск тестов
-- `npm run lint` - Проверка кода
-
-## База знаний
-
-Документы базы знаний размещайте в папке `knowledge/`:
-- `general/` - Общая информация о проекте
-- `user-guide/` - Руководство пользователя
-- `tokenomics/` - Информация о токенах
-- `technical/` - Техническая документация
-- `troubleshooting/` - Решение проблем
-
-Поддерживаемые форматы: `.txt`, `.md`, `.pdf`, `.csv`
+```bash
+npm run lint
+```
 
 ## API Endpoints
 
-- `POST /api/chat/message` - Отправка сообщения боту
-- `GET /api/tickets` - Список тикетов поддержки
-- `POST /api/knowledge` - Добавление документа в базу знаний
+### Chat
 
-Подробная документация API доступна в `/docs/API.md`
+- `POST /api/chat/message` - Send a message to the AI assistant
+- `GET /api/chat/conversations` - Get conversation history
 
-## Конфигурация
+### Tickets
 
-Основные настройки находятся в `server/config/`:
-- `index.js` - Основные переменные
-- `prompts.js` - Системные промты для Claude
-- `db.js` - Настройки базы данных
+- `GET /api/tickets` - Get all tickets
+- `POST /api/tickets` - Create a new ticket
+- `PUT /api/tickets/:id` - Update a ticket
+- `DELETE /api/tickets/:id` - Delete a ticket
 
-## Безопасность
+### Knowledge Base
 
-- Использование JWT для аутентификации
-- Rate limiting для API
-- Валидация входных данных
-- Sanitization вывода
+- `GET /api/knowledge` - Get knowledge base documents
+- `POST /api/knowledge` - Add a new document
+- `PUT /api/knowledge/:id` - Update a document
+- `DELETE /api/knowledge/:id` - Delete a document
 
-## Тестирование
+### Admin
 
-```bash
-# Все тесты
-npm test
+- `GET /api/admin/stats` - Get system statistics
+- `POST /api/admin/update-yield` - Update farming yield display
 
-# Тесты с покрытием
-npm run test:coverage
+## Architecture
 
-# Тесты в режиме наблюдения
-npm run test:watch
+The application uses a Service Manager pattern for dependency injection and service lifecycle management:
+
+- **ClaudeService** - Handles AI interactions with Claude API
+- **VectorStoreService** - Manages the Qdrant vector database
+- **TicketService** - Handles support ticket operations
+- **ServiceManager** - Coordinates all services with dependency resolution
+
+## Knowledge Base
+
+To populate the knowledge base:
+
+1. Create markdown files in the appropriate directories:
+   - `knowledge/general/` - General information
+   - `knowledge/user-guide/` - User guides
+   - `knowledge/tokenomics/` - Token information
+   - `knowledge/technical/` - Technical documentation
+   - `knowledge/troubleshooting/` - Common issues
+
+2. Run the knowledge loading script:
+   ```bash
+   npm run load-knowledge
+   ```
+
+## Widget Integration
+
+To embed the chat widget on your website:
+
+```html
+<div id="shrooms-chat"></div>
+<script src="http://localhost:3000/widget/widget.js"></script>
+<script>
+  ShroomsWidget.init({
+    containerId: 'shrooms-chat',
+    apiUrl: 'http://localhost:3000',
+    theme: 'dark'
+  });
+</script>
 ```
 
-## Логирование
+## Telegram Bot
 
-Логи сохраняются в директории `/logs` и имеют следующие уровни:
-- `error` - Ошибки
-- `warn` - Предупреждения
-- `info` - Информационные сообщения
-- `debug` - Отладочные сообщения
+To enable the Telegram bot:
 
-## Разработка
+1. Create a bot using [@BotFather](https://t.me/botfather)
+2. Add your bot token to the environment variables:
+   ```
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   ```
+3. Start the Telegram bot:
+   ```bash
+   npm run telegram
+   ```
 
-### Требования:
-- Node.js 18+
-- MongoDB 5.0+
-- Docker (для Qdrant)
+## Production Deployment
 
-### Работа с кодом:
-1. Форкните репозиторий
-2. Создайте feature branch
-3. Внесите изменения
-4. Добавьте тесты
-5. Создайте Pull Request
+### Using Docker
 
-## Лицензия
+```bash
+# Build the image
+docker build -t shrooms-support-bot .
 
-MIT License
+# Run with docker-compose
+docker-compose up -d
+```
 
-## Поддержка
+### Using PM2
 
-Если вы нашли баг или у вас есть предложения:
-1. Создайте Issue в GitHub
-2. Обратитесь в Telegram чат поддержки
-3. Напишите на email: support@shrooms.io
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# Start the application
+pm2 start ecosystem.config.js
+
+# Save the configuration
+pm2 save
+pm2 startup
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support, please create an issue on GitHub or contact the development team.
+
+---
+
+🍄 Made with love by the Shrooms team
