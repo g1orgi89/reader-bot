@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shrooms Support Bot - Test Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .chat-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .user-message {
+            background-color: #e3f2fd;
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #f1f8e9;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #sendButton {
+            padding: 10px 20px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #sendButton:hover {
+            background-color: #45a049;
+        }
+        .status {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>🍄 Shrooms Support Bot Test</h1>
+        <div class="status" id="status">Connecting...</div>
+        <div class="messages" id="messages"></div>
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Type your message here..." disabled>
+            <button id="sendButton" disabled>Send</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const messagesEl = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const statusEl = document.getElementById('status');
+
+        // Connection status
+        socket.on('connect', () => {
+            statusEl.textContent = 'Connected to Shrooms Bot 🍄';
+            statusEl.style.color = 'green';
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            addMessage('System', 'Connected to chat server', 'system');
+        });
+
+        socket.on('disconnect', () => {
+            statusEl.textContent = 'Disconnected 😞';
+            statusEl.style.color = 'red';
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+        });
+
+        // Message handling
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage('You', message, 'user');
+            
+            // Send to server
+            socket.emit('sendMessage', {
+                message: message,
+                language: 'en',
+                userId: 'test-user-' + Date.now()
+            });
+
+            messageInput.value = '';
+        }
+
+        // Listen for responses
+        socket.on('messageResponse', (data) => {
+            addMessage('🍄 Shrooms Bot', data.message, 'bot');
+            
+            if (data.needsTicket) {
+                addMessage('System', 'A support ticket has been created for your issue.', 'system');
+            }
+        });
+
+        socket.on('error', (error) => {
+            addMessage('Error', error.message, 'error');
+        });
+
+        function addMessage(sender, message, type) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message ' + (type === 'user' ? 'user-message' : 'bot-message');
+            messageEl.innerHTML = `<strong>${sender}:</strong> ${message}`;
+            messagesEl.appendChild(messageEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Test messages
+        setTimeout(() => {
+            addMessage('System', 'Welcome! Try asking: "How do I connect my Xverse wallet?"', 'system');
+        }, 1000);
+    </script>
+</body>
+</html>
