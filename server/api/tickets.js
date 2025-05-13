@@ -192,6 +192,184 @@ router.get('/', requireAdminAuth, async (req, res) => {
   }
 });
 
+// SPECIFIC ROUTES MUST COME BEFORE PARAMETERIZED ROUTES
+
+/**
+ * GET /api/tickets/stats
+ * Get ticket statistics - ADMIN only
+ */
+router.get('/stats', requireAdminAuth, async (req, res) => {
+  try {
+    logger.info('Fetching ticket statistics', { admin: req.admin?.id });
+
+    const ticketService = getTicketService();
+    const stats = await ticketService.getTicketStatistics();
+    
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    logger.error('Error fetching ticket statistics', { error: error.message });
+    const errorResponse = createErrorResponse('STATS_ERROR', 'Failed to fetch ticket statistics');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * GET /api/tickets/search
+ * Search tickets - ADMIN only
+ */
+router.get('/search', requireAdminAuth, async (req, res) => {
+  try {
+    const query = req.query.q;
+    
+    if (!query) {
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Search query is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const status = req.query.status;
+    
+    if (status && !isValidStatus(status)) {
+      const errorResponse = createErrorResponse(
+        'INVALID_TICKET_STATUS',
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
+    logger.info('Searching tickets', { query, limit, status, admin: req.admin?.id });
+
+    const ticketService = getTicketService();
+    const tickets = await ticketService.searchTickets(query, { limit, status });
+    
+    res.json({ success: true, data: tickets });
+  } catch (error) {
+    logger.error('Error searching tickets', { query: req.query.q, error: error.message });
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to search tickets');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * GET /api/tickets/status/:status
+ * Get tickets by status - ADMIN only
+ */
+router.get('/status/:status', requireAdminAuth, async (req, res) => {
+  try {
+    const { status } = req.params;
+    const assignedTo = req.query.assignedTo;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    
+    if (!isValidStatus(status)) {
+      const errorResponse = createErrorResponse(
+        'INVALID_TICKET_STATUS',
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
+    logger.info('Fetching tickets by status', { status, assignedTo, limit, admin: req.admin?.id });
+
+    const ticketService = getTicketService();
+    const tickets = await ticketService.getTicketsByStatus(status, { assignedTo, limit });
+    
+    res.json({ success: true, data: tickets });
+  } catch (error) {
+    logger.error('Error fetching tickets by status', { status: req.params.status, error: error.message });
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch tickets by status');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * GET /api/tickets/assigned/:agentId
+ * Get tickets assigned to specific agent - ADMIN only
+ */
+router.get('/assigned/:agentId', requireAdminAuth, async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const status = req.query.status || TicketStatus.IN_PROGRESS;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    
+    if (!agentId) {
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Agent ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
+    if (!isValidStatus(status)) {
+      const errorResponse = createErrorResponse(
+        'INVALID_TICKET_STATUS',
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
+    logger.info('Fetching assigned tickets', { agentId, status, limit, admin: req.admin?.id });
+
+    const ticketService = getTicketService();
+    const tickets = await ticketService.getAssignedTickets(agentId, { status, limit });
+    
+    res.json({ success: true, data: tickets });
+  } catch (error) {
+    logger.error('Error fetching assigned tickets', { agentId: req.params.agentId, error: error.message });
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch assigned tickets');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * GET /api/tickets/user/:userId
+ * Get tickets for a specific user - Allow users to see their own tickets
+ */
+router.get('/user/:userId', optionalAdminAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const status = req.query.status;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    
+    if (!userId) {
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'User ID is required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
+    // Allow users to see their own tickets, but require admin auth to see other users' tickets
+    if (!req.admin && req.query.userId !== userId) {
+      const errorResponse = createErrorResponse('FORBIDDEN');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
+    if (status && !isValidStatus(status)) {
+      const errorResponse = createErrorResponse(
+        'INVALID_TICKET_STATUS',
+        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
+    logger.info('Fetching user tickets', { userId, status, limit, admin: req.admin?.id });
+
+    const ticketService = getTicketService();
+    const tickets = await ticketService.getUserTickets(userId, { status, limit });
+    
+    res.json({ success: true, data: tickets });
+  } catch (error) {
+    logger.error('Error fetching user tickets', { userId: req.params.userId, error: error.message });
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch user tickets');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+// PARAMETERIZED ROUTES COME AFTER SPECIFIC ROUTES
+
 /**
  * GET /api/tickets/:ticketId
  * Get specific ticket by ID - ADMIN only
@@ -430,180 +608,6 @@ router.post('/:ticketId/assign', requireAdminAuth, async (req, res) => {
     }
     
     const errorResponse = createErrorResponse('TICKET_UPDATE_ERROR', 'Failed to assign ticket');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/tickets/assigned/:agentId
- * Get tickets assigned to specific agent - ADMIN only
- */
-router.get('/assigned/:agentId', requireAdminAuth, async (req, res) => {
-  try {
-    const { agentId } = req.params;
-    const status = req.query.status || TicketStatus.IN_PROGRESS;
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
-    
-    if (!agentId) {
-      const errorResponse = createErrorResponse(
-        'MISSING_REQUIRED_FIELD',
-        'Agent ID is required'
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-    
-    if (!isValidStatus(status)) {
-      const errorResponse = createErrorResponse(
-        'INVALID_TICKET_STATUS',
-        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-
-    logger.info('Fetching assigned tickets', { agentId, status, limit, admin: req.admin?.id });
-
-    const ticketService = getTicketService();
-    const tickets = await ticketService.getAssignedTickets(agentId, { status, limit });
-    
-    res.json({ success: true, data: tickets });
-  } catch (error) {
-    logger.error('Error fetching assigned tickets', { agentId: req.params.agentId, error: error.message });
-    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch assigned tickets');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/tickets/user/:userId
- * Get tickets for a specific user - Allow users to see their own tickets
- */
-router.get('/user/:userId', optionalAdminAuth, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const status = req.query.status;
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    
-    if (!userId) {
-      const errorResponse = createErrorResponse(
-        'MISSING_REQUIRED_FIELD',
-        'User ID is required'
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-    
-    // Allow users to see their own tickets, but require admin auth to see other users' tickets
-    if (!req.admin && req.query.userId !== userId) {
-      const errorResponse = createErrorResponse('FORBIDDEN');
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-    
-    if (status && !isValidStatus(status)) {
-      const errorResponse = createErrorResponse(
-        'INVALID_TICKET_STATUS',
-        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-
-    logger.info('Fetching user tickets', { userId, status, limit, admin: req.admin?.id });
-
-    const ticketService = getTicketService();
-    const tickets = await ticketService.getUserTickets(userId, { status, limit });
-    
-    res.json({ success: true, data: tickets });
-  } catch (error) {
-    logger.error('Error fetching user tickets', { userId: req.params.userId, error: error.message });
-    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch user tickets');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/tickets/search
- * Search tickets - ADMIN only
- */
-router.get('/search', requireAdminAuth, async (req, res) => {
-  try {
-    const query = req.query.q;
-    
-    if (!query) {
-      const errorResponse = createErrorResponse(
-        'MISSING_REQUIRED_FIELD',
-        'Search query is required'
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-    
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const status = req.query.status;
-    
-    if (status && !isValidStatus(status)) {
-      const errorResponse = createErrorResponse(
-        'INVALID_TICKET_STATUS',
-        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-
-    logger.info('Searching tickets', { query, limit, status, admin: req.admin?.id });
-
-    const ticketService = getTicketService();
-    const tickets = await ticketService.searchTickets(query, { limit, status });
-    
-    res.json({ success: true, data: tickets });
-  } catch (error) {
-    logger.error('Error searching tickets', { query: req.query.q, error: error.message });
-    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to search tickets');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/tickets/status/:status
- * Get tickets by status - ADMIN only
- */
-router.get('/status/:status', requireAdminAuth, async (req, res) => {
-  try {
-    const { status } = req.params;
-    const assignedTo = req.query.assignedTo;
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
-    
-    if (!isValidStatus(status)) {
-      const errorResponse = createErrorResponse(
-        'INVALID_TICKET_STATUS',
-        `Invalid status. Must be one of: ${Object.values(TicketStatus).join(', ')}`
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-
-    logger.info('Fetching tickets by status', { status, assignedTo, limit, admin: req.admin?.id });
-
-    const ticketService = getTicketService();
-    const tickets = await ticketService.getTicketsByStatus(status, { assignedTo, limit });
-    
-    res.json({ success: true, data: tickets });
-  } catch (error) {
-    logger.error('Error fetching tickets by status', { status: req.params.status, error: error.message });
-    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch tickets by status');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/tickets/stats
- * Get ticket statistics - ADMIN only
- */
-router.get('/stats', requireAdminAuth, async (req, res) => {
-  try {
-    logger.info('Fetching ticket statistics', { admin: req.admin?.id });
-
-    const ticketService = getTicketService();
-    const stats = await ticketService.getTicketStatistics();
-    
-    res.json({ success: true, data: stats });
-  } catch (error) {
-    logger.error('Error fetching ticket statistics', { error: error.message });
-    const errorResponse = createErrorResponse('STATS_ERROR', 'Failed to fetch ticket statistics');
     res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
