@@ -3,7 +3,7 @@
  * @description Сервис для работы с векторной базой знаний с поддержкой Qdrant
  */
 
-const { QdrantClient } = require('qdrant-js');
+const { QdrantApi } = require('@qdrant/js-client-rest');
 const logger = require('../utils/logger');
 
 /**
@@ -74,7 +74,7 @@ class VectorStoreService {
    */
   async initialize() {
     try {
-      this.client = new QdrantClient({
+      this.client = new QdrantApi({
         url: this.options.url,
       });
 
