@@ -23,12 +23,12 @@ const vectorStoreConfig = {
     url: process.env.VECTOR_DB_URL || 'http://localhost:6333',
     collectionName: 'shrooms_knowledge_dev',
     embeddingProvider: {
-      provider: process.env.EMBEDDING_PROVIDER || 'voyage',
-      model: process.env.EMBEDDING_MODEL || 'voyage-2',
-      apiKey: process.env.VOYAGE_API_KEY || process.env.OPENAI_API_KEY,
+      provider: process.env.EMBEDDING_PROVIDER || 'openai',
+      model: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
+      apiKey: process.env.OPENAI_API_KEY || process.env.VOYAGE_API_KEY,
       apiUrl: process.env.EMBEDDING_API_URL
     },
-    dimensions: 1024,
+    dimensions: 1536,  // Default for OpenAI ada-002
     metric: 'cosine'
   },
   
@@ -36,12 +36,12 @@ const vectorStoreConfig = {
     url: process.env.VECTOR_DB_URL || 'http://qdrant:6333',
     collectionName: 'shrooms_knowledge',
     embeddingProvider: {
-      provider: process.env.EMBEDDING_PROVIDER || 'voyage',
-      model: process.env.EMBEDDING_MODEL || 'voyage-2',
-      apiKey: process.env.VOYAGE_API_KEY || process.env.OPENAI_API_KEY,
+      provider: process.env.EMBEDDING_PROVIDER || 'openai',
+      model: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
+      apiKey: process.env.OPENAI_API_KEY || process.env.VOYAGE_API_KEY,
       apiUrl: process.env.EMBEDDING_API_URL
     },
-    dimensions: 1024,
+    dimensions: 1536,  // Default for OpenAI ada-002
     metric: 'cosine'
   },
   
@@ -149,6 +149,18 @@ function validateVectorStoreConfig(config) {
  */
 function getAvailableProviders() {
   return {
+    openai: {
+      models: [
+        'text-embedding-ada-002',
+        'text-embedding-3-small',
+        'text-embedding-3-large'
+      ],
+      dimensions: {
+        'text-embedding-ada-002': 1536,
+        'text-embedding-3-small': 1536,
+        'text-embedding-3-large': 3072
+      }
+    },
     voyage: {
       models: [
         'voyage-2',
@@ -163,18 +175,6 @@ function getAvailableProviders() {
         'voyage-code-2': 1024,
         'voyage-law-2': 1024,
         'voyage-finance-2': 1024
-      }
-    },
-    openai: {
-      models: [
-        'text-embedding-ada-002',
-        'text-embedding-3-small',
-        'text-embedding-3-large'
-      ],
-      dimensions: {
-        'text-embedding-ada-002': 1536,
-        'text-embedding-3-small': 1536,
-        'text-embedding-3-large': 3072
       }
     }
   };
