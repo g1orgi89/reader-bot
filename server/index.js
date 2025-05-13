@@ -207,6 +207,22 @@ function setupMiddleware() {
     credentials: true
   }));
 
+  // Set default charset in Content-Type headers
+  app.use((req, res, next) => {
+    // Override the default express/socket.io content-type to include charset
+    const setContentType = res.type.bind(res);
+    res.type = function(type) {
+      if (type === 'html' || type === 'text/html') {
+        return setContentType.call(this, 'text/html; charset=utf-8');
+      }
+      if (type === 'json' || type === 'application/json') {
+        return setContentType.call(this, 'application/json; charset=utf-8');
+      }
+      return setContentType.call(this, type);
+    };
+    next();
+  });
+
   // Body parsing
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
