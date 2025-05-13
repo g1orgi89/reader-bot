@@ -1,357 +1,186 @@
-# Shrooms Support Bot
+# Shrooms AI Support Bot
 
-AI-powered support bot for the Shrooms Web3 project, built with Claude API and MongoDB. This bot provides intelligent customer support through web chat and Telegram integration.
+AI Support Bot для проекта "Shrooms" с интеграцией Claude API.
 
-## Features
+## Быстрый старт
 
-- 🤖 AI-powered responses using Claude API
-- 🎫 Ticket management system with full CRUD operations
-- 📚 Knowledge base with vector search
-- 🌐 Multiple language support (English, Spanish, Russian)
-- 💬 Web chat widget
-- 📱 Telegram bot integration
-- 🔍 Full-text search in tickets
-- 📊 Analytics and statistics
-- 🍄 Mushroom-themed personality
-- 🔐 Secure admin authentication
-- 📊 Comprehensive API with full type safety
-
-## Architecture
-
-### Technology Stack
-
-- **Backend**: Node.js, Express
-- **Database**: MongoDB with Mongoose
-- **Vector Database**: Qdrant for knowledge base
-- **AI**: Anthropic Claude API
-- **Testing**: Jest with comprehensive unit and integration tests
-- **Logging**: Winston
-- **Type Safety**: JSDoc with TypeScript-style annotations
-- **Authentication**: Bearer token middleware
-
-### Key Components
-
-- **TicketService**: Manages ticket CRUD operations with full type safety
-- **VectorStore**: Handles knowledge base searches
-- **ClaudeService**: Integrates with Claude API for generating responses
-- **AdminAuth**: Secure authentication middleware for protected endpoints
-- **Logger**: Structured logging with context support
-
-## Installation
-
-1. Clone the repository:
+### 1. Клонируйте репозиторий
 ```bash
 git clone https://github.com/g1orgi89/shrooms-support-bot.git
 cd shrooms-support-bot
 ```
 
-2. Install dependencies:
+### 2. Установите зависимости
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+### 3. Настройте переменные окружения
 ```bash
 cp .env.example .env
-# Edit .env with your API keys and configuration
+# Отредактируйте .env файл, добавив необходимые API ключи
 ```
 
-4. Start MongoDB and Qdrant (using Docker):
+### 4. Запустите MongoDB и Qdrant
 ```bash
-docker run -d --name mongodb -p 27017:27017 mongo:5.0
-docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant
+# MongoDB
+mongod
+
+# Qdrant (используя Docker)
+docker run -p 6333:6333 qdrant/qdrant
 ```
 
-## Development
-
-### Running the Application
-
+### 5. Загрузите базу знаний
 ```bash
-# Development mode with hot reload
+npm run load-kb
+```
+
+### 6. Запустите проект
+```bash
+# Режим разработки
 npm run dev
 
-# Production mode
+# Production режим
 npm start
 
-# Telegram bot only
+# Отдельно Telegram bot
 npm run telegram
 ```
 
-### Environment Variables
+## Переменные окружения
 
-Create a `.env` file with the following variables:
+Создайте `.env` файл на основе `.env.example` и заполните следующие обязательные переменные:
 
-```env
-# Claude API
-ANTHROPIC_API_KEY=your_claude_api_key
+- `ANTHROPIC_API_KEY` - Ключ API Claude от Anthropic
+- `MONGODB_URI` - Строка подключения к MongoDB
+- `VECTOR_DB_URL` - URL Qdrant сервера (по умолчанию: http://localhost:6333)
+- `OPENAI_API_KEY` - Ключ API OpenAI для создания эмбеддингов
 
-# Database
-MONGODB_URI=mongodb://localhost:27017/shrooms-support
+Опциональные переменные:
+- `TELEGRAM_BOT_TOKEN` - Токен Telegram бота
+- `JWT_SECRET` - Секретный ключ для JWT
+- `PORT` - Порт для веб-сервера (по умолчанию: 3000)
 
-# Vector Database
-VECTOR_DB_URL=http://localhost:6333
+## Архитектура проекта
 
-# Authentication
-ADMIN_TOKEN=your_secure_admin_token
+```
+server/
+├── api/          # REST API endpoints
+├── config/       # Настройки и конфигурация
+├── models/       # MongoDB модели
+├── services/     # Бизнес-логика
+└── utils/        # Утилиты и хелперы
 
-# Telegram (optional)
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+client/
+├── chat-widget/  # Виджет чата для сайта
+└── admin-panel/  # Панель администратора
 
-# Logging
-LOG_LEVEL=info
-NODE_ENV=development
+telegram/         # Telegram бот
+scripts/          # Скрипты для загрузки данных
+tests/            # Тесты
 ```
 
-### Testing
+## Функциональность
+
+### Основные возможности:
+- Обработка вопросов пользователей с помощью Claude API
+- Интеграция с векторной базой знаний (Qdrant)
+- Система тикетов поддержки
+- Telegram бот
+- Веб-интерфейс чата
+- Админ-панель для управления
+
+### Техническая реализация:
+- Node.js + Express.js для API
+- MongoDB для хранения данных
+- Qdrant для векторной базы знаний
+- Socket.IO для real-time чата
+- Telegraf для Telegram бота
+
+## Скрипты
+
+- `npm start` - Запуск в production режиме
+- `npm run dev` - Запуск в development режиме
+- `npm run telegram` - Запуск только Telegram бота
+- `npm run load-kb` - Загрузка базы знаний
+- `npm test` - Запуск тестов
+- `npm run lint` - Проверка кода
+
+## База знаний
+
+Документы базы знаний размещайте в папке `knowledge/`:
+- `general/` - Общая информация о проекте
+- `user-guide/` - Руководство пользователя
+- `tokenomics/` - Информация о токенах
+- `technical/` - Техническая документация
+- `troubleshooting/` - Решение проблем
+
+Поддерживаемые форматы: `.txt`, `.md`, `.pdf`, `.csv`
+
+## API Endpoints
+
+- `POST /api/chat/message` - Отправка сообщения боту
+- `GET /api/tickets` - Список тикетов поддержки
+- `POST /api/knowledge` - Добавление документа в базу знаний
+
+Подробная документация API доступна в `/docs/API.md`
+
+## Конфигурация
+
+Основные настройки находятся в `server/config/`:
+- `index.js` - Основные переменные
+- `prompts.js` - Системные промты для Claude
+- `db.js` - Настройки базы данных
+
+## Безопасность
+
+- Использование JWT для аутентификации
+- Rate limiting для API
+- Валидация входных данных
+- Sanitization вывода
+
+## Тестирование
 
 ```bash
-# Run all tests
+# Все тесты
 npm test
 
-# Run tests with coverage
+# Тесты с покрытием
 npm run test:coverage
 
-# Run tests in watch mode
+# Тесты в режиме наблюдения
 npm run test:watch
-
-# Run specific test file
-npm test -- server/tests/api/tickets.test.js
 ```
 
-### Code Quality
+## Логирование
 
-```bash
-# Lint code
-npm run lint
+Логи сохраняются в директории `/logs` и имеют следующие уровни:
+- `error` - Ошибки
+- `warn` - Предупреждения
+- `info` - Информационные сообщения
+- `debug` - Отладочные сообщения
 
-# Fix linting issues
-npm run lint:fix
-```
+## Разработка
 
-## API Documentation
+### Требования:
+- Node.js 18+
+- MongoDB 5.0+
+- Docker (для Qdrant)
 
-### 📚 Comprehensive API Documentation
-Our API documentation covers all major components:
+### Работа с кодом:
+1. Форкните репозиторий
+2. Создайте feature branch
+3. Внесите изменения
+4. Добавьте тесты
+5. Создайте Pull Request
 
-**📁 [Tickets API Documentation](docs/API_TICKETS.md)**
-- All 11 ticket management endpoints
-- Authentication requirements  
-- Type definitions and examples
-- Error codes and handling
+## Лицензия
 
-**📁 [Knowledge API Documentation](docs/KNOWLEDGE_API_TYPES.md)**
-- Typизированный API для управления базой знаний
-- Search операции с фильтрацией
-- Типы для добавления документов
-- Валидация и совместимость с админ-панелью
+MIT License
 
-### Quick API Overview
+## Поддержка
 
-#### Tickets API
-Provides comprehensive ticket management functionality:
-
-- **Public Access**: Create tickets
-- **User Access**: View own tickets
-- **Admin Access**: Full ticket management
-
-```javascript
-// Create ticket (public)
-POST /api/tickets
-
-// Get tickets with filtering (admin)
-GET /api/tickets?status=open&priority=high&search=connection
-
-// Get specific ticket (admin)
-GET /api/tickets/TKT-001
-
-// Update ticket (admin)
-PUT /api/tickets/TKT-001
-
-// Close ticket (admin)
-POST /api/tickets/TKT-001/close
-```
-
-#### Knowledge API
-Provides typesafe knowledge base management:
-
-```javascript
-// Search knowledge base with filters
-GET /api/knowledge/search?q=token&language=ru&category=tokenomics
-
-// Add document to knowledge base
-POST /api/knowledge/documents
-{
-  "title": "Staking Guide",
-  "content": "Step by step...",
-  "category": "user-guide",
-  "language": "en",
-  "tags": ["staking", "guide"]
-}
-
-// Upload files to knowledge base
-POST /api/knowledge/upload
-
-// Get knowledge base statistics
-GET /api/knowledge/stats
-```
-
-#### Authentication
-```
-Authorization: Bearer <your-admin-token>
-```
-
-## Type System
-
-This project uses comprehensive JSDoc typing for type safety without TypeScript:
-
-### Tickets Types
-```javascript
-/**
- * @typedef {Object} TicketCreateData
- * @property {string} userId - User identifier
- * @property {string} conversationId - Associated conversation ID
- * @property {string} subject - Ticket subject
- * @property {'low'|'medium'|'high'|'urgent'} [priority='medium'] - Priority
- * @property {'technical'|'account'|'billing'|'feature'|'other'} [category='other'] - Category
- */
-```
-
-### Knowledge API Types  
-```javascript
-/**
- * @typedef {Object} SearchQuery
- * @property {string} query - Search query string
- * @property {number} [limit=10] - Maximum results
- * @property {string} [language] - Language filter (en/es/ru)
- * @property {string} [category] - Category filter
- * @property {string[]} [tags] - Tags filter
- */
-```
-
-### Type Guards and Validation
-
-All enum values are validated using type guards:
-
-```javascript
-// Type guard example
-function isValidStatus(value) {
-  return Object.values(TicketStatus).includes(value);
-}
-
-// Usage in API
-if (!isValidStatus(req.body.status)) {
-  return res.status(400).json(createErrorResponse('Invalid status'));
-}
-```
-
-## Testing Strategy
-
-The project includes comprehensive testing:
-
-1. **Unit Tests**: Test individual services and utilities
-2. **Integration Tests**: Test API endpoints with mocked dependencies
-3. **Type Guards**: Validate enum values and data structures
-4. **Error Handling**: Test all error scenarios
-5. **Authentication**: Test protected endpoints
-
-Example test structure:
-```javascript
-describe('POST /api/tickets', () => {
-  it('should create a new ticket successfully', async () => {
-    const ticketData = {
-      userId: 'user123',
-      conversationId: 'conv123',
-      subject: 'Test ticket',
-      initialMessage: 'This is a test ticket'
-    };
-
-    const response = await request(app)
-      .post('/api/tickets')
-      .send(ticketData)
-      .expect(201);
-
-    expect(response.body.success).toBe(true);
-    expect(response.body.data.ticketId).toBeDefined();
-  });
-});
-```
-
-## Recent Updates
-
-### ✅ Knowledge API Типизация (Чат #9)
-Завершена полная типизация Knowledge API:
-
-- **Типы для search операций**: Полностью типизированные поисковые запросы с фильтрацией
-- **Типы для добавления документов**: Валидация входящих данных
-- **Фильтрация**: Поддержка языков, категорий и тегов  
-- **Совместимость**: Полная интеграция с админ-панелью
-
-Подробности в [Knowledge API Types Documentation](docs/KNOWLEDGE_API_TYPES.md)
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Write tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-### Code Style
-
-- Use JSDoc for type annotations
-- Follow the existing code style
-- Write comprehensive tests
-- Use descriptive variable names
-- Add logging for important operations
-- Protect admin endpoints appropriately
-
-## Deployment
-
-### Docker
-
-```bash
-# Build the application
-docker build -t shrooms-support-bot .
-
-# Run with Docker Compose
-docker-compose up -d
-```
-
-### Environment Setup
-
-1. Set up MongoDB Atlas or self-hosted MongoDB
-2. Configure Qdrant vector database
-3. Set up environment variables
-4. Deploy to your preferred platform (AWS, GCP, Azure)
-5. Configure secure admin tokens for production
-
-## Monitoring and Logging
-
-The application includes comprehensive logging:
-
-- **Info Level**: Successful operations, admin actions
-- **Warn Level**: Authentication failures, deprecated usage
-- **Error Level**: Service errors, failed operations
-
-All logs include contextual information:
-```javascript
-logger.info('Creating new ticket', { 
-  userId: req.body.userId,
-  subject: req.body.subject 
-});
-```
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support or questions about this bot:
-- Create an issue on GitHub
-- Join our Telegram community
-- Email: support@shrooms.io
-
----
-
-Built with 🍄 by the Shrooms team
+Если вы нашли баг или у вас есть предложения:
+1. Создайте Issue в GitHub
+2. Обратитесь в Telegram чат поддержки
+3. Напишите на email: support@shrooms.io
