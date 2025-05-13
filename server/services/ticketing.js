@@ -445,17 +445,16 @@ class TicketService {
   }
 }
 
-// Create and export singleton instance
-const ticketService = new TicketService();
+// Export the class instead of a singleton instance
+module.exports = TicketService;
 
-// Export enums for use in other modules
-ticketService.TicketStatus = TicketStatus;
-ticketService.TicketPriority = TicketPriority;
-ticketService.TicketCategory = TicketCategory;
+// Also export as named export for consistency
+module.exports.TicketService = TicketService;
 
-// Export type guards for validation
-ticketService.isValidStatus = isValidStatus;
-ticketService.isValidPriority = isValidPriority;
-ticketService.isValidCategory = isValidCategory;
-
-module.exports = ticketService;
+// Export enums and validators as static properties
+TicketService.TicketStatus = TicketStatus;
+TicketService.TicketPriority = TicketPriority;
+TicketService.TicketCategory = TicketCategory;
+TicketService.isValidStatus = isValidStatus;
+TicketService.isValidPriority = isValidPriority;
+TicketService.isValidCategory = isValidCategory;
