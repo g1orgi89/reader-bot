@@ -37,11 +37,31 @@ const io = socketIo(server, {
   }
 });
 
+// Track if services are already registered to prevent duplicates
+let servicesRegistered = false;
+
 /**
  * Register all services with ServiceManager
  */
 function registerServices() {
+  if (servicesRegistered) {
+    logger.debug('Services already registered, skipping...');
+    return;
+  }
+
   logger.info('Registering services with ServiceManager...');
+
+  // Register MongoDB client as a service first (no dependencies)
+  ServiceManager.register('mongoClient',
+    () => {
+      return mongoose.connection;
+    },
+    {
+      dependencies: [],
+      singleton: true,
+      lazy: false
+    }
+  );
 
   // Register Claude Service
   ServiceManager.register('claudeService', 
@@ -92,18 +112,7 @@ function registerServices() {
     }
   );
 
-  // Register MongoDB client as a service
-  ServiceManager.register('mongoClient',
-    () => {
-      return mongoose.connection;
-    },
-    {
-      dependencies: [],
-      singleton: true,
-      lazy: false
-    }
-  );
-
+  servicesRegistered = true;
   logger.info('All services registered successfully');
 }
 
@@ -117,16 +126,6 @@ async function initializeServices() {
     // Connect to MongoDB first
     await mongoose.connect(config.getDatabaseConfig().uri, config.getDatabaseConfig().options);
     logger.info('Connected to MongoDB successfully');
-
-    // Force registration of mongoClient service with actual connection
-    ServiceManager.register('mongoClient',
-      () => mongoose.connection,
-      {
-        dependencies: [],
-        singleton: true,
-        lazy: false
-      }
-    );
 
     // Initialize all registered services
     await ServiceManager.initializeAll();
