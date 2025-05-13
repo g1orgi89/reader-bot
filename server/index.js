@@ -176,9 +176,18 @@ function setupMiddleware() {
   const limiter = rateLimit(config.getRateLimitConfig());
   app.use('/api', limiter);
 
-  // Static files
+  // Static files - Updated to support test-chat.html
+  // Serve the entire client directory for development/testing
+  app.use('/client', express.static(path.join(__dirname, '../client')));
+  
+  // Specific routes for components
   app.use('/widget', express.static(path.join(__dirname, '../client/chat-widget')));
   app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')));
+  
+  // Serve test-chat.html directly
+  app.get('/test-chat', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/test-chat.html'));
+  });
 }
 
 /**
@@ -199,6 +208,10 @@ function setupRoutes() {
         admin: '/api/admin/*',
         health: '/api/health',
         chatSimple: '/api/chat-simple'
+      },
+      testTools: {
+        chatTest: '/test-chat',
+        socketTest: '/client/test-chat.html'
       },
       documentation: 'https://github.com/g1orgi89/shrooms-support-bot'
     });
@@ -389,7 +402,12 @@ async function startServer() {
     server.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {
         environment: config.NODE_ENV,
-        pid: process.pid
+        pid: process.pid,
+        testUrls: {
+          api: `http://localhost:${PORT}/`,
+          testChat: `http://localhost:${PORT}/test-chat`,
+          health: `http://localhost:${PORT}/api/health`
+        }
       });
     });
 
