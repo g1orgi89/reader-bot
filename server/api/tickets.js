@@ -36,13 +36,10 @@ const router = express.Router();
  * @typedef {import('../types/api').TicketQueryParams} TicketQueryParams
  */
 
-// Lazy load services to avoid circular dependencies
-let ticketService;
+// Get ticket service from ServiceManager
 function getTicketService() {
-  if (!ticketService) {
-    ticketService = require('../services/ticketing');
-  }
-  return ticketService;
+  const ServiceManager = require('../core/ServiceManager');
+  return ServiceManager.get('ticketService');
 }
 
 /**
@@ -114,9 +111,6 @@ function validateTicketQueryParams(query) {
  */
 router.post('/', async (req, res) => {
   try {
-    // Check if we need admin auth for tickets - we don't, but check for error logging
-    const needsAuth = false;
-    
     // Validate required fields
     const validationError = validateRequiredFields(req.body, ['userId', 'conversationId', 'subject', 'initialMessage']);
     if (validationError) {
@@ -151,7 +145,8 @@ router.post('/', async (req, res) => {
       email: req.body.email
     };
 
-    const ticket = await getTicketService().createTicket(ticketData);
+    const ticketService = getTicketService();
+    const ticket = await ticketService.createTicket(ticketData);
     
     res.status(201).json({ success: true, data: ticket, message: 'Ticket created successfully' });
   } catch (error) {
@@ -179,7 +174,8 @@ router.get('/', requireAdminAuth, async (req, res) => {
       sort: `${pagination.order === 'desc' ? '-' : ''}${pagination.sort}`
     };
 
-    const result = await getTicketService().getTickets({ ...filter, ...search }, queryOptions);
+    const ticketService = getTicketService();
+    const result = await ticketService.getTickets({ ...filter, ...search }, queryOptions);
     
     const response = createPaginatedResponse(
       result.items,
@@ -214,7 +210,8 @@ router.get('/:ticketId', requireAdminAuth, async (req, res) => {
 
     logger.info('Fetching ticket', { ticketId, admin: req.admin?.id });
 
-    const ticket = await getTicketService().getTicketById(ticketId);
+    const ticketService = getTicketService();
+    const ticket = await ticketService.getTicketById(ticketId);
     
     if (!ticket) {
       const errorResponse = createErrorResponse('TICKET_NOT_FOUND');
@@ -306,7 +303,8 @@ router.put('/:ticketId', requireAdminAuth, async (req, res) => {
       updateData.subject = req.body.subject;
     }
 
-    const ticket = await getTicketService().updateTicket(ticketId, updateData);
+    const ticketService = getTicketService();
+    const ticket = await ticketService.updateTicket(ticketId, updateData);
     
     if (!ticket) {
       const errorResponse = createErrorResponse('TICKET_NOT_FOUND');
@@ -359,7 +357,8 @@ router.post('/:ticketId/close', requireAdminAuth, async (req, res) => {
 
     // Use admin ID as closedBy if not provided
     const finalClosedBy = closedBy || req.admin?.id;
-    const ticket = await getTicketService().closeTicket(ticketId, resolution, finalClosedBy);
+    const ticketService = getTicketService();
+    const ticket = await ticketService.closeTicket(ticketId, resolution, finalClosedBy);
     
     if (!ticket) {
       const errorResponse = createErrorResponse('TICKET_NOT_FOUND');
@@ -410,7 +409,8 @@ router.post('/:ticketId/assign', requireAdminAuth, async (req, res) => {
 
     logger.info('Assigning ticket', { ticketId, assignedTo, admin: req.admin?.id });
 
-    const ticket = await getTicketService().assignTicket(ticketId, assignedTo);
+    const ticketService = getTicketService();
+    const ticket = await ticketService.assignTicket(ticketId, assignedTo);
     
     if (!ticket) {
       const errorResponse = createErrorResponse('TICKET_NOT_FOUND');
@@ -462,7 +462,8 @@ router.get('/assigned/:agentId', requireAdminAuth, async (req, res) => {
 
     logger.info('Fetching assigned tickets', { agentId, status, limit, admin: req.admin?.id });
 
-    const tickets = await getTicketService().getAssignedTickets(agentId, { status, limit });
+    const ticketService = getTicketService();
+    const tickets = await ticketService.getAssignedTickets(agentId, { status, limit });
     
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -506,7 +507,8 @@ router.get('/user/:userId', optionalAdminAuth, async (req, res) => {
 
     logger.info('Fetching user tickets', { userId, status, limit, admin: req.admin?.id });
 
-    const tickets = await getTicketService().getUserTickets(userId, { status, limit });
+    const ticketService = getTicketService();
+    const tickets = await ticketService.getUserTickets(userId, { status, limit });
     
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -545,7 +547,8 @@ router.get('/search', requireAdminAuth, async (req, res) => {
 
     logger.info('Searching tickets', { query, limit, status, admin: req.admin?.id });
 
-    const tickets = await getTicketService().searchTickets(query, { limit, status });
+    const ticketService = getTicketService();
+    const tickets = await ticketService.searchTickets(query, { limit, status });
     
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -575,7 +578,8 @@ router.get('/status/:status', requireAdminAuth, async (req, res) => {
 
     logger.info('Fetching tickets by status', { status, assignedTo, limit, admin: req.admin?.id });
 
-    const tickets = await getTicketService().getTicketsByStatus(status, { assignedTo, limit });
+    const ticketService = getTicketService();
+    const tickets = await ticketService.getTicketsByStatus(status, { assignedTo, limit });
     
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -593,7 +597,8 @@ router.get('/stats', requireAdminAuth, async (req, res) => {
   try {
     logger.info('Fetching ticket statistics', { admin: req.admin?.id });
 
-    const stats = await getTicketService().getTicketStatistics();
+    const ticketService = getTicketService();
+    const stats = await ticketService.getTicketStatistics();
     
     res.json({ success: true, data: stats });
   } catch (error) {
