@@ -24,6 +24,7 @@ const logger = require('../utils/logger');
  * 
  * Поддерживаемые провайдеры embeddings:
  * - OpenAI
+ * - Voyage AI
  * - Настраиваемые провайдеры
  */
 class VectorStoreService {
@@ -61,6 +62,11 @@ class VectorStoreService {
           apiKey: apiKey
         });
         this.embeddingModel = model || 'text-embedding-ada-002';
+        break;
+      
+      case 'voyage':
+        this.voyageApiKey = apiKey;
+        this.embeddingModel = model || 'voyage-2';
         break;
       
       default:
@@ -135,6 +141,27 @@ class VectorStoreService {
           input: text,
         });
         return response.data[0].embedding;
+      } else if (provider === 'voyage') {
+        // Использование fetch для Voyage AI API
+        const response = await fetch('https://api.voyageai.com/v1/embeddings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.voyageApiKey}`
+          },
+          body: JSON.stringify({
+            input: [text],
+            model: this.embeddingModel
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(`Voyage API error: ${error.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.data[0].embedding;
       }
       
       throw new Error(`Unsupported provider: ${provider}`);
