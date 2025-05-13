@@ -16,9 +16,9 @@ const crypto = require('crypto');
 const ticketSchema = new mongoose.Schema({
   ticketId: {
     type: String,
-    required: true,
     unique: true,
     index: true
+    // Removed required: true - будет генерироваться автоматически в pre-save
   },
   userId: {
     type: String,
@@ -124,16 +124,38 @@ ticketSchema.virtual('daysOpen').get(function() {
 function generateTicketId() {
   const prefix = 'SHR';
   const timestamp = Date.now().toString(36).toUpperCase();
-  const random = crypto.randomBytes(2).toString('hex').toUpperCase();
+  const random = crypto.randomBytes(3).toString('hex').toUpperCase();
   return `${prefix}${timestamp}${random}`;
 }
 
 /**
  * Pre-save middleware to generate ticket ID
  */
-ticketSchema.pre('save', function(next) {
+ticketSchema.pre('save', async function(next) {
   if (this.isNew && !this.ticketId) {
-    this.ticketId = generateTicketId();
+    let ticketId;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    // Пытаемся сгенерировать уникальный ID, если текущий уже существует
+    while (!isUnique && attempts < maxAttempts) {
+      ticketId = generateTicketId();
+      
+      try {
+        const existingTicket = await this.constructor.findOne({ ticketId }, { _id: 1 }).lean();
+        isUnique = !existingTicket;
+        attempts++;
+        
+        if (!isUnique && attempts >= maxAttempts) {
+          return next(new Error('Failed to generate unique ticket ID after multiple attempts'));
+        }
+      } catch (error) {
+        return next(error);
+      }
+    }
+    
+    this.ticketId = ticketId;
   }
   next();
 });
