@@ -27,7 +27,8 @@ class MessageService {
    * @returns {Promise<ChatMessage>} Created message
    */
   async createMessage(messageData) {
-    try {\n      logger.debug('Creating message', {
+    try {
+      logger.debug('Creating message', {
         conversationId: messageData.conversationId,
         userId: messageData.userId,
         role: messageData.role,
