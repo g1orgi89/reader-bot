@@ -25,27 +25,12 @@ const {
   GENERIC_ERRORS
 } = require('../constants/errorCodes');
 
-// Импорт констант и валидаторов (используем наши коды ошибок вместо)
-const SUPPORTED_LANGUAGES = {
-  ENGLISH: 'en',
-  SPANISH: 'es',
-  RUSSIAN: 'ru'
-};
-
-const DOCUMENT_CATEGORIES = {
-  GENERAL: 'general',
-  USER_GUIDE: 'user-guide',
-  TOKENOMICS: 'tokenomics',
-  TECHNICAL: 'technical',
-  TROUBLESHOOTING: 'troubleshooting'
-};
-
-const SUPPORTED_FILE_TYPES = {
-  TEXT: '.txt',
-  MARKDOWN: '.md',
-  PDF: '.pdf',
-  CSV: '.csv'
-};
+// Импорт констант из отдельного файла
+const {
+  SUPPORTED_LANGUAGES,
+  DOCUMENT_CATEGORIES,
+  SUPPORTED_FILE_TYPES
+} = require('../constants/languages');
 
 /**
  * @typedef {import('../types/knowledgeApi').SearchQuery} SearchQuery
