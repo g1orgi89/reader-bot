@@ -3,7 +3,7 @@
  * @description Сервис для работы с векторной базой знаний с поддержкой Qdrant
  */
 
-const { QdrantApi } = require('@qdrant/js-client-rest');
+const { QdrantClient } = require('@qdrant/js-client-rest');
 const logger = require('../utils/logger');
 
 /**
@@ -45,7 +45,9 @@ class VectorStoreService {
     this.collectionName = options.collectionName || 'shrooms_knowledge';
     
     // Инициализация провайдера embeddings
-    this._initEmbeddingProvider();
+    if (options.embeddingProvider) {
+      this._initEmbeddingProvider();
+    }
   }
 
   /**
@@ -57,11 +59,15 @@ class VectorStoreService {
     
     switch (provider) {
       case 'openai':
-        const OpenAI = require('openai');
-        this.embeddingClient = new OpenAI({
-          apiKey: apiKey
-        });
-        this.embeddingModel = model || 'text-embedding-ada-002';
+        try {
+          const OpenAI = require('openai');
+          this.embeddingClient = new OpenAI({
+            apiKey: apiKey
+          });
+          this.embeddingModel = model || 'text-embedding-ada-002';
+        } catch (error) {
+          logger.warn('OpenAI not available, vector search will be limited');
+        }
         break;
       
       case 'voyage':
@@ -70,7 +76,7 @@ class VectorStoreService {
         break;
       
       default:
-        throw new Error(`Unsupported embedding provider: ${provider}`);
+        logger.warn(`Unsupported embedding provider: ${provider}`);
     }
   }
 
@@ -80,9 +86,20 @@ class VectorStoreService {
    */
   async initialize() {
     try {
-      this.client = new QdrantApi({
+      // Инициализация клиента Qdrant с правильным синтаксисом
+      this.client = new QdrantClient({
         url: this.options.url,
       });
+
+      // Проверка соединения с Qdrant
+      try {
+        await this.client.getCollections();
+      } catch (error) {
+        logger.warn('Cannot connect to Qdrant, vector search will be disabled');
+        this.client = null;
+        this.isInitialized = true;
+        return { success: true, warning: 'Vector store not available' };
+      }
 
       // Проверка существования коллекции и создание при необходимости
       const collections = await this.client.getCollections();
@@ -132,6 +149,10 @@ class VectorStoreService {
    * @returns {Promise<number[]>} Векторное представление
    */
   async generateEmbedding(text) {
+    if (!this.embeddingClient) {
+      throw new Error('Embedding provider not configured');
+    }
+
     try {
       const { provider } = this.options.embeddingProvider;
 
@@ -179,6 +200,15 @@ class VectorStoreService {
   async addDocuments(documents) {
     if (!this.isInitialized) {
       await this.initialize();
+    }
+
+    if (!this.client) {
+      return {
+        processed: documents.length,
+        succeeded: 0,
+        failed: documents.length,
+        errors: ['Vector store not available']
+      };
     }
 
     const result = {
@@ -253,6 +283,11 @@ class VectorStoreService {
   async search(query, options = {}) {
     if (!this.isInitialized) {
       await this.initialize();
+    }
+
+    if (!this.client) {
+      logger.warn('Vector store not available, returning empty results');
+      return [];
     }
 
     const {
@@ -390,6 +425,10 @@ class VectorStoreService {
       await this.initialize();
     }
 
+    if (!this.client) {
+      return false;
+    }
+
     try {
       await this.client.delete(this.collectionName, {
         points: [documentId]
@@ -414,6 +453,10 @@ class VectorStoreService {
       await this.initialize();
     }
 
+    if (!this.client) {
+      return false;
+    }
+
     try {
       await this.client.delete(this.collectionName, {
         filter: {}
@@ -436,6 +479,15 @@ class VectorStoreService {
   async getStats() {
     if (!this.isInitialized) {
       await this.initialize();
+    }
+
+    if (!this.client) {
+      return {
+        totalDocuments: 0,
+        totalVectors: 0,
+        languageDistribution: {},
+        categoryDistribution: {}
+      };
     }
 
     try {
