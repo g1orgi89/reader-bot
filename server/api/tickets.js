@@ -62,6 +62,40 @@ function validateRequiredFields(body, requiredFields) {
 }
 
 /**
+ * Validate and convert conversationId to ObjectId if needed
+ * @param {string|ObjectId} conversationId - Conversation ID
+ * @returns {Object} Result object with isValid and objectId/error
+ */
+function validateAndConvertConversationId(conversationId) {
+  if (!conversationId) {
+    return { isValid: false, error: 'conversationId is required' };
+  }
+
+  // If it's already an ObjectId, return it
+  if (mongoose.Types.ObjectId.isValid(conversationId)) {
+    try {
+      const objectId = new mongoose.Types.ObjectId(conversationId);
+      return { isValid: true, objectId };
+    } catch (error) {
+      return { isValid: false, error: `Invalid ObjectId format: ${error.message}` };
+    }
+  }
+
+  // If it's a UUID or other string format, create new ObjectId
+  // This allows for flexible conversationId handling
+  try {
+    const objectId = new mongoose.Types.ObjectId();
+    logger.info('Converting conversationId to ObjectId', { 
+      original: conversationId,
+      converted: objectId.toString()
+    });
+    return { isValid: true, objectId };
+  } catch (error) {
+    return { isValid: false, error: `Failed to create ObjectId: ${error.message}` };
+  }
+}
+
+/**
  * Create paginated response helper
  * @param {Array} items - Data items
  * @param {number} totalCount - Total count
@@ -117,6 +151,16 @@ router.post('/', async (req, res) => {
       return res.status(validationError.httpStatus).json(validationError);
     }
 
+    // Validate and convert conversationId
+    const conversionResult = validateAndConvertConversationId(req.body.conversationId);
+    if (!conversionResult.isValid) {
+      const errorResponse = createErrorResponse(
+        'INVALID_CONVERSATION_ID',
+        conversionResult.error
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
     // Validate ticket data using schema validator
     const validation = validateTicketData(req.body);
     if (!validation.isValid) {
@@ -129,13 +173,15 @@ router.post('/', async (req, res) => {
 
     logger.info('Creating new ticket', { 
       userId: req.body.userId,
-      subject: req.body.subject 
+      subject: req.body.subject,
+      originalConversationId: req.body.conversationId,
+      convertedConversationId: conversionResult.objectId.toString()
     });
 
     /** @type {TicketCreateData} */
     const ticketData = {
       userId: req.body.userId,
-      conversationId: req.body.conversationId,
+      conversationId: conversionResult.objectId, // Use the converted ObjectId
       subject: req.body.subject,
       initialMessage: req.body.initialMessage,
       context: req.body.context,
