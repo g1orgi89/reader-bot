@@ -5,6 +5,7 @@
 
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
+const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const { validateChatRequest } = require('../utils/validators');
 const messageService = require('../services/message');
@@ -91,7 +92,26 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
     }
     
     // Generate or use existing conversation ID
-    const conversationId = chatRequest.conversationId || uuidv4();
+    let conversationId = chatRequest.conversationId;
+    let conversationObjectId;
+    
+    if (!conversationId) {
+      // Generate new conversation ID as MongoDB ObjectId for consistency
+      conversationObjectId = new mongoose.Types.ObjectId();
+      conversationId = conversationObjectId.toString();
+    } else {
+      // If provided, ensure it's a valid ObjectId, otherwise create new one
+      if (mongoose.Types.ObjectId.isValid(conversationId)) {
+        conversationObjectId = new mongoose.Types.ObjectId(conversationId);
+      } else {
+        conversationObjectId = new mongoose.Types.ObjectId();
+        conversationId = conversationObjectId.toString();
+        logger.info('Converted UUID conversationId to ObjectId', {
+          original: chatRequest.conversationId,
+          converted: conversationId
+        });
+      }
+    }
     
     logger.info('Processing chat message', {
       userId: chatRequest.userId,
@@ -150,23 +170,27 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
     let ticketId = null;
     let ticketError = null;
     
-    if (claudeResponse.needsTicket && claudeResponse.ticketInfo) {
+    if (claudeResponse.needsTicket && ticketService) {
       try {
+        // Extract subject from Claude analysis or use fallback
+        const subject = claudeResponse.ticketInfo?.subject || 
+                       extractSubjectFromMessage(chatRequest.message);
+        
         const ticket = await ticketService.createTicket({
           userId: chatRequest.userId,
-          conversationId,
-          subject: claudeResponse.ticketInfo.subject || extractSubjectFromMessage(chatRequest.message),
+          conversationId: conversationObjectId, // Use ObjectId for MongoDB consistency
+          subject: subject,
           initialMessage: chatRequest.message,
-          priority: claudeResponse.ticketInfo.priority || 'medium',
-          category: claudeResponse.ticketInfo.category || 'technical',
+          priority: claudeResponse.ticketInfo?.priority || 'medium',
+          category: claudeResponse.ticketInfo?.category || 'technical',
           language: chatRequest.language,
           context: JSON.stringify({
-            claudeAnalysis: claudeResponse.ticketInfo.reason,
+            claudeAnalysis: claudeResponse.ticketInfo?.reason || 'Automatically created by AI assistant',
             messageHistory: history.slice(-3) // Last 3 messages for context
           })
         });
         
-        ticketId = ticket.ticketId;
+        ticketId = ticket.ticketId; // Get the custom ticket ID (e.g., SHROOMMAO3XBM8NC8WH8)
         
         // Update assistant message with ticket ID
         await messageService.updateMessage(assistantMessage.id, {
@@ -176,14 +200,16 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
         
         logger.info('Ticket created for conversation', {
           ticketId,
+          mongoId: ticket._id,
           conversationId,
           userId: chatRequest.userId,
-          category: claudeResponse.ticketInfo.category,
-          priority: claudeResponse.ticketInfo.priority
+          category: claudeResponse.ticketInfo?.category || 'technical',
+          priority: claudeResponse.ticketInfo?.priority || 'medium'
         });
       } catch (error) {
         logger.error('Failed to create ticket', {
           error: error.message,
+          stack: error.stack,
           conversationId,
           userId: chatRequest.userId
         });
