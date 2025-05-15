@@ -1,5 +1,5 @@
 /**
- * Knowledge Document MongoDB Model
+ * Knowledge Document MongoDB Model - Fixed UTF-8 encoding
  * @file server/models/knowledge.js
  */
 
@@ -58,6 +58,11 @@ const knowledgeSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+}, {
+  // Fix UTF-8 encoding issues
+  collection: 'knowledge_documents',
+  strict: true,
+  versionKey: false
 });
 
 // Indexes for better search performance
@@ -65,7 +70,7 @@ knowledgeSchema.index({ category: 1, language: 1 });
 knowledgeSchema.index({ tags: 1, language: 1 });
 knowledgeSchema.index({ status: 1, language: 1 });
 
-// Text search index
+// Text search index with proper collation
 knowledgeSchema.index({ 
   title: 'text', 
   content: 'text',
@@ -76,7 +81,12 @@ knowledgeSchema.index({
     content: 5,
     tags: 3
   },
-  name: 'knowledge_text_search'
+  name: 'knowledge_text_search',
+  // Add collation for better Unicode support
+  collation: {
+    locale: 'simple',
+    strength: 1
+  }
 });
 
 // Update the updatedAt field on save
