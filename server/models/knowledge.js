@@ -1,5 +1,5 @@
 /**
- * Knowledge Document MongoDB Model - Fixed search and UTF-8 encoding
+ * Knowledge Document MongoDB Model - Fixed regex validation and search
  * @file server/models/knowledge.js
  */
 
@@ -147,7 +147,7 @@ knowledgeSchema.statics.searchText = function(searchQuery, options = {}) {
     .limit(limit);
 };
 
-// Alternative regex-based search for better Unicode support
+// Safe regex-based search with validation
 knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
   const {
     language = null,
@@ -157,15 +157,60 @@ knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
     page = 1
   } = options;
 
-  // Create case-insensitive regex
-  const regexQuery = new RegExp(searchQuery, 'i');
+  // Validate and escape the search query to prevent regex errors
+  let escapedQuery;
+  try {
+    // Escape special regex characters
+    escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    // Test if the regex is valid before using it
+    new RegExp(escapedQuery, 'i');
+  } catch (error) {
+    // If regex is invalid, try with original query escaped differently
+    console.warn('Regex validation failed, using alternative approach:', error.message);
+    
+    // Alternative: split into words and search for each word
+    const words = searchQuery.split(/\s+/).filter(word => word.length > 0);
+    const wordQueries = words.map(word => {
+      // Escape special characters for each word
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return {
+        $or: [
+          { title: { $regex: escaped, $options: 'i' } },
+          { content: { $regex: escaped, $options: 'i' } },
+          { tags: { $elemMatch: { $regex: escaped, $options: 'i' } } }
+        ]
+      };
+    });
+    
+    // Build query using AND logic for all words
+    const query = {
+      $and: wordQueries,
+      status: 'published'
+    };
+    
+    // Apply filters
+    if (language) query.language = language;
+    if (category) query.category = category;
+    if (tags.length > 0) query.tags = { $in: tags };
+
+    const skip = (page - 1) * limit;
+
+    return this.find(query)
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+  }
+
+  // Create case-insensitive regex if validation passed
+  const regexQuery = new RegExp(escapedQuery, 'i');
   
   // Build search query
   const query = {
     $or: [
       { title: regexQuery },
       { content: regexQuery },
-      { tags: { $regex: regexQuery } }
+      { tags: { $elemMatch: regexQuery } }
     ],
     status: 'published'
   };
@@ -197,6 +242,7 @@ knowledgeSchema.statics.combinedSearch = async function(searchQuery, options = {
     // Otherwise, fall back to regex search for better Unicode support
     return await this.searchRegex(searchQuery, options);
   } catch (error) {
+    console.error('Text search failed, falling back to regex:', error.message);
     // If text search fails, use regex search
     return await this.searchRegex(searchQuery, options);
   }
