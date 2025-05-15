@@ -1,14 +1,14 @@
 /**
- * Admin authentication middleware
+ * Admin authentication middleware  
  * @file server/middleware/adminAuth.js
  */
 
 const logger = require('../utils/logger');
-const { createErrorResponse } = require('../types/api');
+const { createErrorResponse } = require('../constants/errorCodes');
 
 /**
  * @typedef {import('express').Request} Request
- * @typedef {import('express').Response} Response
+ * @typedef {import('express').Response} Response  
  * @typedef {import('express').NextFunction} NextFunction
  */
 
@@ -21,6 +21,7 @@ const { createErrorResponse } = require('../types/api');
  */
 async function requireAdminAuth(req, res, next) {
   try {
+    // Try multiple auth methods: Bearer token, Basic auth, and direct credentials
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
@@ -30,56 +31,63 @@ async function requireAdminAuth(req, res, next) {
         endpoint: req.originalUrl
       });
       
-      return res.status(401).json(createErrorResponse(
-        'Access denied. Authorization required.',
-        'MISSING_AUTH',
-        401
-      ));
+      const errorResponse = createErrorResponse('UNAUTHORIZED', 'Access denied. Authorization required.');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    const token = authHeader.split(' ')[1]; // Bearer <token>
+    let isValidAuth = false;
     
-    if (!token) {
-      logger.warn('Access attempt with malformed authorization header', {
-        ip: req.ip,
-        endpoint: req.originalUrl
-      });
+    // Method 1: Bearer token authentication
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7); // Remove "Bearer " prefix
+      const validToken = process.env.ADMIN_TOKEN || 'default-admin-token';
       
-      return res.status(401).json(createErrorResponse(
-        'Access denied. Invalid authorization format.',
-        'INVALID_AUTH_FORMAT',
-        401
-      ));
+      if (token === validToken) {
+        isValidAuth = true;
+        logger.info('Admin authenticated via Bearer token', {
+          endpoint: req.originalUrl,
+          method: req.method,
+          ip: req.ip
+        });
+      }
     }
     
-    // Simple token validation (in production, use proper JWT verification)
-    const validToken = process.env.ADMIN_TOKEN || 'default-admin-token';
+    // Method 2: Basic authentication (username:password)
+    if (!isValidAuth && authHeader.startsWith('Basic ')) {
+      const credentials = Buffer.from(authHeader.substring(6), 'base64').toString('utf-8');
+      const [username, password] = credentials.split(':');
+      
+      const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'password123';
+      
+      if (username === adminUsername && password === adminPassword) {
+        isValidAuth = true;
+        logger.info('Admin authenticated via Basic auth', {
+          username,
+          endpoint: req.originalUrl,
+          method: req.method,
+          ip: req.ip
+        });
+      }
+    }
     
-    if (token !== validToken) {
-      logger.warn('Access attempt with invalid token', {
+    if (!isValidAuth) {
+      logger.warn('Access attempt with invalid credentials', {
         ip: req.ip,
         endpoint: req.originalUrl,
-        providedToken: token.substring(0, 10) + '...'
+        authMethod: authHeader.split(' ')[0]
       });
       
-      return res.status(403).json(createErrorResponse(
-        'Access denied. Invalid credentials.',
-        'INVALID_TOKEN',
-        403
-      ));
+      const errorResponse = createErrorResponse('INVALID_CREDENTIALS', 'Access denied. Invalid credentials.');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
     // Add admin info to request
     req.admin = {
       id: 'admin-user',
-      role: 'admin'
+      role: 'admin',
+      username: process.env.ADMIN_USERNAME || 'admin'
     };
-    
-    logger.info('Admin access granted', {
-      endpoint: req.originalUrl,
-      method: req.method,
-      ip: req.ip
-    });
     
     next();
   } catch (error) {
@@ -89,11 +97,8 @@ async function requireAdminAuth(req, res, next) {
       endpoint: req.originalUrl
     });
     
-    res.status(500).json(createErrorResponse(
-      'Authentication service error',
-      'AUTH_SERVICE_ERROR',
-      500
-    ));
+    const errorResponse = createErrorResponse('INTERNAL_ERROR', 'Authentication service error');
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 }
 
@@ -111,24 +116,46 @@ async function optionalAdminAuth(req, res, next) {
       return next();
     }
     
-    const token = authHeader.split(' ')[1];
-    
-    if (!token) {
-      return next();
+    // Try Bearer token authentication
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const validToken = process.env.ADMIN_TOKEN || 'default-admin-token';
+      
+      if (token === validToken) {
+        req.admin = {
+          id: 'admin-user',
+          role: 'admin',
+          username: process.env.ADMIN_USERNAME || 'admin'
+        };
+        
+        logger.info('Admin authenticated for optional endpoint via Bearer', {
+          endpoint: req.originalUrl,
+          method: req.method
+        });
+      }
     }
     
-    const validToken = process.env.ADMIN_TOKEN || 'default-admin-token';
-    
-    if (token === validToken) {
-      req.admin = {
-        id: 'admin-user',
-        role: 'admin'
-      };
+    // Try Basic authentication
+    if (!req.admin && authHeader.startsWith('Basic ')) {
+      const credentials = Buffer.from(authHeader.substring(6), 'base64').toString('utf-8');
+      const [username, password] = credentials.split(':');
       
-      logger.info('Admin authenticated for optional endpoint', {
-        endpoint: req.originalUrl,
-        method: req.method
-      });
+      const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'password123';
+      
+      if (username === adminUsername && password === adminPassword) {
+        req.admin = {
+          id: 'admin-user',
+          role: 'admin',
+          username: adminUsername
+        };
+        
+        logger.info('Admin authenticated for optional endpoint via Basic', {
+          username,
+          endpoint: req.originalUrl,
+          method: req.method
+        });
+      }
     }
     
     next();
@@ -143,7 +170,28 @@ async function optionalAdminAuth(req, res, next) {
   }
 }
 
+/**
+ * Basic authentication parsing helper
+ * @param {string} authHeader - Authorization header value
+ * @returns {{username: string, password: string}|null} Parsed credentials or null
+ */
+function parseBasicAuth(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return null;
+  }
+  
+  try {
+    const credentials = Buffer.from(authHeader.substring(6), 'base64').toString('utf-8');
+    const [username, password] = credentials.split(':');
+    return { username, password };
+  } catch (error) {
+    logger.error('Failed to parse Basic auth header', { error: error.message });
+    return null;
+  }
+}
+
 module.exports = {
   requireAdminAuth,
-  optionalAdminAuth
+  optionalAdminAuth,
+  parseBasicAuth
 };
