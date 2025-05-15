@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Add test routes
+ * Main server file for Shrooms Support Bot - Add Russian test page route
  * @file server/index.js
  */
 
@@ -260,9 +260,13 @@ function setupMiddleware() {
   app.use('/widget', express.static(path.join(__dirname, '../client/chat-widget')));
   app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')));
   
-  // Serve test-chat.html directly
+  // Serve test pages directly
   app.get('/test-chat', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/test-chat.html'));
+  });
+  
+  app.get('/test-russian', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/test-russian-search.html'));
   });
 }
 
@@ -290,6 +294,7 @@ function setupRoutes() {
         chatTest: '/test-chat',
         socketTest: '/client/test-chat.html',
         russianSearchTest: '/api/test/search-russian',
+        russianSearchPage: '/test-russian',
         encodingTest: '/api/test/encoding'
       },
       documentation: 'https://github.com/g1orgi89/shrooms-support-bot'
@@ -486,6 +491,7 @@ async function startServer() {
         testUrls: {
           api: `http://localhost:${PORT}/`,
           testChat: `http://localhost:${PORT}/test-chat`,
+          testRussian: `http://localhost:${PORT}/test-russian`,
           health: `http://localhost:${PORT}/api/health`,
           russianTest: `http://localhost:${PORT}/api/test/search-russian`
         }
