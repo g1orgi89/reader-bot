@@ -31,7 +31,7 @@ router.post('/login', async (req, res) => {
 
     // Get admin credentials from environment
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'password123';
 
     // Simple credential check (in production, use hashed passwords)
     if (username !== adminUsername || password !== adminPassword) {
@@ -215,6 +215,88 @@ router.put('/password', requireAdminAuth, async (req, res) => {
     });
 
     const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * GET /api/admin/tickets
+ * Get all tickets (admin endpoint)
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.get('/tickets', requireAdminAuth, async (req, res) => {
+  try {
+    logger.info('Admin fetching all tickets', { admin: req.admin?.id });
+
+    // Get ticket service
+    const ServiceManager = require('../core/ServiceManager');
+    const ticketService = ServiceManager.get('ticketService');
+
+    // Parse query parameters
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const sort = req.query.sort || 'createdAt';
+    const order = req.query.order === 'asc' ? 'asc' : 'desc';
+
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.priority) filter.priority = req.query.priority;
+    if (req.query.category) filter.category = req.query.category;
+    if (req.query.assignedTo) filter.assignedTo = req.query.assignedTo;
+    if (req.query.userId) filter.userId = req.query.userId;
+
+    const queryOptions = {
+      page,
+      limit,
+      sort: `${order === 'desc' ? '-' : ''}${sort}`
+    };
+
+    const result = await ticketService.getTickets(filter, queryOptions);
+    
+    const response = {
+      items: result.items,
+      totalCount: result.totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(result.totalCount / limit)
+    };
+    
+    res.json({ success: true, data: response });
+  } catch (error) {
+    logger.error('Error fetching tickets via admin endpoint', { 
+      error: error.message,
+      admin: req.admin?.id 
+    });
+    
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to fetch tickets');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * GET /api/admin/tickets/stats
+ * Get ticket statistics (admin endpoint)
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.get('/tickets/stats', requireAdminAuth, async (req, res) => {
+  try {
+    logger.info('Admin fetching ticket statistics', { admin: req.admin?.id });
+
+    const ServiceManager = require('../core/ServiceManager');
+    const ticketService = ServiceManager.get('ticketService');
+    
+    const stats = await ticketService.getTicketStatistics();
+    
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    logger.error('Error fetching ticket statistics via admin endpoint', { 
+      error: error.message,
+      admin: req.admin?.id 
+    });
+    
+    const errorResponse = createErrorResponse('STATS_ERROR', 'Failed to fetch ticket statistics');
     res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
