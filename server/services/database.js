@@ -310,32 +310,100 @@ class DatabaseService {
 
       logger.info('📋 Creating database indexes...');
       
+      const indexOperations = [];
+
       // Индексы для сообщений
-      await mongoose.connection.collection('messages').createIndex({ 
-        conversationId: 1, 
-        createdAt: 1 
-      });
+      try {
+        indexOperations.push(
+          mongoose.connection.collection('messages').createIndex({ 
+            conversationId: 1, 
+            createdAt: 1 
+          })
+        );
+        indexOperations.push(
+          mongoose.connection.collection('messages').createIndex({ 
+            userId: 1, 
+            createdAt: -1 
+          })
+        );
+        indexOperations.push(
+          mongoose.connection.collection('messages').createIndex({ 
+            role: 1, 
+            createdAt: -1 
+          })
+        );
+      } catch (error) {
+        logger.warn('Messages collection indexes might already exist:', error.message);
+      }
       
       // Индексы для разговоров
-      await mongoose.connection.collection('conversations').createIndex({ 
-        userId: 1, 
-        lastActivityAt: -1 
-      });
+      try {
+        indexOperations.push(
+          mongoose.connection.collection('conversations').createIndex({ 
+            userId: 1, 
+            lastActivityAt: -1 
+          })
+        );
+        indexOperations.push(
+          mongoose.connection.collection('conversations').createIndex({ 
+            lastActivityAt: -1, 
+            isActive: 1 
+          })
+        );
+      } catch (error) {
+        logger.warn('Conversations collection indexes might already exist:', error.message);
+      }
       
       // Индексы для тикетов
-      await mongoose.connection.collection('tickets').createIndex({ 
-        ticketId: 1 
-      });
-      await mongoose.connection.collection('tickets').createIndex({ 
-        userId: 1,
-        status: 1,
-        createdAt: -1 
+      try {
+        indexOperations.push(
+          mongoose.connection.collection('tickets').createIndex({ 
+            ticketId: 1 
+          })
+        );
+        indexOperations.push(
+          mongoose.connection.collection('tickets').createIndex({ 
+            userId: 1,
+            status: 1,
+            createdAt: -1 
+          })
+        );
+        indexOperations.push(
+          mongoose.connection.collection('tickets').createIndex({ 
+            status: 1, 
+            priority: -1, 
+            createdAt: 1 
+          })
+        );
+      } catch (error) {
+        logger.warn('Tickets collection indexes might already exist:', error.message);
+      }
+
+      // Ждем завершения всех операций индексирования
+      const results = await Promise.allSettled(indexOperations);
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          successCount++;
+        } else {
+          errorCount++;
+          logger.warn(`Index operation ${index} failed:`, result.reason?.message);
+        }
       });
       
-      logger.info('✅ Database indexes created successfully');
+      logger.info(`✅ Database indexes processed: ${successCount} successful, ${errorCount} with warnings`);
+      
+      if (errorCount > 0) {
+        logger.warn(`⚠️ Some indexes may already exist or failed to create. This is usually not a problem.`);
+      }
+      
     } catch (error) {
       logger.error('❌ Failed to create database indexes:', error.message);
-      throw error;
+      // Не выбрасываем ошибку, так как индексы могут уже существовать
+      logger.warn('⚠️ Continuing without creating indexes. This may affect performance.');
     }
   }
 
