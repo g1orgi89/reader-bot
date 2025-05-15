@@ -36,36 +36,159 @@ class ServiceManager {
     this.initCounter = 0;
     
     this.logger = console; // Можно заменить на реальный логгер
+    
+    // 🍄 Автоматическая регистрация всех сервисов
+    this._autoRegisterServices();
+  }
+
+  /**
+   * Автоматически регистрирует все доступные сервисы
+   * @private
+   */
+  _autoRegisterServices() {
+    try {
+      // Регистрируем основные сервисы
+      this._registerCoreServices();
+    } catch (error) {
+      this.logger.error('Error during auto-registration:', error);
+    }
+  }
+
+  /**
+   * Регистрирует основные сервисы системы
+   * @private
+   */
+  _registerCoreServices() {
+    // Регистрируем Database Service
+    this.register('database', () => {
+      const DatabaseService = require('../services/database');
+      return DatabaseService;
+    }, {
+      singleton: true,
+      lazy: false // Инициализируем сразу
+    });
+
+    // Регистрируем Claude Service
+    this.register('claude', () => {
+      const { ClaudeService } = require('../services/claude');
+      return new ClaudeService();
+    }, {
+      singleton: true,
+      dependencies: [] // Claude не зависит от других сервисов
+    });
+
+    // Регистрируем Vector Store Service
+    this.register('vectorStore', () => {
+      const { VectorStoreService } = require('../services/vectorStore');
+      return new VectorStoreService();
+    }, {
+      singleton: true,
+      dependencies: []
+    });
+
+    // Регистрируем Knowledge Service
+    this.register('knowledge', ['vectorStore'], (vectorStore) => {
+      const { KnowledgeService } = require('../services/knowledge');
+      return new KnowledgeService(vectorStore);
+    }, {
+      singleton: true,
+      dependencies: ['vectorStore']
+    });
+
+    // Регистрируем Ticketing Service  
+    this.register('ticketing', ['database'], (database) => {
+      const { TicketingService } = require('../services/ticketing');
+      return new TicketingService(database);
+    }, {
+      singleton: true,
+      dependencies: ['database']
+    });
+
+    // Регистрируем Message Service
+    this.register('message', ['database'], (database) => {
+      const { MessageService } = require('../services/message');
+      return new MessageService(database);
+    }, {
+      singleton: true,
+      dependencies: ['database']
+    });
+
+    // Регистрируем Chat Service (зависит от всех остальных)
+    this.register('chat', ['claude', 'knowledge', 'ticketing', 'message'], 
+      (claude, knowledge, ticketing, message) => {
+        // Используем chatService-improved.js (более интегрированную версию)
+        const ChatService = require('../services/chatService-improved');
+        return new ChatService({
+          claude,
+          knowledge,
+          ticketing,
+          message
+        });
+      }, {
+        singleton: true,
+        dependencies: ['claude', 'knowledge', 'ticketing', 'message']
+      });
+
+    this.logger.info('Core services registered successfully');
   }
 
   /**
    * Регистрирует сервис в менеджере
    * @param {string} name - Уникальное имя сервиса
-   * @param {Function} factory - Фабричная функция для создания сервиса
-   * @param {Omit<ServiceConfig, 'factory'>} options - Опции конфигурации
+   * @param {string[]|Function} factoryOrDeps - Зависимости или фабричная функция 
+   * @param {Function|Omit<ServiceConfig, 'factory'>} [factoryOrOptions] - Фабрика или опции
+   * @param {Omit<ServiceConfig, 'factory'>} [options] - Опции конфигурации
    */
-  register(name, factory, options = {}) {
+  register(name, factoryOrDeps, factoryOrOptions, options = {}) {
     if (this.services.has(name)) {
-      throw new Error(`Service ${name} is already registered`);
+      this.logger.warn(`Service ${name} is already registered, skipping...`);
+      return;
     }
 
-    const config = {
+    let factory, dependencies, config;
+
+    // Определяем формат вызова
+    if (typeof factoryOrDeps === 'function') {
+      // register(name, factory, options)
+      factory = factoryOrDeps;
+      dependencies = [];
+      config = factoryOrOptions || {};
+    } else if (Array.isArray(factoryOrDeps)) {
+      // register(name, dependencies, factory, options)
+      dependencies = factoryOrDeps;
+      factory = factoryOrOptions;
+      config = options;
+    } else {
+      throw new Error('Invalid arguments to register()');
+    }
+
+    const serviceConfig = {
       factory,
-      dependencies: options.dependencies || [],
-      singleton: options.singleton !== false,
-      lazy: options.lazy !== false,
-      ...options
+      dependencies: dependencies || [],
+      singleton: config.singleton !== false,
+      lazy: config.lazy !== false,
+      ...config
     };
 
     this.services.set(name, {
       name,
-      config,
+      config: serviceConfig,
       instance: null,
       initialized: false,
       initOrder: -1
     });
 
-    this.logger.debug(`Service ${name} registered`);
+    this.logger.debug(`Service ${name} registered with dependencies: [${dependencies.join(', ')}]`);
+  }
+
+  /**
+   * Получает экземпляр сервиса (alias для get)
+   * @template T
+   * @param {string} name - Имя сервиса
+   * @returns {T} Экземпляр сервиса
+   */
+  getService(name) {
+    return this.get(name);
   }
 
   /**
@@ -154,11 +277,11 @@ class ServiceManager {
         this.get(serviceInfo.name);
       } catch (error) {
         this.logger.error(`Failed to initialize service ${serviceInfo.name}:`, error);
-        throw error;
+        // Не выбрасываем ошибку, продолжаем с другими сервисами
       }
     }
 
-    this.logger.info('All services initialized successfully');
+    this.logger.info('Service initialization completed');
   }
 
   /**
@@ -208,6 +331,14 @@ class ServiceManager {
   }
 
   /**
+   * Получает информацию о зарегистрированных сервисах (alias для getStats)
+   * @returns {Object} Статистика сервисов
+   */
+  getServiceStats() {
+    return this.getStats();
+  }
+
+  /**
    * Получает информацию о зарегистрированных сервисах
    * @returns {Object} Статистика сервисов
    */
@@ -233,12 +364,21 @@ class ServiceManager {
   }
 
   /**
+   * Проверяет здоровье всех сервисов (alias для healthCheck)
+   * @returns {Promise<Object>} Результат проверки здоровья
+   */
+  async getHealthStatus() {
+    return this.healthCheck();
+  }
+
+  /**
    * Проверяет здоровье всех сервисов
    * @returns {Promise<Object>} Результат проверки здоровья
    */
   async healthCheck() {
     const health = {
       status: 'healthy',
+      allHealthy: true,
       services: {},
       timestamp: new Date().toISOString()
     };
@@ -250,11 +390,15 @@ class ServiceManager {
           if (typeof serviceInfo.instance.healthCheck === 'function') {
             const serviceHealth = await serviceInfo.instance.healthCheck();
             health.services[name] = serviceHealth;
+            if (serviceHealth.status !== 'ok' && serviceHealth.status !== 'healthy') {
+              health.allHealthy = false;
+            }
           } else {
             health.services[name] = { status: 'ok', message: 'Service is running' };
           }
         } else {
           health.services[name] = { status: 'not_initialized' };
+          health.allHealthy = false;
         }
       } catch (error) {
         health.services[name] = { 
@@ -262,6 +406,7 @@ class ServiceManager {
           message: error.message 
         };
         health.status = 'degraded';
+        health.allHealthy = false;
       }
     }
 
@@ -287,6 +432,15 @@ class ServiceManager {
 
   /**
    * Выключает все сервисы (вызывает shutdown если есть)
+   * @returns {Promise<void>}
+   */
+  async closeAll() {
+    return this.shutdown();
+  }
+
+  /**
+   * Выключает все сервисы (вызывает shutdown если есть)
+   * @returns {Promise<void>}
    */
   async shutdown() {
     this.logger.info('Shutting down all services...');
@@ -311,5 +465,5 @@ class ServiceManager {
   }
 }
 
-// Экспортируем singleton экземпляр
-module.exports = new ServiceManager();
+// 🍄 Экспортируем КЛАСС, а не singleton экземпляр
+module.exports = ServiceManager;
