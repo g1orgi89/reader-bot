@@ -3,6 +3,8 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+yarn.lock
 
 # Environment variables
 .env
@@ -14,10 +16,13 @@ yarn-error.log*
 # Logs
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
 # Coverage directory used by tools like istanbul
 coverage/
@@ -26,15 +31,30 @@ coverage/
 # nyc test coverage
 .nyc_output
 
-# ESLint cache
-.eslintcache
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
 
 # Dependency directories
 node_modules/
 jspm_packages/
 
+# TypeScript cache
+*.tsbuildinfo
+
 # Optional npm cache directory
 .npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
 
 # Optional REPL history
 .node_repl_history
@@ -44,10 +64,6 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
-
-# dotenv environment variables file
-.env
-.env.test
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -64,22 +80,15 @@ dist
 .cache/
 public
 
-# Vuepress build output
-.vuepress/dist
+# Storybook build outputs
+.out
+.storybook-out
 
-# Serverless directories
-.serverless/
+# Temporary folders
+tmp/
+temp/
 
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# IDE files
+# Editor directories and files
 .vscode/
 .idea/
 *.swp
@@ -95,42 +104,38 @@ public
 ehthumbs.db
 Thumbs.db
 
-# Backup files
-*.bak
-*.backup
-*~
+# Application specific
+uploads/
+backups/
+knowledge/temp/
+.vectorstore/
 
-# Temporary files
-tmp/
-temp/
-*.tmp
+# Test files
+test-results/
+playwright-report/
+test-output/
 
-# Build artifacts
-build/
-dist/
+# PM2 files
+ecosystem.config.js.local
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Key files
-*.pem
-*.key
-*.crt
-
-# Local configuration
-config/local.json
-
-# Docker
+# Docker files
 .dockerignore
-Dockerfile.dev
 
-# Terraform
-*.tfstate
-*.tfstate.*
-.terraform/
+# SSL certificates
+*.pem
+*.crt
+*.key
 
-# Kubernetes
-*.yaml.local
-*.yml.local
+# Database dumps
+*.sql
+*.dump
+
+# Cache files
+.cache/
+.next/cache/
+
+# Sentry
+.sentryclirc
+
+# Local development tools
+.history/
