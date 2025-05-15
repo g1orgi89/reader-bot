@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Minimal CORS debugging
+ * Main server file for Shrooms Support Bot - Restored full configuration
  * @file server/index.js
  */
 
@@ -187,107 +187,211 @@ async function initializeServices() {
 }
 
 /**
- * Setup middleware with MINIMAL configuration for CORS debugging
+ * Setup middleware - RESTORED FULL CONFIGURATION
  */
 function setupMiddleware() {
-  // ULTIMATE OPTIONS HANDLER - BEFORE EVERYTHING ELSE!!!
-  app.use((req, res, next) => {
-    logger.info(`=== INCOMING REQUEST ===`, {
-      method: req.method,
-      url: req.url,
-      origin: req.get('origin'),
-      userAgent: req.get('user-agent')
-    });
-
-    if (req.method === 'OPTIONS') {
-      logger.info('🍄 OPTIONS REQUEST INTERCEPTED!', { url: req.url });
-      
-      // Set ALL possible CORS headers
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,HEAD,PATCH');
-      res.setHeader('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,Access-Control-Request-Method,Access-Control-Request-Headers');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Max-Age', '86400');
-      res.setHeader('Vary', 'Origin');
-      
-      logger.info('OPTIONS headers set, sending 200', {
-        headers: res.getHeaders()
-      });
-      
-      res.status(200).end();
-      return;
+  // Security middleware - Updated CSP settings for external files
+  const helmetConfig = {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "cdnjs.cloudflare.com"
+        ],
+        styleSrc: [
+          "'self'"
+        ],
+        connectSrc: [
+          "'self'",
+          "ws://localhost:*", // Allow WebSocket connections
+          "wss://localhost:*"
+        ],
+        objectSrc: ["'none'"],
+        imageSrc: ["'self'", "data:", "https:"],
+        fontSrc: ["'self'", "https:", "data:"],
+        frameSrc: ["'self'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"]
+      }
     }
+  };
+
+  // Use different CSP settings based on environment
+  if (process.env.NODE_ENV === 'development') {
+    // Add some development-specific permissions
+    helmetConfig.contentSecurityPolicy.directives.connectSrc.push(
+      "ws://localhost:*",
+      "wss://localhost:*",
+      "http://localhost:*"
+    );
     
-    next();
-  });
+    // Allow inline styles only in development for Socket.IO test pages that might need them
+    helmetConfig.contentSecurityPolicy.directives.styleSrc.push("'unsafe-inline'");
+  }
 
-  // Log what happens after our OPTIONS handler
+  app.use(helmet(helmetConfig));
+  app.use(cors({
+    origin: config.CORS_ORIGIN,
+    credentials: true
+  }));
+
+  // Set default charset in Content-Type headers
   app.use((req, res, next) => {
-    logger.info('After OPTIONS handler:', { method: req.method, url: req.url });
-    next();
-  });
-
-  // Body parsing - ESSENTIAL
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true }));
-
-  // TEMPORARILY DISABLE OTHER MIDDLEWARE TO DEBUG
-  // app.use(helmet(helmetConfig)); // DISABLED
-  // app.use(cors(...)); // DISABLED
-
-  // Services middleware
-  app.use((req, res, next) => {
-    req.services = {
-      knowledge: ServiceManager.get('knowledgeService'),
-      claude: ServiceManager.get('claudeService'),
-      vectorStore: ServiceManager.get('vectorStoreService'),
-      ticket: ServiceManager.get('ticketService')
+    // Override the default express/socket.io content-type to include charset
+    const setContentType = res.type.bind(res);
+    res.type = function(type) {
+      if (type === 'html' || type === 'text/html') {
+        return setContentType.call(this, 'text/html; charset=utf-8');
+      }
+      if (type === 'json' || type === 'application/json') {
+        return setContentType.call(this, 'application/json; charset=utf-8');
+      }
+      return setContentType.call(this, type);
     };
     next();
   });
 
-  // Static files
+  // Body parsing
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true }));
+
+  // Static files - Updated to support test pages from both client and server
+  // Serve the entire client directory for development/testing
   app.use('/client', express.static(path.join(__dirname, '../client')));
+  
+  // Serve static files from server/static directory
   app.use('/static', express.static(path.join(__dirname, 'static')));
   
-  // Test pages
+  // Specific routes for components
+  app.use('/widget', express.static(path.join(__dirname, '../client/chat-widget')));
+  app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')));
+  
+  // Serve test pages directly (priority order matters)
+  app.get('/test-chat', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/test-chat.html'));
+  });
+  
+  app.get('/test-russian', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/test-russian-search.html'));
+  });
+
   app.get('/test-cors', (req, res) => {
+    // Try server/static first, then fallback to client if needed
+    const serverPath = path.join(__dirname, 'static/test-cors.html');
     const clientPath = path.join(__dirname, '../client/test-cors.html');
-    res.sendFile(clientPath);
+    
+    require('fs').access(serverPath, require('fs').constants.F_OK, (err) => {
+      if (err) {
+        res.sendFile(clientPath);
+      } else {
+        res.sendFile(serverPath);
+      }
+    });
   });
 }
 
 /**
- * Setup API routes with logging
+ * Setup API routes with specific rate limiters
  */
 function setupRoutes() {
-  // Log before routes
-  app.use('/api', (req, res, next) => {
-    logger.info('API route middleware:', { method: req.method, url: req.url });
-    next();
-  });
-
-  // Root route
+  // Root route - API information
   app.get('/', (req, res) => {
     res.json({
       name: 'Shrooms Support Bot API',
       version: '1.0.0',
       status: 'running',
-      corsDebugging: true
+      environment: process.env.NODE_ENV || 'development',
+      endpoints: {
+        chat: '/api/chat/*',
+        tickets: '/api/tickets/*',
+        knowledge: '/api/knowledge/*',
+        admin: '/api/admin/*',
+        test: '/api/test/*',
+        health: '/api/health',
+        chatSimple: '/api/chat-simple'
+      },
+      testTools: {
+        chatTest: '/test-chat',
+        socketTest: '/client/test-chat.html',
+        corsTest: '/test-cors',
+        russianSearchTest: '/api/test/search-russian',
+        russianSearchPage: '/test-russian',
+        encodingTest: '/api/test/encoding'
+      },
+      documentation: 'https://github.com/g1orgi89/shrooms-support-bot'
     });
   });
 
-  // TEMPORARILY REMOVE RATE LIMITERS
-  // app.use('/api/admin', adminLimiter); // DISABLED
+  // Apply specific rate limiters to specific routes only
+  app.use('/api/chat', chatLimiter);
+  app.use('/api/admin/login', authLimiter);
+  app.use('/api/admin', adminLimiter);
 
   // API Routes
-  app.use('/api/admin', adminRoutes);
+  app.use('/api/chat', chatRoutes);
   app.use('/api/tickets', ticketRoutes);
+  app.use('/api/knowledge', knowledgeRoutes);
   app.use('/api/test', testRoutes);
+  app.use('/api/admin', adminRoutes);
 
-  // Simple health check
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  // Health check endpoint with testing-friendly rate limiter
+  app.get('/api/health', healthLimiter, async (req, res) => {
+    try {
+      const health = await ServiceManager.healthCheck();
+      const stats = ServiceManager.getStats();
+
+      res.json({
+        status: health.status,
+        timestamp: health.timestamp,
+        version: process.env.npm_package_version || '1.0.0',
+        services: health.services,
+        serviceStats: {
+          totalServices: stats.totalServices,
+          initializedServices: stats.initializedServices,
+          singletonServices: stats.singletonServices
+        },
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+      });
+    } catch (error) {
+      logger.error('Health check error:', error);
+      res.status(500).json({
+        status: 'error',
+        error: 'Health check failed'
+      });
+    }
+  });
+
+  // Backward compatibility endpoint with chat rate limiting
+  app.post('/api/chat-simple', chatLimiter, async (req, res) => {
+    try {
+      const { message, language = 'en', context = [], history = [] } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({
+          success: false,
+          error: 'Message is required'
+        });
+      }
+      
+      const claudeService = ServiceManager.get('claudeService');
+      const response = await claudeService.generateResponse(message, {
+        language,
+        context,
+        history
+      });
+      
+      res.json({
+        success: true,
+        data: response
+      });
+    } catch (error) {
+      logger.error('Chat endpoint error', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
   });
 }
 
@@ -298,6 +402,54 @@ function setupSocketIO() {
   io.on('connection', (socket) => {
     logger.info('User connected', { socketId: socket.id });
     
+    // Handle new messages
+    socket.on('sendMessage', async (data) => {
+      try {
+        const { message, language, context, history, userId } = data;
+        
+        if (!message) {
+          socket.emit('error', { message: 'Message is required' });
+          return;
+        }
+        
+        // Add user message to history
+        const userMessage = {
+          role: 'user',
+          text: message,
+          timestamp: Date.now()
+        };
+        
+        // Generate response from Claude via ServiceManager
+        const claudeService = ServiceManager.get('claudeService');
+        const response = await claudeService.generateResponse(message, {
+          language,
+          context,
+          history: [...(history || []), userMessage]
+        });
+        
+        // Send response back to user
+        socket.emit('messageResponse', {
+          message: response.message,
+          needsTicket: response.needsTicket,
+          language: response.language,
+          timestamp: Date.now()
+        });
+        
+        logger.debug('Message processed', {
+          socketId: socket.id,
+          userId,
+          tokensUsed: response.tokensUsed
+        });
+      } catch (error) {
+        logger.error('Socket message error', {
+          error: error.message,
+          socketId: socket.id
+        });
+        socket.emit('error', { message: 'Error processing message' });
+      }
+    });
+    
+    // Handle disconnect
     socket.on('disconnect', () => {
       logger.info('User disconnected', { socketId: socket.id });
     });
@@ -319,13 +471,12 @@ function setupErrorHandlers() {
     
     res.status(err.status || 500).json({
       success: false,
-      error: err.message || 'Internal server error'
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   });
 
   // Handle 404
   app.use((req, res) => {
-    logger.info('404 Not Found:', { url: req.url, method: req.method });
     res.status(404).json({
       success: false,
       error: 'Not found'
@@ -338,15 +489,13 @@ function setupErrorHandlers() {
  */
 async function startServer() {
   try {
-    logger.info('🍄 STARTING SERVER IN CORS DEBUG MODE 🍄');
-    
     // 1. Register all services
     registerServices();
     
     // 2. Initialize services
     await initializeServices();
     
-    // 3. Setup middleware (minimal)
+    // 3. Setup middleware
     setupMiddleware();
     
     // 4. Setup routes
@@ -361,15 +510,31 @@ async function startServer() {
     // 7. Start listening
     const PORT = config.PORT;
     server.listen(PORT, () => {
-      logger.info(`🚀 Server running on port ${PORT} in CORS DEBUG MODE`, {
+      logger.info(`Server running on port ${PORT}`, {
         environment: config.NODE_ENV,
         pid: process.pid,
         testUrls: {
-          corsTest: `http://localhost:${PORT}/test-cors`,
-          health: `http://localhost:${PORT}/api/health`
+          api: `http://localhost:${PORT}/`,
+          testChat: `http://localhost:${PORT}/test-chat`,
+          testRussian: `http://localhost:${PORT}/test-russian`,
+          testCors: `http://localhost:${PORT}/test-cors`,
+          health: `http://localhost:${PORT}/api/health`,
+          russianTest: `http://localhost:${PORT}/api/test/search-russian`
         }
       });
     });
+
+    // Service health monitoring
+    setInterval(async () => {
+      try {
+        const health = await ServiceManager.healthCheck();
+        if (health.status !== 'healthy') {
+          logger.warn('Service health check warning', { health });
+        }
+      } catch (error) {
+        logger.error('Health check error:', error);
+      }
+    }, 60000); // Check every minute
 
   } catch (error) {
     logger.error('Failed to start server:', error);
@@ -384,13 +549,18 @@ async function gracefulShutdown(signal) {
   logger.info(`${signal} received, shutting down gracefully`);
   
   try {
+    // 1. Stop accepting new requests
     server.close(async () => {
       logger.info('HTTP server closed');
       
-      try {
+      try {\
+        // 2. Shutdown all services
         await ServiceManager.shutdown();
+        
+        // 3. Close database connection
         await mongoose.disconnect();
         logger.info('Database disconnected');
+        
         logger.info('Graceful shutdown completed');
         process.exit(0);
       } catch (error) {
