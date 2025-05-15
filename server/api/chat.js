@@ -15,6 +15,194 @@ const logger = require('../utils/logger');
 const router = express.Router();
 
 /**
+ * @route POST /api/chat (для совместимости с тестом)
+ * @desc Обработка сообщения пользователя через REST API (альтернативный путь)
+ * @access Public
+ */
+router.post('/', async (req, res) => {
+  try {
+    const { message, userId, conversationId, language } = req.body;
+
+    // Валидация входных данных
+    if (!message || !userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message and userId are required',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // Определение языка сообщения
+    const detectedLanguage = language || 
+      languageDetectService.detectLanguage(message);
+    
+    // Получение контекста из базы знаний (если RAG включен)
+    let context = [];
+    if (process.env.ENABLE_RAG === 'true') {
+      try {
+        const contextResults = await vectorStoreService.search(message, {
+          limit: 5,
+          language: detectedLanguage
+        });
+        context = contextResults.map(result => result.content);
+      } catch (error) {
+        logger.warn('Failed to get context from vector store:', error.message);
+        // Продолжаем без контекста
+      }
+    }
+    
+    // Получение или создание разговора
+    let conversation;
+    if (conversationId) {
+      conversation = await conversationService.findById(conversationId);
+      if (!conversation) {
+        logger.warn(`Conversation ${conversationId} not found, creating new one`);
+        conversation = await conversationService.create({
+          userId,
+          language: detectedLanguage,
+          startedAt: new Date(),
+          source: 'api'
+        });
+      }
+    } else {
+      conversation = await conversationService.create({
+        userId,
+        language: detectedLanguage,
+        startedAt: new Date(),
+        source: 'api'
+      });
+    }
+    
+    // Получение истории сообщений
+    const history = await messageService.getRecentMessages(conversation._id, 10);
+    const formattedHistory = history.map(msg => ({
+      role: msg.role,
+      content: msg.text
+    }));
+    
+    // Сохранение сообщения пользователя
+    const userMessage = await messageService.create({
+      text: message,
+      role: 'user',
+      userId,
+      conversationId: conversation._id,
+      metadata: { 
+        language: detectedLanguage,
+        source: 'api'
+      }
+    });
+    
+    // Генерация ответа через Claude
+    const claudeResponse = await claudeService.generateResponse(message, {
+      context,
+      history: formattedHistory,
+      language: detectedLanguage
+    });
+    
+    // Проверка на создание тикета
+    let ticketId = null;
+    let ticketError = null;
+    
+    if (claudeResponse.needsTicket) {
+      try {
+        const ticket = await ticketService.createTicket({
+          userId,
+          conversationId: conversation._id,
+          message,
+          context: JSON.stringify({
+            claudeResponse: claudeResponse.message,
+            userMessage: message,
+            history: formattedHistory.slice(-3)
+          }),
+          language: detectedLanguage,
+          subject: `Support request: ${message.substring(0, 50)}...`,
+          category: 'technical',
+          source: 'api'
+        });
+        ticketId = ticket.ticketId;
+        logger.info(`🎫 Ticket created: ${ticketId}`);
+      } catch (error) {
+        logger.error('Failed to create ticket:', error);
+        ticketError = error.message;
+      }
+    }
+    
+    // Замена TICKET_ID в ответе
+    let botResponse = claudeResponse.message;
+    if (ticketId) {
+      botResponse = botResponse.replace('#TICKET_ID', `#${ticketId}`);
+    }
+    
+    // Сохранение ответа бота
+    const botMessage = await messageService.create({
+      text: botResponse,
+      role: 'assistant',
+      userId,
+      conversationId: conversation._id,
+      metadata: {
+        language: detectedLanguage,
+        tokensUsed: claudeResponse.tokensUsed,
+        ticketCreated: claudeResponse.needsTicket,
+        ticketId,
+        source: 'api'
+      }
+    });
+    
+    // Обновление разговора
+    await conversationService.updateLastActivity(conversation._id);
+    
+    // Подготовка ответа
+    const response = {
+      success: true,
+      data: {
+        message: botResponse,
+        conversationId: conversation._id.toString(),
+        messageId: botMessage._id.toString(),
+        needsTicket: claudeResponse.needsTicket,
+        ticketId,
+        ticketError,
+        tokensUsed: claudeResponse.tokensUsed,
+        language: detectedLanguage,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          knowledgeResultsCount: context.length,
+          historyMessagesCount: formattedHistory.length
+        }
+      }
+    };
+    
+    res.json(response);
+    logger.info(`✅ Chat API response sent for user: ${userId}`);
+    
+  } catch (error) {
+    logger.error(`❌ Chat API error:`, error);
+    
+    // Определяем тип ошибки и возвращаем соответствующий код
+    let statusCode = 500;
+    let errorCode = 'INTERNAL_SERVER_ERROR';
+    let errorMessage = 'Service temporarily unavailable. Please try again.';
+    
+    if (error.message.includes('Database')) {
+      statusCode = 503;
+      errorCode = 'DATABASE_ERROR';
+    } else if (error.message.includes('Claude')) {
+      statusCode = 503;
+      errorCode = 'AI_SERVICE_ERROR';
+    } else if (error.message.includes('not initialized')) {
+      statusCode = 503;
+      errorCode = 'SERVICE_NOT_INITIALIZED';
+    }
+    
+    res.status(statusCode).json({
+      success: false,
+      error: errorMessage,
+      code: errorCode,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
  * @route POST /api/chat/message
  * @desc Обработка сообщения пользователя через REST API
  * @access Public
