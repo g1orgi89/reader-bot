@@ -2,130 +2,86 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Fixed: Proper viewport without user-scalable restriction -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fixed: Add theme-color meta tag -->
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="CORS testing interface for Shrooms Support Bot">
     <title>CORS Test - Shrooms Support Bot</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .test-container {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        h2 {
-            color: #555;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-        
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-        
-        button:hover {
-            background-color: #45a049;
-        }
-        
-        .result {
-            margin-top: 15px;
-            padding: 15px;
-            border-radius: 4px;
-            font-family: monospace;
-            white-space: pre-wrap;
-        }
-        
-        .result.success {
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
-        
-        .result.error {
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
-        
-        .result pre {
-            background-color: rgba(0,0,0,0.1);
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-        }
-        
-        .result ul {
-            margin: 10px 0;
-        }
-        
-        .result li {
-            margin: 5px 0;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/cors-test-fixed.css">
 </head>
 <body>
     <h1>🍄 Shrooms Support Bot - CORS Testing</h1>
     
     <div class="test-container">
         <h2>Manual CORS Preflight Test</h2>
-        <button data-test="preflight">Test OPTIONS Preflight</button>
-        <div id="preflight-result" class="result"></div>
+        <!-- Fixed: Add title and aria-label for accessibility -->
+        <button data-test="preflight" 
+                title="Test CORS preflight request"
+                aria-label="Test OPTIONS preflight request">
+            Test OPTIONS Preflight
+        </button>
+        <div id="preflight-result" class="result" role="alert" aria-live="polite"></div>
     </div>
     
     <div class="test-container">
         <h2>Real CORS Test (with Custom Headers)</h2>
-        <button data-test="cors">Test CORS with Authorization</button>
-        <div id="cors-result" class="result"></div>
+        <button data-test="cors" 
+                title="Test CORS with authentication headers"
+                aria-label="Test CORS with authorization headers">
+            Test CORS with Authorization
+        </button>
+        <div id="cors-result" class="result" role="alert" aria-live="polite"></div>
     </div>
     
     <div class="test-container">
         <h2>Health Check Test</h2>
-        <button data-test="health">Test /api/health</button>
-        <div id="health-result" class="result"></div>
+        <button data-test="health" 
+                title="Test API health endpoint"
+                aria-label="Test /api/health endpoint">
+            Test /api/health
+        </button>
+        <div id="health-result" class="result" role="alert" aria-live="polite"></div>
     </div>
 
     <div class="test-container">
         <h2>Admin Login Test</h2>
-        <button data-test="admin">Test /api/admin/login</button>
-        <div id="admin-result" class="result"></div>
+        <button data-test="admin" 
+                title="Test admin authentication"
+                aria-label="Test /api/admin/login endpoint">
+            Test /api/admin/login
+        </button>
+        <div id="admin-result" class="result" role="alert" aria-live="polite"></div>
     </div>
 
     <div class="test-container">
         <h2>Admin Tickets Test (Authenticated)</h2>
-        <button data-test="tickets">Test /api/admin/tickets</button>
-        <div id="tickets-result" class="result"></div>
+        <button data-test="tickets" 
+                title="Test admin tickets with authentication"
+                aria-label="Test /api/admin/tickets endpoint">
+            Test /api/admin/tickets
+        </button>
+        <div id="tickets-result" class="result" role="alert" aria-live="polite"></div>
     </div>
 
     <div class="test-container">
         <h2>Chat Test</h2>
-        <button data-test="chat">Test /api/chat-simple</button>
-        <div id="chat-result" class="result"></div>
+        <button data-test="chat" 
+                title="Test chat functionality"
+                aria-label="Test /api/chat-simple endpoint">
+            Test /api/chat-simple
+        </button>
+        <div id="chat-result" class="result" role="alert" aria-live="polite"></div>
     </div>
 
     <div class="test-container">
         <h2>Rate Limiting Test</h2>
-        <button data-test="ratelimit">Send 10 rapid requests</button>
-        <div id="ratelimit-result" class="result"></div>
+        <button data-test="ratelimit" 
+                title="Test rate limiting by sending multiple requests"
+                aria-label="Send 10 rapid requests to test rate limiting">
+            Send 10 rapid requests
+        </button>
+        <div id="ratelimit-result" class="result" role="alert" aria-live="polite"></div>
     </div>
 
     <script src="/static/cors-test.js"></script>
