@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍄 Shrooms Support Bot - Test Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
+            color: #e0e0e0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #39FF14;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #39FF14;
+        }
+        
+        .test-section {
+            background: rgba(18, 18, 18, 0.8);
+            border: 1px solid #39FF14;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
+        }
+        
+        .test-section h2 {
+            color: #FF6EC7;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #39FF14, #00FF41);
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #FF6EC7, #00FFF9);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(57, 255, 20, 0.3);
+        }
+        
+        button:disabled {
+            background: #555;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .result.success {
+            border-color: #39FF14;
+            background: rgba(57, 255, 20, 0.05);
+        }
+        
+        .result.error {
+            border-color: #ff4444;
+            background: rgba(255, 68, 68, 0.05);
+            color: #ff8888;
+        }
+        
+        .chat-test {
+            margin-top: 20px;
+        }
+        
+        .chat-input {
+            width: 100%;
+            padding: 12px;
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 5px;
+            color: #e0e0e0;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: #39FF14;
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #ff4444;
+        }
+        
+        .status-indicator.connected {
+            background: #39FF14;
+            box-shadow: 0 0 10px #39FF14;
+        }
+        
+        .log {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .log-entry.info {
+            color: #39FF14;
+        }
+        
+        .log-entry.error {
+            color: #ff4444;
+        }
+        
+        .log-entry.warning {
+            color: #ffaa44;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍄 Shrooms Support Bot</h1>
+            <p>Full System Test Dashboard</p>
+            <p>Environment: <span id="environment">Loading...</span></p>
+        </div>
+
+        <!-- Server Health Test -->
+        <div class="test-section">
+            <h2>🔧 Server Health Check</h2>
+            <button onclick="testHealth()">Check Server Health</button>
+            <button onclick="testCORS()">Test CORS</button>
+            <div id="health-result" class="result"></div>
+        </div>
+
+        <!-- API Tests -->
+        <div class="test-section">
+            <h2>🔌 API Endpoints Test</h2>
+            <button onclick="testChatAPI()">Test Chat API</button>
+            <button onclick="testTicketsAPI()">Test Tickets API</button>
+            <button onclick="testAdminAPI()">Test Admin API</button>
+            <button onclick="testKnowledgeAPI()">Test Knowledge API</button>
+            <div id="api-result" class="result"></div>
+        </div>
+
+        <!-- Socket.IO Test -->
+        <div class="test-section">
+            <h2>🔗 Socket.IO Connection Test</h2>
+            <p>Status: <span class="status-indicator" id="socket-status"></span><span id="socket-status-text">Disconnected</span></p>
+            <button onclick="connectSocket()">Connect Socket</button>
+            <button onclick="disconnectSocket()">Disconnect Socket</button>
+            <button onclick="testSocketMessage()">Send Test Message</button>
+            <div id="socket-log" class="log"></div>
+        </div>
+
+        <!-- Chat Interface Test -->
+        <div class="test-section">
+            <h2>💬 Chat Interface Test</h2>
+            <div class="chat-test">
+                <input 
+                    type="text" 
+                    id="chat-input" 
+                    class="chat-input" 
+                    placeholder="Type your message to the mushroom bot..."
+                    onkeypress="if(event.key==='Enter') sendChatMessage()"
+                >
+                <button onclick="sendChatMessage()">Send Message</button>
+                <button onclick="clearChatLog()">Clear Log</button>
+            </div>
+            <div id="chat-result" class="result"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket = null;
+        const serverURL = window.location.origin;
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Page loaded, initializing tests...');
+            testHealth();
+            updateEnvironment();
+        });
+        
+        // Logging function
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('socket-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // Update environment info
+        async function updateEnvironment() {
+            try {
+                const response = await fetch(`${serverURL}/api/health`);
+                const data = await response.json();
+                document.getElementById('environment').textContent = data.environment || 'Unknown';
+            } catch (error) {
+                document.getElementById('environment').textContent = 'Error loading';
+            }
+        }
+        
+        // Health check test
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.textContent = 'Testing...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch(`${serverURL}/api/health`);
+                const data = await response.json();
+                
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                log(`Health check: ${response.ok ? 'PASSED' : 'FAILED'}`);
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
+                log(`Health check failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // CORS test
+        async function testCORS() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.textContent = 'Testing CORS...';
+            
+            try {
+                const response = await fetch(`${serverURL}/api/test-cors`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Custom-Header': 'test'
+                    }
+                });
+                const data = await response.json();
+                
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                log(`CORS test: ${response.ok ? 'PASSED' : 'FAILED'}`);
+            } catch (error) {
+                resultDiv.textContent = `CORS Error: ${error.message}`;
+                resultDiv.className = 'result error';
+                log(`CORS test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // API tests
+        async function testAPI(endpoint, method = 'GET', data = null) {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.textContent = `Testing ${endpoint}...`;
+            
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (data && method !== 'GET') {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(`${serverURL}${endpoint}`, options);
+                const responseData = await response.json();
+                
+                resultDiv.textContent = JSON.stringify(responseData, null, 2);
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                log(`API ${endpoint}: ${response.ok ? 'PASSED' : 'FAILED'}`);
+                return responseData;
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
+                log(`API ${endpoint} failed: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        // Individual API tests
+        async function testChatAPI() {
+            await testAPI('/api/chat/message', 'POST', {
+                message: '🍄 Hello from test page!',
+                userId: 'test-user-' + Date.now(),
+                language: 'en'
+            });
+        }
+        
+        async function testTicketsAPI() {
+            await testAPI('/api/tickets');
+        }
+        
+        async function testAdminAPI() {
+            await testAPI('/api/admin/stats');
+        }
+        
+        async function testKnowledgeAPI() {
+            await testAPI('/api/knowledge/search', 'POST', {
+                query: 'mushroom',
+                limit: 5
+            });
+        }
+        
+        // Socket.IO functions
+        function connectSocket() {
+            if (socket) {
+                log('Socket already connected', 'warning');
+                return;
+            }
+            
+            log('Connecting to Socket.IO...');
+            socket = io(serverURL, {
+                transports: ['websocket', 'polling']
+            });
+            
+            socket.on('connect', () => {
+                log('✅ Socket connected: ' + socket.id);
+                updateSocketStatus(true);
+                
+                // Join as test user
+                socket.emit('join', { userId: 'test-user-' + Date.now() });
+            });
+            
+            socket.on('disconnect', (reason) => {
+                log(`❌ Socket disconnected: ${reason}`, 'error');
+                updateSocketStatus(false);
+            });
+            
+            socket.on('joined', (data) => {
+                log(`Joined as user: ${data.userId}`);
+            });
+            
+            socket.on('messageReceived', (data) => {
+                log(`✅ Message acknowledged: ${data.messageId || 'no ID'}`);
+            });
+            
+            socket.on('chatResponse', (data) => {
+                log(`🍄 Bot response: ${data.message}`);
+            });
+            
+            socket.on('error', (error) => {
+                log(`❌ Socket error: ${error.message}`, 'error');
+            });
+            
+            socket.on('connect_error', (error) => {
+                log(`❌ Connection error: ${error.message}`, 'error');
+                updateSocketStatus(false);
+            });
+        }
+        
+        function disconnectSocket() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('Disconnected from Socket.IO');
+                updateSocketStatus(false);
+            }
+        }
+        
+        function updateSocketStatus(connected) {
+            const statusIndicator = document.getElementById('socket-status');
+            const statusText = document.getElementById('socket-status-text');
+            
+            if (connected) {
+                statusIndicator.classList.add('connected');
+                statusText.textContent = 'Connected';
+            } else {
+                statusIndicator.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+            }
+        }
+        
+        function testSocketMessage() {
+            if (!socket || !socket.connected) {
+                log('❌ Socket not connected', 'error');
+                return;
+            }
+            
+            const messageId = 'test-' + Date.now();
+            const message = '🍄 Test message from Socket.IO';
+            
+            log(`Sending test message: ${message}`);
+            socket.emit('message', {
+                messageId,
+                message,
+                userId: 'test-user',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        // Chat interface functions
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) {
+                log('❌ Please enter a message', 'warning');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('chat-result');
+            resultDiv.textContent = 'Sending message...';
+            resultDiv.className = 'result';
+            
+            try {
+                // Test via REST API
+                const response = await fetch(`${serverURL}/api/chat/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        userId: 'test-user-' + Date.now(),
+                        language: 'en'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `✅ Bot Response: ${data.message || data.response || JSON.stringify(data)}`;
+                    resultDiv.className = 'result success';
+                    log(`Chat message sent successfully`);
+                } else {
+                    resultDiv.textContent = `❌ Error: ${data.error || data.message || 'Unknown error'}`;
+                    resultDiv.className = 'result error';
+                    log(`Chat API error: ${data.error}`, 'error');
+                }
+                
+                input.value = '';
+                
+                // Also test via Socket.IO if connected
+                if (socket && socket.connected) {
+                    log('Also sending via Socket.IO...');
+                    socket.emit('message', {
+                        messageId: 'chat-' + Date.now(),
+                        message: message,
+                        userId: 'test-user'
+                    });
+                }
+                
+            } catch (error) {
+                resultDiv.textContent = `❌ Network Error: ${error.message}`;
+                resultDiv.className = 'result error';
+                log(`Chat failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearChatLog() {
+            document.getElementById('chat-result').textContent = '';
+            document.getElementById('socket-log').innerHTML = '';
+        }
+        
+        // Auto-connect socket on page load (optional)
+        setTimeout(() => {
+            if (confirm('Auto-connect to Socket.IO for real-time testing?')) {
+                connectSocket();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
