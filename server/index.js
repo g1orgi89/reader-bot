@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Add health rate limiter
+ * Main server file for Shrooms Support Bot - Fixed rate limiting and CORS
  * @file server/index.js
  */
 
@@ -256,8 +256,18 @@ function setupMiddleware() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  // General rate limiting for all API endpoints
-  app.use('/api', generalLimiter);
+  // GLOBAL CORS PREFLIGHT HANDLER - handle OPTIONS before any rate limiting
+  app.options('*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    res.sendStatus(200);
+  });
+
+  // REMOVE GENERAL RATE LIMITING - it was causing the double limiting issue!
+  // app.use('/api', generalLimiter); // <-- REMOVED!
 
   // Static files - Updated to support test pages from both client and server
   // Serve the entire client directory for development/testing
@@ -295,7 +305,7 @@ function setupMiddleware() {
 }
 
 /**
- * Setup API routes
+ * Setup API routes with specific rate limiters only
  */
 function setupRoutes() {
   // Root route - API information
@@ -326,21 +336,19 @@ function setupRoutes() {
     });
   });
 
-  // Apply specific rate limiters to different API routes
+  // Apply specific rate limiters to specific routes only
   app.use('/api/chat', chatLimiter);
   app.use('/api/admin/login', authLimiter);
   app.use('/api/admin', adminLimiter);
 
-  // API Routes
+  // API Routes (without general rate limiting)
   app.use('/api/chat', chatRoutes);
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/knowledge', knowledgeRoutes);
   app.use('/api/test', testRoutes);
-
-  // Admin routes - NO BASIC AUTH (authentication is handled in admin routes themselves)
   app.use('/api/admin', adminRoutes);
 
-  // Health check endpoint with SPECIAL rate limiter for testing
+  // Health check endpoint with testing-friendly rate limiter
   app.get('/api/health', healthLimiter, async (req, res) => {
     try {
       const health = await ServiceManager.healthCheck();
