@@ -74,8 +74,8 @@ class DatabaseService {
    */
   async connect(uri) {
     try {
-      // Используем переданный URI или из переменных окружения
-      const mongoUri = uri || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/shrooms-support';
+      // Используем переданный URI или из переменных окружения - ИСПРАВЛЕНО на localhost
+      const mongoUri = uri || process.env.MONGODB_URI || 'mongodb://localhost:27017/shrooms-support';
       
       logger.info(`Connecting to MongoDB: ${mongoUri.replace(/:[^:]*@/, ':***@')}`);
       
