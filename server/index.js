@@ -249,7 +249,7 @@ function setupRoutes() {
     });
   });
 
-  // Test page routes - both old and new comprehensive
+  // Test page routes
   app.get('/test-cors', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/test-cors.html'));
   });
@@ -260,6 +260,16 @@ function setupRoutes() {
 
   app.get('/test-comprehensive', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/test-comprehensive.html'));
+  });
+
+  // 🍄 ADD WORKING CHAT PAGE
+  app.get('/test-chat', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/test-chat.html'));
+  });
+
+  // Russian search test
+  app.get('/test-russian', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/test-russian-search.html'));
   });
 
   // API Routes - mount with proper error handling
@@ -312,7 +322,9 @@ function setupRoutes() {
         testPages: {
           simple: '/test-cors',
           comprehensive: '/test-comprehensive',
-          shortcut: '/test'
+          shortcut: '/test',
+          workingChat: '/test-chat',  // 🍄 Working chat page
+          russian: '/test-russian'
         },
         apis: {
           chat: '/api/chat',
@@ -344,7 +356,7 @@ function setupRoutes() {
         tickets: '/api/tickets',
         admin: '/api/admin',
         knowledge: '/api/knowledge',
-        testPages: '/test, /test-comprehensive, /test-cors'
+        testPages: '/test, /test-comprehensive, /test-cors, /test-chat, /test-russian'
       }
     });
   });
@@ -572,6 +584,8 @@ async function startServer() {
       logger.info(`   - Simple CORS: http://localhost:${PORT}/test-cors`);
       logger.info(`   - Comprehensive: http://localhost:${PORT}/test-comprehensive`);
       logger.info(`   - Quick Access: http://localhost:${PORT}/test`);
+      logger.info(`   - 🍄 Working Chat: http://localhost:${PORT}/test-chat`);
+      logger.info(`   - Russian Test: http://localhost:${PORT}/test-russian`);
       logger.info(`💬 Chat Widget: http://localhost:${PORT}/widget`);
       logger.info(`🔧 Admin Panel: http://localhost:${PORT}/admin`);
       logger.info(`📚 API Documentation: http://localhost:${PORT}/`);
