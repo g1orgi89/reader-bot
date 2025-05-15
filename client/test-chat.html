@@ -3,141 +3,507 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shrooms Support Bot - Test Chat</title>
+    <title>🍄 Shrooms Support Bot - Test Chat</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 700px;
             margin: 50px auto;
             padding: 20px;
-            background-color: #f0f0f0;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
         }
+        
         .chat-container {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: #2a2a2a;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            border: 1px solid #39FF14;
+            position: relative;
+            overflow: hidden;
         }
-        .messages {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-            margin-bottom: 20px;
-            background-color: #f9f9f9;
+
+        .chat-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #39FF14, #00FF41);
+            border-radius: 15px 15px 0 0;
         }
-        .message {
+
+        h1 {
+            color: #39FF14;
+            text-align: center;
             margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 8px;
+            text-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
         }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .api-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .api-toggle {
+            display: inline-flex;
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+
+        .api-toggle button {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .api-toggle button.active {
+            background: #39FF14;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .messages {
+            height: 350px;
+            overflow-y: auto;
+            border: 1px solid #444;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #1a1a1a;
+            border-radius: 10px;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .user-message {
-            background-color: #e3f2fd;
-            text-align: right;
+            background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);
+            margin-left: 60px;
+            border-bottom-right-radius: 5px;
         }
+
         .bot-message {
-            background-color: #f1f8e9;
+            background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%);
+            margin-right: 60px;
+            border-bottom-left-radius: 5px;
         }
+
+        .system-message {
+            background: linear-gradient(135deg, #5e35b1 0%, #7e57c2 100%);
+            text-align: center;
+            font-style: italic;
+            opacity: 0.9;
+        }
+
+        .error-message {
+            background: linear-gradient(135deg, #c62828 0%, #e53935 100%);
+            border: 1px solid #ff5722;
+        }
+
         .input-container {
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            align-items: center;
         }
+
         #messageInput {
             flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        #sendButton {
-            padding: 10px 20px;
-            background-color: #4caf50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #sendButton:hover {
-            background-color: #45a049;
-        }
-        .status {
-            color: #666;
+            padding: 12px;
+            border: 1px solid #444;
+            border-radius: 10px;
+            background: #1a1a1a;
+            color: #e0e0e0;
             font-size: 14px;
-            margin-bottom: 10px;
+            transition: border-color 0.3s ease;
+        }
+
+        #messageInput:focus {
+            outline: none;
+            border-color: #39FF14;
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+        }
+
+        #sendButton {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #39FF14 0%, #00FF41 100%);
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+
+        #sendButton:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(57, 255, 20, 0.4);
+        }
+
+        #sendButton:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status.connected {
+            background: rgba(57, 255, 20, 0.1);
+            color: #39FF14;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+        }
+
+        .status.disconnected {
+            background: rgba(255, 87, 34, 0.1);
+            color: #ff5722;
+            border: 1px solid rgba(255, 87, 34, 0.3);
+        }
+
+        .status.connecting {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .suggestions {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .suggestion-btn {
+            padding: 8px 16px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 20px;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .suggestion-btn:hover {
+            background: #444;
+            border-color: #39FF14;
+            color: #39FF14;
+        }
+
+        /* Scrollbar styling */
+        .messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages::-webkit-scrollbar-track {
+            background: #1a1a1a;
+            border-radius: 4px;
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        .messages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .typing-indicator {
+            display: none;
+            color: #888;
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        .metadata {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
     <div class="chat-container">
-        <h1>🍄 Shrooms Support Bot Test</h1>
-        <div class="status" id="status">Connecting...</div>
+        <h1>🍄 Shrooms Support Bot</h1>
+        <p class="subtitle">Test Chat Interface</p>
+        
+        <div class="api-selector">
+            <div class="api-toggle">
+                <button id="httpBtn" class="active" onclick="switchToHTTP()">HTTP API</button>
+                <button id="socketBtn" onclick="switchToSocket()">Socket.IO</button>
+            </div>
+        </div>
+
+        <div class="status connecting" id="status">Initializing...</div>
         <div class="messages" id="messages"></div>
+        <div class="typing-indicator" id="typing">🍄 Shrooms Bot is typing...</div>
         <div class="input-container">
-            <input type="text" id="messageInput" placeholder="Type your message here..." disabled>
+            <input type="text" id="messageInput" placeholder="Ask about Shrooms project..." disabled>
             <button id="sendButton" disabled>Send</button>
+        </div>
+
+        <div class="suggestions">
+            <button class="suggestion-btn" onclick="sendSuggestion('Как подключить кошелек Xverse?')">Подключение кошелька</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('What is the SHROOMS token?')">О токене SHROOMS</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('How to start farming?')">Фарминг</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('¿Qué es Shrooms?')">¿Qué es Shrooms?</button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
+        let currentMode = 'http'; // 'http' or 'socket'
+        let socket = null;
+        let conversationId = null;
+        let userId = 'test-user-' + Date.now();
+
         const messagesEl = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
         const statusEl = document.getElementById('status');
+        const typingEl = document.getElementById('typing');
 
-        // Connection status
-        socket.on('connect', () => {
-            statusEl.textContent = 'Connected to Shrooms Bot 🍄';
-            statusEl.style.color = 'green';
+        // Initialize the chat
+        function initializeChat() {
+            if (currentMode === 'http') {
+                initHTTP();
+            } else {
+                initSocket();
+            }
+        }
+
+        // HTTP API Mode
+        function initHTTP() {
+            statusEl.textContent = 'Ready (HTTP API Mode)';
+            statusEl.className = 'status connected';
             messageInput.disabled = false;
             sendButton.disabled = false;
-            addMessage('System', 'Connected to chat server', 'system');
-        });
+            addMessage('System', 'HTTP API mode active. Ready to chat!', 'system');
+        }
 
-        socket.on('disconnect', () => {
-            statusEl.textContent = 'Disconnected 😞';
-            statusEl.style.color = 'red';
-            messageInput.disabled = true;
-            sendButton.disabled = true;
-        });
+        async function sendMessageHTTP(message) {
+            try {
+                showTyping();
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        userId: userId,
+                        conversationId: conversationId,
+                        language: detectLanguage(message)
+                    })
+                });
 
-        // Message handling
+                const data = await response.json();
+                hideTyping();
+
+                if (data.success) {
+                    conversationId = data.conversationId;
+                    addMessage('🍄 Shrooms Bot', data.message, 'bot');
+                    
+                    if (data.ticketId) {
+                        addMessage('System', `Создан тикет поддержки: ${data.ticketId}`, 'system');
+                    }
+
+                    // Show metadata in development
+                    if (data.metadata) {
+                        const metaText = `Tokens: ${data.tokensUsed || 0}, Knowledge: ${data.metadata.knowledgeResultsCount || 0}, History: ${data.metadata.historyMessagesCount || 0}`;
+                        addMessage('Debug', metaText, 'system', metaText);
+                    }
+                } else {
+                    addMessage('Error', data.error || 'Something went wrong', 'error');
+                }
+            } catch (error) {
+                hideTyping();
+                addMessage('Error', 'Network error: ' + error.message, 'error');
+            }
+        }
+
+        // Socket.IO Mode
+        function initSocket() {
+            statusEl.textContent = 'Connecting to Socket.IO...';
+            statusEl.className = 'status connecting';
+            
+            socket = io();
+
+            socket.on('connect', () => {
+                statusEl.textContent = 'Connected (Socket.IO Mode)';
+                statusEl.className = 'status connected';
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                addMessage('System', 'Socket.IO connected! Real-time chat active.', 'system');
+                
+                // Join with user ID
+                socket.emit('join', { userId: userId });
+            });
+
+            socket.on('disconnect', () => {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'status disconnected';
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+                addMessage('System', 'Connection lost. Trying to reconnect...', 'error');
+            });
+
+            socket.on('joined', (data) => {
+                addMessage('System', `Joined chat room (Socket ID: ${data.socketId})`, 'system');
+            });
+
+            socket.on('chatResponse', (data) => {
+                hideTyping();
+                if (data.success) {
+                    conversationId = data.conversationId;
+                    addMessage('🍄 Shrooms Bot', data.message, 'bot');
+                    
+                    if (data.ticketId) {
+                        addMessage('System', `Создан тикет поддержки: ${data.ticketId}`, 'system');
+                    }
+                } else {
+                    addMessage('Error', data.error || data.message || 'Something went wrong', 'error');
+                }
+            });
+
+            socket.on('messageReceived', (data) => {
+                // Message acknowledged by server
+                console.log('Message acknowledged:', data);
+            });
+
+            socket.on('error', (error) => {
+                hideTyping();
+                addMessage('Error', error.message || JSON.stringify(error), 'error');
+            });
+        }
+
+        function sendMessageSocket(message) {
+            if (!socket || !socket.connected) {
+                addMessage('Error', 'Not connected to server', 'error');
+                return;
+            }
+
+            showTyping();
+            socket.emit('message', {
+                message: message,
+                userId: userId,
+                conversationId: conversationId,
+                language: detectLanguage(message),
+                messageId: 'msg-' + Date.now()
+            });
+        }
+
+        // UI Functions
+        function switchToHTTP() {
+            currentMode = 'http';
+            document.getElementById('httpBtn').classList.add('active');
+            document.getElementById('socketBtn').classList.remove('active');
+            
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            
+            messagesEl.innerHTML = '';
+            conversationId = null;
+            initializeChat();
+        }
+
+        function switchToSocket() {
+            currentMode = 'socket';
+            document.getElementById('httpBtn').classList.remove('active');
+            document.getElementById('socketBtn').classList.add('active');
+            
+            messagesEl.innerHTML = '';
+            conversationId = null;
+            initializeChat();
+        }
+
         function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
 
             // Add user message to chat
             addMessage('You', message, 'user');
-            
-            // Send to server
-            socket.emit('sendMessage', {
-                message: message,
-                language: 'en',
-                userId: 'test-user-' + Date.now()
-            });
-
             messageInput.value = '';
+
+            // Send based on current mode
+            if (currentMode === 'http') {
+                sendMessageHTTP(message);
+            } else {
+                sendMessageSocket(message);
+            }
         }
 
-        // Listen for responses
-        socket.on('messageResponse', (data) => {
-            addMessage('🍄 Shrooms Bot', data.message, 'bot');
-            
-            if (data.needsTicket) {
-                addMessage('System', 'A support ticket has been created for your issue.', 'system');
-            }
-        });
+        function sendSuggestion(suggestion) {
+            messageInput.value = suggestion;
+            sendMessage();
+        }
 
-        socket.on('error', (error) => {
-            addMessage('Error', error.message, 'error');
-        });
-
-        function addMessage(sender, message, type) {
+        function addMessage(sender, message, type, metadata = null) {
             const messageEl = document.createElement('div');
-            messageEl.className = 'message ' + (type === 'user' ? 'user-message' : 'bot-message');
-            messageEl.innerHTML = `<strong>${sender}:</strong> ${message}`;
+            messageEl.className = 'message ' + type + '-message';
+            
+            // Format message with basic HTML support
+            const formattedMessage = message.replace(/\n/g, '<br>');
+            
+            messageEl.innerHTML = `
+                <strong>${sender}:</strong> ${formattedMessage}
+                ${metadata ? `<div class="metadata">${metadata}</div>` : ''}
+            `;
+            
             messagesEl.appendChild(messageEl);
             messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function showTyping() {
+            typingEl.style.display = 'block';
+        }
+
+        function hideTyping() {
+            typingEl.style.display = 'none';
+        }
+
+        function detectLanguage(text) {
+            // Simple language detection
+            if (/[а-яё]/i.test(text)) return 'ru';
+            if (/[ñáéíóúü]/i.test(text)) return 'es';
+            return 'en';
         }
 
         // Event listeners
@@ -148,10 +514,28 @@
             }
         });
 
-        // Test messages
-        setTimeout(() => {
-            addMessage('System', 'Welcome! Try asking: "How do I connect my Xverse wallet?"', 'system');
-        }, 1000);
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeChat();
+            
+            // Add welcome message after a delay
+            setTimeout(() => {
+                addMessage('System', 'Welcome to Shrooms Support Bot! 🍄', 'system');
+                addMessage('System', 'Try asking questions about the project, wallet connection, or farming.', 'system');
+            }, 500);
+        });
+
+        // Handle page visibility for Socket.IO
+        document.addEventListener('visibilitychange', () => {
+            if (currentMode === 'socket' && !document.hidden && socket && !socket.connected) {
+                // Reconnect if page becomes visible and socket is disconnected
+                setTimeout(() => {
+                    if (!socket.connected) {
+                        initSocket();
+                    }
+                }, 1000);
+            }
+        });
     </script>
 </body>
 </html>
