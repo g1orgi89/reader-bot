@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shrooms Chat Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        .chat-container {
+            border: 2px solid #39FF14;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: #2a2a2a;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #39FF14;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #39FF14;
+            color: #000;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #00FF41;
+        }
+        .messages {
+            border: 1px solid #555;
+            padding: 15px;
+            margin: 10px 0;
+            height: 200px;
+            overflow-y: scroll;
+            background-color: #1a1a1a;
+            border-radius: 5px;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .user-message {
+            background-color: #333;
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #2a2a2a;
+            color: #39FF14;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>🍄 Shrooms Chat Test</h1>
+        
+        <div class="status" id="status">
+            ⏳ Testing connection...
+        </div>
+        
+        <div class="messages" id="messages"></div>
+        
+        <input type="text" id="userInput" placeholder="Введите сообщение..." style="width: 70%;">
+        <button onclick="sendMessage()">Отправить</button>
+        
+        <div>
+            <button onclick="testHealthCheck()">Test Health</button>
+            <button onclick="testLanguages()">Test Languages</button>
+            <button onclick="clearMessages()">Clear</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+        let userId = 'test-user-' + Math.random().toString(36).substr(2, 9);
+        let conversationId = null;
+
+        // Test connection on load
+        window.onload = function() {
+            testHealthCheck();
+        };
+
+        async function testHealthCheck() {
+            try {
+                updateStatus('⏳ Testing health check...');
+                const response = await fetch(`${API_BASE}/chat/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus(`✅ API is healthy: ${JSON.stringify(data.services)}`);
+                } else {
+                    updateStatus(`⚠️ API health issues: ${JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`❌ Health check failed: ${error.message}`, 'error');
+                console.error('Health check error:', error);
+            }
+        }
+
+        async function testLanguages() {
+            try {
+                updateStatus('⏳ Testing languages...');
+                const response = await fetch(`${API_BASE}/chat/languages`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus(`✅ Languages: ${data.data.supportedLanguages.join(', ')}`);
+                } else {
+                    updateStatus(`⚠️ Language test failed: ${JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`❌ Language test failed: ${error.message}`, 'error');
+                console.error('Language test error:', error);
+            }
+        }
+
+        async function sendMessage() {
+            const inputElement = document.getElementById('userInput');
+            const message = inputElement.value.trim();
+            
+            if (!message) return;
+            
+            // Clear input
+            inputElement.value = '';
+            
+            // Add user message to display
+            addMessageToDisplay(message, 'user');
+            
+            try {
+                updateStatus('⏳ Sending message...');
+                
+                const response = await fetch(`${API_BASE}/chat/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        userId: userId,
+                        conversationId: conversationId,
+                        language: 'ru'
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (response.ok && data.success) {
+                    // Update conversation ID
+                    conversationId = data.data.conversationId;
+                    
+                    // Add bot response to display
+                    addMessageToDisplay(data.data.message, 'bot');
+                    
+                    // Update status
+                    updateStatus(`✅ Message sent (${data.data.tokensUsed} tokens used)`);
+                    
+                    // Show ticket info if created
+                    if (data.data.ticketId) {
+                        updateStatus(`🎫 Ticket created: ${data.data.ticketId}`);
+                    }
+                } else {
+                    addMessageToDisplay(`Error: ${data.error || 'Unknown error'}`, 'bot error');
+                    updateStatus(`❌ Message failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addMessageToDisplay(`Network error: ${error.message}`, 'bot error');
+                updateStatus(`❌ Network error: ${error.message}`, 'error');
+                console.error('Send message error:', error);
+            }
+        }
+
+        function addMessageToDisplay(message, type) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.textContent = message;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function updateStatus(message, type = '') {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+            conversationId = null;
+            updateStatus('🆕 New conversation started');
+        }
+
+        // Allow Enter key to send message
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
