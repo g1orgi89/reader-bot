@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Fixed rate limiting and CORS
+ * Main server file for Shrooms Support Bot - Fixed CORS preflight
  * @file server/index.js
  */
 
@@ -190,6 +190,17 @@ async function initializeServices() {
  * Setup middleware
  */
 function setupMiddleware() {
+  // CORS PREFLIGHT HANDLER - FIRST THING! Before any other middleware
+  app.options('*', (req, res) => {
+    logger.debug('Handling OPTIONS preflight request', { url: req.url });
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    res.sendStatus(200);
+  });
+
   // Security middleware - Updated CSP settings for external files
   const helmetConfig = {
     contentSecurityPolicy: {
@@ -256,18 +267,19 @@ function setupMiddleware() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  // GLOBAL CORS PREFLIGHT HANDLER - handle OPTIONS before any rate limiting
-  app.options('*', (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400'); // 24 hours
-    res.sendStatus(200);
+  // Log all requests for debugging
+  app.use((req, res, next) => {
+    logger.debug('Request', {
+      method: req.method,
+      url: req.url,
+      headers: {
+        origin: req.get('origin'),
+        'access-control-request-method': req.get('access-control-request-method'),
+        'access-control-request-headers': req.get('access-control-request-headers')
+      }
+    });
+    next();
   });
-
-  // REMOVE GENERAL RATE LIMITING - it was causing the double limiting issue!
-  // app.use('/api', generalLimiter); // <-- REMOVED!
 
   // Static files - Updated to support test pages from both client and server
   // Serve the entire client directory for development/testing
