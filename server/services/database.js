@@ -20,6 +20,25 @@ class DatabaseService {
   }
 
   /**
+   * Initialize database connection
+   * @param {Object} options - Initialization options
+   * @returns {Promise<boolean>} Initialization success
+   */
+  async initialize(options = {}) {
+    try {
+      // Get connection URI from environment or config
+      const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/shrooms-support';
+      
+      logger.info(`🍄 Initializing database connection to ${uri.replace(/\/\/.*@/, '//***@')}`);
+      
+      return await this.connect(uri, options);
+    } catch (error) {
+      logger.error(`Database initialization failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Connect to MongoDB
    * @param {string} uri - MongoDB connection URI
    * @param {Object} options - Connection options
@@ -45,10 +64,10 @@ class DatabaseService {
       this.connection = mongoose.connection;
       this.connected = true;
 
-      logger.info('Database connected successfully');
+      logger.info('✅ Database connected successfully');
       return true;
     } catch (error) {
-      logger.error('Database connection failed:', error);
+      logger.error('❌ Database connection failed:', error);
       throw new Error(`Database connection failed: ${error.message}`);
     }
   }
@@ -74,6 +93,14 @@ class DatabaseService {
       logger.error('Database disconnection failed:', error);
       throw new Error(`Database disconnection failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Close database connection (alias for disconnect)
+   * @returns {Promise<boolean>} Close success
+   */
+  async close() {
+    return this.disconnect();
   }
 
   /**
