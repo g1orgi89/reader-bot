@@ -68,52 +68,57 @@ class ServiceManager {
       lazy: false // Инициализируем сразу
     });
 
-    // Регистрируем Claude Service
+    // 🍄 ИСПРАВЛЕНО: Claude Service экспортируется как класс напрямую
     this.register('claude', () => {
-      const { ClaudeService } = require('../services/claude');
-      return new ClaudeService();
+      const ClaudeService = require('../services/claude'); // Без деструктуризации
+      return new ClaudeService({
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        model: 'claude-3-haiku-20240307',
+        maxTokens: 1000,
+        temperature: 0.7
+      });
     }, {
       singleton: true,
       dependencies: [] // Claude не зависит от других сервисов
     });
 
-    // Регистрируем Vector Store Service
+    // 🍄 ИСПРАВЛЕНО: VectorStore Service
     this.register('vectorStore', () => {
-      const { VectorStoreService } = require('../services/vectorStore');
+      const VectorStoreService = require('../services/vectorStore'); // Без деструктуризации
       return new VectorStoreService();
     }, {
       singleton: true,
       dependencies: []
     });
 
-    // Регистрируем Knowledge Service
+    // 🍄 ИСПРАВЛЕНО: Knowledge Service
     this.register('knowledge', ['vectorStore'], (vectorStore) => {
-      const { KnowledgeService } = require('../services/knowledge');
+      const KnowledgeService = require('../services/knowledge'); // Без деструктуризации
       return new KnowledgeService(vectorStore);
     }, {
       singleton: true,
       dependencies: ['vectorStore']
     });
 
-    // Регистрируем Ticketing Service  
+    // 🍄 ИСПРАВЛЕНО: Ticketing Service  
     this.register('ticketing', ['database'], (database) => {
-      const { TicketingService } = require('../services/ticketing');
+      const TicketingService = require('../services/ticketing'); // Без деструктуризации
       return new TicketingService(database);
     }, {
       singleton: true,
       dependencies: ['database']
     });
 
-    // Регистрируем Message Service
+    // 🍄 ИСПРАВЛЕНО: Message Service
     this.register('message', ['database'], (database) => {
-      const { MessageService } = require('../services/message');
+      const MessageService = require('../services/message'); // Без деструктуризации
       return new MessageService(database);
     }, {
       singleton: true,
       dependencies: ['database']
     });
 
-    // Регистрируем Chat Service (зависит от всех остальных)
+    // 🍄 ИСПРАВЛЕНО: Chat Service (зависит от всех остальных)
     this.register('chat', ['claude', 'knowledge', 'ticketing', 'message'], 
       (claude, knowledge, ticketing, message) => {
         // Используем chatService-improved.js (более интегрированную версию)
