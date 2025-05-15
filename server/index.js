@@ -18,9 +18,6 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const ServiceManager = require('./core/ServiceManager');
 
-// Import middleware
-const { basicAdminAuth, requireAdmin } = require('./middleware/auth');
-
 // Import API routes
 const chatRoutes = require('./api/chat');
 const ticketRoutes = require('./api/tickets');
@@ -277,8 +274,8 @@ function setupRoutes() {
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/knowledge', knowledgeRoutes);
 
-  // Admin routes with authentication
-  app.use('/api/admin', basicAdminAuth, requireAdmin, adminRoutes);
+  // Admin routes - NO BASIC AUTH (authentication is handled in admin routes themselves)
+  app.use('/api/admin', adminRoutes);
 
   // Health check endpoint with ServiceManager integration
   app.get('/api/health', async (req, res) => {
