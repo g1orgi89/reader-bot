@@ -1,5 +1,5 @@
 /**
- * Admin authentication routes
+ * Admin authentication routes with CORS preflight support
  * @file server/api/admin.js
  */
 
@@ -10,6 +10,16 @@ const { requireAdminAuth } = require('../middleware/adminAuth');
 const { createErrorResponse } = require('../constants/errorCodes');
 
 const router = express.Router();
+
+// CORS Preflight handler for admin routes
+router.options('/*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  res.sendStatus(200);
+});
 
 /**
  * Admin login endpoint
