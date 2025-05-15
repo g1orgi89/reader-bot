@@ -125,6 +125,11 @@ function setupMiddleware() {
  * Setup API routes
  */
 function setupRoutes() {
+  // Test page routes
+  app.get('/test-cors', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/test-cors.html'));
+  });
+
   // Simple health check endpoint
   app.get('/api/health', (req, res) => {
     res.status(200).json({ 
@@ -181,7 +186,8 @@ function setupRoutes() {
       endpoints: {
         health: '/api/health',
         chat: '/api/chat/message',
-        cors_test: '/api/test-cors'
+        cors_test: '/api/test-cors',
+        test_page: '/test-cors'
       }
     });
   });
@@ -299,7 +305,7 @@ async function startServer() {
       logger.info(`🍄 Shrooms Support Bot server running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`Health check: http://localhost:${PORT}/api/health`);
-      logger.info(`CORS test: http://localhost:${PORT}/api/test-cors`);
+      logger.info(`CORS test: http://localhost:${PORT}/test-cors`);
     });
     
   } catch (error) {
