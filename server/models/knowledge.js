@@ -1,5 +1,5 @@
 /**
- * Knowledge Document MongoDB Model - Fixed UTF-8 encoding
+ * Knowledge Document MongoDB Model - Fixed search and UTF-8 encoding
  * @file server/models/knowledge.js
  */
 
@@ -70,7 +70,7 @@ knowledgeSchema.index({ category: 1, language: 1 });
 knowledgeSchema.index({ tags: 1, language: 1 });
 knowledgeSchema.index({ status: 1, language: 1 });
 
-// Text search index with proper collation
+// Text search index with proper collation for all languages
 knowledgeSchema.index({ 
   title: 'text', 
   content: 'text',
@@ -82,11 +82,9 @@ knowledgeSchema.index({
     tags: 3
   },
   name: 'knowledge_text_search',
-  // Add collation for better Unicode support
-  collation: {
-    locale: 'simple',
-    strength: 1
-  }
+  // Better collation for multilingual support
+  default_language: 'none', // Allow text search in all languages
+  language_override: 'language'
 });
 
 // Update the updatedAt field on save
@@ -119,6 +117,7 @@ knowledgeSchema.statics.findByCategory = function(category, language = null) {
   return this.find(query).sort({ updatedAt: -1 });
 };
 
+// Fixed searchText method with better language handling
 knowledgeSchema.statics.searchText = function(searchQuery, options = {}) {
   const {
     language = null,
@@ -128,21 +127,79 @@ knowledgeSchema.statics.searchText = function(searchQuery, options = {}) {
     page = 1
   } = options;
 
+  // Build base query with text search
   const query = {
     $text: { $search: searchQuery },
     status: 'published'
   };
 
+  // Apply filters after text search
   if (language) query.language = language;
   if (category) query.category = category;
   if (tags.length > 0) query.tags = { $in: tags };
 
   const skip = (page - 1) * limit;
 
+  // Execute search query
   return this.find(query, { score: { $meta: 'textScore' } })
     .sort({ score: { $meta: 'textScore' } })
     .skip(skip)
     .limit(limit);
+};
+
+// Alternative regex-based search for better Unicode support
+knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
+  const {
+    language = null,
+    category = null,
+    tags = [],
+    limit = 10,
+    page = 1
+  } = options;
+
+  // Create case-insensitive regex
+  const regexQuery = new RegExp(searchQuery, 'i');
+  
+  // Build search query
+  const query = {
+    $or: [
+      { title: regexQuery },
+      { content: regexQuery },
+      { tags: { $regex: regexQuery } }
+    ],
+    status: 'published'
+  };
+
+  // Apply filters
+  if (language) query.language = language;
+  if (category) query.category = category;
+  if (tags.length > 0) query.tags = { $in: tags };
+
+  const skip = (page - 1) * limit;
+
+  return this.find(query)
+    .sort({ updatedAt: -1 })
+    .skip(skip)
+    .limit(limit);
+};
+
+// Combined search method that tries text search first, then regex
+knowledgeSchema.statics.combinedSearch = async function(searchQuery, options = {}) {
+  try {
+    // First try text search
+    const textResults = await this.searchText(searchQuery, options);
+    
+    // If text search returns results, use them
+    if (textResults.length > 0) {
+      return textResults;
+    }
+    
+    // Otherwise, fall back to regex search for better Unicode support
+    return await this.searchRegex(searchQuery, options);
+  } catch (error) {
+    // If text search fails, use regex search
+    return await this.searchRegex(searchQuery, options);
+  }
 };
 
 // Export the model
