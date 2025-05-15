@@ -1,0 +1,210 @@
+/**
+ * HTML test page for Russian search
+ * @file client/test-russian-search.html
+ */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shrooms Russian Search Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        .container {
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 70%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #333;
+            color: #e0e0e0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #39ff14;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #2dd10d;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 4px;
+            border-left: 4px solid #39ff14;
+        }
+        .error {
+            border-left-color: #ff6b6b;
+            background-color: #4a2a2a;
+        }
+        pre {
+            background-color: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .test-button {
+            background-color: #8a2be2;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background-color: #7b25d3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍄 Shrooms Russian Search Test</h1>
+    
+    <div class="container">
+        <h3>Manual Search Test</h3>
+        <input type="text" id="searchQuery" placeholder="Введите поисковый запрос..." value="кошелек">
+        <select id="language">
+            <option value="">Any Language</option>
+            <option value="ru" selected>Russian</option>
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+        </select>
+        <br>
+        <button onclick="testSearch()">🔍 Search</button>
+        <button onclick="testCustom()">🧪 Test Custom</button>
+    </div>
+
+    <div class="container">
+        <h3>Predefined Tests</h3>
+        <button class="test-button" onclick="testRussianWords()">🇷🇺 Test Russian Words</button>
+        <button class="test-button" onclick="testEncoding()">📝 Test Encoding</button>
+        <button class="test-button" onclick="testAllDocuments()">📚 Get All Documents</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        
+        async function testSearch() {
+            const query = document.getElementById('searchQuery').value;
+            const language = document.getElementById('language').value;
+            
+            showResult('Searching...', false);
+            
+            try {
+                const params = new URLSearchParams({ q: query });
+                if (language) params.append('language', language);
+                
+                const response = await fetch(`${API_BASE}/api/knowledge/search?${params}`);
+                const data = await response.json();
+                
+                showResult(`Search Results for "${query}":`, false);
+                showResult(JSON.stringify(data, null, 2), false);
+            } catch (error) {
+                showResult(`Error: ${error.message}`, true);
+            }
+        }
+        
+        async function testCustom() {
+            const query = document.getElementById('searchQuery').value;
+            const language = document.getElementById('language').value;
+            
+            showResult('Testing custom search...', false);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/test/search-custom`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    body: JSON.stringify({ query, language })
+                });
+                const data = await response.json();
+                
+                showResult('Custom Search Test Results:', false);
+                showResult(JSON.stringify(data, null, 2), false);
+            } catch (error) {
+                showResult(`Error: ${error.message}`, true);
+            }
+        }
+        
+        async function testRussianWords() {
+            showResult('Testing Russian words...', false);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/test/search-russian`);
+                const data = await response.json();
+                
+                showResult('Russian Search Test Results:', false);
+                showResult(JSON.stringify(data, null, 2), false);
+            } catch (error) {
+                showResult(`Error: ${error.message}`, true);
+            }
+        }
+        
+        async function testEncoding() {
+            showResult('Testing encoding...', false);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/test/encoding`);
+                const data = await response.json();
+                
+                showResult('Encoding Test Results:', false);
+                showResult(JSON.stringify(data, null, 2), false);
+            } catch (error) {
+                showResult(`Error: ${error.message}`, true);
+            }
+        }
+        
+        async function testAllDocuments() {
+            showResult('Getting all documents...', false);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/knowledge`);
+                const data = await response.json();
+                
+                showResult(`Found ${data.data.length} documents:`, false);
+                showResult(JSON.stringify(data, null, 2), false);
+            } catch (error) {
+                showResult(`Error: ${error.message}`, true);
+            }
+        }
+        
+        function showResult(message, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${isError ? 'error' : ''}`;
+            
+            if (typeof message === 'string' && message.startsWith('{')) {
+                resultDiv.innerHTML = `<pre>${message}</pre>`;
+            } else {
+                resultDiv.textContent = message;
+            }
+            
+            resultsDiv.appendChild(resultDiv);
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Test on page load
+        window.onload = function() {
+            showResult('🍄 Russian Search Test Page Loaded', false);
+            showResult('Use the form above to test Russian search functionality', false);
+        };
+    </script>
+</body>
+</html>
