@@ -1,6 +1,5 @@
 /**
- * Message Service for Shrooms Support Bot
- * Handles message CRUD operations
+ * Сервис для работы с сообщениями
  * @file server/services/message.js
  */
 
@@ -8,250 +7,297 @@ const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 /**
- * Message schema for MongoDB
+ * Схема сообщения
  */
 const messageSchema = new mongoose.Schema({
-  conversationId: {
+  text: {
     type: String,
     required: true,
-    index: true
-  },
-  userId: {
-    type: String,
-    required: true,
-    index: true
+    trim: true
   },
   role: {
     type: String,
     enum: ['user', 'assistant', 'system'],
     required: true
   },
-  text: {
+  userId: {
     type: String,
-    required: true
+    required: true,
+    index: true
   },
-  language: {
-    type: String,
-    default: 'en'
+  conversationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Conversation',
+    required: true,
+    index: true
   },
-  tokensUsed: {
-    type: Number,
-    default: 0
-  },
-  needsTicket: {
-    type: Boolean,
-    default: false
-  },
-  ticketCreated: {
-    type: Boolean,
-    default: false
-  },
-  ticketId: {
-    type: String
+  metadata: {
+    language: String,
+    tokensUsed: Number,
+    sentiment: String,
+    source: {
+      type: String,
+      enum: ['http', 'socket', 'telegram'],
+      default: 'http'
+    },
+    ticketCreated: Boolean,
+    ticketId: String
   }
 }, {
   timestamps: true
 });
 
-// Indexes for performance
-messageSchema.index({ conversationId: 1, createdAt: -1 });
+// Индексы для оптимизации запросов
+messageSchema.index({ conversationId: 1, createdAt: 1 });
 messageSchema.index({ userId: 1, createdAt: -1 });
+messageSchema.index({ role: 1 });
 
+// Модель сообщения
 const Message = mongoose.model('Message', messageSchema);
 
 /**
- * Message Service class
+ * @class MessageService
+ * @description Сервис для работы с сообщениями
  */
 class MessageService {
   /**
-   * Create a new message
-   * @param {Object} messageData - Message data
-   * @returns {Promise<Object>} Created message
+   * Создает новое сообщение
+   * @param {Object} messageData - Данные сообщения
+   * @param {string} messageData.text - Текст сообщения
+   * @param {string} messageData.role - Роль отправителя
+   * @param {string} messageData.userId - ID пользователя
+   * @param {string} messageData.conversationId - ID разговора
+   * @param {Object} [messageData.metadata] - Дополнительные метаданные
+   * @returns {Promise<Object>} Созданное сообщение
    */
-  async createMessage(messageData) {
+  async create(messageData) {
     try {
       const message = new Message(messageData);
-      const savedMessage = await message.save();
+      await message.save();
       
-      logger.info('Message created', {
-        messageId: savedMessage._id,
-        conversationId: savedMessage.conversationId,
-        role: savedMessage.role
-      });
-      
-      return savedMessage;
+      logger.info(`Message created: ${message._id} for conversation ${messageData.conversationId}`);
+      return message;
     } catch (error) {
-      logger.error('Failed to create message', { error: error.message });
-      throw error;
+      logger.error('Error creating message:', error);
+      throw new Error(`Failed to create message: ${error.message}`);
     }
   }
 
   /**
-   * Get messages for a conversation
-   * @param {string} conversationId - Conversation ID
-   * @param {Object} options - Query options
-   * @returns {Promise<Array>} Messages array
+   * Находит сообщение по ID
+   * @param {string} messageId - ID сообщения
+   * @returns {Promise<Object|null>} Сообщение или null
    */
-  async getMessages(conversationId, options = {}) {
+  async findById(messageId) {
     try {
-      const { page = 1, limit = 50, includeMetadata = false } = options;
-      const skip = (page - 1) * limit;
-      
-      const query = { conversationId };
-      const select = includeMetadata ? {} : '-tokensUsed -needsTicket -ticketCreated -ticketId';
-      
-      const messages = await Message.find(query)
-        .select(select)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean();
-      
-      return messages.reverse(); // Return in chronological order
+      const message = await Message.findById(messageId);
+      return message;
     } catch (error) {
-      logger.error('Failed to get messages', { error: error.message, conversationId });
-      throw error;
+      logger.error('Error finding message by ID:', error);
+      throw new Error(`Failed to find message: ${error.message}`);
     }
   }
 
   /**
-   * Get recent messages for context
-   * @param {string} conversationId - Conversation ID
-   * @param {number} limit - Number of messages to retrieve
-   * @returns {Promise<Array>} Recent messages
+   * Получает последние сообщения разговора
+   * @param {string} conversationId - ID разговора
+   * @param {number} [limit=50] - Количество сообщений
+   * @returns {Promise<Object[]>} Массив сообщений
    */
-  async getRecentMessages(conversationId, limit = 10) {
+  async getRecentMessages(conversationId, limit = 50) {
     try {
-      const messages = await Message.find({ conversationId })
-        .select('role text timestamp')
+      const messages = await Message
+        .find({ conversationId })
         .sort({ createdAt: -1 })
         .limit(limit)
-        .lean();
-      
-      return messages.reverse().map(msg => ({
-        role: msg.role,
-        content: msg.text,
-        timestamp: msg.createdAt
-      }));
+        .exec();
+
+      // Возвращаем в хронологическом порядке (от старых к новым)
+      return messages.reverse();
     } catch (error) {
-      logger.error('Failed to get recent messages', { error: error.message, conversationId });
-      return [];
+      logger.error('Error getting recent messages:', error);
+      throw new Error(`Failed to get messages: ${error.message}`);
     }
   }
 
   /**
-   * Get message count for a conversation
-   * @param {string} conversationId - Conversation ID
-   * @returns {Promise<number>} Message count
+   * Получает сообщения разговора с пагинацией
+   * @param {string} conversationId - ID разговора
+   * @param {Object} [options] - Опции поиска
+   * @param {number} [options.page=1] - Номер страницы
+   * @param {number} [options.limit=50] - Количество на страницу
+   * @returns {Promise<Object[]>} Массив сообщений
    */
-  async getMessageCount(conversationId) {
+  async getMessagesByConversationId(conversationId, options = {}) {
     try {
-      return await Message.countDocuments({ conversationId });
+      const {
+        page = 1,
+        limit = 50
+      } = options;
+
+      const messages = await Message
+        .find({ conversationId })
+        .sort({ createdAt: 1 }) // От старых к новым
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .exec();
+
+      return messages;
     } catch (error) {
-      logger.error('Failed to get message count', { error: error.message, conversationId });
-      return 0;
+      logger.error('Error getting messages by conversation ID:', error);
+      throw new Error(`Failed to get messages: ${error.message}`);
     }
   }
 
   /**
-   * Update a message
-   * @param {string} messageId - Message ID
-   * @param {Object} updateData - Data to update
-   * @returns {Promise<Object>} Updated message
+   * Получает сообщения пользователя
+   * @param {string} userId - ID пользователя
+   * @param {Object} [options] - Опции поиска
+   * @param {number} [options.page=1] - Номер страницы
+   * @param {number} [options.limit=50] - Количество на страницу
+   * @param {string} [options.role] - Фильтр по роли
+   * @returns {Promise<Object[]>} Массив сообщений
    */
-  async updateMessage(messageId, updateData) {
+  async getMessagesByUserId(userId, options = {}) {
     try {
-      const updatedMessage = await Message.findByIdAndUpdate(
+      const {
+        page = 1,
+        limit = 50,
+        role
+      } = options;
+
+      const query = { userId };
+      if (role) {
+        query.role = role;
+      }
+
+      const messages = await Message
+        .find(query)
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .exec();
+
+      return messages;
+    } catch (error) {
+      logger.error('Error getting messages by user ID:', error);
+      throw new Error(`Failed to get messages: ${error.message}`);
+    }
+  }
+
+  /**
+   * Обновляет сообщение
+   * @param {string} messageId - ID сообщения
+   * @param {Object} updateData - Данные для обновления
+   * @returns {Promise<Object>} Обновленное сообщение
+   */
+  async update(messageId, updateData) {
+    try {
+      const message = await Message.findByIdAndUpdate(
         messageId,
         updateData,
         { new: true }
       );
-      
-      if (!updatedMessage) {
+
+      if (!message) {
         throw new Error('Message not found');
       }
-      
-      return updatedMessage;
+
+      logger.info(`Message updated: ${messageId}`);
+      return message;
     } catch (error) {
-      logger.error('Failed to update message', { error: error.message, messageId });
-      throw error;
+      logger.error('Error updating message:', error);
+      throw new Error(`Failed to update message: ${error.message}`);
     }
   }
 
   /**
-   * Delete conversation messages
-   * @param {string} conversationId - Conversation ID
-   * @param {string} userId - User ID (for authorization)
-   * @returns {Promise<number>} Number of deleted messages
+   * Удаляет сообщение
+   * @param {string} messageId - ID сообщения
+   * @returns {Promise<boolean>} Успешность удаления
    */
-  async deleteConversation(conversationId, userId) {
+  async delete(messageId) {
     try {
-      const result = await Message.deleteMany({ 
-        conversationId,
-        ...(userId && { userId })
-      });
+      const result = await Message.findByIdAndDelete(messageId);
       
-      logger.info('Conversation deleted', {
-        conversationId,
-        deletedCount: result.deletedCount
-      });
-      
-      return result.deletedCount;
+      if (!result) {
+        throw new Error('Message not found');
+      }
+
+      logger.info(`Message deleted: ${messageId}`);
+      return true;
     } catch (error) {
-      logger.error('Failed to delete conversation', { error: error.message, conversationId });
-      throw error;
+      logger.error('Error deleting message:', error);
+      throw new Error(`Failed to delete message: ${error.message}`);
     }
   }
 
   /**
-   * Get user chat statistics
-   * @param {string} userId - User ID
-   * @param {number} days - Number of days to look back
-   * @returns {Promise<Object>} User statistics
+   * Получает статистику сообщений
+   * @param {Object} [filters] - Фильтры для статистики
+   * @param {string} [filters.userId] - ID пользователя
+   * @param {string} [filters.conversationId] - ID разговора
+   * @param {Date} [filters.startDate] - Начальная дата
+   * @param {Date} [filters.endDate] - Конечная дата
+   * @returns {Promise<Object>} Статистика сообщений
    */
-  async getUserStats(userId, days = 30) {
+  async getStats(filters = {}) {
     try {
-      const dateFrom = new Date();
-      dateFrom.setDate(dateFrom.getDate() - days);
+      const query = {};
       
-      const stats = await Message.aggregate([
-        {
-          $match: {
-            userId,
-            createdAt: { $gte: dateFrom }
-          }
-        },
+      if (filters.userId) {
+        query.userId = filters.userId;
+      }
+      
+      if (filters.conversationId) {
+        query.conversationId = filters.conversationId;
+      }
+      
+      if (filters.startDate || filters.endDate) {
+        query.createdAt = {};
+        if (filters.startDate) {
+          query.createdAt.$gte = filters.startDate;
+        }
+        if (filters.endDate) {
+          query.createdAt.$lte = filters.endDate;
+        }
+      }
+
+      const [stats] = await Message.aggregate([
+        { $match: query },
         {
           $group: {
             _id: null,
-            totalMessages: { $sum: 1 },
-            userMessages: { $sum: { $cond: [{ $eq: ['$role', 'user'] }, 1, 0] } },
-            assistantMessages: { $sum: { $cond: [{ $eq: ['$role', 'assistant'] }, 1, 0] } },
-            totalTokens: { $sum: '$tokensUsed' },
-            ticketsCreated: { $sum: { $cond: ['$ticketCreated', 1, 0] } },
-            conversationsCount: { $addToSet: '$conversationId' }
-          }
-        },
-        {
-          $addFields: {
-            conversationsCount: { $size: '$conversationsCount' }
+            total: { $sum: 1 },
+            userMessages: {
+              $sum: { $cond: [{ $eq: ['$role', 'user'] }, 1, 0] }
+            },
+            assistantMessages: {
+              $sum: { $cond: [{ $eq: ['$role', 'assistant'] }, 1, 0] }
+            },
+            systemMessages: {
+              $sum: { $cond: [{ $eq: ['$role', 'system'] }, 1, 0] }
+            },
+            totalTokens: { $sum: '$metadata.tokensUsed' },
+            languages: { $push: '$metadata.language' }
           }
         }
       ]);
-      
-      return stats[0] || {
-        totalMessages: 0,
+
+      return stats || {
+        total: 0,
         userMessages: 0,
         assistantMessages: 0,
+        systemMessages: 0,
         totalTokens: 0,
-        ticketsCreated: 0,
-        conversationsCount: 0
+        languages: []
       };
     } catch (error) {
-      logger.error('Failed to get user stats', { error: error.message, userId });
-      throw error;
+      logger.error('Error getting message stats:', error);
+      throw new Error(`Failed to get stats: ${error.message}`);
     }
   }
 }
 
+// Экспорт экземпляра сервиса
 module.exports = new MessageService();
