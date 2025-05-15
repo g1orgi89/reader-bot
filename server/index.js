@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Add static files support
+ * Main server file for Shrooms Support Bot - Updated CSP for external CSS/JS
  * @file server/index.js
  */
 
@@ -189,19 +189,17 @@ async function initializeServices() {
  * Setup middleware
  */
 function setupMiddleware() {
-  // Security middleware - Updated CSP settings for development
+  // Security middleware - Updated CSP settings for external files
   const helmetConfig = {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
-          "'unsafe-inline'", // Allow inline scripts for Socket.IO test page
           "cdnjs.cloudflare.com"
         ],
         styleSrc: [
-          "'self'",
-          "'unsafe-inline'" // Allow inline styles
+          "'self'"
         ],
         connectSrc: [
           "'self'",
@@ -220,13 +218,15 @@ function setupMiddleware() {
 
   // Use different CSP settings based on environment
   if (process.env.NODE_ENV === 'development') {
-    // More permissive CSP for development
-    helmetConfig.contentSecurityPolicy.directives.scriptSrc.push("'unsafe-eval'");
+    // Add some development-specific permissions
     helmetConfig.contentSecurityPolicy.directives.connectSrc.push(
       "ws://localhost:*",
       "wss://localhost:*",
       "http://localhost:*"
     );
+    
+    // Allow inline styles only in development for Socket.IO test pages that might need them
+    helmetConfig.contentSecurityPolicy.directives.styleSrc.push("'unsafe-inline'");
   }
 
   app.use(helmet(helmetConfig));
