@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Restored full configuration
+ * Main server file for Shrooms Support Bot - Fixed syntax error
  * @file server/index.js
  */
 
@@ -553,7 +553,7 @@ async function gracefulShutdown(signal) {
     server.close(async () => {
       logger.info('HTTP server closed');
       
-      try {\
+      try {
         // 2. Shutdown all services
         await ServiceManager.shutdown();
         
