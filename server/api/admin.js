@@ -1,5 +1,5 @@
 /**
- * Admin authentication routes with fixed ticket creation
+ * Admin authentication routes with manual OPTIONS handler
  * @file server/api/admin.js
  */
 
@@ -12,8 +12,18 @@ const { createErrorResponse } = require('../constants/errorCodes');
 
 const router = express.Router();
 
-// REMOVE local OPTIONS handler - using global one from index.js
-// router.options('/*', ...) <-- REMOVED!
+// Manual OPTIONS handler FIRST - before any rate limiting
+router.options('/tickets', (req, res) => {
+  logger.info('Admin tickets OPTIONS request');
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400'
+  });
+  res.status(200).end();
+});
 
 /**
  * Admin login endpoint
