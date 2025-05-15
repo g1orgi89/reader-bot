@@ -25,6 +25,10 @@ const ServiceManager = require('./core/ServiceManager');
 // 🍄 Import ServiceManager middleware
 const { createServiceManagerMiddleware } = require('./middleware/serviceManager');
 
+// 🍄 Import services that might be needed for Socket.IO
+const messageService = require('./services/message');
+const languageDetect = require('./utils/languageDetect');
+
 // Initialize logger
 let logger;
 try {
@@ -432,21 +436,71 @@ function setupSocket() {
           timestamp: new Date().toISOString()
         });
         
-        // 🍄 Используем chatService через ServiceManager
+        // 🍄 Process message using same logic as HTTP API
         try {
-          const chatService = serviceManager.getService('chat');
-          if (chatService) {
-            const response = await chatService.processMessage({
-              message: data.message,
-              userId: data.userId || socket.id,
-              conversationId: data.conversationId,
-              language: data.language
-            });
-            
-            socket.emit('chatResponse', response);
-          } else {
-            throw new Error('Chat service not available');
+          // Get services from ServiceManager
+          const claudeService = serviceManager.getService('claude');
+          const vectorStoreService = serviceManager.getService('vectorStore');
+          const ticketService = serviceManager.getService('ticket');
+          
+          if (!claudeService || !vectorStoreService) {
+            throw new Error('Required services not available');
           }
+          
+          // Auto-detect language if not provided
+          const language = data.language || languageDetect.detect(data.message);
+          
+          // Generate conversation ID if needed
+          let conversationId = data.conversationId;
+          if (!conversationId) {
+            conversationId = new Date().getTime().toString(); // Simple ID for Socket.IO
+          }
+          
+          // Search for relevant knowledge base content
+          const knowledgeResults = await vectorStoreService.search(
+            data.message,
+            { 
+              language: language,
+              limit: 5
+            }
+          );
+          
+          // Extract context from search results
+          const context = knowledgeResults.map(result => result.content);
+          
+          // Get conversation history
+          let history = [];
+          try {
+            if (messageService) {
+              history = await messageService.getRecentMessages(conversationId, 10);
+            }
+          } catch (error) {
+            logger.warn('Could not fetch conversation history:', error.message);
+          }
+          
+          // Generate response using Claude
+          const claudeResponse = await claudeService.generateResponse(
+            data.message,
+            {
+              context,
+              history,
+              language: language
+            }
+          );
+          
+          // Send response back to client
+          socket.emit('chatResponse', {
+            success: true,
+            message: claudeResponse.message,
+            conversationId,
+            tokensUsed: claudeResponse.tokensUsed,
+            language: language,
+            metadata: {
+              knowledgeResultsCount: knowledgeResults.length,
+              historyMessagesCount: history.length
+            }
+          });
+          
         } catch (serviceError) {
           logger.error(`Chat service error: ${serviceError.message}`);
           socket.emit('chatResponse', {
