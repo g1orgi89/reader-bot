@@ -5,6 +5,7 @@
 
 const express = require('express');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const { requireAdminAuth } = require('../middleware/adminAuth');
 const { createErrorResponse } = require('../constants/errorCodes');
@@ -309,18 +310,20 @@ router.post('/tickets', requireAdminAuth, async (req, res) => {
     const ServiceManager = require('../core/ServiceManager');
     const ticketService = ServiceManager.get('ticketService');
 
+    // Create a dummy conversation ID for admin-created tickets
+    const dummyConversationId = new mongoose.Types.ObjectId();
+
     // Create ticket data - mapping title/description to subject/initialMessage
     const ticketData = {
       userId: userId || `admin-created-${Date.now()}`,
+      conversationId: dummyConversationId, // Add required conversationId
       subject: title, // Map title to subject
       initialMessage: description, // Map description to initialMessage
       priority: priority || 'medium',
       category: category || 'general',
       email: email || '',
-      source: 'admin',
-      assignedTo: req.admin?.id || 'admin',
-      status: 'open',
-      language: 'en' // Add required language field
+      language: 'en', // Add required language field
+      context: 'Created by admin via admin panel' // Add context
     };
 
     // Create the ticket
@@ -340,7 +343,8 @@ router.post('/tickets', requireAdminAuth, async (req, res) => {
   } catch (error) {
     logger.error('Error creating ticket via admin endpoint', {
       error: error.message,
-      admin: req.admin?.id
+      admin: req.admin?.id,
+      stack: error.stack
     });
 
     const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to create ticket');
