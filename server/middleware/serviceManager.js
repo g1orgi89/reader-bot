@@ -13,14 +13,14 @@ const logger = require('../utils/logger');
 function createServiceManagerMiddleware(serviceManager) {
   return (req, res, next) => {
     try {
-      // Get all available services
-      const availableServices = serviceManager.getAvailableServices();
-      
       // Create services object for request
       req.services = {};
       
+      // Get services by their names
+      const serviceNames = ['claude', 'vectorStore', 'ticket', 'message', 'knowledge'];
+      
       // Add each service to the request object
-      for (const serviceName of availableServices) {
+      for (const serviceName of serviceNames) {
         try {
           const service = serviceManager.getService(serviceName);
           if (service) {
