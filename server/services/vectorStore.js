@@ -63,6 +63,33 @@ class VectorStoreService {
   }
 
   /**
+   * Проверяет здоровье векторной базы данных
+   * @returns {Promise<Object>} Результат проверки здоровья
+   */
+  async healthCheck() {
+    try {
+      if (!this.initialized) {
+        return {
+          status: 'error',
+          message: 'Vector store not initialized'
+        };
+      }
+
+      return {
+        status: 'ok',
+        message: 'Vector store is healthy (stub mode)'
+      };
+    } catch (error) {
+      logger.error('Vector store health check failed:', error);
+      return {
+        status: 'error',
+        message: 'Vector store health check failed',
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Проверяет, инициализирована ли векторная база
    * @returns {boolean} Инициализирована ли база
    */
