@@ -7,6 +7,23 @@ const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 /**
+ * @typedef {Object} ConnectionStatus
+ * @property {string} state - Состояние соединения
+ * @property {string} host - Хост базы данных
+ * @property {string} name - Имя базы данных
+ * @property {boolean} isConnected - Подключена ли БД
+ * @property {number} readyState - Числовое состояние соединения
+ */
+
+/**
+ * @typedef {Object} HealthCheckResult
+ * @property {string} status - Статус проверки (ok/error)
+ * @property {string} message - Сообщение о результате
+ * @property {ConnectionStatus} details - Детали подключения
+ * @property {string} [error] - Сообщение об ошибке, если есть
+ */
+
+/**
  * @class DatabaseService
  * @description Сервис для управления подключением к MongoDB
  */
@@ -14,20 +31,24 @@ class DatabaseService {
   constructor() {
     this.connection = null;
     this.isConnected = false;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 5;
+    this.reconnectDelay = 1000; // 1 секунда
     
     // Настройки подключения
     this.connectionOptions = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Таймаут для выбора сервера
-      socketTimeoutMS: 45000, // Таймаут сокета
-      maxPoolSize: 10, // Максимальное количество соединений в пуле
-      minPoolSize: 1,  // Минимальное количество соединений в пуле
-      maxIdleTimeMS: 30000, // Время простоя соединения
-      bufferMaxEntries: 0 // Отключить буферизацию
+      serverSelectionTimeoutMS: 10000, // 10 секунд
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 1,
+      maxIdleTimeMS: 30000,
+      bufferMaxEntries: 0,
+      bufferCommands: false
     };
     
-    // Обработчики событий MongoDB
+    // Настраиваем обработчики событий
     this.setupEventHandlers();
   }
 
@@ -37,58 +58,94 @@ class DatabaseService {
   setupEventHandlers() {
     mongoose.connection.on('connected', () => {
       this.isConnected = true;
+      this.reconnectAttempts = 0;
       logger.info('✅ MongoDB connected successfully');
     });
 
     mongoose.connection.on('error', (error) => {
       this.isConnected = false;
-      logger.error('❌ MongoDB connection error:', error);
+      logger.error('❌ MongoDB connection error:', {
+        error: error.message,
+        code: error.code,
+        codeName: error.codeName
+      });
     });
 
     mongoose.connection.on('disconnected', () => {
       this.isConnected = false;
       logger.warn('⚠️ MongoDB disconnected');
+      this.handleReconnect();
     });
 
     mongoose.connection.on('reconnected', () => {
       this.isConnected = true;
+      this.reconnectAttempts = 0;
       logger.info('🔄 MongoDB reconnected');
     });
 
-    // Обработка сигналов завершения приложения
-    process.on('SIGINT', async () => {
-      await this.disconnect();
-      process.exit(0);
-    });
+    // Graceful shutdown
+    process.on('SIGINT', this.gracefulShutdown.bind(this));
+    process.on('SIGTERM', this.gracefulShutdown.bind(this));
+  }
 
-    process.on('SIGTERM', async () => {
-      await this.disconnect();
-      process.exit(0);
-    });
+  /**
+   * Обрабатывает переподключение к базе данных
+   */
+  async handleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      logger.error(`❌ Max reconnection attempts (${this.maxReconnectAttempts}) reached`);
+      return;
+    }
+
+    this.reconnectAttempts++;
+    logger.info(`🔄 Attempting to reconnect to MongoDB (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    
+    setTimeout(() => {
+      mongoose.connect(process.env.MONGODB_URI, this.connectionOptions).catch(error => {
+        logger.error(`❌ Reconnection attempt ${this.reconnectAttempts} failed:`, error.message);
+      });
+    }, this.reconnectDelay * this.reconnectAttempts);
   }
 
   /**
    * Подключается к базе данных MongoDB
    * @param {string} [uri] - URI для подключения к MongoDB
-   * @returns {Promise<void>}
+   * @returns {Promise<mongoose.Connection>}
    */
   async connect(uri) {
     try {
-      // Используем переданный URI или из переменных окружения - ИСПРАВЛЕНО на localhost
       const mongoUri = uri || process.env.MONGODB_URI || 'mongodb://localhost:27017/shrooms-support';
       
-      logger.info(`Connecting to MongoDB: ${mongoUri.replace(/:[^:]*@/, ':***@')}`);
+      // Скрываем пароль в логах
+      const logUri = mongoUri.replace(/:[^:]*@/, ':***@');
+      logger.info(`📡 Attempting to connect to MongoDB: ${logUri}`);
       
-      // Подключение к MongoDB
+      // Очищаем предыдущее соединение если есть
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+      }
+
+      // Устанавливаем новое соединение
       await mongoose.connect(mongoUri, this.connectionOptions);
       
       this.connection = mongoose.connection;
-      logger.info('✅ Database service initialized');
+      
+      // Проверяем соединение
+      await this.connection.db.admin().ping();
+      
+      logger.info('✅ Database service initialized successfully');
       
       return this.connection;
     } catch (error) {
       this.isConnected = false;
-      logger.error('❌ Database connection failed:', error);
+      logger.error('❌ Database connection failed:', {
+        error: error.message,
+        code: error.code,
+        uri: uri?.replace(/:[^:]*@/, ':***@') || 'default'
+      });
+      
+      // Не выбрасываем ошибку сразу, попробуем переподключиться
+      this.handleReconnect();
       throw error;
     }
   }
@@ -100,19 +157,34 @@ class DatabaseService {
   async disconnect() {
     try {
       if (this.connection && this.isConnected) {
-        await mongoose.connection.close();
+        await mongoose.disconnect();
         this.isConnected = false;
-        logger.info('✅ MongoDB connection closed');
+        logger.info('✅ MongoDB connection closed gracefully');
       }
     } catch (error) {
-      logger.error('❌ Error closing MongoDB connection:', error);
+      logger.error('❌ Error closing MongoDB connection:', error.message);
       throw error;
     }
   }
 
   /**
+   * Graceful shutdown обработчик
+   * @param {string} signal - Сигнал завершения
+   */
+  async gracefulShutdown(signal) {
+    logger.info(`🔄 Received ${signal}, shutting down gracefully`);
+    try {
+      await this.disconnect();
+      process.exit(0);
+    } catch (error) {
+      logger.error('❌ Error during graceful shutdown:', error.message);
+      process.exit(1);
+    }
+  }
+
+  /**
    * Проверяет состояние подключения к базе данных
-   * @returns {boolean} Подключена ли база данных
+   * @returns {boolean}
    */
   isConnectedToDB() {
     return this.isConnected && mongoose.connection.readyState === 1;
@@ -120,7 +192,7 @@ class DatabaseService {
 
   /**
    * Получает информацию о состоянии подключения
-   * @returns {Object} Информация о состоянии
+   * @returns {ConnectionStatus}
    */
   getConnectionStatus() {
     const state = mongoose.connection.readyState;
@@ -132,9 +204,9 @@ class DatabaseService {
     };
 
     return {
-      state: states[state],
-      host: mongoose.connection.host,
-      name: mongoose.connection.name,
+      state: states[state] || 'unknown',
+      host: mongoose.connection.host || 'unknown',
+      name: mongoose.connection.name || 'unknown',
       isConnected: this.isConnected,
       readyState: state
     };
@@ -142,28 +214,30 @@ class DatabaseService {
 
   /**
    * Выполняет проверку здоровья базы данных
-   * @returns {Promise<Object>} Результат проверки
+   * @returns {Promise<HealthCheckResult>}
    */
   async healthCheck() {
     try {
+      const status = this.getConnectionStatus();
+      
       if (!this.isConnectedToDB()) {
         return {
           status: 'error',
-          message: 'Database not connected',
-          details: this.getConnectionStatus()
+          message: `Database not connected. Current state: ${status.state}`,
+          details: status
         };
       }
 
-      // Выполняем простой запрос для проверки работоспособности
+      // Ping базы данных
       await mongoose.connection.db.admin().ping();
       
       return {
         status: 'ok',
-        message: 'Database is healthy',
-        details: this.getConnectionStatus()
+        message: 'Database is healthy and responding',
+        details: status
       };
     } catch (error) {
-      logger.error('Database health check failed:', error);
+      logger.error('Database health check failed:', error.message);
       return {
         status: 'error',
         message: 'Database health check failed',
@@ -186,38 +260,45 @@ class DatabaseService {
       const db = mongoose.connection.db;
       const admin = db.admin();
       
-      // Получаем статистику базы данных
-      const [dbStats, serverStatus] = await Promise.all([
+      const [dbStats, collections] = await Promise.all([
         db.stats(),
-        admin.serverStatus()
+        db.listCollections().toArray()
       ]);
 
       return {
         database: {
           name: db.databaseName,
           collections: dbStats.collections,
+          collectionsList: collections.map(c => c.name),
           objects: dbStats.objects,
-          dataSize: dbStats.dataSize,
-          storageSize: dbStats.storageSize,
+          dataSize: this.formatBytes(dbStats.dataSize),
+          storageSize: this.formatBytes(dbStats.storageSize),
           indexes: dbStats.indexes,
-          indexSize: dbStats.indexSize
-        },
-        server: {
-          version: serverStatus.version,
-          uptime: serverStatus.uptime,
-          connections: serverStatus.connections,
-          memory: serverStatus.mem
+          indexSize: this.formatBytes(dbStats.indexSize)
         },
         connection: this.getConnectionStatus()
       };
     } catch (error) {
-      logger.error('Failed to get database stats:', error);
+      logger.error('Failed to get database stats:', error.message);
       throw error;
     }
   }
 
   /**
-   * Создает индексы для коллекций (если нужно)
+   * Форматирует байты в человекочитаемый формат
+   * @param {number} bytes - Количество байт
+   * @returns {string} Форматированная строка
+   */
+  formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Создает индексы для коллекций
    * @returns {Promise<void>}
    */
   async createIndexes() {
@@ -226,48 +307,39 @@ class DatabaseService {
         throw new Error('Database not connected');
       }
 
-      logger.info('Creating database indexes...');
+      logger.info('📋 Creating database indexes...');
       
-      // Здесь можно создать необходимые индексы
-      // Пример:
-      // await mongoose.connection.collection('messages').createIndex({ conversationId: 1, createdAt: 1 });
-      // await mongoose.connection.collection('conversations').createIndex({ userId: 1, startedAt: -1 });
+      // Индексы для сообщений
+      await mongoose.connection.collection('messages').createIndex({ 
+        conversationId: 1, 
+        createdAt: 1 
+      });
+      
+      // Индексы для разговоров
+      await mongoose.connection.collection('conversations').createIndex({ 
+        userId: 1, 
+        lastActivityAt: -1 
+      });
+      
+      // Индексы для тикетов
+      await mongoose.connection.collection('tickets').createIndex({ 
+        ticketId: 1 
+      });
+      await mongoose.connection.collection('tickets').createIndex({ 
+        userId: 1,
+        status: 1,
+        createdAt: -1 
+      });
       
       logger.info('✅ Database indexes created successfully');
     } catch (error) {
-      logger.error('❌ Failed to create database indexes:', error);
+      logger.error('❌ Failed to create database indexes:', error.message);
       throw error;
     }
   }
 
   /**
-   * Выполняет миграции базы данных (если нужно)
-   * @returns {Promise<void>}
-   */
-  async runMigrations() {
-    try {
-      if (!this.isConnectedToDB()) {
-        throw new Error('Database not connected');
-      }
-
-      logger.info('Running database migrations...');
-      
-      // Здесь можно выполнить миграции
-      // Пример проверки и создания коллекций
-      const collections = await mongoose.connection.db.listCollections().toArray();
-      const collectionNames = collections.map(col => col.name);
-      
-      logger.info(`Found collections: ${collectionNames.join(', ')}`);
-      
-      logger.info('✅ Database migrations completed successfully');
-    } catch (error) {
-      logger.error('❌ Failed to run database migrations:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Очищает базу данных (используется для тестов)
+   * Очищает базу данных (только для тестов)
    * @param {boolean} [confirm=false] - Подтверждение очистки
    * @returns {Promise<void>}
    */
@@ -289,7 +361,7 @@ class DatabaseService {
       await mongoose.connection.db.dropDatabase();
       logger.info('✅ Database cleared successfully');
     } catch (error) {
-      logger.error('❌ Failed to clear database:', error);
+      logger.error('❌ Failed to clear database:', error.message);
       throw error;
     }
   }
