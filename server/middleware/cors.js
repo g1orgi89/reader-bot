@@ -16,12 +16,6 @@ function customCors(req, res, next) {
   const origin = req.get('Origin');
   const method = req.method;
   
-  // 🍄 SUPER SIMPLE TEST - log EVERY request
-  console.log(`🟢 CORS MIDDLEWARE HIT: ${method} ${req.path}`);
-  
-  // Log all CORS requests for debugging
-  logger.info(`🌐 CORS Request: ${method} ${req.path} from origin: ${origin}`);
-  
   // Allow requests from specific origins
   const allowedOrigins = [
     'http://localhost:3000',
@@ -46,15 +40,7 @@ function customCors(req, res, next) {
   
   // Handle preflight OPTIONS requests
   if (method === 'OPTIONS') {
-    console.log(`🚨🚨🚨 OPTIONS REQUEST FOR ${req.path} - RETURNING 200!!! 🚨🚨🚨`);
-    logger.info(`🚨 OPTIONS REQUEST DETECTED for ${req.path}`);
-    logger.info(`🔍 Request headers:`, {
-      'access-control-request-method': req.get('Access-Control-Request-Method'),
-      'access-control-request-headers': req.get('Access-Control-Request-Headers'),
-      'origin': origin
-    });
-    
-    // Send successful preflight response
+    logger.info(`OPTIONS request for ${req.path} - returning 200`);
     return res.status(200).end();
   }
   
