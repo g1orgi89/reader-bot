@@ -1,19 +1,54 @@
 {
   "name": "shrooms-support-bot",
   "version": "1.0.0",
-  "description": "AI Support Bot for Shrooms project with Claude integration",
+  "description": "AI Support Bot for Shrooms Web3 platform with mushroom-themed personality and RAG capabilities",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
+    "dev:debug": "nodemon --inspect server/index.js",
     "telegram": "node telegram/bot.js",
     "load-kb": "node scripts/loadKnowledge.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:db": "node test-mongodb-simple.js",
+    "test:core": "node test-core.js",
+    "test:claude": "node test-claude.js",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "migrate": "node scripts/dbMigration.js",
+    "export-tickets": "node scripts/exportTickets.js",
+    "deploy": "npm run lint && npm test && npm run build",
+    "build": "echo 'Building project...' && npm run lint",
+    "check-health": "curl -f http://localhost:3000/api/health || exit 1",
+    "setup": "npm install && cp .env.example .env && echo 'Setup complete! Please edit .env file'",
+    "start:prod": "NODE_ENV=production node server/index.js",
+    "logs": "tail -f logs/combined.log",
+    "logs:error": "tail -f logs/error.log"
   },
+  "keywords": [
+    "ai",
+    "chatbot",
+    "support",
+    "claude",
+    "shrooms",
+    "web3",
+    "cryptocurrency",
+    "rag",
+    "vector-search",
+    "mongodb"
+  ],
+  "author": "Shrooms Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/g1orgi89/shrooms-support-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/g1orgi89/shrooms-support-bot/issues"
+  },
+  "homepage": "https://github.com/g1orgi89/shrooms-support-bot#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.7",
     "express": "^4.18.2",
@@ -36,7 +71,10 @@
     "multer": "^1.4.5-lts.1",
     "pdf-parse": "^1.1.1",
     "xlsx": "^0.18.5",
-    "pdfjs-dist": "^3.11.174"
+    "pdfjs-dist": "^3.11.174",
+    "express-validator": "^7.0.1",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
@@ -45,11 +83,18 @@
     "jest": "^29.6.2",
     "@types/node": "^20.5.0",
     "mongodb-memory-server": "^9.1.3",
-    "supertest": "^6.3.3"
+    "supertest": "^6.3.3",
+    "concurrently": "^8.2.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
+  "os": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
   "jest": {
     "testEnvironment": "node",
     "roots": ["<rootDir>/tests"],
@@ -59,6 +104,39 @@
       "!server/index.js",
       "!**/*.test.js",
       "!**/node_modules/**"
-    ]
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"],
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "testTimeout": 30000
+  },
+  "eslintConfig": {
+    "env": {
+      "node": true,
+      "es2021": true,
+      "jest": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "plugin:jsdoc/recommended"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 12,
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-console": "off",
+      "jsdoc/require-description": "error",
+      "jsdoc/require-param-description": "error",
+      "jsdoc/require-returns-description": "error"
+    }
+  },
+  "nodemonConfig": {
+    "watch": ["server/", ".env"],
+    "ext": "js,json",
+    "ignore": ["logs/", "node_modules/", "client/"],
+    "env": {
+      "NODE_ENV": "development"
+    }
   }
 }
