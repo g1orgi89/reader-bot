@@ -1,5 +1,5 @@
 /**
- * Knowledge Base API Routes
+ * Knowledge Base API Routes - Fixed UTF-8 support
  * @file server/api/knowledge.js
  */
 
@@ -7,6 +7,13 @@ const express = require('express');
 const router = express.Router();
 const KnowledgeDocument = require('../models/knowledge');
 const logger = require('../utils/logger');
+
+// Middleware to ensure UTF-8 encoding
+router.use((req, res, next) => {
+  res.charset = 'utf-8';
+  res.set('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
 
 /**
  * @route GET /api/knowledge
