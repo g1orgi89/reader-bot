@@ -1,5 +1,5 @@
 /**
- * Сервис для работы с разговорами
+ * Сервис для управления разговорами
  * @file server/services/conversation.js
  */
 
@@ -7,329 +7,512 @@ const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 /**
- * Схема разговора
+ * @typedef {Object} ConversationData
+ * @property {string} userId - ID пользователя
+ * @property {string} [language] - Язык разговора
+ * @property {Date} [startedAt] - Время начала разговора
+ * @property {Object} [metadata] - Дополнительные метаданные
  */
-const conversationSchema = new mongoose.Schema({
-  userId: {
-    type: String,
-    required: true,
-    index: true
-  },
-  language: {
-    type: String,
-    enum: ['en', 'es', 'ru'],
-    default: 'en'
-  },
-  status: {
-    type: String,
-    enum: ['active', 'closed', 'archived'],
-    default: 'active'
-  },
-  startedAt: {
-    type: Date,
-    default: Date.now
-  },
-  lastActivityAt: {
-    type: Date,
-    default: Date.now
-  },
-  metadata: {
-    source: {
-      type: String,
-      enum: ['http', 'socket', 'telegram'],
-      default: 'http'
-    },
-    userAgent: String,
-    ip: String
-  }
-}, {
-  timestamps: true
-});
 
-// Индексы для оптимизации запросов
-conversationSchema.index({ userId: 1, startedAt: -1 });
-conversationSchema.index({ status: 1, lastActivityAt: -1 });
-
-// Модель разговора
-const Conversation = mongoose.model('Conversation', conversationSchema);
+/**
+ * @typedef {Object} ConversationDoc
+ * @property {string} _id - ID разговора
+ * @property {string} userId - ID пользователя
+ * @property {string} language - Язык разговора
+ * @property {Date} startedAt - Время начала разговора
+ * @property {Date} lastActivityAt - Время последней активности
+ * @property {number} messageCount - Количество сообщений
+ * @property {Object} metadata - Дополнительные метаданные
+ * @property {Date} createdAt - Время создания
+ * @property {Date} updatedAt - Время обновления
+ */
 
 /**
  * @class ConversationService
- * @description Сервис для работы с разговорами
+ * @description Сервис для управления разговорами в чате
  */
 class ConversationService {
+  constructor() {
+    this.model = null;
+    this.initialized = false;
+    this.initializeModel();
+  }
+
+  /**
+   * Инициализирует модель разговора
+   */
+  initializeModel() {
+    try {
+      // Схема для разговора
+      const conversationSchema = new mongoose.Schema({
+        userId: {
+          type: String,
+          required: true,
+          index: true
+        },
+        language: {
+          type: String,
+          enum: ['en', 'es', 'ru'],
+          default: 'en',
+          index: true
+        },
+        startedAt: {
+          type: Date,
+          default: Date.now,
+          index: true
+        },
+        lastActivityAt: {
+          type: Date,
+          default: Date.now,
+          index: true
+        },
+        messageCount: {
+          type: Number,
+          default: 0
+        },
+        metadata: {
+          type: Object,
+          default: {}
+        },
+        // Флаг активности разговора
+        isActive: {
+          type: Boolean,
+          default: true,
+          index: true
+        },
+        // Источник разговора (socket, api, telegram)
+        source: {
+          type: String,
+          enum: ['socket', 'api', 'telegram'],
+          default: 'socket'
+        }
+      }, {
+        timestamps: true,
+        collection: 'conversations'
+      });
+
+      // Составные индексы для оптимизации
+      conversationSchema.index({ userId: 1, lastActivityAt: -1 });
+      conversationSchema.index({ lastActivityAt: -1, isActive: 1 });
+      conversationSchema.index({ startedAt: -1, language: 1 });
+
+      // Виртуальное поле для продолжительности разговора
+      conversationSchema.virtual('duration').get(function() {
+        return this.lastActivityAt - this.startedAt;
+      });
+
+      // Методы модели
+      conversationSchema.methods.updateActivity = function() {
+        this.lastActivityAt = new Date();
+        return this.save();
+      };
+
+      conversationSchema.methods.incrementMessageCount = function() {
+        this.messageCount += 1;
+        this.lastActivityAt = new Date();
+        return this.save();
+      };
+
+      conversationSchema.methods.setInactive = function() {
+        this.isActive = false;
+        return this.save();
+      };
+
+      // Статические методы
+      conversationSchema.statics.findByUserId = function(userId, limit = 10) {
+        return this.find({ userId })
+          .sort({ lastActivityAt: -1 })
+          .limit(limit);
+      };
+
+      conversationSchema.statics.findActiveByUserId = function(userId) {
+        return this.findOne({ 
+          userId, 
+          isActive: true 
+        }).sort({ lastActivityAt: -1 });
+      };
+
+      // Проверяем, не существует ли уже модель
+      if (mongoose.models.Conversation) {
+        this.model = mongoose.models.Conversation;
+      } else {
+        this.model = mongoose.model('Conversation', conversationSchema);
+      }
+
+      this.initialized = true;
+      logger.info('✅ ConversationService initialized');
+    } catch (error) {
+      logger.error('❌ Failed to initialize ConversationService:', error.message);
+      this.initialized = false;
+    }
+  }
+
   /**
    * Создает новый разговор
-   * @param {Object} conversationData - Данные разговора
-   * @param {string} conversationData.userId - ID пользователя
-   * @param {string} [conversationData.language] - Язык разговора
-   * @param {string} [conversationData.status] - Статус разговора
-   * @param {Object} [conversationData.metadata] - Дополнительные метаданные
-   * @returns {Promise<Object>} Созданный разговор
+   * @param {ConversationData} data - Данные для создания разговора
+   * @returns {Promise<ConversationDoc>} Созданный разговор
    */
-  async create(conversationData) {
+  async create(data) {
     try {
-      const conversation = new Conversation(conversationData);
-      await conversation.save();
-      
-      logger.info(`Conversation created: ${conversation._id} for user ${conversationData.userId}`);
-      return conversation;
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
+      }
+
+      const conversationData = {
+        userId: data.userId,
+        language: data.language || 'en',
+        startedAt: data.startedAt || new Date(),
+        lastActivityAt: new Date(),
+        metadata: data.metadata || {},
+        source: data.source || 'socket'
+      };
+
+      // Деактивируем предыдущие активные разговоры пользователя
+      await this.model.updateMany(
+        { userId: data.userId, isActive: true },
+        { isActive: false }
+      );
+
+      const conversation = new this.model(conversationData);
+      const savedConversation = await conversation.save();
+
+      logger.info(`✅ Conversation created: ${savedConversation._id} for user: ${data.userId}`);
+      return savedConversation;
     } catch (error) {
-      logger.error('Error creating conversation:', error);
-      throw new Error(`Failed to create conversation: ${error.message}`);
+      logger.error('❌ Failed to create conversation:', error.message);
+      throw error;
     }
   }
 
   /**
    * Находит разговор по ID
    * @param {string} conversationId - ID разговора
-   * @returns {Promise<Object|null>} Разговор или null
+   * @returns {Promise<ConversationDoc|null>} Найденный разговор или null
    */
   async findById(conversationId) {
     try {
-      const conversation = await Conversation.findById(conversationId);
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        logger.warn(`Invalid conversation ID: ${conversationId}`);
+        return null;
+      }
+
+      const conversation = await this.model.findById(conversationId);
       return conversation;
     } catch (error) {
-      logger.error('Error finding conversation by ID:', error);
-      throw new Error(`Failed to find conversation: ${error.message}`);
+      logger.error('❌ Failed to find conversation by ID:', error.message);
+      throw error;
     }
   }
 
   /**
-   * Находит разговоры пользователя
+   * Находит активный разговор пользователя
    * @param {string} userId - ID пользователя
-   * @param {Object} [options] - Опции поиска
-   * @param {number} [options.page=1] - Номер страницы
-   * @param {number} [options.limit=10] - Количество на страницу
-   * @param {string} [options.status] - Фильтр по статусу
-   * @returns {Promise<Object[]>} Массив разговоров
+   * @returns {Promise<ConversationDoc|null>} Активный разговор или null
+   */
+  async findActiveByUserId(userId) {
+    try {
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
+      }
+
+      const conversation = await this.model.findActiveByUserId(userId);
+      return conversation;
+    } catch (error) {
+      logger.error('❌ Failed to find active conversation:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Находит все разговоры пользователя
+   * @param {string} userId - ID пользователя
+   * @param {Object} options - Опции поиска
+   * @param {number} [options.limit=10] - Лимит результатов
+   * @param {number} [options.skip=0] - Количество пропускаемых записей
+   * @param {boolean} [options.activeOnly=false] - Только активные разговоры
+   * @returns {Promise<ConversationDoc[]>} Массив разговоров
    */
   async findByUserId(userId, options = {}) {
     try {
-      const {
-        page = 1,
-        limit = 10,
-        status
-      } = options;
-
-      const query = { userId };
-      if (status) {
-        query.status = status;
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
       }
 
-      const conversations = await Conversation
+      const { limit = 10, skip = 0, activeOnly = false } = options;
+
+      let query = { userId };
+      if (activeOnly) {
+        query.isActive = true;
+      }
+
+      const conversations = await this.model
         .find(query)
         .sort({ lastActivityAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit)
-        .exec();
+        .limit(limit)
+        .skip(skip);
 
       return conversations;
     } catch (error) {
-      logger.error('Error finding conversations by user ID:', error);
-      throw new Error(`Failed to find conversations: ${error.message}`);
+      logger.error('❌ Failed to find conversations by user ID:', error.message);
+      throw error;
     }
   }
 
   /**
    * Обновляет время последней активности разговора
    * @param {string} conversationId - ID разговора
-   * @returns {Promise<Object>} Обновленный разговор
+   * @returns {Promise<ConversationDoc>} Обновленный разговор
    */
   async updateLastActivity(conversationId) {
     try {
-      const conversation = await Conversation.findByIdAndUpdate(
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        throw new Error(`Invalid conversation ID: ${conversationId}`);
+      }
+
+      const conversation = await this.model.findByIdAndUpdate(
         conversationId,
-        { lastActivityAt: new Date() },
+        { 
+          lastActivityAt: new Date(),
+          isActive: true 
+        },
         { new: true }
       );
 
       if (!conversation) {
-        throw new Error('Conversation not found');
+        throw new Error(`Conversation not found: ${conversationId}`);
       }
 
       return conversation;
     } catch (error) {
-      logger.error('Error updating conversation activity:', error);
-      throw new Error(`Failed to update conversation: ${error.message}`);
+      logger.error('❌ Failed to update conversation activity:', error.message);
+      throw error;
     }
   }
 
   /**
-   * Обновляет статус разговора
+   * Увеличивает счетчик сообщений в разговоре
    * @param {string} conversationId - ID разговора
-   * @param {string} status - Новый статус
-   * @returns {Promise<Object>} Обновленный разговор
+   * @returns {Promise<ConversationDoc>} Обновленный разговор
    */
-  async updateStatus(conversationId, status) {
+  async incrementMessageCount(conversationId) {
     try {
-      const conversation = await Conversation.findByIdAndUpdate(
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        throw new Error(`Invalid conversation ID: ${conversationId}`);
+      }
+
+      const conversation = await this.model.findByIdAndUpdate(
         conversationId,
         { 
-          status,
+          $inc: { messageCount: 1 },
           lastActivityAt: new Date()
         },
         { new: true }
       );
 
       if (!conversation) {
-        throw new Error('Conversation not found');
+        throw new Error(`Conversation not found: ${conversationId}`);
       }
 
-      logger.info(`Conversation ${conversationId} status updated to ${status}`);
       return conversation;
     } catch (error) {
-      logger.error('Error updating conversation status:', error);
-      throw new Error(`Failed to update conversation status: ${error.message}`);
+      logger.error('❌ Failed to increment message count:', error.message);
+      throw error;
     }
   }
 
   /**
-   * Удаляет разговор
+   * Помечает разговор как неактивный
    * @param {string} conversationId - ID разговора
-   * @returns {Promise<boolean>} Успешность удаления
+   * @returns {Promise<ConversationDoc>} Обновленный разговор
    */
-  async delete(conversationId) {
+  async setInactive(conversationId) {
     try {
-      const result = await Conversation.findByIdAndDelete(conversationId);
-      
-      if (!result) {
-        throw new Error('Conversation not found');
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
       }
 
-      logger.info(`Conversation deleted: ${conversationId}`);
-      return true;
+      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        throw new Error(`Invalid conversation ID: ${conversationId}`);
+      }
+
+      const conversation = await this.model.findByIdAndUpdate(
+        conversationId,
+        { isActive: false },
+        { new: true }
+      );
+
+      if (!conversation) {
+        throw new Error(`Conversation not found: ${conversationId}`);
+      }
+
+      logger.info(`Conversation set as inactive: ${conversationId}`);
+      return conversation;
     } catch (error) {
-      logger.error('Error deleting conversation:', error);
-      throw new Error(`Failed to delete conversation: ${error.message}`);
+      logger.error('❌ Failed to set conversation inactive:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Обновляет метаданные разговора
+   * @param {string} conversationId - ID разговора
+   * @param {Object} metadata - Новые метаданные
+   * @returns {Promise<ConversationDoc>} Обновленный разговор
+   */
+  async updateMetadata(conversationId, metadata) {
+    try {
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        throw new Error(`Invalid conversation ID: ${conversationId}`);
+      }
+
+      const conversation = await this.model.findByIdAndUpdate(
+        conversationId,
+        { 
+          $set: { metadata },
+          lastActivityAt: new Date()
+        },
+        { new: true }
+      );
+
+      if (!conversation) {
+        throw new Error(`Conversation not found: ${conversationId}`);
+      }
+
+      return conversation;
+    } catch (error) {
+      logger.error('❌ Failed to update conversation metadata:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Удаляет старые неактивные разговоры
+   * @param {number} daysOld - Количество дней для определения старых разговоров
+   * @returns {Promise<number>} Количество удаленных разговоров
+   */
+  async cleanupOldConversations(daysOld = 30) {
+    try {
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
+      }
+
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+      const result = await this.model.deleteMany({
+        isActive: false,
+        lastActivityAt: { $lte: cutoffDate }
+      });
+
+      logger.info(`Cleaned up ${result.deletedCount} old conversations`);
+      return result.deletedCount;
+    } catch (error) {
+      logger.error('❌ Failed to cleanup old conversations:', error.message);
+      throw error;
     }
   }
 
   /**
    * Получает статистику разговоров
-   * @param {Object} [filters] - Фильтры для статистики
-   * @param {string} [filters.userId] - ID пользователя
-   * @param {Date} [filters.startDate] - Начальная дата
-   * @param {Date} [filters.endDate] - Конечная дата
+   * @param {Object} filter - Фильтр для статистики
    * @returns {Promise<Object>} Статистика разговоров
    */
-  async getStats(filters = {}) {
+  async getStats(filter = {}) {
     try {
-      const query = {};
-      
-      if (filters.userId) {
-        query.userId = filters.userId;
-      }
-      
-      if (filters.startDate || filters.endDate) {
-        query.startedAt = {};
-        if (filters.startDate) {
-          query.startedAt.$gte = filters.startDate;
-        }
-        if (filters.endDate) {
-          query.startedAt.$lte = filters.endDate;
-        }
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
       }
 
-      const [stats] = await Conversation.aggregate([
-        { $match: query },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: 1 },
-            active: {
-              $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
-            },
-            closed: {
-              $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] }
-            },
-            archived: {
-              $sum: { $cond: [{ $eq: ['$status', 'archived'] }, 1, 0] }
-            },
-            languages: {
-              $push: '$language'
+      const [total, active, byLanguage, avgDuration] = await Promise.all([
+        // Общее количество разговоров
+        this.model.countDocuments(filter),
+        
+        // Активные разговоры
+        this.model.countDocuments({ ...filter, isActive: true }),
+        
+        // Разбивка по языкам
+        this.model.aggregate([
+          { $match: filter },
+          { $group: { _id: '$language', count: { $sum: 1 } } }
+        ]),
+        
+        // Средняя продолжительность разговоров
+        this.model.aggregate([
+          { $match: { ...filter, isActive: false } },
+          {
+            $project: {
+              duration: { $subtract: ['$lastActivityAt', '$startedAt'] }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              avgDuration: { $avg: '$duration' }
             }
           }
-        },
-        {
-          $project: {
-            _id: 0,
-            total: 1,
-            active: 1,
-            closed: 1,
-            archived: 1,
-            languageStats: {
-              $reduce: {
-                input: '$languages',
-                initialValue: { en: 0, es: 0, ru: 0 },
-                in: {
-                  en: {
-                    $cond: [
-                      { $eq: ['$$this', 'en'] },
-                      { $add: ['$$value.en', 1] },
-                      '$$value.en'
-                    ]
-                  },
-                  es: {
-                    $cond: [
-                      { $eq: ['$$this', 'es'] },
-                      { $add: ['$$value.es', 1] },
-                      '$$value.es'
-                    ]
-                  },
-                  ru: {
-                    $cond: [
-                      { $eq: ['$$this', 'ru'] },
-                      { $add: ['$$value.ru', 1] },
-                      '$$value.ru'
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        }
+        ])
       ]);
 
-      return stats || {
-        total: 0,
-        active: 0,
-        closed: 0,
-        archived: 0,
-        languageStats: { en: 0, es: 0, ru: 0 }
+      return {
+        total,
+        active,
+        inactive: total - active,
+        byLanguage: byLanguage.reduce((acc, item) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {}),
+        avgDurationMs: avgDuration[0]?.avgDuration || 0,
+        avgDurationMinutes: Math.round((avgDuration[0]?.avgDuration || 0) / 60000)
       };
     } catch (error) {
-      logger.error('Error getting conversation stats:', error);
-      throw new Error(`Failed to get stats: ${error.message}`);
+      logger.error('❌ Failed to get conversation stats:', error.message);
+      throw error;
     }
   }
 
   /**
-   * Архивирует старые неактивные разговоры
-   * @param {number} [daysInactive=30] - Количество дней неактивности
-   * @returns {Promise<number>} Количество архивированных разговоров
+   * Проверяет здоровье сервиса
+   * @returns {Promise<Object>} Результат проверки здоровья
    */
-  async archiveOldConversations(daysInactive = 30) {
+  async healthCheck() {
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
+      if (!this.initialized) {
+        return {
+          status: 'error',
+          message: 'ConversationService not initialized'
+        };
+      }
 
-      const result = await Conversation.updateMany(
-        {
-          status: 'active',
-          lastActivityAt: { $lt: cutoffDate }
-        },
-        {
-          status: 'archived',
-          lastActivityAt: new Date()
-        }
-      );
+      // Попытка выполнить простой запрос
+      await this.model.findOne().limit(1);
 
-      logger.info(`Archived ${result.modifiedCount} conversations older than ${daysInactive} days`);
-      return result.modifiedCount;
+      return {
+        status: 'ok',
+        message: 'ConversationService is healthy'
+      };
     } catch (error) {
-      logger.error('Error archiving old conversations:', error);
-      throw new Error(`Failed to archive conversations: ${error.message}`);
+      logger.error('ConversationService health check failed:', error.message);
+      return {
+        status: 'error',
+        message: 'ConversationService health check failed',
+        error: error.message
+      };
     }
   }
 }
