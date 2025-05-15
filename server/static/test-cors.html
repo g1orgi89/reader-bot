@@ -2,58 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
     <title>CORS Test - Shrooms Support Bot</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #0a0a0a;
-            color: #e0e0e0;
-        }
-        .test-container {
-            background-color: #121212;
-            border: 1px solid #39ff14;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        button {
-            background-color: #39ff14;
-            color: #000;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px 0;
-        }
-        button:hover {
-            background-color: #00ff41;
-        }
-        .result {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .success {
-            background-color: #1a5a1a;
-            border: 1px solid #39ff14;
-        }
-        .error {
-            background-color: #5a1a1a;
-            border: 1px solid #ff391a;
-        }
-        .info {
-            background-color: #1a3a5a;
-            border: 1px solid #39b7ff;
-        }
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/cors-test.css">
 </head>
 <body>
     <h1>🍄 Shrooms Support Bot - CORS Testing</h1>
@@ -100,7 +51,6 @@
         <div id="ratelimit-result" class="result"></div>
     </div>
 
-    <!-- Load JavaScript from separate file -->
     <script src="/static/cors-test.js"></script>
 </body>
 </html>
