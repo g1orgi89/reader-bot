@@ -39,11 +39,11 @@ function createRateLimitError(req, res, next) {
 
 /**
  * General rate limiter for all API endpoints
- * 100 requests per 15 minutes
+ * Adjusted for testing: 5 requests per minute
  */
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000, // 1 minute (reduced for testing)
+  max: 5, // Limit each IP to 5 requests per minute (reduced for testing)
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
@@ -56,11 +56,11 @@ const generalLimiter = rateLimit({
 
 /**
  * Strict rate limiter for chat endpoints
- * 30 requests per 5 minutes
+ * 10 requests per 2 minutes
  */
 const chatLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 30, // Limit each IP to 30 chat requests per windowMs
+  windowMs: 2 * 60 * 1000, // 2 minutes
+  max: 10, // Limit each IP to 10 chat requests per windowMs
   message: 'Too many chat messages, please wait before sending more',
   standardHeaders: true,
   legacyHeaders: false,
@@ -91,11 +91,11 @@ const authLimiter = rateLimit({
 
 /**
  * Admin rate limiter - more lenient for authenticated admin users
- * 500 requests per 15 minutes
+ * 100 requests per 15 minutes
  */
 const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Higher limit for admin operations
+  max: 100, // Higher limit for admin operations
   message: 'Too many admin requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -104,6 +104,20 @@ const adminLimiter = rateLimit({
     // Use admin ID as key if available
     return req.admin?.id || req.ip;
   }
+});
+
+/**
+ * Health check rate limiter - very strict for testing
+ * 3 requests per 30 seconds
+ */
+const healthLimiter = rateLimit({
+  windowMs: 30 * 1000, // 30 seconds
+  max: 3, // Very low limit for testing
+  message: 'Too many health check requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createRateLimitError,
+  keyGenerator: (req) => req.ip
 });
 
 /**
@@ -141,6 +155,8 @@ function applyRateLimit(type) {
       return authLimiter;
     case 'admin':
       return adminLimiter;
+    case 'health':
+      return healthLimiter;
     default:
       return generalLimiter;
   }
@@ -151,6 +167,7 @@ module.exports = {
   chatLimiter,
   authLimiter,
   adminLimiter,
+  healthLimiter,
   createCustomLimiter,
   applyRateLimit,
   createRateLimitError
