@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Add OPTIONS debugging
+ * Main server file for Shrooms Support Bot - Fix CORS configuration
  * @file server/index.js
  */
 
@@ -187,7 +187,7 @@ async function initializeServices() {
 }
 
 /**
- * Setup middleware - RESTORED FULL CONFIGURATION
+ * Setup middleware with FIXED CORS configuration
  */
 function setupMiddleware() {
   // DEBUG LOGGING - FIRST THING TO CATCH EVERYTHING
@@ -244,9 +244,34 @@ function setupMiddleware() {
   }
 
   app.use(helmet(helmetConfig));
+
+  // IMPROVED CORS configuration - more explicit about allowed headers
   app.use(cors({
-    origin: config.CORS_ORIGIN,
-    credentials: true
+    origin: function (origin, callback) {
+      // Allow requests from any origin in development
+      // In production, specify exact domains
+      if (!origin || config.CORS_ORIGIN === '*') {
+        return callback(null, true);
+      }
+      const allowed = config.CORS_ORIGIN.split(',').map(o => o.trim());
+      if (allowed.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(null, true); // For now, allow all origins
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With', 
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Cache-Control',
+      'Pragma'
+    ],
+    optionsSuccessStatus: 200, // Some browsers (IE11) need 200 instead of 204
+    maxAge: 86400 // 24 hours
   }));
 
   // Set default charset in Content-Type headers
