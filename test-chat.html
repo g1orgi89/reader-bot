@@ -39,32 +39,50 @@
             border: 1px solid #555;
             padding: 15px;
             margin: 10px 0;
-            height: 200px;
+            height: 300px;
             overflow-y: scroll;
             background-color: #1a1a1a;
             border-radius: 5px;
         }
         .message {
-            margin: 5px 0;
-            padding: 5px;
-            border-radius: 3px;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 5px;
+            max-width: 80%;
         }
         .user-message {
             background-color: #333;
             text-align: right;
+            margin-left: auto;
         }
         .bot-message {
             background-color: #2a2a2a;
             color: #39FF14;
+            margin-right: auto;
         }
         .error {
             color: #ff6b6b;
+        }
+        .success {
+            color: #00FF41;
         }
         .status {
             margin: 10px 0;
             padding: 10px;
             border-radius: 5px;
             background-color: #333;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background-color: #2a2a2a;
+        }
+        .test-results {
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -76,15 +94,27 @@
             ⏳ Testing connection...
         </div>
         
-        <div class="messages" id="messages"></div>
-        
-        <input type="text" id="userInput" placeholder="Введите сообщение..." style="width: 70%;">
-        <button onclick="sendMessage()">Отправить</button>
-        
-        <div>
+        <div class="test-section">
+            <h3>🔧 System Tests</h3>
+            <button onclick="runAllTests()">Run All Tests</button>
             <button onclick="testHealthCheck()">Test Health</button>
             <button onclick="testLanguages()">Test Languages</button>
-            <button onclick="clearMessages()">Clear</button>
+            <div class="test-results" id="testResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>💬 Chat Interface</h3>
+            <div class="messages" id="messages"></div>
+            
+            <input type="text" id="userInput" placeholder="Введите сообщение..." style="width: 70%;">
+            <button onclick="sendMessage()">Отправить</button>
+            
+            <div style="margin-top: 10px;">
+                <button onclick="clearMessages()">Clear Chat</button>
+                <button onclick="sendTestMessage('Привет!')">Test RU</button>
+                <button onclick="sendTestMessage('Hello!')">Test EN</button>
+                <button onclick="sendTestMessage('¡Hola!')">Test ES</button>
+            </div>
         </div>
     </div>
 
@@ -95,40 +125,142 @@
 
         // Test connection on load
         window.onload = function() {
-            testHealthCheck();
+            updateStatus('🚀 Starting tests...', 'info');
+            runAllTests();
         };
+
+        async function runAllTests() {
+            updateTestResults('🔧 Running system tests...\n\n');
+            
+            const tests = [
+                { name: 'Health Check', fn: testHealthCheck },
+                { name: 'Languages API', fn: testLanguages },
+                { name: 'Direct Chat API', fn: testDirectChat },
+                { name: 'Message API', fn: testMessageAPI }
+            ];
+
+            let passed = 0;
+            let failed = 0;
+
+            for (const test of tests) {
+                try {
+                    const result = await test.fn();
+                    if (result) {
+                        updateTestResults(`✅ ${test.name}: PASSED\n`);
+                        passed++;
+                    } else {
+                        updateTestResults(`❌ ${test.name}: FAILED\n`);
+                        failed++;
+                    }
+                } catch (error) {
+                    updateTestResults(`❌ ${test.name}: ERROR - ${error.message}\n`);
+                    failed++;
+                }
+                
+                // Небольшая пауза между тестами
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            updateTestResults(`\n📊 Tests completed: ${passed} passed, ${failed} failed\n`);
+            updateStatus(`Tests completed: ${passed}/${tests.length} passed`, passed === tests.length ? 'success' : 'error');
+        }
 
         async function testHealthCheck() {
             try {
-                updateStatus('⏳ Testing health check...');
-                const response = await fetch(`${API_BASE}/chat/health`);
+                const response = await fetch(`${API_BASE}/health`);
                 const data = await response.json();
                 
-                if (response.ok) {
-                    updateStatus(`✅ API is healthy: ${JSON.stringify(data.services)}`);
+                if (response.ok && data.status === 'ok') {
+                    updateTestResults(`   Health Status: ${data.status}\n`);
+                    updateTestResults(`   Environment: ${data.environment}\n`);
+                    updateTestResults(`   Services: ${JSON.stringify(data.services)}\n`);
+                    return true;
                 } else {
-                    updateStatus(`⚠️ API health issues: ${JSON.stringify(data)}`, 'error');
+                    updateTestResults(`   Health issues: ${JSON.stringify(data)}\n`);
+                    return false;
                 }
             } catch (error) {
-                updateStatus(`❌ Health check failed: ${error.message}`, 'error');
-                console.error('Health check error:', error);
+                updateTestResults(`   Health check failed: ${error.message}\n`);
+                return false;
             }
         }
 
         async function testLanguages() {
             try {
-                updateStatus('⏳ Testing languages...');
                 const response = await fetch(`${API_BASE}/chat/languages`);
                 const data = await response.json();
                 
-                if (response.ok) {
-                    updateStatus(`✅ Languages: ${data.data.supportedLanguages.join(', ')}`);
+                if (response.ok && data.success) {
+                    updateTestResults(`   Languages: ${data.data.supportedLanguages.join(', ')}\n`);
+                    updateTestResults(`   Default: ${data.data.defaultLanguage}\n`);
+                    return true;
                 } else {
-                    updateStatus(`⚠️ Language test failed: ${JSON.stringify(data)}`, 'error');
+                    updateTestResults(`   Language test failed: ${JSON.stringify(data)}\n`);
+                    return false;
                 }
             } catch (error) {
-                updateStatus(`❌ Language test failed: ${error.message}`, 'error');
-                console.error('Language test error:', error);
+                updateTestResults(`   Language test error: ${error.message}\n`);
+                return false;
+            }
+        }
+
+        async function testDirectChat() {
+            try {
+                const testMessage = "Test message for API";
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: testMessage,
+                        userId: `test-direct-${Date.now()}`,
+                        language: 'en'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    updateTestResults(`   Direct chat response received\n`);
+                    updateTestResults(`   Tokens used: ${data.data.tokensUsed}\n`);
+                    updateTestResults(`   Language: ${data.data.language}\n`);
+                    return true;
+                } else {
+                    updateTestResults(`   Direct chat failed: ${data.error || 'Unknown error'}\n`);
+                    return false;
+                }
+            } catch (error) {
+                updateTestResults(`   Direct chat error: ${error.message}\n`);
+                return false;
+            }
+        }
+
+        async function testMessageAPI() {
+            try {
+                const testMessage = "Test message for /message API";
+                const response = await fetch(`${API_BASE}/chat/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: testMessage,
+                        userId: `test-message-${Date.now()}`,
+                        language: 'en'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    updateTestResults(`   Message API response received\n`);
+                    updateTestResults(`   Tokens used: ${data.data.tokensUsed}\n`);
+                    updateTestResults(`   Language: ${data.data.language}\n`);
+                    return true;
+                } else {
+                    updateTestResults(`   Message API failed: ${data.error || 'Unknown error'}\n`);
+                    return false;
+                }
+            } catch (error) {
+                updateTestResults(`   Message API error: ${error.message}\n`);
+                return false;
             }
         }
 
@@ -145,13 +277,12 @@
             addMessageToDisplay(message, 'user');
             
             try {
-                updateStatus('⏳ Sending message...');
+                updateStatus('⏳ Sending message...', 'info');
                 
-                const response = await fetch(`${API_BASE}/chat/message`, {
+                // Try direct chat API first
+                const response = await fetch(`${API_BASE}/chat`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: message,
                         userId: userId,
@@ -171,11 +302,11 @@
                     addMessageToDisplay(data.data.message, 'bot');
                     
                     // Update status
-                    updateStatus(`✅ Message sent (${data.data.tokensUsed} tokens used)`);
+                    updateStatus(`✅ Message sent (${data.data.tokensUsed} tokens used)`, 'success');
                     
                     // Show ticket info if created
                     if (data.data.ticketId) {
-                        updateStatus(`🎫 Ticket created: ${data.data.ticketId}`);
+                        updateStatus(`🎫 Ticket created: ${data.data.ticketId}`, 'info');
                     }
                 } else {
                     addMessageToDisplay(`Error: ${data.error || 'Unknown error'}`, 'bot error');
@@ -188,11 +319,35 @@
             }
         }
 
+        async function sendTestMessage(testMessage) {
+            const inputElement = document.getElementById('userInput');
+            inputElement.value = testMessage;
+            await sendMessage();
+        }
+
         function addMessageToDisplay(message, type) {
             const messagesContainer = document.getElementById('messages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}-message`;
-            messageDiv.textContent = message;
+            
+            // Добавляем время
+            const timestamp = new Date().toLocaleTimeString();
+            const timeSpan = document.createElement('small');
+            timeSpan.style.opacity = '0.7';
+            timeSpan.style.display = 'block';
+            timeSpan.textContent = timestamp;
+            
+            const textDiv = document.createElement('div');
+            textDiv.textContent = message;
+            
+            if (type === 'user') {
+                messageDiv.appendChild(textDiv);
+                messageDiv.appendChild(timeSpan);
+            } else {
+                messageDiv.appendChild(timeSpan);
+                messageDiv.appendChild(textDiv);
+            }
+            
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
@@ -203,10 +358,16 @@
             statusElement.className = `status ${type}`;
         }
 
+        function updateTestResults(message) {
+            const resultsElement = document.getElementById('testResults');
+            resultsElement.textContent += message;
+            resultsElement.scrollTop = resultsElement.scrollHeight;
+        }
+
         function clearMessages() {
             document.getElementById('messages').innerHTML = '';
             conversationId = null;
-            updateStatus('🆕 New conversation started');
+            updateStatus('🆕 New conversation started', 'info');
         }
 
         // Allow Enter key to send message
