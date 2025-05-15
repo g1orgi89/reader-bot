@@ -207,6 +207,19 @@ async function initializeServices() {
  * Setup middleware with FIXED CORS configuration 🍄
  */
 function setupMiddleware() {
+  // 🍄 DEBUG MIDDLEWARE - FIRST OF ALL! 
+  app.use((req, res, next) => {
+    console.log(`🔍 [${new Date().toLocaleTimeString()}] ${req.method} ${req.path} - BEFORE ALL MIDDLEWARE`);
+    if (req.method === 'OPTIONS') {
+      console.log(`🔥🔥🔥 OPTIONS REQUEST DETECTED AT TOP LEVEL! 🔥🔥🔥`);
+      console.log('Headers:', req.headers);
+    }
+    next();
+  });
+
+  // 🍄 Apply our custom CORS middleware - MOVED TO VERY FIRST!
+  app.use(corsMiddleware);
+
   // Security middleware with updated CSP settings
   const helmetConfig = {
     contentSecurityPolicy: {
@@ -248,9 +261,6 @@ function setupMiddleware() {
   }
 
   app.use(helmet(helmetConfig));
-
-  // 🍄 Apply our custom CORS middleware - THIS IS THE FIX!
-  app.use(corsMiddleware);
 
   // Set default charset in Content-Type headers
   app.use((req, res, next) => {
