@@ -16,6 +16,9 @@ function customCors(req, res, next) {
   const origin = req.get('Origin');
   const method = req.method;
   
+  // 🍄 SUPER SIMPLE TEST - log EVERY request
+  console.log(`🟢 CORS MIDDLEWARE HIT: ${method} ${req.path}`);
+  
   // Log all CORS requests for debugging
   logger.info(`🌐 CORS Request: ${method} ${req.path} from origin: ${origin}`);
   
@@ -43,6 +46,7 @@ function customCors(req, res, next) {
   
   // Handle preflight OPTIONS requests
   if (method === 'OPTIONS') {
+    console.log(`🚨🚨🚨 OPTIONS REQUEST FOR ${req.path} - RETURNING 200!!! 🚨🚨🚨`);
     logger.info(`🚨 OPTIONS REQUEST DETECTED for ${req.path}`);
     logger.info(`🔍 Request headers:`, {
       'access-control-request-method': req.get('Access-Control-Request-Method'),
