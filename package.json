@@ -16,6 +16,7 @@
     "test:docker": "node test-mongodb-docker.js",
     "test:core": "node test-core.js",
     "test:claude": "node test-claude.js",
+    "test:api": "node test-api-quick.js",
     "diagnose": "node diagnose-mongodb.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -76,7 +77,8 @@
     "xlsx": "^0.18.5",
     "pdfjs-dist": "^3.11.174",
     "express-validator": "^7.0.1",
-    "compression": "^1.7.4"
+    "compression": "^1.7.4",
+    "axios": "^1.6.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
