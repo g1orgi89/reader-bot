@@ -207,28 +207,22 @@ async function initializeServices() {
  * Setup middleware with FIXED CORS configuration 🍄
  */
 function setupMiddleware() {
-  // 🍄 Apply our custom CORS middleware FIRST
-  app.use(corsMiddleware);
-
-  // Security middleware with environment-specific CSP settings
+  // Security middleware with updated CSP settings
   const helmetConfig = {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
-          "'unsafe-inline'", // Allow inline scripts for all pages in development
           "cdnjs.cloudflare.com"
         ],
         styleSrc: [
-          "'self'",
-          "'unsafe-inline'" // Allow inline styles
+          "'self'"
         ],
         connectSrc: [
           "'self'",
           "ws://localhost:*", // Allow WebSocket connections
-          "wss://localhost:*",
-          "http://localhost:*"
+          "wss://localhost:*"
         ],
         objectSrc: ["'none'"],
         imageSrc: ["'self'", "data:", "https:"],
@@ -240,18 +234,23 @@ function setupMiddleware() {
     }
   };
 
-  // In production, remove unsafe-inline for security
-  if (process.env.NODE_ENV === 'production') {
-    helmetConfig.contentSecurityPolicy.directives.scriptSrc = [
-      "'self'",
-      "cdnjs.cloudflare.com"
-    ];
-    helmetConfig.contentSecurityPolicy.directives.styleSrc = [
-      "'self'"
-    ];
+  // Use different CSP settings based on environment
+  if (process.env.NODE_ENV === 'development') {
+    // Add some development-specific permissions
+    helmetConfig.contentSecurityPolicy.directives.connectSrc.push(
+      "ws://localhost:*",
+      "wss://localhost:*",
+      "http://localhost:*"
+    );
+    
+    // Allow inline styles only in development for test pages
+    helmetConfig.contentSecurityPolicy.directives.styleSrc.push("'unsafe-inline'");
   }
 
   app.use(helmet(helmetConfig));
+
+  // 🍄 Apply our custom CORS middleware - THIS IS THE FIX!
+  app.use(corsMiddleware);
 
   // Set default charset in Content-Type headers
   app.use((req, res, next) => {
@@ -294,8 +293,17 @@ function setupMiddleware() {
   });
 
   app.get('/test-cors', (req, res) => {
-    // Always use client version for consistency
-    res.sendFile(path.join(__dirname, '../client/test-cors.html'));
+    // Try server/static first, then fallback to client if needed
+    const serverPath = path.join(__dirname, 'static/test-cors.html');
+    const clientPath = path.join(__dirname, '../client/test-cors.html');
+    
+    require('fs').access(serverPath, require('fs').constants.F_OK, (err) => {
+      if (err) {
+        res.sendFile(clientPath);
+      } else {
+        res.sendFile(serverPath);
+      }
+    });
   });
 }
 
@@ -372,8 +380,7 @@ function setupRoutes() {
 
   // Backward compatibility endpoint with chat rate limiting
   app.post('/api/chat-simple', chatLimiter, async (req, res) => {
-    try {
-      const { message, language = 'en', context = [], history = [] } = req.body;
+    try {\n      const { message, language = 'en', context = [], history = [] } = req.body;
       
       if (!message) {
         return res.status(400).json({
