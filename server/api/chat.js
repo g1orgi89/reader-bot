@@ -1,85 +1,75 @@
 /**
- * API маршруты для чата
+ * API маршруты для работы с чатом
  * @file server/api/chat.js
  */
 
 const express = require('express');
-const router = express.Router();
-
-// Services
 const claudeService = require('../services/claude');
-const vectorStoreService = require('../services/vectorStore');
-const conversationService = require('../services/conversation');
 const messageService = require('../services/message');
-const ticketService = require('../services/ticketing');
+const conversationService = require('../services/conversation');
 const languageDetectService = require('../services/languageDetect');
+const vectorStoreService = require('../services/vectorStore');
+const ticketService = require('../services/ticketing');
 const logger = require('../utils/logger');
 
-/**
- * @typedef {Object} ChatRequest
- * @property {string} message - Сообщение пользователя
- * @property {string} userId - ID пользователя
- * @property {string} [conversationId] - ID разговора (опционально)
- * @property {string} [language] - Язык (опционально)
- */
-
-/**
- * @typedef {Object} ChatResponse
- * @property {boolean} success - Успешность операции
- * @property {string} message - Ответное сообщение
- * @property {string} conversationId - ID разговора
- * @property {string} messageId - ID сообщения
- * @property {boolean} needsTicket - Создан ли тикет
- * @property {string|null} ticketId - ID тикета (если создан)
- * @property {string|null} ticketError - Ошибка при создании тикета
- * @property {number} tokensUsed - Количество использованных токенов
- * @property {string} language - Язык ответа
- * @property {string} timestamp - Временная метка
- * @property {Object} metadata - Дополнительные данные
- */
+const router = express.Router();
 
 /**
  * @route POST /api/chat/message
- * @desc Обработка сообщения пользователя
+ * @desc Обработка сообщения пользователя через REST API
  * @access Public
  */
 router.post('/message', async (req, res) => {
   try {
     const { message, userId, conversationId, language } = req.body;
-    
+
     // Валидация входных данных
     if (!message || !userId) {
       return res.status(400).json({
         success: false,
         error: 'Message and userId are required',
-        message: 'Отсутствуют обязательные поля'
+        code: 'VALIDATION_ERROR'
       });
     }
+
+    // Определение языка сообщения
+    const detectedLanguage = language || 
+      languageDetectService.detectLanguage(message);
     
-    logger.info(`Chat request from ${userId}: ${message.substring(0, 100)}...`);
-    
-    // Определение языка
-    const detectedLanguage = language || languageDetectService.detectLanguage(message);
-    
-    // Получение контекста из базы знаний
-    const contextResults = await vectorStoreService.search(message, {
-      limit: 3,
-      language: detectedLanguage
-    });
-    const context = contextResults.map(result => result.content);
+    // Получение контекста из базы знаний (если RAG включен)
+    let context = [];
+    if (process.env.ENABLE_RAG === 'true') {
+      try {
+        const contextResults = await vectorStoreService.search(message, {
+          limit: 5,
+          language: detectedLanguage
+        });
+        context = contextResults.map(result => result.content);
+      } catch (error) {
+        logger.warn('Failed to get context from vector store:', error.message);
+        // Продолжаем без контекста
+      }
+    }
     
     // Получение или создание разговора
     let conversation;
     if (conversationId) {
       conversation = await conversationService.findById(conversationId);
       if (!conversation) {
-        throw new Error('Conversation not found');
+        logger.warn(`Conversation ${conversationId} not found, creating new one`);
+        conversation = await conversationService.create({
+          userId,
+          language: detectedLanguage,
+          startedAt: new Date(),
+          source: 'api'
+        });
       }
     } else {
       conversation = await conversationService.create({
         userId,
         language: detectedLanguage,
-        startedAt: new Date()
+        startedAt: new Date(),
+        source: 'api'
       });
     }
     
@@ -98,7 +88,7 @@ router.post('/message', async (req, res) => {
       conversationId: conversation._id,
       metadata: { 
         language: detectedLanguage,
-        source: 'http'
+        source: 'api'
       }
     });
     
@@ -125,11 +115,12 @@ router.post('/message', async (req, res) => {
             history: formattedHistory.slice(-3)
           }),
           language: detectedLanguage,
-          subject: `Support request from ${userId}`,
-          category: 'technical'
+          subject: `Support request: ${message.substring(0, 50)}...`,
+          category: 'technical',
+          source: 'api'
         });
         ticketId = ticket.ticketId;
-        logger.info(`Ticket created: ${ticketId}`);
+        logger.info(`🎫 Ticket created: ${ticketId}`);
       } catch (error) {
         logger.error('Failed to create ticket:', error);
         ticketError = error.message;
@@ -139,7 +130,7 @@ router.post('/message', async (req, res) => {
     // Замена TICKET_ID в ответе
     let botResponse = claudeResponse.message;
     if (ticketId) {
-      botResponse = botResponse.replace('TICKET_ID', ticketId);
+      botResponse = botResponse.replace('#TICKET_ID', `#${ticketId}`);
     }
     
     // Сохранение ответа бота
@@ -153,75 +144,93 @@ router.post('/message', async (req, res) => {
         tokensUsed: claudeResponse.tokensUsed,
         ticketCreated: claudeResponse.needsTicket,
         ticketId,
-        source: 'http'
+        source: 'api'
       }
     });
     
     // Обновление разговора
     await conversationService.updateLastActivity(conversation._id);
     
-    // Формирование ответа
+    // Подготовка ответа
     const response = {
       success: true,
-      message: botResponse,
-      conversationId: conversation._id.toString(),
-      messageId: botMessage._id.toString(),
-      needsTicket: claudeResponse.needsTicket,
-      ticketId,
-      ticketError,
-      tokensUsed: claudeResponse.tokensUsed,
-      language: detectedLanguage,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        knowledgeResultsCount: contextResults.length,
-        historyMessagesCount: formattedHistory.length
+      data: {
+        message: botResponse,
+        conversationId: conversation._id.toString(),
+        messageId: botMessage._id.toString(),
+        needsTicket: claudeResponse.needsTicket,
+        ticketId,
+        ticketError,
+        tokensUsed: claudeResponse.tokensUsed,
+        language: detectedLanguage,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          knowledgeResultsCount: context.length,
+          historyMessagesCount: formattedHistory.length
+        }
       }
     };
     
-    logger.info(`Chat response for ${userId}: success`);
     res.json(response);
+    logger.info(`✅ Chat API response sent for user: ${userId}`);
     
   } catch (error) {
-    logger.error('Chat API error:', error);
-    res.status(500).json({
+    logger.error(`❌ Chat API error:`, error);
+    
+    // Определяем тип ошибки и возвращаем соответствующий код
+    let statusCode = 500;
+    let errorCode = 'INTERNAL_SERVER_ERROR';
+    let errorMessage = 'Service temporarily unavailable. Please try again.';
+    
+    if (error.message.includes('Database')) {
+      statusCode = 503;
+      errorCode = 'DATABASE_ERROR';
+    } else if (error.message.includes('Claude')) {
+      statusCode = 503;
+      errorCode = 'AI_SERVICE_ERROR';
+    } else if (error.message.includes('not initialized')) {
+      statusCode = 503;
+      errorCode = 'SERVICE_NOT_INITIALIZED';
+    }
+    
+    res.status(statusCode).json({
       success: false,
-      error: 'Service temporarily unavailable. Please try again.',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: errorMessage,
+      code: errorCode,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
 /**
  * @route GET /api/chat/conversations/:userId
- * @desc Получение списка разговоров пользователя
+ * @desc Получение разговоров пользователя
  * @access Public
  */
 router.get('/conversations/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-    
+    const { limit = 10, skip = 0, activeOnly = false } = req.query;
+
     const conversations = await conversationService.findByUserId(userId, {
-      page: parseInt(page),
-      limit: parseInt(limit)
+      limit: parseInt(limit),
+      skip: parseInt(skip),
+      activeOnly: activeOnly === 'true'
     });
-    
+
     res.json({
       success: true,
-      conversations,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit)
+      data: {
+        conversations,
+        count: conversations.length
       }
     });
-    
   } catch (error) {
-    logger.error('Get conversations error:', error);
+    logger.error('❌ Error getting conversations:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch conversations',
-      message: error.message
+      error: 'Failed to get conversations',
+      code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
@@ -234,28 +243,295 @@ router.get('/conversations/:userId', async (req, res) => {
 router.get('/conversations/:conversationId/messages', async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { page = 1, limit = 50 } = req.query;
-    
-    const messages = await messageService.getMessagesByConversationId(conversationId, {
-      page: parseInt(page),
-      limit: parseInt(limit)
+    const { limit = 50, skip = 0 } = req.query;
+
+    const messages = await messageService.getByConversation(conversationId, {
+      limit: parseInt(limit),
+      skip: parseInt(skip)
     });
-    
+
     res.json({
       success: true,
-      messages,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit)
+      data: {
+        messages,
+        count: messages.length
       }
     });
-    
   } catch (error) {
-    logger.error('Get messages error:', error);
+    logger.error('❌ Error getting messages:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch messages',
-      message: error.message
+      error: 'Failed to get messages',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * @route POST /api/chat/conversations/:conversationId/close
+ * @desc Закрытие разговора
+ * @access Public
+ */
+router.post('/conversations/:conversationId/close', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    const conversation = await conversationService.setInactive(conversationId);
+    
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Conversation not found',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Conversation closed successfully',
+        conversationId: conversation._id
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error closing conversation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to close conversation',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * @route GET /api/chat/languages
+ * @desc Получение списка поддерживаемых языков
+ * @access Public
+ */
+router.get('/languages', async (req, res) => {
+  try {
+    const supportedLanguages = languageDetectService.getSupportedLanguages();
+    const stats = languageDetectService.getStats();
+
+    res.json({
+      success: true,
+      data: {
+        supportedLanguages,
+        defaultLanguage: stats.defaultLanguage,
+        stats
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error getting language info:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get language information',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * @route POST /api/chat/detect-language
+ * @desc Определение языка текста
+ * @access Public
+ */
+router.post('/detect-language', async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Text is required',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    const detectedLanguage = languageDetectService.detectLanguage(text);
+
+    res.json({
+      success: true,
+      data: {
+        detectedLanguage,
+        text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error detecting language:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to detect language',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * @route GET /api/chat/stats
+ * @desc Получение статистики чата
+ * @access Public
+ */
+router.get('/stats', async (req, res) => {
+  try {
+    // Объединяем статистику из разных сервисов
+    const [messagesStats, conversationsStats, languageStats] = await Promise.all([
+      messageService.getStats(),
+      conversationService.getStats(),
+      Promise.resolve(languageDetectService.getStats())
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        messages: messagesStats,
+        conversations: conversationsStats,
+        language: languageStats,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error getting chat stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get chat statistics',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * @route POST /api/chat/messages/:messageId/edit
+ * @desc Редактирование сообщения
+ * @access Public
+ */
+router.post('/messages/:messageId/edit', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { newText, editedBy } = req.body;
+
+    if (!newText) {
+      return res.status(400).json({
+        success: false,
+        error: 'New text is required',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    const editedMessage = await messageService.editMessage(messageId, newText, editedBy);
+
+    if (!editedMessage) {
+      return res.status(404).json({
+        success: false,
+        error: 'Message not found',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        message: editedMessage,
+        editHistory: editedMessage.editHistory
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error editing message:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to edit message',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * @route GET /api/chat/search
+ * @desc Поиск сообщений
+ * @access Public
+ */
+router.get('/search', async (req, res) => {
+  try {
+    const { q, userId, conversationId, language, limit = 50 } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    const searchOptions = {
+      limit: parseInt(limit),
+      userId,
+      conversationId,
+      language
+    };
+
+    const messages = await messageService.searchMessages(q, searchOptions);
+
+    res.json({
+      success: true,
+      data: {
+        messages,
+        query: q,
+        count: messages.length,
+        options: searchOptions
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error searching messages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search messages',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * @route GET /api/chat/health
+ * @desc Проверка здоровья API чата
+ * @access Public
+ */
+router.get('/health', async (req, res) => {
+  try {
+    const [
+      claudeHealth,
+      messageHealth,
+      conversationHealth,
+      vectorHealth
+    ] = await Promise.all([
+      Promise.resolve(claudeService.isHealthy()),
+      messageService.healthCheck(),
+      conversationService.healthCheck(),
+      vectorStoreService.healthCheck()
+    ]);
+
+    const overall = claudeHealth && 
+                   messageHealth.status === 'ok' && 
+                   conversationHealth.status === 'ok' && 
+                   vectorHealth.status === 'ok';
+
+    res.status(overall ? 200 : 503).json({
+      success: overall,
+      status: overall ? 'healthy' : 'unhealthy',
+      services: {
+        claude: claudeHealth ? 'ok' : 'error',
+        messages: messageHealth.status,
+        conversations: conversationHealth.status,
+        vectorStore: vectorHealth.status
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('❌ Chat health check failed:', error);
+    res.status(503).json({
+      success: false,
+      status: 'error',
+      error: 'Health check failed',
+      timestamp: new Date().toISOString()
     });
   }
 });
