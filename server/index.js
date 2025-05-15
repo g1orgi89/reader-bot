@@ -129,32 +129,41 @@ function setupMiddleware() {
   // Apply CORS first - critical for frontend integration
   app.use(corsMiddleware);
 
-  // Security headers with updated CSP for Socket.IO
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        connectSrc: [
-          "'self'", 
-          "ws://localhost:*", 
-          "wss://localhost:*", 
-          "http://localhost:*",
-          "ws://127.0.0.1:*",
-          "wss://127.0.0.1:*",
-          "http://127.0.0.1:*"
-        ],
-        objectSrc: ["'none'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        fontSrc: ["'self'", "https:", "data:"],
-        frameSrc: ["'self'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"]
-      }
-    },
-    crossOriginEmbedderPolicy: false // Disable for Socket.IO compatibility
-  }));
+  // Security headers with relaxed CSP for development
+  if (process.env.NODE_ENV === 'development') {
+    // Very relaxed CSP for development
+    app.use(helmet({
+      contentSecurityPolicy: false, // Disable CSP in development
+      crossOriginEmbedderPolicy: false
+    }));
+  } else {
+    // Stricter CSP for production
+    app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          connectSrc: [
+            "'self'", 
+            "ws://localhost:*", 
+            "wss://localhost:*", 
+            "http://localhost:*",
+            "ws://127.0.0.1:*",
+            "wss://127.0.0.1:*",
+            "http://127.0.0.1:*"
+          ],
+          objectSrc: ["'none'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          fontSrc: ["'self'", "https:", "data:"],
+          frameSrc: ["'self'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"]
+        }
+      },
+      crossOriginEmbedderPolicy: false
+    }));
+  }
 
   // Body parsing with increased limits for file uploads
   app.use(express.json({ limit: '10mb' }));
