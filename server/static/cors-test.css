@@ -1,0 +1,227 @@
+/**
+ * CORS Test Page Styles
+ * @file server/static/cors-test.css
+ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #050505 0%, #121212 100%);
+    color: #E0E0E0;
+    line-height: 1.6;
+    min-height: 100vh;
+    background-attachment: fixed;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    background: rgba(18, 18, 18, 0.9);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(57, 255, 20, 0.2);
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 30px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(57, 255, 20, 0.1);
+}
+
+.header h1 {
+    color: #39FF14;
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    text-shadow: 0 0 20px rgba(57, 255, 20, 0.5);
+    font-weight: 700;
+}
+
+.header p {
+    color: #8A2BE2;
+    font-size: 1.2em;
+}
+
+.test-section {
+    background: rgba(18, 18, 18, 0.9);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(138, 43, 226, 0.3);
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 25px;
+}
+
+.test-section h2 {
+    color: #FF6EC7;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+    text-shadow: 0 0 10px rgba(255, 110, 199, 0.3);
+}
+
+.button {
+    background: linear-gradient(45deg, #39FF14, #00FF41);
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 10px 10px 10px 0;
+    font-size: 16px;
+    box-shadow: 0 4px 15px rgba(57, 255, 20, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(57, 255, 20, 0.5);
+    background: linear-gradient(45deg, #00FF41, #39FF14);
+}
+
+.button:active {
+    transform: translateY(0);
+}
+
+.button.auth {
+    background: linear-gradient(45deg, #8A2BE2, #9A3BF2);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
+}
+
+.button.auth:hover {
+    box-shadow: 0 6px 20px rgba(138, 43, 226, 0.5);
+    background: linear-gradient(45deg, #9A3BF2, #8A2BE2);
+}
+
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.results {
+    background: rgba(5, 5, 5, 0.8);
+    border: 1px solid rgba(57, 255, 20, 0.3);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+    font-family: 'Monaco', 'Consolas', monospace;
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+    color: #00FF41;
+    font-size: 14px;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+}
+
+.status-success {
+    background: #39FF14;
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.7);
+}
+
+.status-error {
+    background: #FF6B6B;
+    box-shadow: 0 0 10px rgba(255, 107, 107, 0.7);
+}
+
+.status-pending {
+    background: #FFD93D;
+    box-shadow: 0 0 10px rgba(255, 217, 61, 0.7);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1); 
+    }
+    50% { 
+        opacity: 0.7; 
+        transform: scale(0.9); 
+    }
+}
+
+.credentials-form {
+    background: rgba(5, 5, 5, 0.5);
+    border: 1px solid rgba(138, 43, 226, 0.3);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    color: #FF6EC7;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid rgba(57, 255, 20, 0.3);
+    border-radius: 5px;
+    background: rgba(18, 18, 18, 0.8);
+    color: #E0E0E0;
+    font-size: 16px;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #39FF14;
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+}
+
+.mushroom-logo {
+    font-size: 3em;
+    margin-bottom: 20px;
+}
+
+.debug-info {
+    background: rgba(138, 43, 226, 0.1);
+    border: 1px solid rgba(138, 43, 226, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 15px;
+    font-size: 14px;
+    color: #8A2BE2;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .header h1 {
+        font-size: 2em;
+    }
+    
+    .button {
+        width: 100%;
+        margin-bottom: 10px;
+        justify-content: center;
+    }
+}
