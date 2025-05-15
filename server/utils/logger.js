@@ -1,135 +1,136 @@
 /**
- * Logger utility for Shrooms Support Bot
+ * Simple logger utility for Shrooms Support Bot
  * @file server/utils/logger.js
  */
 
-const winston = require('winston');
+const fs = require('fs');
 const path = require('path');
 
 // Create logs directory if it doesn't exist
-const fs = require('fs');
-const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+const logDir = path.join(__dirname, '../../logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
 }
 
-// Define log levels
-const logLevels = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  http: 3,
-  debug: 4
-};
+/**
+ * @typedef {Object} LogEntry
+ * @property {string} timestamp - ISO timestamp
+ * @property {string} level - Log level (info, error, warn, debug)
+ * @property {string} message - Log message
+ */
 
-// Define colors for different log levels
-const logColors = {
-  error: 'red',
-  warn: 'yellow',
-  info: 'green',
-  http: 'magenta',
-  debug: 'cyan'
-};
+/**
+ * Simple logger class
+ */
+class Logger {
+  constructor() {
+    this.logLevel = process.env.LOG_LEVEL || 'info';
+    this.enableFileLogging = process.env.ENABLE_FILE_LOGGING !== 'false';
+    this.logFile = path.join(logDir, 'app.log');
+    this.errorFile = path.join(logDir, 'error.log');
+  }
 
-// Add colors to winston
-winston.addColors(logColors);
-
-// Define log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.json()
-);
-
-// Console format for development
-const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.printf(({ timestamp, level, message, stack }) => {
-    return `[${timestamp}] ${level}: ${stack || message}`;
-  })
-);
-
-// Create winston logger
-const logger = winston.createLogger({
-  levels: logLevels,
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
-  defaultMeta: { service: 'shrooms-support-bot' },
-  transports: [
-    // Error logs
-    new winston.transports.File({
-      filename: path.join(logsDir, 'error.log'),
-      level: 'error',
-      maxsize: 10485760, // 10MB
-      maxFiles: 5
-    }),
-    // Combined logs
-    new winston.transports.File({
-      filename: path.join(logsDir, 'combined.log'),
-      maxsize: 10485760, // 10MB
-      maxFiles: 10
-    }),
-    // Console output
-    new winston.transports.Console({
-      format: consoleFormat,
-      level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
-    })
-  ]
-});
-
-// Add request logging middleware compatible function
-logger.requestLogger = (req, res, next) => {
-  const start = Date.now();
-  
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    const logData = {
-      method: req.method,
-      url: req.originalUrl || req.url,
-      status: res.statusCode,
-      duration: `${duration}ms`,
-      ip: req.ip || req.connection.remoteAddress,
-      userAgent: req.get('User-Agent')
+  /**
+   * Get log levels hierarchy
+   * @returns {Object} Log levels with numeric values
+   */
+  getLogLevels() {
+    return {
+      error: 0,
+      warn: 1,
+      info: 2,
+      debug: 3
     };
+  }
+
+  /**
+   * Check if message should be logged based on level
+   * @param {string} level - Message level
+   * @returns {boolean} Should log or not
+   */
+  shouldLog(level) {
+    const levels = this.getLogLevels();
+    return levels[level] <= levels[this.logLevel];
+  }
+
+  /**
+   * Format log message
+   * @param {string} level - Log level
+   * @param {string} message - Log message
+   * @returns {string} Formatted message
+   */
+  formatMessage(level, message) {
+    const timestamp = new Date().toISOString();
+    return `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+  }
+
+  /**
+   * Write to log file
+   * @param {string} level - Log level
+   * @param {string} message - Log message
+   */
+  writeToFile(level, message) {
+    if (!this.enableFileLogging) return;
+
+    const formattedMessage = this.formatMessage(level, message) + '\n';
     
-    // Log based on status code
-    if (res.statusCode >= 400) {
-      logger.warn('HTTP Request', logData);
-    } else {
-      logger.http('HTTP Request', logData);
+    try {
+      // Write to main log file
+      fs.appendFileSync(this.logFile, formattedMessage);
+      
+      // Write errors to separate error file
+      if (level === 'error') {
+        fs.appendFileSync(this.errorFile, formattedMessage);
+      }
+    } catch (error) {
+      console.error('Failed to write to log file:', error);
     }
-  });
-  
-  next();
-};
+  }
 
-// Add error logging helper
-logger.logError = (error, context = {}) => {
-  logger.error('Error occurred', {
-    message: error.message,
-    stack: error.stack,
-    name: error.name,
-    ...context
-  });
-};
+  /**
+   * Log info message
+   * @param {string} message - Message to log
+   */
+  info(message) {
+    if (this.shouldLog('info')) {
+      console.log(`ℹ️ ${message}`);
+      this.writeToFile('info', message);
+    }
+  }
 
-// Add Claude API logging helper
-logger.logClaudeRequest = (prompt, tokensUsed, duration) => {
-  logger.info('Claude API Request', {
-    tokensUsed,
-    duration: `${duration}ms`,
-    promptLength: prompt.length
-  });
-};
+  /**
+   * Log error message
+   * @param {string} message - Message to log
+   */
+  error(message) {
+    if (this.shouldLog('error')) {
+      console.error(`❌ ${message}`);
+      this.writeToFile('error', message);
+    }
+  }
 
-// Add knowledge search logging helper
-logger.logKnowledgeSearch = (query, resultsCount, searchType = 'text') => {
-  logger.info('Knowledge Search', {
-    query,
-    resultsCount,
-    searchType
-  });
-};
+  /**
+   * Log warning message
+   * @param {string} message - Message to log
+   */
+  warn(message) {
+    if (this.shouldLog('warn')) {
+      console.warn(`⚠️ ${message}`);
+      this.writeToFile('warn', message);
+    }
+  }
 
-module.exports = logger;
+  /**
+   * Log debug message
+   * @param {string} message - Message to log
+   */
+  debug(message) {
+    if (this.shouldLog('debug')) {
+      console.log(`🐛 ${message}`);
+      this.writeToFile('debug', message);
+    }
+  }
+}
+
+// Export singleton instance
+module.exports = new Logger();
