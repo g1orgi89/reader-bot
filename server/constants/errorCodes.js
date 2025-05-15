@@ -25,11 +25,20 @@ const ERROR_CODES = {
   NOT_FOUND: 'NOT_FOUND',
   FORBIDDEN: 'FORBIDDEN',
   RATE_LIMITED: 'RATE_LIMITED',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+
+  // Authentication/Authorization errors
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+  MISSING_AUTH: 'MISSING_AUTH',
+  AUTH_SERVICE_ERROR: 'AUTH_SERVICE_ERROR',
 
   // Validation errors
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   MISSING_REQUIRED_FIELD: 'MISSING_REQUIRED_FIELD',
   INVALID_FORMAT: 'INVALID_FORMAT',
+  INVALID_CONVERSATION_ID: 'INVALID_CONVERSATION_ID',
 
   // Ticket errors
   TICKET_CREATE_ERROR: 'TICKET_CREATE_ERROR',
@@ -82,6 +91,38 @@ const ERROR_DEFINITIONS = {
     message: 'Rate limit exceeded',
     httpStatus: HTTP_STATUS.RATE_LIMITED
   },
+  [ERROR_CODES.RATE_LIMIT_EXCEEDED]: {
+    code: 'RATE_LIMIT_EXCEEDED',
+    message: 'Too many requests, please try again later',
+    httpStatus: HTTP_STATUS.RATE_LIMITED
+  },
+
+  // Authentication/Authorization errors
+  [ERROR_CODES.UNAUTHORIZED]: {
+    code: 'UNAUTHORIZED',
+    message: 'Access denied. Authorization required.',
+    httpStatus: HTTP_STATUS.UNAUTHORIZED
+  },
+  [ERROR_CODES.INVALID_CREDENTIALS]: {
+    code: 'INVALID_CREDENTIALS',
+    message: 'Access denied. Invalid credentials.',
+    httpStatus: HTTP_STATUS.UNAUTHORIZED
+  },
+  [ERROR_CODES.INVALID_TOKEN]: {
+    code: 'INVALID_TOKEN',
+    message: 'Access denied. Invalid token.',
+    httpStatus: HTTP_STATUS.UNAUTHORIZED
+  },
+  [ERROR_CODES.MISSING_AUTH]: {
+    code: 'MISSING_AUTH',
+    message: 'Access denied. Authorization required.',
+    httpStatus: HTTP_STATUS.UNAUTHORIZED
+  },
+  [ERROR_CODES.AUTH_SERVICE_ERROR]: {
+    code: 'AUTH_SERVICE_ERROR',
+    message: 'Authentication service error',
+    httpStatus: HTTP_STATUS.INTERNAL_SERVER_ERROR
+  },
 
   // Validation errors
   [ERROR_CODES.VALIDATION_ERROR]: {
@@ -97,6 +138,11 @@ const ERROR_DEFINITIONS = {
   [ERROR_CODES.INVALID_FORMAT]: {
     code: 'INVALID_FORMAT',
     message: 'Invalid format',
+    httpStatus: HTTP_STATUS.BAD_REQUEST
+  },
+  [ERROR_CODES.INVALID_CONVERSATION_ID]: {
+    code: 'INVALID_CONVERSATION_ID',
+    message: 'Invalid conversation ID format',
     httpStatus: HTTP_STATUS.BAD_REQUEST
   },
 
@@ -204,6 +250,7 @@ function createErrorResponse(errorCode, customMessage = null, details = {}) {
   const errorDef = ERROR_DEFINITIONS[errorCode] || ERROR_DEFINITIONS[ERROR_CODES.GENERIC_ERROR];
   
   const response = {
+    success: false,
     error: customMessage || errorDef.message,
     errorCode: errorDef.code,
     httpStatus: errorDef.httpStatus,
