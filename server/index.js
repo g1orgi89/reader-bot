@@ -210,10 +210,52 @@ function setupMiddleware() {
   // 🍄 Apply our custom CORS middleware FIRST
   app.use(corsMiddleware);
 
-  // Security middleware with updated CSP settings for development
+  // Security middleware with environment-specific CSP settings
   const helmetConfig = {
-    contentSecurityPolicy: false // Disable CSP in development for testing
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "cdnjs.cloudflare.com"
+        ],
+        styleSrc: [
+          "'self'"
+        ],
+        connectSrc: [
+          "'self'",
+          "ws://localhost:*", // Allow WebSocket connections
+          "wss://localhost:*"
+        ],
+        objectSrc: ["'none'"],
+        imageSrc: ["'self'", "data:", "https:"],
+        fontSrc: ["'self'", "https:", "data:"],
+        frameSrc: ["'self'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"]
+      }
+    }
   };
+
+  // Use different CSP settings based on environment
+  if (process.env.NODE_ENV === 'development') {
+    // In development, relax CSP for test pages
+    helmetConfig.contentSecurityPolicy.directives.connectSrc.push(
+      "ws://localhost:*",
+      "wss://localhost:*",
+      "http://localhost:*"
+    );
+    
+    // Allow inline styles ONLY for test pages (not recommended for production)
+    helmetConfig.contentSecurityPolicy.directives.styleSrc.push("'unsafe-inline'");
+    
+    // Allow inline scripts ONLY for specific test routes
+    app.use('/test-*', (req, res, next) => {
+      // Disable CSP for test pages in development ONLY
+      res.setHeader('Content-Security-Policy', "");
+      next();
+    });
+  }
 
   app.use(helmet(helmetConfig));
 
