@@ -126,39 +126,15 @@ class ServiceManager {
       dependencies: [] // MessageService создает свою схему Mongoose
     });
 
-    // 🍄 Chat Service - проверяем что существует файл
-    try {
-      const ChatService = require('../services/chatService-improved');
-      this.register('chat', ['claude', 'knowledge', 'ticketing', 'message'], 
-        (claude, knowledge, ticketing, message) => {
-          return new ChatService({
-            claude,
-            knowledge,
-            ticketing,
-            message
-          });
-        }, {
-          singleton: true,
-          dependencies: ['claude', 'knowledge', 'ticketing', 'message']
-        });
-    } catch (chatError) {
-      this.logger.warn('ChatService-improved not found, trying basic chat service...');
-      // Fallback to basic chat API file
-      this.register('chat', ['claude'], (claude) => {
-        return {
-          processMessage: async (data) => {
-            return {
-              success: true,
-              message: '🍄 Грибной ИИ временно недоступен. Мы работаем над исправлением!',
-              needsTicket: false
-            };
-          }
-        };
-      }, {
-        singleton: true,
-        dependencies: ['claude']
-      });
-    }
+    // 🍄 Chat Service - используем существующий singleton instance
+    this.register('chat', () => {
+      // ChatService-improved экспортируется как singleton instance
+      const chatService = require('../services/chatService-improved');
+      return chatService;
+    }, {
+      singleton: true,
+      dependencies: [] // ChatService-improved импортирует сервисы сам
+    });
 
     this.logger.info('Core services registered successfully');
   }
