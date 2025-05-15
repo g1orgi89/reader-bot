@@ -9,7 +9,6 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const path = require('path');
 const mongoose = require('mongoose');
 
@@ -17,6 +16,14 @@ const mongoose = require('mongoose');
 const config = require('./config');
 const logger = require('./utils/logger');
 const ServiceManager = require('./core/ServiceManager');
+
+// Import rate limiting middleware
+const { 
+  generalLimiter, 
+  chatLimiter, 
+  authLimiter, 
+  adminLimiter 
+} = require('./middleware/rateLimiting');
 
 // Import API routes
 const chatRoutes = require('./api/chat');
@@ -248,9 +255,8 @@ function setupMiddleware() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  // Rate limiting
-  const limiter = rateLimit(config.getRateLimitConfig());
-  app.use('/api', limiter);
+  // General rate limiting for all API endpoints
+  app.use('/api', generalLimiter);
 
   // Static files - Updated to support test-chat.html
   // Serve the entire client directory for development/testing
@@ -301,6 +307,11 @@ function setupRoutes() {
     });
   });
 
+  // Apply specific rate limiters to different API routes
+  app.use('/api/chat', chatLimiter);
+  app.use('/api/admin/login', authLimiter);
+  app.use('/api/admin', adminLimiter);
+
   // API Routes
   app.use('/api/chat', chatRoutes);
   app.use('/api/tickets', ticketRoutes);
@@ -337,8 +348,8 @@ function setupRoutes() {
     }
   });
 
-  // Backward compatibility endpoint
-  app.post('/api/chat-simple', async (req, res) => {
+  // Backward compatibility endpoint with chat rate limiting
+  app.post('/api/chat-simple', chatLimiter, async (req, res) => {
     try {
       const { message, language = 'en', context = [], history = [] } = req.body;
       
