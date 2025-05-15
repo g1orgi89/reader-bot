@@ -290,14 +290,26 @@ async function testRateLimit() {
   }
 }
 
+// Test function mapping
+const testFunctions = {
+  'preflight': testCorsPreflight,
+  'cors': testCorsWithCredentials,
+  'health': testHealthCheck,
+  'admin': testAdminLogin,
+  'tickets': testAdminTickets,
+  'chat': testChat,
+  'ratelimit': testRateLimit
+};
+
 // Initialize event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-  // Add event listeners to all buttons
-  document.querySelector('button[onclick*="testCorsPreflight"]').onclick = testCorsPreflight;
-  document.querySelector('button[onclick*="testCorsWithCredentials"]').onclick = testCorsWithCredentials;
-  document.querySelector('button[onclick*="testHealthCheck"]').onclick = testHealthCheck;
-  document.querySelector('button[onclick*="testAdminLogin"]').onclick = testAdminLogin;
-  document.querySelector('button[onclick*="testAdminTickets"]').onclick = testAdminTickets;
-  document.querySelector('button[onclick*="testChat"]').onclick = testChat;
-  document.querySelector('button[onclick*="testRateLimit"]').onclick = testRateLimit;
+  // Add event listeners to all buttons using data-test attribute
+  document.querySelectorAll('button[data-test]').forEach(button => {
+    const testType = button.getAttribute('data-test');
+    const testFunction = testFunctions[testType];
+    
+    if (testFunction) {
+      button.addEventListener('click', testFunction);
+    }
+  });
 });
