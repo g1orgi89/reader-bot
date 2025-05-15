@@ -1,5 +1,5 @@
 /**
- * Rate limiting middleware configuration
+ * Rate limiting middleware configuration with OPTIONS exemption
  * @file server/middleware/rateLimiting.js
  */
 
@@ -38,6 +38,15 @@ function createRateLimitError(req, res, next) {
 }
 
 /**
+ * Skip rate limiting for OPTIONS requests (CORS preflight)
+ * @param {Object} req - Express request object
+ * @returns {boolean} - Whether to skip rate limiting
+ */
+function skipOptionsRequests(req) {
+  return req.method === 'OPTIONS';
+}
+
+/**
  * General rate limiter for all API endpoints
  * Adjusted for testing: 5 requests per minute
  */
@@ -51,7 +60,8 @@ const generalLimiter = rateLimit({
   keyGenerator: (req) => {
     // Use IP address as the key, but also consider user ID if authenticated
     return req.ip + (req.user?.id || '');
-  }
+  },
+  skip: skipOptionsRequests // Skip OPTIONS requests
 });
 
 /**
@@ -70,8 +80,8 @@ const chatLimiter = rateLimit({
     return req.body?.userId || req.ip;
   },
   skip: (req) => {
-    // Skip rate limiting for admin users (if auth middleware has run)
-    return req.admin !== undefined;
+    // Skip rate limiting for admin users (if auth middleware has run) and OPTIONS
+    return req.admin !== undefined || req.method === 'OPTIONS';
   }
 });
 
@@ -86,7 +96,8 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: createRateLimitError,
-  skipSuccessfulRequests: true // Don't count successful requests
+  skipSuccessfulRequests: true, // Don't count successful requests
+  skip: skipOptionsRequests // Skip OPTIONS requests
 });
 
 /**
@@ -103,7 +114,8 @@ const adminLimiter = rateLimit({
   keyGenerator: (req) => {
     // Use admin ID as key if available
     return req.admin?.id || req.ip;
-  }
+  },
+  skip: skipOptionsRequests // Skip OPTIONS requests
 });
 
 /**
@@ -117,7 +129,8 @@ const healthLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: createRateLimitError,
-  keyGenerator: (req) => req.ip
+  keyGenerator: (req) => req.ip,
+  skip: skipOptionsRequests // Skip OPTIONS requests
 });
 
 /**
@@ -136,6 +149,7 @@ function createCustomLimiter(options) {
     standardHeaders: true,
     legacyHeaders: false,
     handler: createRateLimitError,
+    skip: skipOptionsRequests, // Always skip OPTIONS
     ...options
   });
 }
@@ -170,5 +184,6 @@ module.exports = {
   healthLimiter,
   createCustomLimiter,
   applyRateLimit,
-  createRateLimitError
+  createRateLimitError,
+  skipOptionsRequests
 };
