@@ -1,288 +1,222 @@
 /**
- * Admin API routes for Shrooms Support Bot
+ * Admin authentication routes
  * @file server/api/admin.js
  */
 
 const express = require('express');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
-const { 
-  createErrorResponse,
-  ADMIN_ERRORS,
-  VALIDATION_ERRORS
-} = require('../constants/errorCodes');
+const { requireAdminAuth } = require('../middleware/adminAuth');
+const { createErrorResponse } = require('../constants/errorCodes');
 
 const router = express.Router();
 
-// Import types for JSDoc
-require('../types');
-
-// Simple in-memory storage for farming yield (in production, use database)
-let farmingYield = {
-  value: 12.5,
-  lastUpdated: new Date(),
-  updatedBy: 'system'
-};
-
-// Simple storage for system stats
-let systemStats = {
-  lastUpdated: new Date(),
-  ticketsCreated: 0,
-  messagesProcessed: 0,
-  usersActive: 0
-};
-
 /**
- * GET /api/admin/stats
- * Get general system statistics
+ * Admin login endpoint
+ * POST /api/admin/login
  * @param {express.Request} req - Request object
  * @param {express.Response} res - Response object
  */
-router.get('/stats', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
-    logger.info('Fetching admin statistics');
+    const { username, password } = req.body;
 
-    /** @type {SystemStats} */
-    const stats = {
-      tickets: {
-        total: systemStats.ticketsCreated,
-        open: Math.floor(systemStats.ticketsCreated * 0.3),
-        closed: Math.floor(systemStats.ticketsCreated * 0.7)
-      },
-      conversations: {
-        total: systemStats.messagesProcessed / 5, // Estimate
-        active: systemStats.usersActive
-      },
-      knowledge: {
-        documents: 42, // Placeholder
-        categories: 5
-      },
-      messages: {
-        total: systemStats.messagesProcessed,
-        today: Math.floor(systemStats.messagesProcessed * 0.1)
-      }
-    };
-
-    res.json({ success: true, data: stats });
-  } catch (error) {
-    logger.error('Error fetching admin stats:', error);
-    const errorResponse = createErrorResponse('STATS_ERROR');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/admin/farming-yield
- * Get current farming yield value
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.get('/farming-yield', (req, res) => {
-  try {
-    logger.info('Fetching current farming yield');
-
-    /** @type {AdminConfig} */
-    const config = {
-      dohodnost: farmingYield.value.toString(),
-      lastUpdated: farmingYield.lastUpdated.toISOString(),
-      updatedBy: farmingYield.updatedBy
-    };
-
-    res.json({ success: true, data: config });
-  } catch (error) {
-    logger.error('Error fetching farming yield:', error);
-    const errorResponse = createErrorResponse('FARMING_YIELD_ERROR');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * PUT /api/admin/farming-yield
- * Update farming yield value
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.put('/farming-yield', (req, res) => {
-  try {
-    const { value, updatedBy = 'admin' } = req.body;
-
-    // Validate input
-    if (value === undefined || value === null) {
+    if (!username || !password) {
       const errorResponse = createErrorResponse(
         'MISSING_REQUIRED_FIELD',
-        'Value is required'
+        'Username and password are required'
       );
       return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
-    const numericValue = parseFloat(value);
-    if (isNaN(numericValue) || numericValue < 0 || numericValue > 100) {
+    // Get admin credentials from environment
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+
+    // Simple credential check (in production, use hashed passwords)
+    if (username !== adminUsername || password !== adminPassword) {
+      logger.warn('Failed admin login attempt', {
+        username,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
       const errorResponse = createErrorResponse(
-        'VALUE_OUT_OF_RANGE',
-        'Value must be a number between 0 and 100'
+        'INVALID_CREDENTIALS',
+        'Invalid username or password'
       );
       return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
-    // Update farming yield
-    farmingYield = {
-      value: numericValue,
-      lastUpdated: new Date(),
-      updatedBy
-    };
-
-    logger.info('Farming yield updated', {
-      newValue: numericValue,
-      updatedBy,
-      timestamp: farmingYield.lastUpdated
-    });
-
-    /** @type {AdminConfig} */
-    const config = {
-      dohodnost: farmingYield.value.toString(),
-      lastUpdated: farmingYield.lastUpdated.toISOString(),
-      updatedBy: farmingYield.updatedBy
-    };
-
-    res.json({ success: true, data: config, message: 'Farming yield updated successfully' });
-  } catch (error) {
-    logger.error('Error updating farming yield:', error);
-    const errorResponse = createErrorResponse('FARMING_YIELD_ERROR');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/admin/users
- * Get list of users (placeholder implementation)
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.get('/users', (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
+    // Generate admin token (simple approach - in production use JWT)
+    const adminToken = process.env.ADMIN_TOKEN || 'default-admin-token';
     
-    logger.info('Fetching users list', { page, limit });
+    // In production, you might generate a unique token per session
+    // const adminToken = crypto.randomBytes(32).toString('hex');
 
-    // Placeholder data
-    const users = Array.from({ length: parseInt(limit) }, (_, i) => ({
-      id: `user-${(parseInt(page) - 1) * parseInt(limit) + i + 1}`,
-      address: `ST1${Math.random().toString(36).substring(2, 28).toUpperCase()}`,
-      lastSeen: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
-      messagesCount: Math.floor(Math.random() * 100),
-      ticketsCount: Math.floor(Math.random() * 5)
-    }));
+    logger.info('Successful admin login', {
+      username,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
 
     res.json({
       success: true,
       data: {
-        users,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: 1000, // Placeholder
-          totalPages: Math.ceil(1000 / parseInt(limit))
-        }
-      }
+        token: adminToken,
+        username: adminUsername,
+        role: 'admin',
+        expiresAt: null, // For now, tokens don't expire
+        loginAt: new Date().toISOString()
+      },
+      message: 'Login successful'
     });
+
   } catch (error) {
-    logger.error('Error fetching users:', error);
-    const errorResponse = createErrorResponse('STATS_ERROR', 'Failed to fetch users');
+    logger.error('Error in admin login', {
+      error: error.message,
+      stack: error.stack
+    });
+
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
     res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * POST /api/admin/broadcast
- * Send broadcast message (placeholder implementation)
+ * Admin profile endpoint
+ * GET /api/admin/profile
+ * @param {express.Request} req - Request object  
+ * @param {express.Response} res - Response object
+ */
+router.get('/profile', requireAdminAuth, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        username: process.env.ADMIN_USERNAME || 'admin',
+        role: 'admin',
+        permissions: ['tickets:read', 'tickets:write', 'tickets:delete', 'admin:manage'],
+        loginAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Error getting admin profile', {
+      error: error.message,
+      admin: req.admin
+    });
+
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * Verify admin token endpoint
+ * GET /api/admin/verify
  * @param {express.Request} req - Request object
  * @param {express.Response} res - Response object
  */
-router.post('/broadcast', async (req, res) => {
+router.get('/verify', requireAdminAuth, async (req, res) => {
   try {
-    const { message, language = 'en', targetUsers = [] } = req.body;
+    res.json({
+      success: true,
+      data: {
+        valid: true,
+        admin: req.admin,
+        verifiedAt: new Date().toISOString()
+      },
+      message: 'Token is valid'
+    });
+  } catch (error) {
+    logger.error('Error verifying admin token', {
+      error: error.message,
+      admin: req.admin
+    });
 
-    if (!message) {
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * Admin logout endpoint (optional - since tokens don't expire)
+ * POST /api/admin/logout
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.post('/logout', requireAdminAuth, async (req, res) => {
+  try {
+    logger.info('Admin logout', {
+      admin: req.admin,
+      ip: req.ip
+    });
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    logger.error('Error in admin logout', {
+      error: error.message,
+      admin: req.admin
+    });
+
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * Change admin password endpoint
+ * PUT /api/admin/password
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.put('/password', requireAdminAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
       const errorResponse = createErrorResponse(
         'MISSING_REQUIRED_FIELD',
-        'Message is required'
+        'Current password and new password are required'
       );
       return res.status(errorResponse.httpStatus).json(errorResponse);
     }
 
-    logger.info('Broadcasting message', {
-      messageLength: message.length,
-      language,
-      targetUsers: targetUsers.length || 'all'
+    // Verify current password
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    if (currentPassword !== adminPassword) {
+      const errorResponse = createErrorResponse(
+        'INVALID_CREDENTIALS',
+        'Current password is incorrect'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
+    // Note: In a real implementation, you would update the password in environment/database
+    // For now, just log the change attempt
+    logger.warn('Password change attempt - manual update required', {
+      admin: req.admin,
+      ip: req.ip
     });
 
-    // Placeholder implementation
-    // In real implementation, this would send messages via Socket.IO or other channels
-    
-    // Simulate processing
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const result = {
-      messageId: `msg-${Date.now()}`,
-      recipients: targetUsers.length || 1000,
-      language,
-      sentAt: new Date().toISOString()
-    };
-
-    res.json({ success: true, data: result, message: 'Broadcast sent successfully' });
-  } catch (error) {
-    logger.error('Error sending broadcast:', error);
-    const errorResponse = createErrorResponse('BROADCAST_ERROR');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/admin/system-info
- * Get system information
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.get('/system-info', (req, res) => {
-  try {
-    const systemInfo = {
-      nodeVersion: process.version,
-      uptime: process.uptime(),
-      memoryUsage: process.memoryUsage(),
-      cpuUsage: process.cpuUsage(),
-      platform: process.platform,
-      environment: process.env.NODE_ENV || 'development',
-      timestamp: new Date().toISOString()
-    };
-
-    res.json({ success: true, data: systemInfo });
-  } catch (error) {
-    logger.error('Error fetching system info:', error);
-    const errorResponse = createErrorResponse('SYSTEM_INFO_ERROR');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * POST /api/admin/cache/clear
- * Clear system cache (placeholder)
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.post('/cache/clear', (req, res) => {
-  try {
-    logger.info('Clearing system cache');
-
-    // Placeholder implementation
-    // In real app, this would clear actual caches
-    
-    res.json({ 
-      success: true, 
-      data: { clearedAt: new Date().toISOString() },
-      message: 'Cache cleared successfully'
+    res.json({
+      success: true,
+      message: 'Password change logged. Please update ADMIN_PASSWORD in environment variables.',
+      note: 'For security, password updates require manual environment variable changes.'
     });
+
   } catch (error) {
-    logger.error('Error clearing cache:', error);
-    const errorResponse = createErrorResponse('CACHE_CLEAR_ERROR');
+    logger.error('Error changing admin password', {
+      error: error.message,
+      admin: req.admin
+    });
+
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
     res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
