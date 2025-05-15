@@ -207,58 +207,13 @@ async function initializeServices() {
  * Setup middleware with FIXED CORS configuration 🍄
  */
 function setupMiddleware() {
-  // 🍄 DEBUG MIDDLEWARE - FIRST OF ALL! 
-  app.use((req, res, next) => {
-    console.log(`🔍 [${new Date().toLocaleTimeString()}] ${req.method} ${req.path} - BEFORE ALL MIDDLEWARE`);
-    if (req.method === 'OPTIONS') {
-      console.log(`🔥🔥🔥 OPTIONS REQUEST DETECTED AT TOP LEVEL! 🔥🔥🔥`);
-      console.log('Headers:', req.headers);
-    }
-    next();
-  });
-
-  // 🍄 Apply our custom CORS middleware - MOVED TO VERY FIRST!
+  // 🍄 Apply our custom CORS middleware FIRST
   app.use(corsMiddleware);
 
-  // Security middleware with updated CSP settings
+  // Security middleware with updated CSP settings for development
   const helmetConfig = {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          "cdnjs.cloudflare.com"
-        ],
-        styleSrc: [
-          "'self'"
-        ],
-        connectSrc: [
-          "'self'",
-          "ws://localhost:*", // Allow WebSocket connections
-          "wss://localhost:*"
-        ],
-        objectSrc: ["'none'"],
-        imageSrc: ["'self'", "data:", "https:"],
-        fontSrc: ["'self'", "https:", "data:"],
-        frameSrc: ["'self'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"]
-      }
-    }
+    contentSecurityPolicy: false // Disable CSP in development for testing
   };
-
-  // Use different CSP settings based on environment
-  if (process.env.NODE_ENV === 'development') {
-    // Add some development-specific permissions
-    helmetConfig.contentSecurityPolicy.directives.connectSrc.push(
-      "ws://localhost:*",
-      "wss://localhost:*",
-      "http://localhost:*"
-    );
-    
-    // Allow inline styles only in development for test pages
-    helmetConfig.contentSecurityPolicy.directives.styleSrc.push("'unsafe-inline'");
-  }
 
   app.use(helmet(helmetConfig));
 
@@ -303,17 +258,8 @@ function setupMiddleware() {
   });
 
   app.get('/test-cors', (req, res) => {
-    // Try server/static first, then fallback to client if needed
-    const serverPath = path.join(__dirname, 'static/test-cors.html');
-    const clientPath = path.join(__dirname, '../client/test-cors.html');
-    
-    require('fs').access(serverPath, require('fs').constants.F_OK, (err) => {
-      if (err) {
-        res.sendFile(clientPath);
-      } else {
-        res.sendFile(serverPath);
-      }
-    });
+    // Always use client version for consistency
+    res.sendFile(path.join(__dirname, '../client/test-cors.html'));
   });
 }
 
