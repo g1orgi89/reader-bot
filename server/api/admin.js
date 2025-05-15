@@ -275,6 +275,169 @@ router.get('/tickets', requireAdminAuth, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/tickets
+ * Create a new ticket (admin endpoint)
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.post('/tickets', requireAdminAuth, async (req, res) => {
+  try {
+    logger.info('Admin creating new ticket', { admin: req.admin?.id });
+
+    const { title, description, priority, category, userId, email } = req.body;
+
+    // Validation
+    if (!title || !description) {
+      const errorResponse = createErrorResponse(
+        'MISSING_REQUIRED_FIELD',
+        'Title and description are required'
+      );
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
+    // Get ticket service
+    const ServiceManager = require('../core/ServiceManager');
+    const ticketService = ServiceManager.get('ticketService');
+
+    // Create ticket data
+    const ticketData = {
+      userId: userId || `admin-created-${Date.now()}`,
+      title,
+      description,
+      priority: priority || 'medium',
+      category: category || 'general',
+      email: email || '',
+      source: 'admin',
+      assignedTo: req.admin?.id || 'admin',
+      status: 'open'
+    };
+
+    // Create the ticket
+    const ticket = await ticketService.createTicket(ticketData);
+
+    logger.info('Admin created ticket successfully', {
+      ticketId: ticket.ticketId,
+      admin: req.admin?.id
+    });
+
+    res.json({
+      success: true,
+      data: ticket,
+      message: 'Ticket created successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error creating ticket via admin endpoint', {
+      error: error.message,
+      admin: req.admin?.id
+    });
+
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to create ticket');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * PUT /api/admin/tickets/:ticketId
+ * Update a ticket (admin endpoint)
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.put('/tickets/:ticketId', requireAdminAuth, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const updateData = req.body;
+
+    logger.info('Admin updating ticket', {
+      ticketId,
+      admin: req.admin?.id
+    });
+
+    // Get ticket service
+    const ServiceManager = require('../core/ServiceManager');
+    const ticketService = ServiceManager.get('ticketService');
+
+    // Update the ticket
+    const updatedTicket = await ticketService.updateTicket(ticketId, updateData);
+
+    if (!updatedTicket) {
+      const errorResponse = createErrorResponse('NOT_FOUND', 'Ticket not found');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
+    logger.info('Admin updated ticket successfully', {
+      ticketId,
+      admin: req.admin?.id
+    });
+
+    res.json({
+      success: true,
+      data: updatedTicket,
+      message: 'Ticket updated successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error updating ticket via admin endpoint', {
+      error: error.message,
+      ticketId: req.params.ticketId,
+      admin: req.admin?.id
+    });
+
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to update ticket');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * DELETE /api/admin/tickets/:ticketId
+ * Delete a ticket (admin endpoint)
+ * @param {express.Request} req - Request object
+ * @param {express.Response} res - Response object
+ */
+router.delete('/tickets/:ticketId', requireAdminAuth, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+
+    logger.info('Admin deleting ticket', {
+      ticketId,
+      admin: req.admin?.id
+    });
+
+    // Get ticket service
+    const ServiceManager = require('../core/ServiceManager');
+    const ticketService = ServiceManager.get('ticketService');
+
+    // Delete the ticket
+    const deletedTicket = await ticketService.deleteTicket(ticketId);
+
+    if (!deletedTicket) {
+      const errorResponse = createErrorResponse('NOT_FOUND', 'Ticket not found');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+
+    logger.info('Admin deleted ticket successfully', {
+      ticketId,
+      admin: req.admin?.id
+    });
+
+    res.json({
+      success: true,
+      message: 'Ticket deleted successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error deleting ticket via admin endpoint', {
+      error: error.message,
+      ticketId: req.params.ticketId,
+      admin: req.admin?.id
+    });
+
+    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to delete ticket');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
  * GET /api/admin/tickets/stats
  * Get ticket statistics (admin endpoint)
  * @param {express.Request} req - Request object
