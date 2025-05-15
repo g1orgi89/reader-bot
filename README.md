@@ -1,240 +1,195 @@
-# 🍄 Shrooms AI Support Bot
+# Shrooms Support Bot 🍄
 
-AI-powered support bot for the Shrooms Web3 platform with mushroom-themed personality and RAG capabilities.
+AI Support Bot для проекта "Shrooms" с грибной тематикой, построенный на базе Claude API с поддержкой RAG.
 
-## 🚀 Quick Start
+## 🚀 Быстрый старт
 
-### Prerequisites
+### Предварительные требования
 
-- Node.js 18.x or higher
-- MongoDB (local or cloud)
-- Qdrant (optional, for RAG features)
-- Anthropic API key
+1. **Node.js 18+** и **npm**
+2. **MongoDB** (локально или в облаке)
+3. **API ключ Anthropic Claude** (обязательно)
+4. **Qdrant** (опционально, для RAG)
+5. **OpenAI API ключ** (опционально, для эмбеддингов)
 
-### Installation
+### Установка
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/g1orgi89/shrooms-support-bot.git
-   cd shrooms-support-bot
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Setup environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` file with your configuration:
-   ```env
-   # Essential Configuration
-   ANTHROPIC_API_KEY=your-anthropic-api-key
-   MONGODB_URI=mongodb://localhost:27017/shrooms-support
-   OPENAI_API_KEY=your-openai-api-key  # Optional, for RAG
-   ```
-
-4. **Setup MongoDB**
-   
-   **Option A: Local MongoDB**
-   ```bash
-   # Install MongoDB (Ubuntu/Debian)
-   sudo apt update
-   sudo apt install mongodb
-   sudo systemctl start mongodb
-   sudo systemctl enable mongodb
-   ```
-   
-   **Option B: MongoDB Atlas (Cloud)**
-   - Create account at [MongoDB Atlas](https://www.mongodb.com/atlas)
-   - Create a cluster
-   - Get connection string and update `MONGODB_URI` in `.env`
-
-5. **Setup Qdrant (Optional, for RAG)**
-   ```bash
-   # Using Docker
-   docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant
-   ```
-
-6. **Start the server**
-   ```bash
-   npm start
-   ```
-
-## 🐛 Troubleshooting Database Connection
-
-If you see the error:
-```
-[ERROR] ❌ Database connection failed: {}
+1. **Клонируйте репозиторий:**
+```bash
+git clone https://github.com/g1orgi89/shrooms-support-bot.git
+cd shrooms-support-bot
 ```
 
-### Solution 1: Check MongoDB Service
+2. **Установите зависимости:**
+```bash
+npm install
+```
+
+3. **Настройте переменные окружения:**
+```bash
+cp .env.example .env
+```
+
+Отредактируйте `.env` файл и добавьте как минимум:
+```env
+MONGODB_URI=mongodb://localhost:27017/shrooms-support
+ANTHROPIC_API_KEY=ваш_ключ_claude_api
+```
+
+4. **Убедитесь, что MongoDB запущен**
+
+5. **Запустите бота:**
+```bash
+npm start
+```
+
+## 🔧 Конфигурация
+
+### Обязательные настройки
+
+- `MONGODB_URI` - URI подключения к MongoDB
+- `ANTHROPIC_API_KEY` - API ключ Claude (получить на [console.anthropic.com](https://console.anthropic.com))
+
+### Дополнительные настройки
+
+- `OPENAI_API_KEY` - для эмбеддингов и RAG
+- `VECTOR_DB_URL` - URL Qdrant для векторного поиска (по умолчанию `http://localhost:6333`)
+- `ENABLE_RAG` - включить/выключить RAG функциональность (по умолчанию `true`)
+
+## 📋 Команды
 
 ```bash
-# Check if MongoDB is running
-sudo systemctl status mongodb
+# Разработка
+npm run dev              # Запуск в режиме разработки с автоперезагрузкой
+npm run dev:debug        # Запуск с отладкой
 
-# If not running, start it
-sudo systemctl start mongodb
+# Тестирование
+npm test                 # Запуск всех тестов
+npm run test:db          # Тест подключения к MongoDB
+npm run test:claude      # Тест Claude API
 
-# Enable auto-start on boot
-sudo systemctl enable mongodb
+# Данные
+npm run load-kb          # Загрузка базы знаний в векторную БД
+
+# Продакшн
+npm run start:prod       # Запуск в production режиме
 ```
 
-### Solution 2: Test Connection Manually
+## 🧪 Тестирование
 
+### 1. Тест MongoDB соединения
 ```bash
-# Test MongoDB connection
-mongosh mongodb://localhost:27017/shrooms-support
-
-# Or use the included test script
 npm run test:db
 ```
 
-### Solution 3: Use MongoDB Atlas
+### 2. Тест веб-интерфейса
+Запустите сервер и откройте в браузере:
+- http://localhost:3000/test-chat.html
 
-1. Create free account at [MongoDB Atlas](https://www.mongodb.com/atlas)
-2. Create a cluster
-3. Get connection string (like `mongodb+srv://...`)
-4. Update `.env` file:
-   ```env
-   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/shrooms-support
-   ```
-
-### Solution 4: Docker MongoDB
-
+### 3. Тест API
 ```bash
-# Run MongoDB in Docker
-docker run -d --name mongodb -p 27017:27017 mongo:latest
-
-# Update .env to point to Docker instance
-MONGODB_URI=mongodb://localhost:27017/shrooms-support
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Привет!", "userId": "test-user"}'
 ```
 
-## 🏗️ Architecture
-
-The bot follows a modular architecture with:
-
-- **API Layer**: REST endpoints for chat, tickets, knowledge management
-- **Services**: Business logic for Claude AI, vector search, database operations
-- **Models**: MongoDB schemas for conversations, messages, tickets
-- **Real-time**: Socket.IO for live chat functionality
-
-## 📁 Project Structure
+## 🏗️ Архитектура
 
 ```
 shrooms-support-bot/
-├── server/
-│   ├── api/           # REST API routes
-│   ├── config/        # Configuration and prompts
-│   ├── models/        # MongoDB models
-│   ├── services/      # Business logic services
-│   ├── types/         # JSDoc type definitions
-│   ├── utils/         # Utility functions
-│   └── index.js       # Main server file
-├── client/            # Frontend chat widget
-├── knowledge/         # Knowledge base documents
-├── scripts/           # Utility scripts
-└── docs/             # Documentation
+├── server/              # Серверная часть
+│   ├── api/            # REST API эндпоинты
+│   ├── services/       # Бизнес-логика
+│   ├── models/         # Модели данных
+│   ├── middleware/     # Express middleware
+│   ├── utils/          # Утилиты
+│   └── types/          # TypeScript типы (JSDoc)
+├── client/             # Клиентская часть
+├── tests/              # Тесты
+└── scripts/            # Скрипты для обслуживания
 ```
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-npm test
-
-# Test database connection
-npm run test:db
-
-# Test Claude API
-npm run test:claude
-
-# Run core functionality test
-npm run test:core
-```
-
-## 📝 Configuration
-
-Key configuration options in `.env`:
-
-```env
-# Core Settings
-NODE_ENV=development
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/shrooms-support
-
-# Claude AI
-ANTHROPIC_API_KEY=your-key-here
-CLAUDE_MODEL=claude-3-haiku-20240307
-CLAUDE_MAX_TOKENS=1000
-
-# Features
-ENABLE_RAG=true        # Enable knowledge base search
-ENABLE_ANALYTICS=false # Enable usage analytics
-ENABLE_METRICS=true    # Enable performance metrics
-
-# Languages
-DEFAULT_LANGUAGE=en
-SUPPORTED_LANGUAGES=en,es,ru
-```
-
-## 🍄 Mushroom Personality
-
-The bot uses a unique "mushroom AI" personality with:
-
-- Gribo-terminology for crypto concepts
-- Multi-language support (EN, ES, RU)
-- Context-aware responses
-- Automatic ticket creation for complex issues
 
 ## 🔌 API Endpoints
 
-- `GET /api/health` - Health check
-- `POST /api/chat/message` - Send chat message
-- `GET /api/tickets` - List support tickets
-- `POST /api/knowledge` - Add knowledge document
-- `GET /api/metrics` - Performance metrics
+### Chat API
+- `POST /api/chat` - Отправка сообщения
+- `GET /api/chat/conversations/:userId` - Получение разговоров
+- `GET /api/chat/health` - Проверка здоровья API
 
-## 🚀 Deployment
+### Tickets API
+- `GET /api/tickets` - Получение списка тикетов
+- `POST /api/tickets` - Создание тикета
+- `GET /api/tickets/:id` - Получение тикета
 
-### Docker Deployment
+## 📊 Мониторинг
 
+- **Health Check**: `GET /api/health`
+- **Логи**: Доступны в папке `logs/`
+- **Метрики**: Встроенный дашборд (если включен)
+
+## 🔍 Устранение проблем
+
+### Ошибки подключения к MongoDB
+
+1. Убедитесь, что MongoDB запущен:
 ```bash
-# Build and run with Docker Compose
-docker-compose up -d
+# MongoDB Community
+sudo systemctl start mongod
+
+# MongoDB в Docker
+docker run -d -p 27017:27017 mongo:latest
 ```
 
-### Production Setup
+2. Проверьте URI подключения в `.env`
 
-1. Set `NODE_ENV=production`
-2. Use environment-specific `.env` file
-3. Setup proper logging
-4. Configure reverse proxy (Nginx)
-5. Enable SSL/HTTPS
+### Ошибки Claude API
 
-## 🤝 Contributing
+1. Проверьте корректность API ключа
+2. Убедитесь, что у вас есть кредиты в аккаунте Anthropic
+3. Проверьте лимиты запросов
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+### RAG не работает
 
-## 📄 License
+1. Убедитесь, что Qdrant запущен:
+```bash
+docker run -p 6333:6333 qdrant/qdrant
+```
 
-MIT License - see [LICENSE](LICENSE) file
+2. Проверьте переменную `ENABLE_RAG=true`
+3. Добавьте `OPENAI_API_KEY` для генерации эмбеддингов
 
-## 🔗 Links
+## 🔒 Безопасность
 
-- [Shrooms Project](https://shrooms.io)
-- [Anthropic Claude](https://www.anthropic.com/claude)
-- [MongoDB](https://www.mongodb.com)
-- [Qdrant](https://qdrant.tech)
+- API ключи хранятся в `.env` файле
+- Логи не содержат чувствительной информации
+- Rate limiting настроен по умолчанию
+
+## 📝 Логирование
+
+Логи сохраняются в папке `logs/`:
+- `combined.log` - все логи
+- `error.log` - только ошибки
+- `exceptions.log` - необработанные исключения
+
+## 🤝 Участие в разработке
+
+1. Форкните проект
+2. Создайте ветку для фичи (`git checkout -b feature/amazing-feature`)
+3. Закоммитьте изменения (`git commit -m 'Add amazing feature'`)
+4. Запушьте в ветку (`git push origin feature/amazing-feature`)
+5. Откройте Pull Request
+
+## 📄 Лицензия
+
+MIT License - см. файл [LICENSE](LICENSE)
+
+## 🐛 Сообщение об ошибках
+
+Если вы нашли ошибку, пожалуйста:
+1. Проверьте [существующие issues](https://github.com/g1orgi89/shrooms-support-bot/issues)
+2. Создайте новый issue с подробным описанием
+3. Приложите логи из `logs/error.log`
 
 ---
 
-Made with 🍄 by the Shrooms team
+**Создано с 🍄 для сообщества Shrooms**
