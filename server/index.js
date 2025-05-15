@@ -11,7 +11,7 @@ const path = require('path');
 
 // Middleware
 const logger = require('./utils/logger');
-const errorHandler = require('./middleware/errorHandler');
+const { errorHandler } = require('./middleware/errorHandler');
 
 // Routes
 const chatRoutes = require('./api/chat');
