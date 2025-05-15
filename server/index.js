@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Add Russian test page route
+ * Main server file for Shrooms Support Bot - Add static files support
  * @file server/index.js
  */
 
@@ -258,15 +258,18 @@ function setupMiddleware() {
   // General rate limiting for all API endpoints
   app.use('/api', generalLimiter);
 
-  // Static files - Updated to support test-chat.html
+  // Static files - Updated to support test pages from both client and server
   // Serve the entire client directory for development/testing
   app.use('/client', express.static(path.join(__dirname, '../client')));
+  
+  // Serve static files from server/static directory
+  app.use('/static', express.static(path.join(__dirname, 'static')));
   
   // Specific routes for components
   app.use('/widget', express.static(path.join(__dirname, '../client/chat-widget')));
   app.use('/admin', express.static(path.join(__dirname, '../client/admin-panel')));
   
-  // Serve test pages directly
+  // Serve test pages directly (priority order matters)
   app.get('/test-chat', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/test-chat.html'));
   });
@@ -276,7 +279,17 @@ function setupMiddleware() {
   });
 
   app.get('/test-cors', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/test-cors.html'));
+    // Try server/static first, then fallback to client if needed
+    const serverPath = path.join(__dirname, 'static/test-cors.html');
+    const clientPath = path.join(__dirname, '../client/test-cors.html');
+    
+    require('fs').access(serverPath, require('fs').constants.F_OK, (err) => {
+      if (err) {
+        res.sendFile(clientPath);
+      } else {
+        res.sendFile(serverPath);
+      }
+    });
   });
 }
 
