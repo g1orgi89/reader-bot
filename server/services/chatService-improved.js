@@ -1,6 +1,5 @@
 /**
- * Улучшенный сервис обработки чата с диагностикой
- * Интегрирует автоматическую диагностику проблем перед созданием тикетов
+ * Улучшенный сервис обработки чата с диагностикой и проверкой тем
  * @file server/services/chatService-improved.js
  */
 
@@ -10,7 +9,7 @@ const ticketService = require('./ticketing');
 const diagnosticsService = require('./diagnostics');
 const languageDetect = require('../utils/languageDetect');
 const logger = require('../utils/logger');
-const { GREETING_TEMPLATES, BOT_NAME } = require('../config/prompts-fixed');
+const { GREETING_TEMPLATES, BOT_NAME, OFF_TOPIC_RESPONSES } = require('../config/prompts-fixed');
 
 /**
  * @typedef {Object} ChatMessage
@@ -37,6 +36,93 @@ class ChatService {
   constructor() {
     this.conversationContexts = new Map(); // Хранение контекстов разговоров
     this.userSessions = new Map(); // Сессии пользователей
+    
+    // Ключевые слова для определения тем связанных с Shrooms
+    this.shroomsKeywords = {
+      en: [
+        'shrooms', 'mushroom', 'fungal', 'mycelium', 'spores', 'sporus',
+        'staking', 'farming', 'harvest', 'tokonomics', 'token',
+        'xverse', 'hiro', 'wallet', 'stx', 'stacks', 'connect',
+        'transaction', 'transfer', 'balance', 'sip-010'
+      ],
+      ru: [
+        'shrooms', 'шрумс', 'грибы', 'грибной', 'мицелий', 'споры', 'спорус',
+        'стейк', 'фарминг', 'урожай', 'токеномика', 'токен',
+        'xverse', 'hiro', 'кошелек', 'stx', 'stacks', 'подключ',
+        'транзакц', 'перевод', 'баланс', 'корзинка', 'грибница'
+      ],
+      es: [
+        'shrooms', 'hongo', 'fúngico', 'micelio', 'esporas', 'sporus',
+        'staking', 'farming', 'cosecha', 'tokenómica', 'token',
+        'xverse', 'hiro', 'cartera', 'billetera', 'stx', 'stacks', 'conectar',
+        'transacción', 'transferencia', 'balance'
+      ]
+    };
+    
+    // Слова и фразы, указывающие на офф-топик
+    this.offTopicPatterns = {
+      en: [
+        /bitcoin(?!.*shrooms)/i, /btc(?!.*shrooms)/i,
+        /ethereum(?!.*shrooms)/i, /eth(?!.*shrooms)/i,
+        /dogecoin/i, /doge/i, /cardano/i, /ada/i,
+        /how.*life/i, /what.*weather/i, /tell.*joke/i,
+        /news(?!.*shrooms)/i, /politics/i, /sports/i,
+        /stock market/i, /forex/i, /real estate/i
+      ],
+      ru: [
+        /биткоин(?!.*shrooms)/i, /биткойн(?!.*shrooms)/i,
+        /эфириум(?!.*shrooms)/i, /эфир(?!.*shrooms)/i,
+        /догекоин/i, /кардано/i,
+        /как.*жизнь/i, /какая.*погода/i, /расскажи.*анекдот/i,
+        /новости(?!.*shrooms)/i, /политика/i, /спорт/i,
+        /фондовый.*рынок/i, /форекс/i, /недвижимость/i
+      ],
+      es: [
+        /bitcoin(?!.*shrooms)/i, /btc(?!.*shrooms)/i,
+        /ethereum(?!.*shrooms)/i, /eth(?!.*shrooms)/i,
+        /dogecoin/i, /cardano/i,
+        /cómo.*vida/i, /qué.*tiempo/i, /cuenta.*chiste/i,
+        /noticias(?!.*shrooms)/i, /política/i, /deportes/i,
+        /mercado.*valores/i, /forex/i, /bienes.*raíces/i
+      ]
+    };
+  }
+
+  /**
+   * Проверяет, относится ли сообщение к проекту Shrooms
+   * @param {string} message - Сообщение пользователя
+   * @param {string} language - Язык сообщения
+   * @returns {boolean} Относится ли к Shrooms
+   */
+  isAboutShrooms(message, language) {
+    const messageLower = message.toLowerCase();
+    
+    // Проверяем наличие ключевых слов Shrooms
+    const shroomsWords = this.shroomsKeywords[language] || this.shroomsKeywords.en;
+    const hasShroomsKeywords = shroomsWords.some(keyword => 
+      messageLower.includes(keyword.toLowerCase())
+    );
+    
+    // Проверяем паттерны офф-топик
+    const offTopicPatterns = this.offTopicPatterns[language] || this.offTopicPatterns.en;
+    const isOffTopic = offTopicPatterns.some(pattern => pattern.test(messageLower));
+    
+    // Короткие сообщения считаем нейтральными (приветствия и т.д.)
+    if (message.trim().length <= 10) {
+      return true;
+    }
+    
+    // Если есть офф-топик паттерны и нет ключевых слов Shrooms - это офф-топик
+    if (isOffTopic && !hasShroomsKeywords) {
+      return false;
+    }
+    
+    // Если нет ключевых слов Shrooms в длинном сообщении - возможно офф-топик
+    if (message.length > 50 && !hasShroomsKeywords) {
+      return false;
+    }
+    
+    return true;
   }
 
   /**
@@ -58,6 +144,11 @@ class ChatService {
       // Проверяем, является ли это первое сообщение
       if (context.messages.length === 0) {
         return this.handleFirstMessage(message, userId, context, language);
+      }
+      
+      // Проверяем, относится ли сообщение к теме Shrooms
+      if (!this.isAboutShrooms(message, language)) {
+        return this.handleOffTopicMessage(message, userId, context, language);
       }
       
       // Добавляем сообщение пользователя в контекст
@@ -129,7 +220,8 @@ class ChatService {
           tokensUsed: claudeResponse.tokensUsed || 0,
           problemType: diagnosis.problemType,
           searchResultsFound: searchResults.length,
-          responseGenerated: new Date().toISOString()
+          responseGenerated: new Date().toISOString(),
+          onTopic: true
         }
       };
       
@@ -137,6 +229,37 @@ class ChatService {
       logger.error(`ChatService error: ${error.message}`);
       return this.handleError(error, language);
     }
+  }
+
+  /**
+   * Обрабатывает офф-топик сообщения
+   * @param {string} message - Сообщение пользователя
+   * @param {string} userId - ID пользователя
+   * @param {Object} context - Контекст разговора
+   * @param {string} language - Язык
+   * @returns {Promise<ChatResponse>} Ответ
+   */
+  async handleOffTopicMessage(message, userId, context, language) {
+    const offTopicResponse = OFF_TOPIC_RESPONSES[language] || OFF_TOPIC_RESPONSES.en;
+    
+    // Добавляем сообщения в контекст
+    context.messages.push(
+      { role: 'user', content: message, timestamp: new Date() },
+      { role: 'assistant', content: offTopicResponse, timestamp: new Date(), offTopic: true }
+    );
+    
+    logger.info(`Off-topic message detected: ${message.substring(0, 50)}...`);
+    
+    return {
+      message: offTopicResponse,
+      ticketCreated: false,
+      ticketId: null,
+      language,
+      metadata: {
+        offTopic: true,
+        reason: 'Not related to Shrooms project'
+      }
+    };
   }
 
   /**
@@ -382,7 +505,8 @@ class ChatService {
         stats: {
           messagesCount: 0,
           tokensUsed: 0,
-          ticketsCreated: 0
+          ticketsCreated: 0,
+          offTopicMessages: 0
         }
       };
       
@@ -451,12 +575,14 @@ class ChatService {
       conversations: acc.conversations + 1,
       messages: acc.messages + context.stats.messagesCount,
       tokensUsed: acc.tokensUsed + context.stats.tokensUsed,
-      ticketsCreated: acc.ticketsCreated + context.stats.ticketsCreated
+      ticketsCreated: acc.ticketsCreated + context.stats.ticketsCreated,
+      offTopicMessages: acc.offTopicMessages + context.stats.offTopicMessages
     }), {
       conversations: 0,
       messages: 0,
       tokensUsed: 0,
-      ticketsCreated: 0
+      ticketsCreated: 0,
+      offTopicMessages: 0
     });
     
     return totalStats;
