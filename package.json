@@ -13,8 +13,10 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:db": "node test-mongodb-simple.js",
+    "test:docker": "node test-mongodb-docker.js",
     "test:core": "node test-core.js",
     "test:claude": "node test-claude.js",
+    "diagnose": "node diagnose-mongodb.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "migrate": "node scripts/dbMigration.js",
@@ -68,13 +70,13 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "winston": "^3.11.0",
+    "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "pdf-parse": "^1.1.1",
     "xlsx": "^0.18.5",
     "pdfjs-dist": "^3.11.174",
     "express-validator": "^7.0.1",
-    "compression": "^1.7.4",
-    "morgan": "^1.10.0"
+    "compression": "^1.7.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
