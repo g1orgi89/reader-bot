@@ -7,7 +7,6 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -16,6 +15,9 @@ const mongoose = require('mongoose');
 const config = require('./config');
 const logger = require('./utils/logger');
 const ServiceManager = require('./core/ServiceManager');
+
+// Import custom CORS middleware 🍄
+const corsMiddleware = require('./middleware/cors');
 
 // Import rate limiting middleware
 const { 
@@ -36,10 +38,25 @@ const testRoutes = require('./api/test');
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
+
+// Configure Socket.IO with our CORS settings
 const io = socketIo(server, {
   cors: {
-    origin: config.CORS_ORIGIN,
-    methods: ['GET', 'POST']
+    origin: function(origin, callback) {
+      // Use same origin checking logic as our main CORS middleware
+      if (process.env.NODE_ENV === 'development') {
+        return callback(null, true);
+      }
+      const allowedOrigins = config.CORS_ORIGIN ? 
+        config.CORS_ORIGIN.split(',').map(o => o.trim()) :
+        ['http://localhost:3000'];
+      if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(null, false);
+    },
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
@@ -187,23 +204,10 @@ async function initializeServices() {
 }
 
 /**
- * Setup middleware with FIXED CORS configuration
+ * Setup middleware with FIXED CORS configuration 🍄
  */
 function setupMiddleware() {
-  // DEBUG LOGGING - FIRST THING TO CATCH EVERYTHING
-  app.use((req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      logger.info('🚨 OPTIONS REQUEST DETECTED', {
-        url: req.url,
-        origin: req.get('origin'),
-        method: req.get('access-control-request-method'),
-        headers: req.get('access-control-request-headers')
-      });
-    }
-    next();
-  });
-
-  // Security middleware - Updated CSP settings for external files
+  // Security middleware with updated CSP settings
   const helmetConfig = {
     contentSecurityPolicy: {
       directives: {
@@ -239,40 +243,14 @@ function setupMiddleware() {
       "http://localhost:*"
     );
     
-    // Allow inline styles only in development for Socket.IO test pages that might need them
+    // Allow inline styles only in development for test pages
     helmetConfig.contentSecurityPolicy.directives.styleSrc.push("'unsafe-inline'");
   }
 
   app.use(helmet(helmetConfig));
 
-  // IMPROVED CORS configuration - more explicit about allowed headers
-  app.use(cors({
-    origin: function (origin, callback) {
-      // Allow requests from any origin in development
-      // In production, specify exact domains
-      if (!origin || config.CORS_ORIGIN === '*') {
-        return callback(null, true);
-      }
-      const allowed = config.CORS_ORIGIN.split(',').map(o => o.trim());
-      if (allowed.includes(origin)) {
-        return callback(null, true);
-      }
-      callback(null, true); // For now, allow all origins
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Origin',
-      'X-Requested-With', 
-      'Content-Type',
-      'Accept',
-      'Authorization',
-      'Cache-Control',
-      'Pragma'
-    ],
-    optionsSuccessStatus: 200, // Some browsers (IE11) need 200 instead of 204
-    maxAge: 86400 // 24 hours
-  }));
+  // 🍄 Apply our custom CORS middleware - THIS IS THE FIX!
+  app.use(corsMiddleware);
 
   // Set default charset in Content-Type headers
   app.use((req, res, next) => {
@@ -548,7 +526,7 @@ async function startServer() {
     // 7. Start listening
     const PORT = config.PORT;
     server.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`, {
+      logger.info(`🍄 Shrooms Support Bot Server running on port ${PORT}`, {
         environment: config.NODE_ENV,
         pid: process.pid,
         testUrls: {
