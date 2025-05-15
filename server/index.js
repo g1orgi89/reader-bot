@@ -3,6 +3,9 @@
  * @file server/index.js
  */
 
+// Загружаем переменные окружения в самом начале
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -237,6 +240,12 @@ app.use((req, res) => {
 // Startup
 async function startServer() {
   try {
+    // Логируем переменные окружения для отладки
+    logger.info('Environment variables:');
+    logger.info(`NODE_ENV: ${process.env.NODE_ENV}`);
+    logger.info(`MONGODB_URI: ${process.env.MONGODB_URI}`);
+    logger.info(`PORT: ${process.env.PORT}`);
+    
     // Подключение к базе данных
     await dbService.connect();
     logger.info('Connected to MongoDB');
