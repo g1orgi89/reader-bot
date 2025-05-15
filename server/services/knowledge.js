@@ -1,5 +1,5 @@
 /**
- * Knowledge Base Service - Simple MongoDB Implementation
+ * Knowledge Base Service - Enhanced with combined search
  * @file server/services/knowledge.js
  */
 
@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 
 /**
  * @class KnowledgeService
- * @description Service for managing knowledge base without vector search
+ * @description Service for managing knowledge base with enhanced search
  */
 class KnowledgeService {
   /**
@@ -44,7 +44,9 @@ class KnowledgeService {
               content: 5,
               tags: 3
             },
-            name: 'knowledge_text_search'
+            name: 'knowledge_text_search',
+            default_language: 'none', // Support all languages
+            language_override: 'language'
           }
         );
         logger.info('Text search index created successfully');
@@ -56,7 +58,7 @@ class KnowledgeService {
       return {
         success: true,
         message: 'Knowledge service initialized',
-        type: 'mongodb'
+        type: 'mongodb-enhanced'
       };
     } catch (error) {
       logger.error('Knowledge service initialization failed:', error);
@@ -100,7 +102,7 @@ class KnowledgeService {
   }
 
   /**
-   * Search documents by text query
+   * Search documents by text query with enhanced multilingual support
    * @param {string} query - Search query
    * @param {Object} options - Search options
    * @param {string} [options.language] - Filter by language
@@ -108,6 +110,7 @@ class KnowledgeService {
    * @param {string[]} [options.tags] - Filter by tags
    * @param {number} [options.limit=10] - Maximum results
    * @param {number} [options.page=1] - Page number
+   * @param {boolean} [options.forceRegex=false] - Force regex search for Cyrillic
    * @returns {Promise<Object>} Search results
    */
   async search(query, options = {}) {
@@ -117,30 +120,55 @@ class KnowledgeService {
         category,
         tags = [],
         limit = 10,
-        page = 1
+        page = 1,
+        forceRegex = false
       } = options;
 
-      // Use MongoDB text search
-      const results = await KnowledgeDocument.searchText(query, {
-        language,
-        category,
-        tags,
-        limit,
-        page
-      });
+      // Check if query contains Cyrillic characters
+      const hasCyrillic = /[а-яё]/i.test(query);
+      
+      let results;
+      let searchType = 'text';
+
+      // Use regex search for Cyrillic text or if explicitly requested
+      if (hasCyrillic || forceRegex) {
+        searchType = 'regex';
+        results = await KnowledgeDocument.searchRegex(query, {
+          language,
+          category,
+          tags,
+          limit,
+          page
+        });
+      } else {
+        // Try combined search (text search with regex fallback)
+        results = await KnowledgeDocument.combinedSearch(query, {
+          language,
+          category,
+          tags,
+          limit,
+          page
+        });
+        
+        // If results came from regex fallback, update search type
+        if (results.length > 0 && !results[0].score) {
+          searchType = 'regex';
+        }
+      }
 
       const formattedResults = results.map(doc => ({
         ...doc.toPublicJSON(),
-        score: doc.score || 0
+        score: doc.score || null
       }));
 
-      logger.logKnowledgeSearch(query, formattedResults.length, 'text');
+      logger.logKnowledgeSearch(query, formattedResults.length, searchType);
 
       return {
         success: true,
         data: formattedResults,
         query,
-        count: formattedResults.length
+        count: formattedResults.length,
+        searchType
       };
     } catch (error) {
       logger.error('Knowledge search failed:', error);
@@ -338,7 +366,7 @@ class KnowledgeService {
   }
 
   /**
-   * Get relevant context for a query (simple text-based search)
+   * Get relevant context for a query (enhanced search)
    * @param {string} query - Search query
    * @param {Object} options - Search options
    * @param {string} [options.language] - Filter by language
@@ -353,7 +381,8 @@ class KnowledgeService {
       const searchResult = await this.search(query, {
         language,
         limit,
-        page: 1
+        page: 1,
+        forceRegex: /[а-яё]/i.test(query) // Force regex for Cyrillic
       });
 
       if (!searchResult.success) {
@@ -368,13 +397,15 @@ class KnowledgeService {
         title: doc.title,
         content: doc.content,
         category: doc.category,
-        score: doc.score
+        score: doc.score,
+        language: doc.language
       }));
 
       return {
         success: true,
         data: context,
-        count: context.length
+        count: context.length,
+        searchType: searchResult.searchType
       };
     } catch (error) {
       logger.error('Failed to get context for query:', error);
@@ -405,7 +436,7 @@ class KnowledgeService {
         status: 'healthy',
         message: 'Knowledge service is working',
         documentCount: testQuery,
-        type: 'mongodb'
+        type: 'mongodb-enhanced'
       };
     } catch (error) {
       logger.error('Knowledge service health check failed:', error);
