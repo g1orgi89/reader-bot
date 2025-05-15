@@ -1,5 +1,5 @@
 /**
- * Admin authentication routes with CORS preflight support
+ * Admin authentication routes with fixed ticket creation
  * @file server/api/admin.js
  */
 
@@ -309,17 +309,18 @@ router.post('/tickets', requireAdminAuth, async (req, res) => {
     const ServiceManager = require('../core/ServiceManager');
     const ticketService = ServiceManager.get('ticketService');
 
-    // Create ticket data
+    // Create ticket data - mapping title/description to subject/initialMessage
     const ticketData = {
       userId: userId || `admin-created-${Date.now()}`,
-      title,
-      description,
+      subject: title, // Map title to subject
+      initialMessage: description, // Map description to initialMessage
       priority: priority || 'medium',
       category: category || 'general',
       email: email || '',
       source: 'admin',
       assignedTo: req.admin?.id || 'admin',
-      status: 'open'
+      status: 'open',
+      language: 'en' // Add required language field
     };
 
     // Create the ticket
