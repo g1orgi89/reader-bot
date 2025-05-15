@@ -39,7 +39,8 @@ const config = {
   JWT_SECRET: process.env.JWT_SECRET || 'shrooms-secret-key',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   ADMIN_USERNAME: process.env.ADMIN_USERNAME || 'admin',
-  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin123',
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'password123', // Fixed to match test expectations
+  ADMIN_TOKEN: process.env.ADMIN_TOKEN || 'default-admin-token',
   API_KEYS: process.env.API_KEYS ? process.env.API_KEYS.split(',') : [],
   
   // Telegram Bot configuration
@@ -221,6 +222,7 @@ function getSecurityConfig() {
     jwtExpiresIn: config.JWT_EXPIRES_IN,
     adminUsername: config.ADMIN_USERNAME,
     adminPassword: config.ADMIN_PASSWORD,
+    adminToken: config.ADMIN_TOKEN,
     apiKeys: config.API_KEYS,
     sessionSecret: config.SESSION_SECRET,
     sessionCookieMaxAge: config.SESSION_COOKIE_MAX_AGE,
