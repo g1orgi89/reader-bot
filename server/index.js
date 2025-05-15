@@ -22,6 +22,9 @@ const config = require('./config');
 // 🍄 ГЛАВНОЕ ИЗМЕНЕНИЕ: Используем ServiceManager
 const ServiceManager = require('./core/ServiceManager');
 
+// 🍄 Import ServiceManager middleware
+const { createServiceManagerMiddleware } = require('./middleware/serviceManager');
+
 // Initialize logger
 let logger;
 try {
@@ -169,6 +172,9 @@ function setupMiddleware() {
   });
   app.use('/api/', limiter);
 
+  // 🍄 Apply ServiceManager middleware to inject services into req.services
+  app.use('/api/', createServiceManagerMiddleware(serviceManager));
+
   // Static file serving
   app.use('/client', express.static(path.join(__dirname, '../client')));
   app.use('/static', express.static(path.join(__dirname, 'static')));
@@ -253,7 +259,7 @@ function setupRoutes() {
     res.sendFile(path.join(__dirname, '../client/test-russian-search.html'));
   });
 
-  // API Routes - mount with proper error handling
+  // 🍄 API Routes - mount with proper error handling and ServiceManager middleware
   app.use('/api/chat', (req, res, next) => {
     try {
       chatRoutes(req, res, next);
