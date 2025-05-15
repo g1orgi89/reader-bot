@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Fixed CORS preflight
+ * Main server file for Shrooms Support Bot - Multiple OPTIONS handlers
  * @file server/index.js
  */
 
@@ -190,14 +190,30 @@ async function initializeServices() {
  * Setup middleware
  */
 function setupMiddleware() {
-  // CORS PREFLIGHT HANDLER - FIRST THING! Before any other middleware
+  // MULTIPLE OPTIONS HANDLERS - Try different approaches
+
+  // 1. Express OPTIONS method handler - VERY FIRST!
+  app.use('*', (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      logger.info('OPTIONS request caught by wildcard handler', { url: req.url });
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Max-Age', '86400');
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
+  // 2. Direct OPTIONS handler
   app.options('*', (req, res) => {
-    logger.debug('Handling OPTIONS preflight request', { url: req.url });
+    logger.info('OPTIONS request caught by options handler', { url: req.url });
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
     res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    res.header('Access-Control-Max-Age', '86400');
     res.sendStatus(200);
   });
 
@@ -242,9 +258,12 @@ function setupMiddleware() {
   }
 
   app.use(helmet(helmetConfig));
+
+  // CORS middleware - but maybe it's interfering
   app.use(cors({
     origin: config.CORS_ORIGIN,
-    credentials: true
+    credentials: true,
+    optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
   }));
 
   // Set default charset in Content-Type headers
@@ -320,6 +339,27 @@ function setupMiddleware() {
  * Setup API routes with specific rate limiters only
  */
 function setupRoutes() {
+  // Add MORE specific OPTIONS handlers for each API route
+  app.options('/api/*', (req, res) => {
+    logger.info('API OPTIONS request', { url: req.url });
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    res.sendStatus(200);
+  });
+
+  app.options('/api/admin/*', (req, res) => {
+    logger.info('Admin OPTIONS request', { url: req.url });
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    res.sendStatus(200);
+  });
+
   // Root route - API information
   app.get('/', (req, res) => {
     res.json({
