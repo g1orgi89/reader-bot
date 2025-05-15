@@ -1,6 +1,6 @@
 /**
  * 🍄 Shrooms AI Support Bot - Main Server Entry Point
- * Fully integrated with Claude, Vector DB, and all services
+ * Now with ServiceManager integration!
  * @file server/index.js
  */
 
@@ -19,6 +19,9 @@ const path = require('path');
 // Import configuration and utilities
 const config = require('./config');
 
+// 🍄 ГЛАВНОЕ ИЗМЕНЕНИЕ: Используем ServiceManager
+const ServiceManager = require('./core/ServiceManager');
+
 // Initialize logger
 let logger;
 try {
@@ -32,9 +35,6 @@ try {
     debug: console.log
   };
 }
-
-// Import services
-const databaseService = require('./services/database');
 
 // Import API routes
 let chatRoutes, ticketRoutes, adminRoutes, knowledgeRoutes;
@@ -73,6 +73,9 @@ const server = http.createServer(app);
 
 // Get PORT from config or environment
 const PORT = config.PORT || process.env.PORT || 3000;
+
+// 🍄 Initialize ServiceManager
+const serviceManager = new ServiceManager();
 
 /**
  * 🍄 Enhanced CORS Middleware - Handles all CORS issues
@@ -185,43 +188,21 @@ function setupMiddleware() {
  * Setup all API routes
  */
 function setupRoutes() {
-  // Health check - enhanced with service status
+  // Health check - with ServiceManager integration
   app.get('/api/health', async (req, res) => {
     try {
+      // 🍄 Используем ServiceManager для проверки здоровья
+      const healthStatus = await serviceManager.getHealthStatus();
+      const serviceStats = serviceManager.getServiceStats();
+      
       const health = {
-        status: 'ok',
+        status: healthStatus.allHealthy ? 'ok' : 'degraded',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development',
         version: '1.0.0',
-        services: {}
+        services: healthStatus.services,
+        serviceStats: serviceStats
       };
-      
-      // Check database connection
-      try {
-        const dbHealth = await databaseService.healthCheck();
-        health.services.database = dbHealth;
-      } catch (error) {
-        health.services.database = { status: 'error', message: error.message };
-        health.status = 'degraded';
-      }
-      
-      // Check vector store (if available)
-      try {
-        const { VectorStoreService } = require('./services/vectorStore');
-        const vectorStore = new VectorStoreService();
-        health.services.vectorStore = await vectorStore.healthCheck();
-      } catch (error) {
-        health.services.vectorStore = { status: 'unavailable', message: 'Not configured' };
-      }
-      
-      // Check Claude API (if available)
-      try {
-        const { ClaudeService } = require('./services/claude');
-        const claude = new ClaudeService();
-        health.services.claude = await claude.healthCheck();
-      } catch (error) {
-        health.services.claude = { status: 'unavailable', message: 'Not configured' };
-      }
       
       res.status(health.status === 'ok' ? 200 : 503).json(health);
     } catch (error) {
@@ -411,7 +392,7 @@ function setupSocket() {
     pingInterval: 25000
   });
 
-  // Socket.IO connection handling
+  // Socket.IO connection handling with ServiceManager
   io.on('connection', (socket) => {
     logger.info(`🍄 Socket connected: ${socket.id}`);
 
@@ -424,7 +405,7 @@ function setupSocket() {
       }
     });
 
-    // Handle incoming messages
+    // Handle incoming messages with ServiceManager
     socket.on('message', async (data) => {
       try {
         logger.info(`Message received via socket from ${socket.id}: ${data.message || '[no message]'}`);
@@ -436,9 +417,29 @@ function setupSocket() {
           timestamp: new Date().toISOString()
         });
         
-        // Here you can integrate with chat service
-        // const response = await chatService.processMessage(data);
-        // socket.emit('chatResponse', response);
+        // 🍄 Используем chatService через ServiceManager
+        try {
+          const chatService = serviceManager.getService('chat');
+          if (chatService) {
+            const response = await chatService.processMessage({
+              message: data.message,
+              userId: data.userId || socket.id,
+              conversationId: data.conversationId,
+              language: data.language
+            });
+            
+            socket.emit('chatResponse', response);
+          } else {
+            throw new Error('Chat service not available');
+          }
+        } catch (serviceError) {
+          logger.error(`Chat service error: ${serviceError.message}`);
+          socket.emit('chatResponse', {
+            success: false,
+            message: '🍄 Извините, сейчас грибной ИИ временно недоступен. Попробуйте через несколько минут!',
+            error: 'Service temporarily unavailable'
+          });
+        }
         
       } catch (error) {
         logger.error(`Socket message error: ${error.message}`);
@@ -475,33 +476,27 @@ function setupSocket() {
 }
 
 /**
- * Initialize database and services
+ * Initialize database and services with ServiceManager
  */
 async function initializeServices() {
-  logger.info('🍄 Initializing services...');
+  logger.info('🍄 Initializing services with ServiceManager...');
   
   try {
-    // Initialize database
-    await databaseService.initialize();
-    logger.info('✅ Database service initialized');
+    // 🍄 Инициализируем все сервисы через ServiceManager
+    await serviceManager.initializeAll();
+    logger.info('✅ All services initialized via ServiceManager');
+    
+    // Показать статус сервисов
+    const stats = serviceManager.getServiceStats();
+    logger.info('Service statistics:', stats);
+    
   } catch (error) {
-    logger.error(`❌ Database initialization failed: ${error.message}`);
-    logger.warn('⚠️ Continuing without database connection');
-  }
-  
-  // Initialize other services as needed
-  try {
-    // Vector store initialization would go here
-    logger.info('Vector store service available for initialization');
-  } catch (error) {
-    logger.warn(`Vector store not initialized: ${error.message}`);
-  }
-  
-  try {
-    // Claude service initialization would go here
-    logger.info('Claude service available for initialization');
-  } catch (error) {
-    logger.warn(`Claude service not initialized: ${error.message}`);
+    logger.error(`❌ Service initialization failed: ${error.message}`);
+    logger.warn('⚠️ Some services may not be available');
+    
+    // Показать какие сервисы не удалось инициализировать
+    const healthStatus = await serviceManager.getHealthStatus();
+    logger.info('Services health status:', healthStatus);
   }
 }
 
@@ -520,11 +515,11 @@ function setupGracefulShutdown() {
       }
       
       try {
-        // Close database connections
-        await databaseService.close();
-        logger.info('Database connections closed');
+        // 🍄 Закрыть все сервисы через ServiceManager
+        await serviceManager.closeAll();
+        logger.info('All services closed via ServiceManager');
       } catch (error) {
-        logger.error(`Error closing database: ${error.message}`);
+        logger.error(`Error closing services: ${error.message}`);
       }
       
       logger.info('Graceful shutdown completed');
@@ -560,7 +555,7 @@ function setupGracefulShutdown() {
  */
 async function startServer() {
   try {
-    logger.info('🍄 Starting Shrooms AI Support Bot server...');
+    logger.info('🍄 Starting Shrooms AI Support Bot server with ServiceManager...');
     
     // Setup in correct order
     setupMiddleware();
@@ -569,7 +564,7 @@ async function startServer() {
     setupSocket();
     setupGracefulShutdown();
     
-    // Initialize services
+    // Initialize services via ServiceManager
     await initializeServices();
     
     // Start listening
@@ -590,6 +585,9 @@ async function startServer() {
       logger.info(`🔧 Admin Panel: http://localhost:${PORT}/admin`);
       logger.info(`📚 API Documentation: http://localhost:${PORT}/`);
       logger.info('═══════════════════════════════════════');
+      logger.info('🍄 ServiceManager Status:');
+      logger.info(serviceManager.getServiceStats());
+      logger.info('═══════════════════════════════════════');
     });
     
   } catch (error) {
@@ -606,4 +604,4 @@ startServer().catch((error) => {
 });
 
 // Export for testing
-module.exports = { app, server };
+module.exports = { app, server, serviceManager };
