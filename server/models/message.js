@@ -1,51 +1,19 @@
 /**
- * Message model for Shrooms Support Bot
+ * Модель для сообщений в чате
  * @file server/models/message.js
  */
 
 const mongoose = require('mongoose');
 
 /**
- * @typedef {import('../types/index.js').MessageType} MessageType
- * @typedef {import('../types/index.js').MessageMetadata} MessageMetadata
- */
-
-/**
- * Message metadata schema
- */
-const messageMetadataSchema = new mongoose.Schema({
-  language: {
-    type: String,
-    enum: ['en', 'es', 'ru'],
-    index: true
-  },
-  tokensUsed: {
-    type: Number,
-    min: 0
-  },
-  sentiment: {
-    type: String,
-    enum: ['positive', 'negative', 'neutral']
-  },
-  createdTicket: {
-    type: Boolean,
-    default: false
-  },
-  ticketId: {
-    type: String,
-    index: true
-  }
-}, { _id: false });
-
-/**
- * Message schema definition
+ * Схема для сообщения
  */
 const messageSchema = new mongoose.Schema({
   text: {
     type: String,
     required: true,
     trim: true,
-    maxlength: 4000 // Reasonable limit for support messages
+    maxlength: 10000
   },
   role: {
     type: String,
@@ -65,110 +33,109 @@ const messageSchema = new mongoose.Schema({
     index: true
   },
   metadata: {
-    type: messageMetadataSchema,
-    default: () => ({})
-  }
+    language: {
+      type: String,
+      enum: ['en', 'es', 'ru'],
+      default: 'en'
+    },
+    tokensUsed: {
+      type: Number,
+      default: 0
+    },
+    sentiment: {
+      type: String,
+      enum: ['positive', 'negative', 'neutral'],
+      default: 'neutral'
+    },
+    createdTicket: {
+      type: Boolean,
+      default: false
+    },
+    ticketId: {
+      type: String
+    },
+    source: {
+      type: String,
+      enum: ['socket', 'api', 'telegram'],
+      default: 'socket'
+    },
+    additional: {
+      type: Object,
+      default: {}
+    }
+  },
+  isEdited: {
+    type: Boolean,
+    default: false
+  },
+  editHistory: [{
+    text: String,
+    editedAt: Date,
+    editedBy: String
+  }]
 }, {
   timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  collection: 'messages'
 });
 
-// Indexes for performance
-messageSchema.index({ createdAt: -1 });
+// Индексы
 messageSchema.index({ conversationId: 1, createdAt: 1 });
 messageSchema.index({ userId: 1, createdAt: -1 });
+messageSchema.index({ role: 1, createdAt: -1 });
 messageSchema.index({ 'metadata.language': 1, createdAt: -1 });
+messageSchema.index({ text: 'text' });
 
-// Virtual for ticket reference
-messageSchema.virtual('ticket', {
-  ref: 'Ticket',
-  localField: 'metadata.ticketId',
-  foreignField: 'ticketId',
-  justOne: true
+// Виртуальные поля
+messageSchema.virtual('wordCount').get(function() {
+  return this.text.split(/\s+/).length;
 });
 
-/**
- * Instance method to check if message created a ticket
- * @returns {boolean} Whether this message created a ticket
- */
-messageSchema.methods.hasCreatedTicket = function() {
-  return this.metadata && this.metadata.createdTicket === true && this.metadata.ticketId;
-};
+messageSchema.virtual('characterCount').get(function() {
+  return this.text.length;
+});
 
-/**
- * Instance method to format message for API response
- * @returns {Object} Formatted message object
- */
-messageSchema.methods.toApiResponse = function() {
-  return {
-    id: this._id,
-    text: this.text,
-    role: this.role,
-    userId: this.userId,
-    conversationId: this.conversationId,
-    metadata: this.metadata,
-    createdAt: this.createdAt,
-    updatedAt: this.updatedAt
-  };
-};
-
-/**
- * Static method to find messages by conversation
- * @param {string} conversationId - Conversation ID
- * @param {Object} options - Query options
- * @param {number} [options.limit=50] - Maximum number of messages to return
- * @param {number} [options.skip=0] - Number of messages to skip
- * @returns {Promise<Array<MessageType>>} Array of messages
- */
-messageSchema.statics.findByConversation = function(conversationId, options = {}) {
-  const { limit = 50, skip = 0 } = options;
-  
-  return this.find({ conversationId })
-    .sort({ createdAt: 1 })
-    .skip(skip)
-    .limit(limit)
-    .lean();
-};
-
-/**
- * Static method to get recent messages for a user
- * @param {string} userId - User ID
- * @param {Object} options - Query options
- * @param {number} [options.limit=20] - Maximum number of messages to return
- * @param {string} [options.language] - Filter by language
- * @returns {Promise<Array<MessageType>>} Array of recent messages
- */
-messageSchema.statics.findRecentByUser = function(userId, options = {}) {
-  const { limit = 20, language } = options;
-  const query = { userId };
-  
-  if (language) {
-    query['metadata.language'] = language;
+// Методы
+messageSchema.methods.edit = function(newText, editedBy) {
+  if (this.isEdited) {
+    this.editHistory.push({
+      text: this.text,
+      editedAt: new Date(),
+      editedBy: editedBy
+    });
+  } else {
+    this.editHistory.push({
+      text: this.text,
+      editedAt: this.createdAt,
+      editedBy: this.userId
+    });
   }
   
-  return this.find(query)
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .populate('conversationId')
-    .lean();
+  this.text = newText;
+  this.isEdited = true;
+  return this.save();
 };
 
-/**
- * Pre-save middleware to set default language if not provided
- */
+// Статические методы
+messageSchema.statics.findByConversation = function(conversationId, options = {}) {
+  const { limit = 50, skip = 0, sort = { createdAt: 1 } } = options;
+  return this.find({ conversationId })
+    .sort(sort)
+    .limit(limit)
+    .skip(skip);
+};
+
+messageSchema.statics.findRecentByUser = function(userId, limit = 10) {
+  return this.find({ userId })
+    .sort({ createdAt: -1 })
+    .limit(limit);
+};
+
+// Middleware
 messageSchema.pre('save', function(next) {
-  if (!this.metadata.language) {
-    // Default to English if not specified
-    this.metadata.language = 'en';
+  if (!this.metadata.language && this.text) {
+    this.metadata.language = 'en'; // По умолчанию
   }
   next();
 });
 
-/**
- * Model for Message documents
- * @type {mongoose.Model<MessageType>}
- */
-const Message = mongoose.model('Message', messageSchema);
-
-module.exports = Message;
+module.exports = mongoose.model('Message', messageSchema);
