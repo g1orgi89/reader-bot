@@ -32,6 +32,14 @@
             background-color: #333;
             color: #e0e0e0;
         }
+        select {
+            padding: 10px;
+            margin: 10px 5px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #333;
+            color: #e0e0e0;
+        }
         button {
             padding: 10px 20px;
             background-color: #39ff14;
@@ -40,6 +48,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
+            margin: 5px;
         }
         button:hover {
             background-color: #2dd10d;
@@ -61,6 +70,7 @@
             border-radius: 4px;
             overflow-x: auto;
             font-size: 12px;
+            white-space: pre-wrap;
         }
         .test-button {
             background-color: #8a2be2;
@@ -68,6 +78,10 @@
         }
         .test-button:hover {
             background-color: #7b25d3;
+        }
+        .loading {
+            color: #39ff14;
+            font-style: italic;
         }
     </style>
 </head>
@@ -84,15 +98,17 @@
             <option value="es">Spanish</option>
         </select>
         <br>
-        <button onclick="testSearch()">🔍 Search</button>
-        <button onclick="testCustom()">🧪 Test Custom</button>
+        <button type="button" onclick="testSearch()">🔍 Search</button>
+        <button type="button" onclick="testCustom()">🧪 Test Custom</button>
     </div>
 
     <div class="container">
         <h3>Predefined Tests</h3>
-        <button class="test-button" onclick="testRussianWords()">🇷🇺 Test Russian Words</button>
-        <button class="test-button" onclick="testEncoding()">📝 Test Encoding</button>
-        <button class="test-button" onclick="testAllDocuments()">📚 Get All Documents</button>
+        <button type="button" class="test-button" onclick="testRussianWords()">🇷🇺 Test Russian Words</button>
+        <button type="button" class="test-button" onclick="testEncoding()">📝 Test Encoding</button>
+        <button type="button" class="test-button" onclick="testAllDocuments()">📚 Get All Documents</button>
+        <button type="button" class="test-button" onclick="testSpecificWords()">🔍 Test Specific Russian Words</button>
+        <button type="button" class="test-button" onclick="clearResults()">🧹 Clear Results</button>
     </div>
 
     <div id="results"></div>
@@ -100,11 +116,31 @@
     <script>
         const API_BASE = window.location.origin;
         
+        function showResult(message, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${isError ? 'error' : ''}`;
+            
+            if (typeof message === 'string' && (message.startsWith('{') || message.startsWith('['))) {
+                resultDiv.innerHTML = `<pre>${message}</pre>`;
+            } else {
+                resultDiv.textContent = message;
+            }
+            
+            resultsDiv.appendChild(resultDiv);
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            showResult('🧹 Results cleared', false);
+        }
+        
         async function testSearch() {
             const query = document.getElementById('searchQuery').value;
             const language = document.getElementById('language').value;
             
-            showResult('Searching...', false);
+            showResult(`🔍 Searching for "${query}"... (language: ${language || 'any'})`, false);
             
             try {
                 const params = new URLSearchParams({ q: query });
@@ -115,8 +151,14 @@
                 
                 showResult(`Search Results for "${query}":`, false);
                 showResult(JSON.stringify(data, null, 2), false);
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    showResult(`✅ Found ${data.data.length} results using ${data.searchType || 'text'} search`, false);
+                } else {
+                    showResult(`❌ No results found`, true);
+                }
             } catch (error) {
-                showResult(`Error: ${error.message}`, true);
+                showResult(`❌ Error: ${error.message}`, true);
             }
         }
         
@@ -124,7 +166,7 @@
             const query = document.getElementById('searchQuery').value;
             const language = document.getElementById('language').value;
             
-            showResult('Testing custom search...', false);
+            showResult('🧪 Testing custom search (both text and regex)...', false);
             
             try {
                 const response = await fetch(`${API_BASE}/api/test/search-custom`, {
@@ -138,13 +180,18 @@
                 
                 showResult('Custom Search Test Results:', false);
                 showResult(JSON.stringify(data, null, 2), false);
+                
+                // Summary
+                const textResults = data.results?.textSearch?.count || 0;
+                const regexResults = data.results?.regexSearch?.count || 0;
+                showResult(`📊 Summary: Text search: ${textResults}, Regex search: ${regexResults}`, false);
             } catch (error) {
-                showResult(`Error: ${error.message}`, true);
+                showResult(`❌ Error: ${error.message}`, true);
             }
         }
         
         async function testRussianWords() {
-            showResult('Testing Russian words...', false);
+            showResult('🇷🇺 Testing Russian words...', false);
             
             try {
                 const response = await fetch(`${API_BASE}/api/test/search-russian`);
@@ -152,13 +199,22 @@
                 
                 showResult('Russian Search Test Results:', false);
                 showResult(JSON.stringify(data, null, 2), false);
+                
+                // Count successful searches
+                let successCount = 0;
+                if (data.results) {
+                    Object.values(data.results).forEach(result => {
+                        if (result.success && result.count > 0) successCount++;
+                    });
+                }
+                showResult(`📊 Summary: ${successCount} out of 4 Russian words found results`, false);
             } catch (error) {
-                showResult(`Error: ${error.message}`, true);
+                showResult(`❌ Error: ${error.message}`, true);
             }
         }
         
         async function testEncoding() {
-            showResult('Testing encoding...', false);
+            showResult('📝 Testing encoding...', false);
             
             try {
                 const response = await fetch(`${API_BASE}/api/test/encoding`);
@@ -166,44 +222,86 @@
                 
                 showResult('Encoding Test Results:', false);
                 showResult(JSON.stringify(data, null, 2), false);
+                showResult('✅ If you can see Russian text above, encoding works correctly!', false);
             } catch (error) {
-                showResult(`Error: ${error.message}`, true);
+                showResult(`❌ Error: ${error.message}`, true);
             }
         }
         
         async function testAllDocuments() {
-            showResult('Getting all documents...', false);
+            showResult('📚 Getting all documents...', false);
             
             try {
                 const response = await fetch(`${API_BASE}/api/knowledge`);
                 const data = await response.json();
                 
                 showResult(`Found ${data.data.length} documents:`, false);
+                
+                // Group by language
+                const byLanguage = {};
+                data.data.forEach(doc => {
+                    if (!byLanguage[doc.language]) byLanguage[doc.language] = [];
+                    byLanguage[doc.language].push(doc.title);
+                });
+                
+                showResult('Documents by language:', false);
+                showResult(JSON.stringify(byLanguage, null, 2), false);
+                
+                showResult('Full document data:', false);
                 showResult(JSON.stringify(data, null, 2), false);
             } catch (error) {
-                showResult(`Error: ${error.message}`, true);
+                showResult(`❌ Error: ${error.message}`, true);
             }
         }
         
-        function showResult(message, isError = false) {
-            const resultsDiv = document.getElementById('results');
-            const resultDiv = document.createElement('div');
-            resultDiv.className = `result ${isError ? 'error' : ''}`;
+        async function testSpecificWords() {
+            showResult('🔍 Testing specific Russian words individually...', false);
             
-            if (typeof message === 'string' && message.startsWith('{')) {
-                resultDiv.innerHTML = `<pre>${message}</pre>`;
-            } else {
-                resultDiv.textContent = message;
+            const testWords = [
+                { word: 'кошелек', lang: 'ru', desc: 'wallet in Russian' },
+                { word: 'Xverse', lang: 'ru', desc: 'Xverse in Russian docs' },
+                { word: 'проблемы', lang: 'ru', desc: 'problems in Russian' },
+                { word: 'подключение', lang: 'ru', desc: 'connection in Russian' },
+                { word: 'споры', lang: 'ru', desc: 'spores in Russian' }
+            ];
+            
+            for (const test of testWords) {
+                try {
+                    showResult(`Testing "${test.word}" (${test.desc})...`, false);
+                    
+                    const params = new URLSearchParams({ q: test.word, language: test.lang });
+                    const response = await fetch(`${API_BASE}/api/knowledge/search?${params}`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.data && data.data.length > 0) {
+                        showResult(`✅ "${test.word}": Found ${data.data.length} results`, false);
+                        data.data.forEach(doc => {
+                            showResult(`   - ${doc.title} (${doc.language})`, false);
+                        });
+                    } else {
+                        showResult(`❌ "${test.word}": No results found`, true);
+                    }
+                } catch (error) {
+                    showResult(`❌ "${test.word}": Error - ${error.message}`, true);
+                }
+                
+                // Add a small delay between requests
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
             
-            resultsDiv.appendChild(resultDiv);
-            resultDiv.scrollIntoView({ behavior: 'smooth' });
+            showResult('🏁 Specific word testing completed', false);
         }
         
         // Test on page load
         window.onload = function() {
             showResult('🍄 Russian Search Test Page Loaded', false);
-            showResult('Use the form above to test Russian search functionality', false);
+            showResult('Click the buttons above to test Russian search functionality', false);
+            
+            // Auto-test encoding on load
+            setTimeout(() => {
+                showResult('⏳ Auto-testing encoding...', false);
+                testEncoding();
+            }, 1000);
         };
     </script>
 </body>
