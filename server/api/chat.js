@@ -76,14 +76,20 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
     
     if (!claudeService) {
       logger.error('Claude service not available');
-      const errorResponse = createErrorResponse('CLAUDE_SERVICE_UNAVAILABLE');
-      return res.status(errorResponse.httpStatus).json(errorResponse);
+      return res.status(503).json({
+        success: false,
+        error: 'Claude service not available',
+        errorCode: 'CLAUDE_SERVICE_UNAVAILABLE'
+      });
     }
     
     if (!vectorStoreService) {
       logger.error('VectorStore service not available');
-      const errorResponse = createErrorResponse('VECTOR_SERVICE_UNAVAILABLE');
-      return res.status(errorResponse.httpStatus).json(errorResponse);
+      return res.status(503).json({
+        success: false,
+        error: 'VectorStore service not available',
+        errorCode: 'VECTOR_SERVICE_UNAVAILABLE'
+      });
     }
     
     // Auto-detect language if not provided
@@ -219,6 +225,7 @@ router.post('/message', validateChatMiddleware, async (req, res) => {
     
     /** @type {ChatResponse} */
     const response = {
+      success: true, // 🍄 Добавляем success: true
       message: claudeResponse.message,
       conversationId,
       messageId: assistantMessage.id,
