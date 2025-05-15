@@ -1,119 +1,66 @@
 /**
- * Simple MongoDB connection test script
+ * Simple test script for MongoDB connection and basic setup
  * @file test-mongodb-simple.js
  */
 
 const mongoose = require('mongoose');
+const logger = require('./server/utils/logger');
 
-async function testMongoConnection() {
-  console.log('🔍 Testing MongoDB connection...');
-  
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/shrooms-support';
-  console.log(`📡 Connecting to: ${uri}`);
-  
+async function testMongoDB() {
   try {
-    // Set a shorter timeout for testing
-    const options = {
+    console.log('🔍 Testing MongoDB connection...');
+    
+    // Подключаемся к MongoDB
+    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/shrooms-support';
+    await mongoose.connect(uri, {
       useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // 5 seconds timeout
-      socketTimeoutMS: 10000,
-      maxPoolSize: 1
-    };
+      useUnifiedTopology: true
+    });
     
-    console.log('⏳ Attempting connection...');
-    await mongoose.connect(uri, options);
+    console.log('✅ Connected to MongoDB successfully');
     
-    console.log('✅ Successfully connected to MongoDB!');
+    // Проверяем ping
+    await mongoose.connection.db.admin().ping();
+    console.log('✅ MongoDB ping successful');
     
-    // Test database operations
-    console.log('🔍 Testing database operations...');
-    const db = mongoose.connection.db;
+    // Получаем информацию о базе данных
+    const dbStats = await mongoose.connection.db.stats();
+    console.log(`📊 Database: ${mongoose.connection.name}`);
+    console.log(`📊 Collections: ${dbStats.collections}`);
+    console.log(`📊 Objects: ${dbStats.objects}`);
     
-    // Ping the database
-    await db.admin().ping();
-    console.log('✅ Database ping successful');
+    // Тестируем создание простого документа
+    const TestSchema = new mongoose.Schema({
+      message: String,
+      createdAt: { type: Date, default: Date.now }
+    });
     
-    // List collections
-    const collections = await db.listCollections().toArray();
-    console.log(`📁 Found ${collections.length} collections:`, 
-                collections.map(c => c.name).join(', ') || 'none');
+    const TestModel = mongoose.model('Test', TestSchema);
     
-    // Test writing
-    const testCollection = db.collection('connection_test');
-    const testDoc = { 
-      _id: 'test-connection',
-      timestamp: new Date(),
-      message: 'Connection test successful' 
-    };
+    const testDoc = new TestModel({
+      message: 'MongoDB connection test successful'
+    });
     
-    await testCollection.insertOne(testDoc);
-    console.log('✅ Test document inserted');
+    await testDoc.save();
+    console.log('✅ Test document created successfully');
     
-    // Test reading
-    const retrievedDoc = await testCollection.findOne({ _id: 'test-connection' });
-    console.log('✅ Test document retrieved:', retrievedDoc ? 'Found' : 'Not found');
+    // Удаляем тестовый документ
+    await TestModel.deleteOne({ _id: testDoc._id });
+    console.log('✅ Test document deleted successfully');
     
-    // Cleanup
-    await testCollection.deleteOne({ _id: 'test-connection' });
-    console.log('✅ Test document cleaned up');
-    
+    // Отключаемся
     await mongoose.disconnect();
     console.log('✅ Disconnected from MongoDB');
     
-    console.log('\n🎉 All tests passed! MongoDB is working correctly.');
+    console.log('\n🎉 MongoDB test completed successfully!\n');
     
   } catch (error) {
-    console.error('\n❌ MongoDB connection failed:');
-    console.error('Error:', error.message);
-    console.error('Code:', error.code);
-    
-    if (error.code === 'ECONNREFUSED') {
-      console.error('\n💡 Suggestions:');
-      console.error('1. Make sure MongoDB is running:');
-      console.error('   sudo systemctl start mongodb');
-      console.error('2. Check if MongoDB is installed:');
-      console.error('   mongosh --version');
-      console.error('3. Try using MongoDB Atlas (cloud):');
-      console.error('   https://www.mongodb.com/atlas');
-    } else if (error.code === 'ENOTFOUND') {
-      console.error('\n💡 Suggestions:');
-      console.error('1. Check your MONGODB_URI in .env file');
-      console.error('2. Make sure the hostname/port are correct');
-    } else if (error.code === 'EAUTH') {
-      console.error('\n💡 Suggestions:');
-      console.error('1. Check your username/password in MONGODB_URI');
-      console.error('2. Make sure the user has proper permissions');
-    }
-    
+    console.error('❌ MongoDB test failed:', error.message);
+    console.error('Stack:', error.stack);
     process.exit(1);
   }
 }
 
-// Check for MongoDB installation
-async function checkMongoInstallation() {
-  console.log('🔍 Checking MongoDB installation...');
-  
-  const { exec } = require('child_process');
-  const util = require('util');
-  const execPromise = util.promisify(exec);
-  
-  try {
-    const { stdout } = await execPromise('mongosh --version');
-    console.log('✅ MongoDB Shell found:', stdout.trim());
-  } catch (error) {
-    console.log('⚠️ MongoDB Shell not found. Installing MongoDB...');
-    console.log('Please run: sudo apt update && sudo apt install mongodb');
-  }
-}
-
-// Run the test
-async function main() {
-  console.log('🍄 Shrooms Support Bot - MongoDB Connection Test\n');
-  
-  await checkMongoInstallation();
-  console.log('');
-  await testMongoConnection();
-}
-
-main().catch(console.error);
+// Запускаем тест
+require('dotenv').config();
+testMongoDB();
