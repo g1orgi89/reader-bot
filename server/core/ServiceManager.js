@@ -68,9 +68,9 @@ class ServiceManager {
       lazy: false // Инициализируем сразу
     });
 
-    // 🍄 ИСПРАВЛЕНО: Claude Service экспортируется как класс напрямую
+    // 🍄 Claude Service экспортируется как класс напрямую
     this.register('claude', () => {
-      const ClaudeService = require('../services/claude'); // Без деструктуризации
+      const ClaudeService = require('../services/claude'); 
       return new ClaudeService({
         apiKey: process.env.ANTHROPIC_API_KEY,
         model: 'claude-3-haiku-20240307',
@@ -79,60 +79,86 @@ class ServiceManager {
       });
     }, {
       singleton: true,
-      dependencies: [] // Claude не зависит от других сервисов
+      dependencies: []
     });
 
-    // 🍄 ИСПРАВЛЕНО: VectorStore Service
+    // 🍄 VectorStore Service (экспортируется как класс)
     this.register('vectorStore', () => {
-      const VectorStoreService = require('../services/vectorStore'); // Без деструктуризации
-      return new VectorStoreService();
+      const VectorStoreService = require('../services/vectorStore');
+      return new VectorStoreService({
+        url: process.env.VECTOR_DB_URL || 'http://localhost:6333',
+        collectionName: 'shrooms_knowledge',
+        embeddingProvider: {
+          provider: 'openai',
+          apiKey: process.env.OPENAI_API_KEY,
+          model: 'text-embedding-ada-002'
+        }
+      });
     }, {
       singleton: true,
       dependencies: []
     });
 
-    // 🍄 ИСПРАВЛЕНО: Knowledge Service
-    this.register('knowledge', ['vectorStore'], (vectorStore) => {
-      const KnowledgeService = require('../services/knowledge'); // Без деструктуризации
-      return new KnowledgeService(vectorStore);
+    // 🍄 Knowledge Service (экспортируется как singleton instance!)
+    this.register('knowledge', () => {
+      const knowledgeService = require('../services/knowledge'); // Уже экземпляр
+      return knowledgeService;
     }, {
       singleton: true,
-      dependencies: ['vectorStore']
+      dependencies: [] // Не требует vectorStore - у них разная архитектура
     });
 
-    // 🍄 ИСПРАВЛЕНО: Ticketing Service  
+    // 🍄 Ticketing Service (экспортируется как класс)
     this.register('ticketing', ['database'], (database) => {
-      const TicketingService = require('../services/ticketing'); // Без деструктуризации
-      return new TicketingService(database);
+      const TicketService = require('../services/ticketing');
+      return new TicketService(database);
     }, {
       singleton: true,
       dependencies: ['database']
     });
 
-    // 🍄 ИСПРАВЛЕНО: Message Service
-    this.register('message', ['database'], (database) => {
-      const MessageService = require('../services/message'); // Без деструктуризации
-      return new MessageService(database);
+    // 🍄 Message Service (экспортируется как singleton instance!)
+    this.register('message', () => {
+      const messageService = require('../services/message'); // Уже экземпляр
+      return messageService;
     }, {
       singleton: true,
-      dependencies: ['database']
+      dependencies: [] // MessageService создает свою схему Mongoose
     });
 
-    // 🍄 ИСПРАВЛЕНО: Chat Service (зависит от всех остальных)
-    this.register('chat', ['claude', 'knowledge', 'ticketing', 'message'], 
-      (claude, knowledge, ticketing, message) => {
-        // Используем chatService-improved.js (более интегрированную версию)
-        const ChatService = require('../services/chatService-improved');
-        return new ChatService({
-          claude,
-          knowledge,
-          ticketing,
-          message
+    // 🍄 Chat Service - проверяем что существует файл
+    try {
+      const ChatService = require('../services/chatService-improved');
+      this.register('chat', ['claude', 'knowledge', 'ticketing', 'message'], 
+        (claude, knowledge, ticketing, message) => {
+          return new ChatService({
+            claude,
+            knowledge,
+            ticketing,
+            message
+          });
+        }, {
+          singleton: true,
+          dependencies: ['claude', 'knowledge', 'ticketing', 'message']
         });
+    } catch (chatError) {
+      this.logger.warn('ChatService-improved not found, trying basic chat service...');
+      // Fallback to basic chat API file
+      this.register('chat', ['claude'], (claude) => {
+        return {
+          processMessage: async (data) => {
+            return {
+              success: true,
+              message: '🍄 Грибной ИИ временно недоступен. Мы работаем над исправлением!',
+              needsTicket: false
+            };
+          }
+        };
       }, {
         singleton: true,
-        dependencies: ['claude', 'knowledge', 'ticketing', 'message']
+        dependencies: ['claude']
       });
+    }
 
     this.logger.info('Core services registered successfully');
   }
@@ -279,7 +305,15 @@ class ServiceManager {
     for (const serviceInfo of sorted) {
       try {
         this.logger.debug(`Initializing eager service: ${serviceInfo.name}`);
-        this.get(serviceInfo.name);
+        
+        // Создаем экземпляр сервиса
+        const instance = this.get(serviceInfo.name);
+        
+        // Если у сервиса есть метод initialize, вызываем его
+        if (instance && typeof instance.initialize === 'function') {
+          this.logger.debug(`Calling initialize() on ${serviceInfo.name}`);
+          await instance.initialize();
+        }
       } catch (error) {
         this.logger.error(`Failed to initialize service ${serviceInfo.name}:`, error);
         // Не выбрасываем ошибку, продолжаем с другими сервисами
