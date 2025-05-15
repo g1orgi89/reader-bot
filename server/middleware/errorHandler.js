@@ -1,80 +1,95 @@
 /**
- * Error handling middleware
+ * Middleware для обработки ошибок
  * @file server/middleware/errorHandler.js
  */
 
 const logger = require('../utils/logger');
+const { ERROR_CODES } = require('../types');
 
 /**
- * Global error handler middleware
- * @param {Error} err - Error object
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next function
+ * Обработчик ошибок
+ * @param {Error} err - Объект ошибки
+ * @param {Request} req - Объект запроса Express
+ * @param {Response} res - Объект ответа Express
+ * @param {Function} next - Следующий middleware
  */
 function errorHandler(err, req, res, next) {
-  // Log the error
-  logger.error('Error caught by middleware:', err);
+  // Логируем ошибку
+  logger.error('Error occurred:', {
+    error: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
 
-  // Set default error status and message
-  let status = err.status || err.statusCode || 500;
+  // Определяем статус код и тип ошибки
+  let statusCode = err.statusCode || err.status || 500;
+  let errorCode = err.code || ERROR_CODES.INTERNAL_SERVER_ERROR;
   let message = err.message || 'Internal Server Error';
-  let error = err.code || 'SERVER_ERROR';
 
-  // Handle specific error types
+  // Специфичные типы ошибок
   if (err.name === 'ValidationError') {
-    status = 400;
-    message = 'Validation Error';
-    error = 'VALIDATION_ERROR';
-  } else if (err.name === 'MongoError' || err.name === 'MongoServerError') {
-    status = 500;
-    message = 'Database Error';
-    error = 'DATABASE_ERROR';
+    statusCode = 400;
+    errorCode = ERROR_CODES.VALIDATION_ERROR;
+    message = 'Validation failed';
   } else if (err.name === 'CastError') {
-    status = 400;
-    message = 'Invalid ID format';
-    error = 'INVALID_ID';
-  } else if (err.name === 'UnauthorizedError') {
-    status = 401;
-    message = 'Unauthorized';
-    error = 'UNAUTHORIZED';
+    statusCode = 400;
+    errorCode = ERROR_CODES.INVALID_INPUT;
+    message = 'Invalid input format';
+  } else if (err.code === 11000) {
+    statusCode = 400;
+    errorCode = ERROR_CODES.DUPLICATE_ENTRY;
+    message = 'Duplicate entry';
+  } else if (err.name === 'MongoNetworkError') {
+    statusCode = 503;
+    errorCode = ERROR_CODES.DATABASE_CONNECTION_ERROR;
+    message = 'Database connection error';
+  } else if (err.message.includes('Claude')) {
+    statusCode = 503;
+    errorCode = ERROR_CODES.CLAUDE_API_ERROR;
+    message = 'AI service temporarily unavailable';
   }
 
-  // Create error response
+  // Формируем ответ об ошибке
   const errorResponse = {
     success: false,
-    error: error,
-    message: message
+    error: message,
+    code: errorCode,
+    timestamp: new Date().toISOString(),
+    path: req.path
   };
 
-  // Add stack trace in development mode
+  // В режиме разработки добавляем стек ошибки
   if (process.env.NODE_ENV === 'development') {
+    errorResponse.details = err.message;
     errorResponse.stack = err.stack;
-    errorResponse.details = err;
   }
 
-  // Send error response
-  res.status(status).json(errorResponse);
+  // Отправляем ответ
+  res.status(statusCode).json(errorResponse);
 }
 
 /**
- * Handle 404 errors
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next function
+ * Middleware для обработки несуществующих маршрутов
+ * @param {Request} req - Объект запроса Express
+ * @param {Response} res - Объект ответа Express
+ * @param {Function} next - Следующий middleware
  */
 function notFoundHandler(req, res, next) {
-  const error = new Error(`Not Found - ${req.originalUrl}`);
-  error.status = 404;
+  const error = new Error(`Route not found: ${req.originalUrl}`);
+  error.statusCode = 404;
+  error.code = ERROR_CODES.NOT_FOUND;
   next(error);
 }
 
 /**
- * Async error handler wrapper
- * @param {Function} fn - Async function to wrap
- * @returns {Function} Wrapped function
+ * Middleware для обработки асинхронных ошибок
+ * @param {Function} fn - Асинхронная функция
+ * @returns {Function} Обернутая функция
  */
-function asyncHandler(fn) {
+function asyncErrorHandler(fn) {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
@@ -83,5 +98,5 @@ function asyncHandler(fn) {
 module.exports = {
   errorHandler,
   notFoundHandler,
-  asyncHandler
+  asyncErrorHandler
 };
