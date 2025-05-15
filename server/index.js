@@ -217,15 +217,18 @@ function setupMiddleware() {
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
+          "'unsafe-inline'", // Allow inline scripts for all pages in development
           "cdnjs.cloudflare.com"
         ],
         styleSrc: [
-          "'self'"
+          "'self'",
+          "'unsafe-inline'" // Allow inline styles
         ],
         connectSrc: [
           "'self'",
           "ws://localhost:*", // Allow WebSocket connections
-          "wss://localhost:*"
+          "wss://localhost:*",
+          "http://localhost:*"
         ],
         objectSrc: ["'none'"],
         imageSrc: ["'self'", "data:", "https:"],
@@ -237,24 +240,15 @@ function setupMiddleware() {
     }
   };
 
-  // Use different CSP settings based on environment
-  if (process.env.NODE_ENV === 'development') {
-    // In development, relax CSP for test pages
-    helmetConfig.contentSecurityPolicy.directives.connectSrc.push(
-      "ws://localhost:*",
-      "wss://localhost:*",
-      "http://localhost:*"
-    );
-    
-    // Allow inline styles ONLY for test pages (not recommended for production)
-    helmetConfig.contentSecurityPolicy.directives.styleSrc.push("'unsafe-inline'");
-    
-    // Allow inline scripts ONLY for specific test routes
-    app.use('/test-*', (req, res, next) => {
-      // Disable CSP for test pages in development ONLY
-      res.setHeader('Content-Security-Policy', "");
-      next();
-    });
+  // In production, remove unsafe-inline for security
+  if (process.env.NODE_ENV === 'production') {
+    helmetConfig.contentSecurityPolicy.directives.scriptSrc = [
+      "'self'",
+      "cdnjs.cloudflare.com"
+    ];
+    helmetConfig.contentSecurityPolicy.directives.styleSrc = [
+      "'self'"
+    ];
   }
 
   app.use(helmet(helmetConfig));
