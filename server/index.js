@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Refactored to use ServiceManager
+ * Main server file for Shrooms Support Bot - Add test routes
  * @file server/index.js
  */
 
@@ -23,6 +23,7 @@ const chatRoutes = require('./api/chat');
 const ticketRoutes = require('./api/tickets');
 const knowledgeRoutes = require('./api/knowledge');
 const adminRoutes = require('./api/admin');
+const testRoutes = require('./api/test');
 
 // Initialize Express app
 const app = express();
@@ -55,6 +56,19 @@ function registerServices() {
     },
     {
       dependencies: [],
+      singleton: true,
+      lazy: false
+    }
+  );
+
+  // Register Knowledge Service
+  ServiceManager.register('knowledgeService',
+    (mongoClient) => {
+      const KnowledgeService = require('./services/knowledge');
+      return KnowledgeService;
+    },
+    {
+      dependencies: ['mongoClient'],
       singleton: true,
       lazy: false
     }
@@ -124,22 +138,32 @@ async function initializeServices() {
     await mongoose.connect(config.getDatabaseConfig().uri, config.getDatabaseConfig().options);
     logger.info('Connected to MongoDB successfully');
 
+    // Initialize Knowledge Service
+    const knowledgeService = ServiceManager.get('knowledgeService');
+    await knowledgeService.initialize();
+    logger.info('Knowledge Service initialized successfully');
+
     // Initialize all registered services
     await ServiceManager.initializeAll();
 
-    // Initialize VectorStore after registration
-    const vectorStoreService = ServiceManager.get('vectorStoreService');
-    const initResult = await vectorStoreService.initialize();
-    
-    if (!initResult.success) {
-      throw new Error(`VectorStore initialization failed: ${initResult.error}`);
+    // Try to initialize VectorStore but don't fail if it's not available
+    try {
+      const vectorStoreService = ServiceManager.get('vectorStoreService');
+      const initResult = await vectorStoreService.initialize();
+      
+      if (!initResult.success) {
+        logger.warn(`VectorStore initialization failed: ${initResult.error} - continuing with MongoDB only`);
+      } else {
+        logger.info('VectorStore Service initialized successfully');
+      }
+    } catch (error) {
+      logger.warn('VectorStore not available - continuing with MongoDB only:', error.message);
     }
-
-    logger.info('VectorStore Service initialized successfully');
 
     // Make services available to routes through ServiceManager
     app.use((req, res, next) => {
       req.services = {
+        knowledge: ServiceManager.get('knowledgeService'),
         claude: ServiceManager.get('claudeService'),
         vectorStore: ServiceManager.get('vectorStoreService'),
         ticket: ServiceManager.get('ticketService')
@@ -258,12 +282,15 @@ function setupRoutes() {
         tickets: '/api/tickets/*',
         knowledge: '/api/knowledge/*',
         admin: '/api/admin/*',
+        test: '/api/test/*',
         health: '/api/health',
         chatSimple: '/api/chat-simple'
       },
       testTools: {
         chatTest: '/test-chat',
-        socketTest: '/client/test-chat.html'
+        socketTest: '/client/test-chat.html',
+        russianSearchTest: '/api/test/search-russian',
+        encodingTest: '/api/test/encoding'
       },
       documentation: 'https://github.com/g1orgi89/shrooms-support-bot'
     });
@@ -273,6 +300,7 @@ function setupRoutes() {
   app.use('/api/chat', chatRoutes);
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/knowledge', knowledgeRoutes);
+  app.use('/api/test', testRoutes);
 
   // Admin routes - NO BASIC AUTH (authentication is handled in admin routes themselves)
   app.use('/api/admin', adminRoutes);
@@ -458,7 +486,8 @@ async function startServer() {
         testUrls: {
           api: `http://localhost:${PORT}/`,
           testChat: `http://localhost:${PORT}/test-chat`,
-          health: `http://localhost:${PORT}/api/health`
+          health: `http://localhost:${PORT}/api/health`,
+          russianTest: `http://localhost:${PORT}/api/test/search-russian`
         }
       });
     });
