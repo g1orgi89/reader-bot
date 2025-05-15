@@ -1,481 +1,263 @@
 /**
- * Chat API routes with ServiceManager integration
+ * API маршруты для чата
  * @file server/api/chat.js
  */
 
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
-const { validateChatRequest } = require('../utils/validators');
-const messageService = require('../services/message');
-const languageDetect = require('../utils/languageDetect');
-const { 
-  createErrorResponse,
-  VALIDATION_ERRORS,
-  CHAT_ERRORS,
-  GENERIC_ERRORS
-} = require('../constants/errorCodes');
-
 const router = express.Router();
 
-// Import types for JSDoc
-require('../types');
+// Services
+const claudeService = require('../services/claude');
+const vectorStoreService = require('../services/vectorStore');
+const conversationService = require('../services/conversation');
+const messageService = require('../services/message');
+const ticketService = require('../services/ticketing');
+const languageDetectService = require('../services/languageDetect');
+const logger = require('../utils/logger');
 
 /**
- * Middleware to validate chat requests
- * @param {express.Request} req 
- * @param {express.Response} res 
- * @param {express.NextFunction} next 
+ * @typedef {Object} ChatRequest
+ * @property {string} message - Сообщение пользователя
+ * @property {string} userId - ID пользователя
+ * @property {string} [conversationId] - ID разговора (опционально)
+ * @property {string} [language] - Язык (опционально)
  */
-function validateChatMiddleware(req, res, next) {
+
+/**
+ * @typedef {Object} ChatResponse
+ * @property {boolean} success - Успешность операции
+ * @property {string} message - Ответное сообщение
+ * @property {string} conversationId - ID разговора
+ * @property {string} messageId - ID сообщения
+ * @property {boolean} needsTicket - Создан ли тикет
+ * @property {string|null} ticketId - ID тикета (если создан)
+ * @property {string|null} ticketError - Ошибка при создании тикета
+ * @property {number} tokensUsed - Количество использованных токенов
+ * @property {string} language - Язык ответа
+ * @property {string} timestamp - Временная метка
+ * @property {Object} metadata - Дополнительные данные
+ */
+
+/**
+ * @route POST /api/chat/message
+ * @desc Обработка сообщения пользователя
+ * @access Public
+ */
+router.post('/message', async (req, res) => {
   try {
-    validateChatRequest(req.body);
-    next();
-  } catch (error) {
-    logger.warn(`Chat request validation failed: ${error.message}`, {
-      userId: req.body?.userId,
-      error: error.message
+    const { message, userId, conversationId, language } = req.body;
+    
+    // Валидация входных данных
+    if (!message || !userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message and userId are required',
+        message: 'Отсутствуют обязательные поля'
+      });
+    }
+    
+    logger.info(`Chat request from ${userId}: ${message.substring(0, 100)}...`);
+    
+    // Определение языка
+    const detectedLanguage = language || languageDetectService.detectLanguage(message);
+    
+    // Получение контекста из базы знаний
+    const contextResults = await vectorStoreService.search(message, {
+      limit: 3,
+      language: detectedLanguage
     });
+    const context = contextResults.map(result => result.content);
     
-    const errorResponse = createErrorResponse(
-      'VALIDATION_ERROR',
-      error.message,
-      { field: extractFieldFromError(error.message) }
-    );
-    
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-}
-
-/**
- * Extract field name from validation error message
- * @param {string} errorMessage 
- * @returns {string}
- */
-function extractFieldFromError(errorMessage) {
-  if (errorMessage.includes('message')) return 'message';
-  if (errorMessage.includes('userId')) return 'userId';
-  if (errorMessage.includes('language')) return 'language';
-  return 'unknown';
-}
-
-/**
- * POST /api/chat/message
- * Send a message to the AI assistant
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.post('/message', validateChatMiddleware, async (req, res) => {
-  try {
-    /** @type {ChatRequest} */
-    const chatRequest = req.body;
-    
-    // Get services from request (injected by ServiceManager middleware in index.js)
-    const { claude: claudeService, vectorStore: vectorStoreService, ticket: ticketService } = req.services || {};
-    
-    if (!claudeService) {
-      logger.error('Claude service not available');
-      return res.status(503).json({
-        success: false,
-        error: 'Claude service not available',
-        errorCode: 'CLAUDE_SERVICE_UNAVAILABLE'
-      });
-    }
-    
-    if (!vectorStoreService) {
-      logger.error('VectorStore service not available');
-      return res.status(503).json({
-        success: false,
-        error: 'VectorStore service not available',
-        errorCode: 'VECTOR_SERVICE_UNAVAILABLE'
-      });
-    }
-    
-    // Auto-detect language if not provided
-    if (!chatRequest.language) {
-      chatRequest.language = languageDetect.detect(chatRequest.message);
-    }
-    
-    // Generate or use existing conversation ID
-    let conversationId = chatRequest.conversationId;
-    let conversationObjectId;
-    
-    if (!conversationId) {
-      // Generate new conversation ID as MongoDB ObjectId for consistency
-      conversationObjectId = new mongoose.Types.ObjectId();
-      conversationId = conversationObjectId.toString();
+    // Получение или создание разговора
+    let conversation;
+    if (conversationId) {
+      conversation = await conversationService.findById(conversationId);
+      if (!conversation) {
+        throw new Error('Conversation not found');
+      }
     } else {
-      // If provided, ensure it's a valid ObjectId, otherwise create new one
-      if (mongoose.Types.ObjectId.isValid(conversationId)) {
-        conversationObjectId = new mongoose.Types.ObjectId(conversationId);
-      } else {
-        conversationObjectId = new mongoose.Types.ObjectId();
-        conversationId = conversationObjectId.toString();
-        logger.info('Converted UUID conversationId to ObjectId', {
-          original: chatRequest.conversationId,
-          converted: conversationId
-        });
-      }
+      conversation = await conversationService.create({
+        userId,
+        language: detectedLanguage,
+        startedAt: new Date()
+      });
     }
     
-    logger.info('Processing chat message', {
-      userId: chatRequest.userId,
-      conversationId,
-      language: chatRequest.language,
-      messageLength: chatRequest.message.length
-    });
+    // Получение истории сообщений
+    const history = await messageService.getRecentMessages(conversation._id, 10);
+    const formattedHistory = history.map(msg => ({
+      role: msg.role,
+      content: msg.text
+    }));
     
-    // Search for relevant knowledge base content
-    /** @type {VectorSearchResult[]} */
-    const knowledgeResults = await vectorStoreService.search(
-      chatRequest.message,
-      { 
-        language: chatRequest.language,
-        limit: 5
-      }
-    );
-    
-    // Extract context from search results
-    const context = knowledgeResults.map(result => result.content);
-    
-    // Get conversation history
-    const history = await messageService.getRecentMessages(conversationId, 10);
-    
-    // Generate response using Claude
-    const claudeResponse = await claudeService.generateResponse(
-      chatRequest.message,
-      {
-        context,
-        history,
-        language: chatRequest.language
-      }
-    );
-    
-    // Save user message
-    const userMessage = await messageService.createMessage({
-      conversationId,
-      userId: chatRequest.userId,
+    // Сохранение сообщения пользователя
+    const userMessage = await messageService.create({
+      text: message,
       role: 'user',
-      text: chatRequest.message,
-      language: chatRequest.language
+      userId,
+      conversationId: conversation._id,
+      metadata: { 
+        language: detectedLanguage,
+        source: 'http'
+      }
     });
     
-    // Save assistant response
-    const assistantMessage = await messageService.createMessage({
-      conversationId,
-      userId: chatRequest.userId,
-      role: 'assistant',
-      text: claudeResponse.message,
-      language: chatRequest.language,
-      tokensUsed: claudeResponse.tokensUsed,
-      needsTicket: claudeResponse.needsTicket
+    // Генерация ответа через Claude
+    const claudeResponse = await claudeService.generateResponse(message, {
+      context,
+      history: formattedHistory,
+      language: detectedLanguage
     });
     
-    // Handle ticket creation if needed
+    // Проверка на создание тикета
     let ticketId = null;
     let ticketError = null;
     
-    if (claudeResponse.needsTicket && ticketService) {
+    if (claudeResponse.needsTicket) {
       try {
-        // Extract subject from Claude analysis or use fallback
-        const subject = claudeResponse.ticketInfo?.subject || 
-                       extractSubjectFromMessage(chatRequest.message);
-        
         const ticket = await ticketService.createTicket({
-          userId: chatRequest.userId,
-          conversationId: conversationObjectId, // Use ObjectId for MongoDB consistency
-          subject: subject,
-          initialMessage: chatRequest.message,
-          priority: claudeResponse.ticketInfo?.priority || 'medium',
-          category: claudeResponse.ticketInfo?.category || 'technical',
-          language: chatRequest.language,
+          userId,
+          conversationId: conversation._id,
+          message,
           context: JSON.stringify({
-            claudeAnalysis: claudeResponse.ticketInfo?.reason || 'Automatically created by AI assistant',
-            messageHistory: history.slice(-3) // Last 3 messages for context
-          })
+            claudeResponse: claudeResponse.message,
+            userMessage: message,
+            history: formattedHistory.slice(-3)
+          }),
+          language: detectedLanguage,
+          subject: `Support request from ${userId}`,
+          category: 'technical'
         });
-        
-        ticketId = ticket.ticketId; // Get the custom ticket ID (e.g., SHROOMMAO3XBM8NC8WH8)
-        
-        // Update assistant message with ticket ID
-        await messageService.updateMessage(assistantMessage.id, {
-          ticketCreated: true,
-          ticketId
-        });
-        
-        logger.info('Ticket created for conversation', {
-          ticketId,
-          mongoId: ticket._id,
-          conversationId,
-          userId: chatRequest.userId,
-          category: claudeResponse.ticketInfo?.category || 'technical',
-          priority: claudeResponse.ticketInfo?.priority || 'medium'
-        });
+        ticketId = ticket.ticketId;
+        logger.info(`Ticket created: ${ticketId}`);
       } catch (error) {
-        logger.error('Failed to create ticket', {
-          error: error.message,
-          stack: error.stack,
-          conversationId,
-          userId: chatRequest.userId
-        });
+        logger.error('Failed to create ticket:', error);
         ticketError = error.message;
       }
     }
     
-    /** @type {ChatResponse} */
+    // Замена TICKET_ID в ответе
+    let botResponse = claudeResponse.message;
+    if (ticketId) {
+      botResponse = botResponse.replace('TICKET_ID', ticketId);
+    }
+    
+    // Сохранение ответа бота
+    const botMessage = await messageService.create({
+      text: botResponse,
+      role: 'assistant',
+      userId,
+      conversationId: conversation._id,
+      metadata: {
+        language: detectedLanguage,
+        tokensUsed: claudeResponse.tokensUsed,
+        ticketCreated: claudeResponse.needsTicket,
+        ticketId,
+        source: 'http'
+      }
+    });
+    
+    // Обновление разговора
+    await conversationService.updateLastActivity(conversation._id);
+    
+    // Формирование ответа
     const response = {
-      success: true, // 🍄 Добавляем success: true
-      message: claudeResponse.message,
-      conversationId,
-      messageId: assistantMessage.id,
+      success: true,
+      message: botResponse,
+      conversationId: conversation._id.toString(),
+      messageId: botMessage._id.toString(),
       needsTicket: claudeResponse.needsTicket,
       ticketId,
       ticketError,
       tokensUsed: claudeResponse.tokensUsed,
-      language: chatRequest.language,
-      timestamp: new Date(),
+      language: detectedLanguage,
+      timestamp: new Date().toISOString(),
       metadata: {
-        knowledgeResultsCount: knowledgeResults.length,
-        historyMessagesCount: history.length
+        knowledgeResultsCount: contextResults.length,
+        historyMessagesCount: formattedHistory.length
       }
     };
     
-    logger.info('Chat message processed successfully', {
-      conversationId,
-      userId: chatRequest.userId,
-      responseLength: response.message.length,
-      tokensUsed: response.tokensUsed,
-      ticketCreated: Boolean(ticketId),
-      knowledgeResultsUsed: knowledgeResults.length
-    });
-    
+    logger.info(`Chat response for ${userId}: success`);
     res.json(response);
+    
   } catch (error) {
-    logger.error('Error processing chat message', {
-      error: error.message,
-      stack: error.stack,
-      userId: req.body?.userId,
-      conversationId: req.body?.conversationId
+    logger.error('Chat API error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Service temporarily unavailable. Please try again.',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
-    
-    const errorCode = determineErrorCode(error);
-    const errorResponse = createErrorResponse(
-      errorCode,
-      'An error occurred while processing your message. Please try again.',
-      {
-        timestamp: new Date().toISOString(),
-        service: determineFailedService(error),
-        ...(process.env.NODE_ENV === 'development' ? { originalError: error.message } : {})
-      }
-    );
-    
-    res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
 
 /**
- * POST /api/chat
- * Alternative endpoint for chat messages (for compatibility)
+ * @route GET /api/chat/conversations/:userId
+ * @desc Получение списка разговоров пользователя
+ * @access Public
  */
-router.post('/', (req, res) => {
-  // Redirect to /message endpoint
-  req.url = '/message';
-  router.handle(req, res);
-});
-
-/**
- * GET /api/chat/conversation/:conversationId
- * Get conversation history
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.get('/conversation/:conversationId', async (req, res) => {
-  try {
-    const { conversationId } = req.params;
-    const { page = '1', limit = '50', includeMetadata = 'false' } = req.query;
-    
-    if (!conversationId) {
-      const errorResponse = createErrorResponse(
-        'MISSING_REQUIRED_FIELD',
-        'Conversation ID is required'
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-    
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
-    const shouldIncludeMetadata = includeMetadata === 'true';
-    
-    logger.info('Fetching conversation history', {
-      conversationId,
-      page: pageNum,
-      limit: limitNum,
-      includeMetadata: shouldIncludeMetadata
-    });
-    
-    const messages = await messageService.getMessages(conversationId, {
-      page: pageNum,
-      limit: limitNum,
-      includeMetadata: shouldIncludeMetadata
-    });
-    
-    const totalCount = await messageService.getMessageCount(conversationId);
-    
-    res.json({
-      success: true,
-      data: {
-        messages,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          totalCount,
-          totalPages: Math.ceil(totalCount / limitNum)
-        },
-        conversationId,
-        fetchedAt: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    logger.error('Error fetching conversation history', {
-      error: error.message,
-      conversationId: req.params.conversationId
-    });
-    
-    const errorResponse = createErrorResponse('CONVERSATION_FETCH_ERROR');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * DELETE /api/chat/conversation/:conversationId
- * Delete conversation history
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.delete('/conversation/:conversationId', async (req, res) => {
-  try {
-    const { conversationId } = req.params;
-    const { userId } = req.query;
-    
-    if (!conversationId) {
-      const errorResponse = createErrorResponse(
-        'MISSING_REQUIRED_FIELD',
-        'Conversation ID is required'
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-    
-    logger.info('Deleting conversation', {
-      conversationId,
-      userId
-    });
-    
-    const deletedCount = await messageService.deleteConversation(conversationId, userId);
-    
-    if (deletedCount === 0) {
-      const errorResponse = createErrorResponse(
-        'CONVERSATION_NOT_FOUND',
-        'Conversation not found or already deleted'
-      );
-      return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        conversationId,
-        deletedMessages: deletedCount,
-        deletedAt: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    logger.error('Error deleting conversation', {
-      error: error.message,
-      conversationId: req.params.conversationId
-    });
-    
-    const errorResponse = createErrorResponse('CONVERSATION_DELETE_ERROR');
-    res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/chat/stats/:userId
- * Get chat statistics for a user
- * @param {express.Request} req - Request object
- * @param {express.Response} res - Response object
- */
-router.get('/stats/:userId', async (req, res) => {
+router.get('/conversations/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { days = '30' } = req.query;
+    const { page = 1, limit = 10 } = req.query;
     
-    const dayCount = Math.min(365, Math.max(1, parseInt(days)));
-    
-    logger.info('Fetching chat statistics', {
-      userId,
-      days: dayCount
+    const conversations = await conversationService.findByUserId(userId, {
+      page: parseInt(page),
+      limit: parseInt(limit)
     });
-    
-    const stats = await messageService.getUserStats(userId, dayCount);
     
     res.json({
       success: true,
-      data: {
-        ...stats,
-        userId,
-        periodDays: dayCount,
-        calculatedAt: new Date().toISOString()
+      conversations,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit)
       }
     });
-  } catch (error) {
-    logger.error('Error fetching chat statistics', {
-      error: error.message,
-      userId: req.params.userId
-    });
     
-    const errorResponse = createErrorResponse('STATS_FETCH_ERROR');
-    res.status(errorResponse.httpStatus).json(errorResponse);
+  } catch (error) {
+    logger.error('Get conversations error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch conversations',
+      message: error.message
+    });
   }
 });
 
 /**
- * Extract subject from user message for ticket creation
- * @param {string} message 
- * @returns {string}
+ * @route GET /api/chat/conversations/:conversationId/messages
+ * @desc Получение сообщений разговора
+ * @access Public
  */
-function extractSubjectFromMessage(message) {
-  // Get first 50 characters as subject, or use first sentence
-  const firstSentence = message.split(/[.!?]/)[0];
-  return firstSentence.length <= 50 ? firstSentence : message.substring(0, 50);
-}
-
-/**
- * Determine error code based on error type
- * @param {Error} error 
- * @returns {string}
- */
-function determineErrorCode(error) {
-  if (error.message.includes('Claude')) return 'CLAUDE_ERROR';
-  if (error.message.includes('vector')) return 'VECTOR_SERVICE_UNAVAILABLE';
-  if (error.message.includes('database')) return 'DATABASE_ERROR';
-  if (error.message.includes('ticket')) return 'TICKET_CREATION_ERROR';
-  if (error.message.includes('validation')) return 'VALIDATION_ERROR';
-  return 'INTERNAL_ERROR';
-}
-
-/**
- * Determine which service failed based on error
- * @param {Error} error 
- * @returns {string}
- */
-function determineFailedService(error) {
-  if (error.message.includes('Claude')) return 'claude';
-  if (error.message.includes('vector')) return 'vectorStore';
-  if (error.message.includes('database')) return 'database';
-  if (error.message.includes('ticket')) return 'ticket';
-  return 'unknown';
-}
+router.get('/conversations/:conversationId/messages', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { page = 1, limit = 50 } = req.query;
+    
+    const messages = await messageService.getMessagesByConversationId(conversationId, {
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+    
+    res.json({
+      success: true,
+      messages,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Get messages error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch messages',
+      message: error.message
+    });
+  }
+});
 
 module.exports = router;
