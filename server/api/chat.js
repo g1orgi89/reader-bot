@@ -1,6 +1,5 @@
 /**
- * 🍄 Shrooms Chat API - Handles chat interactions with AI assistant
- * Based on Anthropic cookbook examples, adapted for Shrooms project
+ * Chat API routes with ServiceManager integration
  * @file server/api/chat.js
  */
 
@@ -11,7 +10,6 @@ const logger = require('../utils/logger');
 const { validateChatRequest } = require('../utils/validators');
 const messageService = require('../services/message');
 const languageDetect = require('../utils/languageDetect');
-const { requireServices } = require('../middleware/serviceManager');
 const { 
   createErrorResponse,
   VALIDATION_ERRORS,
@@ -63,249 +61,221 @@ function extractFieldFromError(errorMessage) {
 }
 
 /**
- * 🍄 MAIN CHAT ENDPOINT
- * POST /api/chat
- * Send a message to the Shrooms AI assistant
- * @route POST /api/chat
+ * POST /api/chat/message
+ * Send a message to the AI assistant
  * @param {express.Request} req - Request object
  * @param {express.Response} res - Response object
  */
-router.post('/', 
-  requireServices(['claude', 'vectorStore']),
-  validateChatMiddleware, 
-  async (req, res) => {
-    try {
-      /** @type {ChatRequest} */
-      const chatRequest = req.body;
-      
-      // Get services from middleware
-      const { claude: claudeService, vectorStore: vectorStoreService, ticket: ticketService } = req.services;
-      
-      // Auto-detect language if not provided
-      if (!chatRequest.language) {
-        chatRequest.language = languageDetect.detect(chatRequest.message);
-      }
-      
-      // Generate or use existing conversation ID
-      let conversationId = chatRequest.conversationId;
-      let conversationObjectId;
-      
-      if (!conversationId) {
-        // Generate new conversation ID as MongoDB ObjectId for consistency
+router.post('/message', validateChatMiddleware, async (req, res) => {
+  try {
+    /** @type {ChatRequest} */
+    const chatRequest = req.body;
+    
+    // Get services from request (injected by ServiceManager middleware in index.js)
+    const { claude: claudeService, vectorStore: vectorStoreService, ticket: ticketService } = req.services || {};
+    
+    if (!claudeService) {
+      logger.error('Claude service not available');
+      const errorResponse = createErrorResponse('CLAUDE_SERVICE_UNAVAILABLE');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
+    if (!vectorStoreService) {
+      logger.error('VectorStore service not available');
+      const errorResponse = createErrorResponse('VECTOR_SERVICE_UNAVAILABLE');
+      return res.status(errorResponse.httpStatus).json(errorResponse);
+    }
+    
+    // Auto-detect language if not provided
+    if (!chatRequest.language) {
+      chatRequest.language = languageDetect.detect(chatRequest.message);
+    }
+    
+    // Generate or use existing conversation ID
+    let conversationId = chatRequest.conversationId;
+    let conversationObjectId;
+    
+    if (!conversationId) {
+      // Generate new conversation ID as MongoDB ObjectId for consistency
+      conversationObjectId = new mongoose.Types.ObjectId();
+      conversationId = conversationObjectId.toString();
+    } else {
+      // If provided, ensure it's a valid ObjectId, otherwise create new one
+      if (mongoose.Types.ObjectId.isValid(conversationId)) {
+        conversationObjectId = new mongoose.Types.ObjectId(conversationId);
+      } else {
         conversationObjectId = new mongoose.Types.ObjectId();
         conversationId = conversationObjectId.toString();
-      } else {
-        // If provided, ensure it's a valid ObjectId, otherwise create new one
-        if (mongoose.Types.ObjectId.isValid(conversationId)) {
-          conversationObjectId = new mongoose.Types.ObjectId(conversationId);
-        } else {
-          conversationObjectId = new mongoose.Types.ObjectId();
-          conversationId = conversationObjectId.toString();
-          logger.info('Converted UUID conversationId to ObjectId', {
-            original: chatRequest.conversationId,
-            converted: conversationId
-          });
-        }
+        logger.info('Converted UUID conversationId to ObjectId', {
+          original: chatRequest.conversationId,
+          converted: conversationId
+        });
       }
-      
-      logger.info('🍄 Processing chat message', {
-        userId: chatRequest.userId,
-        conversationId,
-        language: chatRequest.language,
-        messageLength: chatRequest.message.length
-      });
-      
-      // Search for relevant knowledge base content
-      /** @type {VectorSearchResult[]} */
-      const knowledgeResults = await vectorStoreService.search(
-        chatRequest.message,
-        { 
-          language: chatRequest.language,
-          limit: 5
-        }
-      );
-      
-      // Extract context from search results
-      const context = knowledgeResults.map(result => result.content);
-      
-      // Get conversation history if messageService is available
-      let history = [];
-      try {
-        if (messageService) {
-          history = await messageService.getRecentMessages(conversationId, 10);
-        }
-      } catch (error) {
-        logger.warn('Could not fetch conversation history:', error.message);
-      }
-      
-      // Generate response using Claude with gribny context
-      const claudeResponse = await claudeService.generateResponse(
-        chatRequest.message,
-        {
-          context,
-          history,
-          language: chatRequest.language
-        }
-      );
-      
-      // Save user message (if messageService available)
-      let userMessage = null;
-      try {
-        if (messageService) {
-          userMessage = await messageService.createMessage({
-            conversationId,
-            userId: chatRequest.userId,
-            role: 'user',
-            text: chatRequest.message,
-            language: chatRequest.language
-          });
-        }
-      } catch (error) {
-        logger.warn('Could not save user message:', error.message);
-      }
-      
-      // Save assistant response (if messageService available)  
-      let assistantMessage = null;
-      try {
-        if (messageService) {
-          assistantMessage = await messageService.createMessage({
-            conversationId,
-            userId: chatRequest.userId,
-            role: 'assistant',
-            text: claudeResponse.message,
-            language: chatRequest.language,
-            tokensUsed: claudeResponse.tokensUsed,
-            needsTicket: claudeResponse.needsTicket
-          });
-        }
-      } catch (error) {
-        logger.warn('Could not save assistant message:', error.message);
-      }
-      
-      // Handle ticket creation if needed
-      let ticketId = null;
-      let ticketError = null;
-      
-      if (claudeResponse.needsTicket && ticketService) {
-        try {
-          // Extract subject from Claude analysis or use fallback
-          const subject = claudeResponse.ticketInfo?.subject || 
-                         extractSubjectFromMessage(chatRequest.message);
-          
-          const ticket = await ticketService.createTicket({
-            userId: chatRequest.userId,
-            conversationId: conversationObjectId, // Use ObjectId for MongoDB consistency
-            subject: subject,
-            initialMessage: chatRequest.message,
-            priority: claudeResponse.ticketInfo?.priority || 'medium',
-            category: claudeResponse.ticketInfo?.category || 'technical',
-            language: chatRequest.language,
-            context: JSON.stringify({
-              claudeAnalysis: claudeResponse.ticketInfo?.reason || 'Automatically created by AI assistant',
-              messageHistory: history.slice(-3) // Last 3 messages for context
-            })
-          });
-          
-          ticketId = ticket.ticketId; // Get the custom ticket ID (e.g., SHROOMMAO3XBM8NC8WH8)
-          
-          // Update assistant message with ticket ID (if available)
-          if (messageService && assistantMessage) {
-            await messageService.updateMessage(assistantMessage.id, {
-              ticketCreated: true,
-              ticketId
-            });
-          }
-          
-          logger.info('🍄 Ticket created for conversation', {
-            ticketId,
-            mongoId: ticket._id,
-            conversationId,
-            userId: chatRequest.userId,
-            category: claudeResponse.ticketInfo?.category || 'technical',
-            priority: claudeResponse.ticketInfo?.priority || 'medium'
-          });
-        } catch (error) {
-          logger.error('Failed to create ticket', {
-            error: error.message,
-            stack: error.stack,
-            conversationId,
-            userId: chatRequest.userId
-          });
-          ticketError = error.message;
-        }
-      }
-      
-      /** @type {ChatResponse} */
-      const response = {
-        success: true,
-        message: claudeResponse.message,
-        conversationId,
-        messageId: assistantMessage?.id || null,
-        needsTicket: claudeResponse.needsTicket,
-        ticketId,
-        ticketError,
-        tokensUsed: claudeResponse.tokensUsed,
-        language: chatRequest.language,
-        timestamp: new Date(),
-        metadata: {
-          knowledgeResultsCount: knowledgeResults.length,
-          historyMessagesCount: history.length,
-          servicesUsed: {
-            claude: true,
-            vectorStore: true,
-            messageService: Boolean(messageService),
-            ticketService: Boolean(ticketService)
-          }
-        }
-      };
-      
-      logger.info('🍄 Chat message processed successfully', {
-        conversationId,
-        userId: chatRequest.userId,
-        responseLength: response.message.length,
-        tokensUsed: response.tokensUsed,
-        ticketCreated: Boolean(ticketId),
-        knowledgeResultsUsed: knowledgeResults.length
-      });
-      
-      res.json(response);
-    } catch (error) {
-      logger.error('🍄 Error processing chat message', {
-        error: error.message,
-        stack: error.stack,
-        userId: req.body?.userId,
-        conversationId: req.body?.conversationId
-      });
-      
-      const errorCode = determineErrorCode(error);
-      const errorResponse = createErrorResponse(
-        errorCode,
-        '🍄 Произошла ошибка при обработке вашего сообщения. Наши грибники работают над исправлением!',
-        {
-          timestamp: new Date().toISOString(),
-          service: determineFailedService(error),
-          ...(process.env.NODE_ENV === 'development' ? { originalError: error.message } : {})
-        }
-      );
-      
-      res.status(errorResponse.httpStatus).json(errorResponse);
     }
+    
+    logger.info('Processing chat message', {
+      userId: chatRequest.userId,
+      conversationId,
+      language: chatRequest.language,
+      messageLength: chatRequest.message.length
+    });
+    
+    // Search for relevant knowledge base content
+    /** @type {VectorSearchResult[]} */
+    const knowledgeResults = await vectorStoreService.search(
+      chatRequest.message,
+      { 
+        language: chatRequest.language,
+        limit: 5
+      }
+    );
+    
+    // Extract context from search results
+    const context = knowledgeResults.map(result => result.content);
+    
+    // Get conversation history
+    const history = await messageService.getRecentMessages(conversationId, 10);
+    
+    // Generate response using Claude
+    const claudeResponse = await claudeService.generateResponse(
+      chatRequest.message,
+      {
+        context,
+        history,
+        language: chatRequest.language
+      }
+    );
+    
+    // Save user message
+    const userMessage = await messageService.createMessage({
+      conversationId,
+      userId: chatRequest.userId,
+      role: 'user',
+      text: chatRequest.message,
+      language: chatRequest.language
+    });
+    
+    // Save assistant response
+    const assistantMessage = await messageService.createMessage({
+      conversationId,
+      userId: chatRequest.userId,
+      role: 'assistant',
+      text: claudeResponse.message,
+      language: chatRequest.language,
+      tokensUsed: claudeResponse.tokensUsed,
+      needsTicket: claudeResponse.needsTicket
+    });
+    
+    // Handle ticket creation if needed
+    let ticketId = null;
+    let ticketError = null;
+    
+    if (claudeResponse.needsTicket && ticketService) {
+      try {
+        // Extract subject from Claude analysis or use fallback
+        const subject = claudeResponse.ticketInfo?.subject || 
+                       extractSubjectFromMessage(chatRequest.message);
+        
+        const ticket = await ticketService.createTicket({
+          userId: chatRequest.userId,
+          conversationId: conversationObjectId, // Use ObjectId for MongoDB consistency
+          subject: subject,
+          initialMessage: chatRequest.message,
+          priority: claudeResponse.ticketInfo?.priority || 'medium',
+          category: claudeResponse.ticketInfo?.category || 'technical',
+          language: chatRequest.language,
+          context: JSON.stringify({
+            claudeAnalysis: claudeResponse.ticketInfo?.reason || 'Automatically created by AI assistant',
+            messageHistory: history.slice(-3) // Last 3 messages for context
+          })
+        });
+        
+        ticketId = ticket.ticketId; // Get the custom ticket ID (e.g., SHROOMMAO3XBM8NC8WH8)
+        
+        // Update assistant message with ticket ID
+        await messageService.updateMessage(assistantMessage.id, {
+          ticketCreated: true,
+          ticketId
+        });
+        
+        logger.info('Ticket created for conversation', {
+          ticketId,
+          mongoId: ticket._id,
+          conversationId,
+          userId: chatRequest.userId,
+          category: claudeResponse.ticketInfo?.category || 'technical',
+          priority: claudeResponse.ticketInfo?.priority || 'medium'
+        });
+      } catch (error) {
+        logger.error('Failed to create ticket', {
+          error: error.message,
+          stack: error.stack,
+          conversationId,
+          userId: chatRequest.userId
+        });
+        ticketError = error.message;
+      }
+    }
+    
+    /** @type {ChatResponse} */
+    const response = {
+      message: claudeResponse.message,
+      conversationId,
+      messageId: assistantMessage.id,
+      needsTicket: claudeResponse.needsTicket,
+      ticketId,
+      ticketError,
+      tokensUsed: claudeResponse.tokensUsed,
+      language: chatRequest.language,
+      timestamp: new Date(),
+      metadata: {
+        knowledgeResultsCount: knowledgeResults.length,
+        historyMessagesCount: history.length
+      }
+    };
+    
+    logger.info('Chat message processed successfully', {
+      conversationId,
+      userId: chatRequest.userId,
+      responseLength: response.message.length,
+      tokensUsed: response.tokensUsed,
+      ticketCreated: Boolean(ticketId),
+      knowledgeResultsUsed: knowledgeResults.length
+    });
+    
+    res.json(response);
+  } catch (error) {
+    logger.error('Error processing chat message', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.body?.userId,
+      conversationId: req.body?.conversationId
+    });
+    
+    const errorCode = determineErrorCode(error);
+    const errorResponse = createErrorResponse(
+      errorCode,
+      'An error occurred while processing your message. Please try again.',
+      {
+        timestamp: new Date().toISOString(),
+        service: determineFailedService(error),
+        ...(process.env.NODE_ENV === 'development' ? { originalError: error.message } : {})
+      }
+    );
+    
+    res.status(errorResponse.httpStatus).json(errorResponse);
   }
-);
+});
 
 /**
- * 🍄 ALTERNATIVE MESSAGE ENDPOINT (for backward compatibility)
- * POST /api/chat/message
+ * POST /api/chat
+ * Alternative endpoint for chat messages (for compatibility)
  */
-router.post('/message', 
-  requireServices(['claude', 'vectorStore']),
-  validateChatMiddleware, 
-  async (req, res) => {
-    // Redirect to main chat endpoint
-    req.url = '/';
-    return router.handle(req, res);
-  }
-);
+router.post('/', (req, res) => {
+  // Redirect to /message endpoint
+  req.url = '/message';
+  router.handle(req, res);
+});
 
 /**
  * GET /api/chat/conversation/:conversationId
@@ -324,14 +294,6 @@ router.get('/conversation/:conversationId', async (req, res) => {
         'Conversation ID is required'
       );
       return res.status(errorResponse.httpStatus).json(errorResponse);
-    }
-    
-    if (!messageService) {
-      return res.status(503).json({
-        success: false,
-        error: 'Message service not available',
-        errorCode: 'SERVICE_UNAVAILABLE'
-      });
     }
     
     const pageNum = Math.max(1, parseInt(page));
@@ -397,14 +359,6 @@ router.delete('/conversation/:conversationId', async (req, res) => {
       return res.status(errorResponse.httpStatus).json(errorResponse);
     }
     
-    if (!messageService) {
-      return res.status(503).json({
-        success: false,
-        error: 'Message service not available',
-        errorCode: 'SERVICE_UNAVAILABLE'
-      });
-    }
-    
     logger.info('Deleting conversation', {
       conversationId,
       userId
@@ -452,14 +406,6 @@ router.get('/stats/:userId', async (req, res) => {
     
     const dayCount = Math.min(365, Math.max(1, parseInt(days)));
     
-    if (!messageService) {
-      return res.status(503).json({
-        success: false,
-        error: 'Message service not available',
-        errorCode: 'SERVICE_UNAVAILABLE'
-      });
-    }
-    
     logger.info('Fetching chat statistics', {
       userId,
       days: dayCount
@@ -484,43 +430,6 @@ router.get('/stats/:userId', async (req, res) => {
     
     const errorResponse = createErrorResponse('STATS_FETCH_ERROR');
     res.status(errorResponse.httpStatus).json(errorResponse);
-  }
-});
-
-/**
- * GET /api/chat/health
- * Check chat service health
- */
-router.get('/health', (req, res) => {
-  try {
-    const services = req.services || {};
-    const health = {
-      status: 'ok',
-      services: {
-        claude: Boolean(services.claude),
-        vectorStore: Boolean(services.vectorStore),
-        messageService: Boolean(messageService),
-        ticketService: Boolean(services.ticket)
-      },
-      timestamp: new Date().toISOString()
-    };
-    
-    const allServicesOk = Object.values(health.services).every(status => status);
-    if (!allServicesOk) {
-      health.status = 'degraded';
-    }
-    
-    res.json({
-      success: true,
-      ...health
-    });
-  } catch (error) {
-    logger.error('Chat health check error:', error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Health check failed',
-      timestamp: new Date().toISOString()
-    });
   }
 });
 
