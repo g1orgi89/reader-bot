@@ -35,7 +35,7 @@ class DatabaseService {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000; // 1 секунда
     
-    // Настройки подключения
+    // Настройки подключения - исправлены для совместимости
     this.connectionOptions = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -44,8 +44,9 @@ class DatabaseService {
       maxPoolSize: 10,
       minPoolSize: 1,
       maxIdleTimeMS: 30000,
-      bufferMaxEntries: 0,
-      bufferCommands: false
+      // Удаляем неподдерживаемые опции
+      // bufferMaxEntries: 0,  // УДАЛЕНО - не поддерживается
+      // bufferCommands: false // УДАЛЕНО - не поддерживается
     };
     
     // Настраиваем обработчики событий
