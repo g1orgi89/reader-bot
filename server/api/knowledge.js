@@ -1,11 +1,12 @@
 /**
- * Knowledge Base API Routes - Fixed UTF-8 support
+ * Knowledge Base API Routes - Enhanced multilingual search
  * @file server/api/knowledge.js
  */
 
 const express = require('express');
 const router = express.Router();
 const KnowledgeDocument = require('../models/knowledge');
+const knowledgeService = require('../services/knowledge');
 const logger = require('../utils/logger');
 
 // Middleware to ensure UTF-8 encoding
@@ -35,54 +36,30 @@ router.get('/', async (req, res) => {
       limit = 10
     } = req.query;
 
-    // Build query
-    const query = { status: 'published' };
-    if (category) query.category = category;
-    if (language) query.language = language;
-    if (tags) {
-      const tagArray = tags.split(',').map(tag => tag.trim());
-      query.tags = { $in: tagArray };
+    // Use knowledge service for better handling
+    const result = await knowledgeService.getDocuments({
+      category,
+      language,
+      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        errorCode: 'RETRIEVAL_ERROR'
+      });
     }
-
-    // Parse pagination
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
-
-    // Execute query
-    const [documents, totalCount] = await Promise.all([
-      KnowledgeDocument.find(query)
-        .sort({ updatedAt: -1 })
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      KnowledgeDocument.countDocuments(query)
-    ]);
-
-    // Transform documents for response
-    const responseData = documents.map(doc => ({
-      id: doc._id,
-      title: doc.title,
-      content: doc.content,
-      category: doc.category,
-      language: doc.language,
-      tags: doc.tags || [],
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt
-    }));
 
     res.json({
       success: true,
-      data: responseData,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total: totalCount,
-        pages: Math.ceil(totalCount / limitNum)
-      }
+      data: result.data,
+      pagination: result.pagination
     });
 
-    logger.info(`Knowledge documents retrieved: ${documents.length} of ${totalCount}`);
+    logger.info(`Knowledge documents retrieved: ${result.data.length}`);
   } catch (error) {
     logger.error(`Error retrieving knowledge documents: ${error.message}`);
     res.status(500).json({
@@ -95,7 +72,7 @@ router.get('/', async (req, res) => {
 
 /**
  * @route GET /api/knowledge/search
- * @desc Search knowledge documents by text
+ * @desc Search knowledge documents by text with enhanced multilingual support
  * @access Public
  * @param {string} q - Search query
  * @param {string} [language] - Filter by language
@@ -123,39 +100,32 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    // Prepare search options
-    const searchOptions = {
+    // Use enhanced search service
+    const result = await knowledgeService.search(searchQuery, {
       language,
       category,
       tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-      page: Math.max(1, parseInt(page)),
-      limit: Math.min(50, Math.max(1, parseInt(limit)))
-    };
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
 
-    // Perform text search
-    const documents = await KnowledgeDocument.searchText(searchQuery, searchOptions);
-
-    // Transform documents for response
-    const responseData = documents.map(doc => ({
-      id: doc._id,
-      title: doc.title,
-      content: doc.content,
-      category: doc.category,
-      language: doc.language,
-      tags: doc.tags || [],
-      score: doc.score || null,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt
-    }));
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        errorCode: 'SEARCH_ERROR'
+      });
+    }
 
     res.json({
       success: true,
-      data: responseData,
+      data: result.data,
       query: searchQuery,
-      count: documents.length
+      count: result.count,
+      searchType: result.searchType
     });
 
-    logger.info(`Knowledge search performed: "${searchQuery}" - ${documents.length} results`);
+    logger.info(`Knowledge search performed: "${searchQuery}" (${result.searchType}) - ${result.count} results`);
   } catch (error) {
     logger.error(`Error searching knowledge: ${error.message}`);
     res.status(500).json({
@@ -176,30 +146,19 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const document = await KnowledgeDocument.findById(id).lean();
-    
-    if (!document || document.status !== 'published') {
+    const result = await knowledgeService.getDocumentById(id);
+
+    if (!result.success) {
       return res.status(404).json({
         success: false,
-        error: 'Document not found',
+        error: result.error,
         errorCode: 'DOCUMENT_NOT_FOUND'
       });
     }
 
-    const responseData = {
-      id: document._id,
-      title: document.title,
-      content: document.content,
-      category: document.category,
-      language: document.language,
-      tags: document.tags || [],
-      createdAt: document.createdAt,
-      updatedAt: document.updatedAt
-    };
-
     res.json({
       success: true,
-      data: responseData
+      data: result.data
     });
 
     logger.info(`Knowledge document retrieved: ${id}`);
@@ -253,8 +212,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Create document
-    const document = new KnowledgeDocument({
+    const result = await knowledgeService.addDocument({
       title: title.trim(),
       content: content.trim(),
       category,
@@ -263,17 +221,21 @@ router.post('/', async (req, res) => {
       authorId
     });
 
-    await document.save();
-
-    const responseData = document.toPublicJSON();
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        errorCode: 'CREATION_ERROR'
+      });
+    }
 
     res.status(201).json({
       success: true,
-      data: responseData,
+      data: result.data,
       message: 'Document created successfully'
     });
 
-    logger.info(`Knowledge document created: ${document._id} - "${title}"`);
+    logger.info(`Knowledge document created: ${result.data.id} - "${title}"`);
   } catch (error) {
     logger.error(`Error creating knowledge document: ${error.message}`);
     
@@ -311,31 +273,20 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    // Remove fields that shouldn't be updated
-    delete updateData._id;
-    delete updateData.createdAt;
-    delete updateData.authorId;
+    const result = await knowledgeService.updateDocument(id, updateData);
 
-    // Update document
-    const document = await KnowledgeDocument.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
-
-    if (!document) {
-      return res.status(404).json({
+    if (!result.success) {
+      const statusCode = result.error === 'Document not found' ? 404 : 500;
+      return res.status(statusCode).json({
         success: false,
-        error: 'Document not found',
-        errorCode: 'DOCUMENT_NOT_FOUND'
+        error: result.error,
+        errorCode: statusCode === 404 ? 'DOCUMENT_NOT_FOUND' : 'UPDATE_ERROR'
       });
     }
 
-    const responseData = document.toPublicJSON();
-
     res.json({
       success: true,
-      data: responseData,
+      data: result.data,
       message: 'Document updated successfully'
     });
 
@@ -378,19 +329,20 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const document = await KnowledgeDocument.findByIdAndDelete(id);
+    const result = await knowledgeService.deleteDocument(id);
 
-    if (!document) {
-      return res.status(404).json({
+    if (!result.success) {
+      const statusCode = result.error === 'Document not found' ? 404 : 500;
+      return res.status(statusCode).json({
         success: false,
-        error: 'Document not found',
-        errorCode: 'DOCUMENT_NOT_FOUND'
+        error: result.error,
+        errorCode: statusCode === 404 ? 'DOCUMENT_NOT_FOUND' : 'DELETION_ERROR'
       });
     }
 
     res.json({
       success: true,
-      message: 'Document deleted successfully'
+      message: result.message
     });
 
     logger.info(`Knowledge document deleted: ${id}`);
