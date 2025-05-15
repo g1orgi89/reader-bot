@@ -287,6 +287,9 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // Fixed API base URL like in debug
+        const API_BASE = window.location.origin + '/api';
+        
         let currentMode = 'http'; // 'http' or 'socket'
         let socket = null;
         let conversationId = null;
@@ -319,33 +322,42 @@
         async function sendMessageHTTP(message) {
             try {
                 showTyping();
-                const response = await fetch('/api/chat', {
+                console.log('Making HTTP request to:', `${API_BASE}/chat`);
+                
+                const requestBody = {
+                    message: message,
+                    userId: userId,
+                    conversationId: conversationId,
+                    language: detectLanguage(message)
+                };
+                
+                console.log('Request body:', requestBody);
+                
+                const response = await fetch(`${API_BASE}/chat`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        message: message,
-                        userId: userId,
-                        conversationId: conversationId,
-                        language: detectLanguage(message)
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
+                console.log('Response status:', response.status);
                 const data = await response.json();
+                console.log('Response data:', data);
+                
                 hideTyping();
 
-                if (data.success) {
-                    conversationId = data.conversationId;
-                    addMessage('🍄 Shrooms Bot', data.message, 'bot');
+                if (data.success && response.ok) {
+                    conversationId = data.data.conversationId;
+                    addMessage('🍄 Shrooms Bot', data.data.message, 'bot');
                     
-                    if (data.ticketId) {
-                        addMessage('System', `Создан тикет поддержки: ${data.ticketId}`, 'system');
+                    if (data.data.ticketId) {
+                        addMessage('System', `Создан тикет поддержки: ${data.data.ticketId}`, 'system');
                     }
 
                     // Show metadata in development
-                    if (data.metadata) {
-                        const metaText = `Tokens: ${data.tokensUsed || 0}, Knowledge: ${data.metadata.knowledgeResultsCount || 0}, History: ${data.metadata.historyMessagesCount || 0}`;
+                    if (data.data.metadata) {
+                        const metaText = `Tokens: ${data.data.tokensUsed || 0}, Knowledge: ${data.data.metadata.knowledgeResultsCount || 0}, History: ${data.data.metadata.historyMessagesCount || 0}`;
                         addMessage('Debug', metaText, 'system', metaText);
                     }
                 } else {
@@ -353,6 +365,7 @@
                 }
             } catch (error) {
                 hideTyping();
+                console.error('HTTP Error:', error);
                 addMessage('Error', 'Network error: ' + error.message, 'error');
             }
         }
@@ -370,9 +383,6 @@
                 messageInput.disabled = false;
                 sendButton.disabled = false;
                 addMessage('System', 'Socket.IO connected! Real-time chat active.', 'system');
-                
-                // Join with user ID
-                socket.emit('join', { userId: userId });
             });
 
             socket.on('disconnect', () => {
@@ -383,31 +393,31 @@
                 addMessage('System', 'Connection lost. Trying to reconnect...', 'error');
             });
 
-            socket.on('joined', (data) => {
-                addMessage('System', `Joined chat room (Socket ID: ${data.socketId})`, 'system');
+            socket.on('system', (data) => {
+                addMessage('System', data.message, 'system');
             });
 
-            socket.on('chatResponse', (data) => {
+            socket.on('message', (data) => {
                 hideTyping();
-                if (data.success) {
+                if (data.conversationId) {
                     conversationId = data.conversationId;
-                    addMessage('🍄 Shrooms Bot', data.message, 'bot');
-                    
-                    if (data.ticketId) {
-                        addMessage('System', `Создан тикет поддержки: ${data.ticketId}`, 'system');
-                    }
-                } else {
-                    addMessage('Error', data.error || data.message || 'Something went wrong', 'error');
                 }
-            });
-
-            socket.on('messageReceived', (data) => {
-                // Message acknowledged by server
-                console.log('Message acknowledged:', data);
+                addMessage('🍄 Shrooms Bot', data.message, 'bot');
+                
+                if (data.ticketId) {
+                    addMessage('System', `Создан тикет поддержки: ${data.ticketId}`, 'system');
+                }
+                
+                // Show metadata if present
+                if (data.metadata) {
+                    const metaText = `Tokens: ${data.tokensUsed || 0}, Knowledge: ${data.metadata.knowledgeResultsCount || 0}, History: ${data.metadata.historyMessagesCount || 0}`;
+                    addMessage('Debug', metaText, 'system');
+                }
             });
 
             socket.on('error', (error) => {
                 hideTyping();
+                console.error('Socket error:', error);
                 addMessage('Error', error.message || JSON.stringify(error), 'error');
             });
         }
@@ -419,13 +429,15 @@
             }
 
             showTyping();
-            socket.emit('message', {
+            const messageData = {
                 message: message,
                 userId: userId,
                 conversationId: conversationId,
-                language: detectLanguage(message),
-                messageId: 'msg-' + Date.now()
-            });
+                language: detectLanguage(message)
+            };
+            
+            console.log('Sending socket message:', messageData);
+            socket.emit('sendMessage', messageData);
         }
 
         // UI Functions
