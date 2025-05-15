@@ -4,8 +4,6 @@
  */
 
 const express = require('express');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { requireAdminAuth } = require('../middleware/adminAuth');
