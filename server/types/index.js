@@ -1,48 +1,65 @@
 /**
- * @file Центральный файл экспорта типов для проекта Shrooms Support Bot
- * @description Объединяет все типы и обеспечивает единое место для импорта
+ * Shared types for Shrooms Support Bot
+ * @file server/types/index.js
  */
 
-// Импорт типов Knowledge API
-const knowledgeTypes = require('./knowledgeApi');
+/**
+ * Knowledge Document type definition
+ * @typedef {Object} KnowledgeDocument
+ * @property {string} _id - Unique document ID
+ * @property {string} title - Document title
+ * @property {string} content - Document content
+ * @property {string} category - Document category
+ * @property {string} language - Document language (en/es/ru)
+ * @property {string[]} [tags] - Optional tags array
+ * @property {Date} createdAt - Creation timestamp
+ * @property {Date} updatedAt - Last update timestamp
+ * @property {string} [authorId] - Author ID
+ * @property {string} status - Document status (draft/published/archived)
+ */
 
-// Импорт остальных типов
-const apiTypes = require('./api');
-const ticketTypes = require('./ticket');
-const vectorStoreTypes = require('./vectorStore');
-const claudeTypes = require('./claude'); // Новые Claude типы
+/**
+ * Chat Message type definition
+ * @typedef {Object} ChatMessage
+ * @property {string} _id - Unique message ID
+ * @property {string} text - Message text
+ * @property {string} role - Message role (user/assistant/system)
+ * @property {string} userId - User ID
+ * @property {string} conversationId - Conversation ID
+ * @property {MessageMetadata} [metadata] - Additional metadata
+ * @property {Date} createdAt - Creation timestamp
+ */
 
-// Импорт старых типов knowledge для обратной совместимости
-const legacyKnowledgeTypes = require('./knowledge');
+/**
+ * Message Metadata type definition
+ * @typedef {Object} MessageMetadata
+ * @property {string} [language] - Message language
+ * @property {number} [tokensUsed] - Tokens used for this message
+ * @property {string} [sentiment] - Message sentiment
+ * @property {boolean} [createdTicket] - Whether ticket was created
+ * @property {string} [ticketId] - Created ticket ID
+ */
 
-// Экспорт всех типов через единый интерфейс
+/**
+ * API Response type definition
+ * @typedef {Object} ApiResponse
+ * @property {boolean} success - Operation success status
+ * @property {*} [data] - Response data
+ * @property {string} [error] - Error message
+ * @property {string} [errorCode] - Error code
+ */
+
+/**
+ * Knowledge Search Query type definition
+ * @typedef {Object} KnowledgeSearchQuery
+ * @property {string} [q] - Search query text
+ * @property {string} [category] - Filter by category
+ * @property {string} [language] - Filter by language
+ * @property {string[]} [tags] - Filter by tags
+ * @property {number} [limit] - Limit results
+ * @property {number} [page] - Page number
+ */
+
 module.exports = {
-  // Claude types - теперь доступны как import('../types').ClaudeGenerateOptions
-  ...claudeTypes,
-  
-  // Новые типизированные API types
-  ...knowledgeTypes,
-  
-  // Остальные типы
-  ...apiTypes,
-  ...ticketTypes,
-  ...vectorStoreTypes,
-  
-  // Legacy types для обратной совместимости
-  ...legacyKnowledgeTypes,
-  
-  // Составные экспорты
-  API: {
-    ...apiTypes,
-    Knowledge: knowledgeTypes
-  },
-  
-  Knowledge: {
-    ...knowledgeTypes,
-    Legacy: legacyKnowledgeTypes
-  },
-  
-  Ticket: ticketTypes,
-  VectorStore: vectorStoreTypes,
-  Claude: claudeTypes // Добавляем Claude типы в составной экспорт
+  // Re-export all types for other modules
 };
