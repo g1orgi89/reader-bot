@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Fixed syntax error
+ * Main server file for Shrooms Support Bot - Add OPTIONS debugging
  * @file server/index.js
  */
 
@@ -190,6 +190,19 @@ async function initializeServices() {
  * Setup middleware - RESTORED FULL CONFIGURATION
  */
 function setupMiddleware() {
+  // DEBUG LOGGING - FIRST THING TO CATCH EVERYTHING
+  app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      logger.info('🚨 OPTIONS REQUEST DETECTED', {
+        url: req.url,
+        origin: req.get('origin'),
+        method: req.get('access-control-request-method'),
+        headers: req.get('access-control-request-headers')
+      });
+    }
+    next();
+  });
+
   // Security middleware - Updated CSP settings for external files
   const helmetConfig = {
     contentSecurityPolicy: {
