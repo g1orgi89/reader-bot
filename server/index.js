@@ -274,6 +274,10 @@ function setupMiddleware() {
   app.get('/test-russian', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/test-russian-search.html'));
   });
+
+  app.get('/test-cors', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/test-cors.html'));
+  });
 }
 
 /**
@@ -299,6 +303,7 @@ function setupRoutes() {
       testTools: {
         chatTest: '/test-chat',
         socketTest: '/client/test-chat.html',
+        corsTest: '/test-cors',
         russianSearchTest: '/api/test/search-russian',
         russianSearchPage: '/test-russian',
         encodingTest: '/api/test/encoding'
@@ -503,6 +508,7 @@ async function startServer() {
           api: `http://localhost:${PORT}/`,
           testChat: `http://localhost:${PORT}/test-chat`,
           testRussian: `http://localhost:${PORT}/test-russian`,
+          testCors: `http://localhost:${PORT}/test-cors`,
           health: `http://localhost:${PORT}/api/health`,
           russianTest: `http://localhost:${PORT}/api/test/search-russian`
         }
