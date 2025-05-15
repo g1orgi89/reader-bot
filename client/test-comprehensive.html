@@ -140,7 +140,7 @@
             border: 1px solid #333;
             border-radius: 5px;
             padding: 10px;
-            height: 150px;
+            height: 200px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 12px;
@@ -162,6 +162,10 @@
         
         .log-entry.warning {
             color: #ffaa44;
+        }
+        
+        .log-entry.system {
+            color: #00FFF9;
         }
     </style>
 </head>
@@ -186,7 +190,6 @@
             <h2>🔌 API Endpoints Test</h2>
             <button onclick="testChatAPI()">Test Chat API</button>
             <button onclick="testTicketsAPI()">Test Tickets API</button>
-            <button onclick="testAdminAPI()">Test Admin API</button>
             <button onclick="testKnowledgeAPI()">Test Knowledge API</button>
             <div id="api-result" class="result"></div>
         </div>
@@ -214,6 +217,9 @@
                 >
                 <button onclick="sendChatMessage()">Send Message</button>
                 <button onclick="clearChatLog()">Clear Log</button>
+                <p style="font-size: 12px; color: #888; margin-top: 10px;">
+                    This tests both HTTP API and Socket.IO (if connected)
+                </p>
             </div>
             <div id="chat-result" class="result"></div>
         </div>
@@ -222,11 +228,13 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         let socket = null;
+        let conversationId = null;
         const serverURL = window.location.origin;
+        const userId = 'test-user-' + Date.now();
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            log('Page loaded, initializing tests...');
+            log('Page loaded, initializing tests...', 'system');
             testHealth();
             updateEnvironment();
         });
@@ -278,7 +286,7 @@
             resultDiv.textContent = 'Testing CORS...';
             
             try {
-                const response = await fetch(`${serverURL}/api/test-cors`, {
+                const response = await fetch(`${serverURL}/api/health`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -331,19 +339,20 @@
         
         // Individual API tests
         async function testChatAPI() {
-            await testAPI('/api/chat/message', 'POST', {
+            const response = await testAPI('/api/chat/message', 'POST', {
                 message: '🍄 Hello from test page!',
-                userId: 'test-user-' + Date.now(),
+                userId: userId,
                 language: 'en'
             });
+            
+            if (response && response.conversationId) {
+                conversationId = response.conversationId;
+                log(`Conversation ID saved: ${conversationId}`);
+            }
         }
         
         async function testTicketsAPI() {
             await testAPI('/api/tickets');
-        }
-        
-        async function testAdminAPI() {
-            await testAPI('/api/admin/stats');
         }
         
         async function testKnowledgeAPI() {
@@ -355,22 +364,19 @@
         
         // Socket.IO functions
         function connectSocket() {
-            if (socket) {
+            if (socket && socket.connected) {
                 log('Socket already connected', 'warning');
                 return;
             }
             
-            log('Connecting to Socket.IO...');
+            log('Connecting to Socket.IO...', 'system');
             socket = io(serverURL, {
                 transports: ['websocket', 'polling']
             });
             
             socket.on('connect', () => {
-                log('✅ Socket connected: ' + socket.id);
+                log(`✅ Socket connected: ${socket.id}`, 'system');
                 updateSocketStatus(true);
-                
-                // Join as test user
-                socket.emit('join', { userId: 'test-user-' + Date.now() });
             });
             
             socket.on('disconnect', (reason) => {
@@ -378,20 +384,20 @@
                 updateSocketStatus(false);
             });
             
-            socket.on('joined', (data) => {
-                log(`Joined as user: ${data.userId}`);
+            socket.on('system', (message) => {
+                log(`🔔 System: ${message}`, 'system');
             });
             
-            socket.on('messageReceived', (data) => {
-                log(`✅ Message acknowledged: ${data.messageId || 'no ID'}`);
-            });
-            
-            socket.on('chatResponse', (data) => {
-                log(`🍄 Bot response: ${data.message}`);
+            socket.on('message', (data) => {
+                log(`🍄 Bot response: ${data.message || JSON.stringify(data)}`, 'info');
+                if (data.conversationId && !conversationId) {
+                    conversationId = data.conversationId;
+                    log(`Conversation ID saved: ${conversationId}`, 'system');
+                }
             });
             
             socket.on('error', (error) => {
-                log(`❌ Socket error: ${error.message}`, 'error');
+                log(`❌ Socket error: ${error.message || error}`, 'error');
             });
             
             socket.on('connect_error', (error) => {
@@ -404,7 +410,7 @@
             if (socket) {
                 socket.disconnect();
                 socket = null;
-                log('Disconnected from Socket.IO');
+                log('Disconnected from Socket.IO', 'system');
                 updateSocketStatus(false);
             }
         }
@@ -428,15 +434,14 @@
                 return;
             }
             
-            const messageId = 'test-' + Date.now();
             const message = '🍄 Test message from Socket.IO';
+            log(`Sending test message: ${message}`, 'info');
             
-            log(`Sending test message: ${message}`);
-            socket.emit('message', {
-                messageId,
-                message,
-                userId: 'test-user',
-                timestamp: new Date().toISOString()
+            socket.emit('sendMessage', {
+                message: message,
+                userId: userId,
+                conversationId: conversationId,
+                language: 'en'
             });
         }
         
@@ -454,8 +459,9 @@
             resultDiv.textContent = 'Sending message...';
             resultDiv.className = 'result';
             
+            // Test via REST API
             try {
-                // Test via REST API
+                log(`Sending via HTTP API: ${message}`, 'info');
                 const response = await fetch(`${serverURL}/api/chat/message`, {
                     method: 'POST',
                     headers: {
@@ -463,52 +469,59 @@
                     },
                     body: JSON.stringify({
                         message: message,
-                        userId: 'test-user-' + Date.now(),
+                        userId: userId,
+                        conversationId: conversationId,
                         language: 'en'
                     })
                 });
                 
                 const data = await response.json();
                 
-                if (response.ok) {
-                    resultDiv.textContent = `✅ Bot Response: ${data.message || data.response || JSON.stringify(data)}`;
+                if (response.ok && data.success) {
+                    resultDiv.textContent = `✅ HTTP API Response: ${data.message}`;
                     resultDiv.className = 'result success';
-                    log(`Chat message sent successfully`);
+                    log(`✅ HTTP API response received`, 'info');
+                    
+                    // Save conversation ID
+                    if (data.conversationId) {
+                        conversationId = data.conversationId;
+                    }
                 } else {
-                    resultDiv.textContent = `❌ Error: ${data.error || data.message || 'Unknown error'}`;
+                    resultDiv.textContent = `❌ HTTP API Error: ${data.error || data.message || 'Unknown error'}`;
                     resultDiv.className = 'result error';
-                    log(`Chat API error: ${data.error}`, 'error');
-                }
-                
-                input.value = '';
-                
-                // Also test via Socket.IO if connected
-                if (socket && socket.connected) {
-                    log('Also sending via Socket.IO...');
-                    socket.emit('message', {
-                        messageId: 'chat-' + Date.now(),
-                        message: message,
-                        userId: 'test-user'
-                    });
+                    log(`❌ HTTP API error: ${data.error || data.message}`, 'error');
                 }
                 
             } catch (error) {
                 resultDiv.textContent = `❌ Network Error: ${error.message}`;
                 resultDiv.className = 'result error';
-                log(`Chat failed: ${error.message}`, 'error');
+                log(`❌ HTTP request failed: ${error.message}`, 'error');
             }
+            
+            // Also test via Socket.IO if connected
+            if (socket && socket.connected) {
+                log(`Also sending via Socket.IO...`, 'info');
+                socket.emit('sendMessage', {
+                    message: message,
+                    userId: userId,
+                    conversationId: conversationId,
+                    language: 'en'
+                });
+            }
+            
+            input.value = '';
         }
         
         function clearChatLog() {
             document.getElementById('chat-result').textContent = '';
             document.getElementById('socket-log').innerHTML = '';
+            log('Logs cleared', 'system');
         }
         
         // Auto-connect socket on page load (optional)
         setTimeout(() => {
-            if (confirm('Auto-connect to Socket.IO for real-time testing?')) {
-                connectSocket();
-            }
+            log('Auto-connecting to Socket.IO...', 'system');
+            connectSocket();
         }, 1000);
     </script>
 </body>
