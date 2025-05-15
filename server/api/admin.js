@@ -12,15 +12,8 @@ const { createErrorResponse } = require('../constants/errorCodes');
 
 const router = express.Router();
 
-// CORS Preflight handler for admin routes
-router.options('/*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  res.sendStatus(200);
-});
+// REMOVE local OPTIONS handler - using global one from index.js
+// router.options('/*', ...) <-- REMOVED!
 
 /**
  * Admin login endpoint
@@ -293,7 +286,10 @@ router.get('/tickets', requireAdminAuth, async (req, res) => {
  */
 router.post('/tickets', requireAdminAuth, async (req, res) => {
   try {
-    logger.info('Admin creating new ticket', { admin: req.admin?.id });
+    logger.info('Admin creating new ticket', { 
+      admin: req.admin?.id,
+      body: req.body
+    });
 
     const { title, description, priority, category, userId, email } = req.body;
 
@@ -314,17 +310,20 @@ router.post('/tickets', requireAdminAuth, async (req, res) => {
     const dummyConversationId = new mongoose.Types.ObjectId();
 
     // Create ticket data - mapping title/description to subject/initialMessage
+    // Use valid ticket categories from ticket types
     const ticketData = {
       userId: userId || `admin-created-${Date.now()}`,
       conversationId: dummyConversationId, // Add required conversationId
       subject: title, // Map title to subject
       initialMessage: description, // Map description to initialMessage
       priority: priority || 'medium',
-      category: category || 'general',
+      category: category || 'other', // Use 'other' instead of 'general'
       email: email || '',
       language: 'en', // Add required language field
       context: 'Created by admin via admin panel' // Add context
     };
+
+    logger.info('Creating ticket with data:', ticketData);
 
     // Create the ticket
     const ticket = await ticketService.createTicket(ticketData);
@@ -344,10 +343,11 @@ router.post('/tickets', requireAdminAuth, async (req, res) => {
     logger.error('Error creating ticket via admin endpoint', {
       error: error.message,
       admin: req.admin?.id,
-      stack: error.stack
+      stack: error.stack,
+      body: req.body
     });
 
-    const errorResponse = createErrorResponse('GENERIC_ERROR', 'Failed to create ticket');
+    const errorResponse = createErrorResponse('GENERIC_ERROR', `Failed to create ticket: ${error.message}`);
     res.status(errorResponse.httpStatus).json(errorResponse);
   }
 });
