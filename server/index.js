@@ -1,5 +1,5 @@
 /**
- * Main server file for Shrooms Support Bot - Updated CSP for external CSS/JS
+ * Main server file for Shrooms Support Bot - Add health rate limiter
  * @file server/index.js
  */
 
@@ -22,7 +22,8 @@ const {
   generalLimiter, 
   chatLimiter, 
   authLimiter, 
-  adminLimiter 
+  adminLimiter,
+  healthLimiter 
 } = require('./middleware/rateLimiting');
 
 // Import API routes
@@ -339,8 +340,8 @@ function setupRoutes() {
   // Admin routes - NO BASIC AUTH (authentication is handled in admin routes themselves)
   app.use('/api/admin', adminRoutes);
 
-  // Health check endpoint with ServiceManager integration
-  app.get('/api/health', async (req, res) => {
+  // Health check endpoint with SPECIAL rate limiter for testing
+  app.get('/api/health', healthLimiter, async (req, res) => {
     try {
       const health = await ServiceManager.healthCheck();
       const stats = ServiceManager.getStats();
