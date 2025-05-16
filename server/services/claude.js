@@ -1,5 +1,5 @@
 /**
- * Сервис для взаимодействия с API Claude (Optimized)
+ * Сервис для взаимодействия с API Claude (Optimized & Fixed)
  * @file server/services/claude.js
  */
 
@@ -34,9 +34,6 @@ class ClaudeService {
     // Кэш для быстрых ответов
     this.quickResponseCache = new Map();
     this.cacheTimeout = 10 * 60 * 1000; // 10 минут
-    
-    // Предустановленные ответы для тестовых сценариев
-    this.quickResponses = this._initQuickResponses();
   }
 
   /**
@@ -49,7 +46,7 @@ class ClaudeService {
     try {
       const { context = [], history = [], language = 'en' } = options;
       
-      // 1. Быстрая проверка кэша для тестовых сообщений
+      // 1. Быстрая проверка для тестовых сообщений
       const quickResponse = this._getQuickResponse(message, language);
       if (quickResponse) {
         logger.debug('Using quick response for test message');
@@ -103,43 +100,6 @@ class ClaudeService {
       logger.error(`Claude API error: ${error.message}`);
       return this._getErrorResponse(error, options.language);
     }
-  }
-  
-  /**
-   * Инициализация быстрых ответов для типичных сценариев
-   * @private
-   * @returns {Map} Карта быстрых ответов
-   */
-  _initQuickResponses() {
-    const responses = new Map();
-    
-    // Тестовые сообщения
-    const testPatterns = [
-      /performance test/i,
-      /concurrent test \d+/i,
-      /test/i,
-      /hello/i,
-      /hi/i
-    ];
-    
-    const quickAnswers = {
-      en: "*mushroom spores sparkle* Hello, digital explorer! How can I help you navigate the Shrooms ecosystem today?",
-      ru: "*грибные споры сверкают* Привет, цифровой исследователь! Как могу помочь тебе в экосистеме Shrooms сегодня?",
-      es: "*las esporas de hongos brillan* ¡Hola, explorador digital! ¿Cómo puedo ayudarte en el ecosistema Shrooms hoy?"
-    };
-    
-    // Создаем быстрые ответы для каждого языка и паттерна
-    ['en', 'ru', 'es'].forEach(lang => {
-      testPatterns.forEach(pattern => {
-        responses.set(`${lang}:${pattern.source}`, {
-          message: quickAnswers[lang],
-          needsTicket: false,
-          tokensUsed: 45
-        });
-      });
-    });
-    
-    return responses;
   }
   
   /**
@@ -270,14 +230,24 @@ class ClaudeService {
       response.toLowerCase().includes(keyword)
     );
     
-    // Быстрая проверка проблемных слов в сообщении
+    // Быстрая проверка проблемных слов в сообщении (ИСПРАВЛЕНО)
     const problemKeywords = [
-      /error/i, /ошибка/i, /error/i,
-      /problem/i, /проблема/i, /problema/i,
-      /issue/i, /вопрос/i, /asunto/i,
-      /stuck/i, /застрял/i, /atascado/i,
-      /failed/i, /не работает/i, /falló/i,
-      /not working/i, /no funciona/i
+      /error/i,
+      /ошибка/i,
+      /problema/i,
+      /problem/i,
+      /проблема/i,
+      /issue/i,
+      /вопрос/i,
+      /asunto/i,
+      /stuck/i,
+      /застрял/i,
+      /atascado/i,
+      /failed/i,
+      /не работает/i,
+      /falló/i,
+      /not working/i,
+      /no funciona/i
     ];
     
     const hasProblemKeywords = problemKeywords.some(keyword => 
@@ -357,8 +327,7 @@ class ClaudeService {
   getCacheStats() {
     return {
       cacheSize: this.quickResponseCache.size,
-      cacheTimeout: this.cacheTimeout,
-      quickResponsesCount: this.quickResponses.size
+      cacheTimeout: this.cacheTimeout
     };
   }
 }
