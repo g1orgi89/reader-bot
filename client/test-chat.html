@@ -78,6 +78,16 @@
             font-weight: bold;
         }
 
+        .language-info {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 8px;
+            background: rgba(57, 255, 20, 0.1);
+            border-radius: 8px;
+            color: #39FF14;
+            font-size: 14px;
+        }
+
         .messages {
             height: 350px;
             overflow-y: auto;
@@ -255,12 +265,31 @@
             color: #666;
             margin-top: 5px;
         }
+
+        /* Кнопка для очистки чата и начала нового conversation */
+        .clear-chat-btn {
+            background: #444;
+            color: #ccc;
+            border: 1px solid #666;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .clear-chat-btn:hover {
+            background: #555;
+            border-color: #39FF14;
+            color: #39FF14;
+        }
     </style>
 </head>
 <body>
     <div class="chat-container">
         <h1>🍄 Shrooms Support Bot</h1>
-        <p class="subtitle">Test Chat Interface</p>
+        <p class="subtitle">Test Chat Interface - Language Auto-Detection</p>
         
         <div class="api-selector">
             <div class="api-toggle">
@@ -269,19 +298,25 @@
             </div>
         </div>
 
+        <div class="language-info" id="languageInfo">
+            Server-side language detection enabled
+        </div>
+
         <div class="status connecting" id="status">Initializing...</div>
         <div class="messages" id="messages"></div>
         <div class="typing-indicator" id="typing">🍄 Shrooms Bot is typing...</div>
         <div class="input-container">
-            <input type="text" id="messageInput" placeholder="Ask about Shrooms project..." disabled>
+            <button class="clear-chat-btn" onclick="clearChatAndStartNew()">New Chat</button>
+            <input type="text" id="messageInput" placeholder="Ask about Shrooms in any language..." disabled>
             <button id="sendButton" disabled>Send</button>
         </div>
 
         <div class="suggestions">
-            <button class="suggestion-btn" onclick="sendSuggestion('Как подключить кошелек Xverse?')">Подключение кошелька</button>
-            <button class="suggestion-btn" onclick="sendSuggestion('What is the SHROOMS token?')">О токене SHROOMS</button>
-            <button class="suggestion-btn" onclick="sendSuggestion('How to start farming?')">Фарминг</button>
-            <button class="suggestion-btn" onclick="sendSuggestion('¿Qué es Shrooms?')">¿Qué es Shrooms?</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('Как подключить кошелек Xverse?')">🇷🇺 Подключение кошелька</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('What is the SHROOMS token?')">🇺🇸 About SHROOMS</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('How to start farming?')">🇺🇸 Farming Guide</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('¿Qué es Shrooms?')">🇪🇸 ¿Qué es Shrooms?</button>
+            <button class="suggestion-btn" onclick="sendSuggestion('¿Cómo funciona el farming?')">🇪🇸 Farming</button>
         </div>
     </div>
 
@@ -294,12 +329,14 @@
         let socket = null;
         let conversationId = null;
         let userId = 'test-user-' + Date.now();
+        let currentLanguage = null;
 
         const messagesEl = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
         const statusEl = document.getElementById('status');
         const typingEl = document.getElementById('typing');
+        const languageInfoEl = document.getElementById('languageInfo');
 
         // Initialize the chat
         function initializeChat() {
@@ -316,7 +353,8 @@
             statusEl.className = 'status connected';
             messageInput.disabled = false;
             sendButton.disabled = false;
-            addMessage('System', 'HTTP API mode active. Ready to chat!', 'system');
+            addMessage('System', 'HTTP API mode active. Server will detect language automatically!', 'system');
+            updateLanguageInfo('Server-side detection enabled');
         }
 
         async function sendMessageHTTP(message) {
@@ -324,11 +362,12 @@
                 showTyping();
                 console.log('Making HTTP request to:', `${API_BASE}/chat`);
                 
+                // ИСПРАВЛЕНИЕ: НЕ отправляем language параметр, позволяем серверу определить
                 const requestBody = {
                     message: message,
                     userId: userId,
-                    conversationId: conversationId,
-                    language: detectLanguage(message)
+                    conversationId: conversationId
+                    // Убираем language: detectLanguage(message) - пусть сервер сам определяет
                 };
                 
                 console.log('Request body:', requestBody);
@@ -349,7 +388,10 @@
 
                 if (data.success && response.ok) {
                     conversationId = data.data.conversationId;
+                    currentLanguage = data.data.language;
+                    
                     addMessage('🍄 Shrooms Bot', data.data.message, 'bot');
+                    updateLanguageInfo(`Detected language: ${getLanguageName(currentLanguage)}`);
                     
                     if (data.data.ticketId) {
                         addMessage('System', `Создан тикет поддержки: ${data.data.ticketId}`, 'system');
@@ -357,8 +399,8 @@
 
                     // Show metadata in development
                     if (data.data.metadata) {
-                        const metaText = `Tokens: ${data.data.tokensUsed || 0}, Knowledge: ${data.data.metadata.knowledgeResultsCount || 0}, History: ${data.data.metadata.historyMessagesCount || 0}`;
-                        addMessage('Debug', metaText, 'system', metaText);
+                        const metaText = `Provider: ${data.data.aiProvider || 'N/A'}, Tokens: ${data.data.tokensUsed || 0}, Knowledge: ${data.data.metadata.knowledgeResultsCount || 0}, History: ${data.data.metadata.historyMessagesCount || 0}`;
+                        addMessage('Debug', metaText, 'system');
                     }
                 } else {
                     addMessage('Error', data.error || 'Something went wrong', 'error');
@@ -382,7 +424,8 @@
                 statusEl.className = 'status connected';
                 messageInput.disabled = false;
                 sendButton.disabled = false;
-                addMessage('System', 'Socket.IO connected! Real-time chat active.', 'system');
+                addMessage('System', 'Socket.IO connected! Real-time chat with auto language detection.', 'system');
+                updateLanguageInfo('Server-side detection enabled');
             });
 
             socket.on('disconnect', () => {
@@ -402,6 +445,11 @@
                 if (data.conversationId) {
                     conversationId = data.conversationId;
                 }
+                if (data.language) {
+                    currentLanguage = data.language;
+                    updateLanguageInfo(`Detected language: ${getLanguageName(currentLanguage)}`);
+                }
+                
                 addMessage('🍄 Shrooms Bot', data.message, 'bot');
                 
                 if (data.ticketId) {
@@ -410,7 +458,7 @@
                 
                 // Show metadata if present
                 if (data.metadata) {
-                    const metaText = `Tokens: ${data.tokensUsed || 0}, Knowledge: ${data.metadata.knowledgeResultsCount || 0}, History: ${data.metadata.historyMessagesCount || 0}`;
+                    const metaText = `Provider: ${data.aiProvider || 'N/A'}, Tokens: ${data.tokensUsed || 0}, Knowledge: ${data.metadata.knowledgeResultsCount || 0}, History: ${data.metadata.historyMessagesCount || 0}`;
                     addMessage('Debug', metaText, 'system');
                 }
             });
@@ -429,11 +477,12 @@
             }
 
             showTyping();
+            // ИСПРАВЛЕНИЕ: НЕ отправляем language параметр
             const messageData = {
                 message: message,
                 userId: userId,
-                conversationId: conversationId,
-                language: detectLanguage(message)
+                conversationId: conversationId
+                // Убираем language: detectLanguage(message)
             };
             
             console.log('Sending socket message:', messageData);
@@ -453,6 +502,7 @@
             
             messagesEl.innerHTML = '';
             conversationId = null;
+            currentLanguage = null;
             initializeChat();
         }
 
@@ -463,6 +513,7 @@
             
             messagesEl.innerHTML = '';
             conversationId = null;
+            currentLanguage = null;
             initializeChat();
         }
 
@@ -485,6 +536,15 @@
         function sendSuggestion(suggestion) {
             messageInput.value = suggestion;
             sendMessage();
+        }
+
+        function clearChatAndStartNew() {
+            messagesEl.innerHTML = '';
+            conversationId = null;
+            currentLanguage = null;
+            userId = 'test-user-' + Date.now(); // Новый пользователь для эмуляции новой сессии
+            updateLanguageInfo('Server-side detection enabled');
+            addMessage('System', 'New chat started! Language will be detected automatically.', 'system');
         }
 
         function addMessage(sender, message, type, metadata = null) {
@@ -511,11 +571,17 @@
             typingEl.style.display = 'none';
         }
 
-        function detectLanguage(text) {
-            // Simple language detection
-            if (/[а-яё]/i.test(text)) return 'ru';
-            if (/[ñáéíóúü]/i.test(text)) return 'es';
-            return 'en';
+        function updateLanguageInfo(text) {
+            languageInfoEl.textContent = text;
+        }
+
+        function getLanguageName(code) {
+            const languages = {
+                'en': 'English',
+                'ru': 'Русский',
+                'es': 'Español'
+            };
+            return languages[code] || code;
         }
 
         // Event listeners
@@ -533,7 +599,7 @@
             // Add welcome message after a delay
             setTimeout(() => {
                 addMessage('System', 'Welcome to Shrooms Support Bot! 🍄', 'system');
-                addMessage('System', 'Try asking questions about the project, wallet connection, or farming.', 'system');
+                addMessage('System', 'Type in English, Russian (Русский), or Spanish (Español) - language will be detected automatically!', 'system');
             }, 500);
         });
 
