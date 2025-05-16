@@ -8,6 +8,7 @@ const router = express.Router();
 const KnowledgeDocument = require('../models/knowledge');
 const knowledgeService = require('../services/knowledge');
 const logger = require('../utils/logger');
+const { basicAdminAuth } = require('../middleware/auth');
 
 // Middleware to ensure UTF-8 encoding
 router.use((req, res, next) => {
@@ -184,7 +185,7 @@ router.get('/:id', async (req, res) => {
 /**
  * @route POST /api/knowledge
  * @desc Create a new knowledge document
- * @access Public (should be protected in production)
+ * @access Private (Admin only)
  * @body {string} title - Document title
  * @body {string} content - Document content
  * @body {string} category - Document category
@@ -192,7 +193,7 @@ router.get('/:id', async (req, res) => {
  * @body {string[]} [tags] - Document tags
  * @body {string} [authorId] - Author ID
  */
-router.post('/', async (req, res) => {
+router.post('/', basicAdminAuth, async (req, res) => {
   try {
     const {
       title,
@@ -218,7 +219,7 @@ router.post('/', async (req, res) => {
       category,
       language,
       tags: Array.isArray(tags) ? tags : [],
-      authorId
+      authorId: authorId || req.user.id
     });
 
     if (!result.success) {
@@ -235,7 +236,7 @@ router.post('/', async (req, res) => {
       message: 'Document created successfully'
     });
 
-    logger.info(`Knowledge document created: ${result.data.id} - "${title}"`);
+    logger.info(`Knowledge document created by ${req.user.username}: ${result.data.id} - "${title}"`);
   } catch (error) {
     logger.error(`Error creating knowledge document: ${error.message}`);
     
@@ -259,7 +260,7 @@ router.post('/', async (req, res) => {
 /**
  * @route PUT /api/knowledge/:id
  * @desc Update a knowledge document
- * @access Public (should be protected in production)
+ * @access Private (Admin only)
  * @param {string} id - Document ID
  * @body {string} [title] - Document title
  * @body {string} [content] - Document content
@@ -268,7 +269,7 @@ router.post('/', async (req, res) => {
  * @body {string[]} [tags] - Document tags
  * @body {string} [status] - Document status
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', basicAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
@@ -290,7 +291,7 @@ router.put('/:id', async (req, res) => {
       message: 'Document updated successfully'
     });
 
-    logger.info(`Knowledge document updated: ${id}`);
+    logger.info(`Knowledge document updated by ${req.user.username}: ${id}`);
   } catch (error) {
     logger.error(`Error updating knowledge document: ${error.message}`);
     
@@ -322,10 +323,10 @@ router.put('/:id', async (req, res) => {
 /**
  * @route DELETE /api/knowledge/:id
  * @desc Delete a knowledge document
- * @access Public (should be protected in production)
+ * @access Private (Admin only)
  * @param {string} id - Document ID
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', basicAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -345,7 +346,7 @@ router.delete('/:id', async (req, res) => {
       message: result.message
     });
 
-    logger.info(`Knowledge document deleted: ${id}`);
+    logger.info(`Knowledge document deleted by ${req.user.username}: ${id}`);
   } catch (error) {
     logger.error(`Error deleting knowledge document: ${error.message}`);
     
