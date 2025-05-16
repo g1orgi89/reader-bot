@@ -55,24 +55,12 @@ const io = socketIo(server, {
   }
 });
 
-// КРИТИЧЕСКИ ВАЖНОЕ: Middleware для принудительного UTF-8
+// ИСПРАВЛЕНО: Убираем проблемное req.setEncoding()
 app.use((req, res, next) => {
-  // Устанавливаем кодировку запроса
-  req.setEncoding = req.setEncoding || function() {};
-  req.setEncoding('utf8');
-  
-  // Для всех API роутов устанавливаем UTF-8
+  // Просто устанавливаем правильные заголовки без изменения encoding stream
   if (req.path.startsWith('/api')) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    
-    // Принудительно устанавливаем кодировку для входящих данных
-    if (req.headers['content-type']) {
-      if (!req.headers['content-type'].includes('charset')) {
-        req.headers['content-type'] += '; charset=utf-8';
-      }
-    }
   }
-  
   next();
 });
 
@@ -84,36 +72,17 @@ app.use(cors({
   allowedHeaders: config.cors.allowedHeaders
 }));
 
-// КРИТИЧЕСКИ ВАЖНОЕ: Express JSON middleware с принудительной UTF-8
+// ИСПРАВЛЕНО: Простое express.json middleware без verify функции
 app.use(express.json({ 
   limit: '10mb',
-  type: 'application/json',
-  // Принудительная обработка как UTF-8
-  verify: (req, res, buf, encoding) => {
-    // Всегда интерпретируем как UTF-8, независимо от заголовков
-    req.rawBody = buf.toString('utf8');
-    
-    // Дополнительная проверка на корректность UTF-8
-    try {
-      if (req.rawBody) {
-        JSON.parse(req.rawBody);
-      }
-    } catch (e) {
-      // Если не можем распарсить, возможно проблема с кодировкой
-      logger.warn('JSON parse warning:', e.message);
-    }
-  }
+  type: 'application/json'
 }));
 
 app.use(express.urlencoded({ 
   extended: true, 
   limit: '10mb',
   type: 'application/x-www-form-urlencoded',
-  parameterLimit: 1000,
-  // Принудительная UTF-8 для URL-encoded данных
-  verify: (req, res, buf, encoding) => {
-    req.rawBody = buf.toString('utf8');
-  }
+  parameterLimit: 1000
 }));
 
 // Middleware для обработки JSON parse errors
