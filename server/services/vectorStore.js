@@ -1,495 +1,210 @@
 /**
- * Сервис для работы с векторной базой знаний (Qdrant)
+ * Vector Store Service for Shrooms AI Support Bot
  * @file server/services/vectorStore.js
  */
 
+const { QdrantVectorStore } = require("@langchain/qdrant");
+const { OpenAIEmbeddings } = require("@langchain/openai");
 const logger = require('../utils/logger');
 
 /**
- * @typedef {Object} SearchResult
- * @property {string} content - Содержимое документа
- * @property {number} score - Релевантность (0-1)
- * @property {Object} metadata - Метаданные документа
- * @property {string} id - ID документа
+ * @typedef {Object} VectorSearchResult
+ * @property {string} content - Document content
+ * @property {number} score - Similarity score
+ * @property {Object} metadata - Document metadata
  */
 
 /**
- * @typedef {Object} Document
- * @property {string} id - Уникальный ID документа
- * @property {string} content - Содержимое документа
- * @property {Object} [metadata] - Метаданные документа
- * @property {number[]} [vector] - Вектор эмбеддинга (опционально)
- */
-
-/**
- * @typedef {Object} SearchOptions
- * @property {number} [limit=5] - Количество результатов
- * @property {string} [language] - Язык документов для фильтрации
- * @property {number} [scoreThreshold=0.7] - Минимальный порог релевантности
- * @property {Object} [filters] - Дополнительные фильтры
+ * @typedef {Object} VectorDocument
+ * @property {string} content - Document content
+ * @property {Object} metadata - Document metadata
  */
 
 /**
  * @class VectorStoreService
- * @description Сервис для работы с векторной базой знаний на основе Qdrant
+ * @description Service for managing vector storage and retrieval
  */
 class VectorStoreService {
   constructor() {
-    this.initialized = false;
-    this.client = null;
-    this.collectionName = 'shrooms_knowledge';
-    this.vectorSize = 1536; // Размер вектора для text-embedding-ada-002
-    this.config = {
-      url: process.env.VECTOR_DB_URL || 'http://localhost:6333',
-      timeout: parseInt(process.env.VECTOR_DB_TIMEOUT) || 10000,
-      batchSize: parseInt(process.env.VECTOR_BATCH_SIZE) || 100,
-      searchLimit: parseInt(process.env.VECTOR_SEARCH_LIMIT) || 5
-    };
-    
-    // Проверяем, включен ли RAG
-    this.ragEnabled = process.env.ENABLE_RAG !== 'false';
-    
-    if (!this.ragEnabled) {
-      logger.info('⚠️ RAG feature is disabled, VectorStore will run in stub mode');
-    }
+    this.vectorStore = null;
+    this.embeddings = null;
+    this.isInitialized = false;
+    this.collectionName = process.env.QDRANT_COLLECTION_NAME || 'shrooms_knowledge';
+    this.maxRetries = 3;
+    this.retryDelay = 1000; // 1 second
   }
 
   /**
-   * Инициализирует подключение к Qdrant
+   * Initialize the vector store connection
    * @returns {Promise<void>}
    */
   async initialize() {
     try {
-      if (!this.ragEnabled) {
-        logger.info('📚 VectorStore initialized in stub mode (RAG disabled)');
-        this.initialized = true;
+      // Check if vector store is disabled
+      if (!process.env.ENABLE_RAG || process.env.ENABLE_RAG === 'false') {
+        logger.info('Vector store disabled by configuration');
         return;
       }
 
-      logger.info('📡 Initializing vector store connection...');
-      
-      // Динамически импортируем qdrant-js только если RAG включен
-      const { QdrantClient } = await import('@qdrant/js-client-rest');
-      
-      this.client = new QdrantClient({
-        url: this.config.url,
-        timeout: this.config.timeout
+      // Initialize embeddings
+      if (!process.env.OPENAI_API_KEY) {
+        logger.warn('OpenAI API key not found, vector store cannot be initialized');
+        return;
+      }
+
+      this.embeddings = new OpenAIEmbeddings({
+        openAIApiKey: process.env.OPENAI_API_KEY,
+        modelName: process.env.EMBEDDING_MODEL || "text-embedding-ada-002"
       });
 
-      // Проверяем соединение
-      await this.client.getCollections();
-      logger.info('✅ Connected to Qdrant successfully');
-
-      // Создаем коллекцию если не существует
-      await this.ensureCollection();
-      
-      this.initialized = true;
-      logger.info('✅ Vector store initialized successfully');
-    } catch (error) {
-      logger.error('❌ Failed to initialize vector store:', error.message);
-      
-      // Если это ошибка подключения, работаем в режиме заглушки
-      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-        logger.warn('⚠️ Vector store unavailable, falling back to stub mode');
-        this.ragEnabled = false;
-        this.initialized = true;
-        return;
+      // Try to connect to Qdrant with retries
+      let lastError;
+      for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+        try {
+          await this._connectToQdrant();
+          logger.info(`Vector store initialized successfully (attempt ${attempt})`);
+          this.isInitialized = true;
+          return;
+        } catch (error) {
+          lastError = error;
+          logger.warn(`Vector store connection attempt ${attempt} failed: ${error.message}`);
+          
+          if (attempt < this.maxRetries) {
+            await this._wait(this.retryDelay * attempt);
+          }
+        }
       }
-      
-      throw error;
+
+      throw lastError;
+    } catch (error) {
+      logger.error(`Failed to initialize vector store: ${error.message}`);
+      this.isInitialized = false;
+      // Don't throw - allow the application to continue without RAG
     }
   }
 
   /**
-   * Проверяет и создает коллекцию если необходимо
-   * @returns {Promise<void>}
+   * Connect to Qdrant vector database
+   * @private
    */
-  async ensureCollection() {
-    try {
-      if (!this.ragEnabled || !this.client) {
-        return;
-      }
+  async _connectToQdrant() {
+    const qdrantUrl = process.env.QDRANT_URL || 'http://localhost:6333';
+    const qdrantApiKey = process.env.QDRANT_API_KEY;
 
-      // Проверяем существование коллекции
-      const collections = await this.client.getCollections();
-      const collectionExists = collections.collections.some(
-        col => col.name === this.collectionName
-      );
+    // Test connection first
+    const testUrl = `${qdrantUrl}/collections`;
+    const headers = {
+      'Content-Type': 'application/json'
+    };
 
-      if (!collectionExists) {
-        logger.info(`📚 Creating collection: ${this.collectionName}`);
-        
-        await this.client.createCollection(this.collectionName, {
-          vectors: {
-            size: this.vectorSize,
-            distance: 'Cosine'
-          },
-          optimizers_config: {
-            default_segment_number: 2
-          },
-          replication_factor: 1
-        });
-
-        logger.info(`✅ Collection created: ${this.collectionName}`);
-      } else {
-        logger.info(`📚 Collection already exists: ${this.collectionName}`);
-      }
-    } catch (error) {
-      logger.error('❌ Failed to ensure collection:', error.message);
-      throw error;
+    if (qdrantApiKey) {
+      headers['api-key'] = qdrantApiKey;
     }
+
+    // Test connection with a simple API call
+    const fetch = require('node-fetch');
+    const response = await fetch(testUrl, { 
+      method: 'GET',
+      headers,
+      timeout: 5000
+    });
+
+    if (!response.ok) {
+      throw new Error(`Qdrant connection failed: ${response.status} ${response.statusText}`);
+    }
+
+    // Initialize vector store
+    this.vectorStore = await QdrantVectorStore.fromExistingCollection(
+      this.embeddings,
+      {
+        url: qdrantUrl,
+        apiKey: qdrantApiKey,
+        collectionName: this.collectionName
+      }
+    );
   }
 
   /**
-   * Поиск релевантных документов
-   * @param {string} query - Поисковый запрос
-   * @param {SearchOptions} options - Опции поиска
-   * @returns {Promise<SearchResult[]>} Массив найденных документов
+   * Search for similar documents
+   * @param {string} query - Search query
+   * @param {Object} options - Search options
+   * @param {number} options.k - Number of results to return
+   * @param {string} options.language - Language filter
+   * @param {Array} options.categories - Category filters
+   * @returns {Promise<VectorSearchResult[]>} Search results
    */
   async search(query, options = {}) {
+    if (!this.isInitialized || !this.vectorStore) {
+      logger.warn('Vector store not initialized, returning empty results');
+      return [];
+    }
+
     try {
-      // Если RAG отключен, возвращаем пустой массив
-      if (!this.ragEnabled) {
-        logger.info(`📚 Vector search (stub mode): "${query.substring(0, 50)}..."`);
-        return [];
+      const { k = 5, language, categories } = options;
+
+      // Build filter for metadata
+      const filter = {};
+      if (language) {
+        filter.language = language;
+      }
+      if (categories && categories.length > 0) {
+        filter.category = { $in: categories };
       }
 
-      if (!this.initialized || !this.client) {
-        logger.warn('Vector store not initialized, returning empty results');
-        return [];
-      }
+      // Perform similarity search
+      const results = await this.vectorStore.similaritySearchWithScore(
+        query,
+        k,
+        Object.keys(filter).length > 0 ? filter : undefined
+      );
 
-      const {
-        limit = this.config.searchLimit,
-        language,
-        scoreThreshold = 0.6,
-        filters = {}
-      } = options;
-
-      // Получаем эмбеддинг для запроса
-      const queryVector = await this.getEmbedding(query);
-
-      // Готовим фильтры
-      const searchFilters = this.buildFilters(language, filters);
-
-      logger.info(`🔍 Vector search: "${query.substring(0, 50)}..."`);
-
-      // Выполняем поиск
-      const searchResult = await this.client.search(this.collectionName, {
-        vector: queryVector,
-        limit,
-        with_payload: true,
-        with_vector: false,
-        filter: searchFilters.length > 0 ? { must: searchFilters } : undefined,
-        score_threshold: scoreThreshold
-      });
-
-      // Форматируем результаты
-      const results = searchResult.map(item => ({
-        id: item.id.toString(),
-        content: item.payload.content,
-        score: item.score,
-        metadata: {
-          title: item.payload.title,
-          category: item.payload.category,
-          language: item.payload.language,
-          tags: item.payload.tags || [],
-          ...item.payload.metadata
-        }
+      return results.map(([doc, score]) => ({
+        content: doc.pageContent,
+        score,
+        metadata: doc.metadata
       }));
-
-      logger.info(`✅ Found ${results.length} relevant documents`);
-      return results;
     } catch (error) {
-      logger.error('❌ Vector search failed:', error.message);
-      
-      // В случае ошибки возвращаем пустой массив, чтобы чат продолжал работать
+      logger.error(`Vector search error: ${error.message}`);
       return [];
     }
   }
 
   /**
-   * Добавляет документы в векторную базу
-   * @param {Document[]} documents - Документы для добавления
-   * @returns {Promise<string[]>} Массив ID добавленных документов
+   * Add documents to the vector store
+   * @param {VectorDocument[]} documents - Documents to add
+   * @returns {Promise<void>}
    */
   async addDocuments(documents) {
+    if (!this.isInitialized || !this.vectorStore) {
+      throw new Error('Vector store not initialized');
+    }
+
     try {
-      if (!this.ragEnabled) {
-        logger.info(`📚 Adding ${documents.length} documents (stub mode)`);
-        return documents.map((_, index) => `stub_${index}`);
-      }
-
-      if (!this.initialized || !this.client) {
-        throw new Error('Vector store not initialized');
-      }
-
-      logger.info(`📚 Adding ${documents.length} documents to vector store`);
-
-      const points = [];
-      for (const doc of documents) {
-        // Получаем вектор для документа
-        const vector = doc.vector || await this.getEmbedding(doc.content);
-        
-        // Создаем точку для Qdrant
-        const point = {
-          id: doc.id || this.generateId(),
-          vector,
-          payload: {
-            content: doc.content,
-            title: doc.metadata?.title || '',
-            category: doc.metadata?.category || 'general',
-            language: doc.metadata?.language || 'en',
-            tags: doc.metadata?.tags || [],
-            created_at: new Date().toISOString(),
-            ...doc.metadata
-          }
-        };
-        points.push(point);
-      }
-
-      // Добавляем документы батчами
-      const batches = this.chunkArray(points, this.config.batchSize);
-      const addedIds = [];
-
-      for (const batch of batches) {
-        await this.client.upsert(this.collectionName, {
-          wait: true,
-          points: batch
-        });
-        addedIds.push(...batch.map(p => p.id.toString()));
-      }
-
-      logger.info(`✅ Successfully added ${addedIds.length} documents`);
-      return addedIds;
+      await this.vectorStore.addDocuments(documents);
+      logger.info(`Added ${documents.length} documents to vector store`);
     } catch (error) {
-      logger.error('❌ Failed to add documents:', error.message);
+      logger.error(`Error adding documents to vector store: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Удаляет документ из векторной базы
-   * @param {string} documentId - ID документа для удаления
-   * @returns {Promise<boolean>} Успешность операции
+   * Get health status of vector store
+   * @returns {Promise<Object>} Health status
    */
-  async deleteDocument(documentId) {
-    try {
-      if (!this.ragEnabled) {
-        logger.info(`📚 Deleting document ${documentId} (stub mode)`);
-        return true;
-      }
-
-      if (!this.initialized || !this.client) {
-        throw new Error('Vector store not initialized');
-      }
-
-      await this.client.delete(this.collectionName, {
-        wait: true,
-        points: [documentId]
-      });
-
-      logger.info(`✅ Document deleted: ${documentId}`);
-      return true;
-    } catch (error) {
-      logger.error(`❌ Failed to delete document ${documentId}:`, error.message);
-      return false;
-    }
-  }
-
-  /**
-   * Получает информацию о коллекции
-   * @returns {Promise<Object>} Информация о коллекции
-   */
-  async getCollectionInfo() {
-    try {
-      if (!this.ragEnabled || !this.initialized || !this.client) {
-        return {
-          status: 'stub',
-          points_count: 0,
-          indexed_vectors_count: 0,
-          ram_usage_bytes: 0,
-          disk_usage_bytes: 0
-        };
-      }
-
-      const info = await this.client.getCollection(this.collectionName);
-      return info;
-    } catch (error) {
-      logger.error('❌ Failed to get collection info:', error.message);
-      throw error;
-    }
-  }
-
-  /**
-   * Проверяет здоровье векторной базы данных
-   * @returns {Promise<Object>} Результат проверки здоровья
-   */
-  async healthCheck() {
-    try {
-      if (!this.ragEnabled) {
-        return {
-          status: 'ok',
-          message: 'Vector store running in stub mode (RAG disabled)',
-          mode: 'stub'
-        };
-      }
-
-      if (!this.initialized) {
-        return {
-          status: 'error',
-          message: 'Vector store not initialized'
-        };
-      }
-
-      if (!this.client) {
-        return {
-          status: 'error',
-          message: 'Vector store client not available'
-        };
-      }
-
-      // Проверяем подключение
-      await this.client.getCollections();
-      
-      // Получаем информацию о коллекции
-      const collectionInfo = await this.getCollectionInfo();
-
-      return {
-        status: 'ok',
-        message: 'Vector store is healthy and responding',
-        mode: 'active',
-        collection: this.collectionName,
-        documents_count: collectionInfo.points_count || 0,
-        config: {
-          url: this.config.url,
-          vectorSize: this.vectorSize
-        }
-      };
-    } catch (error) {
-      logger.error('Vector store health check failed:', error.message);
+  async getHealthStatus() {
+    if (!this.isInitialized) {
       return {
         status: 'error',
-        message: 'Vector store health check failed',
-        error: error.message
+        message: 'Vector store not initialized',
+        details: {
+          isInitialized: false,
+          hasEmbeddings: !!this.embeddings,
+          hasVectorStore: !!this.vectorStore
+        }
       };
     }
-  }
 
-  /**
-   * Получает эмбеддинг для текста через OpenAI API
-   * @param {string} text - Текст для векторизации
-   * @returns {Promise<number[]>} Вектор эмбеддинга
-   */
-  async getEmbedding(text) {
     try {
-      // Если OpenAI API недоступен, возвращаем случайный вектор
-      if (!process.env.OPENAI_API_KEY) {
-        logger.warn('OPENAI_API_KEY not set, using random vector');
-        return Array.from({ length: this.vectorSize }, () => Math.random() - 0.5);
-      }
-
-      // Динамический импорт OpenAI
-      const { OpenAI } = await import('openai');
-      
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY
-      });
-
-      const response = await openai.embeddings.create({
-        model: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
-        input: text.substring(0, 8192), // Ограничиваем длину текста
-      });
-
-      return response.data[0].embedding;
-    } catch (error) {
-      logger.error('Failed to get embedding:', error.message);
-      
-      // Fallback: возвращаем случайный вектор
-      logger.warn('Using random vector as fallback');
-      return Array.from({ length: this.vectorSize }, () => Math.random() - 0.5);
-    }
-  }
-
-  /**
-   * Строит фильтры для поиска
-   * @param {string} [language] - Язык для фильтрации
-   * @param {Object} [additionalFilters] - Дополнительные фильтры
-   * @returns {Array} Массив фильтров для Qdrant
-   */
-  buildFilters(language, additionalFilters = {}) {
-    const filters = [];
-
-    // Фильтр по языку
-    if (language) {
-      filters.push({
-        key: 'language',
-        match: { value: language }
-      });
-    }
-
-    // Дополнительные фильтры
-    Object.entries(additionalFilters).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        filters.push({
-          key,
-          match: { any: value }
-        });
-      } else {
-        filters.push({
-          key,
-          match: { value }
-        });
-      }
-    });
-
-    return filters;
-  }
-
-  /**
-   * Разбивает массив на батчи
-   * @param {Array} array - Массив для разбивки
-   * @param {number} batchSize - Размер батча
-   * @returns {Array[]} Массив батчей
-   */
-  chunkArray(array, batchSize) {
-    const chunks = [];
-    for (let i = 0; i < array.length; i += batchSize) {
-      chunks.push(array.slice(i, i + batchSize));
-    }
-    return chunks;
-  }
-
-  /**
-   * Генерирует уникальный ID для документа
-   * @returns {string} Уникальный ID
-   */
-  generateId() {
-    return `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  /**
-   * Проверяет, инициализирован ли сервис
-   * @returns {boolean} Статус инициализации
-   */
-  isInitialized() {
-    return this.initialized;
-  }
-
-  /**
-   * Получает конфигурацию сервиса
-   * @returns {Object} Конфигурация
-   */
-  getConfig() {
-    return {
-      ragEnabled: this.ragEnabled,
-      initialized: this.initialized,
-      collectionName: this.collectionName,
-      vectorSize: this.vectorSize,
-      url: this.config.url
-    };
-  }
-}
-
-// Экспорт экземпляра сервиса
-module.exports = new VectorStoreService();
+      // Try a simple search to verify connection
+      await
