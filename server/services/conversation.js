@@ -298,6 +298,47 @@ class ConversationService {
   }
 
   /**
+   * Обновляет язык разговора
+   * @param {string} conversationId - ID разговора
+   * @param {string} language - Новый язык (en, es, ru)
+   * @returns {Promise<ConversationDoc>} Обновленный разговор
+   */
+  async updateLanguage(conversationId, language) {
+    try {
+      if (!this.initialized) {
+        throw new Error('ConversationService not initialized');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        throw new Error(`Invalid conversation ID: ${conversationId}`);
+      }
+
+      if (!['en', 'es', 'ru'].includes(language)) {
+        throw new Error(`Invalid language: ${language}`);
+      }
+
+      const conversation = await this.model.findByIdAndUpdate(
+        conversationId,
+        { 
+          language,
+          lastActivityAt: new Date()
+        },
+        { new: true }
+      );
+
+      if (!conversation) {
+        throw new Error(`Conversation not found: ${conversationId}`);
+      }
+
+      logger.info(`Updated conversation ${conversationId} language to: ${language}`);
+      return conversation;
+    } catch (error) {
+      logger.error('❌ Failed to update conversation language:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Увеличивает счетчик сообщений в разговоре
    * @param {string} conversationId - ID разговора
    * @returns {Promise<ConversationDoc>} Обновленный разговор
