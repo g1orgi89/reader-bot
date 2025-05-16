@@ -99,7 +99,10 @@ class LanguageDetectService {
       /\b(API|JSON|HTTP|SSL|TLS|404|500|403|401)\b/gi,
       // Хеши и адреса
       /\b0x[a-fA-F0-9]{40,}\b/g,
-      /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g
+      /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g,
+      // Коды ошибок в разных форматах
+      /\bError:\s*[A-Za-z\s]+/gi,
+      /\bException:\s*[A-Za-z\s]+/gi
     ];
   }
 
@@ -120,13 +123,17 @@ class LanguageDetectService {
         return this.getPreferredLanguage(options.userId) || this.defaultLanguage;
       }
 
+      // ПРИОРИТЕТНАЯ ПРОВЕРКА: Быстрая проверка очевидных признаков языка
+      const quickResult = this.quickLanguageCheck(text);
+      if (quickResult) {
+        // Если быстрая проверка дала результат, используем его
+        this.updateUserLanguagePreference(options.userId, quickResult);
+        return quickResult;
+      }
+
       // Если есть предпочтительный язык пользователя и текст короткий, используем его
       const userPreferredLang = this.getPreferredLanguage(options.userId);
       if (userPreferredLang && text.trim().length < 10) {
-        const quickDetection = this.quickLanguageCheck(text);
-        if (quickDetection) {
-          return quickDetection;
-        }
         return userPreferredLang;
       }
 
@@ -173,23 +180,29 @@ class LanguageDetectService {
    * @returns {string|null} Код языка или null если не уверен
    */
   quickLanguageCheck(text) {
-    // Кириллица - однозначно русский
-    if (/[\u0400-\u04FF]{2,}/g.test(text)) {
+    // ПЕРВЫЙ ПРИОРИТЕТ: Кириллица - однозначно русский
+    // Используем более надежную проверку на кириллицу
+    const cyrillicPattern = /[\u0400-\u04FF]/g;
+    const cyrillicMatches = text.match(cyrillicPattern);
+    
+    if (cyrillicMatches && cyrillicMatches.length >= 2) {
+      // Если найдено 2 или больше кириллических символов - точно русский
+      logger.info(`Russian detected by cyrillic characters: ${cyrillicMatches.length} chars`);
       return 'ru';
     }
     
-    // Испанские диакритики - однозначно испанский
+    // ВТОРОЙ ПРИОРИТЕТ: Испанские диакритики - однозначно испанский
     if (/[ñáéíóúü]/gi.test(text)) {
       return 'es';
     }
     
-    // Характерные русские слова
-    if (/\b(что|как|где|когда|почему|привет|спасибо|пожалуйста|кошелек|токен)\b/gi.test(text)) {
+    // ТРЕТИЙ ПРИОРИТЕТ: Характерные русские слова
+    if (/\b(что|как|где|когда|почему|привет|спасибо|пожалуйста|кошелек|токен|у\s+меня|мне|нужно)\b/gi.test(text)) {
       return 'ru';
     }
     
     // Характерные испанские слова
-    if (/\b(qué|cómo|dónde|cuándo|hola|gracias|por favor|billetera)\b/gi.test(text)) {
+    if (/\b(qué|cómo|dónde|cuándo|hola|gracias|por\s+favor|billetera)\b/gi.test(text)) {
       return 'es';
     }
     
@@ -276,31 +289,28 @@ class LanguageDetectService {
         return this.defaultLanguage;
       }
 
-      // Очистка и подготовка текста для анализа, сохраняя кириллицу
-      const cleanText = this.normalizeText(text);
-      
-      if (cleanText.length < 3) {
-        return this.defaultLanguage;
-      }
-
       // ПЕРВАЯ ПРИОРИТЕТНАЯ ПРОВЕРКА: наличие кириллических символов
-      // Ищем русские буквы в оригинальном тексте (до нормализации)
-      const cyrillicPattern = /[\u0400-\u04FF]/g; // Полный диапазон кириллицы
+      // Ищем русские буквы в оригинальном тексте
+      const cyrillicPattern = /[\u0400-\u04FF]/g;
       const cyrillicMatches = text.match(cyrillicPattern);
       
-      if (cyrillicMatches && cyrillicMatches.length >= 2) {
-        // Если найдено 2 или больше кириллических символов - точно русский
+      if (cyrillicMatches && cyrillicMatches.length >= 1) {
+        // Если найден хотя бы один кириллический символ - высокая вероятность русского
         logger.info(`Russian detected by cyrillic characters: ${cyrillicMatches.length} chars`);
         return 'ru';
       }
 
       // ВТОРАЯ ПРИОРИТЕТНАЯ ПРОВЕРКА: испанские специальные символы
       if (/[ñáéíóúü]/i.test(text)) {
-        const spanishChars = text.match(/[ñáéíóúü]/gi);
-        if (spanishChars && spanishChars.length >= 1) {
-          logger.info(`Spanish detected by special characters`);
-          return 'es';
-        }
+        logger.info(`Spanish detected by special characters`);
+        return 'es';
+      }
+
+      // Очистка и подготовка текста для анализа
+      const cleanText = this.normalizeText(text);
+      
+      if (cleanText.length < 3) {
+        return this.defaultLanguage;
       }
 
       // Подсчет совпадений для каждого языка
