@@ -15,6 +15,14 @@ const logger = require('../utils/logger');
  */
 
 /**
+ * @typedef {Object} FindOptions
+ * @property {number} [limit] - Максимальное количество результатов
+ * @property {number} [skip] - Количество результатов для пропуска
+ * @property {boolean} [activeOnly] - Только активные разговоры
+ * @property {string} [sort] - Поле для сортировки
+ */
+
+/**
  * @class ConversationService
  * @description Сервис для работы с разговорами
  */
@@ -65,6 +73,41 @@ class ConversationService {
   }
 
   /**
+   * Находит разговоры пользователя
+   * @param {string} userId - ID пользователя
+   * @param {FindOptions} options - Опции для поиска
+   * @returns {Promise<Object[]>} Список разговоров
+   */
+  async findByUserId(userId, options = {}) {
+    try {
+      const {
+        limit = 10,
+        skip = 0,
+        activeOnly = false,
+        sort = '-startedAt'
+      } = options;
+
+      // Строим запрос
+      const query = { userId };
+      if (activeOnly) {
+        query.isActive = true;
+      }
+
+      // Выполняем запрос с сортировкой и пагинацией
+      const conversations = await Conversation.find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      return conversations;
+    } catch (error) {
+      logger.error(`Error finding conversations for user ${userId}: ${error.message}`);
+      throw new Error(`Failed to find conversations: ${error.message}`);
+    }
+  }
+
+  /**
    * Получает или создает разговор для пользователя
    * @param {string} userId - ID пользователя
    * @param {Object} options - Опции для создания нового разговора
@@ -75,7 +118,7 @@ class ConversationService {
       // Ищем активный разговор пользователя
       let conversation = await Conversation.findOne({
         userId,
-        active: true
+        isActive: true
       }).sort({ startedAt: -1 });
 
       // Если активного разговора нет, создаем новый
@@ -101,7 +144,7 @@ class ConversationService {
         conversationId,
         { 
           $inc: { messageCount: 1 },
-          lastMessage: new Date()
+          lastActivityAt: new Date()
         },
         { new: true }
       );
@@ -109,6 +152,34 @@ class ConversationService {
       return conversation;
     } catch (error) {
       logger.error(`Error incrementing message count for conversation ${conversationId}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Обновляет язык разговора
+   * @param {string} conversationId - ID разговора
+   * @param {string} language - Новый язык
+   * @returns {Promise<Object|null>} Обновленный разговор
+   */
+  async updateLanguage(conversationId, language) {
+    try {
+      const conversation = await Conversation.findByIdAndUpdate(
+        conversationId,
+        { 
+          language,
+          lastActivityAt: new Date()
+        },
+        { new: true }
+      );
+
+      if (conversation) {
+        logger.info(`Conversation language updated: ${conversationId} -> ${language}`);
+      }
+
+      return conversation;
+    } catch (error) {
+      logger.error(`Error updating conversation language ${conversationId}: ${error.message}`);
       return null;
     }
   }
@@ -124,9 +195,10 @@ class ConversationService {
       const conversation = await Conversation.findByIdAndUpdate(
         conversationId,
         { 
-          active: false,
+          isActive: false,
           endedAt: new Date(),
-          endReason: reason
+          endReason: reason,
+          lastActivityAt: new Date()
         },
         { new: true }
       );
@@ -143,6 +215,33 @@ class ConversationService {
   }
 
   /**
+   * Проверка здоровья сервиса
+   * @returns {Promise<Object>} Статус здоровья
+   */
+  async healthCheck() {
+    try {
+      // Проверяем доступность базы данных простым запросом
+      const count = await Conversation.countDocuments({});
+      
+      return {
+        status: 'ok',
+        message: 'Conversation service is healthy',
+        details: {
+          totalConversations: count,
+          isConnected: true
+        }
+      };
+    } catch (error) {
+      logger.error(`Conversation service health check failed: ${error.message}`);
+      return {
+        status: 'error',
+        message: 'Conversation service is unhealthy',
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Получает статистику разговоров
    * @returns {Promise<Object>} Статистика разговоров
    */
@@ -154,7 +253,7 @@ class ConversationService {
             _id: null,
             total: { $sum: 1 },
             active: { 
-              $sum: { $cond: ['$active', 1, 0] }
+              $sum: { $cond: ['$isActive', 1, 0] }
             },
             avgMessageCount: { $avg: '$messageCount' },
             totalMessages: { $sum: '$messageCount' }
