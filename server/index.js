@@ -96,6 +96,19 @@ app.use(express.urlencoded({
   parameterLimit: 1000
 }));
 
+// Middleware для обработки JSON parse errors
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid JSON format',
+      code: 'INVALID_JSON',
+      details: config.app.isDevelopment ? error.message : undefined
+    });
+  }
+  next(error);
+});
+
 // Логирование HTTP запросов (если включено)
 if (config.logging.enableHttpLogging) {
   app.use(logger.httpLogger);
@@ -197,23 +210,19 @@ io.on('connection', (socket) => {
       // Получение или создание разговора
       let conversation;
       if (data.conversationId) {
-        conversation = await conversationService.findById(data.conversationId);
+        conversation = await conversationService.getConversationById(data.conversationId);
         if (!conversation) {
           logger.warn(`Conversation ${data.conversationId} not found, creating new one`);
           // Создаем разговор с базовым языком
-          conversation = await conversationService.create({
-            userId: data.userId,
+          conversation = await conversationService.createConversation(data.userId, {
             language: data.language || 'en',
-            startedAt: new Date(),
             source: 'socket'
           });
         }
       } else {
         // Создаем новый разговор с базовым языком
-        conversation = await conversationService.create({
-          userId: data.userId,
+        conversation = await conversationService.createConversation(data.userId, {
           language: data.language || 'en',
-          startedAt: new Date(),
           source: 'socket'
         });
       }
@@ -324,7 +333,7 @@ io.on('connection', (socket) => {
       });
       
       // Обновление разговора
-      await conversationService.updateLastActivity(conversation._id);
+      await conversationService.incrementMessageCount(conversation._id);
       
       // Подготовка ответа
       /**
