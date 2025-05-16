@@ -164,9 +164,51 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Определение языка сообщения
+      // Получение или создание разговора
+      let conversation;
+      if (data.conversationId) {
+        conversation = await conversationService.findById(data.conversationId);
+        if (!conversation) {
+          logger.warn(`Conversation ${data.conversationId} not found, creating new one`);
+          // Создаем разговор с базовым языком
+          conversation = await conversationService.create({
+            userId: data.userId,
+            language: data.language || 'en',
+            startedAt: new Date(),
+            source: 'socket'
+          });
+        }
+      } else {
+        // Создаем новый разговор с базовым языком
+        conversation = await conversationService.create({
+          userId: data.userId,
+          language: data.language || 'en',
+          startedAt: new Date(),
+          source: 'socket'
+        });
+      }
+      
+      // Получение истории сообщений ДО определения языка
+      const history = await messageService.getRecentMessages(conversation._id, 10);
+      const formattedHistory = history.map(msg => ({
+        role: msg.role,
+        content: msg.text
+      }));
+
+      // ИСПРАВЛЕННОЕ определение языка с учетом контекста
       const detectedLanguage = data.language || 
-        languageDetectService.detectLanguage(data.message);
+        languageDetectService.detectLanguageWithContext(data.message, {
+          userId: data.userId,
+          conversationId: conversation._id.toString(),
+          history: formattedHistory,
+          previousLanguage: conversation.language
+        });
+      
+      // Обновляем язык разговора, если он изменился
+      if (conversation.language !== detectedLanguage) {
+        await conversationService.updateLanguage(conversation._id, detectedLanguage);
+        logger.info(`🌍 Language updated for conversation ${conversation._id}: ${conversation.language} → ${detectedLanguage}`);
+      }
       
       // Получение контекста из базы знаний (если RAG включен)
       let context = [];
@@ -182,33 +224,6 @@ io.on('connection', (socket) => {
           // Продолжаем без контекста
         }
       }
-      
-      // Получение или создание разговора
-      let conversation;
-      if (data.conversationId) {
-        conversation = await conversationService.findById(data.conversationId);
-        if (!conversation) {
-          logger.warn(`Conversation ${data.conversationId} not found, creating new one`);
-          conversation = await conversationService.create({
-            userId: data.userId,
-            language: detectedLanguage,
-            startedAt: new Date()
-          });
-        }
-      } else {
-        conversation = await conversationService.create({
-          userId: data.userId,
-          language: detectedLanguage,
-          startedAt: new Date()
-        });
-      }
-      
-      // Получение истории сообщений
-      const history = await messageService.getRecentMessages(conversation._id, 10);
-      const formattedHistory = history.map(msg => ({
-        role: msg.role,
-        content: msg.text
-      }));
       
       // Сохранение сообщения пользователя
       const userMessage = await messageService.create({
@@ -246,7 +261,8 @@ io.on('connection', (socket) => {
             }),
             language: detectedLanguage,
             subject: `Support request: ${data.message.substring(0, 50)}...`,
-            category: 'technical'
+            category: 'technical',
+            source: 'socket'
           });
           ticketId = ticket.ticketId;
           logger.info(`🎫 Ticket created: ${ticketId}`);
@@ -302,7 +318,7 @@ io.on('connection', (socket) => {
       
       // Отправка ответа через Socket.IO
       socket.emit('message', response);
-      logger.info(`✅ Response sent to ${socket.id}`);
+      logger.info(`✅ Response sent to ${socket.id} (Language: ${detectedLanguage})`);
       
     } catch (error) {
       logger.error(`❌ Socket error for ${socket.id}:`, error);
