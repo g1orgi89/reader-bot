@@ -80,15 +80,23 @@ class ClaudeService {
 
       const { context = [], history = [], language = 'en' } = options;
       
+      // ОТЛАДКА: проверяем какой язык пришел
+      logger.info(`🔧 Claude service received language: "${language}"`);
+      
       // Формирование системного промпта в зависимости от наличия контекста
       let systemPrompt;
       if (context && context.length > 0) {
         // Используем RAG промпт на нужном языке
         systemPrompt = this.ragPrompts[language] || this.ragPrompts.en;
+        logger.info(`📚 Using RAG prompt for language: ${language}`);
       } else {
         // Используем обычный промпт на нужном языке
         systemPrompt = this.systemPrompts[language] || this.systemPrompts.en;
+        logger.info(`💬 Using standard prompt for language: ${language}`);
       }
+      
+      // ОТЛАДКА: показываем первые строки выбранного промпта
+      logger.info(`🎯 Selected prompt preview: "${systemPrompt.substring(0, 100)}..."`);
       
       // Формирование истории диалога
       const formattedHistory = this.formatHistory(history, language);
@@ -125,6 +133,9 @@ class ClaudeService {
       // Добавление текущего вопроса пользователя
       messages.push({ role: 'user', content: message });
       
+      // ОТЛАДКА: показываем общее количество сообщений и последнее сообщение
+      logger.info(`📝 Total messages to Claude: ${messages.length}, last message: "${message}"`);
+      
       // Проверка на количество токенов
       const totalTokens = this.estimateTokens(messages);
       logger.info(`Total estimated tokens: ${totalTokens}`);
@@ -155,6 +166,9 @@ class ClaudeService {
       });
       
       const answer = response.content[0].text;
+      
+      // ОТЛАДКА: проверяем ответ на языке
+      logger.info(`🎉 Claude response received (${answer.length} chars): "${answer.substring(0, 200)}..."`);
       
       // Проверка на необходимость создания тикета
       const needsTicket = this.detectTicketCreation(answer, message);
