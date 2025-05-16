@@ -4,7 +4,7 @@
  */
 
 const express = require('express');
-const claudeService = require('../services/claude');
+const aiService = require('../services/aiService'); // Изменено с claude на aiService
 const messageService = require('../services/message');
 const conversationService = require('../services/conversation');
 const languageDetectService = require('../services/languageDetect');
@@ -100,33 +100,36 @@ router.post('/', async (req, res) => {
       }
     });
     
-    // Генерация ответа через Claude
-    const claudeResponse = await claudeService.generateResponse(message, {
+    // Генерация ответа через AI Service
+    const aiResponse = await aiService.generateResponse(message, {
       context,
       history: formattedHistory,
-      language: detectedLanguage
+      language: detectedLanguage,
+      userId // Добавляем userId для логирования
     });
     
     // Проверка на создание тикета
     let ticketId = null;
     let ticketError = null;
     
-    if (claudeResponse.needsTicket) {
+    if (aiResponse.needsTicket) {
       try {
         const ticket = await ticketService.createTicket({
           userId,
           conversationId: conversation._id,
           initialMessage: message,  // Исправлено: message -> initialMessage
           context: JSON.stringify({
-            claudeResponse: claudeResponse.message,
+            aiResponse: aiResponse.message,
             userMessage: message,
-            history: formattedHistory.slice(-3)
+            history: formattedHistory.slice(-3),
+            aiProvider: aiResponse.provider
           }),
           language: detectedLanguage,
           subject: `Support request: ${message.substring(0, 50)}...`,
           category: 'technical',
           metadata: {
-            source: 'api'
+            source: 'api',
+            aiProvider: aiResponse.provider
           }
         });
         ticketId = ticket.ticketId;
@@ -138,7 +141,7 @@ router.post('/', async (req, res) => {
     }
     
     // Замена TICKET_ID в ответе
-    let botResponse = claudeResponse.message;
+    let botResponse = aiResponse.message;
     if (ticketId) {
       botResponse = botResponse.replace('#TICKET_ID', `#${ticketId}`);
     }
@@ -151,10 +154,11 @@ router.post('/', async (req, res) => {
       conversationId: conversation._id,
       metadata: {
         language: detectedLanguage,
-        tokensUsed: claudeResponse.tokensUsed,
-        ticketCreated: claudeResponse.needsTicket,
+        tokensUsed: aiResponse.tokensUsed,
+        ticketCreated: aiResponse.needsTicket,
         ticketId,
-        source: 'api'
+        source: 'api',
+        aiProvider: aiResponse.provider // Сохраняем информацию о провайдере
       }
     });
     
@@ -167,11 +171,12 @@ router.post('/', async (req, res) => {
       message: botResponse,
       conversationId: conversation._id.toString(),
       messageId: botMessage._id.toString(),
-      needsTicket: claudeResponse.needsTicket,
+      needsTicket: aiResponse.needsTicket,
       ticketId,
       ticketError,
-      tokensUsed: claudeResponse.tokensUsed,
+      tokensUsed: aiResponse.tokensUsed,
       language: detectedLanguage,
+      aiProvider: aiResponse.provider, // Добавляем информацию о провайдере
       timestamp: new Date().toISOString(),
       metadata: {
         knowledgeResultsCount: context.length,
@@ -180,7 +185,7 @@ router.post('/', async (req, res) => {
     };
     
     res.json(response);
-    logger.info(`✅ Chat API response sent for user: ${userId}`);
+    logger.info(`✅ Chat API response sent for user: ${userId} (via ${aiResponse.provider})`);
     
   } catch (error) {
     logger.error(`❌ Chat API error:`, error);
@@ -193,7 +198,7 @@ router.post('/', async (req, res) => {
     if (error.message.includes('Database')) {
       statusCode = 503;
       errorCode = 'DATABASE_ERROR';
-    } else if (error.message.includes('Claude')) {
+    } else if (error.message.includes('OpenAI') || error.message.includes('Anthropic') || error.message.includes('AI Service')) {
       statusCode = 503;
       errorCode = 'AI_SERVICE_ERROR';
     } else if (error.message.includes('not initialized')) {
@@ -296,33 +301,36 @@ router.post('/message', async (req, res) => {
       }
     });
     
-    // Генерация ответа через Claude
-    const claudeResponse = await claudeService.generateResponse(message, {
+    // Генерация ответа через AI Service
+    const aiResponse = await aiService.generateResponse(message, {
       context,
       history: formattedHistory,
-      language: detectedLanguage
+      language: detectedLanguage,
+      userId // Добавляем userId для логирования
     });
     
     // Проверка на создание тикета
     let ticketId = null;
     let ticketError = null;
     
-    if (claudeResponse.needsTicket) {
+    if (aiResponse.needsTicket) {
       try {
         const ticket = await ticketService.createTicket({
           userId,
           conversationId: conversation._id,
           initialMessage: message,  // Исправлено: message -> initialMessage
           context: JSON.stringify({
-            claudeResponse: claudeResponse.message,
+            aiResponse: aiResponse.message,
             userMessage: message,
-            history: formattedHistory.slice(-3)
+            history: formattedHistory.slice(-3),
+            aiProvider: aiResponse.provider
           }),
           language: detectedLanguage,
           subject: `Support request: ${message.substring(0, 50)}...`,
           category: 'technical',
           metadata: {
-            source: 'api'
+            source: 'api',
+            aiProvider: aiResponse.provider
           }
         });
         ticketId = ticket.ticketId;
@@ -334,7 +342,7 @@ router.post('/message', async (req, res) => {
     }
     
     // Замена TICKET_ID в ответе
-    let botResponse = claudeResponse.message;
+    let botResponse = aiResponse.message;
     if (ticketId) {
       botResponse = botResponse.replace('#TICKET_ID', `#${ticketId}`);
     }
@@ -347,10 +355,11 @@ router.post('/message', async (req, res) => {
       conversationId: conversation._id,
       metadata: {
         language: detectedLanguage,
-        tokensUsed: claudeResponse.tokensUsed,
-        ticketCreated: claudeResponse.needsTicket,
+        tokensUsed: aiResponse.tokensUsed,
+        ticketCreated: aiResponse.needsTicket,
         ticketId,
-        source: 'api'
+        source: 'api',
+        aiProvider: aiResponse.provider // Сохраняем информацию о провайдере
       }
     });
     
@@ -364,11 +373,12 @@ router.post('/message', async (req, res) => {
         message: botResponse,
         conversationId: conversation._id.toString(),
         messageId: botMessage._id.toString(),
-        needsTicket: claudeResponse.needsTicket,
+        needsTicket: aiResponse.needsTicket,
         ticketId,
         ticketError,
-        tokensUsed: claudeResponse.tokensUsed,
+        tokensUsed: aiResponse.tokensUsed,
         language: detectedLanguage,
+        aiProvider: aiResponse.provider, // Добавляем информацию о провайдере
         timestamp: new Date().toISOString(),
         metadata: {
           knowledgeResultsCount: context.length,
@@ -378,7 +388,7 @@ router.post('/message', async (req, res) => {
     };
     
     res.json(response);
-    logger.info(`✅ Chat API response sent for user: ${userId}`);
+    logger.info(`✅ Chat API response sent for user: ${userId} (via ${aiResponse.provider})`);
     
   } catch (error) {
     logger.error(`❌ Chat API error:`, error);
@@ -391,7 +401,7 @@ router.post('/message', async (req, res) => {
     if (error.message.includes('Database')) {
       statusCode = 503;
       errorCode = 'DATABASE_ERROR';
-    } else if (error.message.includes('Claude')) {
+    } else if (error.message.includes('OpenAI') || error.message.includes('Anthropic') || error.message.includes('AI Service')) {
       statusCode = 503;
       errorCode = 'AI_SERVICE_ERROR';
     } else if (error.message.includes('not initialized')) {
@@ -653,10 +663,11 @@ router.post('/detect-language', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     // Объединяем статистику из разных сервисов
-    const [messagesStats, conversationsStats, languageStats] = await Promise.all([
+    const [messagesStats, conversationsStats, languageStats, aiStats] = await Promise.all([
       messageService.getStats(),
       conversationService.getConversationStats(),
-      Promise.resolve(languageDetectService.getStats())
+      Promise.resolve(languageDetectService.getStats()),
+      Promise.resolve(aiService.getProviderInfo()) // Добавляем статистику AI
     ]);
 
     res.json({
@@ -665,6 +676,7 @@ router.get('/stats', async (req, res) => {
         messages: messagesStats,
         conversations: conversationsStats,
         language: languageStats,
+        ai: aiStats, // Добавляем информацию о провайдере AI
         timestamp: new Date().toISOString()
       }
     });
@@ -777,8 +789,8 @@ router.get('/health', async (req, res) => {
   try {
     // Проверяем здоровье всех зависимых сервисов
     const healthChecks = await Promise.allSettled([
-      // Claude service health
-      claudeService.isHealthy ? claudeService.isHealthy() : Promise.resolve(true),
+      // AI service health
+      aiService.isHealthy ? aiService.isHealthy() : Promise.resolve(true),
       // Message service health
       messageService.healthCheck ? messageService.healthCheck() : Promise.resolve({ status: 'ok' }),
       // Conversation service health
@@ -788,35 +800,39 @@ router.get('/health', async (req, res) => {
     ]);
 
     // Обрабатываем результаты проверок
-    const [claudeHealth, messageHealth, conversationHealth, vectorHealth] = healthChecks.map(result => 
+    const [aiHealth, messageHealth, conversationHealth, vectorHealth] = healthChecks.map(result => 
       result.status === 'fulfilled' ? result.value : { status: 'error', error: result.reason?.message }
     );
 
     // Определяем общее состояние здоровья
-    const isClaudeHealthy = claudeHealth === true || claudeHealth?.status === 'ok';
+    const isAiHealthy = aiHealth === true || aiHealth?.status === 'ok';
     const isMessageHealthy = messageHealth?.status === 'ok';
     const isConversationHealthy = conversationHealth?.status === 'ok';
     const isVectorHealthy = vectorHealth?.status === 'ok' || vectorHealth?.status === 'error'; // Vector store опциональный
 
-    const overall = isClaudeHealthy && isMessageHealthy && isConversationHealthy;
+    const overall = isAiHealthy && isMessageHealthy && isConversationHealthy;
 
     const services = {
-      claude: isClaudeHealthy ? 'ok' : 'error',
+      ai: isAiHealthy ? 'ok' : 'error',
       messages: messageHealth?.status || 'error',
       conversations: conversationHealth?.status || 'error',
       vectorStore: vectorHealth?.status || 'not_initialized'
     };
+
+    // Добавляем информацию о текущем AI провайдере
+    const aiProviderInfo = aiService.getProviderInfo();
 
     res.status(overall ? 200 : 503).json({
       success: overall,
       status: overall ? 'healthy' : 'unhealthy',
       services,
       details: {
-        claude: isClaudeHealthy ? 'Service is responding' : 'Service not available',
+        ai: isAiHealthy ? `Service is responding (${aiProviderInfo.currentProvider})` : 'Service not available',
         messages: messageHealth?.message || 'Unknown status',
         conversations: conversationHealth?.message || 'Unknown status',
         vectorStore: vectorHealth?.status === 'error' ? 'Not initialized (RAG disabled)' : 'Available'
       },
+      aiProvider: aiProviderInfo, // Добавляем детальную информацию о AI провайдере
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -855,6 +871,49 @@ router.post('/users/:userId/clear-language-cache', async (req, res) => {
       success: false,
       error: 'Failed to clear language cache',
       code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * @route POST /api/chat/switch-ai-provider
+ * @desc Переключение AI провайдера без перезапуска сервера
+ * @access Public (в production должен требовать авторизации)
+ */
+router.post('/switch-ai-provider', async (req, res) => {
+  try {
+    const { provider } = req.body;
+    
+    if (!provider || !['openai', 'anthropic', 'both'].includes(provider)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid provider. Must be one of: openai, anthropic, both',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+    
+    // Переключаем провайдера
+    aiService.switchProvider(provider);
+    
+    // Получаем обновленную информацию
+    const providerInfo = aiService.getProviderInfo();
+    
+    res.json({
+      success: true,
+      data: {
+        message: `AI provider switched to: ${provider}`,
+        providerInfo,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    logger.info(`AI provider switched to: ${provider}`);
+  } catch (error) {
+    logger.error('❌ Error switching AI provider:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'PROVIDER_SWITCH_ERROR'
     });
   }
 });
