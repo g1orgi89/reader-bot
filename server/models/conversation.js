@@ -45,8 +45,22 @@ const conversationSchema = new mongoose.Schema({
   },
   source: {
     type: String,
-    enum: ['socket', 'api', 'telegram'],
+    enum: ['socket', 'api', 'telegram', 'ticket'],
     default: 'socket'
+  },
+  // Дополнительные поля для интеграции с тикетами
+  ticketId: {
+    type: String,
+    sparse: true,
+    index: true
+  },
+  endedAt: {
+    type: Date
+  },
+  endReason: {
+    type: String,
+    enum: ['user_ended', 'ticket_created', 'timeout', 'admin_ended'],
+    default: 'user_ended'
   }
 }, {
   timestamps: true,
@@ -57,10 +71,16 @@ const conversationSchema = new mongoose.Schema({
 conversationSchema.index({ userId: 1, lastActivityAt: -1 });
 conversationSchema.index({ lastActivityAt: -1, isActive: 1 });
 conversationSchema.index({ startedAt: -1, language: 1 });
+conversationSchema.index({ source: 1, isActive: 1 });
 
 // Виртуальные поля
 conversationSchema.virtual('duration').get(function() {
-  return this.lastActivityAt - this.startedAt;
+  const endTime = this.endedAt || this.lastActivityAt || new Date();
+  return endTime - this.startedAt;
+});
+
+conversationSchema.virtual('isEnded').get(function() {
+  return !!this.endedAt || !this.isActive;
 });
 
 // Методы экземпляра
@@ -75,8 +95,17 @@ conversationSchema.methods.incrementMessageCount = function() {
   return this.save();
 };
 
-conversationSchema.methods.setInactive = function() {
+conversationSchema.methods.setInactive = function(reason = 'user_ended') {
   this.isActive = false;
+  this.endedAt = new Date();
+  this.endReason = reason;
+  return this.save();
+};
+
+conversationSchema.methods.linkToTicket = function(ticketId) {
+  this.ticketId = ticketId;
+  this.metadata.ticketLinked = true;
+  this.metadata.ticketId = ticketId;
   return this.save();
 };
 
@@ -93,5 +122,17 @@ conversationSchema.statics.findActiveByUserId = function(userId) {
     isActive: true 
   }).sort({ lastActivityAt: -1 });
 };
+
+conversationSchema.statics.findByTicketId = function(ticketId) {
+  return this.findOne({ ticketId });
+};
+
+// Middleware для обновления lastActivityAt при любом изменении
+conversationSchema.pre('save', function(next) {
+  if (this.isModified() && !this.isModified('lastActivityAt')) {
+    this.lastActivityAt = new Date();
+  }
+  next();
+});
 
 module.exports = mongoose.model('Conversation', conversationSchema);
