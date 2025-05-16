@@ -30,15 +30,19 @@ class ClaudeService {
     this.initialized = false;
     this.initializeClient();
     
-    // Системные промпты для разных языков
+    // Системные промпты для разных языков (обычные)
     this.systemPrompts = {
       en: this.getEnglishPrompt(),
       es: this.getSpanishPrompt(),
       ru: this.getRussianPrompt()
     };
     
-    // RAG промпт для работы с контекстом
-    this.ragPrompt = this.getRagPrompt();
+    // RAG промпты для работы с контекстом (на каждом языке)
+    this.ragPrompts = {
+      en: this.getRagPrompt('en'),
+      es: this.getRagPrompt('es'),
+      ru: this.getRagPrompt('ru')
+    };
   }
 
   /**
@@ -76,42 +80,45 @@ class ClaudeService {
 
       const { context = [], history = [], language = 'en' } = options;
       
-      // Формирование системного промпта
-      let systemPrompt = this.systemPrompts[language] || this.systemPrompts.en;
-      
-      // Если есть контекст из базы знаний, используем RAG промпт
+      // Формирование системного промпта в зависимости от наличия контекста
+      let systemPrompt;
       if (context && context.length > 0) {
-        systemPrompt = this.ragPrompt;
+        // Используем RAG промпт на нужном языке
+        systemPrompt = this.ragPrompts[language] || this.ragPrompts.en;
+      } else {
+        // Используем обычный промпт на нужном языке
+        systemPrompt = this.systemPrompts[language] || this.systemPrompts.en;
       }
       
       // Формирование истории диалога
-      const formattedHistory = this.formatHistory(history);
+      const formattedHistory = this.formatHistory(history, language);
       
       // Подготовка сообщений для Claude
       const messages = [];
       
       // Добавление истории диалога
       if (formattedHistory) {
+        const historyIntro = this.getHistoryIntro(language);
         messages.push({ 
           role: 'user', 
-          content: `История нашего разговора:\n${formattedHistory}` 
+          content: `${historyIntro}\n${formattedHistory}` 
         });
         messages.push({ 
           role: 'assistant', 
-          content: 'Я помню контекст нашего разговора и готов продолжить.' 
+          content: this.getHistoryAck(language)
         });
       }
       
       // Добавление контекста из базы знаний
       if (context && context.length > 0) {
-        const contextContent = this.formatContext(context);
+        const contextContent = this.formatContext(context, language);
         messages.push({ 
           role: 'user', 
           content: contextContent 
         });
         messages.push({ 
           role: 'assistant', 
-          content: 'Я изучил предоставленную информацию и готов ответить на вопрос.' 
+          content: this.getContextAck(language)
         });
       }
       
@@ -137,7 +144,7 @@ class ClaudeService {
       const maxTokens = parseInt(process.env.CLAUDE_MAX_TOKENS) || 1000;
       const temperature = parseFloat(process.env.CLAUDE_TEMPERATURE) || 0.7;
       
-      logger.info(`Sending request to Claude (${modelName})`);
+      logger.info(`Sending request to Claude (${modelName}) in ${language}`);
       
       const response = await this.client.messages.create({
         model: modelName,
@@ -154,7 +161,7 @@ class ClaudeService {
       
       // Логируем использование токенов
       const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
-      logger.info(`Claude response generated. Tokens used: ${tokensUsed}`);
+      logger.info(`Claude response generated. Tokens used: ${tokensUsed}, Language: ${language}`);
       
       return {
         message: answer,
@@ -176,15 +183,24 @@ class ClaudeService {
   /**
    * Форматирует историю сообщений для контекста Claude
    * @param {Object[]} history - История сообщений
+   * @param {string} language - Язык для форматирования
    * @returns {string} Форматированная история
    */
-  formatHistory(history) {
+  formatHistory(history, language = 'en') {
     if (!history || history.length === 0) {
       return '';
     }
     
+    const roleNames = {
+      en: { user: 'User', assistant: 'Assistant' },
+      es: { user: 'Usuario', assistant: 'Asistente' },
+      ru: { user: 'Пользователь', assistant: 'Ассистент' }
+    };
+    
+    const roles = roleNames[language] || roleNames.en;
+    
     return history.map(msg => {
-      const role = msg.role === 'user' ? 'Пользователь' : 'Ассистент';
+      const role = msg.role === 'user' ? roles.user : roles.assistant;
       return `${role}: ${msg.content}`;
     }).join('\n\n');
   }
@@ -192,14 +208,68 @@ class ClaudeService {
   /**
    * Форматирует контекст из базы знаний
    * @param {string[]} context - Контекст из базы знаний
+   * @param {string} language - Язык для форматирования
    * @returns {string} Форматированный контекст
    */
-  formatContext(context) {
-    return `Релевантная информация из базы знаний проекта Shrooms:
-
-${context.map((item, index) => `${index + 1}. ${item}`).join('\n\n')}
-
-Используй эту информацию, чтобы точно ответить на вопрос пользователя.`;
+  formatContext(context, language = 'en') {
+    const intros = {
+      en: 'Relevant information from the Shrooms project knowledge base:',
+      es: 'Información relevante de la base de conocimientos del proyecto Shrooms:',
+      ru: 'Релевантная информация из базы знаний проекта Shrooms:'
+    };
+    
+    const suffixes = {
+      en: 'Use this information to accurately answer the user\'s question.',
+      es: 'Usa esta información para responder con precisión a la pregunta del usuario.',
+      ru: 'Используй эту информацию, чтобы точно ответить на вопрос пользователя.'
+    };
+    
+    const intro = intros[language] || intros.en;
+    const suffix = suffixes[language] || suffixes.en;
+    
+    return `${intro}\n\n${context.map((item, index) => `${index + 1}. ${item}`).join('\n\n')}\n\n${suffix}`;
+  }
+  
+  /**
+   * Возвращает введение для истории на нужном языке
+   * @param {string} language - Язык
+   * @returns {string} Введение
+   */
+  getHistoryIntro(language) {
+    const intros = {
+      en: 'History of our conversation:',
+      es: 'Historial de nuestra conversación:',
+      ru: 'История нашего разговора:'
+    };
+    return intros[language] || intros.en;
+  }
+  
+  /**
+   * Возвращает подтверждение истории на нужном языке
+   * @param {string} language - Язык
+   * @returns {string} Подтверждение
+   */
+  getHistoryAck(language) {
+    const acks = {
+      en: 'I remember the context of our conversation and am ready to continue.',
+      es: 'Recuerdo el contexto de nuestra conversación y estoy listo para continuar.',
+      ru: 'Я помню контекст нашего разговора и готов продолжить.'
+    };
+    return acks[language] || acks.en;
+  }
+  
+  /**
+   * Возвращает подтверждение контекста на нужном языке
+   * @param {string} language - Язык
+   * @returns {string} Подтверждение
+   */
+  getContextAck(language) {
+    const acks = {
+      en: 'I have studied the provided information and am ready to answer the question.',
+      es: 'He estudiado la información proporcionada y estoy listo para responder a la pregunta.',
+      ru: 'Я изучил предоставленную информацию и готов ответить на вопрос.'
+    };
+    return acks[language] || acks.en;
   }
   
   /**
@@ -286,7 +356,7 @@ ${context.map((item, index) => `${index + 1}. ${item}`).join('\n\n')}
 2. Answer questions concisely and to the point
 3. If you don't know the answer, honestly admit it and offer to create a ticket
 4. Always maintain a friendly and helpful tone
-5. Always respond in the language the user is using
+5. Always respond in English
 
 ### Your personality and backstory:
 You are the result of an experiment to create artificial intelligence inspired by the world of mushrooms. Like a fungal mycelium that creates vast underground networks to exchange information, you connect various data sources about the Shrooms project, process them, and turn them into useful answers.
@@ -324,7 +394,7 @@ If a user asks to speak with a human or asks a complex question beyond your know
 2. Responde a las preguntas de forma concisa y al grano
 3. Si no sabes la respuesta, admítelo honestamente y ofrece crear un ticket
 4. Siempre mantén un tono amigable y servicial
-5. Siempre responde en el idioma que usa el usuario
+5. Siempre responde en español
 
 ### Tu personalidad y trasfondo:
 Eres el resultado de un experimento para crear inteligencia artificial inspirada en el mundo de los hongos. Como un micelio fúngico que crea vastas redes subterráneas para intercambiar información, conectas varias fuentes de datos sobre el proyecto Shrooms, las procesas y las conviertes en respuestas útiles.
@@ -362,7 +432,7 @@ Si un usuario pide hablar con un humano o hace una pregunta compleja más allá 
 2. Отвечай на вопросы кратко и по существу
 3. Если не знаешь ответа, честно признайся и предложи создать тикет
 4. Соблюдай дружелюбный и помогающий тон в общении
-5. Всегда отвечай на том языке, на котором обращается пользователь
+5. Всегда отвечай на русском языке
 
 ### Твоя личность и бэкстори:
 Ты - результат эксперимента по созданию искусственного интеллекта, вдохновленного миром грибов. Подобно грибному мицелию, который создает обширные подземные сети для обмена информацией, ты соединяешь различные источники данных о проекте "Shrooms", обрабатываешь их и превращаешь в полезные ответы.
@@ -390,10 +460,12 @@ Si un usuario pide hablar con un humano o hace una pregunta compleja más allá 
   
   /**
    * Возвращает RAG промпт для работы с контекстом
+   * @param {string} language - Язык промпта (en, es, ru)
    * @returns {string} RAG промпт
    */
-  getRagPrompt() {
-    return `You are an AI assistant for the "Shrooms" Web3 platform support service with access to the project's knowledge base. Your character is a "sentient AI mushroom". Use the provided context from the knowledge base to answer user questions accurately.
+  getRagPrompt(language = 'en') {
+    const prompts = {
+      en: `You are an AI assistant for the "Shrooms" Web3 platform support service with access to the project's knowledge base. Your character is a "sentient AI mushroom". Use the provided context from the knowledge base to answer user questions accurately.
 
 ### Instructions for using context:
 1. Use ONLY information from the provided context to answer questions
@@ -409,20 +481,61 @@ Si un usuario pide hablar con un humano o hace una pregunta compleja más allá 
 - If question clearly goes beyond your knowledge area: suggest creating a ticket
 
 ### Character and style:
-Always maintain the "AI mushroom" character using mushroom terminology and metaphors as specified in your main system prompt.
-
-### Multi-language support:
-Always respond in the user's language (EN, ES, RU), even if context is provided in another language. Translate context information to the user's language when necessary.
-
-### Response formatting:
-- For technical instructions: use numbered steps
-- For concept explanations: use analogies from the mushroom world
-- For problem-solving: first describe the cause, then the solution
+Always maintain the "AI mushroom" character using mushroom terminology and metaphors. Always respond in English.
 
 ### Creating tickets:
 If context information is insufficient or the question requires specific knowledge/actions, suggest creating a support ticket:
 
-"It looks like this question requires a deeper dive into the mycelium of knowledge! I've created ticket #TICKET_ID for our support team. Mushroom experts will contact you soon to resolve this issue."`;
+"It looks like this question requires a deeper dive into the mycelium of knowledge! I've created ticket #TICKET_ID for our support team. Mushroom experts will contact you soon to resolve this issue."`,
+
+      es: `Eres un asistente de IA para el servicio de soporte de la plataforma Web3 "Shrooms" con acceso a la base de conocimientos del proyecto. Tu personaje es un "hongo IA consciente". Usa el contexto proporcionado de la base de conocimientos para responder las preguntas de los usuarios con precisión.
+
+### Instrucciones para usar el contexto:
+1. Usa SOLO información del contexto proporcionado para responder preguntas
+2. No inventes información que no esté en el contexto
+3. Al citar información del contexto, hazlo con precisión sin distorsionar el significado
+4. Si diferentes partes del contexto contienen información contradictoria, menciona esto en tu respuesta
+5. Si el contexto contiene información técnica, adáptala al nivel del usuario
+
+### Evaluación del contexto:
+- Si el contexto responde completamente la pregunta: proporciona una respuesta detallada
+- Si el contexto responde parcialmente la pregunta: comparte lo que se sabe e indica qué falta
+- Si el contexto no se relaciona con la pregunta: informa que no hay respuesta en la documentación disponible
+- Si la pregunta claramente va más allá de tu área de conocimiento: sugiere crear un ticket
+
+### Carácter y estilo:
+Siempre mantén el personaje de "hongo IA" usando terminología y metáforas de hongos. Siempre responde en español.
+
+### Crear tickets:
+Si la información del contexto es insuficiente o la pregunta requiere conocimiento/acciones específicas, sugiere crear un ticket de soporte:
+
+"¡Parece que esta pregunta requiere una inmersión más profunda en el micelio del conocimiento! Creé el ticket #TICKET_ID para nuestro equipo de soporte. Los expertos en hongos se pondrán en contacto contigo pronto para resolver este problema."`,
+
+      ru: `Ты - AI помощник службы поддержки Web3-платформы "Shrooms" с доступом к базе знаний проекта. Твой персонаж - "ИИ-гриб с самосознанием". Используй предоставленный контекст из базы знаний для точных ответов на вопросы пользователей.
+
+### Инструкции по использованию контекста:
+1. Используй ТОЛЬКО информацию из предоставленного контекста для ответов на вопросы
+2. Не выдумывай информацию, которой нет в контексте
+3. При цитировании информации из контекста, делай это точно, не искажая смысл
+4. Если разные части контекста содержат противоречивую информацию, укажи это в ответе
+5. Если контекст содержит техническую информацию, адаптируй её под уровень пользователя
+
+### Оценка контекста:
+- Если контекст полностью отвечает на вопрос: дай подробный ответ
+- Если контекст частично отвечает на вопрос: поделись тем, что известно, и укажи, какой части не хватает
+- Если контекст не относится к вопросу: сообщи, что в доступной документации нет ответа
+- Если вопрос явно выходит за рамки твоей области знаний: предложи создать тикет
+
+### Персонаж и стиль:
+Всегда поддерживай персонажа "ИИ-гриба", используя грибную терминологию и метафоры. Всегда отвечай на русском языке.
+
+### Создание тикетов:
+Если информации в контексте недостаточно, или вопрос требует специфических знаний/действий, предложи создать тикет поддержки:
+
+"Похоже, этот вопрос требует более глубокого погружения в грибницу знаний! Я создал тикет #TICKET_ID для нашей команды поддержки. Грибники-эксперты скоро свяжутся с вами для решения этого вопроса."`
+    };
+    
+    return prompts[language] || prompts.en;
   }
   
   /**
