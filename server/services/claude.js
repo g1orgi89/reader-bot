@@ -1,5 +1,5 @@
 /**
- * Сервис для взаимодействия с API Claude (Optimized & Fixed)
+ * Сервис для взаимодействия с API Claude
  * @file server/services/claude.js
  */
 
@@ -23,7 +23,7 @@ const { CLAUDE_API_KEY } = require('../config');
 
 /**
  * @class ClaudeService
- * @description Оптимизированный сервис для взаимодействия с Claude API
+ * @description Сервис для взаимодействия с Claude API
  */
 class ClaudeService {
   constructor() {
@@ -31,9 +31,12 @@ class ClaudeService {
       apiKey: CLAUDE_API_KEY,
     });
     
-    // Кэш для быстрых ответов
-    this.quickResponseCache = new Map();
-    this.cacheTimeout = 10 * 60 * 1000; // 10 минут
+    // Оптимизированный системный промпт
+    this.systemPrompt = this._getSystemPrompt();
+    
+    // Кэш для частых запросов
+    this.responseCache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 минут
   }
 
   /**
@@ -46,40 +49,36 @@ class ClaudeService {
     try {
       const { context = [], history = [], language = 'en' } = options;
       
-      // 1. Быстрая проверка для тестовых сообщений
-      const quickResponse = this._getQuickResponse(message, language);
-      if (quickResponse) {
-        logger.debug('Using quick response for test message');
-        return quickResponse;
-      }
-      
-      // 2. Проверка кэша для повторных запросов
+      // Проверяем кэш для простых запросов
       const cacheKey = this._getCacheKey(message, language);
-      const cached = this.quickResponseCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-        logger.debug('Returning cached response');
-        return cached.response;
+      if (this.responseCache.has(cacheKey)) {
+        const cached = this.responseCache.get(cacheKey);
+        if (Date.now() - cached.timestamp < this.cacheTimeout) {
+          logger.debug('Returning cached response');
+          return cached.response;
+        }
       }
       
-      // 3. Оптимизированная подготовка сообщений
-      const messages = this._buildOptimizedMessages(message, context, history, language);
+      // Детекция тестовых сообщений
+      if (this._isTestMessage(message)) {
+        return this._handleTestMessage(message, language);
+      }
       
-      // 4. Отправка запроса с оптимизированными параметрами
-      const startTime = Date.now();
+      // Формируем сообщения для Claude
+      const messages = this._buildMessages(message, context, history, language);
+      
+      // Отправляем запрос к Claude с оптимизированными параметрами
       const response = await this.client.messages.create({
-        model: 'claude-3-haiku-20240307', // Самая быстрая модель
-        max_tokens: 400, // Уменьшили лимит токенов для скорости
-        temperature: 0.2, // Меньше креативности = быстрее
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 500,
+        temperature: 0.3,
         messages
       });
       
-      const responseTime = Date.now() - startTime;
-      logger.debug(`Claude API response time: ${responseTime}ms`);
-      
       const answer = response.content[0].text;
       
-      // 5. Быстрый анализ необходимости тикета
-      const needsTicket = this._quickTicketAnalysis(answer, message);
+      // Определяем необходимость создания тикета
+      const needsTicket = this._analyzeTicketNeed(answer, message);
       
       const result = {
         message: answer,
@@ -87,9 +86,9 @@ class ClaudeService {
         tokensUsed: response.usage.input_tokens + response.usage.output_tokens
       };
       
-      // 6. Кэширование для будущих запросов
-      if (this._shouldCache(message)) {
-        this.quickResponseCache.set(cacheKey, {
+      // Кэшируем простые ответы
+      if (this._isCacheable(message)) {
+        this.responseCache.set(cacheKey, {
           response: result,
           timestamp: Date.now()
         });
@@ -103,72 +102,50 @@ class ClaudeService {
   }
   
   /**
-   * Получает быстрый ответ для тестовых сообщений
+   * Получает системный промпт
    * @private
-   * @param {string} message - Сообщение
-   * @param {string} language - Язык
-   * @returns {ClaudeResponse|null} Быстрый ответ или null
+   * @returns {string} Системный промпт
    */
-  _getQuickResponse(message, language) {
-    // Проверяем, является ли сообщение тестовым
-    const testPatterns = [
-      /performance test/i,
-      /concurrent test/i,
-      /^test$/i,
-      /^hello$/i,
-      /^hi$/i
-    ];
-    
-    for (const pattern of testPatterns) {
-      if (pattern.test(message)) {
-        const responses = {
-          en: "*mushroom spores sparkle* Hello, digital explorer! How can I help you navigate the Shrooms ecosystem today?",
-          ru: "*грибные споры сверкают* Привет, цифровой исследователь! Как могу помочь тебе в экосистеме Shrooms сегодня?",
-          es: "*las esporas de hongos brillan* ¡Hola, explorador digital! ¿Cómo puedo ayudarte en el ecosistema Shrooms hoy?"
-        };
-        
-        return {
-          message: responses[language] || responses.en,
-          needsTicket: false,
-          tokensUsed: 45
-        };
-      }
-    }
-    
-    return null;
+  _getSystemPrompt() {
+    return `You are an AI assistant for the "Shrooms" Web3 platform. You should:
+1. Answer only questions about Shrooms, Web3, blockchain, tokens, wallets, DeFi
+2. Use mushroom-themed language occasionally but keep it professional
+3. Be concise and helpful
+4. If you can't answer within Shrooms scope, suggest creating a support ticket
+5. Respond in the user's language (EN, ES, RU)
+
+Keep responses under 100 words unless more detail is specifically requested.`;
   }
   
   /**
-   * Строит оптимизированные сообщения для Claude
+   * Строит сообщения для отправки Claude
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {string[]} context - Контекст
    * @param {Object[]} history - История
    * @param {string} language - Язык
-   * @returns {Object[]} Оптимизированный массив сообщений
+   * @returns {Object[]} Массив сообщений
    */
-  _buildOptimizedMessages(message, context, history, language) {
-    // Короткий и эффективный системный промпт
-    const systemPrompt = this._getOptimizedSystemPrompt(language);
-    
+  _buildMessages(message, context, history, language) {
     const messages = [
-      { role: 'system', content: systemPrompt }
+      { role: 'system', content: this.systemPrompt }
     ];
     
-    // Добавляем только последнее сообщение из истории (если есть)
-    if (history && history.length > 0) {
-      const lastMessage = history[history.length - 1];
-      messages.push({
-        role: lastMessage.role === 'user' ? 'user' : 'assistant',
-        content: lastMessage.content.substring(0, 200) // Обрезаем длинные сообщения
-      });
+    // Добавляем контекст если есть (для будущего RAG)
+    if (context && context.length > 0) {
+      const contextMessage = `Context: ${context.slice(0, 2).join('\n\n')}`;
+      messages.push({ role: 'user', content: contextMessage });
+      messages.push({ role: 'assistant', content: 'I understand the context.' });
     }
     
-    // Добавляем контекст только если он небольшой
-    if (context && context.length > 0 && context[0].length < 500) {
-      messages.push({ 
-        role: 'user', 
-        content: `Context: ${context[0]}` 
+    // Добавляем только последние 2 сообщения из истории
+    if (history && history.length > 0) {
+      const recentHistory = history.slice(-2);
+      recentHistory.forEach(msg => {
+        messages.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        });
       });
     }
     
@@ -179,32 +156,12 @@ class ClaudeService {
   }
   
   /**
-   * Получает оптимизированный системный промпт для конкретного языка
+   * Проверяет, является ли сообщение тестовым
    * @private
-   * @param {string} language - Язык
-   * @returns {string} Оптимизированный системный промпт
+   * @param {string} message - Сообщение
+   * @returns {boolean} Является ли тестовым
    */
-  _getOptimizedSystemPrompt(language) {
-    const prompts = {
-      en: `You are an AI assistant for "Shrooms" Web3 platform. Keep responses under 60 words. Answer only about: Shrooms project, Web3, blockchain, tokens, wallets, DeFi. Use brief mushroom-themed phrases. If question is outside scope, suggest creating a ticket.`,
-      
-      ru: `Ты AI-помощник платформы "Shrooms" Web3. Отвечай кратко (до 60 слов). Отвечай только о: проекте Shrooms, Web3, блокчейне, токенах, кошельках, DeFi. Используй грибную тематику вкратце. Если вопрос не по теме, предложи создать тикет.`,
-      
-      es: `Eres un asistente de IA para la plataforma Web3 "Shrooms". Mantén respuestas bajo 60 palabras. Responde solo sobre: proyecto Shrooms, Web3, blockchain, tokens, billeteras, DeFi. Usa frases temáticas de hongos brevemente. Si la pregunta está fuera del alcance, sugiere crear un ticket.`
-    };
-    
-    return prompts[language] || prompts.en;
-  }
-  
-  /**
-   * Быстрый анализ необходимости создания тикета
-   * @private
-   * @param {string} response - Ответ от Claude
-   * @param {string} message - Исходное сообщение
-   * @returns {boolean} Нужно ли создавать тикет
-   */
-  _quickTicketAnalysis(response, message) {
-    // НЕ создавать тикеты для тестовых сообщений
+  _isTestMessage(message) {
     const testPatterns = [
       /performance test/i,
       /concurrent test/i,
@@ -213,58 +170,88 @@ class ClaudeService {
       /^hi$/i
     ];
     
-    if (testPatterns.some(pattern => pattern.test(message))) {
-      return false;
-    }
-    
-    // Быстрая проверка ключевых слов в ответе
-    const ticketKeywords = [
-      'ticket',
-      'тикет',
-      'support',
-      'поддержка',
-      'soporte'
-    ];
-    
-    const needsTicketFromResponse = ticketKeywords.some(keyword => 
-      response.toLowerCase().includes(keyword)
-    );
-    
-    // Быстрая проверка проблемных слов в сообщении (ИСПРАВЛЕНО)
-    const problemKeywords = [
-      /error/i,
-      /ошибка/i,
-      /problema/i,
-      /problem/i,
-      /проблема/i,
-      /issue/i,
-      /вопрос/i,
-      /asunto/i,
-      /stuck/i,
-      /застрял/i,
-      /atascado/i,
-      /failed/i,
-      /не работает/i,
-      /falló/i,
-      /not working/i,
-      /no funciona/i
-    ];
-    
-    const hasProblemKeywords = problemKeywords.some(keyword => 
-      keyword.test(message)
-    );
-    
-    return needsTicketFromResponse || hasProblemKeywords;
+    return testPatterns.some(pattern => pattern.test(message));
   }
   
   /**
-   * Проверяет, стоит ли кэшировать ответ
+   * Обрабатывает тестовые сообщения быстро
    * @private
    * @param {string} message - Сообщение
-   * @returns {boolean} Стоит ли кэшировать
+   * @param {string} language - Язык
+   * @returns {ClaudeResponse} Быстрый ответ
    */
-  _shouldCache(message) {
-    return message.length < 100; // Кэшируем только короткие сообщения
+  _handleTestMessage(message, language) {
+    const responses = {
+      en: "*mushroom spores sparkle* Hello, digital explorer! How can I help you navigate the Shrooms ecosystem today?",
+      ru: "*грибные споры сверкают* Привет, цифровой исследователь! Как могу помочь тебе в экосистеме Shrooms сегодня?",
+      es: "*las esporas de hongos brillan* ¡Hola, explorador digital! ¿Cómo puedo ayudarte en el ecosistema Shrooms hoy?"
+    };
+    
+    return {
+      message: responses[language] || responses.en,
+      needsTicket: false,
+      tokensUsed: 50
+    };
+  }
+  
+  /**
+   * Анализирует необходимость создания тикета
+   * @private
+   * @param {string} response - Ответ от Claude
+   * @param {string} message - Исходное сообщение
+   * @returns {boolean} Нужно ли создавать тикет
+   */
+  _analyzeTicketNeed(response, message) {
+    // Тестовые сообщения не должны создавать тикеты
+    if (this._isTestMessage(message)) {
+      return false;
+    }
+    
+    // Ключевые слова в ответе, указывающие на тикет
+    const ticketIndicators = [
+      'create a ticket',
+      'создать тикет',
+      'crear un ticket',
+      'support ticket',
+      'human support',
+      'technical support'
+    ];
+    
+    const responseNeedsTicket = ticketIndicators.some(indicator => 
+      response.toLowerCase().includes(indicator.toLowerCase())
+    );
+    
+    // Проблемные ключевые слова в сообщении пользователя
+    const problemKeywords = [
+      /error/i,
+      /problem/i,
+      /issue/i,
+      /stuck/i,
+      /failed/i,
+      /not working/i,
+      /ошибка/i,
+      /проблема/i,
+      /не работает/i,
+      /error/i,
+      /problema/i,
+      /no funciona/i
+    ];
+    
+    const messageHasProblem = problemKeywords.some(keyword => 
+      keyword.test(message)
+    );
+    
+    return responseNeedsTicket || messageHasProblem;
+  }
+  
+  /**
+   * Проверяет, можно ли кэшировать ответ
+   * @private
+   * @param {string} message - Сообщение
+   * @returns {boolean} Можно ли кэшировать
+   */
+  _isCacheable(message) {
+    return this._isTestMessage(message) || message.length < 50;
   }
   
   /**
@@ -275,7 +262,7 @@ class ClaudeService {
    * @returns {string} Ключ кэша
    */
   _getCacheKey(message, language) {
-    return `${language}:${message.toLowerCase().trim()}`;
+    return `${language}:${message.toLowerCase()}`;
   }
   
   /**
@@ -287,9 +274,9 @@ class ClaudeService {
    */
   _getErrorResponse(error, language = 'en') {
     const errorMessages = {
-      en: "🍄 *wilting spores* Technical difficulty detected! Creating support ticket for expert mushroom care.",
-      ru: "🍄 *увядающие споры* Обнаружена техническая проблема! Создаю тикет поддержки для экспертного грибного ухода.",
-      es: "🍄 *esporas marchitas* ¡Dificultad técnica detectada! Creando ticket de soporte para cuidado experto de hongos."
+      en: "I'm experiencing technical difficulties right now. Let me create a support ticket for you.",
+      ru: "У меня сейчас технические проблемы. Позвольте мне создать тикет поддержки для вас.",
+      es: "Estoy experimentando dificultades técnicas ahora. Permíteme crear un ticket de soporte para ti."
     };
     
     return {
@@ -305,20 +292,13 @@ class ClaudeService {
    */
   clearExpiredCache() {
     const now = Date.now();
-    let cleared = 0;
-    
-    for (const [key, value] of this.quickResponseCache.entries()) {
+    for (const [key, value] of this.responseCache.entries()) {
       if (now - value.timestamp >= this.cacheTimeout) {
-        this.quickResponseCache.delete(key);
-        cleared++;
+        this.responseCache.delete(key);
       }
     }
-    
-    if (cleared > 0) {
-      logger.debug(`Cleared ${cleared} expired cache entries`);
-    }
   }
-  
+
   /**
    * Получает статистику кэша
    * @public
@@ -326,7 +306,7 @@ class ClaudeService {
    */
   getCacheStats() {
     return {
-      cacheSize: this.quickResponseCache.size,
+      cacheSize: this.responseCache.size,
       cacheTimeout: this.cacheTimeout
     };
   }
