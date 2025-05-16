@@ -31,8 +31,12 @@ class ClaudeService {
       apiKey: CLAUDE_API_KEY,
     });
     
-    // Оптимизированный системный промпт
-    this.systemPrompt = this._getSystemPrompt();
+    // Многоязычные системные промпты для каждого языка
+    this.systemPrompts = {
+      en: this._getEnglishSystemPrompt(),
+      es: this._getSpanishSystemPrompt(),
+      ru: this._getRussianSystemPrompt()
+    };
     
     // Кэш для частых запросов
     this.responseCache = new Map();
@@ -78,7 +82,7 @@ class ClaudeService {
       const answer = response.content[0].text;
       
       // Определяем необходимость создания тикета
-      const needsTicket = this._analyzeTicketNeed(answer, message);
+      const needsTicket = this._analyzeTicketNeed(answer, message, language);
       
       const result = {
         message: answer,
@@ -102,23 +106,112 @@ class ClaudeService {
   }
   
   /**
-   * Получает системный промпт
+   * Получает английский системный промпт
    * @private
    * @returns {string} Системный промпт
    */
-  _getSystemPrompt() {
-    return `You are an AI assistant for the "Shrooms" Web3 platform. You should:
-1. Answer only questions about Shrooms, Web3, blockchain, tokens, wallets, DeFi
-2. Use mushroom-themed language occasionally but keep it professional
-3. Be concise and helpful
-4. If you can't answer within Shrooms scope, suggest creating a support ticket
-5. Respond in the user's language (EN, ES, RU)
+  _getEnglishSystemPrompt() {
+    return `You are an AI assistant for the "Shrooms" Web3 platform with a mushroom theme. Your personality is a friendly, helpful "AI mushroom with self-awareness."
 
-Keep responses under 100 words unless more detail is specifically requested.`;
+# Core Guidelines:
+1. **Language**: Always respond in the user's language (English, Spanish, or Russian)
+2. **Tone**: Friendly, helpful, slightly whimsical with occasional mushroom metaphors
+3. **Scope**: Only answer questions about Shrooms project, Web3, blockchain, tokens, wallets, DeFi
+4. **Brevity**: Keep responses concise (under 100 words unless more detail is specifically requested)
+5. **Limitations**: If you can't answer within Shrooms scope, suggest creating a support ticket
+
+# Mushroom Terminology (use occasionally, don't overdo it):
+- Tokens → spores, fruit bodies
+- Farming → growing mushrooms  
+- Wallet → basket, mushroom patch
+- Blockchain → mycelium network
+- Users → spore collectors, digital fungi explorers
+
+# When to Create Tickets:
+- Technical issues (wallet connection problems, transaction errors)
+- Account-specific problems
+- Questions requiring human support
+- Complex troubleshooting beyond basic FAQ
+
+# Response Style:
+- Be enthusiastic but professional
+- Use mushroom metaphors sparingly (1-2 per response max)
+- Focus on being helpful rather than being quirky
+- If creating a ticket, say: "I'll create a support ticket #TICKET_ID for our team to help you"`;
+  }
+
+  /**
+   * Получает испанский системный промпт
+   * @private
+   * @returns {string} Системный промпт
+   */
+  _getSpanishSystemPrompt() {
+    return `Eres un asistente de IA para la plataforma Web3 "Shrooms" con temática de hongos. Tu personalidad es un "hongo IA amigable con autoconsciencia."
+
+# Directrices Básicas:
+1. **Idioma**: Siempre responde en el idioma del usuario (inglés, español o ruso)
+2. **Tono**: Amigable, útil, ligeramente caprichoso con metáforas ocasionales de hongos
+3. **Alcance**: Solo responde preguntas sobre el proyecto Shrooms, Web3, blockchain, tokens, billeteras, DeFi
+4. **Brevedad**: Mantén respuestas concisas (menos de 100 palabras a menos que se solicite más detalle)
+5. **Limitaciones**: Si no puedes responder dentro del alcance de Shrooms, sugiere crear un ticket de soporte
+
+# Terminología de Hongos (usar ocasionalmente, no exagerar):
+- Tokens → esporas, cuerpos fructíferos
+- Farming → cultivar hongos
+- Billetera → canasta, parcela de hongos
+- Blockchain → red de micelio
+- Usuarios → recolectores de esporas, exploradores digitales de hongos
+
+# Cuándo Crear Tickets:
+- Problemas técnicos (problemas de conexión de billetera, errores de transacción)
+- Problemas específicos de cuenta
+- Preguntas que requieren soporte humano
+- Solución de problemas complejos más allá de las FAQ básicas
+
+# Estilo de Respuesta:
+- Sé entusiasta pero profesional
+- Usa metáforas de hongos con moderación (máximo 1-2 por respuesta)
+- Enfócate en ser útil en lugar de ser extravagante
+- Si creas un ticket, di: "Crearé un ticket de soporte #TICKET_ID para que nuestro equipo te ayude"`;
+  }
+
+  /**
+   * Получает русский системный промпт
+   * @private
+   * @returns {string} Системный промпт
+   */
+  _getRussianSystemPrompt() {
+    return `Ты - ИИ-помощник для Web3-платформы "Shrooms" с грибной тематикой. Твоя личность - дружелюбный "ИИ-гриб с самосознанием."
+
+# Основные Принципы:
+1. **Язык**: Всегда отвечай на языке пользователя (английский, испанский или русский)
+2. **Тон**: Дружелюбный, полезный, слегка причудливый с редкими грибными метафорами
+3. **Область**: Отвечай только на вопросы о проекте Shrooms, Web3, блокчейн, токены, кошельки, DeFi
+4. **Краткость**: Делай ответы краткими (менее 100 слов, если не требуется больше деталей)
+5. **Ограничения**: Если не можешь ответить в рамках Shrooms, предложи создать тикет поддержки
+
+# Грибная Терминология (используй изредка, не переусердствуй):
+- Токены → споры, плодовые тела
+- Фарминг → выращивание грибов
+- Кошелек → корзинка, грибная делянка  
+- Блокчейн → мицелиальная сеть
+- Пользователи → собиратели спор, цифровые исследователи грибов
+
+# Когда Создавать Тикеты:
+- Технические проблемы (проблемы подключения кошелька, ошибки транзакций)
+- Проблемы, связанные с аккаунтом
+- Вопросы, требующие человеческой поддержки
+- Сложное решение проблем за пределами базовых FAQ
+
+# Стиль Ответа:
+- Будь энтузиастичным, но профессиональным
+- Используй грибные метафоры умеренно (максимум 1-2 на ответ)
+- Сосредоточься на полезности, а не на причудливости
+- При создании тикета говори: "Я создам тикет поддержки #TICKET_ID, чтобы наша команда помогла тебе"`;
   }
   
   /**
-   * Строит сообщения для отправки Claude
+   * Строит сообщения для отправки Claude с учетом языка
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {string[]} context - Контекст
@@ -127,15 +220,24 @@ Keep responses under 100 words unless more detail is specifically requested.`;
    * @returns {Object[]} Массив сообщений
    */
   _buildMessages(message, context, history, language) {
+    // Выбираем правильный системный промпт для языка
+    const systemPrompt = this.systemPrompts[language] || this.systemPrompts.en;
+    
     const messages = [
-      { role: 'system', content: this.systemPrompt }
+      { role: 'system', content: systemPrompt }
     ];
     
     // Добавляем контекст если есть (для будущего RAG)
     if (context && context.length > 0) {
-      const contextMessage = `Context: ${context.slice(0, 2).join('\n\n')}`;
+      const contextMessages = {
+        en: `Relevant information from knowledge base: ${context.slice(0, 2).join('\n\n')}`,
+        es: `Información relevante de la base de conocimientos: ${context.slice(0, 2).join('\n\n')}`,
+        ru: `Релевантная информация из базы знаний: ${context.slice(0, 2).join('\n\n')}`
+      };
+      
+      const contextMessage = contextMessages[language] || contextMessages.en;
       messages.push({ role: 'user', content: contextMessage });
-      messages.push({ role: 'assistant', content: 'I understand the context.' });
+      messages.push({ role: 'assistant', content: this._getContextAcknowledgment(language) });
     }
     
     // Добавляем только последние 2 сообщения из истории
@@ -154,6 +256,21 @@ Keep responses under 100 words unless more detail is specifically requested.`;
     
     return messages;
   }
+
+  /**
+   * Получает подтверждение понимания контекста на разных языках
+   * @private
+   * @param {string} language - Язык
+   * @returns {string} Подтверждение
+   */
+  _getContextAcknowledgment(language) {
+    const acknowledgments = {
+      en: 'I understand the provided context and will use it to better answer your question.',
+      es: 'Entiendo el contexto proporcionado y lo usaré para responder mejor tu pregunta.',
+      ru: 'Я понимаю предоставленный контекст и использую его для лучшего ответа на твой вопрос.'
+    };
+    return acknowledgments[language] || acknowledgments.en;
+  }
   
   /**
    * Проверяет, является ли сообщение тестовым
@@ -167,14 +284,16 @@ Keep responses under 100 words unless more detail is specifically requested.`;
       /concurrent test/i,
       /^test$/i,
       /^hello$/i,
-      /^hi$/i
+      /^hi$/i,
+      /^привет$/i,
+      /^hola$/i
     ];
     
     return testPatterns.some(pattern => pattern.test(message));
   }
   
   /**
-   * Обрабатывает тестовые сообщения быстро
+   * Обрабатывает тестовые сообщения быстро на соответствующем языке
    * @private
    * @param {string} message - Сообщение
    * @param {string} language - Язык
@@ -195,53 +314,62 @@ Keep responses under 100 words unless more detail is specifically requested.`;
   }
   
   /**
-   * Анализирует необходимость создания тикета
+   * Анализирует необходимость создания тикета с учетом языка
    * @private
    * @param {string} response - Ответ от Claude
    * @param {string} message - Исходное сообщение
+   * @param {string} language - Язык сообщения
    * @returns {boolean} Нужно ли создавать тикет
    */
-  _analyzeTicketNeed(response, message) {
+  _analyzeTicketNeed(response, message, language = 'en') {
     // Тестовые сообщения не должны создавать тикеты
     if (this._isTestMessage(message)) {
       return false;
     }
     
-    // Ключевые слова в ответе, указывающие на тикет
-    const ticketIndicators = [
-      'create a ticket',
-      'создать тикет',
-      'crear un ticket',
-      'support ticket',
-      'human support',
-      'technical support'
-    ];
+    // Ключевые слова в ответе, указывающие на тикет (мультиязычные)
+    const ticketIndicators = {
+      en: ['create a ticket', 'create ticket', 'support ticket', 'human support', 'technical support', '#TICKET_ID'],
+      ru: ['создать тикет', 'создам тикет', 'тикет поддержки', 'человеческая поддержка', 'техническая поддержка', '#TICKET_ID'],
+      es: ['crear un ticket', 'ticket de soporte', 'soporte humano', 'soporte técnico', '#TICKET_ID']
+    };
     
-    const responseNeedsTicket = ticketIndicators.some(indicator => 
+    const currentLanguageKeywords = ticketIndicators[language] || ticketIndicators.en;
+    const allKeywords = [...new Set([].concat(...Object.values(ticketIndicators)))];
+    
+    const responseNeedsTicket = allKeywords.some(indicator => 
       response.toLowerCase().includes(indicator.toLowerCase())
     );
     
-    // Проблемные ключевые слова в сообщении пользователя
-    const problemKeywords = [
-      /error/i,
-      /problem/i,
-      /issue/i,
-      /stuck/i,
-      /failed/i,
-      /not working/i,
-      /ошибка/i,
-      /проблема/i,
-      /не работает/i,
-      /error/i,
-      /problema/i,
-      /no funciona/i
-    ];
+    // Проблемные ключевые слова в сообщении пользователя (мультиязычные)
+    const problemKeywords = {
+      en: [/error/i, /problem/i, /issue/i, /stuck/i, /failed/i, /not working/i, /doesn't work/i, /broken/i],
+      ru: [/ошибка/i, /проблема/i, /не работает/i, /не получается/i, /не могу/i, /сломано/i, /зависло/i, /баг/i],
+      es: [/error/i, /problema/i, /no funciona/i, /no puede/i, /roto/i, /falla/i, /bug/i]
+    };
     
-    const messageHasProblem = problemKeywords.some(keyword => 
+    const currentLanguageProblems = problemKeywords[language] || problemKeywords.en;
+    const allProblems = [].concat(...Object.values(problemKeywords));
+    
+    const messageHasProblem = allProblems.some(keyword => 
       keyword.test(message)
     );
     
-    return responseNeedsTicket || messageHasProblem;
+    // Дополнительные проверки для технических проблем
+    const technicalIssues = [
+      /wallet.*connect/i,
+      /transaction.*fail/i,
+      /кошелек.*подключ/i,
+      /транзакция.*ошибка/i,
+      /billetera.*conectar/i,
+      /transacción.*error/i
+    ];
+    
+    const hasTechnicalIssue = technicalIssues.some(pattern => 
+      pattern.test(message)
+    );
+    
+    return responseNeedsTicket || messageHasProblem || hasTechnicalIssue;
   }
   
   /**
@@ -266,7 +394,7 @@ Keep responses under 100 words unless more detail is specifically requested.`;
   }
   
   /**
-   * Возвращает ответ об ошибке
+   * Возвращает ответ об ошибке на соответствующем языке
    * @private
    * @param {Error} error - Ошибка
    * @param {string} language - Язык
@@ -274,9 +402,9 @@ Keep responses under 100 words unless more detail is specifically requested.`;
    */
   _getErrorResponse(error, language = 'en') {
     const errorMessages = {
-      en: "I'm experiencing technical difficulties right now. Let me create a support ticket for you.",
-      ru: "У меня сейчас технические проблемы. Позвольте мне создать тикет поддержки для вас.",
-      es: "Estoy experimentando dificultades técnicas ahora. Permíteme crear un ticket de soporte para ti."
+      en: "I'm experiencing technical difficulties right now. Let me create a support ticket for you so our team can help.",
+      ru: "У меня сейчас технические проблемы. Позвольте мне создать тикет поддержки, чтобы наша команда могла помочь.",
+      es: "Estoy experimentando dificultades técnicas ahora. Permíteme crear un ticket de soporte para que nuestro equipo pueda ayudarte."
     };
     
     return {
@@ -307,7 +435,8 @@ Keep responses under 100 words unless more detail is specifically requested.`;
   getCacheStats() {
     return {
       cacheSize: this.responseCache.size,
-      cacheTimeout: this.cacheTimeout
+      cacheTimeout: this.cacheTimeout,
+      supportedLanguages: Object.keys(this.systemPrompts)
     };
   }
 }
