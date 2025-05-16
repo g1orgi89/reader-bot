@@ -64,11 +64,12 @@ class AIService {
   }
 
   /**
-   * ИСПРАВЛЕНО: Загружает системные промпты через функции
+   * Загружает системные промпты
    */
   loadSystemPrompts() {
-    const { getSystemPrompt } = require('../config/prompts');
+    const { getSystemPrompt, createContextPrompt } = require('../config/prompts');
     this.getSystemPrompt = getSystemPrompt;
+    this.createContextPrompt = createContextPrompt;
   }
 
   /**
@@ -108,10 +109,17 @@ class AIService {
   async generateOpenAIResponse(message, options = {}) {
     const { context = [], history = [], language = 'en' } = options;
     
+    // Используем контекстный промпт, если есть контекст
+    let systemPrompt;
+    if (context.length > 0) {
+      systemPrompt = this.createContextPrompt(context, message, language);
+    } else {
+      systemPrompt = this.getSystemPrompt('basic', language);
+    }
+    
     const messages = [
-      { role: 'system', content: this.getSystemPromptForLanguage(language, context.length > 0) },
+      { role: 'system', content: systemPrompt },
       ...this.formatHistoryForOpenAI(history),
-      ...this.formatContextForOpenAI(context),
       { role: 'user', content: message }
     ];
 
@@ -139,7 +147,7 @@ class AIService {
     
     return {
       message: answer,
-      needsTicket: this.detectTicketCreation(answer, message),
+      needsTicket: this.detectTicketCreation(answer, message, language),
       tokensUsed: response.usage.total_tokens,
       provider: 'openai'
     };
@@ -154,11 +162,16 @@ class AIService {
   async generateAnthropicResponse(message, options = {}) {
     const { context = [], history = [], language = 'en' } = options;
     
-    let systemPrompt = this.getSystemPromptForLanguage(language, context.length > 0);
+    // Используем контекстный промпт, если есть контекст
+    let systemPrompt;
+    if (context.length > 0) {
+      systemPrompt = this.createContextPrompt(context, message, language);
+    } else {
+      systemPrompt = this.getSystemPrompt('basic', language);
+    }
     
     const messages = [
       ...this.formatHistoryForAnthropic(history),
-      ...this.formatContextForAnthropic(context),
       { role: 'user', content: message }
     ];
 
@@ -184,7 +197,7 @@ class AIService {
     
     return {
       message: answer,
-      needsTicket: this.detectTicketCreation(answer, message),
+      needsTicket: this.detectTicketCreation(answer, message, language),
       tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
       provider: 'anthropic'
     };
@@ -225,17 +238,6 @@ class AIService {
   }
 
   /**
-   * ИСПРАВЛЕНО: Получает системный промпт в зависимости от языка и наличия контекста
-   * @param {string} language - Язык (en/es/ru)
-   * @param {boolean} hasContext - Есть ли контекст из базы знаний
-   * @returns {string} Системный промпт
-   */
-  getSystemPromptForLanguage(language = 'en', hasContext = false) {
-    const promptType = hasContext ? 'rag' : 'basic';
-    return this.getSystemPrompt(promptType, language);
-  }
-
-  /**
    * Форматирует историю для OpenAI
    * @param {Object[]} history - История сообщений
    * @returns {Object[]} Форматированная история
@@ -246,7 +248,7 @@ class AIService {
     return history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'assistant',
       content: msg.text || msg.content
-    }));
+    })).slice(-6); // Ограничиваем историю до 6 сообщений
   }
 
   /**
@@ -260,60 +262,45 @@ class AIService {
     return history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'assistant',
       content: msg.text || msg.content
-    }));
-  }
-
-  /**
-   * Форматирует контекст для OpenAI
-   * @param {string[]} context - Контекст из базы знаний
-   * @returns {Object[]} Форматированный контекст
-   */
-  formatContextForOpenAI(context) {
-    if (!context || context.length === 0) return [];
-    
-    const contextMessage = `### Релевантная информация из базы знаний:\n\n${context.join('\n\n')}\n\n### Используй приведенную выше информацию для ответа.`;
-    
-    return [
-      { role: 'system', content: contextMessage }
-    ];
-  }
-
-  /**
-   * Форматирует контекст для Anthropic
-   * @param {string[]} context - Контекст из базы знаний
-   * @returns {Object[]} Форматированный контекст
-   */
-  formatContextForAnthropic(context) {
-    if (!context || context.length === 0) return [];
-    
-    const contextMessage = `<relevant_knowledge>\n${context.join('\n\n')}\n</relevant_knowledge>\n\nИспользуй приведенную выше информацию для точного ответа на вопрос пользователя.`;
-    
-    return [
-      { role: 'user', content: contextMessage },
-      { role: 'assistant', content: 'Я изучил предоставленную информацию и готов ответить на вопрос пользователя, используя эти знания.' }
-    ];
+    })).slice(-6); // Ограничиваем историю до 6 сообщений
   }
 
   /**
    * Проверяет, нужно ли создавать тикет на основе ответа
    * @param {string} response - Ответ от AI
    * @param {string} message - Исходное сообщение
+   * @param {string} language - Язык сообщения
    * @returns {boolean} Нужно ли создавать тикет
    */
-  detectTicketCreation(response, message) {
+  detectTicketCreation(response, message, language = 'en') {
+    // Ключевые слова в ответе, указывающие на тикет (мультиязычные)
     const ticketKeywords = [
-      'создать тикет', 'create a ticket', 'crear un ticket',
-      'более глубокого погружения', 'requires deeper investigation',
-      'свяжутся с вами', 'will contact you', 'se pondrán en contacto',
-      'создал тикет', 'created a ticket', 'creado un ticket',
-      'TICKET_ID', '#'
+      // English
+      'create a ticket', 'create ticket', 'support ticket', 'human support', 
+      'technical support', 'TICKET_ID', 'I\'ll create', 'will contact you',
+      
+      // Russian
+      'создать тикет', 'создам тикет', 'тикет поддержки', 'человеческая поддержка', 
+      'техническая поддержка', 'свяжутся с вами', 'я создам',
+      
+      // Spanish
+      'crear un ticket', 'ticket de soporte', 'soporte humano', 'soporte técnico', 
+      'se pondrán en contacto'
     ];
     
+    // Проблемные ключевые слова в сообщении пользователя (мультиязычные)
     const problemKeywords = [
-      'не работает', 'ошибка', 'problem', 'error', 'issue',
-      'не могу', 'can\'t', 'cannot', 'no puedo', 'не удается',
-      'bug', 'баг', 'сбой', 'поломка', 'stuck', 'зависло',
-      'failed', 'failure', 'fallen', 'perdido', 'потерян'
+      // English
+      'error', 'problem', 'issue', 'stuck', 'failed', 'not working', 
+      'doesn\'t work', 'broken', 'transaction fail', 'wallet connect',
+      
+      // Russian
+      'ошибка', 'проблема', 'не работает', 'не получается', 'не могу', 
+      'сломано', 'зависло', 'баг', 'транзакция', 'кошелек',
+      
+      // Spanish
+      'error', 'problema', 'no funciona', 'no puede', 'roto', 'falla', 
+      'bug', 'transacción', 'billetera'
     ];
     
     const hasTicketKeywords = ticketKeywords.some(keyword => 
@@ -324,7 +311,21 @@ class AIService {
       message.toLowerCase().includes(keyword.toLowerCase())
     );
     
-    return hasTicketKeywords || hasProblemKeywords;
+    // Дополнительные проверки для технических проблем
+    const technicalIssues = [
+      /wallet.*connect/i,
+      /transaction.*fail/i,
+      /кошелек.*подключ/i,
+      /транзакция.*ошибка/i,
+      /billetera.*conectar/i,
+      /transacción.*error/i
+    ];
+    
+    const hasTechnicalIssue = technicalIssues.some(pattern => 
+      pattern.test(message)
+    );
+    
+    return hasTicketKeywords || hasProblemKeywords || hasTechnicalIssue;
   }
 
   /**
@@ -350,8 +351,28 @@ class AIService {
       models: {
         openai: this.openaiModel,
         anthropic: this.anthropicModel
-      }
+      },
+      status: 'healthy'
     };
+  }
+
+  /**
+   * Проверяет здоровье AI сервиса
+   * @returns {Promise<boolean>} Здоров ли сервис
+   */
+  async isHealthy() {
+    try {
+      if (this.provider === 'anthropic' || this.provider === 'both') {
+        if (!this.anthropicClient) return false;
+      }
+      if (this.provider === 'openai' || this.provider === 'both') {
+        if (!this.openaiClient) return false;
+      }
+      return true;
+    } catch (error) {
+      logger.error(`AI Service health check failed: ${error.message}`);
+      return false;
+    }
   }
 
   /**
