@@ -255,22 +255,17 @@ class TicketService {
    */
   async addCommentById(id, comment) {
     try {
-      const ticket = await Ticket.findByIdAndUpdate(
-        id,
-        {
-          $push: { 'metadata.comments': comment },
-          updatedAt: new Date()
-        },
-        { 
-          new: true,
-          runValidators: true
-        }
-      ).populate('conversationId');
-
-      if (ticket) {
-        logger.info(`Comment added to ticket: ${ticket.ticketId}`);
+      // Используем метод addComment из модели для корректного добавления
+      const ticket = await Ticket.findById(id).populate('conversationId');
+      
+      if (!ticket) {
+        return null;
       }
 
+      // Добавляем комментарий и сохраняем
+      await ticket.addComment(comment);
+      
+      logger.info(`Comment added to ticket: ${ticket.ticketId} by ${comment.authorId}`);
       return ticket;
     } catch (error) {
       logger.error(`Error adding comment to ticket by ID ${id}: ${error.message}`);
@@ -286,22 +281,17 @@ class TicketService {
    */
   async addCommentByTicketId(ticketId, comment) {
     try {
-      const ticket = await Ticket.findOneAndUpdate(
-        { ticketId },
-        {
-          $push: { 'metadata.comments': comment },
-          updatedAt: new Date()
-        },
-        { 
-          new: true,
-          runValidators: true
-        }
-      ).populate('conversationId');
-
-      if (ticket) {
-        logger.info(`Comment added to ticket: ${ticket.ticketId}`);
+      // Используем метод addComment из модели для корректного добавления
+      const ticket = await Ticket.findOne({ ticketId }).populate('conversationId');
+      
+      if (!ticket) {
+        return null;
       }
 
+      // Добавляем комментарий и сохраняем
+      await ticket.addComment(comment);
+      
+      logger.info(`Comment added to ticket: ${ticket.ticketId} by ${comment.authorId}`);
       return ticket;
     } catch (error) {
       logger.error(`Error adding comment to ticket by ticketId ${ticketId}: ${error.message}`);
@@ -318,30 +308,16 @@ class TicketService {
    */
   async closeTicketById(id, resolution, closedBy) {
     try {
-      const updateData = {
-        status: 'closed',
-        resolution,
-        resolvedAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      if (closedBy) {
-        updateData.lastUpdatedBy = closedBy;
+      const ticket = await Ticket.findById(id).populate('conversationId');
+      
+      if (!ticket) {
+        return null;
       }
 
-      const ticket = await Ticket.findByIdAndUpdate(
-        id,
-        updateData,
-        { 
-          new: true,
-          runValidators: true
-        }
-      ).populate('conversationId');
-
-      if (ticket) {
-        logger.info(`Ticket closed: ${ticket.ticketId}`);
-      }
-
+      // Используем метод close из модели
+      await ticket.close(resolution, closedBy, req.user?.name || 'Administrator');
+      
+      logger.info(`Ticket closed: ${ticket.ticketId}`);
       return ticket;
     } catch (error) {
       logger.error(`Error closing ticket by ID ${id}: ${error.message}`);
@@ -358,30 +334,16 @@ class TicketService {
    */
   async closeTicketByTicketId(ticketId, resolution, closedBy) {
     try {
-      const updateData = {
-        status: 'closed',
-        resolution,
-        resolvedAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      if (closedBy) {
-        updateData.lastUpdatedBy = closedBy;
+      const ticket = await Ticket.findOne({ ticketId }).populate('conversationId');
+      
+      if (!ticket) {
+        return null;
       }
 
-      const ticket = await Ticket.findOneAndUpdate(
-        { ticketId },
-        updateData,
-        { 
-          new: true,
-          runValidators: true
-        }
-      ).populate('conversationId');
-
-      if (ticket) {
-        logger.info(`Ticket closed: ${ticket.ticketId}`);
-      }
-
+      // Используем метод close из модели
+      await ticket.close(resolution, closedBy, 'Administrator');
+      
+      logger.info(`Ticket closed: ${ticket.ticketId}`);
       return ticket;
     } catch (error) {
       logger.error(`Error closing ticket by ticketId ${ticketId}: ${error.message}`);
