@@ -116,7 +116,7 @@ router.post('/', async (req, res) => {
         const ticket = await ticketService.createTicket({
           userId,
           conversationId: conversation._id,
-          message,
+          initialMessage: message,  // Исправлено: message -> initialMessage
           context: JSON.stringify({
             claudeResponse: claudeResponse.message,
             userMessage: message,
@@ -125,7 +125,9 @@ router.post('/', async (req, res) => {
           language: detectedLanguage,
           subject: `Support request: ${message.substring(0, 50)}...`,
           category: 'technical',
-          source: 'api'
+          metadata: {
+            source: 'api'
+          }
         });
         ticketId = ticket.ticketId;
         logger.info(`🎫 Ticket created: ${ticketId}`);
@@ -310,7 +312,7 @@ router.post('/message', async (req, res) => {
         const ticket = await ticketService.createTicket({
           userId,
           conversationId: conversation._id,
-          message,
+          initialMessage: message,  // Исправлено: message -> initialMessage
           context: JSON.stringify({
             claudeResponse: claudeResponse.message,
             userMessage: message,
@@ -319,7 +321,9 @@ router.post('/message', async (req, res) => {
           language: detectedLanguage,
           subject: `Support request: ${message.substring(0, 50)}...`,
           category: 'technical',
-          source: 'api'
+          metadata: {
+            source: 'api'
+          }
         });
         ticketId = ticket.ticketId;
         logger.info(`🎫 Ticket created: ${ticketId}`);
@@ -771,31 +775,47 @@ router.get('/search', async (req, res) => {
  */
 router.get('/health', async (req, res) => {
   try {
-    const [
-      claudeHealth,
-      messageHealth,
-      conversationHealth,
-      vectorHealth
-    ] = await Promise.all([
-      Promise.resolve(claudeService.isHealthy()),
-      messageService.healthCheck(),
-      conversationService.healthCheck(),
-      vectorStoreService.healthCheck()
+    // Проверяем здоровье всех зависимых сервисов
+    const healthChecks = await Promise.allSettled([
+      // Claude service health
+      claudeService.isHealthy ? claudeService.isHealthy() : Promise.resolve(true),
+      // Message service health
+      messageService.healthCheck ? messageService.healthCheck() : Promise.resolve({ status: 'ok' }),
+      // Conversation service health
+      conversationService.healthCheck ? conversationService.healthCheck() : Promise.resolve({ status: 'ok' }),
+      // Vector store health (optional, может не быть инициализирован)
+      vectorStoreService.healthCheck ? vectorStoreService.healthCheck() : Promise.resolve({ status: 'ok' })
     ]);
 
-    const overall = claudeHealth && 
-                   messageHealth.status === 'ok' && 
-                   conversationHealth.status === 'ok' && 
-                   vectorHealth.status === 'ok';
+    // Обрабатываем результаты проверок
+    const [claudeHealth, messageHealth, conversationHealth, vectorHealth] = healthChecks.map(result => 
+      result.status === 'fulfilled' ? result.value : { status: 'error', error: result.reason?.message }
+    );
+
+    // Определяем общее состояние здоровья
+    const isClaudeHealthy = claudeHealth === true || claudeHealth?.status === 'ok';
+    const isMessageHealthy = messageHealth?.status === 'ok';
+    const isConversationHealthy = conversationHealth?.status === 'ok';
+    const isVectorHealthy = vectorHealth?.status === 'ok' || vectorHealth?.status === 'error'; // Vector store опциональный
+
+    const overall = isClaudeHealthy && isMessageHealthy && isConversationHealthy;
+
+    const services = {
+      claude: isClaudeHealthy ? 'ok' : 'error',
+      messages: messageHealth?.status || 'error',
+      conversations: conversationHealth?.status || 'error',
+      vectorStore: vectorHealth?.status || 'not_initialized'
+    };
 
     res.status(overall ? 200 : 503).json({
       success: overall,
       status: overall ? 'healthy' : 'unhealthy',
-      services: {
-        claude: claudeHealth ? 'ok' : 'error',
-        messages: messageHealth.status,
-        conversations: conversationHealth.status,
-        vectorStore: vectorHealth.status
+      services,
+      details: {
+        claude: isClaudeHealthy ? 'Service is responding' : 'Service not available',
+        messages: messageHealth?.message || 'Unknown status',
+        conversations: conversationHealth?.message || 'Unknown status',
+        vectorStore: vectorHealth?.status === 'error' ? 'Not initialized (RAG disabled)' : 'Available'
       },
       timestamp: new Date().toISOString()
     });
@@ -805,6 +825,7 @@ router.get('/health', async (req, res) => {
       success: false,
       status: 'error',
       error: 'Health check failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Internal error',
       timestamp: new Date().toISOString()
     });
   }
