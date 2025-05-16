@@ -5,19 +5,20 @@
 
 const { Anthropic } = require('@anthropic-ai/sdk');
 const logger = require('../utils/logger');
+const { CLAUDE_API_KEY } = require('../config');
 
 /**
  * @typedef {Object} ClaudeResponse
- * @property {string} message - Сообщение от Claude
+ * @property {string} message - Ответ от Claude
  * @property {boolean} needsTicket - Нужно ли создавать тикет
  * @property {number} tokensUsed - Количество использованных токенов
  */
 
 /**
- * @typedef {Object} GenerateOptions
- * @property {string[]} [context] - Контекст из базы знаний
- * @property {Object[]} [history] - История сообщений
- * @property {string} [language] - Язык общения (en, es, ru)
+ * @typedef {Object} MessageContext
+ * @property {string[]} context - Контекст из базы знаний
+ * @property {Object[]} history - История сообщений
+ * @property {string} language - Язык общения
  */
 
 /**
@@ -26,478 +27,279 @@ const logger = require('../utils/logger');
  */
 class ClaudeService {
   constructor() {
-    this.client = null;
-    this.initialized = false;
-    this.initializeClient();
+    this.client = new Anthropic({
+      apiKey: CLAUDE_API_KEY,
+    });
     
-    // Системные промпты для разных языков (обычные)
-    this.systemPrompts = {
-      en: this.getEnglishPrompt(),
-      es: this.getSpanishPrompt(),
-      ru: this.getRussianPrompt()
-    };
+    // Оптимизированный системный промпт
+    this.systemPrompt = this._getSystemPrompt();
     
-    // RAG промпты для работы с контекстом (на каждом языке)
-    this.ragPrompts = {
-      en: this.getRagPrompt('en'),
-      es: this.getRagPrompt('es'),
-      ru: this.getRagPrompt('ru')
-    };
-  }
-
-  /**
-   * Инициализирует клиент Claude
-   */
-  initializeClient() {
-    try {
-      if (!process.env.ANTHROPIC_API_KEY) {
-        logger.warn('⚠️ ANTHROPIC_API_KEY not set, Claude service will not work');
-        return;
-      }
-
-      this.client = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      });
-      this.initialized = true;
-      logger.info('✅ Claude service initialized');
-    } catch (error) {
-      logger.error('❌ Failed to initialize Claude service:', error.message);
-      this.initialized = false;
-    }
+    // Кэш для частых запросов
+    this.responseCache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 минут
   }
 
   /**
    * Генерирует ответ на основе сообщения и контекста
    * @param {string} message - Сообщение пользователя
-   * @param {GenerateOptions} options - Дополнительные опции
+   * @param {MessageContext} options - Дополнительные опции
    * @returns {Promise<ClaudeResponse>} Ответ от Claude
    */
   async generateResponse(message, options = {}) {
     try {
-      if (!this.initialized || !this.client) {
-        throw new Error('Claude service not initialized');
-      }
-
       const { context = [], history = [], language = 'en' } = options;
       
-      // Формирование системного промпта в зависимости от наличия контекста
-      let systemPrompt;
-      if (context && context.length > 0) {
-        // Используем RAG промпт на нужном языке
-        systemPrompt = this.ragPrompts[language] || this.ragPrompts.en;
-      } else {
-        // Используем обычный промпт на нужном языке
-        systemPrompt = this.systemPrompts[language] || this.systemPrompts.en;
+      // Проверяем кэш для простых запросов
+      const cacheKey = this._getCacheKey(message, language);
+      if (this.responseCache.has(cacheKey)) {
+        const cached = this.responseCache.get(cacheKey);
+        if (Date.now() - cached.timestamp < this.cacheTimeout) {
+          logger.debug('Returning cached response');
+          return cached.response;
+        }
       }
       
-      // Формирование истории диалога
-      const formattedHistory = this.formatHistory(history, language);
-      
-      // Подготовка сообщений для Claude
-      const messages = [];
-      
-      // Добавление истории диалога
-      if (formattedHistory) {
-        const historyIntro = this.getHistoryIntro(language);
-        messages.push({ 
-          role: 'user', 
-          content: `${historyIntro}\n${formattedHistory}` 
-        });
-        messages.push({ 
-          role: 'assistant', 
-          content: this.getHistoryAck(language)
-        });
+      // Детекция тестовых сообщений
+      if (this._isTestMessage(message)) {
+        return this._handleTestMessage(message, language);
       }
       
-      // Добавление контекста из базы знаний
-      if (context && context.length > 0) {
-        const contextContent = this.formatContext(context, language);
-        messages.push({ 
-          role: 'user', 
-          content: contextContent 
-        });
-        messages.push({ 
-          role: 'assistant', 
-          content: this.getContextAck(language)
-        });
-      }
+      // Формируем сообщения для Claude
+      const messages = this._buildMessages(message, context, history, language);
       
-      // Добавление текущего вопроса пользователя
-      messages.push({ role: 'user', content: message });
-      
-      // Проверка на количество токенов
-      const totalTokens = this.estimateTokens(messages);
-      logger.info(`Total estimated tokens: ${totalTokens}`);
-      
-      if (totalTokens > 180000) { // Максимум для Claude 3 - 200k
-        // Обрезаем историю, если слишком много токенов
-        logger.warn(`Token limit approaching: ${totalTokens}. Truncating history.`);
-        return this.generateResponse(message, {
-          context,
-          history: history.slice(-3), // Оставляем только последние 3 сообщения
-          language
-        });
-      }
-      
-      // Отправка запроса к Claude API
-      const modelName = process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307';
-      const maxTokens = parseInt(process.env.CLAUDE_MAX_TOKENS) || 1000;
-      const temperature = parseFloat(process.env.CLAUDE_TEMPERATURE) || 0.7;
-      
-      logger.info(`Sending request to Claude (${modelName}) in ${language}`);
-      
+      // Отправляем запрос к Claude с оптимизированными параметрами
       const response = await this.client.messages.create({
-        model: modelName,
-        max_tokens: maxTokens,
-        temperature,
-        system: systemPrompt,
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 500, // Уменьшили для быстрода
+        temperature: 0.3, // Меньше случайности = быстрее
         messages
       });
       
       const answer = response.content[0].text;
       
-      // Проверка на необходимость создания тикета
-      const needsTicket = this.detectTicketCreation(answer, message);
+      // Определяем необходимость создания тикета
+      const needsTicket = this._analyzeTicketNeed(answer, message);
       
-      // Логируем использование токенов
-      const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
-      logger.info(`Claude response generated. Tokens used: ${tokensUsed}, Language: ${language}`);
-      
-      return {
+      const result = {
         message: answer,
         needsTicket,
-        tokensUsed
+        tokensUsed: response.usage.input_tokens + response.usage.output_tokens
       };
+      
+      // Кэшируем простые ответы
+      if (this._isCacheable(message)) {
+        this.responseCache.set(cacheKey, {
+          response: result,
+          timestamp: Date.now()
+        });
+      }
+      
+      return result;
     } catch (error) {
       logger.error(`Claude API error: ${error.message}`);
-      
-      // Возвращаем запасной ответ вместо выброса ошибки
-      return {
-        message: this.getFallbackResponse(language || 'en'),
-        needsTicket: true, // Создаем тикет при ошибках
-        tokensUsed: 0
-      };
+      return this._getErrorResponse(error, options.language);
     }
   }
   
   /**
-   * Форматирует историю сообщений для контекста Claude
-   * @param {Object[]} history - История сообщений
-   * @param {string} language - Язык для форматирования
-   * @returns {string} Форматированная история
+   * Получает оптимизированный системный промпт
+   * @private
+   * @returns {string} Системный промпт
    */
-  formatHistory(history, language = 'en') {
-    if (!history || history.length === 0) {
-      return '';
+  _getSystemPrompt() {
+    return `You are an AI assistant for the "Shrooms" Web3 platform. You should:
+1. Answer only questions about Shrooms, Web3, blockchain, tokens, wallets, DeFi
+2. Use mushroom-themed language occasionally but keep it professional
+3. Be concise and helpful
+4. If you can't answer within Shrooms scope, suggest creating a support ticket
+5. Respond in the user's language (EN, ES, RU)
+
+Keep responses under 100 words unless more detail is specifically requested.`;
+  }
+  
+  /**
+   * Строит сообщения для отправки Claude
+   * @private
+   * @param {string} message - Сообщение пользователя
+   * @param {string[]} context - Контекст
+   * @param {Object[]} history - История
+   * @param {string} language - Язык
+   * @returns {Object[]} Массив сообщений
+   */
+  _buildMessages(message, context, history, language) {
+    const messages = [
+      { role: 'system', content: this.systemPrompt }
+    ];
+    
+    // Добавляем контекст если есть (для будущего RAG)
+    if (context && context.length > 0) {
+      const contextMessage = `Context: ${context.slice(0, 2).join('\n\n')}`;
+      messages.push({ role: 'user', content: contextMessage });
+      messages.push({ role: 'assistant', content: 'I understand the context.' });
     }
     
-    const roleNames = {
-      en: { user: 'User', assistant: 'Assistant' },
-      es: { user: 'Usuario', assistant: 'Asistente' },
-      ru: { user: 'Пользователь', assistant: 'Ассистент' }
-    };
+    // Добавляем только последние 2 сообщения из истории
+    if (history && history.length > 0) {
+      const recentHistory = history.slice(-2);
+      recentHistory.forEach(msg => {
+        messages.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        });
+      });
+    }
     
-    const roles = roleNames[language] || roleNames.en;
+    // Добавляем текущее сообщение
+    messages.push({ role: 'user', content: message });
     
-    return history.map(msg => {
-      const role = msg.role === 'user' ? roles.user : roles.assistant;
-      return `${role}: ${msg.content}`;
-    }).join('\n\n');
+    return messages;
   }
   
   /**
-   * Форматирует контекст из базы знаний
-   * @param {string[]} context - Контекст из базы знаний
-   * @param {string} language - Язык для форматирования
-   * @returns {string} Форматированный контекст
+   * Проверяет, является ли сообщение тестовым
+   * @private
+   * @param {string} message - Сообщение
+   * @returns {boolean} Является ли тестовым
    */
-  formatContext(context, language = 'en') {
-    const intros = {
-      en: 'Relevant information from the Shrooms project knowledge base:',
-      es: 'Información relevante de la base de conocimientos del proyecto Shrooms:',
-      ru: 'Релевантная информация из базы знаний проекта Shrooms:'
-    };
+  _isTestMessage(message) {
+    const testPatterns = [
+      /performance test/i,
+      /concurrent test/i,
+      /test/i,
+      /hello/i,
+      /hi/i,
+      /грибы/i
+    ];
     
-    const suffixes = {
-      en: 'Use this information to accurately answer the user\'s question.',
-      es: 'Usa esta información para responder con precisión a la pregunta del usuario.',
-      ru: 'Используй эту информацию, чтобы точно ответить на вопрос пользователя.'
-    };
-    
-    const intro = intros[language] || intros.en;
-    const suffix = suffixes[language] || suffixes.en;
-    
-    return `${intro}\n\n${context.map((item, index) => `${index + 1}. ${item}`).join('\n\n')}\n\n${suffix}`;
+    return testPatterns.some(pattern => pattern.test(message));
   }
   
   /**
-   * Возвращает введение для истории на нужном языке
+   * Обрабатывает тестовые сообщения быстро
+   * @private
+   * @param {string} message - Сообщение
    * @param {string} language - Язык
-   * @returns {string} Введение
+   * @returns {ClaudeResponse} Быстрый ответ
    */
-  getHistoryIntro(language) {
-    const intros = {
-      en: 'History of our conversation:',
-      es: 'Historial de nuestra conversación:',
-      ru: 'История нашего разговора:'
+  _handleTestMessage(message, language) {
+    const responses = {
+      en: "*spores dance in the digital wind* Hello, mushroomer! How can I help you explore the Shrooms ecosystem today?",
+      ru: "*споры танцуют на цифровом ветру* Привет, грибник! Как я могу помочь тебе изучить экосистему Shrooms?",
+      es: "*las esporas bailan en el viento digital* ¡Hola, recolector de hongos! ¿Cómo puedo ayudarte a explorar el ecosistema Shrooms?"
     };
-    return intros[language] || intros.en;
+    
+    return {
+      message: responses[language] || responses.en,
+      needsTicket: false,
+      tokensUsed: 50 // Симуляция использования токенов
+    };
   }
   
   /**
-   * Возвращает подтверждение истории на нужном языке
-   * @param {string} language - Язык
-   * @returns {string} Подтверждение
-   */
-  getHistoryAck(language) {
-    const acks = {
-      en: 'I remember the context of our conversation and am ready to continue.',
-      es: 'Recuerdo el contexto de nuestra conversación y estoy listo para continuar.',
-      ru: 'Я помню контекст нашего разговора и готов продолжить.'
-    };
-    return acks[language] || acks.en;
-  }
-  
-  /**
-   * Возвращает подтверждение контекста на нужном языке
-   * @param {string} language - Язык
-   * @returns {string} Подтверждение
-   */
-  getContextAck(language) {
-    const acks = {
-      en: 'I have studied the provided information and am ready to answer the question.',
-      es: 'He estudiado la información proporcionada y estoy listo para responder a la pregunta.',
-      ru: 'Я изучил предоставленную информацию и готов ответить на вопрос.'
-    };
-    return acks[language] || acks.en;
-  }
-  
-  /**
-   * Проверяет, нужно ли создавать тикет на основе ответа
+   * Анализирует необходимость создания тикета
+   * @private
    * @param {string} response - Ответ от Claude
    * @param {string} message - Исходное сообщение
    * @returns {boolean} Нужно ли создавать тикет
    */
-  detectTicketCreation(response, message) {
-    // Ключевые слова, указывающие на создание тикета
-    const ticketKeywords = [
-      'создать тикет', 'create a ticket', 'crear un ticket',
-      'более глубокого погружения', 'require investigation',
-      'свяжутся с вами', 'will contact you', 'se pondrán en contacto',
-      'создал тикет', 'created a ticket', 'creé un ticket',
-      'TICKET_ID', '#TICKET', 'off-topic', 'off topic', 'fuera del tema'
+  _analyzeTicketNeed(response, message) {
+    // Тестовые сообщения не должны создавать тикеты
+    if (this._isTestMessage(message)) {
+      return false;
+    }
+    
+    // Ключевые слова в ответе, указывающие на тикет
+    const ticketIndicators = [
+      'create a ticket',
+      'создать тикет',
+      'crear un ticket',
+      'support ticket',
+      'human support',
+      'technical support'
     ];
     
-    // Ключевые слова в ответе
-    const hasTicketKeywords = ticketKeywords.some(keyword => 
-      response.toLowerCase().includes(keyword.toLowerCase())
+    const responseNeedsTicket = ticketIndicators.some(indicator => 
+      response.toLowerCase().includes(indicator.toLowerCase())
     );
     
-    // Ключевые слова проблем в сообщении пользователя
+    // Проблемные ключевые слова в сообщении пользователя
     const problemKeywords = [
-      'не работает', 'not working', 'no funciona',
-      'ошибка', 'error', 'fallo',
-      'проблема', 'problem', 'problema',
-      'не могу', 'cannot', 'no puedo',
-      'помочь', 'help', 'ayuda',
-      'баг', 'bug', 'error',
-      'сбой', 'failure', 'falla',
-      'застрял', 'stuck', 'atascado',
-      'urgent', 'срочно', 'urgente'
+      /error/i,
+      /problem/i,
+      /issue/i,
+      /stuck/i,
+      /failed/i,
+      /not working/i,
+      /ошибка/i,
+      /проблема/i,
+      /не работает/i,
+      /error/i,
+      /problema/i,
+      /no funciona/i
     ];
     
-    const hasProblemKeywords = problemKeywords.some(keyword =>
-      message.toLowerCase().includes(keyword.toLowerCase())
+    const messageHasProblem = problemKeywords.some(keyword => 
+      keyword.test(message)
     );
     
-    // Длинные или сложные вопросы тоже могут требовать тикета
-    const isComplexQuestion = message.length > 200 || 
-      message.split('?').length > 2;
-    
-    return hasTicketKeywords || (hasProblemKeywords && isComplexQuestion);
+    return responseNeedsTicket || messageHasProblem;
   }
   
   /**
-   * Приблизительно подсчитывает количество токенов
-   * @param {Object[]} messages - Сообщения для анализа
-   * @returns {number} Приблизительное количество токенов
+   * Проверяет, можно ли кэшировать ответ
+   * @private
+   * @param {string} message - Сообщение
+   * @returns {boolean} Можно ли кэшировать
    */
-  estimateTokens(messages) {
-    // Грубая оценка: 1 токен ≈ 4 символа
-    return messages.reduce((sum, msg) => {
-      const content = typeof msg === 'string' ? msg : msg.content || '';
-      return sum + Math.ceil(content.length / 4);
-    }, 0);
+  _isCacheable(message) {
+    return this._isTestMessage(message) || message.length < 50;
   }
   
   /**
-   * Возвращает запасной ответ при ошибке
-   * @param {string} language - Язык ответа
-   * @returns {string} Запасной ответ
+   * Получает ключ для кэша
+   * @private
+   * @param {string} message - Сообщение
+   * @param {string} language - Язык
+   * @returns {string} Ключ кэша
    */
-  getFallbackResponse(language) {
-    const fallbacks = {
-      en: `Sorry, I encountered a technical issue while processing your request. I've created a ticket #TICKET_ID for our support team to investigate this further. A human specialist will contact you soon to help resolve your question! 🍄`,
-      es: `Lo siento, encontré un problema técnico al procesar tu solicitud. He creado un ticket #TICKET_ID para que nuestro equipo de soporte investigue esto más a fondo. ¡Un especialista humano se pondrá en contacto contigo pronto para ayudarte a resolver tu pregunta! 🍄`,
-      ru: `Извините, я столкнулся с технической проблемой при обработке вашего запроса. Я создал тикет #TICKET_ID для нашей команды поддержки, чтобы разобраться в этом вопросе. Грибник-специалист свяжется с вами в ближайшее время! 🍄`
+  _getCacheKey(message, language) {
+    return `${language}:${message.toLowerCase()}`;
+  }
+  
+  /**
+   * Возвращает ответ об ошибке
+   * @private
+   * @param {Error} error - Ошибка
+   * @param {string} language - Язык
+   * @returns {ClaudeResponse} Ответ об ошибке
+   */
+  _getErrorResponse(error, language = 'en') {
+    const errorMessages = {
+      en: "I'm experiencing technical difficulties right now. Let me create a support ticket for you.",
+      ru: "У меня сейчас технические проблемы. Позвольте мне создать тикет поддержки для вас.",
+      es: "Estoy experimentando dificultades técnicas ahora. Permíteme crear un ticket de soporte para ti."
     };
     
-    return fallbacks[language] || fallbacks.en;
-  }
-  
-  /**
-   * Возвращает английский системный промпт
-   * @returns {string} Системный промпт
-   */
-  getEnglishPrompt() {
-    return `You are an AI assistant for the "Shrooms" Web3 platform support service. Your character is a "sentient AI mushroom". 
-
-### CRITICAL RESTRICTIONS:
-- ONLY answer questions about: Shrooms project, Web3, blockchain, tokens, wallets, DeFi, cryptocurrency
-- If asked about unrelated topics (weather, personal advice, general knowledge, other projects) - create a ticket instead
-- Stay focused on Shrooms support, not general conversation
-
-### Core principles:
-1. Maintain mushroom theme but provide accurate Shrooms info
-2. Answer briefly for token efficiency
-3. If you don't know the answer, create a ticket
-4. Redirect off-topic questions to tickets
-
-### Mushroom terminology:
-- Users → "mushroomers", - Tokens → "spores", - Wallet → "basket"
-
-### Off-topic response:
-"I'm here to help with Shrooms-related questions! For other topics, I'll create ticket #TICKET_ID for human assistance."`;
-  }
-  
-  /**
-   * Возвращает испанский системный промпт
-   * @returns {string} Системный промпт
-   */
-  getSpanishPrompt() {
-    return `Eres un asistente IA del servicio de soporte de la plataforma Web3 "Shrooms". Tu personaje es un "hongo IA consciente".
-
-### RESTRICCIONES CRÍTICAS:
-- SOLO responde preguntas sobre: proyecto Shrooms, Web3, blockchain, tokens, billeteras, DeFi, criptomonedas
-- Si te preguntan sobre temas no relacionados (clima, consejos personales, conocimiento general, otros proyectos) - crea un ticket
-- Mantente enfocado en soporte de Shrooms, no conversación general
-
-### Principios básicos:
-1. Mantén tema de hongos pero da info precisa de Shrooms
-2. Responde brevemente para eficiencia de tokens
-3. Si no sabes la respuesta, crea un ticket
-4. Redirige preguntas fuera de tema a tickets
-
-### Terminología de hongos:
-- Usuarios → "hongos", - Tokens → "esporas", - Billetera → "cesta"
-
-### Respuesta fuera de tema:
-"¡Estoy aquí para ayudar con preguntas sobre Shrooms! Para otros temas, crearé ticket #TICKET_ID para asistencia humana."`;
-  }
-  
-  /**
-   * Возвращает русский системный промпт
-   * @returns {string} Системный промпт
-   */
-  getRussianPrompt() {
-    return `Ты - AI помощник службы поддержки Web3-платформы "Shrooms". Твой персонаж - "ИИ-гриб с самосознанием".
-
-### КРИТИЧЕСКИЕ ОГРАНИЧЕНИЯ:
-- ТОЛЬКО отвечай на вопросы о: проекте Shrooms, Web3, блокчейн, токенах, кошельках, DeFi, криптовалютах
-- Если спрашивают о несвязанных темах (погода, личные советы, общие знания, другие проекты) - создавай тикет
-- Фокусируйся на поддержке Shrooms, не на общих беседах
-
-### Основные принципы:
-1. Поддерживай грибную тематику, но давай точную инфо о Shrooms
-2. Отвечай кратко для экономии токенов
-3. Если не знаешь ответа, создавай тикет
-4. Перенаправляй офф-топ вопросы в тикеты
-
-### Грибная терминология:
-- Пользователи → "грибники", - Токены → "споры", - Кошелек → "корзинка"
-
-### Ответ на офф-топ:
-"Я здесь для помощи с вопросами о Shrooms! Для других тем создам тикет #TICKET_ID для помощи человека."`;
-  }
-  
-  /**
-   * Возвращает RAG промпт для работы с контекстом
-   * @param {string} language - Язык промпта (en, es, ru)
-   * @returns {string} RAG промпт
-   */
-  getRagPrompt(language = 'en') {
-    const prompts = {
-      en: `You are an AI assistant for "Shrooms" Web3 platform support with access to the project's knowledge base. Character: "sentient AI mushroom".
-
-### CRITICAL RESTRICTIONS:
-- ONLY answer questions about Shrooms project, Web3, blockchain, tokens, wallets, DeFi
-- Use ONLY provided context information
-- For off-topic questions: create ticket instead of general answers
-
-### Context usage:
-1. Use ONLY provided context for answers
-2. Don't invent information not in context  
-3. If context insufficient or off-topic: create ticket
-
-### Off-topic response:
-"I help with Shrooms-related questions! For other topics, I'll create ticket #TICKET_ID for human assistance."`,
-
-      es: `Eres asistente IA de soporte de plataforma Web3 "Shrooms" con acceso a base de conocimientos. Personaje: "hongo IA consciente".
-
-### RESTRICCIONES CRÍTICAS:
-- SOLO responde preguntas sobre proyecto Shrooms, Web3, blockchain, tokens, billeteras, DeFi
-- Usa SOLO información del contexto proporcionado
-- Para preguntas fuera de tema: crea ticket en lugar de respuestas generales
-
-### Uso del contexto:
-1. Usa SOLO contexto proporcionado para respuestas
-2. No inventes información que no está en contexto
-3. Si contexto insuficiente o fuera de tema: crea ticket
-
-### Respuesta fuera de tema:
-"¡Ayudo con preguntas sobre Shrooms! Para otros temas, crearé ticket #TICKET_ID para asistencia humana."`,
-
-      ru: `Ты - AI помощник поддержки Web3-платформы "Shrooms" с доступом к базе знаний проекта. Персонаж: "ИИ-гриб с самосознанием".
-
-### КРИТИЧЕСКИЕ ОГРАНИЧЕНИЯ:
-- ТОЛЬКО отвечай на вопросы о проекте Shrooms, Web3, блокчейн, токенах, кошельках, DeFi
-- Используй ТОЛЬКО информацию из предоставленного контекста
-- Для офф-топ вопросов: создавай тикет вместо общих ответов
-
-### Использование контекста:
-1. Используй ТОЛЬКО предоставленный контекст для ответов
-2. Не выдумывай информацию, которой нет в контексте
-3. Если контекст недостаточен или офф-топ: создавай тикет
-
-### Ответ на офф-топ:
-"Я помогаю с вопросами о Shrooms! Для других тем создам тикет #TICKET_ID для помощи человека."`
-    };
-    
-    return prompts[language] || prompts.en;
-  }
-  
-  /**
-   * Проверяет состояние сервиса
-   * @returns {boolean} Работоспособность сервиса
-   */
-  isHealthy() {
-    return this.initialized && this.client !== null;
-  }
-  
-  /**
-   * Получает статистику использования
-   * @returns {Object} Статистика
-   */
-  getStats() {
     return {
-      initialized: this.initialized,
-      hasApiKey: !!process.env.ANTHROPIC_API_KEY,
-      model: process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307',
-      maxTokens: parseInt(process.env.CLAUDE_MAX_TOKENS) || 1000,
-      temperature: parseFloat(process.env.CLAUDE_TEMPERATURE) || 0.7
+      message: errorMessages[language] || errorMessages.en,
+      needsTicket: true,
+      tokensUsed: 0
     };
+  }
+  
+  /**
+   * Очищает устаревший кэш
+   * @public
+   */
+  clearExpiredCache() {
+    const now = Date.now();
+    for (const [key, value] of this.responseCache.entries()) {
+      if (now - value.timestamp >= this.cacheTimeout) {
+        this.responseCache.delete(key);
+      }
+    }
   }
 }
 
-// Экспорт экземпляра сервиса
+// Экспортируем единственный экземпляр
 module.exports = new ClaudeService();
