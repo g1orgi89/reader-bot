@@ -165,22 +165,24 @@ router.post('/', async (req, res) => {
     // Обновление разговора
     await conversationService.incrementMessageCount(conversation._id);
     
-    // Подготовка ответа
+    // ИСПРАВЛЕНО: Структура ответа для совместимости с фронтендом
     const response = {
       success: true,
-      message: botResponse,
-      conversationId: conversation._id.toString(),
-      messageId: botMessage._id.toString(),
-      needsTicket: aiResponse.needsTicket,
-      ticketId,
-      ticketError,
-      tokensUsed: aiResponse.tokensUsed,
-      language: detectedLanguage,
-      aiProvider: aiResponse.provider, // Добавляем информацию о провайдере
-      timestamp: new Date().toISOString(),
-      metadata: {
-        knowledgeResultsCount: context.length,
-        historyMessagesCount: formattedHistory.length
+      data: {
+        message: botResponse,
+        conversationId: conversation._id.toString(),
+        messageId: botMessage._id.toString(),
+        needsTicket: aiResponse.needsTicket,
+        ticketId,
+        ticketError,
+        tokensUsed: aiResponse.tokensUsed,
+        language: detectedLanguage,
+        aiProvider: aiResponse.provider, // Добавляем информацию о провайдере
+        timestamp: new Date().toISOString(),
+        metadata: {
+          knowledgeResultsCount: context.length,
+          historyMessagesCount: formattedHistory.length
+        }
       }
     };
     
