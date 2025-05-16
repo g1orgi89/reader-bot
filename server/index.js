@@ -55,6 +55,13 @@ const io = socketIo(server, {
   }
 });
 
+// Middleware для правильной обработки UTF-8
+app.use((req, res, next) => {
+  // Устанавливаем кодировку UTF-8 для всех ответов
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
+
 // Middleware
 app.use(cors({
   origin: config.cors.origin,
@@ -63,8 +70,23 @@ app.use(cors({
   allowedHeaders: config.cors.allowedHeaders
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Настройка Express для правильной обработки UTF-8
+app.use(express.json({ 
+  limit: '10mb',
+  type: 'application/json',
+  verify: (req, res, buf) => {
+    // Убеждаемся, что buffer содержит валидный UTF-8
+    const str = buf.toString('utf8');
+    req.rawBody = str;
+  }
+}));
+
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '10mb',
+  type: 'application/x-www-form-urlencoded',
+  parameterLimit: 1000
+}));
 
 // Логирование HTTP запросов (если включено)
 if (config.logging.enableHttpLogging) {
