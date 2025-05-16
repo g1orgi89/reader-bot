@@ -36,6 +36,9 @@ router.post('/', async (req, res) => {
     const detectedLanguage = language || 
       languageDetectService.detectLanguage(message);
     
+    // ОТЛАДКА: Логируем определение языка
+    logger.info(`🔍 Language detection: input="${message.substring(0, 50)}", detected="${detectedLanguage}"`);
+    
     // Получение контекста из базы знаний (если RAG включен)
     let context = [];
     if (process.env.ENABLE_RAG === 'true') {
@@ -92,12 +95,18 @@ router.post('/', async (req, res) => {
       }
     });
     
+    // ОТЛАДКА: Логируем параметры для Claude
+    logger.info(`🤖 Sending to Claude: language="${detectedLanguage}", context_length=${context.length}, history_length=${formattedHistory.length}`);
+    
     // Генерация ответа через Claude
     const claudeResponse = await claudeService.generateResponse(message, {
       context,
       history: formattedHistory,
       language: detectedLanguage
     });
+    
+    // ОТЛАДКА: Логируем ответ от Claude
+    logger.info(`✅ Claude response: language_used="${detectedLanguage}", response_preview="${claudeResponse.message.substring(0, 100)}..."`);
     
     // Проверка на создание тикета
     let ticketId = null;
@@ -201,6 +210,9 @@ router.post('/', async (req, res) => {
     });
   }
 });
+
+// Остальные маршруты остаются без изменений...
+// (Копирую все остальные маршруты как есть)
 
 /**
  * @route POST /api/chat/message
