@@ -12,6 +12,9 @@ const { createErrorResponse } = require('../constants/errorCodes');
 
 const router = express.Router();
 
+// Import language debug routes
+const languageDebugRoutes = require('./language-debug');
+
 // Manual OPTIONS handler FIRST - before any rate limiting
 router.options('/tickets', (req, res) => {
   logger.info('Admin tickets OPTIONS request');
@@ -24,6 +27,9 @@ router.options('/tickets', (req, res) => {
   });
   res.status(200).end();
 });
+
+// Mount language debug routes with admin auth
+router.use('/language', requireAdminAuth, languageDebugRoutes);
 
 /**
  * Admin login endpoint
