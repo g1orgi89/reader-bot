@@ -94,6 +94,24 @@
             border-radius: 5px;
             background-color: #333;
         }
+        .language-toggle {
+            margin: 10px 0;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .language-toggle button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .language-toggle button.active {
+            background-color: #39FF14;
+            color: #000;
+        }
+        .language-toggle button:not(.active) {
+            background-color: #444;
+            color: #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -104,19 +122,27 @@
             🎯 Debug mode enabled
         </div>
         
+        <div class="language-toggle">
+            <span>Language mode:</span>
+            <button id="autoLangBtn" class="active" onclick="setLanguageMode('auto')">Auto-detect</button>
+            <button id="manualRuBtn" onclick="setLanguageMode('ru')">Force RU</button>
+            <button id="manualEnBtn" onclick="setLanguageMode('en')">Force EN</button>
+        </div>
+        
         <div>
             <h3>💬 Chat Interface</h3>
             <div class="messages" id="messages"></div>
             
             <div style="display: flex; gap: 10px;">
-                <input type="text" id="userInput" placeholder="Введите сообщение..." style="flex: 1;">
+                <input type="text" id="userInput" placeholder="Введите сообщение...or Enter your message..." style="flex: 1;">
                 <button onclick="sendMessage()" id="sendBtn">Отправить</button>
             </div>
             
             <div style="margin-top: 10px;">
                 <button onclick="clearMessages()">Clear Chat</button>
                 <button onclick="sendTestMessage('Привет! Как дела?')">Test RU</button>
-                <button onclick="testSimpleMessage()">Simple Test</button>
+                <button onclick="sendTestMessage('Hello, how are you?')">Test EN</button>
+                <button onclick="testLanguageSwitching()">Test Switch</button>
                 <button onclick="showDebugInfo()">Show Debug</button>
             </div>
             
@@ -131,6 +157,7 @@
         let userId = 'test-user-' + Date.now();
         let conversationId = null;
         let debugLog = [];
+        let languageMode = 'auto'; // 'auto', 'ru', 'en'
 
         function log(message, type = 'info') {
             const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
@@ -144,6 +171,18 @@
             const logElement = document.getElementById('debugLog');
             logElement.innerHTML = debugLog.slice(-20).map(msg => `<div>${msg}</div>`).join('');
             logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function setLanguageMode(mode) {
+            languageMode = mode;
+            log(`Language mode changed to: ${mode}`);
+            
+            // Update button states
+            document.getElementById('autoLangBtn').className = mode === 'auto' ? 'active' : '';
+            document.getElementById('manualRuBtn').className = mode === 'ru' ? 'active' : '';
+            document.getElementById('manualEnBtn').className = mode === 'en' ? 'active' : '';
+            
+            updateStatus(`🔤 Language mode: ${mode}`, 'info');
         }
 
         async function sendMessage() {
@@ -173,12 +212,22 @@
             
             try {
                 log('Making API request...');
+                
+                // Build request body
                 const requestBody = {
                     message: message,
                     userId: userId,
-                    conversationId: conversationId,
-                    language: 'ru'
+                    conversationId: conversationId
                 };
+                
+                // Only add language if manually set
+                if (languageMode !== 'auto') {
+                    requestBody.language = languageMode;
+                    log(`Using manual language: ${languageMode}`);
+                } else {
+                    log('Using automatic language detection');
+                }
+                
                 log(`Request body: ${JSON.stringify(requestBody)}`);
                 
                 const response = await fetch(`${API_BASE}/chat`, {
@@ -202,13 +251,18 @@
                         conversationId = data.data.conversationId;
                     }
                     
+                    // Log detected language
+                    if (data.data.language) {
+                        log(`Detected language: ${data.data.language}`);
+                    }
+                    
                     // Add bot response to display
                     log(`Adding bot message: "${data.data.message}"`);
                     addMessageToDisplay(data.data.message, 'bot');
                     
                     // Update status
                     log(`Updating status with tokens: ${data.data.tokensUsed}`);
-                    updateStatus(`✅ Сообщение отправлено (${data.data.tokensUsed} токенов)`, 'success');
+                    updateStatus(`✅ Сообщение отправлено (${data.data.tokensUsed} токенов) [${data.data.language}]`, 'success');
                     
                     // Show ticket info if created
                     if (data.data.ticketId) {
@@ -242,9 +296,14 @@
             await sendMessage();
         }
 
-        async function testSimpleMessage() {
-            log('Testing simple message');
-            await sendTestMessage('Hello');
+        async function testLanguageSwitching() {
+            log('Testing language switching scenario');
+            await sendTestMessage('Hello, how are you?');
+            
+            // Wait a bit then send Russian
+            setTimeout(async () => {
+                await sendTestMessage('Спасибо, теперь на русском.');
+            }, 3000);
         }
 
         function addMessageToDisplay(message, type, isError = false) {
@@ -299,6 +358,7 @@
             log('=== DEBUG INFO ===');
             log(`userId: ${userId}`);
             log(`conversationId: ${conversationId}`);
+            log(`languageMode: ${languageMode}`);
             log(`API_BASE: ${API_BASE}`);
             log(`Messages count: ${document.getElementById('messages').children.length}`);
             log('==================');
