@@ -55,10 +55,13 @@ const io = socketIo(server, {
   }
 });
 
-// ИСПРАВЛЕННАЯ настройка UTF-8 middleware - должна быть ПЕРВОЙ
+// ИСПРАВЛЕННАЯ настройка UTF-8 middleware - только для API endpoints
 app.use((req, res, next) => {
-  // Устанавливаем кодировку UTF-8 для всех ответов
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  // Устанавливаем UTF-8 только для API endpoints, не для статических файлов
+  if (req.path.startsWith('/api')) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  }
+  
   // Обеспечиваем правильную обработку входящих данных
   if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
     req.headers['content-type'] = 'application/json; charset=utf-8';
@@ -114,8 +117,21 @@ if (config.logging.enableHttpLogging) {
   app.use(logger.httpLogger);
 }
 
-// Обслуживание статических файлов
-app.use(express.static(path.join(__dirname, '../client')));
+// ИСПРАВЛЕННАЯ обслуживание статических файлов с правильными MIME типами
+app.use(express.static(path.join(__dirname, '../client'), {
+  setHeaders: (res, filePath) => {
+    // Устанавливаем правильные MIME типы для разных файлов
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    } else if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    } else if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    } else if (filePath.endsWith('.json')) {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+  }
+}));
 
 // API Routes с префиксом
 app.use(`${config.app.apiPrefix}/chat`, chatRoutes);
