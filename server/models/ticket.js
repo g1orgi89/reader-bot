@@ -6,6 +6,33 @@
 const mongoose = require('mongoose');
 
 /**
+ * Схема для комментария к тикету
+ */
+const commentSchema = new mongoose.Schema({
+  content: {
+    type: String,
+    required: true,
+    maxlength: 5000
+  },
+  authorId: {
+    type: String,
+    required: true
+  },
+  authorName: {
+    type: String,
+    required: true
+  },
+  isInternal: {
+    type: Boolean,
+    default: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+/**
  * Схема для тикета
  */
 const ticketSchema = new mongoose.Schema({
@@ -79,6 +106,9 @@ const ticketSchema = new mongoose.Schema({
     default: 'en',
     index: true
   },
+  // Комментарии к тикету
+  comments: [commentSchema],
+  
   metadata: {
     source: {
       type: String,
@@ -96,7 +126,9 @@ const ticketSchema = new mongoose.Schema({
       min: 1,
       max: 5
     },
-    feedback: String
+    feedback: String,
+    createdBy: String,
+    lastUpdatedBy: String
   },
   resolvedAt: {
     type: Date,
@@ -110,7 +142,8 @@ const ticketSchema = new mongoose.Schema({
     breached: {
       type: Boolean,
       default: false
-    }
+    },
+    breachedAt: Date
   }
 }, {
   timestamps: true,
@@ -127,7 +160,8 @@ ticketSchema.index({ createdAt: -1, status: 1 });
 ticketSchema.index({ 
   subject: 'text', 
   initialMessage: 'text',
-  resolution: 'text'
+  resolution: 'text',
+  'comments.content': 'text'
 });
 
 // Виртуальные поля
@@ -147,30 +181,61 @@ ticketSchema.virtual('ageInHours').get(function() {
   return Math.floor(this.age / (1000 * 60 * 60));
 });
 
+ticketSchema.virtual('ageInDays').get(function() {
+  return Math.floor(this.age / (1000 * 60 * 60 * 24));
+});
+
+ticketSchema.virtual('publicComments').get(function() {
+  return this.comments.filter(comment => !comment.isInternal);
+});
+
+ticketSchema.virtual('internalComments').get(function() {
+  return this.comments.filter(comment => comment.isInternal);
+});
+
 // Методы экземпляра
-ticketSchema.methods.assign = function(agentId) {
+ticketSchema.methods.assign = function(agentId, agentName) {
   this.assignedTo = agentId;
   if (this.status === 'open') {
     this.status = 'in_progress';
   }
+  
+  // Добавляем внутренний комментарий о назначении
+  this.comments.push({
+    content: `Ticket assigned to ${agentName || agentId}`,
+    authorId: 'system',
+    authorName: 'System',
+    isInternal: true
+  });
+  
   return this.save();
 };
 
-ticketSchema.methods.resolve = function(resolution, agentId) {
+ticketSchema.methods.resolve = function(resolution, agentId, agentName) {
   this.status = 'resolved';
   this.resolution = resolution;
   this.resolvedAt = new Date();
   this.assignedTo = this.assignedTo || agentId;
   
+  // Добавляем комментарий о разрешении
+  this.comments.push({
+    content: `Ticket resolved: ${resolution}`,
+    authorId: agentId || 'system',
+    authorName: agentName || 'System',
+    isInternal: false
+  });
+  
   // Вычисляем время разрешения
-  this.sla.resolutionTime = Math.floor(
-    (this.resolvedAt - this.createdAt) / (1000 * 60)
-  );
+  if (this.createdAt && this.resolvedAt) {
+    this.metadata.actualTime = Math.floor(
+      (this.resolvedAt - this.createdAt) / (1000 * 60)
+    );
+  }
   
   return this.save();
 };
 
-ticketSchema.methods.close = function(resolution) {
+ticketSchema.methods.close = function(resolution, agentId, agentName) {
   if (resolution) {
     this.resolution = resolution;
   }
@@ -178,6 +243,46 @@ ticketSchema.methods.close = function(resolution) {
   if (!this.resolvedAt) {
     this.resolvedAt = new Date();
   }
+  
+  // Добавляем комментарий о закрытии
+  this.comments.push({
+    content: `Ticket closed${resolution ? ': ' + resolution : ''}`,
+    authorId: agentId || 'system',
+    authorName: agentName || 'System',
+    isInternal: false
+  });
+  
+  return this.save();
+};
+
+ticketSchema.methods.addComment = function(comment) {
+  this.comments.push(comment);
+  
+  // Обновляем время последнего ответа агента
+  if (!comment.isInternal && comment.authorId !== this.userId) {
+    this.lastAgentResponseAt = new Date();
+    
+    // Устанавливаем время первого ответа
+    if (!this.firstResponseAt) {
+      this.firstResponseAt = new Date();
+    }
+  }
+  
+  return this.save();
+};
+
+ticketSchema.methods.updatePriority = function(newPriority, reason, agentId) {
+  const oldPriority = this.priority;
+  this.priority = newPriority;
+  
+  // Добавляем внутренний комментарий об изменении приоритета
+  this.comments.push({
+    content: `Priority changed from ${oldPriority} to ${newPriority}. Reason: ${reason}`,
+    authorId: agentId || 'system',
+    authorName: 'System',
+    isInternal: true
+  });
+  
   return this.save();
 };
 
@@ -202,8 +307,8 @@ ticketSchema.statics.findByAgent = function(agentId, options = {}) {
     .skip(skip);
 };
 
-ticketSchema.statics.findOverdue = function(hoursOverdue = 24) {
-  const cutoffDate = new Date(Date.now() - hoursOverdue * 60 * 60 * 1000);
+ticketSchema.statics.findOverdue = function(slaHours = 24) {
+  const cutoffDate = new Date(Date.now() - slaHours * 60 * 60 * 1000);
   return this.find({
     status: { $in: ['open', 'in_progress'] },
     createdAt: { $lt: cutoffDate },
@@ -211,25 +316,42 @@ ticketSchema.statics.findOverdue = function(hoursOverdue = 24) {
   });
 };
 
+ticketSchema.statics.findByTicketId = function(ticketId) {
+  return this.findOne({ ticketId }).populate('conversationId');
+};
+
 // Генерирует уникальный ticketId
 ticketSchema.methods.generateTicketId = function() {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substr(2, 5);
-  return `SHR${timestamp}${random}`.toUpperCase();
+  const prefix = 'SHRM';
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substr(2, 8).toUpperCase();
+  return `${prefix}${timestamp}${random}`;
 };
 
 // Проверяет SLA
 ticketSchema.methods.checkSLA = function() {
   const now = new Date();
-  const ageHours = (now - this.createdAt) / (1000 * 60 * 60);
+  const ageMinutes = (now - this.createdAt) / (1000 * 60);
   
-  const slaHours = this.priority === 'urgent' ? 4 : 
-                  this.priority === 'high' ? 12 : 
-                  this.priority === 'medium' ? 24 : 48;
+  // Время ответа SLA (в минутах)
+  const responseTimeSLA = this.priority === 'urgent' ? 15 : 
+                         this.priority === 'high' ? 60 : 
+                         this.priority === 'medium' ? 240 : 1440;
   
-  if (ageHours > slaHours) {
+  // Время разрешения SLA (в минутах)
+  const resolutionTimeSLA = this.priority === 'urgent' ? 120 : 
+                           this.priority === 'high' ? 480 : 
+                           this.priority === 'medium' ? 1440 : 2880;
+  
+  // Проверяем нарушение SLA
+  if (!this.sla.breached && ageMinutes > responseTimeSLA) {
     this.sla.breached = true;
+    this.sla.breachedAt = now;
+    this.sla.responseTime = responseTimeSLA;
+    this.sla.resolutionTime = resolutionTimeSLA;
   }
+  
+  return this.sla.breached;
 };
 
 // Middleware
@@ -238,12 +360,19 @@ ticketSchema.pre('save', function(next) {
     this.ticketId = this.generateTicketId();
   }
   
-  this.updatedAt = new Date();
-  
+  // Проверяем SLA при каждом обновлении
   if (this.isOpen && !this.sla.breached) {
     this.checkSLA();
   }
   
+  next();
+});
+
+// Middleware для сортировки комментариев по дате
+ticketSchema.pre('save', function(next) {
+  if (this.comments && this.comments.length > 0) {
+    this.comments.sort((a, b) => a.createdAt - b.createdAt);
+  }
   next();
 });
 
