@@ -32,9 +32,50 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Определение языка сообщения
+    // Получение или создание разговора
+    let conversation;
+    if (conversationId) {
+      conversation = await conversationService.findById(conversationId);
+      if (!conversation) {
+        logger.warn(`Conversation ${conversationId} not found, creating new one`);
+        // Создаем разговор с базовым языком
+        conversation = await conversationService.create({
+          userId,
+          language: language || 'en',
+          startedAt: new Date(),
+          source: 'api'
+        });
+      }
+    } else {
+      // Создаем новый разговор с базовым языком
+      conversation = await conversationService.create({
+        userId,
+        language: language || 'en',
+        startedAt: new Date(),
+        source: 'api'
+      });
+    }
+    
+    // Получение истории сообщений
+    const history = await messageService.getRecentMessages(conversation._id, 10);
+    const formattedHistory = history.map(msg => ({
+      role: msg.role,
+      content: msg.text
+    }));
+
+    // Определение языка сообщения с учетом контекста
     const detectedLanguage = language || 
-      languageDetectService.detectLanguage(message);
+      languageDetectService.detectLanguageWithContext(message, {
+        userId,
+        conversationId: conversation._id.toString(),
+        history: formattedHistory,
+        previousLanguage: conversation.language
+      });
+    
+    // Обновляем язык разговора, если он изменился
+    if (conversation.language !== detectedLanguage) {
+      await conversationService.updateLanguage(conversation._id, detectedLanguage);
+    }
     
     // Получение контекста из базы знаний (если RAG включен)
     let context = [];
@@ -50,35 +91,6 @@ router.post('/', async (req, res) => {
         // Продолжаем без контекста
       }
     }
-    
-    // Получение или создание разговора
-    let conversation;
-    if (conversationId) {
-      conversation = await conversationService.findById(conversationId);
-      if (!conversation) {
-        logger.warn(`Conversation ${conversationId} not found, creating new one`);
-        conversation = await conversationService.create({
-          userId,
-          language: detectedLanguage,
-          startedAt: new Date(),
-          source: 'api'
-        });
-      }
-    } else {
-      conversation = await conversationService.create({
-        userId,
-        language: detectedLanguage,
-        startedAt: new Date(),
-        source: 'api'
-      });
-    }
-    
-    // Получение истории сообщений
-    const history = await messageService.getRecentMessages(conversation._id, 10);
-    const formattedHistory = history.map(msg => ({
-      role: msg.role,
-      content: msg.text
-    }));
     
     // Сохранение сообщения пользователя
     const userMessage = await messageService.create({
@@ -220,9 +232,50 @@ router.post('/message', async (req, res) => {
       });
     }
 
-    // Определение языка сообщения
+    // Получение или создание разговора
+    let conversation;
+    if (conversationId) {
+      conversation = await conversationService.findById(conversationId);
+      if (!conversation) {
+        logger.warn(`Conversation ${conversationId} not found, creating new one`);
+        // Создаем разговор с базовым языком
+        conversation = await conversationService.create({
+          userId,
+          language: language || 'en',
+          startedAt: new Date(),
+          source: 'api'
+        });
+      }
+    } else {
+      // Создаем новый разговор с базовым языком
+      conversation = await conversationService.create({
+        userId,
+        language: language || 'en',
+        startedAt: new Date(),
+        source: 'api'
+      });
+    }
+    
+    // Получение истории сообщений
+    const history = await messageService.getRecentMessages(conversation._id, 10);
+    const formattedHistory = history.map(msg => ({
+      role: msg.role,
+      content: msg.text
+    }));
+
+    // Определение языка сообщения с учетом контекста
     const detectedLanguage = language || 
-      languageDetectService.detectLanguage(message);
+      languageDetectService.detectLanguageWithContext(message, {
+        userId,
+        conversationId: conversation._id.toString(),
+        history: formattedHistory,
+        previousLanguage: conversation.language
+      });
+    
+    // Обновляем язык разговора, если он изменился
+    if (conversation.language !== detectedLanguage) {
+      await conversationService.updateLanguage(conversation._id, detectedLanguage);
+    }
     
     // Получение контекста из базы знаний (если RAG включен)
     let context = [];
@@ -238,35 +291,6 @@ router.post('/message', async (req, res) => {
         // Продолжаем без контекста
       }
     }
-    
-    // Получение или создание разговора
-    let conversation;
-    if (conversationId) {
-      conversation = await conversationService.findById(conversationId);
-      if (!conversation) {
-        logger.warn(`Conversation ${conversationId} not found, creating new one`);
-        conversation = await conversationService.create({
-          userId,
-          language: detectedLanguage,
-          startedAt: new Date(),
-          source: 'api'
-        });
-      }
-    } else {
-      conversation = await conversationService.create({
-        userId,
-        language: detectedLanguage,
-        startedAt: new Date(),
-        source: 'api'
-      });
-    }
-    
-    // Получение истории сообщений
-    const history = await messageService.getRecentMessages(conversation._id, 10);
-    const formattedHistory = history.map(msg => ({
-      role: msg.role,
-      content: msg.text
-    }));
     
     // Сохранение сообщения пользователя
     const userMessage = await messageService.create({
@@ -526,7 +550,7 @@ router.get('/languages', async (req, res) => {
  */
 router.post('/detect-language', async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, userId, conversationId } = req.body;
 
     if (!text) {
       return res.status(400).json({
@@ -536,13 +560,23 @@ router.post('/detect-language', async (req, res) => {
       });
     }
 
-    const detectedLanguage = languageDetectService.detectLanguage(text);
+    // Используем обычное определение языка для тестирования
+    let detectedLanguage = languageDetectService.detectLanguage(text);
+    
+    // Если есть userId, можем использовать контекстное определение
+    if (userId) {
+      detectedLanguage = languageDetectService.detectLanguageWithContext(text, {
+        userId,
+        conversationId
+      });
+    }
 
     res.json({
       success: true,
       data: {
         detectedLanguage,
-        text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+        text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+        method: userId ? 'context-aware' : 'basic'
       }
     });
   } catch (error) {
@@ -720,6 +754,34 @@ router.get('/health', async (req, res) => {
       status: 'error',
       error: 'Health check failed',
       timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * @route POST /api/chat/users/:userId/clear-language-cache
+ * @desc Очищает кеш языковых предпочтений пользователя
+ * @access Public
+ */
+router.post('/users/:userId/clear-language-cache', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    languageDetectService.clearLanguageCache(userId);
+    
+    res.json({
+      success: true,
+      data: {
+        message: `Language cache cleared for user: ${userId}`,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error clearing language cache:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear language cache',
+      code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
