@@ -560,15 +560,41 @@ router.post('/detect-language', async (req, res) => {
       });
     }
 
-    // Используем обычное определение языка для тестирования
-    let detectedLanguage = languageDetectService.detectLanguage(text);
-    
-    // Если есть userId, можем использовать контекстное определение
-    if (userId) {
-      detectedLanguage = languageDetectService.detectLanguageWithContext(text, {
-        userId,
-        conversationId
-      });
+    let detectedLanguage;
+    let method = 'basic';
+    let history = [];
+
+    // Если есть userId и conversationId, получаем историю для контекстного определения
+    if (userId && conversationId) {
+      try {
+        const conversation = await conversationService.findById(conversationId);
+        if (conversation) {
+          const recentMessages = await messageService.getRecentMessages(conversationId, 5);
+          history = recentMessages.map(msg => ({
+            role: msg.role,
+            content: msg.text
+          }));
+          
+          // Используем контекстное определение языка
+          detectedLanguage = languageDetectService.detectLanguageWithContext(text, {
+            userId,
+            conversationId,
+            history,
+            previousLanguage: conversation.language
+          });
+          method = 'context-aware';
+        } else {
+          // Если разговор не найден, используем базовое определение
+          detectedLanguage = languageDetectService.detectLanguage(text);
+        }
+      } catch (error) {
+        logger.warn('Failed to get conversation history for language detection:', error);
+        // Fallback к базовому определению
+        detectedLanguage = languageDetectService.detectLanguage(text);
+      }
+    } else {
+      // Используем базовое определение языка
+      detectedLanguage = languageDetectService.detectLanguage(text);
     }
 
     res.json({
@@ -576,7 +602,11 @@ router.post('/detect-language', async (req, res) => {
       data: {
         detectedLanguage,
         text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-        method: userId ? 'context-aware' : 'basic'
+        method,
+        metadata: {
+          hasHistory: history.length > 0,
+          historyCount: history.length
+        }
       }
     });
   } catch (error) {
