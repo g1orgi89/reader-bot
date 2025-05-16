@@ -55,14 +55,18 @@ const io = socketIo(server, {
   }
 });
 
-// Middleware для правильной обработки UTF-8
+// ИСПРАВЛЕННАЯ настройка UTF-8 middleware - должна быть ПЕРВОЙ
 app.use((req, res, next) => {
   // Устанавливаем кодировку UTF-8 для всех ответов
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  // Обеспечиваем правильную обработку входящих данных
+  if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+    req.headers['content-type'] = 'application/json; charset=utf-8';
+  }
   next();
 });
 
-// Middleware
+// Middleware CORS
 app.use(cors({
   origin: config.cors.origin,
   credentials: config.cors.credentials,
@@ -70,14 +74,18 @@ app.use(cors({
   allowedHeaders: config.cors.allowedHeaders
 }));
 
-// Настройка Express для правильной обработки UTF-8
+// ИСПРАВЛЕННАЯ настройка Express для правильной обработки UTF-8
 app.use(express.json({ 
   limit: '10mb',
   type: 'application/json',
-  verify: (req, res, buf) => {
-    // Убеждаемся, что buffer содержит валидный UTF-8
-    const str = buf.toString('utf8');
-    req.rawBody = str;
+  verify: (req, res, buf, encoding) => {
+    // Принудительно интерпретируем как UTF-8
+    if (encoding === 'utf8') {
+      req.rawBody = buf.toString('utf8');
+    } else {
+      // Если кодировка не указана или указана неправильно, принудительно используем UTF-8
+      req.rawBody = buf.toString('utf8');
+    }
   }
 }));
 
@@ -471,7 +479,7 @@ async function gracefulShutdown(signal) {
     process.exit(0);
   });
   
-  // Принудительное завершение через 30 секунд
+  // Принудительное завершения через 30 секунд
   setTimeout(() => {
     logger.error('⏰ Forced shutdown after timeout');
     process.exit(1);
