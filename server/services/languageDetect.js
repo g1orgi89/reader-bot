@@ -17,39 +17,68 @@ class LanguageDetectService {
         keywords: [
           'the', 'and', 'you', 'that', 'was', 'for', 'are', 'with', 'his', 'they',
           'hello', 'help', 'what', 'how', 'when', 'where', 'why', 'can', 'could',
-          'wallet', 'connect', 'token', 'farming', 'staking', 'bitcoin', 'crypto'
+          'wallet', 'connect', 'token', 'farming', 'staking', 'bitcoin', 'crypto',
+          'this', 'have', 'from', 'been', 'will', 'more', 'time', 'very', 'just',
+          'would', 'there', 'about', 'into', 'them', 'only', 'know', 'than', 'first'
         ],
         patterns: [
           /\bis\b/gi, /\bare\b/gi, /\bthe\b/gi, /\band\b/gi, /\bcan\b/gi,
-          /\bhow\s+to\b/gi, /\bwhat\s+is\b/gi, /\bi\s+need\b/gi
+          /\bhow\s+to\b/gi, /\bwhat\s+is\b/gi, /\bi\s+need\b/gi,
+          /\bwould\s+like\b/gi, /\bhave\s+been\b/gi
+        ],
+        // Специальные проверки для английского
+        specificChecks: [
+          /\b(ing|tion|ness|ment|able|ible)\b/gi,
+          /\b(a|an)\s+\w+/gi
         ]
       },
       es: {
         keywords: [
           'el', 'la', 'de', 'que', 'y', 'en', 'con', 'no', 'te', 'lo',
           'hola', 'ayuda', 'qué', 'cómo', 'cuándo', 'dónde', 'por', 'puedo', 'podría',
-          'billetera', 'conectar', 'token', 'cultivo', 'apuesta', 'bitcoin', 'cripto'
+          'billetera', 'conectar', 'token', 'cultivo', 'apuesta', 'bitcoin', 'cripto',
+          'para', 'del', 'las', 'los', 'una', 'uno', 'esta', 'este', 'pero', 'todo',
+          'más', 'muy', 'bien', 'como', 'sobre', 'sido', 'está', 'son', 'desde'
         ],
         patterns: [
           /\bes\b/gi, /\bson\b/gi, /\bel\b/gi, /\bla\b/gi, /\bde\b/gi,
-          /\bcómo\s+puedo\b/gi, /\bqué\s+es\b/gi, /\bnecesito\b/gi
+          /\bcómo\s+puedo\b/gi, /\bqué\s+es\b/gi, /\bnecesito\b/gi,
+          /\bme\s+gustaría\b/gi, /\bhe\s+estado\b/gi
+        ],
+        // Специальные проверки для испанского
+        specificChecks: [
+          /[ñáéíóúü]/gi,
+          /\b(ción|mente|ando|iendo)\b/gi,
+          /\b(un|una)\s+\w+/gi
         ]
       },
       ru: {
         keywords: [
           'и', 'в', 'не', 'что', 'он', 'на', 'я', 'с', 'как', 'а',
           'привет', 'помощь', 'что', 'как', 'когда', 'где', 'почему', 'могу', 'можно',
-          'кошелек', 'подключить', 'токен', 'фарминг', 'стейкинг', 'биткоин', 'крипто'
+          'кошелек', 'подключить', 'токен', 'фарминг', 'стейкинг', 'биткоин', 'крипто',
+          'это', 'для', 'по', 'от', 'до', 'из', 'за', 'при', 'без', 'через',
+          'мне', 'тебе', 'нас', 'вас', 'них', 'она', 'оно', 'мы', 'вы', 'они',
+          'да', 'нет', 'или', 'если', 'то', 'бы', 'же', 'ли', 'только', 'уже',
+          'там', 'тут', 'где', 'когда', 'почему', 'зачем', 'какой', 'какая', 'какое',
+          'который', 'которая', 'которое', 'чтобы', 'потому', 'поэтому'
         ],
         patterns: [
           /\bэто\b/gi, /\bесть\b/gi, /\bтот\b/gi, /\bкак\b/gi, /\bчто\b/gi,
-          /\bкак\s+можно\b/gi, /\bчто\s+такое\b/gi, /\bмне\s+нужно\b/gi
+          /\bкак\s+можно\b/gi, /\bчто\s+такое\b/gi, /\bмне\s+нужно\b/gi,
+          /\bможет\s+быть\b/gi, /\bя\s+хочу\b/gi, /\bу\s+меня\b/gi
+        ],
+        // Специальные проверки для русского
+        specificChecks: [
+          /[а-яё]/gi,
+          /\b(ость|ение|ание|ство|ный|ная|ное)\b/gi,
+          /\b(не|ни)\s+\w+/gi
         ]
       }
     };
     
     // Пороги уверенности для определения языка
-    this.confidenceThreshold = 0.3;
+    this.confidenceThreshold = 0.1; // Понижен порог для лучшего обнаружения
     this.defaultLanguage = 'en';
   }
 
@@ -72,6 +101,18 @@ class LanguageDetectService {
         return this.defaultLanguage;
       }
 
+      // Быстрая проверка на кириллицу для русского языка
+      if (/[а-яё]/i.test(text)) {
+        logger.info(`Russian detected by cyrillic characters: "${text.substring(0, 50)}..."`);
+        return 'ru';
+      }
+
+      // Быстрая проверка на испанские символы
+      if (/[ñáéíóúü]/i.test(text)) {
+        logger.info(`Spanish detected by special characters: "${text.substring(0, 50)}..."`);
+        return 'es';
+      }
+
       // Подсчет совпадений для каждого языка
       const scores = {};
       
@@ -80,9 +121,9 @@ class LanguageDetectService {
       }
 
       // Определение языка с наивысшим счетом
-      const detectedLanguage = this.selectBestLanguage(scores);
+      const detectedLanguage = this.selectBestLanguage(scores, text);
       
-      logger.info(`Language detected: ${detectedLanguage} for text: "${text.substring(0, 50)}..."`);
+      logger.info(`Language detected: ${detectedLanguage} for text: "${text.substring(0, 50)}..." (scores: ${JSON.stringify(scores)})`);
       
       return detectedLanguage;
     } catch (error) {
@@ -130,8 +171,17 @@ class LanguageDetectService {
       patternMatches += matches;
     }
 
-    // Вычисление итогового счета
-    score = (keywordMatches * 2 + patternMatches) / Math.max(totalWords, 1);
+    // Проверка специфических признаков языка
+    let specificMatches = 0;
+    if (dictionary.specificChecks) {
+      for (const check of dictionary.specificChecks) {
+        const matches = (text.match(check) || []).length;
+        specificMatches += matches;
+      }
+    }
+
+    // Вычисление итогового счета с увеличенным весом для специфических признаков
+    score = (keywordMatches * 2 + patternMatches * 1.5 + specificMatches * 3) / Math.max(totalWords, 1);
     
     return score;
   }
@@ -139,14 +189,16 @@ class LanguageDetectService {
   /**
    * Выбирает язык с наивысшим счетом
    * @param {Object} scores - Счета для каждого языка
+   * @param {string} originalText - Оригинальный текст для дополнительных проверок
    * @returns {string} Код определенного языка
    */
-  selectBestLanguage(scores) {
+  selectBestLanguage(scores, originalText) {
     let bestLanguage = this.defaultLanguage;
     let maxScore = 0;
 
+    // Находим язык с максимальным счетом
     for (const [lang, score] of Object.entries(scores)) {
-      if (score > maxScore && score >= this.confidenceThreshold) {
+      if (score > maxScore) {
         maxScore = score;
         bestLanguage = lang;
       }
@@ -155,7 +207,7 @@ class LanguageDetectService {
     // Дополнительные эвристики для повышения точности
     if (maxScore < this.confidenceThreshold) {
       // Если уверенность низкая, используем дополнительные проверки
-      bestLanguage = this.performAdditionalChecks(scores);
+      bestLanguage = this.performAdditionalChecks(scores, originalText);
     }
 
     return bestLanguage;
@@ -164,12 +216,35 @@ class LanguageDetectService {
   /**
    * Выполняет дополнительные проверки для определения языка
    * @param {Object} scores - Счета для каждого языка
+   * @param {string} text - Оригинальный текст
    * @returns {string} Код языка
    */
-  performAdditionalChecks(scores) {
+  performAdditionalChecks(scores, text) {
+    // Проверка на кириллицу - однозначно русский
+    if (/[а-яё]/i.test(text)) {
+      return 'ru';
+    }
+
+    // Проверка на испанские символы - однозначно испанский
+    if (/[ñáéíóúü]/i.test(text)) {
+      return 'es';
+    }
+
+    // Дополнительные проверки по характерным словам
+    const lowerText = text.toLowerCase();
+    
+    // Русские вопросные слова
+    if (/\b(что|как|где|когда|почему|зачем)\s+(такое|это|можно|нужно|делать)\b/i.test(lowerText)) {
+      return 'ru';
+    }
+
+    // Испанские вопросные слова
+    if (/\b(qué|cómo|dónde|cuándo|por\s+qué)\s+(es|está|puedo|necesito)\b/i.test(lowerText)) {
+      return 'es';
+    }
+
     // Если есть хотя бы минимальное совпадение с русским, предпочитаем его
-    // (так как кириллица явно указывает на русский)
-    if (scores.ru > 0) {
+    if (scores.ru && scores.ru > 0) {
       return 'ru';
     }
 
