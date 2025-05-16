@@ -79,11 +79,21 @@ class LanguageDetectService {
     };
     
     // Пороги уверенности для определения языка
-    this.confidenceThreshold = 0.1; // Понижен порог для лучшего обнаружения
+    this.confidenceThreshold = 0.1;
     this.defaultLanguage = 'en';
     
     // Кеш языковых предпочтений пользователей
     this.userLanguageCache = new Map();
+    
+    // Счетчики для отладки
+    this.detectionStats = {
+      total: 0,
+      byCyrillic: 0,
+      byDiacritics: 0,
+      byKeywords: 0,
+      byContext: 0,
+      fallback: 0
+    };
     
     // Паттерны для определения технического контента
     this.technicalPatterns = [
@@ -118,167 +128,174 @@ class LanguageDetectService {
    */
   detectLanguageWithContext(text, options = {}) {
     try {
+      this.detectionStats.total++;
+      
       if (!text || typeof text !== 'string') {
         logger.warn('Invalid text for language detection');
         return this.getPreferredLanguage(options.userId) || this.defaultLanguage;
       }
 
-      // ПРИОРИТЕТНАЯ ПРОВЕРКА: Быстрая проверка очевидных признаков языка
-      const quickResult = this.quickLanguageCheck(text);
-      if (quickResult) {
-        // Если быстрая проверка дала результат, используем его
-        this.updateUserLanguagePreference(options.userId, quickResult);
-        return quickResult;
-      }
-
-      // Если есть предпочтительный язык пользователя и текст короткий, используем его
-      const userPreferredLang = this.getPreferredLanguage(options.userId);
-      if (userPreferredLang && text.trim().length < 10) {
-        return userPreferredLang;
-      }
-
-      // Анализ истории для определения контекста
-      let contextLanguage = null;
-      if (options.history && options.history.length > 0) {
-        contextLanguage = this.analyzeConversationContext(options.history);
-      }
-
-      // Обработка смешанного контента (основной текст + технические вставки)
-      const { mainText, technicalParts } = this.separateTechnicalContent(text);
+      // Очищаем текст от лишних символов
+      const cleanedText = text.trim();
       
-      // Определяем язык основного содержимого
-      const detectedLanguage = this.detectLanguage(mainText);
-      
-      // Если основной текст слишком короткий, используем контекст
-      if (mainText.trim().length < 20 && contextLanguage) {
-        // Проверяем, есть ли явные признаки другого языка
-        const quickCheck = this.quickLanguageCheck(mainText);
-        if (quickCheck && quickCheck !== contextLanguage) {
-          // Если есть явные признаки смены языка, используем их
-          this.updateUserLanguagePreference(options.userId, quickCheck);
-          return quickCheck;
-        }
-        // Иначе используем язык из контекста
-        return contextLanguage;
+      logger.debug(`Detecting language for: "${cleanedText.substring(0, 50)}..." (context available: ${!!options.history})`);
+
+      // КРИТИЧЕСКИЙ ПРИОРИТЕТ: Проверка кириллицы
+      const cyrillicResult = this.detectCyrillic(cleanedText);
+      if (cyrillicResult) {
+        this.detectionStats.byCyrillic++;
+        this.updateUserLanguagePreference(options.userId, cyrillicResult);
+        logger.info(`Russian detected by cyrillic in: "${cleanedText.substring(0, 30)}..."`);
+        return cyrillicResult;
       }
 
-      // Сохраняем язык пользователя для будущих запросов
+      // ВТОРОЙ ПРИОРИТЕТ: Диакритики для испанского
+      const diacriticsResult = this.detectSpanishDiacritics(cleanedText);
+      if (diacriticsResult) {
+        this.detectionStats.byDiacritics++;
+        this.updateUserLanguagePreference(options.userId, diacriticsResult);
+        logger.info(`Spanish detected by diacritics in: "${cleanedText.substring(0, 30)}..."`);
+        return diacriticsResult;
+      }
+
+      // ТРЕТИЙ ПРИОРИТЕТ: Анализ контекста разговора
+      if (options.previousLanguage && this.isStableLanguageInContext(cleanedText, options)) {
+        this.detectionStats.byContext++;
+        logger.info(`Using previous language ${options.previousLanguage} based on context stability`);
+        return options.previousLanguage;
+      }
+
+      // ЧЕТВЕРТЫЙ ПРИОРИТЕТ: Основное определение по словарю
+      const detectedLanguage = this.detectLanguage(cleanedText);
+      
+      // ПРОВЕРКА НА УВЕРЕННОСТЬ: Если основное определение не уверенное, используем контекст
+      const confidence = this.getLanguageConfidence(cleanedText, detectedLanguage);
+      if (confidence < 0.3 && options.previousLanguage) {
+        logger.info(`Low confidence (${confidence}), using previous language: ${options.previousLanguage}`);
+        return options.previousLanguage;
+      }
+
+      // Сохраняем определенный язык
       this.updateUserLanguagePreference(options.userId, detectedLanguage);
       
-      logger.info(`Language detected with context: ${detectedLanguage} for text: "${text.substring(0, 50)}..." (context: ${contextLanguage}, technical parts: ${technicalParts.length})`);
+      logger.info(`Language detected: ${detectedLanguage} with confidence: ${confidence} for text: "${cleanedText.substring(0, 50)}..."`);
       
       return detectedLanguage;
     } catch (error) {
       logger.error('Language detection with context error:', error.message);
+      this.detectionStats.fallback++;
       return this.getPreferredLanguage(options.userId) || this.defaultLanguage;
     }
   }
 
   /**
-   * Быстрая проверка языка для очевидных случаев
+   * Улучшенная проверка кириллицы
    * @param {string} text - Текст для проверки
-   * @returns {string|null} Код языка или null если не уверен
+   * @returns {string|null} 'ru' если найдена кириллица, иначе null
    */
-  quickLanguageCheck(text) {
-    // ПЕРВЫЙ ПРИОРИТЕТ: Кириллица - однозначно русский
-    // Используем более надежную проверку на кириллицу
-    const cyrillicPattern = /[\u0400-\u04FF]/g;
-    const cyrillicMatches = text.match(cyrillicPattern);
+  detectCyrillic(text) {
+    // Расширенная проверка кириллических символов
+    const cyrillicPatterns = [
+      /[а-яё]/gi,                    // Основные русские буквы
+      /[А-ЯЁ]/g,                     // Заглавные русские буквы
+      /[\u0400-\u04FF]/g,            // Полный блок кириллицы Unicode
+    ];
     
-    if (cyrillicMatches && cyrillicMatches.length >= 2) {
-      // Если найдено 2 или больше кириллических символов - точно русский
-      logger.info(`Russian detected by cyrillic characters: ${cyrillicMatches.length} chars`);
-      return 'ru';
+    for (const pattern of cyrillicPatterns) {
+      const matches = text.match(pattern);
+      if (matches && matches.length >= 1) {
+        return 'ru';
+      }
     }
     
-    // ВТОРОЙ ПРИОРИТЕТ: Испанские диакритики - однозначно испанский
-    if (/[ñáéíóúü]/gi.test(text)) {
-      return 'es';
-    }
+    // Дополнительная проверка на русские слова в латинице (транслитерация)
+    const translitPatterns = [
+      /\b(chto|kak|gde|kogda|pochemu|zhto|eto|ya|ty|on|ona|my|vy|oni)\b/gi,
+    ];
     
-    // ТРЕТИЙ ПРИОРИТЕТ: Характерные русские слова
-    if (/\b(что|как|где|когда|почему|привет|спасибо|пожалуйста|кошелек|токен|у\s+меня|мне|нужно)\b/gi.test(text)) {
-      return 'ru';
-    }
-    
-    // Характерные испанские слова
-    if (/\b(qué|cómo|dónde|cuándo|hola|gracias|por\s+favor|billetera)\b/gi.test(text)) {
-      return 'es';
+    for (const pattern of translitPatterns) {
+      if (pattern.test(text)) {
+        logger.info('Russian detected through transliteration');
+        return 'ru';
+      }
     }
     
     return null;
   }
 
   /**
-   * Разделяет текст на основное содержимое и технические части
-   * @param {string} text - Исходный текст
-   * @returns {Object} Объект с mainText и technicalParts
+   * Проверка испанских диакритиков
+   * @param {string} text - Текст для проверки
+   * @returns {string|null} 'es' если найдены диакритики, иначе null
    */
-  separateTechnicalContent(text) {
-    let mainText = text;
-    const technicalParts = [];
-
-    // Извлекаем технические части
-    for (const pattern of this.technicalPatterns) {
-      const matches = mainText.match(pattern);
-      if (matches) {
-        technicalParts.push(...matches);
-        // Заменяем технические части на пробелы
-        mainText = mainText.replace(pattern, ' ');
-      }
+  detectSpanishDiacritics(text) {
+    if (/[ñáéíóúü]/gi.test(text)) {
+      return 'es';
     }
-
-    // Очищаем лишние пробелы
-    mainText = mainText.replace(/\s+/g, ' ').trim();
-
-    return { mainText, technicalParts };
+    return null;
   }
 
   /**
-   * Анализирует контекст разговора для определения языка
+   * Проверяет стабильность языка в контексте
+   * @param {string} text - Текст сообщения
+   * @param {Object} options - Опции с контекстом
+   * @returns {boolean} Стабилен ли язык в контексте
+   */
+  isStableLanguageInContext(text, options) {
+    // Если текст очень короткий и есть предыдущий язык, используем его
+    if (text.length < 15 && options.previousLanguage) {
+      return true;
+    }
+    
+    // Если нет явных признаков смены языка и есть история, используем контекст
+    if (options.history && options.history.length > 0) {
+      const recentLanguages = this.analyzeRecentLanguages(options.history);
+      if (recentLanguages[options.previousLanguage] >= 2) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Анализирует последние языки в истории
    * @param {Array} history - История сообщений
-   * @returns {string|null} Наиболее вероятный язык или null
+   * @returns {Object} Карта языков и их частоты
    */
-  analyzeConversationContext(history) {
-    if (!history || history.length === 0) {
-      return null;
-    }
-
-    const languageCounts = { en: 0, es: 0, ru: 0 };
-    let totalMessages = 0;
-
-    // Анализируем последние 5 сообщений
-    const recentHistory = history.slice(-5);
+  analyzeRecentLanguages(history) {
+    const languageCount = { en: 0, es: 0, ru: 0 };
     
-    for (const message of recentHistory) {
-      if (message.role === 'user' && message.content) {
-        const lang = this.detectLanguage(message.content);
-        languageCounts[lang]++;
-        totalMessages++;
-      }
-    }
-
-    if (totalMessages === 0) {
-      return null;
-    }
-
-    // Находим преобладающий язык
-    let maxCount = 0;
-    let dominantLanguage = null;
+    // Берем последние 3 сообщения пользователя
+    const userMessages = history
+      .filter(msg => msg.role === 'user')
+      .slice(-3);
     
-    for (const [lang, count] of Object.entries(languageCounts)) {
-      if (count > maxCount) {
-        maxCount = count;
-        dominantLanguage = lang;
-      }
+    for (const message of userMessages) {
+      const lang = this.detectLanguage(message.content);
+      languageCount[lang]++;
     }
-
-    // Возвращаем язык только если он действительно преобладает
-    return maxCount > totalMessages * 0.5 ? dominantLanguage : null;
+    
+    return languageCount;
   }
 
   /**
-   * Оригинальный метод определения языка (сохранен для обратной совместимости)
+   * Получает уверенность определения языка
+   * @param {string} text - Текст
+   * @param {string} language - Определенный язык
+   * @returns {number} Уверенность от 0 до 1
+   */
+  getLanguageConfidence(text, language) {
+    const normalizedText = this.normalizeText(text);
+    const dictionary = this.languageDictionaries[language];
+    
+    if (!dictionary) return 0;
+    
+    return this.calculateLanguageScore(normalizedText, dictionary);
+  }
+
+  /**
+   * Оригинальный метод определения языка
    * @param {string} text - Текст для анализа
    * @returns {string} Код языка (en, es, ru)
    */
@@ -289,21 +306,18 @@ class LanguageDetectService {
         return this.defaultLanguage;
       }
 
-      // ПЕРВАЯ ПРИОРИТЕТНАЯ ПРОВЕРКА: наличие кириллических символов
-      // Ищем русские буквы в оригинальном тексте
-      const cyrillicPattern = /[\u0400-\u04FF]/g;
-      const cyrillicMatches = text.match(cyrillicPattern);
-      
-      if (cyrillicMatches && cyrillicMatches.length >= 1) {
-        // Если найден хотя бы один кириллический символ - высокая вероятность русского
-        logger.info(`Russian detected by cyrillic characters: ${cyrillicMatches.length} chars`);
-        return 'ru';
+      // Проверяем кириллицу еще раз
+      const cyrillicResult = this.detectCyrillic(text);
+      if (cyrillicResult) {
+        this.detectionStats.byCyrillic++;
+        return cyrillicResult;
       }
 
-      // ВТОРАЯ ПРИОРИТЕТНАЯ ПРОВЕРКА: испанские специальные символы
-      if (/[ñáéíóúü]/i.test(text)) {
-        logger.info(`Spanish detected by special characters`);
-        return 'es';
+      // Проверяем испанские диакритики
+      const diacriticsResult = this.detectSpanishDiacritics(text);
+      if (diacriticsResult) {
+        this.detectionStats.byDiacritics++;
+        return diacriticsResult;
       }
 
       // Очистка и подготовка текста для анализа
@@ -323,11 +337,13 @@ class LanguageDetectService {
       // Определение языка с наивысшим счетом
       const detectedLanguage = this.selectBestLanguage(scores, text);
       
-      logger.info(`Language detected: ${detectedLanguage} for text: "${text.substring(0, 50)}..." (scores: ${JSON.stringify(scores)})`);
+      this.detectionStats.byKeywords++;
+      logger.debug(`Language detected: ${detectedLanguage} for text: "${text.substring(0, 50)}..." (scores: ${JSON.stringify(scores)})`);
       
       return detectedLanguage;
     } catch (error) {
       logger.error('Language detection error:', error.message);
+      this.detectionStats.fallback++;
       return this.defaultLanguage;
     }
   }
@@ -343,22 +359,40 @@ class LanguageDetectService {
   }
 
   /**
-   * Обновляет языковое предпочтение пользователя
+   * Обновляет языковое предпочтение пользователя с временной меткой
    * @param {string} userId - ID пользователя
    * @param {string} language - Код языка
    */
   updateUserLanguagePreference(userId, language) {
     if (!userId || !this.isSupportedLanguage(language)) return;
     
-    this.userLanguageCache.set(userId, language);
+    // Сохраняем с временной меткой для потенциального анализа
+    this.userLanguageCache.set(userId, {
+      language,
+      lastUsed: Date.now(),
+      count: (this.userLanguageCache.get(userId)?.count || 0) + 1
+    });
     
     // Ограничиваем размер кеша
     if (this.userLanguageCache.size > 10000) {
       // Удаляем 10% самых старых записей
       const entries = Array.from(this.userLanguageCache.entries());
-      const toDelete = entries.slice(0, Math.floor(entries.length * 0.1));
-      toDelete.forEach(([key]) => this.userLanguageCache.delete(key));
+      entries
+        .sort((a, b) => a[1].lastUsed - b[1].lastUsed)
+        .slice(0, Math.floor(entries.length * 0.1))
+        .forEach(([key]) => this.userLanguageCache.delete(key));
     }
+  }
+
+  /**
+   * Получает предпочтительный язык пользователя (исправленная версия)
+   * @param {string} userId - ID пользователя
+   * @returns {string|null} Код языка или null
+   */
+  getPreferredLanguage(userId) {
+    if (!userId) return null;
+    const cached = this.userLanguageCache.get(userId);
+    return cached ? (typeof cached === 'string' ? cached : cached.language) : null;
   }
 
   /**
@@ -368,13 +402,15 @@ class LanguageDetectService {
   clearLanguageCache(userId = null) {
     if (userId) {
       this.userLanguageCache.delete(userId);
+      logger.info(`Language cache cleared for user: ${userId}`);
     } else {
       this.userLanguageCache.clear();
+      logger.info('All language cache cleared');
     }
   }
 
   /**
-   * Нормализует текст для анализа, сохраняя кириллицу
+   * Нормализует текст для анализа, сохраняя кириллицу и диакритики
    * @param {string} text - Исходный текст
    * @returns {string} Нормализованный текст
    */
@@ -551,7 +587,7 @@ class LanguageDetectService {
   }
 
   /**
-   * Получает статистику работы сервиса
+   * Получает расширенную статистику работы сервиса
    * @returns {Object} Статистика
    */
   getStats() {
@@ -564,8 +600,37 @@ class LanguageDetectService {
       totalPatterns: Object.values(this.languageDictionaries)
         .reduce((sum, dict) => sum + dict.patterns.length, 0),
       cachedUsers: this.userLanguageCache.size,
-      cacheSize: this.userLanguageCache.size
+      cacheSize: this.userLanguageCache.size,
+      detectionStats: {
+        ...this.detectionStats,
+        // Добавляем процентные соотношения
+        cyrillicPercentage: this.detectionStats.total > 0 ? 
+          (this.detectionStats.byCyrillic / this.detectionStats.total * 100).toFixed(1) + '%' : '0%',
+        diacriticsPercentage: this.detectionStats.total > 0 ? 
+          (this.detectionStats.byDiacritics / this.detectionStats.total * 100).toFixed(1) + '%' : '0%',
+        keywordsPercentage: this.detectionStats.total > 0 ? 
+          (this.detectionStats.byKeywords / this.detectionStats.total * 100).toFixed(1) + '%' : '0%',
+        contextPercentage: this.detectionStats.total > 0 ? 
+          (this.detectionStats.byContext / this.detectionStats.total * 100).toFixed(1) + '%' : '0%',
+        fallbackPercentage: this.detectionStats.total > 0 ? 
+          (this.detectionStats.fallback / this.detectionStats.total * 100).toFixed(1) + '%' : '0%'
+      }
     };
+  }
+
+  /**
+   * Сбрасывает статистику определения языка
+   */
+  resetStats() {
+    this.detectionStats = {
+      total: 0,
+      byCyrillic: 0,
+      byDiacritics: 0,
+      byKeywords: 0,
+      byContext: 0,
+      fallback: 0
+    };
+    logger.info('Language detection stats reset');
   }
 }
 
