@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 
 /**
  * @class LanguageDetectService
- * @description Сервис для определения языка сообщений пользователей
+ * @description Сервис для определения языка сообщений пользователей с поддержкой контекста
  */
 class LanguageDetectService {
   constructor() {
@@ -81,10 +81,191 @@ class LanguageDetectService {
     // Пороги уверенности для определения языка
     this.confidenceThreshold = 0.1; // Понижен порог для лучшего обнаружения
     this.defaultLanguage = 'en';
+    
+    // Кеш языковых предпочтений пользователей
+    this.userLanguageCache = new Map();
+    
+    // Паттерны для определения технического контента
+    this.technicalPatterns = [
+      // JSON объекты
+      /\{[\s\S]*?\}/g,
+      // URLs
+      /https?:\/\/[^\s]+/g,
+      // Коды ошибок
+      /\b[A-Z_]{3,}ERROR\b/g,
+      /\berror[\s\:]\s*\d+/gi,
+      /\b\d{3,}\s*error\b/gi,
+      // Технические термины
+      /\b(API|JSON|HTTP|SSL|TLS|404|500|403|401)\b/gi,
+      // Хеши и адреса
+      /\b0x[a-fA-F0-9]{40,}\b/g,
+      /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g
+    ];
   }
 
   /**
-   * Определяет язык текста
+   * Определяет язык текста с учетом контекста разговора
+   * @param {string} text - Текст для анализа
+   * @param {Object} options - Опции определения языка
+   * @param {string} options.userId - ID пользователя
+   * @param {string} options.conversationId - ID разговора
+   * @param {Array} options.history - История сообщений
+   * @param {string} options.previousLanguage - Язык предыдущего сообщения
+   * @returns {string} Код языка (en, es, ru)
+   */
+  detectLanguageWithContext(text, options = {}) {
+    try {
+      if (!text || typeof text !== 'string') {
+        logger.warn('Invalid text for language detection');
+        return this.getPreferredLanguage(options.userId) || this.defaultLanguage;
+      }
+
+      // Если есть предпочтительный язык пользователя и текст короткий, используем его
+      const userPreferredLang = this.getPreferredLanguage(options.userId);
+      if (userPreferredLang && text.trim().length < 10) {
+        const quickDetection = this.quickLanguageCheck(text);
+        if (quickDetection) {
+          return quickDetection;
+        }
+        return userPreferredLang;
+      }
+
+      // Анализ истории для определения контекста
+      let contextLanguage = null;
+      if (options.history && options.history.length > 0) {
+        contextLanguage = this.analyzeConversationContext(options.history);
+      }
+
+      // Обработка смешанного контента (основной текст + технические вставки)
+      const { mainText, technicalParts } = this.separateTechnicalContent(text);
+      
+      // Определяем язык основного содержимого
+      const detectedLanguage = this.detectLanguage(mainText);
+      
+      // Если основной текст слишком короткий, используем контекст
+      if (mainText.trim().length < 20 && contextLanguage) {
+        // Проверяем, есть ли явные признаки другого языка
+        const quickCheck = this.quickLanguageCheck(mainText);
+        if (quickCheck && quickCheck !== contextLanguage) {
+          // Если есть явные признаки смены языка, используем их
+          this.updateUserLanguagePreference(options.userId, quickCheck);
+          return quickCheck;
+        }
+        // Иначе используем язык из контекста
+        return contextLanguage;
+      }
+
+      // Сохраняем язык пользователя для будущих запросов
+      this.updateUserLanguagePreference(options.userId, detectedLanguage);
+      
+      logger.info(`Language detected with context: ${detectedLanguage} for text: "${text.substring(0, 50)}..." (context: ${contextLanguage}, technical parts: ${technicalParts.length})`);
+      
+      return detectedLanguage;
+    } catch (error) {
+      logger.error('Language detection with context error:', error.message);
+      return this.getPreferredLanguage(options.userId) || this.defaultLanguage;
+    }
+  }
+
+  /**
+   * Быстрая проверка языка для очевидных случаев
+   * @param {string} text - Текст для проверки
+   * @returns {string|null} Код языка или null если не уверен
+   */
+  quickLanguageCheck(text) {
+    // Кириллица - однозначно русский
+    if (/[\u0400-\u04FF]{2,}/g.test(text)) {
+      return 'ru';
+    }
+    
+    // Испанские диакритики - однозначно испанский
+    if (/[ñáéíóúü]/gi.test(text)) {
+      return 'es';
+    }
+    
+    // Характерные русские слова
+    if (/\b(что|как|где|когда|почему|привет|спасибо|пожалуйста|кошелек|токен)\b/gi.test(text)) {
+      return 'ru';
+    }
+    
+    // Характерные испанские слова
+    if (/\b(qué|cómo|dónde|cuándo|hola|gracias|por favor|billetera)\b/gi.test(text)) {
+      return 'es';
+    }
+    
+    return null;
+  }
+
+  /**
+   * Разделяет текст на основное содержимое и технические части
+   * @param {string} text - Исходный текст
+   * @returns {Object} Объект с mainText и technicalParts
+   */
+  separateTechnicalContent(text) {
+    let mainText = text;
+    const technicalParts = [];
+
+    // Извлекаем технические части
+    for (const pattern of this.technicalPatterns) {
+      const matches = mainText.match(pattern);
+      if (matches) {
+        technicalParts.push(...matches);
+        // Заменяем технические части на пробелы
+        mainText = mainText.replace(pattern, ' ');
+      }
+    }
+
+    // Очищаем лишние пробелы
+    mainText = mainText.replace(/\s+/g, ' ').trim();
+
+    return { mainText, technicalParts };
+  }
+
+  /**
+   * Анализирует контекст разговора для определения языка
+   * @param {Array} history - История сообщений
+   * @returns {string|null} Наиболее вероятный язык или null
+   */
+  analyzeConversationContext(history) {
+    if (!history || history.length === 0) {
+      return null;
+    }
+
+    const languageCounts = { en: 0, es: 0, ru: 0 };
+    let totalMessages = 0;
+
+    // Анализируем последние 5 сообщений
+    const recentHistory = history.slice(-5);
+    
+    for (const message of recentHistory) {
+      if (message.role === 'user' && message.content) {
+        const lang = this.detectLanguage(message.content);
+        languageCounts[lang]++;
+        totalMessages++;
+      }
+    }
+
+    if (totalMessages === 0) {
+      return null;
+    }
+
+    // Находим преобладающий язык
+    let maxCount = 0;
+    let dominantLanguage = null;
+    
+    for (const [lang, count] of Object.entries(languageCounts)) {
+      if (count > maxCount) {
+        maxCount = count;
+        dominantLanguage = lang;
+      }
+    }
+
+    // Возвращаем язык только если он действительно преобладает
+    return maxCount > totalMessages * 0.5 ? dominantLanguage : null;
+  }
+
+  /**
+   * Оригинальный метод определения языка (сохранен для обратной совместимости)
    * @param {string} text - Текст для анализа
    * @returns {string} Код языка (en, es, ru)
    */
@@ -138,6 +319,47 @@ class LanguageDetectService {
     } catch (error) {
       logger.error('Language detection error:', error.message);
       return this.defaultLanguage;
+    }
+  }
+
+  /**
+   * Получает предпочтительный язык пользователя
+   * @param {string} userId - ID пользователя
+   * @returns {string|null} Код языка или null
+   */
+  getPreferredLanguage(userId) {
+    if (!userId) return null;
+    return this.userLanguageCache.get(userId) || null;
+  }
+
+  /**
+   * Обновляет языковое предпочтение пользователя
+   * @param {string} userId - ID пользователя
+   * @param {string} language - Код языка
+   */
+  updateUserLanguagePreference(userId, language) {
+    if (!userId || !this.isSupportedLanguage(language)) return;
+    
+    this.userLanguageCache.set(userId, language);
+    
+    // Ограничиваем размер кеша
+    if (this.userLanguageCache.size > 10000) {
+      // Удаляем 10% самых старых записей
+      const entries = Array.from(this.userLanguageCache.entries());
+      const toDelete = entries.slice(0, Math.floor(entries.length * 0.1));
+      toDelete.forEach(([key]) => this.userLanguageCache.delete(key));
+    }
+  }
+
+  /**
+   * Очищает кеш языковых предпочтений
+   * @param {string} userId - ID пользователя (опционально)
+   */
+  clearLanguageCache(userId = null) {
+    if (userId) {
+      this.userLanguageCache.delete(userId);
+    } else {
+      this.userLanguageCache.clear();
     }
   }
 
@@ -330,7 +552,9 @@ class LanguageDetectService {
       totalKeywords: Object.values(this.languageDictionaries)
         .reduce((sum, dict) => sum + dict.keywords.length, 0),
       totalPatterns: Object.values(this.languageDictionaries)
-        .reduce((sum, dict) => sum + dict.patterns.length, 0)
+        .reduce((sum, dict) => sum + dict.patterns.length, 0),
+      cachedUsers: this.userLanguageCache.size,
+      cacheSize: this.userLanguageCache.size
     };
   }
 }
