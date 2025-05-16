@@ -9,7 +9,7 @@ const { config } = require('../config');
 
 // Создаем директорию для логов если она не существует
 const fs = require('fs');
-const logDir = config.logging.dir || 'logs';
+const logDir = config.logging?.dir || 'logs';
 
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
@@ -46,12 +46,12 @@ const transports = [
       winston.format.colorize(),
       consoleFormat
     ),
-    level: config.logging.level || 'info'
+    level: config.logging?.level || 'info'
   })
 ];
 
 // Файловое логирование (если включено)
-if (config.logging.enableFileLogging) {
+if (config.logging?.enableFileLogging) {
   // Лог всех сообщений
   transports.push(
     new winston.transports.File({
@@ -78,18 +78,18 @@ if (config.logging.enableFileLogging) {
 
 // Создаем основной logger
 const logger = winston.createLogger({
-  level: config.logging.level || 'info',
+  level: config.logging?.level || 'info',
   format: logFormat,
   transports,
   // Обработка необработанных исключений
-  exceptionHandlers: config.logging.enableFileLogging ? [
+  exceptionHandlers: config.logging?.enableFileLogging ? [
     new winston.transports.File({
       filename: path.join(logDir, 'exceptions.log'),
       format: logFormat
     })
   ] : [],
   // Обработка необработанных Promise rejection
-  rejectionHandlers: config.logging.enableFileLogging ? [
+  rejectionHandlers: config.logging?.enableFileLogging ? [
     new winston.transports.File({
       filename: path.join(logDir, 'rejections.log'),
       format: logFormat
@@ -114,7 +114,7 @@ const httpLogger = morgan(
     stream,
     skip: (req, res) => {
       // Пропускаем health check запросы в production
-      if (config.app.isProduction && req.url === '/api/health') {
+      if (config.app?.isProduction && req.url === '/api/health') {
         return true;
       }
       return false;
@@ -141,6 +141,32 @@ logger.auth = (message, meta = {}) => {
 
 logger.ticket = (message, meta = {}) => {
   logger.info(message, { ...meta, category: 'ticket' });
+};
+
+/**
+ * Log knowledge base search operations
+ * @param {string} query - Search query
+ * @param {number} resultsCount - Number of results found
+ * @param {string} searchType - Type of search ('text' or 'regex')
+ * @param {Object} meta - Additional metadata
+ */
+logger.logKnowledgeSearch = (query, resultsCount, searchType = 'text', meta = {}) => {
+  logger.info(`Knowledge search: "${query}"`, { 
+    ...meta,
+    category: 'knowledge',
+    query,
+    resultsCount,
+    searchType
+  });
+};
+
+/**
+ * Log knowledge base operations
+ * @param {string} message - Log message
+ * @param {Object} meta - Additional metadata
+ */
+logger.knowledge = (message, meta = {}) => {
+  logger.info(message, { ...meta, category: 'knowledge' });
 };
 
 // Методы для разных уровней с категориями
