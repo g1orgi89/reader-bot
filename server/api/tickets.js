@@ -1,75 +1,108 @@
 /**
- * API маршруты для работы с тикетами поддержки
+ * API маршруты для управления тикетами
  * @file server/api/tickets.js
  */
 
 const express = require('express');
-const ticketService = require('../services/ticketing');
-const logger = require('../utils/logger');
-
 const router = express.Router();
+const ticketService = require('../services/ticketing');
+const conversationService = require('../services/conversation');
+const logger = require('../utils/logger');
+const { authenticate } = require('../utils/auth');
 
 /**
- * @route GET /api/tickets
- * @desc Получение списка тикетов с фильтрацией и пагинацией
- * @access Public
+ * @typedef {Object} TicketResponse
+ * @property {boolean} success - Статус успешности операции
+ * @property {Object} data - Данные тикета или ошибка
  */
-router.get('/', async (req, res) => {
+
+/**
+ * @typedef {Object} TicketFilters
+ * @property {string} [status] - Статус тикета (open, in_progress, resolved, closed)
+ * @property {string} [priority] - Приоритет (low, medium, high, urgent)
+ * @property {string} [category] - Категория тикета
+ * @property {string} [assignedTo] - Ответственный за тикет
+ * @property {number} [page] - Номер страницы для пагинации
+ * @property {number} [limit] - Количество тикетов на странице
+ */
+
+/**
+ * Получить список всех тикетов с фильтрацией
+ * @route GET /api/tickets
+ * @access Private (Admin)
+ * @param {TicketFilters} query - Параметры фильтрации
+ * @returns {Promise<TicketResponse>} Список тикетов с пагинацией
+ */
+router.get('/', authenticate, async (req, res) => {
   try {
     const {
       status,
-      category,
       priority,
+      category,
       assignedTo,
-      userId,
       page = 1,
-      limit = 50,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
+      limit = 10,
+      sort = '-createdAt',
+      search
     } = req.query;
 
-    // Построение фильтра
-    const filter = {};
-    if (status) filter.status = status;
-    if (category) filter.category = category;
-    if (priority) filter.priority = priority;
-    if (assignedTo) filter.assignedTo = assignedTo;
-    if (userId) filter.userId = userId;
+    // Построение фильтров
+    const filters = {};
+    if (status) filters.status = status;
+    if (priority) filters.priority = priority;
+    if (category) filters.category = category;
+    if (assignedTo) filters.assignedTo = assignedTo;
 
-    // Опции пагинации и сортировки
+    // Поиск по содержимому
+    if (search) {
+      filters.$or = [
+        { subject: { $regex: search, $options: 'i' } },
+        { initialMessage: { $regex: search, $options: 'i' } },
+        { ticketId: { $regex: search, $options: 'i' } }
+      ];
+    }
+
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
-      sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
-      populate: true
+      sort,
+      populate: 'conversationId'
     };
 
-    const result = await ticketService.getTickets(filter, options);
+    const result = await ticketService.getTickets(filters, options);
 
     res.json({
       success: true,
       data: result
     });
   } catch (error) {
-    logger.error('❌ Error getting tickets:', error);
+    logger.error(`Error fetching tickets: ${error.message}`);
     res.status(500).json({
       success: false,
-      error: 'Failed to get tickets',
+      error: 'Failed to fetch tickets',
       code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
 
 /**
- * @route GET /api/tickets/:ticketId
- * @desc Получение информации о конкретном тикете
- * @access Public
+ * Получить конкретный тикет по ID
+ * @route GET /api/tickets/:id
+ * @access Private (Admin)
+ * @param {string} id - ID тикета (ticketId или _id)
+ * @returns {Promise<TicketResponse>} Данные тикета
  */
-router.get('/:ticketId', async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   try {
-    const { ticketId } = req.params;
-
-    const ticket = await ticketService.findById(ticketId);
+    const { id } = req.params;
+    
+    // Пробуем найти тикет сначала по ticketId, затем по ObjectId
+    let ticket = await ticketService.getTicketByTicketId(id);
+    
+    if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
+      // Если не найден по ticketId и id выглядит как ObjectId
+      ticket = await ticketService.getTicketById(id);
+    }
 
     if (!ticket) {
       return res.status(404).json({
@@ -84,57 +117,83 @@ router.get('/:ticketId', async (req, res) => {
       data: ticket
     });
   } catch (error) {
-    logger.error('❌ Error getting ticket:', error);
+    logger.error(`Error fetching ticket ${req.params.id}: ${error.message}`);
     res.status(500).json({
       success: false,
-      error: 'Failed to get ticket',
+      error: 'Failed to fetch ticket',
       code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
 
 /**
+ * Создать новый тикет
  * @route POST /api/tickets
- * @desc Создание нового тикета
- * @access Public
+ * @access Private (Admin) / Public (for auto-creation)
+ * @body {Object} ticketData - Данные для создания тикета
+ * @returns {Promise<TicketResponse>} Созданный тикет
  */
 router.post('/', async (req, res) => {
   try {
     const {
       userId,
       conversationId,
-      message,
       subject,
-      category,
-      priority,
-      email,
+      message,
+      initialMessage,
       context,
-      language
+      priority = 'medium',
+      category = 'technical',
+      language = 'en',
+      email,
+      source = 'api'
     } = req.body;
 
     // Валидация обязательных полей
-    if (!userId || !message) {
+    if (!userId) {
       return res.status(400).json({
         success: false,
-        error: 'UserId and message are required',
+        error: 'User ID is required',
         code: 'VALIDATION_ERROR'
       });
     }
 
-    // Создание тикета
+    if (!subject && !message && !initialMessage) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subject or message is required',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // Создание или поиск разговора
+    let conversation = null;
+    if (conversationId) {
+      conversation = await conversationService.getConversationById(conversationId);
+    } else {
+      // Создаем новый разговор для ручных тикетов
+      conversation = await conversationService.createConversation(userId, {
+        source: 'ticket',
+        language
+      });
+    }
+
+    // Подготовка данных тикета
     const ticketData = {
       userId,
-      conversationId: conversationId || null,
-      message,
-      subject,
-      category,
+      conversationId: conversation._id,
+      subject: subject || `Support request: ${(initialMessage || message).substring(0, 50)}...`,
+      initialMessage: initialMessage || message,
+      context: context || JSON.stringify({ source: 'manual', initialMessage: initialMessage || message }),
       priority,
-      email,
-      context,
+      category,
       language,
-      source: 'api',
-      userAgent: req.get('User-Agent'),
-      ipAddress: req.ip || req.connection.remoteAddress
+      email,
+      metadata: {
+        source,
+        tags: [],
+        createdBy: req.user ? req.user.id : 'system'
+      }
     };
 
     const ticket = await ticketService.createTicket(ticketData);
@@ -144,43 +203,65 @@ router.post('/', async (req, res) => {
       data: ticket
     });
   } catch (error) {
-    logger.error('❌ Error creating ticket:', error);
-    
-    let statusCode = 500;
-    let errorCode = 'INTERNAL_SERVER_ERROR';
-    
-    if (error.message.includes('validation')) {
-      statusCode = 400;
-      errorCode = 'VALIDATION_ERROR';
-    }
-    
-    res.status(statusCode).json({
+    logger.error(`Error creating ticket: ${error.message}`);
+    res.status(500).json({
       success: false,
-      error: error.message,
-      code: errorCode
+      error: 'Failed to create ticket',
+      code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
 
 /**
- * @route PUT /api/tickets/:ticketId
- * @desc Обновление тикета
- * @access Public
+ * Обновить тикет
+ * @route PATCH /api/tickets/:id
+ * @access Private (Admin)
+ * @param {string} id - ID тикета (ticketId или _id)
+ * @body {Object} updateData - Данные для обновления
+ * @returns {Promise<TicketResponse>} Обновленный тикет
  */
-router.put('/:ticketId', async (req, res) => {
+router.patch('/:id', authenticate, async (req, res) => {
   try {
-    const { ticketId } = req.params;
+    const { id } = req.params;
     const updateData = req.body;
 
-    // Убираем поля, которые нельзя обновлять через API
-    delete updateData.ticketId;
-    delete updateData.userId;
-    delete updateData.createdAt;
-    delete updateData._id;
+    // Валидация данных для обновления
+    const allowedFields = [
+      'status',
+      'priority',
+      'category',
+      'assignedTo',
+      'email',
+      'resolution',
+      'metadata'
+    ];
 
-    const updatedTicket = await ticketService.updateTicket(ticketId, updateData);
+    const filteredData = {};
+    Object.keys(updateData).forEach(key => {
+      if (allowedFields.includes(key)) {
+        filteredData[key] = updateData[key];
+      }
+    });
 
-    if (!updatedTicket) {
+    // Добавляем информацию об обновлении
+    filteredData.updatedAt = new Date();
+    if (req.user) {
+      filteredData.lastUpdatedBy = req.user.id;
+    }
+
+    // Если статус меняется на resolved или closed, добавляем время завершения
+    if (filteredData.status === 'resolved' || filteredData.status === 'closed') {
+      filteredData.resolvedAt = new Date();
+    }
+
+    // Пробуем найти и обновить тикет сначала по ticketId, затем по ObjectId
+    let ticket = await ticketService.updateTicketByTicketId(id, filteredData);
+    
+    if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
+      ticket = await ticketService.updateTicketById(id, filteredData);
+    }
+
+    if (!ticket) {
       return res.status(404).json({
         success: false,
         error: 'Ticket not found',
@@ -190,10 +271,10 @@ router.put('/:ticketId', async (req, res) => {
 
     res.json({
       success: true,
-      data: updatedTicket
+      data: ticket
     });
   } catch (error) {
-    logger.error('❌ Error updating ticket:', error);
+    logger.error(`Error updating ticket ${req.params.id}: ${error.message}`);
     res.status(500).json({
       success: false,
       error: 'Failed to update ticket',
@@ -203,65 +284,90 @@ router.put('/:ticketId', async (req, res) => {
 });
 
 /**
- * @route POST /api/tickets/:ticketId/assign
- * @desc Назначение тикета агенту
- * @access Public
+ * Добавить комментарий к тикету
+ * @route POST /api/tickets/:id/comments
+ * @access Private (Admin)
+ * @param {string} id - ID тикета
+ * @body {Object} commentData - Данные комментария
+ * @returns {Promise<TicketResponse>} Обновленный тикет с комментарием
  */
-router.post('/:ticketId/assign', async (req, res) => {
+router.post('/:id/comments', authenticate, async (req, res) => {
   try {
-    const { ticketId } = req.params;
-    const { agentId } = req.body;
+    const { id } = req.params;
+    const { content, isInternal = false } = req.body;
 
-    if (!agentId) {
+    if (!content) {
       return res.status(400).json({
         success: false,
-        error: 'Agent ID is required',
+        error: 'Comment content is required',
         code: 'VALIDATION_ERROR'
       });
     }
 
-    const ticket = await ticketService.assignTicket(ticketId, agentId);
+    const comment = {
+      content,
+      authorId: req.user ? req.user.id : 'system',
+      authorName: req.user ? req.user.name : 'System',
+      isInternal,
+      createdAt: new Date()
+    };
+
+    // Пробуем добавить комментарий по ticketId, затем по ObjectId
+    let ticket = await ticketService.addCommentByTicketId(id, comment);
+    
+    if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
+      ticket = await ticketService.addCommentById(id, comment);
+    }
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket not found',
+        code: 'NOT_FOUND'
+      });
+    }
 
     res.json({
       success: true,
-      data: ticket,
-      message: `Ticket assigned to ${agentId}`
+      data: ticket
     });
   } catch (error) {
-    logger.error('❌ Error assigning ticket:', error);
-    
-    let statusCode = 500;
-    if (error.message.includes('not found')) {
-      statusCode = 404;
-    }
-    
-    res.status(statusCode).json({
+    logger.error(`Error adding comment to ticket ${req.params.id}: ${error.message}`);
+    res.status(500).json({
       success: false,
-      error: error.message,
-      code: statusCode === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR'
+      error: 'Failed to add comment',
+      code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
 
 /**
- * @route POST /api/tickets/:ticketId/close
- * @desc Закрытие тикета с решением
- * @access Public
+ * Закрыть тикет
+ * @route DELETE /api/tickets/:id
+ * @access Private (Admin)
+ * @param {string} id - ID тикета
+ * @body {Object} closeData - Причина закрытия
+ * @returns {Promise<TicketResponse>} Закрытый тикет
  */
-router.post('/:ticketId/close', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
-    const { ticketId } = req.params;
-    const { resolution, agentId } = req.body;
+    const { id } = req.params;
+    const { resolution = 'Closed by administrator' } = req.body;
 
-    if (!resolution) {
-      return res.status(400).json({
-        success: false,
-        error: 'Resolution is required',
-        code: 'VALIDATION_ERROR'
-      });
+    // Пробуем закрыть тикет по ticketId, затем по ObjectId
+    let ticket = await ticketService.closeTicketByTicketId(id, resolution, req.user?.id);
+    
+    if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
+      ticket = await ticketService.closeTicketById(id, resolution, req.user?.id);
     }
 
-    const ticket = await ticketService.closeTicket(ticketId, resolution, agentId);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket not found',
+        code: 'NOT_FOUND'
+      });
+    }
 
     res.json({
       success: true,
@@ -269,340 +375,35 @@ router.post('/:ticketId/close', async (req, res) => {
       message: 'Ticket closed successfully'
     });
   } catch (error) {
-    logger.error('❌ Error closing ticket:', error);
-    
-    let statusCode = 500;
-    if (error.message.includes('not found')) {
-      statusCode = 404;
-    }
-    
-    res.status(statusCode).json({
-      success: false,
-      error: error.message,
-      code: statusCode === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
- * @route GET /api/tickets/user/:userId
- * @desc Получение тикетов конкретного пользователя
- * @access Public
- */
-router.get('/user/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { status, limit = 50, skip = 0 } = req.query;
-
-    const options = {
-      status,
-      limit: parseInt(limit),
-      skip: parseInt(skip)
-    };
-
-    const tickets = await ticketService.getByUserId(userId, options);
-
-    res.json({
-      success: true,
-      data: {
-        tickets,
-        count: tickets.length,
-        userId
-      }
-    });
-  } catch (error) {
-    logger.error('❌ Error getting user tickets:', error);
+    logger.error(`Error closing ticket ${req.params.id}: ${error.message}`);
     res.status(500).json({
       success: false,
-      error: 'Failed to get user tickets',
+      error: 'Failed to close ticket',
       code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
 
 /**
- * @route GET /api/tickets/agent/:agentId
- * @desc Получение тикетов, назначенных конкретному агенту
- * @access Public
- */
-router.get('/agent/:agentId', async (req, res) => {
-  try {
-    const { agentId } = req.params;
-    const { status, limit = 50, skip = 0 } = req.query;
-
-    // Используем метод из модели через service
-    const filter = { assignedTo: agentId };
-    if (status) filter.status = status;
-
-    const options = {
-      page: 1,
-      limit: parseInt(limit),
-      sort: { updatedAt: -1 }
-    };
-
-    const result = await ticketService.getTickets(filter, options);
-
-    res.json({
-      success: true,
-      data: {
-        tickets: result.tickets,
-        pagination: result.pagination,
-        agentId
-      }
-    });
-  } catch (error) {
-    logger.error('❌ Error getting agent tickets:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get agent tickets',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
- * @route GET /api/tickets/search
- * @desc Поиск тикетов по тексту
- * @access Public
- */
-router.get('/search', async (req, res) => {
-  try {
-    const { q, status, category, priority, limit = 50 } = req.query;
-
-    if (!q) {
-      return res.status(400).json({
-        success: false,
-        error: 'Search query is required',
-        code: 'VALIDATION_ERROR'
-      });
-    }
-
-    const searchOptions = {
-      limit: parseInt(limit),
-      status,
-      category,
-      priority
-    };
-
-    const tickets = await ticketService.searchTickets(q, searchOptions);
-
-    res.json({
-      success: true,
-      data: {
-        tickets,
-        count: tickets.length,
-        query: q,
-        options: searchOptions
-      }
-    });
-  } catch (error) {
-    logger.error('❌ Error searching tickets:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to search tickets',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
+ * Получить статистику по тикетам
  * @route GET /api/tickets/stats
- * @desc Получение статистики тикетов
- * @access Public
+ * @access Private (Admin)
+ * @returns {Promise<Object>} Статистика тикетов
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats/summary', authenticate, async (req, res) => {
   try {
-    const filter = {};
+    const stats = await ticketService.getTicketStats();
     
-    // Опциональные фильтры для статистики
-    const { fromDate, toDate, category, assignedTo } = req.query;
-    
-    if (fromDate) {
-      filter.createdAt = { ...filter.createdAt, $gte: new Date(fromDate) };
-    }
-    if (toDate) {
-      filter.createdAt = { ...filter.createdAt, $lte: new Date(toDate) };
-    }
-    if (category) {
-      filter.category = category;
-    }
-    if (assignedTo) {
-      filter.assignedTo = assignedTo;
-    }
-
-    const stats = await ticketService.getStats(filter);
-
     res.json({
       success: true,
-      data: {
-        ...stats,
-        filter,
-        timestamp: new Date().toISOString()
-      }
+      data: stats
     });
   } catch (error) {
-    logger.error('❌ Error getting ticket stats:', error);
+    logger.error(`Error fetching ticket stats: ${error.message}`);
     res.status(500).json({
       success: false,
-      error: 'Failed to get ticket statistics',
+      error: 'Failed to fetch ticket statistics',
       code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
- * @route GET /api/tickets/overdue
- * @desc Получение просроченных тикетов
- * @access Public
- */
-router.get('/overdue', async (req, res) => {
-  try {
-    const { hoursOverdue = 24 } = req.query;
-
-    const overdueTickets = await ticketService.findOverdueTickets(parseInt(hoursOverdue));
-
-    res.json({
-      success: true,
-      data: {
-        tickets: overdueTickets,
-        count: overdueTickets.length,
-        hoursOverdue: parseInt(hoursOverdue)
-      }
-    });
-  } catch (error) {
-    logger.error('❌ Error getting overdue tickets:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get overdue tickets',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
- * @route GET /api/tickets/categories
- * @desc Получение списка доступных категорий тикетов
- * @access Public
- */
-router.get('/categories', async (req, res) => {
-  try {
-    // Получаем категории из сервиса тикетов
-    const categories = [
-      'technical',
-      'account',
-      'billing',
-      'feature',
-      'bug',
-      'wallet',
-      'staking',
-      'farming',
-      'other'
-    ];
-
-    const priorities = [
-      'low',
-      'medium',
-      'high',
-      'urgent'
-    ];
-
-    const statuses = [
-      'open',
-      'in_progress',
-      'waiting_response',
-      'resolved',
-      'closed'
-    ];
-
-    res.json({
-      success: true,
-      data: {
-        categories,
-        priorities,
-        statuses
-      }
-    });
-  } catch (error) {
-    logger.error('❌ Error getting ticket categories:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get ticket categories',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
- * @route POST /api/tickets/:ticketId/escalate
- * @desc Эскалация тикета (повышение приоритета)
- * @access Public
- */
-router.post('/:ticketId/escalate', async (req, res) => {
-  try {
-    const { ticketId } = req.params;
-    const { newPriority, reason } = req.body;
-
-    if (!newPriority) {
-      return res.status(400).json({
-        success: false,
-        error: 'New priority is required',
-        code: 'VALIDATION_ERROR'
-      });
-    }
-
-    const validPriorities = ['low', 'medium', 'high', 'urgent'];
-    if (!validPriorities.includes(newPriority)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid priority level',
-        code: 'VALIDATION_ERROR'
-      });
-    }
-
-    // Обновляем приоритет тикета
-    const updateData = { 
-      priority: newPriority,
-      'metadata.escalationReason': reason || 'Manual escalation'
-    };
-
-    const ticket = await ticketService.updateTicket(ticketId, updateData);
-
-    res.json({
-      success: true,
-      data: ticket,
-      message: `Ticket escalated to ${newPriority} priority`
-    });
-  } catch (error) {
-    logger.error('❌ Error escalating ticket:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to escalate ticket',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
- * @route GET /api/tickets/health
- * @desc Проверка здоровья API тикетов
- * @access Public
- */
-router.get('/health', async (req, res) => {
-  try {
-    const health = await ticketService.healthCheck();
-
-    res.status(health.status === 'ok' ? 200 : 503).json({
-      success: health.status === 'ok',
-      ...health,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('❌ Ticket health check failed:', error);
-    res.status(503).json({
-      success: false,
-      status: 'error',
-      error: 'Health check failed',
-      timestamp: new Date().toISOString()
     });
   }
 });
