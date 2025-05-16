@@ -81,15 +81,8 @@ class AIService {
    */
   async generateResponse(message, options = {}) {
     try {
-      // Проверяем, связан ли вопрос с проектом Shrooms
-      if (!this.isRelevantToShrooms(message, options.language)) {
-        return {
-          message: this.getOutOfScopeResponse(options.language),
-          needsTicket: false,
-          tokensUsed: 50,
-          provider: this.provider
-        };
-      }
+      // ИСПРАВЛЕНО: Убираем преждевременную проверку scope
+      // Доверяем системным промптам обработку ограничений
 
       switch (this.provider) {
         case 'openai':
@@ -112,64 +105,6 @@ class AIService {
   }
 
   /**
-   * НОВОЕ: Проверяет, связан ли вопрос с проектом Shrooms
-   * @param {string} message - Сообщение пользователя
-   * @param {string} language - Язык
-   * @returns {boolean} Относится ли к Shrooms
-   */
-  isRelevantToShrooms(message, language = 'en') {
-    const shroomsKeywords = [
-      // English
-      'shrooms', 'mushroom', 'farming', 'staking', 'xverse', 'hiro', 'wallet',
-      'spores', 'token', 'connect', 'stacks', 'mycelium',
-      
-      // Russian
-      'грибы', 'гриб', 'фарминг', 'стейкинг', 'кошелек', 'токен', 'споры',
-      'подключ', 'мицелий', 'сеть', 'блокчейн',
-      
-      // Spanish
-      'hongos', 'setas', 'billetera', 'conectar', 'token', 'esporas',
-      'farming', 'staking', 'red', 'blockchain'
-    ];
-
-    // Проверяем наличие ключевых слов Shrooms
-    const hasKeywords = shroomsKeywords.some(keyword => 
-      message.toLowerCase().includes(keyword.toLowerCase())
-    );
-
-    // Исключения: очень общие вопросы, которые точно не о Shrooms
-    const generalQuestions = [
-      // English
-      'what is bitcoin', 'what is crypto', 'how to invest', 'price prediction',
-      'what time is it', 'weather', 'news', 'how to code',
-      
-      // Russian  
-      'что такое биткоин', 'что такое крипта', 'как инвестировать', 'прогноз цены',
-      'который час', 'погода', 'новости', 'как программировать',
-      
-      // Spanish
-      'qué es bitcoin', 'qué es crypto', 'cómo invertir', 'predicción precio',
-      'qué hora es', 'tiempo', 'noticias', 'cómo programar'
-    ];
-
-    const isGeneralQuestion = generalQuestions.some(question =>
-      message.toLowerCase().includes(question.toLowerCase())
-    );
-
-    // Если есть ключевые слова Shrooms и это не общий вопрос
-    return hasKeywords && !isGeneralQuestion;
-  }
-
-  /**
-   * НОВОЕ: Возвращает ответ о выходе за рамки компетенции
-   * @param {string} language - Язык
-   * @returns {string} Ответ о выходе за рамки
-   */
-  getOutOfScopeResponse(language = 'en') {
-    return this.getLocalizedPrompt('outOfScope', language);
-  }
-
-  /**
    * Генерирует ответ с помощью OpenAI
    * @param {string} message - Сообщение пользователя
    * @param {AIOptions} options - Опции
@@ -178,7 +113,7 @@ class AIService {
   async generateOpenAIResponse(message, options = {}) {
     const { context = [], history = [], language = 'en' } = options;
     
-    // Используем контекстный промпт, если есть контекст
+    // ИСПРАВЛЕНО: Правильно используем промпты с учетом языка
     let systemPrompt;
     if (context.length > 0) {
       systemPrompt = this.createContextPrompt(context, message, language);
@@ -231,7 +166,7 @@ class AIService {
   async generateAnthropicResponse(message, options = {}) {
     const { context = [], history = [], language = 'en' } = options;
     
-    // Используем контекстный промпт, если есть контекст
+    // ИСПРАВЛЕНО: Правильно используем промпты с учетом языка
     let systemPrompt;
     if (context.length > 0) {
       systemPrompt = this.createContextPrompt(context, message, language);
@@ -335,65 +270,45 @@ class AIService {
   }
 
   /**
-   * Проверяет, нужно ли создавать тикет на основе ответа
+   * ИСПРАВЛЕНО: Упрощенная проверка на создание тикета
    * @param {string} response - Ответ от AI
    * @param {string} message - Исходное сообщение
    * @param {string} language - Язык сообщения
    * @returns {boolean} Нужно ли создавать тикет
    */
   detectTicketCreation(response, message, language = 'en') {
-    // Ключевые слова в ответе, указывающие на тикет (мультиязычные)
+    // Проверяем, сказал ли AI что создает тикет
     const ticketKeywords = [
-      // English
-      'create a ticket', 'create ticket', 'support ticket', 'human support', 
-      'technical support', 'TICKET_ID', 'I\'ll create', 'will contact you',
-      
-      // Russian
-      'создать тикет', 'создам тикет', 'тикет поддержки', 'человеческая поддержка', 
-      'техническая поддержка', 'свяжутся с вами', 'я создам',
-      
-      // Spanish
-      'crear un ticket', 'ticket de soporte', 'soporte humano', 'soporte técnico', 
-      'se pondrán en contacto'
+      'TICKET_ID',
+      'создал тикет', 'создать тикет', 'тикет #',
+      'created ticket', 'create ticket', 'ticket #',
+      'creado ticket', 'crear ticket', 'ticket #'
     ];
     
-    // Проблемные ключевые слова в сообщении пользователя (мультиязычные)
-    const problemKeywords = [
-      // English - только о Shrooms
-      'shrooms error', 'shrooms problem', 'wallet not connecting', 'transaction failed',
-      'farming not working', 'staking issue', 'xverse problem', 'hiro wallet stuck',
-      
-      // Russian - только о Shrooms
-      'ошибка shrooms', 'проблема с грибами', 'кошелек не подключается', 'транзакция не прошла',
-      'фарминг не работает', 'проблемы стейкинга', 'проблема xverse', 'hiro зависло',
-      
-      // Spanish - только о Shrooms  
-      'error shrooms', 'problema hongos', 'billetera no conecta', 'transacción falló',
-      'farming no funciona', 'problema staking', 'problema xverse', 'hiro no funciona'
-    ];
-    
-    const hasTicketKeywords = ticketKeywords.some(keyword => 
+    const hasTicketInResponse = ticketKeywords.some(keyword => 
       response.toLowerCase().includes(keyword.toLowerCase())
     );
     
-    const hasProblemKeywords = problemKeywords.some(keyword =>
+    // Проверяем, есть ли в исходном сообщении проблема
+    const problemKeywords = [
+      // Общие слова о проблемах
+      'error', 'ошибка', 'problema', 'issue', 'problem', 'проблема',
+      'bug', 'баг', 'не работает', 'not work', 'no funciona',
+      'stuck', 'зависло', 'failed', 'не могу', 'can\'t', 'cannot', 'no puedo',
+      
+      // Конкретные технические проблемы  
+      'transaction', 'транзакция', 'transacción',
+      'wallet', 'кошелек', 'billetera', 
+      'connect', 'подключ', 'conectar',
+      'deposit', 'депозит', 'depósito'
+    ];
+    
+    const hasProblemInMessage = problemKeywords.some(keyword =>
       message.toLowerCase().includes(keyword.toLowerCase())
     );
     
-    // Дополнительные проверки для технических проблем Shrooms
-    const technicalIssues = [
-      /shrooms.*wallet.*connect/i,
-      /shrooms.*transaction.*fail/i,
-      /shrooms.*farming.*error/i,
-      /xverse.*shrooms/i,
-      /hiro.*shrooms/i
-    ];
-    
-    const hasTechnicalIssue = technicalIssues.some(pattern => 
-      pattern.test(message)
-    );
-    
-    return hasTicketKeywords || hasProblemKeywords || hasTechnicalIssue;
+    // Если AI упомянул создание тикета ИЛИ есть явная проблема
+    return hasTicketInResponse || hasProblemInMessage;
   }
 
   /**
