@@ -147,7 +147,7 @@ knowledgeSchema.statics.searchText = function(searchQuery, options = {}) {
     .limit(limit);
 };
 
-// Safe regex-based search with validation
+// Fixed regex-based search with proper tag handling
 knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
   const {
     language = null,
@@ -178,7 +178,7 @@ knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
         $or: [
           { title: { $regex: escaped, $options: 'i' } },
           { content: { $regex: escaped, $options: 'i' } },
-          { tags: { $elemMatch: { $regex: escaped, $options: 'i' } } }
+          { tags: { $regex: escaped, $options: 'i' } } // Fixed: Remove $elemMatch for simple string array
         ]
       };
     });
@@ -205,12 +205,12 @@ knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
   // Create case-insensitive regex if validation passed
   const regexQuery = new RegExp(escapedQuery, 'i');
   
-  // Build search query
+  // Build search query with fixed tag search
   const query = {
     $or: [
       { title: regexQuery },
       { content: regexQuery },
-      { tags: { $elemMatch: regexQuery } }
+      { tags: { $in: [regexQuery] } } // Fixed: Proper way to search in string array with regex
     ],
     status: 'published'
   };
@@ -231,7 +231,7 @@ knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
 // Combined search method that tries text search first, then regex
 knowledgeSchema.statics.combinedSearch = async function(searchQuery, options = {}) {
   try {
-    // First try text search
+    // First try text search for better performance
     const textResults = await this.searchText(searchQuery, options);
     
     // If text search returns results, use them
