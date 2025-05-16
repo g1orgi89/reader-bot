@@ -31,7 +31,7 @@ class AIService {
   constructor() {
     this.provider = process.env.AI_PROVIDER || 'anthropic';
     this.initializeClients();
-    this.systemPrompts = this.loadSystemPrompts();
+    this.loadSystemPrompts();
   }
 
   /**
@@ -64,11 +64,11 @@ class AIService {
   }
 
   /**
-   * Загружает системные промпты
+   * ИСПРАВЛЕНО: Загружает системные промпты через функции
    */
   loadSystemPrompts() {
-    const { SYSTEM_PROMPTS } = require('../config/prompts');
-    return SYSTEM_PROMPTS;
+    const { getSystemPrompt } = require('../config/prompts');
+    this.getSystemPrompt = getSystemPrompt;
   }
 
   /**
@@ -109,7 +109,7 @@ class AIService {
     const { context = [], history = [], language = 'en' } = options;
     
     const messages = [
-      { role: 'system', content: this.getSystemPrompt(language, context.length > 0) },
+      { role: 'system', content: this.getSystemPromptForLanguage(language, context.length > 0) },
       ...this.formatHistoryForOpenAI(history),
       ...this.formatContextForOpenAI(context),
       { role: 'user', content: message }
@@ -154,7 +154,7 @@ class AIService {
   async generateAnthropicResponse(message, options = {}) {
     const { context = [], history = [], language = 'en' } = options;
     
-    let systemPrompt = this.getSystemPrompt(language, context.length > 0);
+    let systemPrompt = this.getSystemPromptForLanguage(language, context.length > 0);
     
     const messages = [
       ...this.formatHistoryForAnthropic(history),
@@ -225,14 +225,14 @@ class AIService {
   }
 
   /**
-   * Получает системный промпт в зависимости от языка и наличия контекста
+   * ИСПРАВЛЕНО: Получает системный промпт в зависимости от языка и наличия контекста
    * @param {string} language - Язык (en/es/ru)
    * @param {boolean} hasContext - Есть ли контекст из базы знаний
    * @returns {string} Системный промпт
    */
-  getSystemPrompt(language = 'en', hasContext = false) {
+  getSystemPromptForLanguage(language = 'en', hasContext = false) {
     const promptType = hasContext ? 'rag' : 'basic';
-    return this.systemPrompts[promptType][language] || this.systemPrompts[promptType].en;
+    return this.getSystemPrompt(promptType, language);
   }
 
   /**
