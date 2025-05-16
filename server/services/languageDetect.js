@@ -61,7 +61,8 @@ class LanguageDetectService {
           'мне', 'тебе', 'нас', 'вас', 'них', 'она', 'оно', 'мы', 'вы', 'они',
           'да', 'нет', 'или', 'если', 'то', 'бы', 'же', 'ли', 'только', 'уже',
           'там', 'тут', 'где', 'когда', 'почему', 'зачем', 'какой', 'какая', 'какое',
-          'который', 'которая', 'которое', 'чтобы', 'потому', 'поэтому'
+          'который', 'которая', 'которое', 'чтобы', 'потому', 'поэтому',
+          'такое', 'такой', 'такая', 'будет', 'была', 'были', 'быть'
         ],
         patterns: [
           /\bэто\b/gi, /\bесть\b/gi, /\bтот\b/gi, /\bкак\b/gi, /\bчто\b/gi,
@@ -94,23 +95,31 @@ class LanguageDetectService {
         return this.defaultLanguage;
       }
 
-      // Очистка и подготовка текста
+      // Очистка и подготовка текста для анализа, сохраняя кириллицу
       const cleanText = this.normalizeText(text);
       
       if (cleanText.length < 3) {
         return this.defaultLanguage;
       }
 
-      // Быстрая проверка на кириллицу для русского языка
-      if (/[а-яё]/i.test(text)) {
-        logger.info(`Russian detected by cyrillic characters: "${text.substring(0, 50)}..."`);
+      // ПЕРВАЯ ПРИОРИТЕТНАЯ ПРОВЕРКА: наличие кириллических символов
+      // Ищем русские буквы в оригинальном тексте (до нормализации)
+      const cyrillicPattern = /[\u0400-\u04FF]/g; // Полный диапазон кириллицы
+      const cyrillicMatches = text.match(cyrillicPattern);
+      
+      if (cyrillicMatches && cyrillicMatches.length >= 2) {
+        // Если найдено 2 или больше кириллических символов - точно русский
+        logger.info(`Russian detected by cyrillic characters: ${cyrillicMatches.length} chars`);
         return 'ru';
       }
 
-      // Быстрая проверка на испанские символы
+      // ВТОРАЯ ПРИОРИТЕТНАЯ ПРОВЕРКА: испанские специальные символы
       if (/[ñáéíóúü]/i.test(text)) {
-        logger.info(`Spanish detected by special characters: "${text.substring(0, 50)}..."`);
-        return 'es';
+        const spanishChars = text.match(/[ñáéíóúü]/gi);
+        if (spanishChars && spanishChars.length >= 1) {
+          logger.info(`Spanish detected by special characters`);
+          return 'es';
+        }
       }
 
       // Подсчет совпадений для каждого языка
@@ -133,14 +142,15 @@ class LanguageDetectService {
   }
 
   /**
-   * Нормализует текст для анализа
+   * Нормализует текст для анализа, сохраняя кириллицу
    * @param {string} text - Исходный текст
    * @returns {string} Нормализованный текст
    */
   normalizeText(text) {
     return text
       .toLowerCase()
-      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF]/g, ' ') // Убираем знаки препинания, оставляем диакритики и кириллицу
+      // Убираем знаки препинания, НО сохраняем диакритики и кириллицу
+      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -221,7 +231,7 @@ class LanguageDetectService {
    */
   performAdditionalChecks(scores, text) {
     // Проверка на кириллицу - однозначно русский
-    if (/[а-яё]/i.test(text)) {
+    if (/[\u0400-\u04FF]/g.test(text)) {
       return 'ru';
     }
 
