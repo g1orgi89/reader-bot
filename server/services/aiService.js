@@ -67,9 +67,10 @@ class AIService {
    * Загружает системные промпты
    */
   loadSystemPrompts() {
-    const { getSystemPrompt, createContextPrompt } = require('../config/prompts');
+    const { getSystemPrompt, createContextPrompt, getLocalizedPrompt } = require('../config/prompts');
     this.getSystemPrompt = getSystemPrompt;
     this.createContextPrompt = createContextPrompt;
+    this.getLocalizedPrompt = getLocalizedPrompt;
   }
 
   /**
@@ -80,6 +81,16 @@ class AIService {
    */
   async generateResponse(message, options = {}) {
     try {
+      // Проверяем, связан ли вопрос с проектом Shrooms
+      if (!this.isRelevantToShrooms(message, options.language)) {
+        return {
+          message: this.getOutOfScopeResponse(options.language),
+          needsTicket: false,
+          tokensUsed: 50,
+          provider: this.provider
+        };
+      }
+
       switch (this.provider) {
         case 'openai':
           return await this.generateOpenAIResponse(message, options);
@@ -98,6 +109,64 @@ class AIService {
       });
       throw error;
     }
+  }
+
+  /**
+   * НОВОЕ: Проверяет, связан ли вопрос с проектом Shrooms
+   * @param {string} message - Сообщение пользователя
+   * @param {string} language - Язык
+   * @returns {boolean} Относится ли к Shrooms
+   */
+  isRelevantToShrooms(message, language = 'en') {
+    const shroomsKeywords = [
+      // English
+      'shrooms', 'mushroom', 'farming', 'staking', 'xverse', 'hiro', 'wallet',
+      'spores', 'token', 'connect', 'stacks', 'mycelium',
+      
+      // Russian
+      'грибы', 'гриб', 'фарминг', 'стейкинг', 'кошелек', 'токен', 'споры',
+      'подключ', 'мицелий', 'сеть', 'блокчейн',
+      
+      // Spanish
+      'hongos', 'setas', 'billetera', 'conectar', 'token', 'esporas',
+      'farming', 'staking', 'red', 'blockchain'
+    ];
+
+    // Проверяем наличие ключевых слов Shrooms
+    const hasKeywords = shroomsKeywords.some(keyword => 
+      message.toLowerCase().includes(keyword.toLowerCase())
+    );
+
+    // Исключения: очень общие вопросы, которые точно не о Shrooms
+    const generalQuestions = [
+      // English
+      'what is bitcoin', 'what is crypto', 'how to invest', 'price prediction',
+      'what time is it', 'weather', 'news', 'how to code',
+      
+      // Russian  
+      'что такое биткоин', 'что такое крипта', 'как инвестировать', 'прогноз цены',
+      'который час', 'погода', 'новости', 'как программировать',
+      
+      // Spanish
+      'qué es bitcoin', 'qué es crypto', 'cómo invertir', 'predicción precio',
+      'qué hora es', 'tiempo', 'noticias', 'cómo programar'
+    ];
+
+    const isGeneralQuestion = generalQuestions.some(question =>
+      message.toLowerCase().includes(question.toLowerCase())
+    );
+
+    // Если есть ключевые слова Shrooms и это не общий вопрос
+    return hasKeywords && !isGeneralQuestion;
+  }
+
+  /**
+   * НОВОЕ: Возвращает ответ о выходе за рамки компетенции
+   * @param {string} language - Язык
+   * @returns {string} Ответ о выходе за рамки
+   */
+  getOutOfScopeResponse(language = 'en') {
+    return this.getLocalizedPrompt('outOfScope', language);
   }
 
   /**
@@ -290,17 +359,17 @@ class AIService {
     
     // Проблемные ключевые слова в сообщении пользователя (мультиязычные)
     const problemKeywords = [
-      // English
-      'error', 'problem', 'issue', 'stuck', 'failed', 'not working', 
-      'doesn\'t work', 'broken', 'transaction fail', 'wallet connect',
+      // English - только о Shrooms
+      'shrooms error', 'shrooms problem', 'wallet not connecting', 'transaction failed',
+      'farming not working', 'staking issue', 'xverse problem', 'hiro wallet stuck',
       
-      // Russian
-      'ошибка', 'проблема', 'не работает', 'не получается', 'не могу', 
-      'сломано', 'зависло', 'баг', 'транзакция', 'кошелек',
+      // Russian - только о Shrooms
+      'ошибка shrooms', 'проблема с грибами', 'кошелек не подключается', 'транзакция не прошла',
+      'фарминг не работает', 'проблемы стейкинга', 'проблема xverse', 'hiro зависло',
       
-      // Spanish
-      'error', 'problema', 'no funciona', 'no puede', 'roto', 'falla', 
-      'bug', 'transacción', 'billetera'
+      // Spanish - только о Shrooms  
+      'error shrooms', 'problema hongos', 'billetera no conecta', 'transacción falló',
+      'farming no funciona', 'problema staking', 'problema xverse', 'hiro no funciona'
     ];
     
     const hasTicketKeywords = ticketKeywords.some(keyword => 
@@ -311,14 +380,13 @@ class AIService {
       message.toLowerCase().includes(keyword.toLowerCase())
     );
     
-    // Дополнительные проверки для технических проблем
+    // Дополнительные проверки для технических проблем Shrooms
     const technicalIssues = [
-      /wallet.*connect/i,
-      /transaction.*fail/i,
-      /кошелек.*подключ/i,
-      /транзакция.*ошибка/i,
-      /billetera.*conectar/i,
-      /transacción.*error/i
+      /shrooms.*wallet.*connect/i,
+      /shrooms.*transaction.*fail/i,
+      /shrooms.*farming.*error/i,
+      /xverse.*shrooms/i,
+      /hiro.*shrooms/i
     ];
     
     const hasTechnicalIssue = technicalIssues.some(pattern => 
