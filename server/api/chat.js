@@ -35,23 +35,19 @@ router.post('/', async (req, res) => {
     // Получение или создание разговора
     let conversation;
     if (conversationId) {
-      conversation = await conversationService.findById(conversationId);
+      conversation = await conversationService.getConversationById(conversationId);
       if (!conversation) {
         logger.warn(`Conversation ${conversationId} not found, creating new one`);
         // Создаем разговор с базовым языком
-        conversation = await conversationService.create({
-          userId,
+        conversation = await conversationService.createConversation(userId, {
           language: language || 'en',
-          startedAt: new Date(),
           source: 'api'
         });
       }
     } else {
       // Создаем новый разговор с базовым языком
-      conversation = await conversationService.create({
-        userId,
+      conversation = await conversationService.createConversation(userId, {
         language: language || 'en',
-        startedAt: new Date(),
         source: 'api'
       });
     }
@@ -161,25 +157,23 @@ router.post('/', async (req, res) => {
     });
     
     // Обновление разговора
-    await conversationService.updateLastActivity(conversation._id);
+    await conversationService.incrementMessageCount(conversation._id);
     
     // Подготовка ответа
     const response = {
       success: true,
-      data: {
-        message: botResponse,
-        conversationId: conversation._id.toString(),
-        messageId: botMessage._id.toString(),
-        needsTicket: claudeResponse.needsTicket,
-        ticketId,
-        ticketError,
-        tokensUsed: claudeResponse.tokensUsed,
-        language: detectedLanguage,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          knowledgeResultsCount: context.length,
-          historyMessagesCount: formattedHistory.length
-        }
+      message: botResponse,
+      conversationId: conversation._id.toString(),
+      messageId: botMessage._id.toString(),
+      needsTicket: claudeResponse.needsTicket,
+      ticketId,
+      ticketError,
+      tokensUsed: claudeResponse.tokensUsed,
+      language: detectedLanguage,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        knowledgeResultsCount: context.length,
+        historyMessagesCount: formattedHistory.length
       }
     };
     
@@ -235,23 +229,19 @@ router.post('/message', async (req, res) => {
     // Получение или создание разговора
     let conversation;
     if (conversationId) {
-      conversation = await conversationService.findById(conversationId);
+      conversation = await conversationService.getConversationById(conversationId);
       if (!conversation) {
         logger.warn(`Conversation ${conversationId} not found, creating new one`);
         // Создаем разговор с базовым языком
-        conversation = await conversationService.create({
-          userId,
+        conversation = await conversationService.createConversation(userId, {
           language: language || 'en',
-          startedAt: new Date(),
           source: 'api'
         });
       }
     } else {
       // Создаем новый разговор с базовым языком
-      conversation = await conversationService.create({
-        userId,
+      conversation = await conversationService.createConversation(userId, {
         language: language || 'en',
-        startedAt: new Date(),
         source: 'api'
       });
     }
@@ -361,7 +351,7 @@ router.post('/message', async (req, res) => {
     });
     
     // Обновление разговора
-    await conversationService.updateLastActivity(conversation._id);
+    await conversationService.incrementMessageCount(conversation._id);
     
     // Подготовка ответа
     const response = {
@@ -488,7 +478,7 @@ router.post('/conversations/:conversationId/close', async (req, res) => {
   try {
     const { conversationId } = req.params;
 
-    const conversation = await conversationService.setInactive(conversationId);
+    const conversation = await conversationService.endConversation(conversationId);
     
     if (!conversation) {
       return res.status(404).json({
@@ -594,7 +584,7 @@ router.post('/detect-language', async (req, res) => {
     // Если есть userId и conversationId, получаем историю для контекстного определения
     if (userId && conversationId) {
       try {
-        const conversation = await conversationService.findById(conversationId);
+        const conversation = await conversationService.getConversationById(conversationId);
         if (conversation) {
           const recentMessages = await messageService.getRecentMessages(conversationId, 5);
           history = recentMessages.map(msg => ({
@@ -661,7 +651,7 @@ router.get('/stats', async (req, res) => {
     // Объединяем статистику из разных сервисов
     const [messagesStats, conversationsStats, languageStats] = await Promise.all([
       messageService.getStats(),
-      conversationService.getStats(),
+      conversationService.getConversationStats(),
       Promise.resolve(languageDetectService.getStats())
     ]);
 
