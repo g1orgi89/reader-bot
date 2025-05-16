@@ -27,6 +27,30 @@ const { authenticate } = require('../utils/auth');
  */
 
 /**
+ * Получить статистику по тикетам
+ * @route GET /api/tickets/stats/summary
+ * @access Private (Admin)
+ * @returns {Promise<Object>} Статистика тикетов
+ */
+router.get('/stats/summary', authenticate, async (req, res) => {
+  try {
+    const stats = await ticketService.getTicketStats();
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    logger.error(`Error fetching ticket stats: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch ticket statistics',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
  * Получить список всех тикетов с фильтрацией
  * @route GET /api/tickets
  * @access Private (Admin)
@@ -80,47 +104,6 @@ router.get('/', authenticate, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch tickets',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
- * Получить конкретный тикет по ID
- * @route GET /api/tickets/:id
- * @access Private (Admin)
- * @param {string} id - ID тикета (ticketId или _id)
- * @returns {Promise<TicketResponse>} Данные тикета
- */
-router.get('/:id', authenticate, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Пробуем найти тикет сначала по ticketId, затем по ObjectId
-    let ticket = await ticketService.getTicketByTicketId(id);
-    
-    if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
-      // Если не найден по ticketId и id выглядит как ObjectId
-      ticket = await ticketService.getTicketById(id);
-    }
-
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        error: 'Ticket not found',
-        code: 'NOT_FOUND'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: ticket
-    });
-  } catch (error) {
-    logger.error(`Error fetching ticket ${req.params.id}: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch ticket',
       code: 'INTERNAL_SERVER_ERROR'
     });
   }
@@ -213,6 +196,105 @@ router.post('/', async (req, res) => {
 });
 
 /**
+ * Добавить комментарий к тикету
+ * @route POST /api/tickets/:id/comments
+ * @access Private (Admin)
+ * @param {string} id - ID тикета
+ * @body {Object} commentData - Данные комментария
+ * @returns {Promise<TicketResponse>} Обновленный тикет с комментарием
+ */
+router.post('/:id/comments', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content, isInternal = false } = req.body;
+
+    if (!content) {
+      return res.status(400).json({
+        success: false,
+        error: 'Comment content is required',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    const comment = {
+      content,
+      authorId: req.user ? req.user.id : 'system',
+      authorName: req.user ? req.user.name || req.user.username : 'Administrator',
+      isInternal,
+      createdAt: new Date()
+    };
+
+    // Пробуем добавить комментарий по ticketId, затем по ObjectId
+    let ticket = await ticketService.addCommentByTicketId(id, comment);
+    
+    if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
+      ticket = await ticketService.addCommentById(id, comment);
+    }
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket not found',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: ticket
+    });
+  } catch (error) {
+    logger.error(`Error adding comment to ticket ${req.params.id}: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add comment',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * Получить конкретный тикет по ID
+ * @route GET /api/tickets/:id
+ * @access Private (Admin)
+ * @param {string} id - ID тикета (ticketId или _id)
+ * @returns {Promise<TicketResponse>} Данные тикета
+ */
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Пробуем найти тикет сначала по ticketId, затем по ObjectId
+    let ticket = await ticketService.getTicketByTicketId(id);
+    
+    if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
+      // Если не найден по ticketId и id выглядит как ObjectId
+      ticket = await ticketService.getTicketById(id);
+    }
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket not found',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: ticket
+    });
+  } catch (error) {
+    logger.error(`Error fetching ticket ${req.params.id}: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch ticket',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
  * Обновить тикет
  * @route PATCH /api/tickets/:id
  * @access Private (Admin)
@@ -284,64 +366,6 @@ router.patch('/:id', authenticate, async (req, res) => {
 });
 
 /**
- * Добавить комментарий к тикету
- * @route POST /api/tickets/:id/comments
- * @access Private (Admin)
- * @param {string} id - ID тикета
- * @body {Object} commentData - Данные комментария
- * @returns {Promise<TicketResponse>} Обновленный тикет с комментарием
- */
-router.post('/:id/comments', authenticate, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { content, isInternal = false } = req.body;
-
-    if (!content) {
-      return res.status(400).json({
-        success: false,
-        error: 'Comment content is required',
-        code: 'VALIDATION_ERROR'
-      });
-    }
-
-    const comment = {
-      content,
-      authorId: req.user ? req.user.id : 'system',
-      authorName: req.user ? req.user.name : 'System',
-      isInternal,
-      createdAt: new Date()
-    };
-
-    // Пробуем добавить комментарий по ticketId, затем по ObjectId
-    let ticket = await ticketService.addCommentByTicketId(id, comment);
-    
-    if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
-      ticket = await ticketService.addCommentById(id, comment);
-    }
-
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        error: 'Ticket not found',
-        code: 'NOT_FOUND'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: ticket
-    });
-  } catch (error) {
-    logger.error(`Error adding comment to ticket ${req.params.id}: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to add comment',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
  * Закрыть тикет
  * @route DELETE /api/tickets/:id
  * @access Private (Admin)
@@ -379,30 +403,6 @@ router.delete('/:id', authenticate, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to close ticket',
-      code: 'INTERNAL_SERVER_ERROR'
-    });
-  }
-});
-
-/**
- * Получить статистику по тикетам
- * @route GET /api/tickets/stats
- * @access Private (Admin)
- * @returns {Promise<Object>} Статистика тикетов
- */
-router.get('/stats/summary', authenticate, async (req, res) => {
-  try {
-    const stats = await ticketService.getTicketStats();
-    
-    res.json({
-      success: true,
-      data: stats
-    });
-  } catch (error) {
-    logger.error(`Error fetching ticket stats: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch ticket statistics',
       code: 'INTERNAL_SERVER_ERROR'
     });
   }
