@@ -29,7 +29,7 @@ const knowledgeRoutes = require('./api/knowledge');
 // Services
 const dbService = require('./services/database');
 const vectorStoreService = require('./services/vectorStore');
-const claudeService = require('./services/claude');
+const aiService = require('./services/aiService'); // ИЗМЕНЕНО: aiService вместо claudeService
 const languageDetectService = require('./services/languageDetect');
 const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
@@ -147,6 +147,9 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       ? await vectorStoreService.healthCheck() 
       : { status: 'disabled' };
 
+    // ИСПРАВЛЕНО: проверяем aiService вместо claudeService
+    const aiProviderInfo = aiService.getProviderInfo();
+
     const health = {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -155,8 +158,9 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       services: {
         database: dbHealth,
         vectorStore: vectorHealth,
-        claude: claudeService ? 'ok' : 'error'
+        ai: aiService ? 'ok' : 'error'
       },
+      aiProvider: aiProviderInfo,
       features: config.features
     };
 
@@ -292,35 +296,40 @@ io.on('connection', (socket) => {
         }
       });
       
-      // Генерация ответа через Claude
-      const claudeResponse = await claudeService.generateResponse(data.message, {
+      // ИСПРАВЛЕНО: Генерация ответа через AI Service (вместо Claude)
+      const aiResponse = await aiService.generateResponse(data.message, {
         context,
         history: formattedHistory,
-        language: detectedLanguage
+        language: detectedLanguage,
+        userId: data.userId
       });
       
       // Проверка на создание тикета
       let ticketId = null;
       let ticketError = null;
       
-      if (claudeResponse.needsTicket) {
+      if (aiResponse.needsTicket) {
         try {
           const ticket = await ticketService.createTicket({
             userId: data.userId,
             conversationId: conversation._id,
-            message: data.message,
+            initialMessage: data.message, // ИСПРАВЛЕНО: изменено с 'message' на 'initialMessage'
             context: JSON.stringify({
-              claudeResponse: claudeResponse.message,
+              aiResponse: aiResponse.message,
               userMessage: data.message,
-              history: formattedHistory.slice(-3)
+              history: formattedHistory.slice(-3),
+              aiProvider: aiResponse.provider // Добавляем информацию о провайдере
             }),
             language: detectedLanguage,
             subject: `Support request: ${data.message.substring(0, 50)}...`,
             category: 'technical',
-            source: 'socket'
+            metadata: {
+              source: 'socket',
+              aiProvider: aiResponse.provider
+            }
           });
           ticketId = ticket.ticketId;
-          logger.info(`🎫 Ticket created: ${ticketId}`);
+          logger.info(`🎫 Ticket created: ${ticketId} via ${aiResponse.provider}`);
         } catch (error) {
           logger.error('Failed to create ticket:', error);
           ticketError = error.message;
@@ -328,7 +337,7 @@ io.on('connection', (socket) => {
       }
       
       // Замена TICKET_ID в ответе
-      let botResponse = claudeResponse.message;
+      let botResponse = aiResponse.message;
       if (ticketId) {
         botResponse = botResponse.replace('#TICKET_ID', `#${ticketId}`);
       }
@@ -341,10 +350,11 @@ io.on('connection', (socket) => {
         conversationId: conversation._id,
         metadata: {
           language: detectedLanguage,
-          tokensUsed: claudeResponse.tokensUsed,
-          ticketCreated: claudeResponse.needsTicket,
+          tokensUsed: aiResponse.tokensUsed,
+          ticketCreated: aiResponse.needsTicket,
           ticketId,
-          source: 'socket'
+          source: 'socket',
+          aiProvider: aiResponse.provider
         }
       });
       
@@ -359,11 +369,12 @@ io.on('connection', (socket) => {
         message: botResponse,
         conversationId: conversation._id.toString(),
         messageId: botMessage._id.toString(),
-        needsTicket: claudeResponse.needsTicket,
+        needsTicket: aiResponse.needsTicket,
         ticketId,
         ticketError,
-        tokensUsed: claudeResponse.tokensUsed,
+        tokensUsed: aiResponse.tokensUsed,
         language: detectedLanguage,
+        aiProvider: aiResponse.provider, // Добавляем информацию о провайдере
         timestamp: new Date().toISOString(),
         metadata: {
           knowledgeResultsCount: context.length,
@@ -373,7 +384,7 @@ io.on('connection', (socket) => {
       
       // Отправка ответа через Socket.IO
       socket.emit('message', response);
-      logger.info(`✅ Response sent to ${socket.id} (Language: ${detectedLanguage})`);
+      logger.info(`✅ Response sent to ${socket.id} (Language: ${detectedLanguage}, Provider: ${aiResponse.provider})`);
       
     } catch (error) {
       logger.error(`❌ Socket error for ${socket.id}:`, error);
@@ -384,10 +395,11 @@ io.on('connection', (socket) => {
       
       if (error.message.includes('Database')) {
         errorCode = ERROR_CODES.DATABASE_CONNECTION_ERROR;
-      } else if (error.message.includes('Claude')) {
-        errorCode = ERROR_CODES.CLAUDE_API_ERROR;
+      } else if (error.message.includes('OpenAI') || error.message.includes('Anthropic') || error.message.includes('AI Service')) {
+        errorCode = ERROR_CODES.CLAUDE_API_ERROR; // Можно переименовать в AI_API_ERROR
       }
       
+      // ИСПРАВЛЕНО: Не пытаемся создать тикет при ошибках AI сервиса
       socket.emit('error', { 
         code: errorCode,
         message: errorMessage,
@@ -430,6 +442,11 @@ async function startServer() {
     logger.info(`Environment: ${config.app.environment}`);
     logger.info(`Version: ${config.app.version}`);
     logger.info(`Features: ${JSON.stringify(config.features, null, 2)}`);
+    
+    // Проверяем AI провайдера
+    const aiProviderInfo = aiService.getProviderInfo();
+    logger.info(`🤖 AI Provider: ${aiProviderInfo.currentProvider}`);
+    logger.info(`Models: ${JSON.stringify(aiProviderInfo.models, null, 2)}`);
     
     // Подключение к базе данных
     logger.info('📡 Connecting to MongoDB...');
