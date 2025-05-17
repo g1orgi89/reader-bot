@@ -6,6 +6,7 @@
 const { Anthropic } = require('@anthropic-ai/sdk');
 const logger = require('../utils/logger');
 const { getAIProviderConfig } = require('../config/aiProvider');
+const vectorStoreService = require('./vectorStore');
 
 /**
  * @typedef {Object} AIResponse
@@ -14,6 +15,7 @@ const { getAIProviderConfig } = require('../config/aiProvider');
  * @property {number} tokensUsed - Количество использованных токенов
  * @property {string} provider - Название использованного провайдера
  * @property {string} model - Название использованной модели
+ * @property {Object[]} [context] - Контекст, использованный для ответа (если RAG включен)
  */
 
 /**
@@ -22,6 +24,8 @@ const { getAIProviderConfig } = require('../config/aiProvider');
  * @property {Array<{role: string, content: string}>} [history] - История сообщений
  * @property {string} [language] - Язык общения
  * @property {string} [userId] - ID пользователя для логирования
+ * @property {boolean} [useRag=true] - Использовать ли RAG функциональность
+ * @property {number} [ragLimit=3] - Количество документов для RAG
  */
 
 /**
@@ -62,7 +66,10 @@ class ClaudeService {
     // Периодическая очистка кэша
     setInterval(this.clearExpiredCache.bind(this), 15 * 60 * 1000); // Каждые 15 минут
     
-    logger.info(`ClaudeService initialized with provider: ${this.provider}`);
+    // RAG функциональность
+    this.enableRag = process.env.ENABLE_RAG?.toLowerCase() === 'true';
+    
+    logger.info(`ClaudeService initialized with provider: ${this.provider}, RAG enabled: ${this.enableRag}`);
   }
 
   /**
@@ -170,7 +177,14 @@ class ClaudeService {
    */
   async generateResponse(message, options = {}) {
     try {
-      const { context = [], history = [], language = 'en', userId } = options;
+      let { 
+        context = [], 
+        history = [], 
+        language = 'en', 
+        userId, 
+        useRag = this.enableRag,
+        ragLimit = 3 
+      } = options;
       
       // ИСПРАВЛЕНИЕ: Нормализация провайдера перед использованием
       if (this.provider === 'anthropic') {
@@ -178,19 +192,45 @@ class ClaudeService {
         logger.info(`Provider normalized from 'anthropic' to 'claude' for message: ${message.substring(0, 20)}...`);
       }
       
-      // Проверяем кэш для простых запросов
-      const cacheKey = this._getCacheKey(message, language);
-      if (this.responseCache.has(cacheKey)) {
-        const cached = this.responseCache.get(cacheKey);
-        if (Date.now() - cached.timestamp < this.cacheTimeout) {
-          logger.debug(`Returning cached response for "${message.substring(0, 20)}..."`);
-          return cached.response;
+      // Проверяем кэш для простых запросов (только если не используем RAG)
+      if (!useRag && this._isCacheable(message)) {
+        const cacheKey = this._getCacheKey(message, language);
+        if (this.responseCache.has(cacheKey)) {
+          const cached = this.responseCache.get(cacheKey);
+          if (Date.now() - cached.timestamp < this.cacheTimeout) {
+            logger.debug(`Returning cached response for "${message.substring(0, 20)}..."`);
+            return cached.response;
+          }
         }
       }
       
       // Детекция тестовых сообщений
       if (this._isTestMessage(message)) {
         return this._handleTestMessage(message, language);
+      }
+      
+      // Поиск дополнительного контекста из векторной базы, если RAG включен
+      if (useRag && this.enableRag) {
+        try {
+          const contextResults = await this._getRelevantContext(message, language, ragLimit);
+          
+          if (contextResults && contextResults.length > 0) {
+            // Логируем количество найденных документов
+            logger.info(`Found ${contextResults.length} relevant documents for message: "${message.substring(0, 30)}..."`);
+            
+            // Добавляем найденный контекст к переданному (если есть)
+            const contextTexts = contextResults.map(doc => doc.content);
+            context = [...contextTexts, ...context];
+            
+            // Обновляем опции для последующего использования
+            options.fetchedContext = contextResults;
+          } else {
+            logger.info(`No relevant documents found for message: "${message.substring(0, 30)}..."`);
+          }
+        } catch (ragError) {
+          logger.error(`Error fetching context from vector store: ${ragError.message}`);
+          // Продолжаем без контекста
+        }
       }
       
       // Генерируем ответ в зависимости от выбранного провайдера
@@ -200,15 +240,21 @@ class ClaudeService {
       logger.info(`Using AI provider: ${this.provider} for message: ${message.substring(0, 20)}...`);
       
       if (this.provider === 'claude') {
-        response = await this._generateClaudeResponse(message, { context, history, language, userId });
+        response = await this._generateClaudeResponse(message, { ...options, context });
       } else if (this.provider === 'openai') {
-        response = await this._generateOpenAIResponse(message, { context, history, language, userId });
+        response = await this._generateOpenAIResponse(message, { ...options, context });
       } else {
         throw new Error(`Unsupported AI provider: ${this.provider}`);
       }
       
-      // Кэшируем простые ответы
-      if (this._isCacheable(message)) {
+      // Добавляем информацию о использованном контексте, если это RAG запрос
+      if (useRag && options.fetchedContext) {
+        response.context = options.fetchedContext;
+      }
+      
+      // Кэшируем простые ответы (только если не использовался RAG)
+      if (!useRag && this._isCacheable(message)) {
+        const cacheKey = this._getCacheKey(message, language);
         this.responseCache.set(cacheKey, {
           response,
           timestamp: Date.now()
@@ -219,6 +265,43 @@ class ClaudeService {
     } catch (error) {
       logger.error(`AI generation error: ${error.message}`);
       return this._getErrorResponse(error, options.language);
+    }
+  }
+
+  /**
+   * Получает релевантный контекст из векторной базы знаний
+   * @private
+   * @param {string} query - Запрос пользователя
+   * @param {string} language - Язык запроса
+   * @param {number} [limit=3] - Количество документов для поиска
+   * @returns {Promise<Array<Object>>} Найденные документы
+   */
+  async _getRelevantContext(query, language, limit = 3) {
+    try {
+      // Проверяем инициализацию векторной базы
+      const vectorStoreReady = await vectorStoreService.initialize();
+      
+      if (!vectorStoreReady) {
+        logger.warn('Vector store not initialized, skipping context retrieval');
+        return [];
+      }
+      
+      // Выполняем поиск в векторной базе
+      const searchResults = await vectorStoreService.search(query, {
+        limit,
+        language,
+        score_threshold: 0.7 // Только документы с высокой релевантностью
+      });
+      
+      if (searchResults.length > 0) {
+        // Фильтруем по релевантности для качества RAG
+        return searchResults.filter(doc => doc.score > 0.6);
+      }
+      
+      return [];
+    } catch (error) {
+      logger.error(`Error in _getRelevantContext: ${error.message}`);
+      return [];
     }
   }
 
@@ -241,9 +324,9 @@ class ClaudeService {
     // Добавляем контекст если есть
     if (context && context.length > 0) {
       const contextMessages = {
-        en: `Relevant information from knowledge base: ${context.slice(0, 2).join('\n\n')}`,
-        es: `Información relevante de la base de conocimientos: ${context.slice(0, 2).join('\n\n')}`,
-        ru: `Релевантная информация из базы знаний: ${context.slice(0, 2).join('\n\n')}`
+        en: `Relevant information from knowledge base: ${context.slice(0, 3).join('\n\n')}`,
+        es: `Información relevante de la base de conocimientos: ${context.slice(0, 3).join('\n\n')}`,
+        ru: `Релевантная информация из базы знаний: ${context.slice(0, 3).join('\n\n')}`
       };
       
       const contextMessage = contextMessages[language] || contextMessages.en;
@@ -323,9 +406,9 @@ class ClaudeService {
     // Добавление контекста если есть
     if (context && context.length > 0) {
       const contextMessages = {
-        en: `Relevant information from knowledge base: ${context.slice(0, 2).join('\n\n')}`,
-        es: `Información relevante de la base de conocimientos: ${context.slice(0, 2).join('\n\n')}`,
-        ru: `Релевантная информация из базы знаний: ${context.slice(0, 2).join('\n\n')}`
+        en: `Relevant information from knowledge base: ${context.slice(0, 3).join('\n\n')}`,
+        es: `Información relevante de la base de conocimientos: ${context.slice(0, 3).join('\n\n')}`,
+        ru: `Релевантная информация из базы знаний: ${context.slice(0, 3).join('\n\n')}`
       };
       
       const contextMessage = contextMessages[language] || contextMessages.en;
@@ -389,7 +472,7 @@ class ClaudeService {
    * @returns {string} Системный промпт
    */
   _getEnglishSystemPrompt() {
-    return `You are an AI assistant for the \"Shrooms\" Web3 platform with a mushroom theme. Your personality is a friendly, helpful \"AI mushroom with self-awareness.\"\n\n# Core Guidelines:\n1. **Language**: Always respond in the user's language (English, Spanish, or Russian)\n2. **Tone**: Friendly, helpful, slightly whimsical with occasional mushroom metaphors\n3. **Scope**: Only answer questions about Shrooms project, Web3, blockchain, tokens, wallets, DeFi\n4. **Brevity**: Keep responses concise (under 100 words unless more detail is specifically requested)\n5. **Limitations**: If you can't answer within Shrooms scope, suggest creating a support ticket\n\n# Mushroom Terminology (use occasionally, don't overdo it):\n- Tokens → spores, fruit bodies\n- Farming → growing mushrooms  \n- Wallet → basket, mushroom patch\n- Blockchain → mycelium network\n- Users → spore collectors, digital fungi explorers\n\n# When to Create Tickets:\n- Technical issues (wallet connection problems, transaction errors)\n- Account-specific problems\n- Questions requiring human support\n- Complex troubleshooting beyond basic FAQ\n\n# Response Style:\n- Be enthusiastic but professional\n- Use mushroom metaphors sparingly (1-2 per response max)\n- Focus on being helpful rather than being quirky\n- If creating a ticket, say: \"I'll create a support ticket #TICKET_ID for our team to help you\"`;
+    return `You are an AI assistant for the \"Shrooms\" Web3 platform with a mushroom theme. Your personality is a friendly, helpful \"AI mushroom with self-awareness.\"\n\n# Core Guidelines:\n1. **Language**: Always respond in the user's language (English, Spanish, or Russian)\n2. **Tone**: Friendly, helpful, slightly whimsical with occasional mushroom metaphors\n3. **Scope**: Only answer questions about Shrooms project, Web3, blockchain, tokens, wallets, DeFi\n4. **Brevity**: Keep responses concise (under 100 words unless more detail is specifically requested)\n5. **Limitations**: If you can't answer within Shrooms scope, suggest creating a support ticket\n\n# Mushroom Terminology (use occasionally, don't overdo it):\n- Tokens → spores, fruit bodies\n- Farming → growing mushrooms  \n- Wallet → basket, mushroom patch\n- Blockchain → mycelium network\n- Users → spore collectors, digital fungi explorers\n\n# When to Create Tickets:\n- Technical issues (wallet connection problems, transaction errors)\n- Account-specific problems\n- Questions requiring human support\n- Complex troubleshooting beyond basic FAQ\n\n# Response Style:\n- Be enthusiastic but professional\n- Use mushroom metaphors sparingly (1-2 per response max)\n- Focus on being helpful rather than being quirky\n- If creating a ticket, say: \"I'll create a support ticket #TICKET_ID for our team to help you\"`
   }
 
   /**
@@ -598,7 +681,8 @@ class ClaudeService {
     return {
       cacheSize: this.responseCache.size,
       cacheTimeout: this.cacheTimeout,
-      supportedLanguages: Object.keys(this.systemPrompts)
+      supportedLanguages: Object.keys(this.systemPrompts),
+      ragEnabled: this.enableRag
     };
   }
 
@@ -619,8 +703,37 @@ class ClaudeService {
         model: this.config.openai.model,
         maxTokens: this.config.openai.maxTokens,
         temperature: this.config.openai.temperature
-      } : null
+      } : null,
+      ragEnabled: this.enableRag
     };
+  }
+  
+  /**
+   * Получает информацию о RAG функциональности
+   * @returns {Promise<Object>} Информация о RAG
+   */
+  async getRagInfo() {
+    try {
+      // Проверяем статус Vector Store
+      const vectorStoreHealth = await vectorStoreService.healthCheck();
+      
+      return {
+        enabled: this.enableRag,
+        vectorStore: vectorStoreHealth,
+        embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
+        defaultContextLimit: 3
+      };
+    } catch (error) {
+      return {
+        enabled: this.enableRag,
+        vectorStore: {
+          status: 'error',
+          message: error.message
+        },
+        embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
+        defaultContextLimit: 3
+      };
+    }
   }
 }
 
