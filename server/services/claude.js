@@ -232,8 +232,41 @@ class ClaudeService {
   async _generateClaudeResponse(message, options) {
     const { context, history, language, userId } = options;
     
-    // Формирование сообщений для Claude
-    const messages = this._buildMessages(message, context, history, language);
+    // Выбираем системный промпт в зависимости от языка
+    const systemPrompt = this.systemPrompts[language] || this.systemPrompts.en;
+    
+    // ИСПРАВЛЕНИЕ: Создание сообщений без system role
+    const messages = [];
+    
+    // Добавляем контекст если есть
+    if (context && context.length > 0) {
+      const contextMessages = {
+        en: `Relevant information from knowledge base: ${context.slice(0, 2).join('\n\n')}`,
+        es: `Información relevante de la base de conocimientos: ${context.slice(0, 2).join('\n\n')}`,
+        ru: `Релевантная информация из базы знаний: ${context.slice(0, 2).join('\n\n')}`
+      };
+      
+      const contextMessage = contextMessages[language] || contextMessages.en;
+      messages.push({ role: 'user', content: contextMessage });
+      messages.push({ 
+        role: 'assistant', 
+        content: this._getContextAcknowledgment(language)
+      });
+    }
+    
+    // Добавляем только последние 2 сообщения из истории
+    if (history && history.length > 0) {
+      const recentHistory = history.slice(-2);
+      recentHistory.forEach(msg => {
+        messages.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content || msg.text
+        });
+      });
+    }
+    
+    // Добавляем текущее сообщение
+    messages.push({ role: 'user', content: message });
     
     // Loggers
     if (userId) {
@@ -241,13 +274,14 @@ class ClaudeService {
     }
     
     try {
-      // Отправка запроса к Claude API
+      // ИСПРАВЛЕНИЕ: Передаем системный промпт как параметр верхнего уровня
       const claudeConfig = this.config.claude;
       const response = await this.clients.claude.messages.create({
         model: claudeConfig.model,
         max_tokens: claudeConfig.maxTokens,
         temperature: claudeConfig.temperature,
-        messages
+        system: systemPrompt, // ИСПРАВЛЕНИЕ: system параметр вынесен на верхний уровень
+        messages: messages // ИСПРАВЛЕНИЕ: система нет в массиве messages
       });
       
       const answer = response.content[0].text;
@@ -377,51 +411,9 @@ class ClaudeService {
   }
   
   /**
-   * Строит сообщения для отправки Claude с учетом языка
-   * @private
-   * @param {string} message - Сообщение пользователя
-   * @param {string[]} context - Контекст
-   * @param {Object[]} history - История
-   * @param {string} language - Язык
-   * @returns {Object[]} Массив сообщений
+   * УДАЛЁН: Метод _buildMessages больше не нужен, так как системный промпт
+   * теперь передается как отдельный параметр
    */
-  _buildMessages(message, context, history, language) {
-    // Выбираем правильный системный промпт для языка
-    const systemPrompt = this.systemPrompts[language] || this.systemPrompts.en;
-    
-    const messages = [
-      { role: 'system', content: systemPrompt }
-    ];
-    
-    // Добавляем контекст если есть
-    if (context && context.length > 0) {
-      const contextMessages = {
-        en: `Relevant information from knowledge base: ${context.slice(0, 2).join('\n\n')}`,
-        es: `Información relevante de la base de conocimientos: ${context.slice(0, 2).join('\n\n')}`,
-        ru: `Релевантная информация из базы знаний: ${context.slice(0, 2).join('\n\n')}`
-      };
-      
-      const contextMessage = contextMessages[language] || contextMessages.en;
-      messages.push({ role: 'user', content: contextMessage });
-      messages.push({ role: 'assistant', content: this._getContextAcknowledgment(language) });
-    }
-    
-    // Добавляем только последние 2 сообщения из истории
-    if (history && history.length > 0) {
-      const recentHistory = history.slice(-2);
-      recentHistory.forEach(msg => {
-        messages.push({
-          role: msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.content || msg.text
-        });
-      });
-    }
-    
-    // Добавляем текущее сообщение
-    messages.push({ role: 'user', content: message });
-    
-    return messages;
-  }
 
   /**
    * Получает подтверждение понимания контекста на разных языках
