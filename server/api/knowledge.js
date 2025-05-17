@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const KnowledgeDocument = require('../models/knowledge');
 const knowledgeService = require('../services/knowledge');
+const vectorStoreService = require('../services/vectorStore');
 const logger = require('../utils/logger');
 const { basicAdminAuth } = require('../middleware/auth');
 
@@ -133,6 +134,101 @@ router.get('/search', async (req, res) => {
       success: false,
       error: 'Search failed',
       errorCode: 'SEARCH_ERROR'
+    });
+  }
+});
+
+/**
+ * @route GET /api/knowledge/vector-search
+ * @desc Test vector search in Qdrant with different thresholds
+ * @access Private (Admin only)
+ * @param {string} q - Search query
+ * @param {number} [threshold=0.4] - Score threshold
+ * @param {string} [language] - Filter by language
+ */
+router.get('/vector-search', basicAdminAuth, async (req, res) => {
+  try {
+    const {
+      q: searchQuery,
+      threshold = 0.4,
+      language
+    } = req.query;
+
+    if (!searchQuery || searchQuery.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required',
+        errorCode: 'MISSING_SEARCH_QUERY'
+      });
+    }
+
+    // Используем тестовый метод для диагностики поиска
+    const result = await vectorStoreService.testSearch(
+      searchQuery, 
+      parseFloat(threshold)
+    );
+
+    if (result.error) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        errorCode: 'VECTOR_SEARCH_ERROR'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result,
+      query: searchQuery,
+      threshold: parseFloat(threshold)
+    });
+
+    logger.info(`Vector search test performed: "${searchQuery}" with threshold ${threshold}`);
+  } catch (error) {
+    logger.error(`Error testing vector search: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Vector search test failed',
+      errorCode: 'VECTOR_SEARCH_ERROR'
+    });
+  }
+});
+
+/**
+ * @route GET /api/knowledge/diagnose
+ * @desc Diagnose vector store health and configuration
+ * @access Private (Admin only)
+ */
+router.get('/diagnose', basicAdminAuth, async (req, res) => {
+  try {
+    // Проверка векторного хранилища
+    const vectorStatus = await vectorStoreService.diagnose();
+    
+    // Информация о хранилище документов
+    const docsCount = await KnowledgeDocument.countDocuments();
+    
+    // Статистика векторного хранилища
+    const vectorStats = await vectorStoreService.getStats();
+    
+    res.json({
+      success: true,
+      vector: vectorStatus,
+      mongoDb: {
+        documentsCount: docsCount,
+        status: docsCount > 0 ? 'ok' : 'warning'
+      },
+      vectorStats,
+      timestamp: new Date().toISOString()
+    });
+
+    logger.info(`Vector store diagnostics performed`);
+  } catch (error) {
+    logger.error(`Error performing vector store diagnostics: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Diagnostics failed',
+      errorCode: 'DIAGNOSTICS_ERROR',
+      details: error.message
     });
   }
 });
