@@ -29,7 +29,7 @@ const knowledgeRoutes = require('./api/knowledge');
 // Services
 const dbService = require('./services/database');
 const vectorStoreService = require('./services/vectorStore');
-const aiService = require('./services/aiService'); // ИЗМЕНЕНО: aiService вместо claudeService
+const claude = require('./services/claude'); // ИЗМЕНЕНО: claude вместо aiService
 const languageDetectService = require('./services/languageDetect');
 const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
@@ -133,8 +133,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       ? await vectorStoreService.healthCheck() 
       : { status: 'disabled' };
 
-    // ИСПРАВЛЕНО: проверяем aiService вместо claudeService
-    const aiProviderInfo = aiService.getProviderInfo();
+    // ИСПРАВЛЕНО: проверяем claude вместо aiService
+    const aiProviderInfo = claude.getProviderInfo();
 
     const health = {
       status: 'ok',
@@ -144,7 +144,7 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       services: {
         database: dbHealth,
         vectorStore: vectorHealth,
-        ai: aiService ? 'ok' : 'error'
+        ai: claude ? 'ok' : 'error'
       },
       aiProvider: aiProviderInfo,
       features: config.features
@@ -282,8 +282,8 @@ io.on('connection', (socket) => {
         }
       });
       
-      // ИСПРАВЛЕНО: Генерация ответа через AI Service (вместо Claude)
-      const aiResponse = await aiService.generateResponse(data.message, {
+      // ИСПРАВЛЕНО: Генерация ответа через claude (вместо aiService)
+      const aiResponse = await claude.generateResponse(data.message, {
         context,
         history: formattedHistory,
         language: detectedLanguage,
@@ -430,7 +430,7 @@ async function startServer() {
     logger.info(`Features: ${JSON.stringify(config.features, null, 2)}`);
     
     // Проверяем AI провайдера
-    const aiProviderInfo = aiService.getProviderInfo();
+    const aiProviderInfo = claude.getProviderInfo();
     logger.info(`🤖 AI Provider: ${aiProviderInfo.currentProvider}`);
     logger.info(`Models: ${JSON.stringify(aiProviderInfo.models, null, 2)}`);
     
