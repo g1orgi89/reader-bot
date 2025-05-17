@@ -4,7 +4,7 @@
  */
 
 const express = require('express');
-const aiService = require('../services/aiService'); // Изменено с claude на aiService
+const claude = require('../services/claude'); // Вернули обратно к claude.js
 const messageService = require('../services/message');
 const conversationService = require('../services/conversation');
 const languageDetectService = require('../services/languageDetect');
@@ -100,8 +100,8 @@ router.post('/', async (req, res) => {
       }
     });
     
-    // Генерация ответа через AI Service
-    const aiResponse = await aiService.generateResponse(message, {
+    // Генерация ответа через Claude
+    const aiResponse = await claude.generateResponse(message, {
       context,
       history: formattedHistory,
       language: detectedLanguage,
@@ -303,8 +303,8 @@ router.post('/message', async (req, res) => {
       }
     });
     
-    // Генерация ответа через AI Service
-    const aiResponse = await aiService.generateResponse(message, {
+    // Генерация ответа через Claude
+    const aiResponse = await claude.generateResponse(message, {
       context,
       history: formattedHistory,
       language: detectedLanguage,
@@ -669,7 +669,7 @@ router.get('/stats', async (req, res) => {
       messageService.getStats(),
       conversationService.getConversationStats(),
       Promise.resolve(languageDetectService.getStats()),
-      Promise.resolve(aiService.getProviderInfo()) // Добавляем статистику AI
+      Promise.resolve(claude.getProviderInfo()) // Используем claude вместо aiService
     ]);
 
     res.json({
@@ -792,7 +792,7 @@ router.get('/health', async (req, res) => {
     // Проверяем здоровье всех зависимых сервисов
     const healthChecks = await Promise.allSettled([
       // AI service health
-      aiService.isHealthy ? aiService.isHealthy() : Promise.resolve(true),
+      claude.isHealthy ? claude.isHealthy() : Promise.resolve(true),
       // Message service health
       messageService.healthCheck ? messageService.healthCheck() : Promise.resolve({ status: 'ok' }),
       // Conversation service health
@@ -822,7 +822,7 @@ router.get('/health', async (req, res) => {
     };
 
     // Добавляем информацию о текущем AI провайдере
-    const aiProviderInfo = aiService.getProviderInfo();
+    const aiProviderInfo = claude.getProviderInfo();
 
     res.status(overall ? 200 : 503).json({
       success: overall,
@@ -886,19 +886,19 @@ router.post('/switch-ai-provider', async (req, res) => {
   try {
     const { provider } = req.body;
     
-    if (!provider || !['openai', 'anthropic', 'both'].includes(provider)) {
+    if (!provider || !['openai', 'claude'].includes(provider)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid provider. Must be one of: openai, anthropic, both',
+        error: 'Invalid provider. Must be one of: openai, claude',
         code: 'VALIDATION_ERROR'
       });
     }
     
     // Переключаем провайдера
-    aiService.switchProvider(provider);
+    claude.switchProvider(provider);
     
     // Получаем обновленную информацию
-    const providerInfo = aiService.getProviderInfo();
+    const providerInfo = claude.getProviderInfo();
     
     res.json({
       success: true,
