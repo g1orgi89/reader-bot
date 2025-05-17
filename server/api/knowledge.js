@@ -234,6 +234,90 @@ router.get('/diagnose', basicAdminAuth, async (req, res) => {
 });
 
 /**
+ * @route POST /api/knowledge/sync-vector-store
+ * @desc Синхронизация существующих документов с векторным хранилищем
+ * @access Private (Admin only)
+ */
+router.post('/sync-vector-store', basicAdminAuth, async (req, res) => {
+  try {
+    // Инициализация векторного хранилища
+    const initialized = await vectorStoreService.initialize();
+    
+    if (!initialized) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to initialize vector store',
+        errorCode: 'INITIALIZATION_ERROR'
+      });
+    }
+    
+    // Получаем все документы из MongoDB
+    const documents = await KnowledgeDocument.find({ status: 'published' }).lean();
+    
+    if (documents.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No documents to sync',
+        count: 0
+      });
+    }
+    
+    logger.info(`Found ${documents.length} documents to sync with vector store`);
+    
+    // Подготавливаем документы для векторного хранилища
+    const vectorDocs = documents.map(doc => ({
+      id: doc._id.toString(),
+      content: doc.content,
+      metadata: {
+        title: doc.title,
+        category: doc.category,
+        language: doc.language,
+        tags: doc.tags || [],
+        authorId: doc.authorId,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt
+      }
+    }));
+    
+    // Очищаем текущую коллекцию и добавляем все документы заново
+    await vectorStoreService.clearCollection();
+    logger.info('Vector collection cleared');
+    
+    // Добавляем документы пакетами по 10 штук
+    const batchSize = 10;
+    let successCount = 0;
+    
+    for (let i = 0; i < vectorDocs.length; i += batchSize) {
+      const batch = vectorDocs.slice(i, i + batchSize);
+      const added = await vectorStoreService.addDocuments(batch);
+      
+      if (added) {
+        successCount += batch.length;
+      }
+      
+      logger.info(`Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vectorDocs.length / batchSize)}`);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Vector store synchronized successfully',
+      totalDocuments: documents.length,
+      syncedDocuments: successCount
+    });
+    
+    logger.info(`Vector store synchronization completed: ${successCount}/${documents.length} documents synced`);
+  } catch (error) {
+    logger.error(`Error synchronizing vector store: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to synchronize vector store',
+      errorCode: 'SYNC_ERROR',
+      details: error.message
+    });
+  }
+});
+
+/**
  * @route GET /api/knowledge/:id
  * @desc Get a specific knowledge document
  * @access Public
