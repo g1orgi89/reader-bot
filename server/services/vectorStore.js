@@ -85,7 +85,7 @@ class VectorStoreService {
       
       // Инициализация OpenAI Embeddings
       this.embeddings = new OpenAIEmbeddings({
-        openAIApiKey: process.env.OPENAI_API_KEY,
+        apiKey: process.env.OPENAI_API_KEY,  // Исправлено: openAIApiKey -> apiKey
         model: this.embeddingModel
       });
       
@@ -112,8 +112,7 @@ class VectorStoreService {
             vectors: {
               size: this.vectorDimension,
               distance: 'Cosine'
-            },
-            on_disk_payload: true
+            }
           });
           
           // Создание индексов для фильтрации
@@ -196,16 +195,16 @@ class VectorStoreService {
           const embedding = await this._createEmbedding(doc.content);
           logger.debug(`Created embedding for document ${doc.id}, embedding size: ${embedding.length}`);
           
-          // Формирование точки для Qdrant
+          // Создаем строковый ID для документа, так как Qdrant не принимает ObjectId
+          const documentId = doc.id.toString();
+          
+          // Формирование точки для Qdrant - ИСПРАВЛЕНО: переформатирование payload
           points.push({
-            id: doc.id,
+            id: documentId,
             vector: embedding,
             payload: {
               content: doc.content,
-              metadata: {
-                ...doc.metadata,
-                updatedAt: new Date().toISOString()
-              }
+              metadata: doc.metadata || {}
             }
           });
           
@@ -218,12 +217,40 @@ class VectorStoreService {
       
       // Добавление точек в Qdrant
       if (points.length > 0) {
+        // Подробное логирование для отладки
+        logger.debug(`Point structure example: ${JSON.stringify(points[0], null, 2).substring(0, 200)}...`);
         logger.info(`Upserting ${points.length} documents to Qdrant collection ${this.collectionName}`);
-        await this.client.upsert(this.collectionName, {
-          points
-        });
-        logger.info(`Successfully added ${points.length} documents to vector store`);
-        return true;
+        
+        try {
+          await this.client.upsert(this.collectionName, {
+            points: points
+          });
+          logger.info(`Successfully added ${points.length} documents to vector store`);
+          return true;
+        } catch (upsertError) {
+          logger.error(`Upsert error: ${upsertError.message}`);
+          
+          // Попробуем добавлять документы по одному для выявления проблемного
+          let successCount = 0;
+          for (const point of points) {
+            try {
+              await this.client.upsert(this.collectionName, {
+                points: [point]
+              });
+              successCount++;
+              logger.debug(`Successfully added document ${point.id}`);
+            } catch (singleUpsertError) {
+              logger.error(`Failed to add document ${point.id}: ${singleUpsertError.message}`);
+            }
+          }
+          
+          if (successCount > 0) {
+            logger.info(`Added ${successCount}/${points.length} documents individually`);
+            return successCount > 0;
+          }
+          
+          return false;
+        }
       } else {
         logger.warn('No valid documents to add after processing');
         return false;
@@ -372,7 +399,7 @@ class VectorStoreService {
       logger.info(`Deleting document: ${documentId}`);
       
       await this.client.delete(this.collectionName, {
-        points: [documentId]
+        points: [documentId.toString()]  // Преобразуем в строку для совместимости
       });
       
       logger.info(`Document deleted: ${documentId}`);
@@ -524,6 +551,7 @@ class VectorStoreService {
     try {
       // Создание нового embedding
       logger.debug(`Generating new embedding for text (length: ${normalizedText.length})`);
+      // Используем embedQuery вместо embedDocuments
       const embedding = await this.embeddings.embedQuery(normalizedText);
       
       // Кэширование результата
