@@ -5,7 +5,7 @@
 
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
-const config = require('../config');
+const { config } = require('../config');
 
 /**
  * Authentication middleware for protecting admin routes using JWT
@@ -25,7 +25,7 @@ function authenticateToken(req, res, next) {
     });
   }
 
-  jwt.verify(token, config.JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, config.security.jwtSecret, (err, decoded) => {
     if (err) {
       logger.warn('Invalid token used', { 
         error: err.message,
@@ -68,9 +68,9 @@ function basicAdminAuth(req, res, next) {
   const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
   const [username, password] = credentials.split(':');
 
-  // Check against environment variables
-  const adminUsername = config.ADMIN_USERNAME;
-  const adminPassword = config.ADMIN_PASSWORD;
+  // ИСПРАВЛЕНО: Правильный доступ к конфигурации
+  const adminUsername = config.security.adminUsername;
+  const adminPassword = config.security.adminPassword;
 
   if (!adminUsername || !adminPassword) {
     logger.error('Admin credentials not configured in environment variables');
@@ -155,7 +155,7 @@ function authenticateApiKey(req, res, next) {
   }
 
   // Check against configured API keys
-  const validApiKeys = config.API_KEYS || [];
+  const validApiKeys = config.security.apiKeys || [];
   
   if (!validApiKeys.includes(apiKey)) {
     logger.warn('Invalid API key used', { 
