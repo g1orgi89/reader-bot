@@ -1,35 +1,42 @@
 /**
- * Сервис для взаимодействия с API Claude
+ * Сервис для взаимодействия с API Claude и другими AI провайдерами
  * @file server/services/claude.js
  */
 
 const { Anthropic } = require('@anthropic-ai/sdk');
 const logger = require('../utils/logger');
-const { CLAUDE_API_KEY } = require('../config');
+const { getAIProviderConfig } = require('../config/aiProvider');
 
 /**
- * @typedef {Object} ClaudeResponse
- * @property {string} message - Ответ от Claude
+ * @typedef {Object} AIResponse
+ * @property {string} message - Ответ от AI
  * @property {boolean} needsTicket - Нужно ли создавать тикет
  * @property {number} tokensUsed - Количество использованных токенов
+ * @property {string} provider - Название использованного провайдера
+ * @property {string} model - Название использованной модели
  */
 
 /**
- * @typedef {Object} MessageContext
- * @property {string[]} context - Контекст из базы знаний
- * @property {Object[]} history - История сообщений
- * @property {string} language - Язык общения
+ * @typedef {Object} MessageOptions
+ * @property {string[]} [context] - Контекст из базы знаний
+ * @property {Array<{role: string, content: string}>} [history] - История сообщений
+ * @property {string} [language] - Язык общения
+ * @property {string} [userId] - ID пользователя для логирования
  */
 
 /**
  * @class ClaudeService
- * @description Сервис для взаимодействия с Claude API
+ * @description Сервис для взаимодействия с Claude API и другими провайдерами AI
  */
 class ClaudeService {
   constructor() {
-    this.client = new Anthropic({
-      apiKey: CLAUDE_API_KEY,
-    });
+    // Загрузка конфигурации AI провайдеров
+    this.config = getAIProviderConfig();
+    this.provider = this.config.provider || 'claude';
+    
+    // Инициализация клиентов для разных провайдеров
+    this.clients = {};
+    this.initializeProviders();
     
     // Многоязычные системные промпты для каждого языка
     this.systemPrompts = {
@@ -41,24 +48,120 @@ class ClaudeService {
     // Кэш для частых запросов
     this.responseCache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 минут
+    
+    // Периодическая очистка кэша
+    setInterval(this.clearExpiredCache.bind(this), 15 * 60 * 1000); // Каждые 15 минут
+    
+    logger.info(`ClaudeService initialized with provider: ${this.provider}`);
+  }
+
+  /**
+   * Инициализация доступных AI провайдеров
+   * @private
+   */
+  initializeProviders() {
+    // Инициализируем Claude
+    try {
+      this.clients.claude = new Anthropic({
+        apiKey: this.config.claude.apiKey,
+      });
+      logger.info('Claude client initialized successfully');
+    } catch (error) {
+      logger.error(`Failed to initialize Claude client: ${error.message}`);
+    }
+    
+    // Инициализируем OpenAI, если настроен
+    if (this.config.openai && this.config.openai.apiKey) {
+      try {
+        const OpenAI = require('openai');
+        this.clients.openai = new OpenAI({
+          apiKey: this.config.openai.apiKey
+        });
+        logger.info('OpenAI client initialized successfully');
+      } catch (error) {
+        logger.error(`Failed to initialize OpenAI client: ${error.message}`);
+      }
+    }
+  }
+  
+  /**
+   * Переключение провайдера AI
+   * @param {string} providerName - Имя провайдера ('claude', 'openai')
+   * @returns {boolean} Успешность переключения
+   */
+  switchProvider(providerName) {
+    if (!['claude', 'openai'].includes(providerName)) {
+      logger.error(`Invalid provider name: ${providerName}`);
+      return false;
+    }
+    
+    // Проверяем, что клиент для указанного провайдера инициализирован
+    if (!this.clients[providerName]) {
+      logger.error(`Provider ${providerName} is not initialized`);
+      return false;
+    }
+    
+    this.provider = providerName;
+    logger.info(`Switched to provider: ${providerName}`);
+    return true;
+  }
+
+  /**
+   * Проверяет здоровье сервиса
+   * @returns {Promise<boolean>} Статус здоровья
+   */
+  async isHealthy() {
+    const currentProvider = this.provider;
+    const client = this.clients[currentProvider];
+    
+    if (!client) {
+      return false;
+    }
+    
+    try {
+      // Простая проверка для текущего провайдера
+      if (currentProvider === 'claude') {
+        // Простая генерация с Claude, минимизируем запрос
+        await this.clients.claude.messages.create({
+          model: this.config.claude.model,
+          max_tokens: 10,
+          messages: [
+            { role: 'user', content: 'Hello' }
+          ],
+        });
+      } else if (currentProvider === 'openai') {
+        // Простая генерация с OpenAI
+        await this.clients.openai.chat.completions.create({
+          model: this.config.openai.model,
+          messages: [
+            { role: 'user', content: 'Hello' }
+          ],
+          max_tokens: 10
+        });
+      }
+      return true;
+    } catch (error) {
+      logger.error(`Health check failed for ${currentProvider}: ${error.message}`);
+      return false;
+    }
   }
 
   /**
    * Генерирует ответ на основе сообщения и контекста
    * @param {string} message - Сообщение пользователя
-   * @param {MessageContext} options - Дополнительные опции
-   * @returns {Promise<ClaudeResponse>} Ответ от Claude
+   * @param {MessageOptions} options - Опции сообщения
+   * @returns {Promise<AIResponse>} Ответ от AI
    */
   async generateResponse(message, options = {}) {
     try {
-      const { context = [], history = [], language = 'en' } = options;
+      const { context = [], history = [], language = 'en', userId } = options;
       
       // Проверяем кэш для простых запросов
       const cacheKey = this._getCacheKey(message, language);
       if (this.responseCache.has(cacheKey)) {
         const cached = this.responseCache.get(cacheKey);
         if (Date.now() - cached.timestamp < this.cacheTimeout) {
-          logger.debug('Returning cached response');
+          logger.debug(`Returning cached response for "${message.substring(0, 20)}..."`);
           return cached.response;
         }
       }
@@ -68,41 +171,146 @@ class ClaudeService {
         return this._handleTestMessage(message, language);
       }
       
-      // Формируем сообщения для Claude
-      const messages = this._buildMessages(message, context, history, language);
-      
-      // Отправляем запрос к Claude с оптимизированными параметрами
-      const response = await this.client.messages.create({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 500,
-        temperature: 0.3,
-        messages
-      });
-      
-      const answer = response.content[0].text;
-      
-      // Определяем необходимость создания тикета
-      const needsTicket = this._analyzeTicketNeed(answer, message, language);
-      
-      const result = {
-        message: answer,
-        needsTicket,
-        tokensUsed: response.usage.input_tokens + response.usage.output_tokens
-      };
+      // Генерируем ответ в зависимости от выбранного провайдера
+      let response;
+      if (this.provider === 'claude') {
+        response = await this._generateClaudeResponse(message, { context, history, language, userId });
+      } else if (this.provider === 'openai') {
+        response = await this._generateOpenAIResponse(message, { context, history, language, userId });
+      } else {
+        throw new Error(`Unsupported AI provider: ${this.provider}`);
+      }
       
       // Кэшируем простые ответы
       if (this._isCacheable(message)) {
         this.responseCache.set(cacheKey, {
-          response: result,
+          response,
           timestamp: Date.now()
         });
       }
       
-      return result;
+      return response;
     } catch (error) {
-      logger.error(`Claude API error: ${error.message}`);
+      logger.error(`AI generation error: ${error.message}`);
       return this._getErrorResponse(error, options.language);
     }
+  }
+
+  /**
+   * Генерация ответа через Claude API
+   * @private
+   * @param {string} message - Сообщение пользователя
+   * @param {MessageOptions} options - Опции сообщения
+   * @returns {Promise<AIResponse>} Ответ от Claude
+   */
+  async _generateClaudeResponse(message, options) {
+    const { context, history, language, userId } = options;
+    
+    // Формирование сообщений для Claude
+    const messages = this._buildMessages(message, context, history, language);
+    
+    // Loggers
+    if (userId) {
+      logger.info(`Generating Claude response for user ${userId} (lang: ${language})`);
+    }
+    
+    // Отправка запроса к Claude API
+    const claudeConfig = this.config.claude;
+    const response = await this.clients.claude.messages.create({
+      model: claudeConfig.model,
+      max_tokens: claudeConfig.maxTokens,
+      temperature: claudeConfig.temperature,
+      messages
+    });
+    
+    const answer = response.content[0].text;
+    
+    // Определяем необходимость создания тикета
+    const needsTicket = this._analyzeTicketNeed(answer, message, language);
+    
+    return {
+      message: answer,
+      needsTicket,
+      tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
+      provider: 'claude',
+      model: claudeConfig.model
+    };
+  }
+
+  /**
+   * Генерация ответа через OpenAI API
+   * @private
+   * @param {string} message - Сообщение пользователя
+   * @param {MessageOptions} options - Опции сообщения
+   * @returns {Promise<AIResponse>} Ответ от OpenAI
+   */
+  async _generateOpenAIResponse(message, options) {
+    const { context, history, language, userId } = options;
+    
+    // Выбираем системный промпт в зависимости от языка
+    const systemPrompt = this.systemPrompts[language] || this.systemPrompts.en;
+    
+    // Формирование сообщений для OpenAI
+    const messages = [
+      { role: 'system', content: systemPrompt }
+    ];
+    
+    // Добавление контекста если есть
+    if (context && context.length > 0) {
+      const contextMessages = {
+        en: `Relevant information from knowledge base: ${context.slice(0, 2).join('\n\n')}`,
+        es: `Información relevante de la base de conocimientos: ${context.slice(0, 2).join('\n\n')}`,
+        ru: `Релевантная информация из базы знаний: ${context.slice(0, 2).join('\n\n')}`
+      };
+      
+      const contextMessage = contextMessages[language] || contextMessages.en;
+      messages.push({ role: 'user', content: contextMessage });
+      messages.push({ 
+        role: 'assistant', 
+        content: this._getContextAcknowledgment(language)
+      });
+    }
+    
+    // Добавление истории сообщений
+    if (history && history.length > 0) {
+      const recentHistory = history.slice(-5); // больше историй для OpenAI
+      recentHistory.forEach(msg => {
+        messages.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content || msg.text
+        });
+      });
+    }
+    
+    // Добавление текущего сообщения
+    messages.push({ role: 'user', content: message });
+    
+    // Loggers
+    if (userId) {
+      logger.info(`Generating OpenAI response for user ${userId} (lang: ${language})`);
+    }
+    
+    // Отправка запроса к OpenAI API
+    const openaiConfig = this.config.openai;
+    const response = await this.clients.openai.chat.completions.create({
+      model: openaiConfig.model,
+      messages,
+      max_tokens: openaiConfig.maxTokens,
+      temperature: openaiConfig.temperature
+    });
+    
+    const answer = response.choices[0].message.content;
+    
+    // Определяем необходимость создания тикета
+    const needsTicket = this._analyzeTicketNeed(answer, message, language);
+    
+    return {
+      message: answer,
+      needsTicket,
+      tokensUsed: response.usage.total_tokens || 0,
+      provider: 'openai',
+      model: openaiConfig.model
+    };
   }
   
   /**
@@ -111,7 +319,7 @@ class ClaudeService {
    * @returns {string} Системный промпт
    */
   _getEnglishSystemPrompt() {
-    return `You are an AI assistant for the "Shrooms" Web3 platform with a mushroom theme. Your personality is a friendly, helpful "AI mushroom with self-awareness."
+    return `You are an AI assistant for the \"Shrooms\" Web3 platform with a mushroom theme. Your personality is a friendly, helpful \"AI mushroom with self-awareness.\"
 
 # Core Guidelines:
 1. **Language**: Always respond in the user's language (English, Spanish, or Russian)
@@ -137,7 +345,7 @@ class ClaudeService {
 - Be enthusiastic but professional
 - Use mushroom metaphors sparingly (1-2 per response max)
 - Focus on being helpful rather than being quirky
-- If creating a ticket, say: "I'll create a support ticket #TICKET_ID for our team to help you"`;
+- If creating a ticket, say: \"I'll create a support ticket #TICKET_ID for our team to help you\"`;
   }
 
   /**
@@ -146,7 +354,7 @@ class ClaudeService {
    * @returns {string} Системный промпт
    */
   _getSpanishSystemPrompt() {
-    return `Eres un asistente de IA para la plataforma Web3 "Shrooms" con temática de hongos. Tu personalidad es un "hongo IA amigable con autoconsciencia."
+    return `Eres un asistente de IA para la plataforma Web3 \"Shrooms\" con temática de hongos. Tu personalidad es un \"hongo IA amigable con autoconsciencia.\"
 
 # Directrices Básicas:
 1. **Idioma**: Siempre responde en el idioma del usuario (inglés, español o ruso)
@@ -172,7 +380,7 @@ class ClaudeService {
 - Sé entusiasta pero profesional
 - Usa metáforas de hongos con moderación (máximo 1-2 por respuesta)
 - Enfócate en ser útil en lugar de ser extravagante
-- Si creas un ticket, di: "Crearé un ticket de soporte #TICKET_ID para que nuestro equipo te ayude"`;
+- Si creas un ticket, di: \"Crearé un ticket de soporte #TICKET_ID para que nuestro equipo te ayude\"`;
   }
 
   /**
@@ -181,7 +389,7 @@ class ClaudeService {
    * @returns {string} Системный промпт
    */
   _getRussianSystemPrompt() {
-    return `Ты - ИИ-помощник для Web3-платформы "Shrooms" с грибной тематикой. Твоя личность - дружелюбный "ИИ-гриб с самосознанием."
+    return `Ты - ИИ-помощник для Web3-платформы \"Shrooms\" с грибной тематикой. Твоя личность - дружелюбный \"ИИ-гриб с самосознанием.\"
 
 # Основные Принципы:
 1. **Язык**: Всегда отвечай на языке пользователя (английский, испанский или русский)
@@ -207,7 +415,7 @@ class ClaudeService {
 - Будь энтузиастичным, но профессиональным
 - Используй грибные метафоры умеренно (максимум 1-2 на ответ)
 - Сосредоточься на полезности, а не на причудливости
-- При создании тикета говори: "Я создам тикет поддержки #TICKET_ID, чтобы наша команда помогла тебе"`;
+- При создании тикета говори: \"Я создам тикет поддержки #TICKET_ID, чтобы наша команда помогла тебе\"`;
   }
   
   /**
@@ -227,7 +435,7 @@ class ClaudeService {
       { role: 'system', content: systemPrompt }
     ];
     
-    // Добавляем контекст если есть (для будущего RAG)
+    // Добавляем контекст если есть
     if (context && context.length > 0) {
       const contextMessages = {
         en: `Relevant information from knowledge base: ${context.slice(0, 2).join('\n\n')}`,
@@ -246,7 +454,7 @@ class ClaudeService {
       recentHistory.forEach(msg => {
         messages.push({
           role: msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.content
+          content: msg.content || msg.text
         });
       });
     }
@@ -297,7 +505,7 @@ class ClaudeService {
    * @private
    * @param {string} message - Сообщение
    * @param {string} language - Язык
-   * @returns {ClaudeResponse} Быстрый ответ
+   * @returns {AIResponse} Быстрый ответ
    */
   _handleTestMessage(message, language) {
     const responses = {
@@ -309,14 +517,16 @@ class ClaudeService {
     return {
       message: responses[language] || responses.en,
       needsTicket: false,
-      tokensUsed: 50
+      tokensUsed: 50,
+      provider: this.provider,
+      model: this.provider === 'claude' ? this.config.claude.model : this.config.openai.model
     };
   }
   
   /**
    * Анализирует необходимость создания тикета с учетом языка
    * @private
-   * @param {string} response - Ответ от Claude
+   * @param {string} response - Ответ от AI
    * @param {string} message - Исходное сообщение
    * @param {string} language - Язык сообщения
    * @returns {boolean} Нужно ли создавать тикет
@@ -398,7 +608,7 @@ class ClaudeService {
    * @private
    * @param {Error} error - Ошибка
    * @param {string} language - Язык
-   * @returns {ClaudeResponse} Ответ об ошибке
+   * @returns {AIResponse} Ответ об ошибке
    */
   _getErrorResponse(error, language = 'en') {
     const errorMessages = {
@@ -410,7 +620,9 @@ class ClaudeService {
     return {
       message: errorMessages[language] || errorMessages.en,
       needsTicket: true,
-      tokensUsed: 0
+      tokensUsed: 0,
+      provider: this.provider,
+      model: "error"
     };
   }
   
@@ -437,6 +649,27 @@ class ClaudeService {
       cacheSize: this.responseCache.size,
       cacheTimeout: this.cacheTimeout,
       supportedLanguages: Object.keys(this.systemPrompts)
+    };
+  }
+
+  /**
+   * Получает информацию о текущем провайдере
+   * @returns {Object} Информация о провайдере
+   */
+  getProviderInfo() {
+    return {
+      currentProvider: this.provider,
+      availableProviders: Object.keys(this.clients),
+      claude: this.clients.claude ? {
+        model: this.config.claude.model,
+        maxTokens: this.config.claude.maxTokens,
+        temperature: this.config.claude.temperature
+      } : null,
+      openai: this.clients.openai ? {
+        model: this.config.openai.model,
+        maxTokens: this.config.openai.maxTokens,
+        temperature: this.config.openai.temperature
+      } : null
     };
   }
 }
