@@ -1,1 +1,0 @@
-// This file is intentionally left empty to be removed. The functionality has been merged into claude.js
