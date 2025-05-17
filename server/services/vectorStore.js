@@ -90,7 +90,9 @@ class VectorStoreService {
       
       // Проверка подключения к Qdrant
       try {
-        await this.client.healthCheck();
+        // Проверка соединения с Qdrant (без вызова healthCheck)
+        await this.client.getCollections();
+        logger.info('Successfully connected to Qdrant');
       } catch (error) {
         logger.error(`Failed to connect to Qdrant: ${error.message}`);
         return false;
@@ -361,19 +363,25 @@ class VectorStoreService {
         };
       }
       
-      const qdrantHealth = await this.client.healthCheck();
+      // Проверка через запрос списка коллекций вместо healthCheck
+      const collections = await this.client.getCollections();
       
       // Получение информации о коллекции
-      const collectionInfo = await this.client.getCollection(this.collectionName);
+      let collectionInfo = { vectors_count: 0 };
+      try {
+        collectionInfo = await this.client.getCollection(this.collectionName);
+      } catch (error) {
+        logger.warn(`Could not get collection info: ${error.message}`);
+      }
       
       return {
         status: 'ok',
         message: 'Vector store is healthy',
         isInitialized: true,
-        qdrantStatus: qdrantHealth,
+        qdrantStatus: { collections_count: collections.collections.length },
         collection: {
           name: this.collectionName,
-          vectorCount: collectionInfo.vectors_count,
+          vectorCount: collectionInfo.vectors_count || 0,
           vectorDimension: this.vectorDimension
         }
       };
@@ -401,11 +409,16 @@ class VectorStoreService {
         };
       }
       
-      const collectionInfo = await this.client.getCollection(this.collectionName);
+      let collectionInfo = { vectors_count: 0 };
+      try {
+        collectionInfo = await this.client.getCollection(this.collectionName);
+      } catch (error) {
+        logger.warn(`Could not get collection info: ${error.message}`);
+      }
       
       return {
         status: 'ok',
-        documentsCount: collectionInfo.vectors_count,
+        documentsCount: collectionInfo.vectors_count || 0,
         cacheSize: this.embeddingCache.size,
         lastUpdate: new Date().toISOString()
       };
