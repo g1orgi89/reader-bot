@@ -4,6 +4,7 @@
  */
 
 const KnowledgeDocument = require('../models/knowledge');
+const vectorStoreService = require('./vectorStore');
 const logger = require('../utils/logger');
 
 /**
@@ -82,11 +83,38 @@ class KnowledgeService {
    */
   async addDocument(docData) {
     try {
+      // Сохраняем в MongoDB
       const document = new KnowledgeDocument(docData);
       await document.save();
 
       const result = document.toPublicJSON();
-      logger.info(`Knowledge document added: ${result.id} - "${result.title}"`);
+      logger.info(`Knowledge document added to MongoDB: ${result.id} - "${result.title}"`);
+
+      // ИСПРАВЛЕНО: Добавляем документ также в векторное хранилище
+      try {
+        // Инициализируем векторное хранилище, если не инициализировано
+        await vectorStoreService.initialize();
+        
+        // Добавляем документ в векторное хранилище
+        await vectorStoreService.addDocuments([{
+          id: result.id,
+          content: result.content,
+          metadata: {
+            title: result.title,
+            category: result.category,
+            language: result.language,
+            tags: result.tags || [],
+            authorId: result.authorId || docData.authorId,
+            createdAt: result.createdAt,
+            updatedAt: result.updatedAt
+          }
+        }]);
+        
+        logger.info(`Knowledge document added to vector store: ${result.id}`);
+      } catch (vectorError) {
+        // Если не удалось добавить в векторное хранилище, логируем ошибку, но продолжаем
+        logger.error(`Failed to add document to vector store: ${vectorError.message}`);
+      }
 
       return {
         success: true,
@@ -319,7 +347,29 @@ class KnowledgeService {
       }
 
       const result = document.toPublicJSON();
-      logger.info(`Knowledge document updated: ${documentId}`);
+      logger.info(`Knowledge document updated in MongoDB: ${documentId}`);
+
+      // ИСПРАВЛЕНО: Обновляем документ в векторном хранилище
+      try {
+        // Обновляем документ в векторном хранилище
+        await vectorStoreService.addDocuments([{
+          id: result.id,
+          content: result.content,
+          metadata: {
+            title: result.title,
+            category: result.category,
+            language: result.language,
+            tags: result.tags || [],
+            authorId: result.authorId,
+            createdAt: result.createdAt,
+            updatedAt: result.updatedAt
+          }
+        }]);
+        
+        logger.info(`Knowledge document updated in vector store: ${result.id}`);
+      } catch (vectorError) {
+        logger.error(`Failed to update document in vector store: ${vectorError.message}`);
+      }
 
       return {
         success: true,
@@ -350,7 +400,15 @@ class KnowledgeService {
         };
       }
 
-      logger.info(`Knowledge document deleted: ${documentId}`);
+      logger.info(`Knowledge document deleted from MongoDB: ${documentId}`);
+
+      // ИСПРАВЛЕНО: Удаляем документ из векторного хранилища
+      try {
+        await vectorStoreService.deleteDocument(documentId);
+        logger.info(`Knowledge document deleted from vector store: ${documentId}`);
+      } catch (vectorError) {
+        logger.error(`Failed to delete document from vector store: ${vectorError.message}`);
+      }
 
       return {
         success: true,
