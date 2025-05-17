@@ -5,8 +5,8 @@
 
 const { QdrantClient } = require("@qdrant/js-client-rest");
 const { OpenAIEmbeddings } = require("@langchain/openai");
-const { Document } = require("langchain/document");
 const logger = require('../utils/logger');
+const { createHash } = require('crypto');
 
 /**
  * @typedef {Object} DocumentMetadata
@@ -85,7 +85,7 @@ class VectorStoreService {
       
       // Инициализация OpenAI Embeddings
       this.embeddings = new OpenAIEmbeddings({
-        apiKey: process.env.OPENAI_API_KEY,  // Исправлено: openAIApiKey -> apiKey
+        apiKey: process.env.OPENAI_API_KEY,
         model: this.embeddingModel
       });
       
@@ -149,6 +149,17 @@ class VectorStoreService {
   }
 
   /**
+   * Создает уникальный числовой ID из строки
+   * @param {string} str - Строка для преобразования в числовой ID
+   * @returns {number} Числовой ID
+   */
+  _createNumericalId(str) {
+    const hash = createHash('md5').update(str).digest('hex');
+    // Берем первые 8 символов и преобразуем в число
+    return parseInt(hash.substring(0, 8), 16);
+  }
+
+  /**
    * Добавляет документы в векторную базу
    * @async
    * @param {Object[]} documents - Документы для добавления
@@ -185,30 +196,41 @@ class VectorStoreService {
             continue;
           }
           
-          // Добавляем подробное логирование для отслеживания процесса добавления
+          // Добавляем подробное логирование для отслеживания процесса
           logger.debug(`Processing document ID: ${doc.id}, content length: ${doc.content.length} characters`);
-          if (doc.metadata) {
-            logger.debug(`Document metadata: language=${doc.metadata.language}, category=${doc.metadata.category}`);
-          }
+          
+          // Создание числового ID из строкового ID (Qdrant требует уникальные числовые ID)
+          const pointId = this._createNumericalId(doc.id.toString());
           
           // Создание embedding для текста документа
           const embedding = await this._createEmbedding(doc.content);
+          
+          if (!embedding || !Array.isArray(embedding) || embedding.length !== 1536) {
+            logger.error(`Invalid embedding for document ${doc.id}: ${embedding ? 'Length: ' + embedding.length : 'null'}`);
+            continue;
+          }
+          
           logger.debug(`Created embedding for document ${doc.id}, embedding size: ${embedding.length}`);
           
-          // Создаем строковый ID для документа, так как Qdrant не принимает ObjectId
-          const documentId = doc.id.toString();
-          
-          // Формирование точки для Qdrant - ИСПРАВЛЕНО: переформатирование payload
+          // Формирование точки для Qdrant с правильной структурой
           points.push({
-            id: documentId,
+            id: pointId,
             vector: embedding,
             payload: {
               content: doc.content,
-              metadata: doc.metadata || {}
+              metadata: {
+                id: doc.id.toString(),
+                title: doc.metadata?.title || '',
+                category: doc.metadata?.category || '',
+                language: doc.metadata?.language || 'en',
+                tags: Array.isArray(doc.metadata?.tags) ? doc.metadata.tags : [],
+                createdAt: doc.metadata?.createdAt ? new Date(doc.metadata.createdAt).toISOString() : new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              }
             }
           });
           
-          logger.debug(`Successfully processed document ${doc.id}`);
+          logger.debug(`Successfully processed document ${doc.id} with point ID ${pointId}`);
         } catch (docError) {
           logger.error(`Error processing document ${doc.id}: ${docError.message}`);
           // Продолжаем с другими документами
@@ -218,10 +240,11 @@ class VectorStoreService {
       // Добавление точек в Qdrant
       if (points.length > 0) {
         // Подробное логирование для отладки
-        logger.debug(`Point structure example: ${JSON.stringify(points[0], null, 2).substring(0, 200)}...`);
+        logger.debug(`First point structure sample: ${JSON.stringify(points[0], null, 2).substring(0, 200)}...`);
         logger.info(`Upserting ${points.length} documents to Qdrant collection ${this.collectionName}`);
         
         try {
+          // Пробуем добавить все точки за один запрос
           await this.client.upsert(this.collectionName, {
             points: points
           });
@@ -230,7 +253,7 @@ class VectorStoreService {
         } catch (upsertError) {
           logger.error(`Upsert error: ${upsertError.message}`);
           
-          // Попробуем добавлять документы по одному для выявления проблемного
+          // Если пакетное добавление не удалось, добавляем точки по одной
           let successCount = 0;
           for (const point of points) {
             try {
@@ -238,7 +261,7 @@ class VectorStoreService {
                 points: [point]
               });
               successCount++;
-              logger.debug(`Successfully added document ${point.id}`);
+              logger.debug(`Successfully added document with ID ${point.id}`);
             } catch (singleUpsertError) {
               logger.error(`Failed to add document ${point.id}: ${singleUpsertError.message}`);
             }
@@ -288,7 +311,6 @@ class VectorStoreService {
         language, 
         category, 
         tags,
-        // ИЗМЕНЕНО: Снижен порог релевантности по умолчанию с 0.6 до 0.4
         score_threshold = 0.4
       } = options;
       
@@ -359,7 +381,7 @@ class VectorStoreService {
       
       // Форматирование результатов
       const results = searchResults.map(result => ({
-        id: result.id,
+        id: result.payload.metadata.id || result.id.toString(),
         content: result.payload.content,
         metadata: result.payload.metadata,
         score: result.score
@@ -398,8 +420,11 @@ class VectorStoreService {
       
       logger.info(`Deleting document: ${documentId}`);
       
+      // Преобразуем ID в числовой формат для Qdrant
+      const numericId = this._createNumericalId(documentId.toString());
+      
       await this.client.delete(this.collectionName, {
-        points: [documentId.toString()]  // Преобразуем в строку для совместимости
+        points: [numericId]
       });
       
       logger.info(`Document deleted: ${documentId}`);
@@ -551,8 +576,17 @@ class VectorStoreService {
     try {
       // Создание нового embedding
       logger.debug(`Generating new embedding for text (length: ${normalizedText.length})`);
-      // Используем embedQuery вместо embedDocuments
+      
+      // Попробуем использовать прямой вызов API OpenAI для эмбеддингов
       const embedding = await this.embeddings.embedQuery(normalizedText);
+      
+      if (!embedding || !Array.isArray(embedding)) {
+        throw new Error('Invalid embedding returned: not an array');
+      }
+      
+      if (embedding.length !== this.vectorDimension) {
+        throw new Error(`Unexpected embedding dimension: got ${embedding.length}, expected ${this.vectorDimension}`);
+      }
       
       // Кэширование результата
       if (this.embeddingCache.size >= this.maxCacheSize) {
@@ -623,7 +657,7 @@ class VectorStoreService {
       });
       
       const formattedResults = currentResults.map(result => ({
-        id: result.id,
+        id: result.payload.metadata.id || result.id.toString(),
         score: result.score,
         content: result.payload.content.substring(0, 100) + (result.payload.content.length > 100 ? '...' : ''),
         metadata: result.payload.metadata
