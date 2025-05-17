@@ -21,7 +21,7 @@ const router = express.Router();
  */
 router.post(['/', '/message'], async (req, res) => {
   try {
-    const { message, userId, conversationId, language } = req.body;
+    const { message, userId, conversationId, language, useRag = true } = req.body;
 
     // Валидация входных данных
     if (!message || !userId) {
@@ -73,15 +73,45 @@ router.post(['/', '/message'], async (req, res) => {
       await conversationService.updateLanguage(conversation._id, detectedLanguage);
     }
     
-    // Получение контекста из базы знаний (если RAG включен)
+    // Получение контекста из базы знаний (RAG включен по умолчанию, если параметр useRag не указан иначе)
     let context = [];
-    if (process.env.ENABLE_RAG === 'true') {
+    const enableRag = process.env.ENABLE_RAG !== 'false' && useRag !== false;
+    
+    if (enableRag) {
       try {
+        logger.debug(`Searching for: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}" with options: ${JSON.stringify({
+          limit: 5,
+          language: detectedLanguage,
+          score_threshold: 0.4
+        })}`);
+        
+        // Пытаемся получить релевантную информацию из векторного хранилища
         const contextResults = await vectorStoreService.search(message, {
           limit: 5,
-          language: detectedLanguage
+          language: detectedLanguage,
+          score_threshold: 0.4  // Используем стандартное значение порога
         });
-        context = contextResults.map(result => result.content);
+        
+        if (contextResults && contextResults.length > 0) {
+          context = contextResults.map(result => result.content);
+          logger.info(`Found ${context.length} relevant documents`);
+        } else {
+          // Если ничего не найдено с порогом 0.4, попробуем с более низким порогом
+          logger.debug('No documents found with threshold 0.4, trying lower threshold 0.3');
+          
+          const lowThresholdResults = await vectorStoreService.search(message, {
+            limit: 3,
+            language: detectedLanguage,
+            score_threshold: 0.3  // Более низкий порог для всесторонней проверки
+          });
+          
+          if (lowThresholdResults && lowThresholdResults.length > 0) {
+            context = lowThresholdResults.map(result => result.content);
+            logger.info(`Found ${context.length} relevant documents with lower threshold`);
+          } else {
+            logger.info('No relevant documents found for message:', `"${message.substring(0, 30)}..."`);
+          }
+        }
       } catch (error) {
         logger.warn('Failed to get context from vector store:', error.message);
         // Продолжаем без контекста
