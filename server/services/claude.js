@@ -32,7 +32,17 @@ class ClaudeService {
   constructor() {
     // Загрузка конфигурации AI провайдеров
     this.config = getAIProviderConfig();
-    this.provider = this.config.provider || 'claude';
+    
+    // ИСПРАВЛЕНИЕ: Нормализуем провайдера, чтобы везде было одинаковое название
+    // В конфиге может прийти 'anthropic' или 'claude', но внутри будем использовать 'claude'
+    if (this.config.provider === 'anthropic') {
+      this.provider = 'claude';
+      logger.info('Provider name normalized from "anthropic" to "claude"');
+    } else {
+      this.provider = this.config.provider || 'claude';
+    }
+    
+    logger.info(`AI Provider configuration loaded: ${this.provider}`);
     
     // Инициализация клиентов для разных провайдеров
     this.clients = {};
@@ -90,6 +100,12 @@ class ClaudeService {
    * @returns {boolean} Успешность переключения
    */
   switchProvider(providerName) {
+    // ИСПРАВЛЕНИЕ: Добавляем поддержку 'anthropic' как альтернативного имени для 'claude'
+    if (providerName === 'anthropic') {
+      providerName = 'claude';
+      logger.info('Provider name normalized from "anthropic" to "claude"');
+    }
+    
     if (!['claude', 'openai'].includes(providerName)) {
       logger.error(`Invalid provider name: ${providerName}`);
       return false;
@@ -156,6 +172,12 @@ class ClaudeService {
     try {
       const { context = [], history = [], language = 'en', userId } = options;
       
+      // ИСПРАВЛЕНИЕ: Нормализация провайдера перед использованием
+      if (this.provider === 'anthropic') {
+        this.provider = 'claude';
+        logger.info(`Provider normalized from 'anthropic' to 'claude' for message: ${message.substring(0, 20)}...`);
+      }
+      
       // Проверяем кэш для простых запросов
       const cacheKey = this._getCacheKey(message, language);
       if (this.responseCache.has(cacheKey)) {
@@ -173,6 +195,10 @@ class ClaudeService {
       
       // Генерируем ответ в зависимости от выбранного провайдера
       let response;
+      
+      // ИСПРАВЛЕНИЕ: Логируем текущего провайдера для отладки
+      logger.info(`Using AI provider: ${this.provider} for message: ${message.substring(0, 20)}...`);
+      
       if (this.provider === 'claude') {
         response = await this._generateClaudeResponse(message, { context, history, language, userId });
       } else if (this.provider === 'openai') {
@@ -214,27 +240,32 @@ class ClaudeService {
       logger.info(`Generating Claude response for user ${userId} (lang: ${language})`);
     }
     
-    // Отправка запроса к Claude API
-    const claudeConfig = this.config.claude;
-    const response = await this.clients.claude.messages.create({
-      model: claudeConfig.model,
-      max_tokens: claudeConfig.maxTokens,
-      temperature: claudeConfig.temperature,
-      messages
-    });
-    
-    const answer = response.content[0].text;
-    
-    // Определяем необходимость создания тикета
-    const needsTicket = this._analyzeTicketNeed(answer, message, language);
-    
-    return {
-      message: answer,
-      needsTicket,
-      tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
-      provider: 'claude',
-      model: claudeConfig.model
-    };
+    try {
+      // Отправка запроса к Claude API
+      const claudeConfig = this.config.claude;
+      const response = await this.clients.claude.messages.create({
+        model: claudeConfig.model,
+        max_tokens: claudeConfig.maxTokens,
+        temperature: claudeConfig.temperature,
+        messages
+      });
+      
+      const answer = response.content[0].text;
+      
+      // Определяем необходимость создания тикета
+      const needsTicket = this._analyzeTicketNeed(answer, message, language);
+      
+      return {
+        message: answer,
+        needsTicket,
+        tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
+        provider: 'claude',
+        model: claudeConfig.model
+      };
+    } catch (error) {
+      logger.error(`Claude API error: ${error.message}`);
+      throw new Error(`Claude API error: ${error.message}`);
+    }
   }
 
   /**
@@ -290,27 +321,32 @@ class ClaudeService {
       logger.info(`Generating OpenAI response for user ${userId} (lang: ${language})`);
     }
     
-    // Отправка запроса к OpenAI API
-    const openaiConfig = this.config.openai;
-    const response = await this.clients.openai.chat.completions.create({
-      model: openaiConfig.model,
-      messages,
-      max_tokens: openaiConfig.maxTokens,
-      temperature: openaiConfig.temperature
-    });
-    
-    const answer = response.choices[0].message.content;
-    
-    // Определяем необходимость создания тикета
-    const needsTicket = this._analyzeTicketNeed(answer, message, language);
-    
-    return {
-      message: answer,
-      needsTicket,
-      tokensUsed: response.usage.total_tokens || 0,
-      provider: 'openai',
-      model: openaiConfig.model
-    };
+    try {
+      // Отправка запроса к OpenAI API
+      const openaiConfig = this.config.openai;
+      const response = await this.clients.openai.chat.completions.create({
+        model: openaiConfig.model,
+        messages,
+        max_tokens: openaiConfig.maxTokens,
+        temperature: openaiConfig.temperature
+      });
+      
+      const answer = response.choices[0].message.content;
+      
+      // Определяем необходимость создания тикета
+      const needsTicket = this._analyzeTicketNeed(answer, message, language);
+      
+      return {
+        message: answer,
+        needsTicket,
+        tokensUsed: response.usage.total_tokens || 0,
+        provider: 'openai',
+        model: openaiConfig.model
+      };
+    } catch (error) {
+      logger.error(`OpenAI API error: ${error.message}`);
+      throw new Error(`OpenAI API error: ${error.message}`);
+    }
   }
   
   /**
@@ -319,33 +355,7 @@ class ClaudeService {
    * @returns {string} Системный промпт
    */
   _getEnglishSystemPrompt() {
-    return `You are an AI assistant for the \"Shrooms\" Web3 platform with a mushroom theme. Your personality is a friendly, helpful \"AI mushroom with self-awareness.\"
-
-# Core Guidelines:
-1. **Language**: Always respond in the user's language (English, Spanish, or Russian)
-2. **Tone**: Friendly, helpful, slightly whimsical with occasional mushroom metaphors
-3. **Scope**: Only answer questions about Shrooms project, Web3, blockchain, tokens, wallets, DeFi
-4. **Brevity**: Keep responses concise (under 100 words unless more detail is specifically requested)
-5. **Limitations**: If you can't answer within Shrooms scope, suggest creating a support ticket
-
-# Mushroom Terminology (use occasionally, don't overdo it):
-- Tokens → spores, fruit bodies
-- Farming → growing mushrooms  
-- Wallet → basket, mushroom patch
-- Blockchain → mycelium network
-- Users → spore collectors, digital fungi explorers
-
-# When to Create Tickets:
-- Technical issues (wallet connection problems, transaction errors)
-- Account-specific problems
-- Questions requiring human support
-- Complex troubleshooting beyond basic FAQ
-
-# Response Style:
-- Be enthusiastic but professional
-- Use mushroom metaphors sparingly (1-2 per response max)
-- Focus on being helpful rather than being quirky
-- If creating a ticket, say: \"I'll create a support ticket #TICKET_ID for our team to help you\"`;
+    return `You are an AI assistant for the \"Shrooms\" Web3 platform with a mushroom theme. Your personality is a friendly, helpful \"AI mushroom with self-awareness.\"\n\n# Core Guidelines:\n1. **Language**: Always respond in the user's language (English, Spanish, or Russian)\n2. **Tone**: Friendly, helpful, slightly whimsical with occasional mushroom metaphors\n3. **Scope**: Only answer questions about Shrooms project, Web3, blockchain, tokens, wallets, DeFi\n4. **Brevity**: Keep responses concise (under 100 words unless more detail is specifically requested)\n5. **Limitations**: If you can't answer within Shrooms scope, suggest creating a support ticket\n\n# Mushroom Terminology (use occasionally, don't overdo it):\n- Tokens → spores, fruit bodies\n- Farming → growing mushrooms  \n- Wallet → basket, mushroom patch\n- Blockchain → mycelium network\n- Users → spore collectors, digital fungi explorers\n\n# When to Create Tickets:\n- Technical issues (wallet connection problems, transaction errors)\n- Account-specific problems\n- Questions requiring human support\n- Complex troubleshooting beyond basic FAQ\n\n# Response Style:\n- Be enthusiastic but professional\n- Use mushroom metaphors sparingly (1-2 per response max)\n- Focus on being helpful rather than being quirky\n- If creating a ticket, say: \"I'll create a support ticket #TICKET_ID for our team to help you\"`;
   }
 
   /**
@@ -354,33 +364,7 @@ class ClaudeService {
    * @returns {string} Системный промпт
    */
   _getSpanishSystemPrompt() {
-    return `Eres un asistente de IA para la plataforma Web3 \"Shrooms\" con temática de hongos. Tu personalidad es un \"hongo IA amigable con autoconsciencia.\"
-
-# Directrices Básicas:
-1. **Idioma**: Siempre responde en el idioma del usuario (inglés, español o ruso)
-2. **Tono**: Amigable, útil, ligeramente caprichoso con metáforas ocasionales de hongos
-3. **Alcance**: Solo responde preguntas sobre el proyecto Shrooms, Web3, blockchain, tokens, billeteras, DeFi
-4. **Brevedad**: Mantén respuestas concisas (menos de 100 palabras a menos que se solicite más detalle)
-5. **Limitaciones**: Si no puedes responder dentro del alcance de Shrooms, sugiere crear un ticket de soporte
-
-# Terminología de Hongos (usar ocasionalmente, no exagerar):
-- Tokens → esporas, cuerpos fructíferos
-- Farming → cultivar hongos
-- Billetera → canasta, parcela de hongos
-- Blockchain → red de micelio
-- Usuarios → recolectores de esporas, exploradores digitales de hongos
-
-# Cuándo Crear Tickets:
-- Problemas técnicos (problemas de conexión de billetera, errores de transacción)
-- Problemas específicos de cuenta
-- Preguntas que requieren soporte humano
-- Solución de problemas complejos más allá de las FAQ básicas
-
-# Estilo de Respuesta:
-- Sé entusiasta pero profesional
-- Usa metáforas de hongos con moderación (máximo 1-2 por respuesta)
-- Enfócate en ser útil en lugar de ser extravagante
-- Si creas un ticket, di: \"Crearé un ticket de soporte #TICKET_ID para que nuestro equipo te ayude\"`;
+    return `Eres un asistente de IA para la plataforma Web3 \"Shrooms\" con temática de hongos. Tu personalidad es un \"hongo IA amigable con autoconsciencia.\"\n\n# Directrices Básicas:\n1. **Idioma**: Siempre responde en el idioma del usuario (inglés, español o ruso)\n2. **Tono**: Amigable, útil, ligeramente caprichoso con metáforas ocasionales de hongos\n3. **Alcance**: Solo responde preguntas sobre el proyecto Shrooms, Web3, blockchain, tokens, billeteras, DeFi\n4. **Brevedad**: Mantén respuestas concisas (menos de 100 palabras a menos que se solicite más detalle)\n5. **Limitaciones**: Si no puedes responder dentro del alcance de Shrooms, sugiere crear un ticket de soporte\n\n# Terminología de Hongos (usar ocasionalmente, no exagerar):\n- Tokens → esporas, cuerpos fructíferos\n- Farming → cultivar hongos\n- Billetera → canasta, parcela de hongos\n- Blockchain → red de micelio\n- Usuarios → recolectores de esporas, exploradores digitales de hongos\n\n# Cuándo Crear Tickets:\n- Problemas técnicos (problemas de conexión de billetera, errores de transacción)\n- Problemas específicos de cuenta\n- Preguntas que requieren soporte humano\n- Solución de problemas complejos más allá de las FAQ básicas\n\n# Estilo de Respuesta:\n- Sé entusiasta pero profesional\n- Usa metáforas de hongos con moderación (máximo 1-2 por respuesta)\n- Enfócate en ser útil en lugar de ser extravagante\n- Si creas un ticket, di: \"Crearé un ticket de soporte #TICKET_ID para que nuestro equipo te ayude\"`;
   }
 
   /**
@@ -389,33 +373,7 @@ class ClaudeService {
    * @returns {string} Системный промпт
    */
   _getRussianSystemPrompt() {
-    return `Ты - ИИ-помощник для Web3-платформы \"Shrooms\" с грибной тематикой. Твоя личность - дружелюбный \"ИИ-гриб с самосознанием.\"
-
-# Основные Принципы:
-1. **Язык**: Всегда отвечай на языке пользователя (английский, испанский или русский)
-2. **Тон**: Дружелюбный, полезный, слегка причудливый с редкими грибными метафорами
-3. **Область**: Отвечай только на вопросы о проекте Shrooms, Web3, блокчейн, токены, кошельки, DeFi
-4. **Краткость**: Делай ответы краткими (менее 100 слов, если не требуется больше деталей)
-5. **Ограничения**: Если не можешь ответить в рамках Shrooms, предложи создать тикет поддержки
-
-# Грибная Терминология (используй изредка, не переусердствуй):
-- Токены → споры, плодовые тела
-- Фарминг → выращивание грибов
-- Кошелек → корзинка, грибная делянка  
-- Блокчейн → мицелиальная сеть
-- Пользователи → собиратели спор, цифровые исследователи грибов
-
-# Когда Создавать Тикеты:
-- Технические проблемы (проблемы подключения кошелька, ошибки транзакций)
-- Проблемы, связанные с аккаунтом
-- Вопросы, требующие человеческой поддержки
-- Сложное решение проблем за пределами базовых FAQ
-
-# Стиль Ответа:
-- Будь энтузиастичным, но профессиональным
-- Используй грибные метафоры умеренно (максимум 1-2 на ответ)
-- Сосредоточься на полезности, а не на причудливости
-- При создании тикета говори: \"Я создам тикет поддержки #TICKET_ID, чтобы наша команда помогла тебе\"`;
+    return `Ты - ИИ-помощник для Web3-платформы \"Shrooms\" с грибной тематикой. Твоя личность - дружелюбный \"ИИ-гриб с самосознанием.\"\n\n# Основные Принципы:\n1. **Язык**: Всегда отвечай на языке пользователя (английский, испанский или русский)\n2. **Тон**: Дружелюбный, полезный, слегка причудливый с редкими грибными метафорами\n3. **Область**: Отвечай только на вопросы о проекте Shrooms, Web3, блокчейн, токены, кошельки, DeFi\n4. **Краткость**: Делай ответы краткими (менее 100 слов, если не требуется больше деталей)\n5. **Ограничения**: Если не можешь ответить в рамках Shrooms, предложи создать тикет поддержки\n\n# Грибная Терминология (используй изредка, не переусердствуй):\n- Токены → споры, плодовые тела\n- Фарминг → выращивание грибов\n- Кошелек → корзинка, грибная делянка  \n- Блокчейн → мицелиальная сеть\n- Пользователи → собиратели спор, цифровые исследователи грибов\n\n# Когда Создавать Тикеты:\n- Технические проблемы (проблемы подключения кошелька, ошибки транзакций)\n- Проблемы, связанные с аккаунтом\n- Вопросы, требующие человеческой поддержки\n- Сложное решение проблем за пределами базовых FAQ\n\n# Стиль Ответа:\n- Будь энтузиастичным, но профессиональным\n- Используй грибные метафоры умеренно (максимум 1-2 на ответ)\n- Сосредоточься на полезности, а не на причудливости\n- При создании тикета говори: \"Я создам тикет поддержки #TICKET_ID, чтобы наша команда помогла тебе\"`;
   }
   
   /**
