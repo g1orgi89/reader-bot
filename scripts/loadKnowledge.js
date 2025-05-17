@@ -1,232 +1,406 @@
 /**
- * @file Типизированный скрипт для загрузки базы знаний (продолжение)
- * @description Продолжение файла с созданием примеров и основной функцией
+ * Скрипт для загрузки документов в векторную базу знаний
+ * @file scripts/loadKnowledge.js
  */
 
-  const faqPath = path.join(loader.baseKnowledgePath, 'troubleshooting', 'en', 'faq.md');
-  await fs.writeFile(faqPath, faqContent, 'utf8');
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const vectorStoreService = require('../server/services/vectorStore');
+const logger = require('../server/utils/logger');
+
+// Константы
+const KNOWLEDGE_DIR = path.join(__dirname, '../knowledge');
+const SUPPORTED_EXTENSIONS = ['.md', '.txt'];
+const SUPPORTED_LANGUAGES = ['en', 'es', 'ru'];
+
+/**
+ * Получает язык из пути к файлу или его имени
+ * @param {string} filePath - Путь к файлу
+ * @returns {string} Код языка (en, es, ru)
+ */
+function detectLanguageFromPath(filePath) {
+  // Язык из пути к файлу
+  if (filePath.includes('/ru/') || filePath.includes('\\ru\\')) return 'ru';
+  if (filePath.includes('/es/') || filePath.includes('\\es\\')) return 'es';
   
-  // Создание технической документации
-  const technicalDocContent = `---
-title: Technical Documentation
-tags: [api, development, smart-contracts]
-language: en
-category: technical
-version: 1.0
----
-
-# Technical Documentation
-
-## Smart Contract Architecture
-
-The SHROOMS project is built on the Stacks blockchain using Clarity smart contracts.
-
-### Main Contracts
-
-- **SHROOMS Token Contract**: Implements SIP-010 fungible token standard
-- **Farming Contract**: Manages liquidity farming pools
-- **Staking Contract**: Handles token staking mechanisms
-
-## API Endpoints
-
-### Authentication
-
-All authenticated endpoints require a valid Stacks wallet signature.
-
-\`\`\`
-POST /api/auth/connect
-Content-Type: application/json
-
-{
-  "walletAddress": "ST...",
-  "signature": "...",
-  "message": "..."
-}
-\`\`\`
-
-### Token Information
-
-\`\`\`
-GET /api/token/balance/:address
-\`\`\`
-
-Returns the SHROOMS token balance for the specified address.
-
-## Development Setup
-
-1. Install dependencies:
-   \`\`\`bash
-   npm install
-   \`\`\`
-
-2. Set up environment variables:
-   \`\`\`
-   STACKS_NETWORK=testnet
-   \`\`\`
-
-3. Deploy contracts:
-   \`\`\`bash
-   npm run deploy:contracts
-   \`\`\`
-
-#development #api #smart-contracts #stacks
-`;
+  // Язык из имени файла
+  const fileName = path.basename(filePath, path.extname(filePath));
+  if (fileName.endsWith('_ru') || fileName.endsWith('-ru')) return 'ru';
+  if (fileName.endsWith('_es') || fileName.endsWith('-es')) return 'es';
   
-  const techPath = path.join(loader.baseKnowledgePath, 'technical', 'api-documentation.md');
-  await fs.writeFile(techPath, technicalDocContent, 'utf8');
-  
-  // Создание документа о токеномике
-  const tokenomicsContent = `---
-title: Токеномика SHROOMS
-tags: [токены, распределение, экономика]
-language: ru
-category: tokenomics
----
-
-# Токеномика SHROOMS
-
-## Обзор токена
-
-SHROOMS - основной токен экосистемы проекта:
-
-- **Общее предложение**: 100,000,000 SHROOMS
-- **Стандарт**: SIP-010 (Stacks)
-- **Десятичные знаки**: 6
-
-## Распределение токенов
-
-| Категория | Процент | Количество | График разблокировки |
-|-----------|---------|------------|---------------------|
-| Фарминг и стейкинг | 40% | 40,000,000 | 4 года |
-| Команда | 25% | 25,000,000 | 3 года, ежемесячная разблокировка |
-| Инвесторы | 20% | 20,000,000 | 2 года, ежеквартальная разблокировка |
-| Маркетинг | 15% | 15,000,000 | По мере необходимости |
-
-## Механизмы фарминга
-
-### Пулы ликвидности
-
-1. **STX-SHROOMS**: Основной пул (60% от вознаграждений)
-2. **BTC-SHROOMS**: Специальный пул (40% от вознаграждений)
-
-### Доходность
-
-- Текущая APY: ~12.5%
-- Обновляется ежедневно
-- Зависит от общей ликвидности
-
-## Стейкинг
-
-### Варианты стейкинга
-
-- Гибкий: ~5% APY
-- 30 дней: ~8% APY
-- 90 дней: ~15% APY
-
-### Бонусы
-
-- Голосование в DAO
-- Приоритетный доступ к NFT
-- Скидки на комиссии
-
-#токеномика #farming #staking #shrooms
-`;
-  
-  const tokenomicsPath = path.join(loader.baseKnowledgePath, 'tokenomics', 'ru', 'overview.md');
-  await fs.writeFile(tokenomicsPath, tokenomicsContent, 'utf8');
-  
-  logger.info('Example documents created successfully');
+  // По умолчанию английский
+  return 'en';
 }
 
 /**
- * Главная функция скрипта
+ * Получает категорию из пути к файлу
+ * @param {string} filePath - Путь к файлу
+ * @returns {string} Категория документа
+ */
+function getCategoryFromPath(filePath) {
+  // Получаем директорию, в которой находится файл
+  const relativePath = path.relative(KNOWLEDGE_DIR, filePath);
+  const directory = path.dirname(relativePath).split(path.sep)[0];
+  
+  // Если файл находится в корневой директории, используем имя файла как категорию
+  if (directory === '.') {
+    return 'general';
+  }
+  
+  return directory;
+}
+
+/**
+ * Получает теги из содержимого файла
+ * @param {string} content - Содержимое файла
+ * @returns {string[]} Массив тегов
+ */
+function extractTagsFromContent(content) {
+  const tags = [];
+  
+  // Ищем теги в формате "tags: [tag1, tag2, ...]" или "tags: tag1, tag2, ..."
+  const tagsMatch = content.match(/tags:\s*\[([^\]]+)\]/) || content.match(/tags:\s*([^\n]+)/);
+  
+  if (tagsMatch && tagsMatch[1]) {
+    const tagsList = tagsMatch[1].split(',').map(tag => tag.trim()).filter(Boolean);
+    tags.push(...tagsList);
+  }
+  
+  // Ищем заголовки и ключевые слова для дополнительных тегов
+  const headings = content.match(/#{1,3}\s+([^\n]+)/g) || [];
+  for (const heading of headings) {
+    const headingText = heading.replace(/^#{1,3}\s+/, '').trim();
+    // Добавляем только короткие заголовки как теги
+    if (headingText.length < 30) {
+      tags.push(headingText.toLowerCase());
+    }
+  }
+  
+  // Удаляем дубликаты и возвращаем уникальные теги
+  return [...new Set(tags)];
+}
+
+/**
+ * Получает заголовок из содержимого файла
+ * @param {string} content - Содержимое файла
+ * @param {string} filePath - Путь к файлу (для запасного варианта)
+ * @returns {string} Заголовок документа
+ */
+function extractTitleFromContent(content, filePath) {
+  // Пытаемся найти заголовок в формате # Заголовок
+  const titleMatch = content.match(/^#\s+([^\n]+)/);
+  
+  if (titleMatch && titleMatch[1]) {
+    return titleMatch[1].trim();
+  }
+  
+  // Запасной вариант: используем имя файла без расширения
+  return path.basename(filePath, path.extname(filePath))
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+/**
+ * Читает файл и возвращает его содержимое
+ * @param {string} filePath - Путь к файлу
+ * @returns {Promise<string>} Содержимое файла
+ */
+async function readFile(filePath) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, 'utf8', (err, data) => {
+      if (err) reject(err);
+      else resolve(data);
+    });
+  });
+}
+
+/**
+ * Разбивает содержимое файла на чанки для лучшего поиска
+ * @param {string} content - Содержимое файла
+ * @param {number} chunkSize - Размер чанка в символах
+ * @param {number} chunkOverlap - Размер перекрытия между чанками
+ * @returns {string[]} Массив чанков
+ */
+function splitContentIntoChunks(content, chunkSize = 1000, chunkOverlap = 200) {
+  // Если содержимое меньше размера чанка, возвращаем его целиком
+  if (content.length <= chunkSize) {
+    return [content];
+  }
+  
+  const chunks = [];
+  let startIndex = 0;
+  
+  while (startIndex < content.length) {
+    // Определяем конец чанка
+    let endIndex = startIndex + chunkSize;
+    
+    // Если не дошли до конца текста, ищем ближайшую границу предложения
+    if (endIndex < content.length) {
+      // Ищем точку, вопросительный или восклицательный знак с пробелом после
+      const sentenceEndMatch = content.substring(endIndex - 100, endIndex + 100).match(/[.!?]\s/);
+      if (sentenceEndMatch) {
+        // Корректируем индекс с учетом относительной позиции найденного совпадения
+        endIndex = endIndex - 100 + sentenceEndMatch.index + 2; // +2 для включения знака и пробела
+      }
+    } else {
+      endIndex = content.length;
+    }
+    
+    // Добавляем чанк
+    chunks.push(content.substring(startIndex, endIndex));
+    
+    // Обновляем начальный индекс с учетом перекрытия
+    startIndex = endIndex - chunkOverlap;
+    
+    // Если перекрытие делает следующий чанк слишком маленьким, просто заканчиваем
+    if (startIndex + chunkSize - chunkOverlap >= content.length) {
+      // Добавляем последний фрагмент, если он еще не добавлен
+      if (endIndex < content.length) {
+        chunks.push(content.substring(startIndex));
+      }
+      break;
+    }
+  }
+  
+  return chunks;
+}
+
+/**
+ * Загружает все документы из директории в Qdrant
+ * @param {string} directory - Директория для сканирования
+ * @param {Object} options - Опции загрузки
+ * @param {boolean} options.clearFirst - Очистить коллекцию перед загрузкой
+ * @param {number} options.chunkSize - Размер чанка в символах
+ * @param {number} options.chunkOverlap - Размер перекрытия между чанками
+ * @returns {Promise<number>} Количество загруженных документов
+ */
+async function loadDocumentsFromDirectory(directory, options = {}) {
+  try {
+    const { clearFirst = false, chunkSize = 1000, chunkOverlap = 200 } = options;
+    
+    logger.info(`Loading documents from: ${directory}`);
+    
+    // Проверка существования директории
+    if (!fs.existsSync(directory)) {
+      logger.error(`Directory not found: ${directory}`);
+      return 0;
+    }
+    
+    // Инициализация векторной базы
+    const initialized = await vectorStoreService.initialize();
+    if (!initialized) {
+      logger.error('Failed to initialize vector store');
+      return 0;
+    }
+    
+    // Очистка коллекции, если требуется
+    if (clearFirst) {
+      logger.warn('Clearing vector store collection before loading documents');
+      await vectorStoreService.clearCollection();
+    }
+    
+    // Рекурсивное сканирование директории
+    const documents = [];
+    
+    async function scanDirectory(dir) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        
+        if (entry.isDirectory()) {
+          // Рекурсивно сканируем вложенные директории
+          await scanDirectory(fullPath);
+        } else if (entry.isFile() && SUPPORTED_EXTENSIONS.includes(path.extname(entry.name).toLowerCase())) {
+          // Загружаем поддерживаемые файлы
+          try {
+            const content = await readFile(fullPath);
+            
+            // Извлекаем метаданные из файла и пути
+            const language = detectLanguageFromPath(fullPath);
+            const category = getCategoryFromPath(fullPath);
+            const title = extractTitleFromContent(content, fullPath);
+            const tags = extractTagsFromContent(content);
+            
+            // Разбиваем содержимое на чанки
+            const chunks = splitContentIntoChunks(content, chunkSize, chunkOverlap);
+            
+            // Добавляем каждый чанк как отдельный документ
+            chunks.forEach((chunk, index) => {
+              // Создаем уникальный ID для документа
+              const id = uuidv4();
+              
+              // Собираем метаданные для чанка
+              const chunkTitle = chunks.length > 1 
+                ? `${title} (часть ${index + 1}/${chunks.length})` 
+                : title;
+              
+              documents.push({
+                id,
+                content: chunk,
+                metadata: {
+                  id,
+                  title: chunkTitle,
+                  originalTitle: title,
+                  chunkIndex: index,
+                  totalChunks: chunks.length,
+                  category,
+                  language,
+                  tags,
+                  source: fullPath,
+                  createdAt: new Date().toISOString()
+                }
+              });
+            });
+            
+            logger.info(`Processed document: ${title} (${language}, ${category}) - ${chunks.length} chunks`);
+          } catch (error) {
+            logger.error(`Error processing file ${fullPath}: ${error.message}`);
+          }
+        }
+      }
+    }
+    
+    // Начинаем сканирование
+    await scanDirectory(directory);
+    
+    // Загружаем документы в Qdrant (партиями по 50)
+    if (documents.length > 0) {
+      const batchSize = 50;
+      const batches = Math.ceil(documents.length / batchSize);
+      
+      for (let i = 0; i < batches; i++) {
+        const start = i * batchSize;
+        const end = Math.min(start + batchSize, documents.length);
+        const batch = documents.slice(start, end);
+        
+        logger.info(`Uploading batch ${i + 1}/${batches} (${batch.length} documents)`);
+        
+        await vectorStoreService.addDocuments(batch);
+      }
+      
+      logger.info(`Successfully loaded ${documents.length} document chunks into Qdrant`);
+    } else {
+      logger.warn('No documents found for loading');
+    }
+    
+    return documents.length;
+  } catch (error) {
+    logger.error(`Error loading documents: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Тестирует поиск в векторной базе
+ * @param {string[]} queries - Тестовые запросы
  * @returns {Promise<void>}
+ */
+async function testSearch(queries = []) {
+  if (!queries || queries.length === 0) {
+    // Примеры запросов для тестирования на разных языках
+    queries = [
+      { query: 'How to connect a wallet', language: 'en' },
+      { query: 'What is the SHROOMS token', language: 'en' },
+      { query: 'Как подключить кошелек', language: 'ru' },
+      { query: '¿Qué es el token SHROOMS?', language: 'es' }
+    ];
+  }
+  
+  logger.info('Running test searches...');
+  
+  for (const test of queries) {
+    try {
+      const results = await vectorStoreService.search(test.query, { 
+        limit: 3, 
+        language: test.language
+      });
+      
+      logger.info(`Test query: "${test.query}" (${test.language})`);
+      logger.info(`Found ${results.length} results`);
+      
+      if (results.length > 0) {
+        logger.info(`Top result: ${results[0].metadata.title} (score: ${results[0].score.toFixed(2)})`);
+        // Показываем короткий фрагмент содержимого
+        const contentPreview = results[0].content.length > 100 
+          ? results[0].content.substring(0, 100) + '...' 
+          : results[0].content;
+        logger.info(`Content preview: ${contentPreview}`);
+      }
+    } catch (error) {
+      logger.error(`Test search failed: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Основная функция
  */
 async function main() {
   try {
-    // Проверка переменных окружения с типизацией
-    const requiredEnvVars = [
-      'VECTOR_DB_URL',
-      'VECTOR_DB_TYPE'
-    ];
+    // Разбор аргументов командной строки
+    const args = process.argv.slice(2);
+    const clearFlag = args.includes('--clear');
+    const testFlag = args.includes('--test');
+    const verboseFlag = args.includes('--verbose');
     
-    for (const envVar of requiredEnvVars) {
-      if (!process.env[envVar]) {
-        throw new Error(`Missing required environment variable: ${envVar}`);
-      }
+    // Получаем директорию базы знаний
+    let knowledgeDir = KNOWLEDGE_DIR;
+    const dirIndex = args.findIndex(arg => arg === '--dir');
+    if (dirIndex !== -1 && args.length > dirIndex + 1) {
+      knowledgeDir = args[dirIndex + 1];
     }
     
-    // Проверка API ключей для embeddings
-    const embeddingProviders = ['VOYAGE_API_KEY', 'OPENAI_API_KEY', 'COHERE_API_KEY'];
-    const hasApiKey = embeddingProviders.some(key => process.env[key]);
-    
-    if (!hasApiKey) {
-      throw new Error(`At least one embedding provider API key is required: ${embeddingProviders.join(', ')}`);
-    }
-    
-    // Создание экземпляра загрузчика с типизацией
-    const config = {
-      maxConcurrency: parseInt(process.env.MAX_CONCURRENCY) || os.cpus().length,
-      processingOptions: {
-        chunkSize: parseInt(process.env.CHUNK_SIZE) || 1000,
-        chunkOverlap: parseInt(process.env.CHUNK_OVERLAP) || 200,
-        splitter: process.env.SPLITTER || 'recursive'
-      }
-    };
-    
-    const loader = new TypedKnowledgeLoader(config);
-    
-    // Проверка и создание примеров (если нужно)
-    try {
-      await fs.access(loader.baseKnowledgePath);
-      const files = await fs.readdir(loader.baseKnowledgePath);
-      if (files.length === 0 || (files.length === 1 && files[0] === '.gitkeep')) {
-        logger.info('Knowledge directory is empty. Creating examples...');
-        await createExampleDocuments();
-      }
-    } catch (error) {
-      logger.info('Creating initial directory structure and examples...');
-      await createExampleDocuments();
-    }
-    
-    // Запуск процесса загрузки с типизированным результатом
-    const stats = await loader.loadKnowledgeBase();
-    
-    // Проверка результатов
-    if (stats.errors.length > 0) {
-      logger.warn(`Completed with ${stats.errors.length} errors`);
+    // Проверка наличия директории с базой знаний
+    if (!fs.existsSync(knowledgeDir)) {
+      logger.error(`Knowledge directory not found: ${knowledgeDir}`);
       process.exit(1);
     }
     
-    logger.info('Knowledge base loading completed successfully!');
+    console.log(`Starting knowledge base loading from: ${knowledgeDir}`);
+    console.log(`Clear existing data: ${clearFlag}`);
+    
+    // Загрузка документов
+    const count = await loadDocumentsFromDirectory(knowledgeDir, {
+      clearFirst: clearFlag,
+      chunkSize: 1000,
+      chunkOverlap: 200
+    });
+    
+    console.log(`Knowledge base loading completed. Total document chunks: ${count}`);
+    
+    // Тестирование поиска
+    if (testFlag && count > 0) {
+      console.log('Running test searches...');
+      await testSearch();
+    }
+    
+    if (verboseFlag) {
+      // Показываем статистику по векторной базе
+      const stats = await vectorStoreService.getStats();
+      console.log('Vector store statistics:');
+      console.log(JSON.stringify(stats, null, 2));
+    }
+    
     process.exit(0);
   } catch (error) {
-    logger.error(`Script failed: ${error.message}`);
-    if (error.stack) {
-      logger.error(error.stack);
-    }
+    console.error(`Failed to load knowledge base: ${error.message}`);
     process.exit(1);
   }
 }
 
-// Обработка сигналов для graceful shutdown
-process.on('SIGINT', () => {
-  logger.info('Received SIGINT. Shutting down gracefully...');
-  process.exit(1);
-});
-
-process.on('SIGTERM', () => {
-  logger.info('Received SIGTERM. Shutting down gracefully...');
-  process.exit(1);
-});
-
-// Запуск скрипта, если файл выполняется напрямую
+// Запуск сценария, если файл запущен напрямую
 if (require.main === module) {
   main().catch(error => {
-    logger.error(`Unhandled error: ${error.message}`);
+    console.error(`Unhandled error: ${error.message}`);
     process.exit(1);
   });
 }
 
-// Экспорт класса для использования в других модулях
-module.exports = TypedKnowledgeLoader;
+// Экспорт функций для использования в других модулях
+module.exports = {
+  loadDocumentsFromDirectory,
+  testSearch
+};
