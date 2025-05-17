@@ -26,6 +26,7 @@ const logger = require('../utils/logger');
  * @property {string} [language] - Фильтр по языку
  * @property {string} [category] - Фильтр по категории
  * @property {string[]} [tags] - Фильтр по тегам
+ * @property {number} [score_threshold=0.6] - Минимальный порог релевантности
  */
 
 /**
@@ -245,10 +246,16 @@ class VectorStoreService {
         return [];
       }
       
-      const { limit = 5, language, category, tags } = options;
+      const { 
+        limit = 5, 
+        language, 
+        category, 
+        tags,
+        score_threshold = 0.6 // ИСПРАВЛЕНО: Добавлен параметр score_threshold с дефолтным значением
+      } = options;
       
       logger.info(`Searching for: "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}" with options: ${JSON.stringify({
-        limit, language, category, tags: Array.isArray(tags) ? tags.length : tags
+        limit, language, category, tags: Array.isArray(tags) ? tags.length : tags, score_threshold
       })}`);
       
       // Создание embedding для запроса
@@ -296,7 +303,7 @@ class VectorStoreService {
         limit: Math.min(limit, 20), // Ограничение максимального количества результатов
         filter: Object.keys(filter).length > 0 ? filter : undefined,
         with_payload: true,
-        score_threshold: 0.6 // Минимальный порог релевантности
+        score_threshold: score_threshold // ИСПРАВЛЕНО: Используем параметр из options
       });
       
       // Форматирование результатов
