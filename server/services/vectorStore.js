@@ -26,7 +26,7 @@ const logger = require('../utils/logger');
  * @property {string} [language] - Фильтр по языку
  * @property {string} [category] - Фильтр по категории
  * @property {string[]} [tags] - Фильтр по тегам
- * @property {number} [score_threshold=0.6] - Минимальный порог релевантности
+ * @property {number} [score_threshold=0.4] - Минимальный порог релевантности
  */
 
 /**
@@ -186,8 +186,15 @@ class VectorStoreService {
             continue;
           }
           
+          // Добавляем подробное логирование для отслеживания процесса добавления
+          logger.debug(`Processing document ID: ${doc.id}, content length: ${doc.content.length} characters`);
+          if (doc.metadata) {
+            logger.debug(`Document metadata: language=${doc.metadata.language}, category=${doc.metadata.category}`);
+          }
+          
           // Создание embedding для текста документа
           const embedding = await this._createEmbedding(doc.content);
+          logger.debug(`Created embedding for document ${doc.id}, embedding size: ${embedding.length}`);
           
           // Формирование точки для Qdrant
           points.push({
@@ -201,6 +208,8 @@ class VectorStoreService {
               }
             }
           });
+          
+          logger.debug(`Successfully processed document ${doc.id}`);
         } catch (docError) {
           logger.error(`Error processing document ${doc.id}: ${docError.message}`);
           // Продолжаем с другими документами
@@ -209,6 +218,7 @@ class VectorStoreService {
       
       // Добавление точек в Qdrant
       if (points.length > 0) {
+        logger.info(`Upserting ${points.length} documents to Qdrant collection ${this.collectionName}`);
         await this.client.upsert(this.collectionName, {
           points
         });
@@ -251,7 +261,8 @@ class VectorStoreService {
         language, 
         category, 
         tags,
-        score_threshold = 0.6 // ИСПРАВЛЕНО: Добавлен параметр score_threshold с дефолтным значением
+        // ИЗМЕНЕНО: Снижен порог релевантности по умолчанию с 0.6 до 0.4
+        score_threshold = 0.4
       } = options;
       
       logger.info(`Searching for: "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}" with options: ${JSON.stringify({
@@ -260,6 +271,7 @@ class VectorStoreService {
       
       // Создание embedding для запроса
       const embedding = await this._createEmbedding(query);
+      logger.debug(`Created embedding for search query, embedding size: ${embedding.length}`);
       
       // Подготовка фильтра
       const filter = {};
@@ -271,6 +283,7 @@ class VectorStoreService {
           key: 'metadata.language', 
           match: { value: language } 
         });
+        logger.debug(`Added language filter: ${language}`);
       }
       
       if (category) {
@@ -278,6 +291,7 @@ class VectorStoreService {
           key: 'metadata.category', 
           match: { value: category } 
         });
+        logger.debug(`Added category filter: ${category}`);
       }
       
       // Для тегов используем should условие (хотя бы один из тегов)
@@ -289,22 +303,32 @@ class VectorStoreService {
         
         if (tagsFilter.length > 0) {
           mustConditions.push({ should: tagsFilter });
+          logger.debug(`Added tags filter with ${tagsFilter.length} tags`);
         }
       }
       
       // Если есть условия, добавляем их в фильтр
       if (mustConditions.length > 0) {
         filter.must = mustConditions;
+        logger.debug(`Applied filter with ${mustConditions.length} conditions`);
       }
       
       // Выполнение поиска
+      logger.debug(`Executing search with score_threshold: ${score_threshold}`);
       const searchResults = await this.client.search(this.collectionName, {
         vector: embedding,
         limit: Math.min(limit, 20), // Ограничение максимального количества результатов
         filter: Object.keys(filter).length > 0 ? filter : undefined,
         with_payload: true,
-        score_threshold: score_threshold // ИСПРАВЛЕНО: Используем параметр из options
+        score_threshold: score_threshold
       });
+      
+      // Подробное логирование результатов поиска
+      if (searchResults.length > 0) {
+        logger.debug(`Search returned ${searchResults.length} results with scores: ${searchResults.map(r => r.score.toFixed(3)).join(', ')}`);
+      } else {
+        logger.debug(`Search returned no results with threshold: ${score_threshold}`);
+      }
       
       // Форматирование результатов
       const results = searchResults.map(result => ({
@@ -315,6 +339,13 @@ class VectorStoreService {
       }));
       
       logger.info(`Found ${results.length} relevant documents`);
+      
+      // Добавляем подробное логирование результатов
+      results.forEach((result, index) => {
+        logger.debug(`Result #${index+1}: ID=${result.id}, Score=${result.score.toFixed(4)}, Language=${result.metadata?.language || 'unknown'}`);
+        logger.debug(`Content preview: ${result.content.substring(0, 100)}${result.content.length > 100 ? '...' : ''}`);
+      });
+      
       return results;
     } catch (error) {
       logger.error(`Search failed: ${error.message}`);
@@ -486,21 +517,188 @@ class VectorStoreService {
     
     // Проверка кэша
     if (this.embeddingCache.has(normalizedText)) {
+      logger.debug('Using cached embedding');
       return this.embeddingCache.get(normalizedText);
     }
     
-    // Создание нового embedding
-    const embedding = await this.embeddings.embedQuery(normalizedText);
-    
-    // Кэширование результата
-    if (this.embeddingCache.size >= this.maxCacheSize) {
-      // Удаляем первый элемент (самый старый) при достижении лимита
-      const firstKey = this.embeddingCache.keys().next().value;
-      this.embeddingCache.delete(firstKey);
+    try {
+      // Создание нового embedding
+      logger.debug(`Generating new embedding for text (length: ${normalizedText.length})`);
+      const embedding = await this.embeddings.embedQuery(normalizedText);
+      
+      // Кэширование результата
+      if (this.embeddingCache.size >= this.maxCacheSize) {
+        // Удаляем первый элемент (самый старый) при достижении лимита
+        const firstKey = this.embeddingCache.keys().next().value;
+        this.embeddingCache.delete(firstKey);
+        logger.debug('Embedding cache limit reached, removing oldest entry');
+      }
+      this.embeddingCache.set(normalizedText, embedding);
+      
+      return embedding;
+    } catch (error) {
+      logger.error(`Error creating embedding: ${error.message}`);
+      throw error;
     }
-    this.embeddingCache.set(normalizedText, embedding);
+  }
+  
+  /**
+   * Вспомогательный метод для тестирования поиска в векторном хранилище
+   * @async
+   * @param {string} query - Текст запроса
+   * @param {number} [threshold=0.4] - Порог релевантности для тестирования
+   * @returns {Promise<Object>} Результат тестирования с различными порогами
+   */
+  async testSearch(query, threshold = 0.4) {
+    if (!query || typeof query !== 'string' || query.trim() === '') {
+      return { error: 'Empty or invalid query provided' };
+    }
     
-    return embedding;
+    try {
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
+      if (!this.initialized) {
+        return { error: 'Vector store not initialized' };
+      }
+      
+      // Создание embedding для запроса
+      const embedding = await this._createEmbedding(query);
+      
+      // Выполнение поиска с различными порогами для сравнения
+      const thresholds = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1];
+      
+      const results = {};
+      
+      // Тестирование с разными порогами
+      for (const testThreshold of thresholds) {
+        const searchResults = await this.client.search(this.collectionName, {
+          vector: embedding,
+          limit: 10,
+          with_payload: true,
+          score_threshold: testThreshold
+        });
+        
+        results[testThreshold] = {
+          count: searchResults.length,
+          scores: searchResults.map(r => r.score.toFixed(4))
+        };
+      }
+      
+      // Возвращаем также результаты для текущего порога
+      const currentResults = await this.client.search(this.collectionName, {
+        vector: embedding,
+        limit: 10,
+        with_payload: true,
+        score_threshold: threshold
+      });
+      
+      const formattedResults = currentResults.map(result => ({
+        id: result.id,
+        score: result.score,
+        content: result.payload.content.substring(0, 100) + (result.payload.content.length > 100 ? '...' : ''),
+        metadata: result.payload.metadata
+      }));
+      
+      return {
+        query,
+        threshold,
+        resultsByThreshold: results,
+        documentsFound: formattedResults.length,
+        topResults: formattedResults
+      };
+    } catch (error) {
+      logger.error(`Test search failed: ${error.message}`);
+      return { error: `Test search failed: ${error.message}` };
+    }
+  }
+  
+  /**
+   * Диагностика векторного хранилища
+   * @async
+   * @returns {Promise<Object>} Диагностическая информация
+   */
+  async diagnose() {
+    try {
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
+      if (!this.initialized) {
+        return { 
+          status: 'error',
+          message: 'Vector store not initialized',
+          initialized: false
+        };
+      }
+      
+      // Проверка соединения
+      const connectionStatus = await this.client.getCollections()
+        .then(() => ({ status: 'ok', message: 'Connected to Qdrant' }))
+        .catch(error => ({ status: 'error', message: `Connection failed: ${error.message}` }));
+      
+      // Проверка коллекции
+      let collectionStatus = { status: 'unknown' };
+      try {
+        const collectionInfo = await this.client.getCollection(this.collectionName);
+        collectionStatus = {
+          status: 'ok',
+          message: `Collection ${this.collectionName} exists`,
+          info: {
+            vectorCount: collectionInfo.vectors_count || 0,
+            vectorDimension: this.vectorDimension,
+          }
+        };
+      } catch (error) {
+        collectionStatus = {
+          status: 'error',
+          message: `Collection check failed: ${error.message}`
+        };
+      }
+      
+      // Проверка создания эмбеддингов
+      let embeddingStatus = { status: 'unknown' };
+      try {
+        const testEmbedding = await this._createEmbedding('test embedding for diagnostics');
+        embeddingStatus = {
+          status: 'ok',
+          message: 'Embedding creation works',
+          dimension: testEmbedding.length
+        };
+      } catch (error) {
+        embeddingStatus = {
+          status: 'error',
+          message: `Embedding creation failed: ${error.message}`
+        };
+      }
+      
+      // Общий статус
+      const overallStatus = 
+        connectionStatus.status === 'ok' && 
+        collectionStatus.status === 'ok' && 
+        embeddingStatus.status === 'ok' ? 'ok' : 'error';
+      
+      return {
+        status: overallStatus,
+        connection: connectionStatus,
+        collection: collectionStatus,
+        embedding: embeddingStatus,
+        config: {
+          url: this.url,
+          collectionName: this.collectionName,
+          embeddingModel: this.embeddingModel,
+          cacheSize: this.embeddingCache.size,
+          maxCacheSize: this.maxCacheSize
+        }
+      };
+    } catch (error) {
+      logger.error(`Diagnostics failed: ${error.message}`);
+      return {
+        status: 'error',
+        message: `Diagnostics failed: ${error.message}`
+      };
+    }
   }
 }
 
