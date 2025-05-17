@@ -286,18 +286,26 @@ class ClaudeService {
         return [];
       }
       
-      // Выполняем поиск в векторной базе
+      // ИЗМЕНЕНО: Сниженный порог релевантности для поиска (с 0.7 до 0.4)
+      const score_threshold = 0.4;
+      logger.info(`Searching for relevant documents with threshold: ${score_threshold}`);
+      
+      // Выполняем поиск в векторной базе с пониженным порогом релевантности
       const searchResults = await vectorStoreService.search(query, {
         limit,
         language,
-        score_threshold: 0.7 // Только документы с высокой релевантностью
+        score_threshold: score_threshold // Снижен с 0.7 до 0.4
       });
       
+      // Добавлено подробное логирование результатов
       if (searchResults.length > 0) {
-        // Фильтруем по релевантности для качества RAG
-        return searchResults.filter(doc => doc.score > 0.6);
+        logger.info(`Found ${searchResults.length} documents with scores: ${searchResults.map(doc => doc.score.toFixed(3)).join(', ')}`);
+        
+        // ИЗМЕНЕНО: Убрана дополнительная фильтрация по порогу, так как она уже происходит в vectorStore
+        return searchResults;
       }
       
+      logger.info(`No documents found with threshold ${score_threshold}`);
       return [];
     } catch (error) {
       logger.error(`Error in _getRelevantContext: ${error.message}`);
