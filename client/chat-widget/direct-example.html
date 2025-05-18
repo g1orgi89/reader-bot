@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shrooms Chat Widget Direct Integration Example</title>
+  
+  <style>
+    /* Основные стили страницы */
+    body {
+      font-family: 'Inter', 'Roboto', sans-serif;
+      margin: 20px;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    
+    h1, h2, h3 {
+      color: #00b570;
+    }
+    
+    .example-block {
+      background-color: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    pre {
+      background-color: #f0f0f0;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    
+    code {
+      font-family: monospace;
+    }
+    
+    button {
+      background-color: #00b570;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      font-weight: bold;
+    }
+    
+    button:hover {
+      background-color: #009960;
+    }
+    
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    
+    .output {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+      min-height: 100px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .output-title {
+      color: #39FF14;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    
+    /* Стили для виджета чата */
+    .shrooms-widget-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      font-family: 'Inter', 'Roboto', 'Poppins', sans-serif;
+    }
+    
+    .shrooms-widget {
+      display: flex;
+      flex-direction: column;
+      max-width: 370px;
+      width: 100%;
+      box-shadow: 0 5px 40px rgba(0, 0, 0, 0.4);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .shrooms-widget.closed .shrooms-chat-window {
+      display: none;
+    }
+    
+    .shrooms-toggle-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 30px;
+      background: #39FF14;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .shrooms-toggle-button:hover {
+      transform: scale(1.1);
+    }
+    
+    .toggle-icon {
+      font-size: 30px;
+    }
+    
+    .shrooms-widget.open .shrooms-toggle-button {
+      transform: scale(0);
+      opacity: 0;
+    }
+    
+    .shrooms-chat-window {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 500px;
+      max-height: 80vh;
+      background: #050505;
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .shrooms-chat-header {
+      padding: 16px;
+      background: #121212;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .shrooms-header-title {
+      display: flex;
+      align-items: center;
+    }
+    
+    .shrooms-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #39FF14;
+      margin-right: 10px;
+      font-size: 20px;
+    }
+    
+    .shrooms-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: #FFFFFF;
+    }
+    
+    .shrooms-close-button {
+      background: transparent;
+      border: none;
+      color: #E0E0E0;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .shrooms-close-button:hover {
+      color: #39FF14;
+    }
+    
+    .shrooms-chat-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    
+    .shrooms-messages-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .shrooms-message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      position: relative;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .shrooms-message-user {
+      align-self: flex-end;
+      background: #8A2BE2;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    
+    .shrooms-message-bot {
+      align-self: flex-start;
+      background: #121212;
+      color: #E0E0E0;
+      border-bottom-left-radius: 4px;
+    }
+    
+    .shrooms-message-time {
+      font-size: 10px;
+      opacity: 0.7;
+      position: absolute;
+      bottom: -18px;
+      right: 0;
+    }
+    
+    .shrooms-chat-footer {
+      padding: 16px;
+      background: #121212;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .shrooms-input-container {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 24px;
+      padding: 0 16px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+    
+    .shrooms-chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 12px 0;
+      color: #E0E0E0;
+      font-size: 14px;
+    }
+    
+    .shrooms-chat-input:focus {
+      outline: none;
+    }
+    
+    .shrooms-chat-input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .shrooms-send-button {
+      background: transparent;
+      border: none;
+      color: #39FF14;
+      cursor: pointer;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .shrooms-send-button:hover {
+      color: #00FFF9;
+      transform: scale(1.1);
+    }
+    
+    .shrooms-branding {
+      text-align: center;
+      padding-top: 8px;
+      font-size: 10px;
+      opacity: 0.5;
+      color: #E0E0E0;
+    }
+    
+    .shrooms-typing-indicator {
+      display: inline-block;
+      position: relative;
+      width: 50px;
+      height: 20px;
+    }
+    
+    .shrooms-typing-indicator span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #39FF14;
+      position: absolute;
+      bottom: 0;
+      animation: typing 1.5s infinite ease-in-out;
+    }
+    
+    .shrooms-typing-indicator span:nth-child(1) {
+      left: 0;
+      animation-delay: 0s;
+    }
+    
+    .shrooms-typing-indicator span:nth-child(2) {
+      left: 15px;
+      animation-delay: 0.2s;
+    }
+    
+    .shrooms-typing-indicator span:nth-child(3) {
+      left: 30px;
+      animation-delay: 0.4s;
+    }
+    
+    @keyframes typing {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .shrooms-ticket-notification {
+      background: #00FFF9;
+      padding: 10px 16px;
+      border-radius: 10px;
+      margin: 10px 0;
+      font-size: 12px;
+      text-align: center;
+      color: #000;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 255, 249, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(0, 255, 249, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 255, 249, 0); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Shrooms Chat Widget Direct Integration Example</h1>
+  
+  <div class="example-block">
+    <h2>Widget Configuration</h2>
+    <p>This example demonstrates how to integrate and control the Shrooms Chat Widget on your website using direct API integration (no iframe).</p>
+    
+    <pre><code>// Direct API initialization
+const widget = new ShroomsDirectWidget({
+  apiUrl: 'https://your-api-domain.com',
+  theme: 'neon',
+  autoOpen: false,
+  onReady: () => console.log('Widget is ready!'),
+  onMessage: (data) => console.log('New message:', data)
+});</code></pre>
+    
+    <h3>Controls</h3>
+    <div class="controls">
+      <button id="btn-initialize">Initialize Widget</button>
+      <button id="btn-open">Open Widget</button>
+      <button id="btn-close">Close Widget</button>
+      <button id="btn-send">Send Test Message</button>
+      <button id="btn-clear">Clear History</button>
+      
+      <select id="language-select" title="Select Language">
+        <option value="en">English</option>
+        <option value="es">Spanish</option>
+        <option value="ru">Russian</option>
+      </select>
+    </div>
+    
+    <div class="output">
+      <div class="output-title">Event Log:</div>
+      <div id="event-log"></div>
+    </div>
+  </div>
+  
+  <div class="example-block">
+    <h2>Integration Guide</h2>
+    <p>This example shows a direct API integration approach for the Shrooms widget:</p>
+    
+    <ul>
+      <li>No iframe is used - direct communication with the API</li>
+      <li>Better compatibility with different websites</li>
+      <li>Customizable appearance and behavior</li>
+      <li>Works well in environments where iframe may cause issues</li>
+    </ul>
+  </div>
+  
+  <!-- Chat Widget Container -->
+  <div id="shrooms-widget-container" class="shrooms-widget-container">
+    <div class="shrooms-widget closed" id="shrooms-widget">
+      <div class="shrooms-toggle-button" id="shrooms-toggle">
+        <div class="toggle-icon">🍄</div>
+      </div>
+      
+      <div class="shrooms-chat-window">
+        <div class="shrooms-chat-header">
+          <div class="shrooms-header-title">
+            <div class="shrooms-avatar">🍄</div>
+            <div class="shrooms-title">Shrooms Support</div>
+          </div>
+          <div class="shrooms-header-actions">
+            <button class="shrooms-close-button" id="shrooms-close">×</button>
+          </div>
+        </div>
+        
+        <div class="shrooms-chat-body">
+          <div class="shrooms-messages-container" id="shrooms-messages"></div>
+        </div>
+        
+        <div class="shrooms-chat-footer">
+          <div class="shrooms-input-container">
+            <input 
+              type="text" 
+              class="shrooms-chat-input" 
+              id="shrooms-input"
+              placeholder="Напишите сообщение..."
+            />
+            <button class="shrooms-send-button" id="shrooms-send">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="shrooms-branding">Powered by Shrooms</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Определение класса виджета с прямой интеграцией
+    class ShroomsDirectWidget {
+      constructor(config) {
+        // Конфигурация по умолчанию
+        this.config = {
+          apiUrl: config.apiUrl || 'http://localhost:3000',
+          theme: config.theme || 'neon',
+          position: config.position || { side: 'right', align: 'bottom', offset: '20px' },
+          autoOpen: config.autoOpen || false,
+          welcomeMessage: config.welcomeMessage || 'Привет! Я - грибной помощник, как я могу вам помочь?',
+          onReady: config.onReady || (() => {}),
+          onMessage: config.onMessage || (() => {}),
+          onOpen: config.onOpen || (() => {}),
+          onClose: config.onClose || (() => {}),
+          onError: config.onError || (() => {}),
+          onTicketCreated: config.onTicketCreated || (() => {})
+        };
+        
+        // Состояние виджета
+        this.state = {
+          isOpen: false,
+          isLoading: false,
+          isInitialized: false,
+          messages: [],
+          userId: this._getUserId(),
+          language: navigator.language.split('-')[0] || 'en',
+          conversationId: null
+        };
+        
+        // DOM элементы
+        this.elements = {
+          container: document.getElementById('shrooms-widget-container'),
+          widget: document.getElementById('shrooms-widget'),
+          toggle: document.getElementById('shrooms-toggle'),
+          close: document.getElementById('shrooms-close'),
+          messages: document.getElementById('shrooms-messages'),
+          input: document.getElementById('shrooms-input'),
+          send: document.getElementById('shrooms-send')
+        };
+        
+        // Инициализация
+        this._bindEvents();
+        
+        // Если autoOpen, открываем виджет
+        if (this.config.autoOpen) {
+          this.open();
+        }
+        
+        // Добавляем приветственное сообщение
+        this._addBotMessage(this.config.welcomeMessage);
+        
+        // Вызываем колбэк onReady
+        setTimeout(() => {
+          this.state.isInitialized = true;
+          this.config.onReady();
+        }, 100);
+      }
+      
+      // Привязка событий
+      _bindEvents() {
+        // Кнопка открытия
+        this.elements.toggle.addEventListener('click', () => this.open());
+        
+        // Кнопка закрытия
+        this.elements.close.addEventListener('click', () => this.close());
+        
+        // Отправка сообщения по клику
+        this.elements.send.addEventListener('click', () => this._handleSendMessage());
+        
+        // Отправка сообщения по Enter
+        this.elements.input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            this._handleSendMessage();
+          }
+        });
+      }
+      
+      // Обработка отправки сообщения
+      _handleSendMessage() {
+        const message = this.elements.input.value.trim();
+        
+        if (!message) return;
+        
+        // Отображаем сообщение пользователя
+        this._addUserMessage(message);
+        
+        // Очищаем поле ввода
+        this.elements.input.value = '';
+        
+        // Показываем индикатор печати
+        this._showTypingIndicator();
+        
+        // Отправляем запрос на сервер
+        this._sendMessageToServer(message);
+      }
+      
+      // Отправка сообщения на сервер
+      _sendMessageToServer(message) {
+        this.state.isLoading = true;
+        
+        fetch(`${this.config.apiUrl}/api/chat/message`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message,
+            userId: this.state.userId,
+            conversationId: this.state.conversationId,
+            language: this.state.language
+          })
+        })
+          .then(response => response.json())
+          .then(data => {
+            // Обработка ответа
+            if (data.success) {
+              // Сохраняем ID разговора, если его еще нет
+              if (!this.state.conversationId && data.data.conversationId) {
+                this.state.conversationId = data.data.conversationId;
+              }
+              
+              // Скрываем индикатор печати
+              this._hideTypingIndicator();
+              
+              // Добавляем ответ бота
+              this._addBotMessage(data.data.message);
+              
+              // Вызываем колбэк
+              this.config.onMessage(data.data);
+              
+              // Проверяем, был ли создан тикет
+              if (data.data.ticketCreated && data.data.ticketId) {
+                this._showTicketNotification(data.data.ticketId);
+                this.config.onTicketCreated(data.data.ticketId);
+              }
+            } else {
+              // Обработка ошибки
+              this._hideTypingIndicator();
+              this._showErrorMessage(data.error || 'Неизвестная ошибка');
+              this.config.onError(new Error(data.error || 'Неизвестная ошибка'));
+            }
+          })
+          .catch(error => {
+            // Обработка ошибки сети
+            this._hideTypingIndicator();
+            this._showErrorMessage('Ошибка соединения: ' + error.message);
+            this.config.onError(error);
+          })
+          .finally(() => {
+            this.state.isLoading = false;
+          });
+      }
+      
+      // Добавление сообщения пользователя
+      _addUserMessage(text) {
+        const timestamp = new Date().toISOString();
+        
+        // Создаем элемент сообщения
+        const messageElement = document.createElement('div');
+        messageElement.className = 'shrooms-message shrooms-message-user';
+        messageElement.innerHTML = `
+          <div class="shrooms-message-content">${this._formatMessage(text)}</div>
+          <div class="shrooms-message-time">${this._formatTime(timestamp)}</div>
+        `;
+        
+        // Добавляем в контейнер
+        this.elements.messages.appendChild(messageElement);
+        
+        // Прокручиваем вниз
+        this._scrollToBottom();
+        
+        // Сохраняем в истории
+        this.state.messages.push({
+          role: 'user',
+          content: text,
+          timestamp
+        });
+      }
+      
+      // Добавление сообщения бота
+      _addBotMessage(text) {
+        const timestamp = new Date().toISOString();
+        
+        // Создаем элемент сообщения
+        const messageElement = document.createElement('div');
+        messageElement.className = 'shrooms-message shrooms-message-bot';
+        messageElement.innerHTML = `
+          <div class="shrooms-message-content">${this._formatMessage(text)}</div>
+          <div class="shrooms-message-time">${this._formatTime(timestamp)}</div>
+        `;
+        
+        // Добавляем в контейнер
+        this.elements.messages.appendChild(messageElement);
+        
+        // Прокручиваем вниз
+        this._scrollToBottom();
+        
+        // Сохраняем в истории
+        this.state.messages.push({
+          role: 'assistant',
+          content: text,
+          timestamp
+        });
+      }
+      
+      // Показать индикатор печати
+      _showTypingIndicator() {
+        const indicatorElement = document.createElement('div');
+        indicatorElement.className = 'shrooms-message shrooms-message-bot';
+        indicatorElement.id = 'typing-indicator';
+        indicatorElement.innerHTML = `
+          <div class="shrooms-typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        `;
+        
+        this.elements.messages.appendChild(indicatorElement);
+        this._scrollToBottom();
+      }
+      
+      // Скрыть индикатор печати
+      _hideTypingIndicator() {
+        const indicator = document.getElementById('typing-indicator');
+        if (indicator) {
+          indicator.remove();
+        }
+      }
+      
+      // Показать сообщение об ошибке
+      _showErrorMessage(text) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'shrooms-message shrooms-message-bot shrooms-message-error';
+        messageElement.style.backgroundColor = '#ff6666';
+        messageElement.style.color = '#fff';
+        messageElement.innerHTML = `
+          <div class="shrooms-message-content">${text}</div>
+        `;
+        
+        this.elements.messages.appendChild(messageElement);
+        this._scrollToBottom();
+      }
+      
+      // Показать уведомление о тикете
+      _showTicketNotification(ticketId) {
+        const notificationElement = document.createElement('div');
+        notificationElement.className = 'shrooms-ticket-notification';
+        notificationElement.innerHTML = `
+          <strong>🔔 Создан тикет #${ticketId}</strong><br>
+          Наша грибная команда ответит вам в ближайшее время!
+        `;
+        
+        this.elements.messages.appendChild(notificationElement);
+        this._scrollToBottom();
+      }
+      
+      // Форматирование сообщения
+      _formatMessage(text) {
+        // Заменяем переносы строки на <br>
+        let formatted = text.replace(/\n/g, '<br>');
+        
+        // Заменяем URL на ссылки
+        formatted = formatted.replace(
+          /(https?:\/\/[^\s]+)/g, 
+          '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
+        
+        return formatted;
+      }
+      
+      // Форматирование времени
+      _formatTime(timestamp) {
+        const date = new Date(timestamp);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        return `${hours}:${minutes}`;
+      }
+      
+      // Прокрутка вниз
+      _scrollToBottom() {
+        const body = document.querySelector('.shrooms-chat-body');
+        if (body) {
+          body.scrollTop = body.scrollHeight;
+        }
+      }
+      
+      // Получение ID пользователя
+      _getUserId() {
+        const storageKey = 'shrooms_widget_user_id';
+        
+        // Проверяем localStorage
+        let userId = localStorage.getItem(storageKey);
+        
+        if (!userId) {
+          // Генерируем новый ID
+          userId = 'user_' + Math.random().toString(36).substr(2, 9);
+          
+          // Сохраняем в localStorage
+          localStorage.setItem(storageKey, userId);
+        }
+        
+        return userId;
+      }
+      
+      // Публичные методы
+      
+      // Открыть виджет
+      open() {
+        if (this.state.isOpen) return;
+        
+        this.elements.widget.classList.remove('closed');
+        this.elements.widget.classList.add('open');
+        this.state.isOpen = true;
+        
+        // Фокус на поле ввода
+        setTimeout(() => {
+          this.elements.input.focus();
+        }, 300);
+        
+        // Вызываем колбэк
+        this.config.onOpen();
+      }
+      
+      // Закрыть виджет
+      close() {
+        if (!this.state.isOpen) return;
+        
+        this.elements.widget.classList.remove('open');
+        this.elements.widget.classList.add('closed');
+        this.state.isOpen = false;
+        
+        // Вызываем колбэк
+        this.config.onClose();
+      }
+      
+      // Отправить сообщение программно
+      sendMessage(text) {
+        if (!text || !this.state.isInitialized) return;
+        
+        // Отображаем сообщение пользователя
+        this._addUserMessage(text);
+        
+        // Показываем индикатор печати
+        this._showTypingIndicator();
+        
+        // Отправляем запрос на сервер
+        this._sendMessageToServer(text);
+      }
+      
+      // Очистить историю
+      clearHistory() {
+        // Очищаем DOM
+        this.elements.messages.innerHTML = '';
+        
+        // Очищаем состояние
+        this.state.messages = [];
+        
+        // Добавляем приветственное сообщение
+        this._addBotMessage(this.config.welcomeMessage);
+      }
+      
+      // Установить язык
+      setLanguage(language) {
+        if (!language || !['en', 'es', 'ru'].includes(language)) return;
+        
+        this.state.language = language;
+      }
+      
+      // Получить состояние
+      getState() {
+        return { ...this.state };
+      }
+      
+      // Получить сообщения
+      getMessages() {
+        return [...this.state.messages];
+      }
+    }
+    
+    // Инстанс виджета
+    let widget = null;
+    
+    // Функция логирования
+    function logEvent(event, data = null) {
+      const log = document.getElementById('event-log');
+      const timestamp = new Date().toLocaleTimeString();
+      const message = document.createElement('div');
+      
+      message.innerHTML = `<strong>${timestamp}</strong>: ${event}`;
+      
+      if (data) {
+        message.innerHTML += ` - ${typeof data === 'object' ? JSON.stringify(data) : data}`;
+      }
+      
+      log.appendChild(message);
+      log.scrollTop = log.scrollHeight;
+    }
+    
+    // Обработчики кнопок управления
+    
+    // Инициализация
+    document.getElementById('btn-initialize').addEventListener('click', () => {
+      if (widget) {
+        logEvent('Widget already initialized');
+        return;
+      }
+      
+      // Инициализация виджета
+      widget = new ShroomsDirectWidget({
+        apiUrl: 'http://localhost:3000',
+        theme: 'neon',
+        autoOpen: false,
+        welcomeMessage: 'Привет! Я - грибной помощник, как я могу вам помочь?',
+        onReady: () => logEvent('Widget ready'),
+        onMessage: (data) => logEvent('Message received', data.message),
+        onOpen: () => logEvent('Widget opened'),
+        onClose: () => logEvent('Widget closed'),
+        onError: (error) => logEvent('Error', error.message),
+        onTicketCreated: (ticketId) => logEvent('Ticket created', ticketId)
+      });
+      
+      logEvent('Widget initialized');
+    });
+    
+    // Открытие
+    document.getElementById('btn-open').addEventListener('click', () => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      widget.open();
+      logEvent('Opening widget');
+    });
+    
+    // Закрытие
+    document.getElementById('btn-close').addEventListener('click', () => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      widget.close();
+      logEvent('Closing widget');
+    });
+    
+    // Отправка тестового сообщения
+    document.getElementById('btn-send').addEventListener('click', () => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      const testMessage = 'Тестовое сообщение: ' + new Date().toLocaleTimeString();
+      widget.sendMessage(testMessage);
+      logEvent('Sending message', testMessage);
+    });
+    
+    // Очистка истории
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      widget.clearHistory();
+      logEvent('Clearing chat history');
+    });
+    
+    // Смена языка
+    document.getElementById('language-select').addEventListener('change', (e) => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      const language = e.target.value;
+      widget.setLanguage(language);
+      logEvent('Language changed', language);
+    });
+  </script>
+</body>
+</html>
