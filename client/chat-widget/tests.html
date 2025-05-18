@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shrooms Chat Widget Тесты</title>
+  
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #E0E0E0;
+      padding: 20px;
+    }
+    
+    h1 {
+      color: #39FF14;
+      text-align: center;
+      margin-bottom: 30px;
+      font-family: 'Orbitron', sans-serif;
+    }
+    
+    .test-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background-color: #1E1E1E;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+    }
+    
+    .test-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .test-item {
+      background-color: #2A2A2A;
+      border-radius: 8px;
+      padding: 20px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .test-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(57, 255, 20, 0.3);
+    }
+    
+    .test-item h3 {
+      color: #39FF14;
+      margin-top: 0;
+      font-size: 18px;
+    }
+    
+    .test-item p {
+      font-size: 14px;
+      opacity: 0.8;
+      margin-bottom: 15px;
+    }
+    
+    .test-button {
+      display: inline-block;
+      background-color: #8A2BE2;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background-color 0.2s ease;
+    }
+    
+    .test-button:hover {
+      background-color: #9B4DEA;
+    }
+    
+    .new-label {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #FF00FF;
+      color: white;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 10px;
+      font-weight: bold;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    
+    .instructions {
+      background-color: #2A2A2A;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .instructions h2 {
+      color: #39FF14;
+      margin-top: 0;
+    }
+    
+    .instructions ol {
+      padding-left: 20px;
+    }
+    
+    .instructions li {
+      margin-bottom: 10px;
+    }
+    
+    .recommended {
+      border: 2px solid #39FF14;
+    }
+  </style>
+</head>
+<body>
+  <h1>🍄 Shrooms Chat Widget Тесты 🍄</h1>
+  
+  <div class="test-container">
+    <div class="instructions">
+      <h2>Инструкции по тестированию</h2>
+      <ol>
+        <li>Убедитесь, что сервер запущен на <strong>http://localhost:3000</strong></li>
+        <li>API должно отвечать на запросы (проверьте <a href="http://localhost:3000/api/health" target="_blank" style="color: #39FF14;">health check</a>)</li>
+        <li>Рекомендуется начать с прямого теста API, он наиболее стабильный</li>
+        <li>Для полных тестов нужны запущенные MongoDB и Qdrant</li>
+      </ol>
+    </div>
+    
+    <div class="test-list">
+      <div class="test-item recommended">
+        <span class="new-label">РЕКОМЕНДУЕТСЯ</span>
+        <h3>Прямой тест API</h3>
+        <p>Тестирование взаимодействия с API напрямую, минуя iframe. Самый стабильный вариант для проверки функциональности.</p>
+        <a href="direct-test.html" class="test-button" target="_blank">Запустить тест</a>
+      </div>
+      
+      <div class="test-item">
+        <h3>Простой тест виджета</h3>
+        <p>Упрощенная версия для тестирования виджета с прямым вызовом методов и подробным логированием.</p>
+        <a href="simple-test.html" class="test-button" target="_blank">Запустить тест</a>
+      </div>
+      
+      <div class="test-item">
+        <h3>Стандартный пример</h3>
+        <p>Стандартный пример интеграции виджета с разными элементами управления.</p>
+        <a href="example.html" class="test-button" target="_blank">Запустить тест</a>
+      </div>
+      
+      <div class="test-item">
+        <h3>Фрейм виджета</h3>
+        <p>Сам iframe виджета. Обычно не вызывается напрямую, но можно посмотреть.</p>
+        <a href="index.html" class="test-button" target="_blank">Открыть фрейм</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
