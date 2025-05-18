@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shrooms Chat Widget Example</title>
+  
+  <style>
+    body {
+      font-family: 'Inter', 'Roboto', sans-serif;
+      margin: 20px;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    
+    h1, h2, h3 {
+      color: #00b570;
+    }
+    
+    .example-block {
+      background-color: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    pre {
+      background-color: #f0f0f0;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    
+    code {
+      font-family: monospace;
+    }
+    
+    button {
+      background-color: #00b570;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      font-weight: bold;
+    }
+    
+    button:hover {
+      background-color: #009960;
+    }
+    
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    
+    .output {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+      min-height: 100px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .output-title {
+      color: #39FF14;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+  </style>
+  
+  <!-- Embed script -->
+  <script src="embed.js"></script>
+</head>
+<body>
+  <h1>Shrooms Chat Widget Example</h1>
+  
+  <div class="example-block">
+    <h2>Widget Configuration</h2>
+    <p>This example demonstrates how to integrate and control the Shrooms Chat Widget on your website.</p>
+    
+    <pre><code>// Basic initialization
+const widget = new ShroomsWidgetEmbed({
+  apiUrl: 'https://your-api-domain.com',
+  widgetUrl: 'https://your-api-domain.com/chat-widget/',
+  theme: 'neon',
+  autoOpen: false,
+  onReady: () => console.log('Widget is ready!'),
+  onMessage: (data) => console.log('New message:', data)
+});</code></pre>
+    
+    <h3>Controls</h3>
+    <div class="controls">
+      <button id="btn-initialize">Initialize Widget</button>
+      <button id="btn-open">Open Widget</button>
+      <button id="btn-close">Close Widget</button>
+      <button id="btn-send">Send Test Message</button>
+      <button id="btn-clear">Clear History</button>
+      
+      <select id="language-select">
+        <option value="en">English</option>
+        <option value="es">Spanish</option>
+        <option value="ru">Russian</option>
+      </select>
+    </div>
+    
+    <div class="output">
+      <div class="output-title">Event Log:</div>
+      <div id="event-log"></div>
+    </div>
+  </div>
+  
+  <div class="example-block">
+    <h2>TypeScript Integration</h2>
+    <p>For TypeScript projects, you can use the following type definitions:</p>
+    
+    <pre><code>interface ShroomsWidgetEmbedConfig {
+  apiUrl: string;
+  widgetUrl?: string;
+  containerId?: string;
+  theme?: string;
+  position?: {
+    side?: string;
+    align?: string;
+    offset?: string;
+  };
+  autoOpen?: boolean;
+  welcomeMessage?: string;
+  i18n?: Record&lt;string, string&gt;;
+  onReady?: () => void;
+  onMessage?: (data: any) => void;
+  onOpen?: () => void;
+  onClose?: () => void;
+  onError?: (error: any) => void;
+  onTicketCreated?: (ticketId: string) => void;
+}
+
+declare class ShroomsWidgetEmbed {
+  constructor(config: ShroomsWidgetEmbedConfig);
+  isReady(): boolean;
+  open(): void;
+  close(): void;
+  sendMessage(text: string): void;
+  clearHistory(): void;
+  setLanguage(language: string): void;
+  getState(callback: (state: any) => void): void;
+  getMessages(callback: (messages: any[]) => void): void;
+  on(event: string, handler: Function): ShroomsWidgetEmbed;
+  once(event: string, handler: Function): ShroomsWidgetEmbed;
+  off(event: string, handler: Function): ShroomsWidgetEmbed;
+  updateConfig(newConfig: Partial&lt;ShroomsWidgetEmbedConfig&gt;): void;
+}
+
+declare global {
+  interface Window {
+    ShroomsWidgetEmbed: typeof ShroomsWidgetEmbed;
+  }
+}</code></pre>
+  </div>
+  
+  <script>
+    // Widget instance
+    let widget = null;
+    
+    // Event logging
+    function logEvent(event, data = null) {
+      const log = document.getElementById('event-log');
+      const timestamp = new Date().toLocaleTimeString();
+      const message = document.createElement('div');
+      
+      message.innerHTML = `<strong>${timestamp}</strong>: ${event}`;
+      
+      if (data) {
+        message.innerHTML += ` - ${typeof data === 'object' ? JSON.stringify(data) : data}`;
+      }
+      
+      log.appendChild(message);
+      log.scrollTop = log.scrollHeight;
+    }
+    
+    // Initialize button
+    document.getElementById('btn-initialize').addEventListener('click', () => {
+      if (widget) {
+        logEvent('Widget already initialized');
+        return;
+      }
+      
+      // Replace with your actual API URL
+      const apiUrl = 'http://localhost:3000';
+      
+      widget = new ShroomsWidgetEmbed({
+        apiUrl: apiUrl,
+        widgetUrl: 'chat-widget/', // relative path to widget
+        theme: 'neon',
+        autoOpen: false,
+        welcomeMessage: 'Привет! Я - грибной помощник, как я могу вам помочь?',
+        onReady: () => logEvent('Widget ready'),
+        onMessage: (data) => logEvent('Message received', data.message),
+        onOpen: () => logEvent('Widget opened'),
+        onClose: () => logEvent('Widget closed'),
+        onError: (error) => logEvent('Error', error.message),
+        onTicketCreated: (ticketId) => logEvent('Ticket created', ticketId)
+      });
+      
+      logEvent('Widget initialized');
+    });
+    
+    // Open button
+    document.getElementById('btn-open').addEventListener('click', () => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      widget.open();
+      logEvent('Opening widget');
+    });
+    
+    // Close button
+    document.getElementById('btn-close').addEventListener('click', () => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      widget.close();
+      logEvent('Closing widget');
+    });
+    
+    // Send message button
+    document.getElementById('btn-send').addEventListener('click', () => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      const testMessage = 'Тестовое сообщение: ' + new Date().toLocaleTimeString();
+      widget.sendMessage(testMessage);
+      logEvent('Sending message', testMessage);
+    });
+    
+    // Clear history button
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      widget.clearHistory();
+      logEvent('Clearing chat history');
+    });
+    
+    // Language select
+    document.getElementById('language-select').addEventListener('change', (e) => {
+      if (!widget) {
+        logEvent('Widget not initialized');
+        return;
+      }
+      
+      const language = e.target.value;
+      widget.setLanguage(language);
+      logEvent('Language changed', language);
+    });
+  </script>
+</body>
+</html>

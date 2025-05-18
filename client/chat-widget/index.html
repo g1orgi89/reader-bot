@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shrooms Chat Widget</title>
+  
+  <!-- Шрифты -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Orbitron:wght@500;700&family=Poppins:wght@400;500;600&family=Rajdhani:wght@500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Кастомные стили (опционально) -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Загрузка скрипта виджета -->
+  <script src="widget.js"></script>
+  
+  <!-- Загрузка скрипта интеграции iframe -->
+  <script src="iframe.js"></script>
+</head>
+<body>
+  <!-- Контейнер для виджета чата -->
+  <div id="shrooms-chat-widget"></div>
+  
+  <!-- Скрипт для прямой инициализации (используется, если iframe не используется) -->
+  <script>
+    // Пример конфигурации для прямой инициализации
+    // Закомментировано, так как обычно этот файл используется через iframe
+    /*
+    document.addEventListener('DOMContentLoaded', function() {
+      const chatWidget = new ShroomsWidget({
+        apiUrl: 'https://api.example.com',
+        theme: 'neon',
+        position: {
+          side: 'right',
+          align: 'bottom',
+          offset: '20px'
+        },
+        autoOpen: false
+      });
+    });
+    */
+  </script>
+</body>
+</html>
