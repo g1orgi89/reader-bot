@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shrooms Chat Widget Test</title>
+  
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    h1 {
+      color: #39FF14;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    button {
+      background-color: #39FF14;
+      color: black;
+      border: none;
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: block;
+      margin: 20px auto;
+      font-weight: bold;
+      box-shadow: 0 0 15px rgba(57, 255, 20, 0.5);
+      transition: all 0.3s ease;
+    }
+    
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(57, 255, 20, 0.7);
+    }
+    
+    .instructions {
+      margin-top: 30px;
+      padding: 15px;
+      background: #f0f0f0;
+      border-radius: 5px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    
+    code {
+      background: #e0e0e0;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+  </style>
+  
+  <!-- Загрузим embed.js напрямую -->
+  <script src="./embed.js"></script>
+</head>
+<body>
+  <h1>🍄 Shrooms Chat Widget Test 🍄</h1>
+  
+  <div class="container">
+    <h2>Простой тест чат-виджета</h2>
+    <p>Нажмите на кнопку ниже, чтобы инициализировать и открыть чат-виджет:</p>
+    
+    <button id="initialize-button">Запустить чат-виджет</button>
+    
+    <div class="instructions">
+      <h3>Инструкции:</h3>
+      <p>1. Убедитесь, что сервер запущен на порту 3000</p>
+      <p>2. Нажмите на кнопку "Запустить чат-виджет" для инициализации и открытия виджета</p>
+      <p>3. Проверьте работу виджета, отправив несколько тестовых сообщений</p>
+      <p>4. Проверьте ответы от API и работу стилей виджета</p>
+    </div>
+  </div>
+  
+  <script>
+    // Глобальная переменная для виджета
+    let shroomsWidget = null;
+    
+    // Функция инициализации виджета
+    function initializeChatWidget() {
+      if (shroomsWidget) {
+        console.log('Виджет уже инициализирован');
+        shroomsWidget.open();
+        return;
+      }
+      
+      // Создаем новый экземпляр виджета
+      shroomsWidget = new ShroomsWidgetEmbed({
+        apiUrl: 'http://localhost:3000',
+        widgetUrl: 'http://localhost:3000/chat-widget/',
+        theme: 'neon',
+        autoOpen: true,
+        welcomeMessage: 'Привет! Я - грибной помощник. Как я могу вам помочь?',
+        onReady: () => console.log('Виджет готов к использованию'),
+        onMessage: (data) => console.log('Получено сообщение:', data),
+        onOpen: () => console.log('Виджет открыт'),
+        onClose: () => console.log('Виджет закрыт'),
+        onError: (error) => console.error('Ошибка виджета:', error),
+        onTicketCreated: (ticketId) => console.log('Создан тикет:', ticketId)
+      });
+      
+      console.log('Виджет инициализирован');
+    }
+    
+    // Добавляем обработчик на кнопку
+    document.getElementById('initialize-button').addEventListener('click', initializeChatWidget);
+  </script>
+</body>
+</html>
