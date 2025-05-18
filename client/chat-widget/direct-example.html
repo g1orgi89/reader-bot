@@ -105,7 +105,7 @@
       width: 60px;
       height: 60px;
       border-radius: 30px;
-      background: #39FF14;
+      background: #121212;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -113,16 +113,18 @@
       position: absolute;
       bottom: 0;
       right: 0;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 0 20px rgba(57, 255, 20, 0.5);
       transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     
     .shrooms-toggle-button:hover {
       transform: scale(1.1);
+      box-shadow: 0 0 30px rgba(57, 255, 20, 0.8);
     }
     
     .toggle-icon {
-      font-size: 30px;
+      width: 50px;
+      height: 50px;
     }
     
     .shrooms-widget.open .shrooms-toggle-button {
@@ -163,9 +165,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #39FF14;
+      background: transparent;
       margin-right: 10px;
-      font-size: 20px;
     }
     
     .shrooms-title {
@@ -403,13 +404,77 @@ const widget = new ShroomsDirectWidget({
   <div id="shrooms-widget-container" class="shrooms-widget-container">
     <div class="shrooms-widget closed" id="shrooms-widget">
       <div class="shrooms-toggle-button" id="shrooms-toggle">
-        <div class="toggle-icon">🍄</div>
+        <div class="toggle-icon">
+          <!-- Градиентный неоновый логотип -->
+          <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="neonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffff00" />
+                <stop offset="25%" stop-color="#39FF14" />
+                <stop offset="50%" stop-color="#00FFF9" />
+                <stop offset="75%" stop-color="#8A2BE2" />
+                <stop offset="100%" stop-color="#FF6EC7" />
+              </linearGradient>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            <circle cx="256" cy="256" r="240" fill="none" stroke="url(#neonGradient)" stroke-width="15" filter="url(#glow)"/>
+            <path fill="none" stroke="url(#neonGradient)" stroke-width="15" stroke-linecap="round" filter="url(#glow)" d="
+              M 180 170
+              Q 256 120 330 170
+              Q 380 220 330 270
+              L 300 270
+              L 300 320
+              Q 300 360 256 380
+              Q 212 360 212 320
+              L 212 270
+              L 180 270
+              Q 130 220 180 170
+              Z"/>
+            <circle cx="210" cy="200" r="10" fill="url(#neonGradient)" filter="url(#glow)"/>
+            <circle cx="300" cy="200" r="10" fill="url(#neonGradient)" filter="url(#glow)"/>
+            <rect x="245" y="160" width="20" height="20" transform="rotate(45 255 170)" fill="url(#neonGradient)" filter="url(#glow)"/>
+            <ellipse cx="256" cy="330" rx="5" ry="10" fill="url(#neonGradient)" filter="url(#glow)"/>
+            <ellipse cx="256" cy="360" rx="5" ry="10" fill="url(#neonGradient)" filter="url(#glow)"/>
+          </svg>
+        </div>
       </div>
       
       <div class="shrooms-chat-window">
         <div class="shrooms-chat-header">
           <div class="shrooms-header-title">
-            <div class="shrooms-avatar">🍄</div>
+            <div class="shrooms-avatar">
+              <!-- Маленький логотип для хедера -->
+              <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+                <defs>
+                  <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffff00" />
+                    <stop offset="50%" stop-color="#39FF14" />
+                    <stop offset="100%" stop-color="#00FFF9" />
+                  </linearGradient>
+                </defs>
+                <circle cx="256" cy="256" r="240" fill="none" stroke="url(#headerGradient)" stroke-width="15"/>
+                <path fill="none" stroke="url(#headerGradient)" stroke-width="15" stroke-linecap="round" d="
+                  M 180 170
+                  Q 256 120 330 170
+                  Q 380 220 330 270
+                  L 300 270
+                  L 300 320
+                  Q 300 360 256 380
+                  Q 212 360 212 320
+                  L 212 270
+                  L 180 270
+                  Q 130 220 180 170
+                  Z"/>
+                <circle cx="210" cy="200" r="10" fill="url(#headerGradient)"/>
+                <circle cx="300" cy="200" r="10" fill="url(#headerGradient)"/>
+                <rect x="245" y="160" width="20" height="20" transform="rotate(45 255 170)" fill="url(#headerGradient)"/>
+                <ellipse cx="256" cy="330" rx="5" ry="10" fill="url(#headerGradient)"/>
+                <ellipse cx="256" cy="360" rx="5" ry="10" fill="url(#headerGradient)"/>
+              </svg>
+            </div>
             <div class="shrooms-title">Shrooms Support</div>
           </div>
           <div class="shrooms-header-actions">
