@@ -78,7 +78,7 @@
   </style>
   
   <!-- Embed script -->
-  <script src="embed.js"></script>
+  <script src="./embed.js"></script>
 </head>
 <body>
   <h1>Shrooms Chat Widget Example</h1>
@@ -105,7 +105,7 @@ const widget = new ShroomsWidgetEmbed({
       <button id="btn-send">Send Test Message</button>
       <button id="btn-clear">Clear History</button>
       
-      <select id="language-select">
+      <select id="language-select" title="Select Language">
         <option value="en">English</option>
         <option value="es">Spanish</option>
         <option value="ru">Russian</option>
@@ -198,7 +198,7 @@ declare global {
       
       widget = new ShroomsWidgetEmbed({
         apiUrl: apiUrl,
-        widgetUrl: 'chat-widget/', // relative path to widget
+        widgetUrl: 'http://localhost:3000/chat-widget/', // полный путь к виджету
         theme: 'neon',
         autoOpen: false,
         welcomeMessage: 'Привет! Я - грибной помощник, как я могу вам помочь?',
