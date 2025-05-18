@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Супер простой тест Shrooms Widget</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    
+    button {
+      background-color: #39FF14;
+      color: #000;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      margin: 20px 0;
+      font-weight: bold;
+    }
+    
+    button:hover {
+      background-color: #2bcc0f;
+    }
+    
+    #log {
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      height: 200px;
+      overflow: auto;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Супер простой тест виджета</h1>
+  
+  <div>
+    <button id="initButton" onclick="initWidget()">Инициализировать виджет</button>
+    <button id="openButton" onclick="openWidget()">Открыть виджет</button>
+    <button id="sendButton" onclick="sendMessage()">Отправить тестовое сообщение</button>
+  </div>
+  
+  <div id="log"></div>
+  
+  <script>
+    // Загрузка embed.js динамически
+    const script = document.createElement('script');
+    script.src = './embed.js';
+    document.head.appendChild(script);
+    
+    let widget = null;
+    
+    function log(message) {
+      const logElement = document.getElementById('log');
+      const newEntry = document.createElement('div');
+      newEntry.textContent = new Date().toLocaleTimeString() + ': ' + message;
+      logElement.appendChild(newEntry);
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+    
+    // Дождемся загрузки скрипта
+    script.onload = function() {
+      log('Скрипт embed.js загружен');
+    };
+    
+    function initWidget() {
+      try {
+        if (widget) {
+          log('Виджет уже инициализирован');
+          return;
+        }
+        
+        log('Пытаемся инициализировать виджет...');
+        
+        // Проверяем, загружен ли ShroomsWidgetEmbed
+        if (typeof ShroomsWidgetEmbed === 'undefined') {
+          log('Ошибка: ShroomsWidgetEmbed не найден. Возможно, скрипт не загрузился.');
+          return;
+        }
+        
+        // Создаем widget напрямую
+        widget = new ShroomsWidgetEmbed({
+          apiUrl: 'http://localhost:3000',
+          widgetUrl: 'http://localhost:3000/chat-widget/',
+          theme: 'neon',
+          autoOpen: false,
+          onReady: function() { log('Виджет готов'); },
+          onMessage: function(data) { log('Сообщение: ' + JSON.stringify(data)); },
+          onOpen: function() { log('Виджет открыт'); },
+          onClose: function() { log('Виджет закрыт'); },
+          onError: function(err) { log('Ошибка: ' + err.message); }
+        });
+        
+        log('Виджет инициализирован успешно');
+      } catch (error) {
+        log('Ошибка при инициализации виджета: ' + error.message);
+        console.error('Ошибка инициализации:', error);
+      }
+    }
+    
+    function openWidget() {
+      try {
+        if (!widget) {
+          log('Виджет не инициализирован. Пожалуйста, сначала инициализируйте виджет.');
+          return;
+        }
+        
+        log('Пытаемся открыть виджет...');
+        widget.open();
+      } catch (error) {
+        log('Ошибка при открытии виджета: ' + error.message);
+        console.error('Ошибка открытия:', error);
+      }
+    }
+    
+    function sendMessage() {
+      try {
+        if (!widget) {
+          log('Виджет не инициализирован. Пожалуйста, сначала инициализируйте виджет.');
+          return;
+        }
+        
+        const testMsg = 'Тестовое сообщение в ' + new Date().toLocaleTimeString();
+        log('Отправка сообщения: ' + testMsg);
+        widget.sendMessage(testMsg);
+      } catch (error) {
+        log('Ошибка при отправке сообщения: ' + error.message);
+        console.error('Ошибка отправки:', error);
+      }
+    }
+  </script>
+</body>
+</html>
