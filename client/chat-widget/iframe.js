@@ -54,7 +54,10 @@
       welcomeMessage: config.welcomeMessage,
       branding: config.branding,
       i18n: config.i18n,
-      onInit: handleWidgetInit,
+      onInit: function() {
+        // Задержка для гарантии, что виджет полностью инициализирован
+        setTimeout(handleWidgetInit, 200);
+      },
       onOpen: handleWidgetOpen,
       onClose: handleWidgetClose,
       onMessage: handleWidgetMessage,
@@ -68,11 +71,29 @@
    * @private
    */
   function handleWidgetInit() {
-    sendMessageToParent({
-      type: 'widget:initialized',
-      timestamp: new Date().toISOString(),
-      state: widget.getState()
-    });
+    try {
+      // Проверка, что widget существует и имеет метод getState
+      if (widget && typeof widget.getState === 'function') {
+        sendMessageToParent({
+          type: 'widget:initialized',
+          timestamp: new Date().toISOString(),
+          state: widget.getState()
+        });
+      } else {
+        // Отправляем сообщение без состояния, если getState недоступен
+        sendMessageToParent({
+          type: 'widget:initialized',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Error in widget initialization handler:', error);
+      // Отправляем сообщение без состояния в случае ошибки
+      sendMessageToParent({
+        type: 'widget:initialized',
+        timestamp: new Date().toISOString()
+      });
+    }
   }
   
   /**
@@ -183,42 +204,44 @@
             initWidget();
           } else {
             // Если виджет уже инициализирован, обновляем конфигурацию
-            widget.updateConfig(config);
+            if (typeof widget.updateConfig === 'function') {
+              widget.updateConfig(config);
+            }
           }
           break;
           
         case 'widget:open':
-          if (widget) {
+          if (widget && typeof widget.open === 'function') {
             widget.open();
           }
           break;
           
         case 'widget:close':
-          if (widget) {
+          if (widget && typeof widget.close === 'function') {
             widget.close();
           }
           break;
           
         case 'widget:sendMessage':
-          if (widget && message.text) {
+          if (widget && message.text && typeof widget.sendMessage === 'function') {
             widget.sendMessage(message.text);
           }
           break;
           
         case 'widget:clearHistory':
-          if (widget) {
+          if (widget && typeof widget.clearHistory === 'function') {
             widget.clearHistory();
           }
           break;
           
         case 'widget:setLanguage':
-          if (widget && message.language) {
+          if (widget && message.language && typeof widget.setLanguage === 'function') {
             widget.setLanguage(message.language);
           }
           break;
           
         case 'widget:getState':
-          if (widget) {
+          if (widget && typeof widget.getState === 'function') {
             sendMessageToParent({
               type: 'widget:state',
               timestamp: new Date().toISOString(),
@@ -228,7 +251,7 @@
           break;
           
         case 'widget:getMessages':
-          if (widget) {
+          if (widget && typeof widget.getMessages === 'function') {
             sendMessageToParent({
               type: 'widget:messages',
               timestamp: new Date().toISOString(),
