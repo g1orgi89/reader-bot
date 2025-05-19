@@ -138,4 +138,4 @@ ecosystem.config.js.local
 .sentryclirc
 
 # Local development tools
-.history/
+.history/.env
