@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Неоновый гриб для админ-панели Shrooms AI Support Bot -->
+  
+  <!-- Шляпка гриба -->
+  <ellipse cx="50" cy="35" rx="35" ry="25" fill="#121212" stroke="#39FF14" stroke-width="2" />
+  
+  <!-- Внутренний узор шляпки -->
+  <ellipse cx="50" cy="35" rx="25" ry="17" fill="none" stroke="#8A2BE2" stroke-width="1.5" stroke-dasharray="4,2" />
+  <ellipse cx="50" cy="35" rx="15" ry="10" fill="none" stroke="#39FF14" stroke-width="1" stroke-dasharray="2,1" />
+  
+  <!-- Неоновое свечение для шляпки -->
+  <ellipse cx="50" cy="35" rx="35" ry="25" fill="none" stroke="#39FF14" stroke-width="1" filter="url(#neon-glow)" />
+  
+  <!-- Ножка гриба -->
+  <rect x="40" y="35" width="20" height="45" rx="5" ry="5" fill="#121212" stroke="#39FF14" stroke-width="2" />
+  
+  <!-- Узор ножки -->
+  <line x1="45" y1="45" x2="45" y2="75" stroke="#8A2BE2" stroke-width="1" stroke-dasharray="3,3" />
+  <line x1="55" y1="45" x2="55" y2="75" stroke="#8A2BE2" stroke-width="1" stroke-dasharray="3,3" />
+  
+  <!-- Неоновое свечение для ножки -->
+  <rect x="40" y="35" width="20" height="45" rx="5" ry="5" fill="none" stroke="#39FF14" stroke-width="1" filter="url(#neon-glow)" />
+  
+  <!-- Цифровые элементы для Web3 тематики -->
+  <circle cx="30" cy="25" r="2" fill="#00FFF9" />
+  <circle cx="65" cy="30" r="2" fill="#00FFF9" />
+  <circle cx="45" cy="18" r="2" fill="#00FFF9" />
+  <circle cx="73" cy="43" r="2" fill="#00FFF9" />
+  
+  <line x1="30" y1="25" x2="45" y2="18" stroke="#00FFF9" stroke-width="1" />
+  <line x1="65" y1="30" x2="73" y2="43" stroke="#00FFF9" stroke-width="1" />
+  <line x1="30" y1="25" x2="65" y2="30" stroke="#00FFF9" stroke-width="1" stroke-dasharray="2,2" />
+  
+  <!-- Текст с AI -->
+  <text x="50" y="60" font-family="'Orbitron', sans-serif" font-size="10" text-anchor="middle" fill="#FF6EC7">AI</text>
+  
+  <!-- Определение неонового свечения -->
+  <defs>
+    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.224 0 0 0 0 1 0 0 0 0 0.078 0 0 0 1 0" result="glow" />
+      <feBlend in="SourceGraphic" in2="glow" mode="normal" />
+    </filter>
+  </defs>
+</svg>
