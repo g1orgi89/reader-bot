@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shrooms AI Support Bot - Knowledge Base Management</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/knowledge.css">
+    <meta name="description" content="Knowledge base management for Shrooms AI Support Bot">
+    <!-- Preconnect to font sources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="mushroom-bg-animation mushroom-bg-subtle" id="mushroom-matrix"></div>
+    
+    <div class="admin-layout">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="logo-container">
+                <img src="img/logo.svg" alt="Shrooms AI Support Bot" class="logo">
+                <h1>Shrooms Admin</h1>
+            </div>
+            
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html">Dashboard</a></li>
+                    <li><a href="tickets.html">Tickets</a></li>
+                    <li><a href="knowledge.html" class="active">Knowledge Base</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-menu">
+                <span id="admin-username"></span>
+                <button id="logout-btn" class="btn btn-text">Logout</button>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="admin-content knowledge-content">
+            <div class="knowledge-header">
+                <h2>Knowledge Base</h2>
+                <div class="knowledge-actions">
+                    <div class="filter-group">
+                        <select id="category-filter" class="select-glow">
+                            <option value="all">All categories</option>
+                            <option value="general">General</option>
+                            <option value="user-guide">User Guide</option>
+                            <option value="tokenomics">Tokenomics</option>
+                            <option value="technical">Technical</option>
+                            <option value="troubleshooting">Troubleshooting</option>
+                        </select>
+                        
+                        <select id="language-filter" class="select-glow">
+                            <option value="all">All languages</option>
+                            <option value="en">English</option>
+                            <option value="ru">Russian</option>
+                            <option value="es">Spanish</option>
+                        </select>
+                        
+                        <input type="text" id="search-knowledge" placeholder="Search knowledge base..." class="search-input">
+                    </div>
+                    
+                    <button id="add-document" class="btn btn-primary btn-glow">
+                        <span class="btn-text">Add Document</span>
+                        <span class="btn-icon">+</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Knowledge base documents -->
+            <div class="knowledge-container glow-card">
+                <div class="table-container">
+                    <table class="data-table" id="knowledge-table">
+                        <thead>
+                            <tr>
+                                <th class="col-id">ID</th>
+                                <th class="col-title">Title</th>
+                                <th class="col-category">Category</th>
+                                <th class="col-language">Language</th>
+                                <th class="col-tags">Tags</th>
+                                <th class="col-updated">Updated</th>
+                                <th class="col-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-loading">
+                                <td colspan="7">Loading documents...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Showing <span id="pagination-range">0-0</span> of <span id="pagination-total">0</span> documents
+                    </div>
+                    <div class="pagination-controls">
+                        <button id="prev-page" class="btn btn-icon btn-secondary" disabled>
+                            &larr;
+                        </button>
+                        <span id="pagination-current">Page 1</span>
+                        <button id="next-page" class="btn btn-icon btn-secondary" disabled>
+                            &rarr;
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Document editor modal (hidden by default) -->
+            <div class="document-editor-overlay" id="document-editor-overlay">
+                <div class="document-editor-container glow-card">
+                    <div class="document-editor-header">
+                        <h3 id="editor-title">Add Document</h3>
+                        <button id="close-document-editor" class="btn btn-icon btn-text">×</button>
+                    </div>
+                    
+                    <div class="document-editor-content">
+                        <form id="document-form" class="document-form">
+                            <input type="hidden" id="document-id" name="document-id" value="">
+                            
+                            <div class="form-group">
+                                <label for="document-title">Title:</label>
+                                <input type="text" id="document-title" name="document-title" required>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="document-category">Category:</label>
+                                    <select id="document-category" name="document-category" class="select-glow" required>
+                                        <option value="general">General</option>
+                                        <option value="user-guide">User Guide</option>
+                                        <option value="tokenomics">Tokenomics</option>
+                                        <option value="technical">Technical</option>
+                                        <option value="troubleshooting">Troubleshooting</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="document-language">Language:</label>
+                                    <select id="document-language" name="document-language" class="select-glow" required>
+                                        <option value="en">English</option>
+                                        <option value="ru">Russian</option>
+                                        <option value="es">Spanish</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="document-tags">Tags (comma separated):</label>
+                                <input type="text" id="document-tags" name="document-tags" placeholder="wallet, connection, xverse">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="document-content">Content (Markdown supported):</label>
+                                <textarea id="document-content" name="document-content" rows="15" required></textarea>
+                                <div class="editor-hints">
+                                    <span>Supports Markdown: **bold**, *italic*, [links](url), # Headings</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" id="preview-document" class="btn btn-secondary btn-glow">
+                                    <span class="btn-text">Preview</span>
+                                </button>
+                                
+                                <button type="submit" class="btn btn-primary btn-glow">
+                                    <span class="btn-text" id="save-document-text">Save Document</span>
+                                    <span class="btn-icon">🍄</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Document preview modal (hidden by default) -->
+            <div class="document-preview-overlay" id="document-preview-overlay">
+                <div class="document-preview-container glow-card">
+                    <div class="document-preview-header">
+                        <h3>Document Preview</h3>
+                        <button id="close-document-preview" class="btn btn-icon btn-text">×</button>
+                    </div>
+                    
+                    <div class="document-preview-content">
+                        <div class="document-preview-meta">
+                            <div class="preview-title" id="preview-title"></div>
+                            <div class="preview-meta">
+                                <span class="preview-category" id="preview-category"></span>
+                                <span class="preview-language" id="preview-language"></span>
+                            </div>
+                            <div class="preview-tags" id="preview-tags"></div>
+                        </div>
+                        
+                        <div class="document-preview-body" id="preview-content"></div>
+                        
+                        <div class="preview-actions">
+                            <button id="edit-from-preview" class="btn btn-secondary btn-glow">
+                                <span class="btn-text">Continue Editing</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RAG Index controls -->
+            <div class="rag-index-container glow-card">
+                <div class="section-header">
+                    <h3>RAG Index Management</h3>
+                    <div class="last-updated">Last indexing: <span id="rag-last-indexed">--</span></div>
+                </div>
+                
+                <div class="rag-stats">
+                    <div class="rag-stat">
+                        <label>Total Documents:</label>
+                        <span id="rag-docs-count">--</span>
+                    </div>
+                    
+                    <div class="rag-stat">
+                        <label>Vector Store:</label>
+                        <span id="rag-vector-store">--</span>
+                    </div>
+                    
+                    <div class="rag-stat">
+                        <label>Embedding Model:</label>
+                        <span id="rag-embedding-model">--</span>
+                    </div>
+                </div>
+                
+                <div class="rag-actions">
+                    <button id="rebuild-index" class="btn btn-warning btn-glow">
+                        <span class="btn-text">Rebuild Index</span>
+                    </button>
+                    
+                    <button id="test-rag-search" class="btn btn-secondary btn-glow">
+                        <span class="btn-text">Test RAG Search</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="admin-footer">
+            <p>Shrooms AI Support Bot - Admin Panel</p>
+            <p class="copyright">© 2025 Shrooms Project</p>
+        </footer>
+    </div>
+    
+    <!-- Notification system -->
+    <div class="notification-container" id="notification-container"></div>
+    
+    <!-- Scripts -->
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/knowledge.js"></script>
+    <script>
+        // Check authentication on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Verify authentication
+            if (!isAuthenticated()) {
+                redirectToLogin();
+                return;
+            }
+            
+            // Initialize knowledge base page
+            initKnowledgePage();
+            
+            // Initialize mushroom matrix background
+            initMushroomMatrix(true); // subtle mode for working pages
+            
+            // Load admin username
+            document.getElementById('admin-username').textContent = getAdminUsername();
+            
+            // Setup logout handler
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        });
+    </script>
+</body>
+</html>
