@@ -1,0 +1,177 @@
+/**
+ * login.css - стили для страницы авторизации админ-панели Shrooms AI Support Bot
+ */
+
+/* Основные стили страницы логина */
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--color-bg-dark);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Контейнер формы логина */
+.login-container {
+  background-color: var(--color-bg-card);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 0 30px rgba(57, 255, 20, 0.15);
+  width: 100%;
+  max-width: 450px;
+  padding: var(--spacing-xl);
+  position: relative;
+  animation: glow 5s infinite alternate;
+  z-index: 1;
+}
+
+/* Анимация свечения для контейнера логина */
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(57, 255, 20, 0.2), 0 0 40px rgba(138, 43, 226, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(138, 43, 226, 0.2);
+  }
+}
+
+/* Стили для логотипа */
+.login-logo {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.login-logo img {
+  width: 80px;
+  height: auto;
+  margin-bottom: var(--spacing-md);
+  filter: drop-shadow(0 0 10px rgba(57, 255, 20, 0.5));
+  animation: logoGlow 3s infinite alternate;
+}
+
+/* Анимация свечения для логотипа */
+@keyframes logoGlow {
+  0% {
+    filter: drop-shadow(0 0 5px rgba(57, 255, 20, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 15px rgba(57, 255, 20, 0.6));
+  }
+  100% {
+    filter: drop-shadow(0 0 8px rgba(138, 43, 226, 0.5));
+  }
+}
+
+.login-logo h1 {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-xl);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 0;
+}
+
+/* Стили для формы логина */
+.login-form-container {
+  margin-bottom: var(--spacing-xl);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.login-form .form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+/* Специальные стили для полей ввода на странице логина */
+.login-form input[type="text"],
+.login-form input[type="password"] {
+  background-color: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(57, 255, 20, 0.2);
+  transition: all var(--animation-fast) ease-in-out;
+}
+
+.login-form input[type="text"]:focus,
+.login-form input[type="password"]:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.2);
+}
+
+/* Стили для кнопки логина */
+.login-form .btn {
+  margin-top: var(--spacing-md);
+  width: 100%;
+  font-size: var(--font-size-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+/* Контейнер для сообщений об ошибках */
+.form-error {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  min-height: 20px;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Стили для футера страницы логина */
+.login-footer {
+  text-align: center;
+  color: var(--color-text-dim);
+  font-size: var(--font-size-sm);
+}
+
+.login-footer p {
+  margin-bottom: var(--spacing-sm);
+}
+
+.copyright {
+  font-size: var(--font-size-xs);
+}
+
+/* Анимированный фон "цифрового грибного дождя" */
+.mushroom-bg-animation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background-color: var(--color-bg-dark);
+  opacity: 0.7;
+}
+
+/* Модификаторы для активной и наведенной кнопок */
+.login-form .btn-primary {
+  background: linear-gradient(45deg, var(--color-primary-dim), var(--color-secondary));
+  position: relative;
+  overflow: hidden;
+}
+
+.login-form .btn-primary:hover {
+  background: linear-gradient(45deg, var(--color-primary), var(--color-secondary));
+}
+
+/* Адаптивные стили */
+@media (max-width: 576px) {
+  .login-container {
+    max-width: 90%;
+    padding: var(--spacing-lg);
+  }
+  
+  .login-logo h1 {
+    font-size: var(--font-size-lg);
+  }
+  
+  .login-logo img {
+    width: 60px;
+  }
+}
