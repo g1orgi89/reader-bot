@@ -1,0 +1,576 @@
+/**
+ * knowledge.css - стили для страницы управления базой знаний админ-панели Shrooms AI Support Bot
+ */
+
+/* ---------- Заголовок страницы базы знаний ---------- */
+.knowledge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.knowledge-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+/* ---------- Контейнер списка документов ---------- */
+.knowledge-container {
+  position: relative;
+}
+
+/* Специфические стили для таблицы документов */
+.knowledge-container .data-table .col-id {
+  width: 80px;
+}
+
+.knowledge-container .data-table .col-title {
+  min-width: 250px;
+}
+
+.knowledge-container .data-table .col-category,
+.knowledge-container .data-table .col-language {
+  width: 120px;
+  text-align: center;
+}
+
+.knowledge-container .data-table .col-tags {
+  min-width: 200px;
+}
+
+.knowledge-container .data-table .col-updated {
+  width: 180px;
+}
+
+.knowledge-container .data-table .col-actions {
+  width: 120px;
+  text-align: right;
+}
+
+/* Стили для категорий */
+.category-tag {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.category-general {
+  background-color: rgba(57, 255, 20, 0.2);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary-dim);
+}
+
+.category-user-guide {
+  background-color: rgba(0, 255, 249, 0.2);
+  color: var(--color-info);
+  border: 1px solid var(--color-info);
+}
+
+.category-tokenomics {
+  background-color: rgba(138, 43, 226, 0.2);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-secondary);
+}
+
+.category-technical {
+  background-color: rgba(255, 204, 0, 0.2);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.category-troubleshooting {
+  background-color: rgba(255, 51, 102, 0.2);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
+/* Стили для языков */
+.language-tag {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.language-en {
+  color: #3498db;
+  border-color: #3498db;
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+.language-ru {
+  color: #e74c3c;
+  border-color: #e74c3c;
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
+.language-es {
+  color: #f39c12;
+  border-color: #f39c12;
+  background-color: rgba(243, 156, 18, 0.1);
+}
+
+/* Стили для тегов */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ---------- Модальное окно редактора документов ---------- */
+.document-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--animation-normal) ease-in-out;
+}
+
+.document-editor-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.document-editor-container {
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background-color: var(--color-bg-card);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 0 30px rgba(57, 255, 20, 0.15);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(20px);
+  transition: transform var(--animation-normal) ease-out;
+}
+
+.document-editor-overlay.active .document-editor-container {
+  transform: translateY(0);
+}
+
+/* Стили для заголовка редактора */
+.document-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  background-color: var(--color-bg-card);
+  z-index: 10;
+}
+
+.document-editor-header h3 {
+  margin-bottom: 0;
+  font-size: var(--font-size-lg);
+}
+
+/* Стили для контента редактора */
+.document-editor-content {
+  padding: var(--spacing-lg);
+}
+
+/* Стили для формы документа */
+.document-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.form-row {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: 0;
+}
+
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Стили для редактора контента */
+#document-content {
+  width: 100%;
+  min-height: 300px;
+  font-family: 'Courier New', monospace;
+  background-color: rgba(18, 18, 18, 0.8);
+  padding: var(--spacing-md);
+  border: 1px solid rgba(57, 255, 20, 0.2);
+  resize: vertical;
+}
+
+#document-content:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.2);
+}
+
+/* Стили для подсказок редактора */
+.editor-hints {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
+  margin-top: var(--spacing-xs);
+}
+
+/* Стили для кнопок действий */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+/* ---------- Модальное окно предпросмотра документа ---------- */
+.document-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--animation-normal) ease-in-out;
+}
+
+.document-preview-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.document-preview-container {
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background-color: var(--color-bg-card);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 0 30px rgba(138, 43, 226, 0.15);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(20px);
+  transition: transform var(--animation-normal) ease-out;
+}
+
+.document-preview-overlay.active .document-preview-container {
+  transform: translateY(0);
+}
+
+/* Стили для заголовка предпросмотра */
+.document-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  background-color: var(--color-bg-card);
+  z-index: 10;
+}
+
+.document-preview-header h3 {
+  margin-bottom: 0;
+  font-size: var(--font-size-lg);
+}
+
+/* Стили для контента предпросмотра */
+.document-preview-content {
+  padding: var(--spacing-lg);
+}
+
+/* Стили для метаданных предпросмотра */
+.document-preview-meta {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.preview-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+}
+
+.preview-meta {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+/* Стили для тела документа в предпросмотре */
+.document-preview-body {
+  background-color: rgba(18, 18, 18, 0.5);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-lg);
+  color: var(--color-text-light);
+  line-height: 1.6;
+}
+
+/* Стилизация Markdown в предпросмотре */
+.document-preview-body h1,
+.document-preview-body h2,
+.document-preview-body h3,
+.document-preview-body h4 {
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-bright);
+}
+
+.document-preview-body h1 {
+  font-size: var(--font-size-xl);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: var(--spacing-sm);
+}
+
+.document-preview-body h2 {
+  font-size: var(--font-size-lg);
+}
+
+.document-preview-body p {
+  margin-bottom: var(--spacing-md);
+}
+
+.document-preview-body ul,
+.document-preview-body ol {
+  margin-bottom: var(--spacing-md);
+  padding-left: var(--spacing-lg);
+}
+
+.document-preview-body li {
+  margin-bottom: var(--spacing-sm);
+}
+
+.document-preview-body a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--animation-fast) ease-in-out;
+}
+
+.document-preview-body a:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.document-preview-body code {
+  background-color: rgba(18, 18, 18, 0.8);
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.document-preview-body pre {
+  background-color: rgba(18, 18, 18, 0.8);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  overflow-x: auto;
+  margin-bottom: var(--spacing-md);
+}
+
+.document-preview-body blockquote {
+  border-left: 4px solid var(--color-primary);
+  padding-left: var(--spacing-md);
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-dim);
+}
+
+/* Кнопки действий для предпросмотра */
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-lg);
+}
+
+/* ---------- Контроль индекса RAG ---------- */
+.rag-index-container {
+  margin-top: var(--spacing-xl);
+}
+
+.rag-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.rag-stat {
+  flex: 1;
+  min-width: 200px;
+  background-color: rgba(18, 18, 18, 0.5);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+}
+
+.rag-stat label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-text-dim);
+  font-size: var(--font-size-sm);
+}
+
+.rag-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+/* ---------- Кнопки действий в таблице ---------- */
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-xs);
+}
+
+.action-view,
+.action-edit,
+.action-delete {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+  background-color: rgba(18, 18, 18, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all var(--animation-fast) ease-in-out;
+}
+
+.action-view:hover {
+  background-color: rgba(57, 255, 20, 0.2);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.action-edit:hover {
+  background-color: rgba(0, 255, 249, 0.2);
+  border-color: var(--color-info);
+  color: var(--color-info);
+}
+
+.action-delete:hover {
+  background-color: rgba(255, 51, 102, 0.2);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* Адаптивные стили */
+@media (max-width: 1200px) {
+  .filter-group {
+    flex-wrap: wrap;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  
+  .rag-stats {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .knowledge-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+  
+  .knowledge-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .filter-group select,
+  .filter-group input {
+    width: 100%;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions button {
+    width: 100%;
+  }
+  
+  .rag-actions {
+    flex-direction: column;
+  }
+  
+  .rag-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .pagination-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+  
+  .pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
