@@ -1,0 +1,314 @@
+/**
+ * dashboard.css - стили для дашборда админ-панели Shrooms AI Support Bot
+ */
+
+/* ---------- Заголовок дашборда ---------- */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.date-range-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.date-range-picker label {
+  margin-bottom: 0;
+  color: var(--color-text-dim);
+}
+
+/* ---------- Статистические карточки ---------- */
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.stat-card {
+  padding: var(--spacing-lg);
+  background-color: var(--color-bg-card);
+  border-radius: var(--border-radius-lg);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card h3 {
+  font-size: var(--font-size-md);
+  color: var(--color-text-light);
+  margin-bottom: var(--spacing-lg);
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+
+.stat-value {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-xxl);
+  font-weight: 700;
+  margin-bottom: var(--spacing-md);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent-alt));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.stat-change {
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.stat-change.positive {
+  color: var(--color-success);
+}
+
+.stat-change.negative {
+  color: var(--color-danger);
+}
+
+.stat-change::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+
+.stat-change.positive::before {
+  border-bottom: 5px solid var(--color-success);
+}
+
+.stat-change.negative::before {
+  border-top: 5px solid var(--color-danger);
+}
+
+/* Анимация для карточек статистики */
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--color-primary), var(--color-accent-alt), transparent);
+  box-shadow: 0 0 15px var(--color-primary);
+  animation: glowPulse 3s infinite alternate;
+}
+
+@keyframes glowPulse {
+  0% {
+    opacity: 0.5;
+    box-shadow: 0 0 5px var(--color-primary);
+  }
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 15px var(--color-primary), 0 0 30px var(--color-accent-alt);
+  }
+}
+
+/* ---------- Графики ---------- */
+.dashboard-charts {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.chart-container {
+  flex: 1;
+  min-height: 350px;
+  padding: var(--spacing-lg);
+}
+
+.chart-container h3 {
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+  font-size: var(--font-size-md);
+  color: var(--color-text-light);
+}
+
+.chart {
+  width: 100%;
+  height: calc(100% - 50px);
+  min-height: 250px;
+  background-color: rgba(18, 18, 18, 0.5);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  position: relative;
+}
+
+.chart-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--color-text-dim);
+  font-style: italic;
+}
+
+/* ---------- Недавние тикеты ---------- */
+.recent-tickets-container {
+  margin-bottom: var(--spacing-xl);
+}
+
+.recent-tickets-container .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.view-all {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.view-all:hover {
+  color: var(--color-accent);
+}
+
+/* Специфические стили для таблицы тикетов на дашборде */
+.recent-tickets-container .data-table .col-id {
+  width: 80px;
+}
+
+.recent-tickets-container .data-table .col-status {
+  width: 100px;
+}
+
+.recent-tickets-container .data-table .col-priority {
+  width: 100px;
+}
+
+.recent-tickets-container .data-table .col-created {
+  width: 180px;
+}
+
+.recent-tickets-container .data-table .col-actions {
+  width: 100px;
+  text-align: right;
+}
+
+/* ---------- Управление доходностью фарминга ---------- */
+.farming-rate-container {
+  margin-bottom: var(--spacing-xl);
+}
+
+.farming-rate-container .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.last-updated {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-dim);
+}
+
+.farming-rate-form {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: flex-end;
+}
+
+.farming-rate-form .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.farming-rate-form button {
+  min-width: 150px;
+}
+
+/* Стилизация поля ввода процента */
+input[type="number"] {
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+#farming-rate {
+  font-size: var(--font-size-lg);
+  text-align: center;
+  font-family: var(--font-heading);
+  color: var(--color-primary);
+  background-color: rgba(57, 255, 20, 0.05);
+  border: 1px solid rgba(57, 255, 20, 0.2);
+  box-shadow: inset 0 0 5px rgba(57, 255, 20, 0.1);
+}
+
+#farming-rate:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.2), inset 0 0 5px rgba(57, 255, 20, 0.1);
+}
+
+/* Адаптивные стили для dashboard */
+@media (max-width: 1200px) {
+  .stats-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .dashboard-charts {
+    flex-direction: column;
+  }
+  
+  .farming-rate-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .farming-rate-form .form-group {
+    margin-bottom: var(--spacing-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+  
+  .date-range-picker {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .recent-tickets-container .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .farming-rate-container .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-cards {
+    grid-template-columns: 1fr;
+  }
+}
