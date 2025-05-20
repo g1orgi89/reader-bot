@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shrooms AI Support Bot - Admin Dashboard</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <meta name="description" content="Admin dashboard for Shrooms AI Support Bot">
+    <!-- Preconnect to font sources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="mushroom-bg-animation mushroom-bg-subtle" id="mushroom-matrix"></div>
+    
+    <div class="admin-layout">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="logo-container">
+                <img src="img/logo.svg" alt="Shrooms AI Support Bot" class="logo">
+                <h1>Shrooms Admin</h1>
+            </div>
+            
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html" class="active">Dashboard</a></li>
+                    <li><a href="tickets.html">Tickets</a></li>
+                    <li><a href="knowledge.html">Knowledge Base</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-menu">
+                <span id="admin-username"></span>
+                <button id="logout-btn" class="btn btn-text">Logout</button>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="admin-content">
+            <div class="dashboard-header">
+                <h2>Dashboard</h2>
+                <div class="date-range-picker">
+                    <label for="date-range">Time period:</label>
+                    <select id="date-range" class="select-glow">
+                        <option value="today">Today</option>
+                        <option value="week" selected>Last 7 days</option>
+                        <option value="month">Last 30 days</option>
+                        <option value="quarter">Last 90 days</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Stats cards -->
+            <div class="stats-cards">
+                <div class="stat-card glow-card">
+                    <h3>Active Conversations</h3>
+                    <div class="stat-value" id="active-conversations-count">--</div>
+                    <div class="stat-change positive">+5% from last period</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <h3>Open Tickets</h3>
+                    <div class="stat-value" id="open-tickets-count">--</div>
+                    <div class="stat-change negative">+12% from last period</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <h3>Resolved Issues</h3>
+                    <div class="stat-value" id="resolved-issues-count">--</div>
+                    <div class="stat-change positive">+8% from last period</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <h3>Response Time</h3>
+                    <div class="stat-value" id="avg-response-time">--</div>
+                    <div class="stat-change positive">-5% from last period</div>
+                </div>
+            </div>
+            
+            <!-- Charts -->
+            <div class="dashboard-charts">
+                <div class="chart-container glow-card">
+                    <h3>Conversations Over Time</h3>
+                    <div class="chart" id="conversations-chart">
+                        <div class="chart-placeholder">
+                            Chart loading...
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container glow-card">
+                    <h3>Popular Topics</h3>
+                    <div class="chart" id="topics-chart">
+                        <div class="chart-placeholder">
+                            Chart loading...
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent tickets -->
+            <div class="recent-tickets-container glow-card">
+                <div class="section-header">
+                    <h3>Recent Tickets</h3>
+                    <a href="tickets.html" class="view-all">View all tickets</a>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table" id="recent-tickets-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-loading">
+                                <td colspan="6">Loading tickets...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Farming Rate Control -->
+            <div class="farming-rate-container glow-card">
+                <div class="section-header">
+                    <h3>Farming Rate Control</h3>
+                    <div class="last-updated">Last updated: <span id="farming-last-updated">--</span></div>
+                </div>
+                
+                <form id="farming-rate-form" class="farming-rate-form">
+                    <div class="form-group">
+                        <label for="farming-rate">Current SHROOMS farming rate (%)</label>
+                        <input type="number" id="farming-rate" name="farming-rate" min="0" max="100" step="0.1" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-glow">
+                        <span class="btn-text">Update Rate</span>
+                        <span class="btn-icon">🍄</span>
+                    </button>
+                </form>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="admin-footer">
+            <p>Shrooms AI Support Bot - Admin Panel</p>
+            <p class="copyright">© 2025 Shrooms Project</p>
+        </footer>
+    </div>
+    
+    <!-- Notification system -->
+    <div class="notification-container" id="notification-container"></div>
+    
+    <!-- Scripts -->
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script>
+        // Check authentication on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Verify authentication
+            if (!isAuthenticated()) {
+                redirectToLogin();
+                return;
+            }
+            
+            // Initialize dashboard
+            initDashboard();
+            
+            // Initialize mushroom matrix background
+            initMushroomMatrix(true); // subtle mode for dashboard
+            
+            // Load admin username
+            document.getElementById('admin-username').textContent = getAdminUsername();
+            
+            // Setup logout handler
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        });
+    </script>
+</body>
+</html>
