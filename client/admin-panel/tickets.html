@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shrooms AI Support Bot - Ticket Management</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/tickets.css">
+    <meta name="description" content="Ticket management for Shrooms AI Support Bot">
+    <!-- Preconnect to font sources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="mushroom-bg-animation mushroom-bg-subtle" id="mushroom-matrix"></div>
+    
+    <div class="admin-layout">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="logo-container">
+                <img src="img/logo.svg" alt="Shrooms AI Support Bot" class="logo">
+                <h1>Shrooms Admin</h1>
+            </div>
+            
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html">Dashboard</a></li>
+                    <li><a href="tickets.html" class="active">Tickets</a></li>
+                    <li><a href="knowledge.html">Knowledge Base</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-menu">
+                <span id="admin-username"></span>
+                <button id="logout-btn" class="btn btn-text">Logout</button>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="admin-content tickets-content">
+            <div class="tickets-header">
+                <h2>Support Tickets</h2>
+                <div class="tickets-actions">
+                    <div class="filter-group">
+                        <select id="status-filter" class="select-glow">
+                            <option value="all">All statuses</option>
+                            <option value="open" selected>Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                        
+                        <select id="priority-filter" class="select-glow">
+                            <option value="all">All priorities</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                        
+                        <input type="text" id="search-tickets" placeholder="Search tickets..." class="search-input">
+                    </div>
+                    
+                    <button id="refresh-tickets" class="btn btn-secondary btn-glow">
+                        <span class="btn-text">Refresh</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tickets list -->
+            <div class="tickets-container glow-card">
+                <div class="table-container">
+                    <table class="data-table" id="tickets-table">
+                        <thead>
+                            <tr>
+                                <th class="col-id">ID</th>
+                                <th class="col-subject">Subject</th>
+                                <th class="col-status">Status</th>
+                                <th class="col-priority">Priority</th>
+                                <th class="col-user">User</th>
+                                <th class="col-created">Created</th>
+                                <th class="col-updated">Updated</th>
+                                <th class="col-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-loading">
+                                <td colspan="8">Loading tickets...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Showing <span id="pagination-range">0-0</span> of <span id="pagination-total">0</span> tickets
+                    </div>
+                    <div class="pagination-controls">
+                        <button id="prev-page" class="btn btn-icon btn-secondary" disabled>
+                            &larr;
+                        </button>
+                        <span id="pagination-current">Page 1</span>
+                        <button id="next-page" class="btn btn-icon btn-secondary" disabled>
+                            &rarr;
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ticket detail view (hidden by default) -->
+            <div class="ticket-detail-overlay" id="ticket-detail-overlay">
+                <div class="ticket-detail-container glow-card">
+                    <div class="ticket-detail-header">
+                        <h3>Ticket Detail</h3>
+                        <button id="close-ticket-detail" class="btn btn-icon btn-text">×</button>
+                    </div>
+                    
+                    <div class="ticket-detail-content">
+                        <div class="ticket-info">
+                            <div class="ticket-id">
+                                <label>Ticket ID:</label>
+                                <span id="detail-ticket-id"></span>
+                            </div>
+                            
+                            <div class="ticket-status">
+                                <label>Status:</label>
+                                <select id="detail-ticket-status" class="select-glow">
+                                    <option value="open">Open</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="resolved">Resolved</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                            </div>
+                            
+                            <div class="ticket-priority">
+                                <label>Priority:</label>
+                                <select id="detail-ticket-priority" class="select-glow">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="ticket-subject">
+                            <label>Subject:</label>
+                            <span id="detail-ticket-subject"></span>
+                        </div>
+                        
+                        <div class="ticket-user-info">
+                            <label>User:</label>
+                            <span id="detail-ticket-user"></span>
+                        </div>
+                        
+                        <div class="ticket-dates">
+                            <div>
+                                <label>Created:</label>
+                                <span id="detail-ticket-created"></span>
+                            </div>
+                            <div>
+                                <label>Updated:</label>
+                                <span id="detail-ticket-updated"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="ticket-message">
+                            <label>Initial Message:</label>
+                            <div id="detail-ticket-message" class="message-content"></div>
+                        </div>
+                        
+                        <div class="ticket-conversation">
+                            <label>Conversation:</label>
+                            <div id="detail-ticket-conversation" class="conversation-container"></div>
+                        </div>
+                        
+                        <div class="ticket-response">
+                            <label for="ticket-response-text">Response:</label>
+                            <textarea id="ticket-response-text" placeholder="Type your response here..."></textarea>
+                            <button id="send-response" class="btn btn-primary btn-glow">
+                                <span class="btn-text">Send Response</span>
+                                <span class="btn-icon">🍄</span>
+                            </button>
+                        </div>
+                        
+                        <div class="ticket-resolution" id="resolution-container">
+                            <label for="ticket-resolution-text">Resolution:</label>
+                            <textarea id="ticket-resolution-text" placeholder="Describe how this ticket was resolved..."></textarea>
+                        </div>
+                        
+                        <div class="ticket-actions">
+                            <button id="save-ticket" class="btn btn-primary btn-glow">
+                                <span class="btn-text">Save Changes</span>
+                            </button>
+                            
+                            <button id="resolve-ticket" class="btn btn-success btn-glow">
+                                <span class="btn-text">Resolve Ticket</span>
+                            </button>
+                            
+                            <button id="close-ticket" class="btn btn-danger btn-glow">
+                                <span class="btn-text">Close Ticket</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="admin-footer">
+            <p>Shrooms AI Support Bot - Admin Panel</p>
+            <p class="copyright">© 2025 Shrooms Project</p>
+        </footer>
+    </div>
+    
+    <!-- Notification system -->
+    <div class="notification-container" id="notification-container"></div>
+    
+    <!-- Scripts -->
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/tickets.js"></script>
+    <script>
+        // Check authentication on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Verify authentication
+            if (!isAuthenticated()) {
+                redirectToLogin();
+                return;
+            }
+            
+            // Initialize tickets page
+            initTicketsPage();
+            
+            // Initialize mushroom matrix background
+            initMushroomMatrix(true); // subtle mode for working pages
+            
+            // Load admin username
+            document.getElementById('admin-username').textContent = getAdminUsername();
+            
+            // Setup logout handler
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        });
+    </script>
+</body>
+</html>
