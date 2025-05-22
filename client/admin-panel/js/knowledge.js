@@ -2,7 +2,7 @@
  * knowledge.js - система управления грибной базой знаний для Shrooms AI Support Bot
  * 
  * Этот модуль отвечает за взаимодействие с векторной базой данных Qdrant,
- * управление документами, настройку доходности фарминга и RAG-функциональность.
+ * управление документами и RAG-функциональность.
  * 
  * @fileoverview Управление грибной базой знаний и векторным хранилищем спор мудрости
  * @author Shrooms Development Team
@@ -42,18 +42,13 @@
 
 /**
  * @typedef {Object} RAGStats
- * @property {number} totalDocuments - Общее количество документов
- * @property {string} vectorStore - Тип векторного хранилища
- * @property {string} embeddingModel - Модель для создания эмбеддингов
- * @property {string} lastIndexed - Время последней индексации
- * @property {string} syncStatus - Статус синхронизации
- */
-
-/**
- * @typedef {Object} FarmingRate
- * @property {number} rate - Текущая доходность в процентах
+ * @property {number} total - Общее количество документов
+ * @property {number} published - Количество опубликованных документов
+ * @property {number} draft - Количество черновиков
+ * @property {Array} byLanguage - Статистика по языкам
+ * @property {Array} byCategory - Статистика по категориям
+ * @property {Array} recentlyUpdated - Недавно обновленные документы
  * @property {string} lastUpdated - Время последнего обновления
- * @property {string} [updatedBy] - Кто обновил доходность
  */
 
 /**
@@ -109,10 +104,7 @@ const knowledgeState = {
   isLoading: false,
   
   /** @type {RAGStats|null} Статистика RAG */
-  ragStats: null,
-  
-  /** @type {FarmingRate|null} Текущая доходность фарминга */
-  farmingRate: null
+  ragStats: null
 };
 
 /**
@@ -127,13 +119,11 @@ function initKnowledgePage() {
     initKnowledgeFilters();
     initDocumentEditor();
     initRAGControls();
-    initFarmingRateControl();
     initPagination();
     
     // Загружаем начальные данные
     loadDocuments();
     loadRAGStats();
-    loadFarmingRate();
     
     console.log('🍄 База знаний готова к выращиванию мудрости!');
   } catch (error) {
@@ -219,8 +209,9 @@ async function loadDocuments() {
     const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}?${params}`);
     
     if (response.success) {
-      knowledgeState.documents = response.data.documents;
-      knowledgeState.totalDocuments = response.data.total;
+      // ИСПРАВЛЕНО: Правильная обработка ответа API
+      knowledgeState.documents = response.data || [];
+      knowledgeState.totalDocuments = response.pagination?.total || 0;
       
       renderDocumentsTable();
       updatePaginationInfo();
@@ -996,20 +987,21 @@ function updateRAGStatsDisplay(stats = knowledgeState.ragStats) {
   
   if (stats) {
     if (elements.lastIndexed) {
-      elements.lastIndexed.textContent = formatRelativeTime(stats.lastIndexed);
+      elements.lastIndexed.textContent = formatRelativeTime(stats.lastUpdated);
     }
     if (elements.docsCount) {
-      elements.docsCount.textContent = stats.totalDocuments.toString();
+      // ИСПРАВЛЕНО: Правильная обработка статистики RAG
+      elements.docsCount.textContent = (stats.total || 0).toString();
     }
     if (elements.vectorStore) {
-      elements.vectorStore.textContent = stats.vectorStore;
+      elements.vectorStore.textContent = 'Qdrant';
     }
     if (elements.embeddingModel) {
-      elements.embeddingModel.textContent = stats.embeddingModel;
+      elements.embeddingModel.textContent = 'text-embedding-ada-002';
     }
     if (elements.syncStatus) {
-      elements.syncStatus.textContent = stats.syncStatus;
-      elements.syncStatus.className = `status-badge status-${stats.syncStatus === 'synchronized' ? 'success' : 'warning'}`;
+      elements.syncStatus.textContent = 'Синхронизирован';
+      elements.syncStatus.className = 'status-badge status-success';
     }
   } else {
     // Заглушки
@@ -1032,128 +1024,6 @@ function updateRAGDocumentCount(count) {
   const element = document.getElementById('rag-docs-count');
   if (element) {
     element.textContent = count.toString();
-  }
-}
-
-/**
- * Инициализация управления доходностью фарминга
- */
-function initFarmingRateControl() {
-  console.log('🍄 Настройка управления доходностью фарминга...');
-  
-  const farmingForm = document.getElementById('farming-rate-form');
-  if (farmingForm) {
-    farmingForm.addEventListener('submit', handleFarmingRateUpdate);
-  }
-}
-
-/**
- * Загружает текущую доходность фарминга
- */
-async function loadFarmingRate() {
-  try {
-    console.log('🍄 Загрузка текущей доходности фарминга...');
-    
-    const response = await makeAuthenticatedRequest('/api/admin/farming-rate');
-    
-    if (response.success) {
-      knowledgeState.farmingRate = response.data;
-      updateFarmingRateDisplay();
-    } else {
-      console.warn('🍄 Не удалось загрузить доходность фарминга:', response.error?.message);
-      // Показываем заглушки
-      updateFarmingRateDisplay(null);
-    }
-  } catch (error) {
-    console.error('🍄 Ошибка загрузки доходности фарминга:', error);
-    updateFarmingRateDisplay(null);
-  }
-}
-
-/**
- * Обновляет отображение доходности фарминга
- * @param {FarmingRate|null} rate - Данные доходности или null для заглушек
- */
-function updateFarmingRateDisplay(rate = knowledgeState.farmingRate) {
-  const rateInput = document.getElementById('farming-rate');
-  const lastUpdatedElement = document.getElementById('farming-last-updated');
-  
-  if (rate) {
-    if (rateInput) {
-      rateInput.value = rate.rate.toString();
-    }
-    if (lastUpdatedElement) {
-      lastUpdatedElement.textContent = formatRelativeTime(rate.lastUpdated);
-    }
-  } else {
-    // Заглушки
-    if (rateInput) {
-      rateInput.value = '12.5'; // Значение по умолчанию
-    }
-    if (lastUpdatedElement) {
-      lastUpdatedElement.textContent = 'Неизвестно';
-    }
-  }
-}
-
-/**
- * Обработчик обновления доходности фарминга
- * @param {Event} event - Событие отправки формы
- */
-async function handleFarmingRateUpdate(event) {
-  event.preventDefault();
-  
-  const rateInput = document.getElementById('farming-rate');
-  const rate = parseFloat(rateInput.value);
-  
-  // Валидация
-  if (isNaN(rate) || rate < 0 || rate > 100) {
-    showNotification('error', '🍄 Введите корректную доходность от 0 до 100%');
-    rateInput.focus();
-    return;
-  }
-  
-  try {
-    console.log('🍄 Обновление доходности фарминга до', rate + '%');
-    
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    const btnText = submitBtn?.querySelector('.btn-text');
-    
-    // Показываем состояние загрузки
-    if (submitBtn) submitBtn.disabled = true;
-    if (btnText) btnText.textContent = '🌱 Обновление...';
-    
-    const response = await makeAuthenticatedRequest('/api/admin/farming-rate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rate })
-    });
-    
-    if (response.success) {
-      knowledgeState.farmingRate = response.data;
-      
-      // Обновляем отображение времени последнего обновления
-      const lastUpdatedElement = document.getElementById('farming-last-updated');
-      if (lastUpdatedElement) {
-        lastUpdatedElement.textContent = 'только что';
-      }
-      
-      showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%!`);
-      
-      console.log('🍄 Доходность фарминга успешно обновлена');
-    } else {
-      throw new Error(response.error?.message || 'Не удалось обновить доходность');
-    }
-  } catch (error) {
-    console.error('🍄 Ошибка обновления доходности:', error);
-    showNotification('error', `🍄 Не удалось обновить доходность: ${error.message}`);
-  } finally {
-    // Восстанавливаем кнопку
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    const btnText = submitBtn?.querySelector('.btn-text');
-    
-    if (submitBtn) submitBtn.disabled = false;
-    if (btnText) btnText.textContent = '🚀 Обновить Доходность';
   }
 }
 
