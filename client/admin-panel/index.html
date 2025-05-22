@@ -167,7 +167,6 @@
     <!-- Scripts -->
     <!-- Порядок важен: сначала auth, потом остальные -->
     <script src="js/auth.js"></script>
-    <script src="js/api.js"></script>
     <script src="js/main.js"></script>
     <script src="js/dashboard.js"></script>
     
@@ -291,21 +290,40 @@
             try {
                 console.log('🍄 Обновление доходности фарминга до', rate + '%');
                 
-                // TODO: Отправить запрос к API для обновления доходности
-                // const response = await fetch('/api/admin/farming-rate', { ... });
-                
-                // Пока что просто показываем успех
-                const lastUpdated = document.getElementById('farming-last-updated');
-                if (lastUpdated) {
-                    lastUpdated.textContent = new Date().toLocaleString('ru-RU');
+                // Используем makeAuthenticatedRequest из auth.js
+                if (typeof makeAuthenticatedRequest === 'function') {
+                    const response = await makeAuthenticatedRequest('/api/admin/farming-rate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rate })
+                    });
+                    
+                    if (response.success) {
+                        // Обновляем время последнего изменения
+                        const lastUpdated = document.getElementById('farming-last-updated');
+                        if (lastUpdated) {
+                            lastUpdated.textContent = 'только что';
+                        }
+                        
+                        showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%`);
+                    } else {
+                        throw new Error(response.error?.message || 'Не удалось обновить доходность');
+                    }
+                } else {
+                    // Fallback если auth.js не загружен
+                    console.warn('🍄 makeAuthenticatedRequest не найдена, используем заглушку');
+                    
+                    const lastUpdated = document.getElementById('farming-last-updated');
+                    if (lastUpdated) {
+                        lastUpdated.textContent = new Date().toLocaleString('ru-RU');
+                    }
+                    
+                    showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%`);
                 }
-                
-                // Показываем уведомление
-                showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%`);
                 
             } catch (error) {
                 console.error('🍄 Ошибка обновления доходности:', error);
-                showNotification('error', '🍄 Не удалось обновить доходность. Попробуйте еще раз.');
+                showNotification('error', `🍄 Не удалось обновить доходность: ${error.message}`);
             }
         }
         
