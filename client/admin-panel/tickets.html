@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shrooms AI Support Bot - Ticket Management</title>
+    <title>Shrooms AI Support Bot - Управление Тикетами</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/tickets.css">
-    <meta name="description" content="Ticket management for Shrooms AI Support Bot">
+    <meta name="description" content="Управление тикетами поддержки для Shrooms AI Support Bot">
     <!-- Preconnect to font sources -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Тонкая версия грибного цифрового дождя для рабочих страниц -->
     <div class="mushroom-bg-animation mushroom-bg-subtle" id="mushroom-matrix"></div>
     
     <div class="admin-layout">
@@ -20,7 +21,7 @@
         <header class="admin-header">
             <div class="logo-container">
                 <img src="img/logo.svg" alt="Shrooms AI Support Bot" class="logo">
-                <h1>Shrooms Admin</h1>
+                <h1>🍄 Shrooms Admin</h1>
             </div>
             
             <nav class="main-nav">
@@ -40,30 +41,30 @@
         <!-- Main content -->
         <main class="admin-content tickets-content">
             <div class="tickets-header">
-                <h2>Support Tickets</h2>
+                <h2>🎫 Управление Обращениями Грибников</h2>
                 <div class="tickets-actions">
                     <div class="filter-group">
                         <select id="status-filter" class="select-glow">
-                            <option value="all">All statuses</option>
-                            <option value="open" selected>Open</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="resolved">Resolved</option>
-                            <option value="closed">Closed</option>
+                            <option value="all">Все статусы</option>
+                            <option value="open" selected>Открытые</option>
+                            <option value="in_progress">В работе</option>
+                            <option value="resolved">Решенные</option>
+                            <option value="closed">Закрытые</option>
                         </select>
                         
                         <select id="priority-filter" class="select-glow">
-                            <option value="all">All priorities</option>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
+                            <option value="all">Все приоритеты</option>
+                            <option value="low">Низкий</option>
+                            <option value="medium">Средний</option>
+                            <option value="high">Высокий</option>
+                            <option value="urgent">Срочный</option>
                         </select>
                         
-                        <input type="text" id="search-tickets" placeholder="Search tickets..." class="search-input">
+                        <input type="text" id="search-tickets" placeholder="🔍 Поиск обращений..." class="search-input">
                     </div>
                     
                     <button id="refresh-tickets" class="btn btn-secondary btn-glow">
-                        <span class="btn-text">Refresh</span>
+                        <span class="btn-text">🔄 Обновить</span>
                     </button>
                 </div>
             </div>
@@ -75,18 +76,18 @@
                         <thead>
                             <tr>
                                 <th class="col-id">ID</th>
-                                <th class="col-subject">Subject</th>
-                                <th class="col-status">Status</th>
-                                <th class="col-priority">Priority</th>
-                                <th class="col-user">User</th>
-                                <th class="col-created">Created</th>
-                                <th class="col-updated">Updated</th>
-                                <th class="col-actions">Actions</th>
+                                <th class="col-subject">Тема</th>
+                                <th class="col-status">Статус</th>
+                                <th class="col-priority">Приоритет</th>
+                                <th class="col-user">Грибник</th>
+                                <th class="col-created">Создан</th>
+                                <th class="col-updated">Обновлен</th>
+                                <th class="col-actions">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="table-loading">
-                                <td colspan="8">Loading tickets...</td>
+                                <td colspan="8">🍄 Прорастание обращений...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -95,15 +96,15 @@
                 <!-- Pagination -->
                 <div class="pagination-container">
                     <div class="pagination-info">
-                        Showing <span id="pagination-range">0-0</span> of <span id="pagination-total">0</span> tickets
+                        Показано <span id="pagination-range">0-0</span> из <span id="pagination-total">0</span> обращений
                     </div>
                     <div class="pagination-controls">
                         <button id="prev-page" class="btn btn-icon btn-secondary" disabled>
-                            &larr;
+                            ← Назад
                         </button>
-                        <span id="pagination-current">Page 1</span>
+                        <span id="pagination-current">Страница 1</span>
                         <button id="next-page" class="btn btn-icon btn-secondary" disabled>
-                            &rarr;
+                            Вперед →
                         </button>
                     </div>
                 </div>
@@ -113,95 +114,105 @@
             <div class="ticket-detail-overlay" id="ticket-detail-overlay">
                 <div class="ticket-detail-container glow-card">
                     <div class="ticket-detail-header">
-                        <h3>Ticket Detail</h3>
+                        <h3>🎫 Детали Обращения</h3>
                         <button id="close-ticket-detail" class="btn btn-icon btn-text">×</button>
                     </div>
                     
                     <div class="ticket-detail-content">
                         <div class="ticket-info">
                             <div class="ticket-id">
-                                <label>Ticket ID:</label>
+                                <label>ID обращения:</label>
                                 <span id="detail-ticket-id"></span>
                             </div>
                             
                             <div class="ticket-status">
-                                <label>Status:</label>
+                                <label>Статус:</label>
                                 <select id="detail-ticket-status" class="select-glow">
-                                    <option value="open">Open</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="resolved">Resolved</option>
-                                    <option value="closed">Closed</option>
+                                    <option value="open">Открыт</option>
+                                    <option value="in_progress">В работе</option>
+                                    <option value="resolved">Решен</option>
+                                    <option value="closed">Закрыт</option>
                                 </select>
                             </div>
                             
                             <div class="ticket-priority">
-                                <label>Priority:</label>
+                                <label>Приоритет:</label>
                                 <select id="detail-ticket-priority" class="select-glow">
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
+                                    <option value="low">Низкий</option>
+                                    <option value="medium">Средний</option>
+                                    <option value="high">Высокий</option>
+                                    <option value="urgent">Срочный</option>
                                 </select>
                             </div>
                         </div>
                         
                         <div class="ticket-subject">
-                            <label>Subject:</label>
+                            <label>Тема:</label>
                             <span id="detail-ticket-subject"></span>
                         </div>
                         
                         <div class="ticket-user-info">
-                            <label>User:</label>
+                            <label>Грибник:</label>
                             <span id="detail-ticket-user"></span>
                         </div>
                         
                         <div class="ticket-dates">
                             <div>
-                                <label>Created:</label>
+                                <label>Создано:</label>
                                 <span id="detail-ticket-created"></span>
                             </div>
                             <div>
-                                <label>Updated:</label>
+                                <label>Обновлено:</label>
                                 <span id="detail-ticket-updated"></span>
                             </div>
                         </div>
                         
                         <div class="ticket-message">
-                            <label>Initial Message:</label>
+                            <label>Первоначальное сообщение:</label>
                             <div id="detail-ticket-message" class="message-content"></div>
                         </div>
                         
                         <div class="ticket-conversation">
-                            <label>Conversation:</label>
-                            <div id="detail-ticket-conversation" class="conversation-container"></div>
+                            <label>Диалог с ботом:</label>
+                            <div id="detail-ticket-conversation" class="conversation-container">
+                                🍄 Загрузка истории диалога...
+                            </div>
                         </div>
                         
                         <div class="ticket-response">
-                            <label for="ticket-response-text">Response:</label>
-                            <textarea id="ticket-response-text" placeholder="Type your response here..."></textarea>
+                            <label for="ticket-response-text">Ответ грибнику:</label>
+                            <textarea id="ticket-response-text" placeholder="Введите ваш ответ здесь..."></textarea>
                             <button id="send-response" class="btn btn-primary btn-glow">
-                                <span class="btn-text">Send Response</span>
+                                <span class="btn-text">Отправить Ответ</span>
                                 <span class="btn-icon">🍄</span>
                             </button>
                         </div>
                         
                         <div class="ticket-resolution" id="resolution-container">
-                            <label for="ticket-resolution-text">Resolution:</label>
-                            <textarea id="ticket-resolution-text" placeholder="Describe how this ticket was resolved..."></textarea>
+                            <label for="ticket-resolution-text">Решение:</label>
+                            <textarea id="ticket-resolution-text" placeholder="Опишите как было решено это обращение..."></textarea>
                         </div>
                         
                         <div class="ticket-actions">
                             <button id="save-ticket" class="btn btn-primary btn-glow">
-                                <span class="btn-text">Save Changes</span>
+                                <span class="btn-text">💾 Сохранить Изменения</span>
                             </button>
                             
                             <button id="resolve-ticket" class="btn btn-success btn-glow">
-                                <span class="btn-text">Resolve Ticket</span>
+                                <span class="btn-text">✅ Решить Обращение</span>
                             </button>
                             
-                            <button id="close-ticket" class="btn btn-danger btn-glow">
-                                <span class="btn-text">Close Ticket</span>
+                            <button id="delete-ticket" class="btn btn-danger btn-glow">
+                                <span class="btn-text">🗑️ Удалить Обращение</span>
                             </button>
+                        </div>
+                        
+                        <div class="ticket-deletion-warning" id="deletion-warning" style="display: none;">
+                            <p>⚠️ <strong>Осторожно!</strong> Удаление обращения необратимо. Все связанные данные будут потеряны.</p>
+                            <div class="deletion-actions">
+                                <button id="confirm-delete" class="btn btn-danger">Подтвердить Удаление</button>
+                                <button id="cancel-delete" class="btn btn-secondary">Отмена</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -210,8 +221,8 @@
         
         <!-- Footer -->
         <footer class="admin-footer">
-            <p>Shrooms AI Support Bot - Admin Panel</p>
-            <p class="copyright">© 2025 Shrooms Project</p>
+            <p>🍄 Shrooms AI Support Bot - Панель Управления Поддержкой</p>
+            <p class="copyright">© 2025 Shrooms Project. Все споры защищены.</p>
         </footer>
     </div>
     
@@ -219,31 +230,318 @@
     <div class="notification-container" id="notification-container"></div>
     
     <!-- Scripts -->
+    <!-- Порядок важен: сначала auth, потом остальные -->
     <script src="js/auth.js"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
     <script src="js/tickets.js"></script>
+    
     <script>
-        // Check authentication on load
+        /**
+         * Инициализация страницы управления тикетами
+         * Упрощенная версия - auth.js уже проверил аутентификацию автоматически
+         */
         document.addEventListener('DOMContentLoaded', () => {
-            // Verify authentication
-            if (!isAuthenticated()) {
-                redirectToLogin();
+            console.log('🍄 Инициализация страницы управления обращениями');
+            
+            // auth.js уже проверил аутентификацию и настроил все необходимое
+            // Если мы здесь - значит пользователь авторизован
+            
+            // Инициализируем страницу тикетов (если функция существует)
+            if (typeof initTicketsPage === 'function') {
+                initTicketsPage();
+            } else {
+                console.log('🍄 Функция initTicketsPage не найдена, используем базовую инициализацию');
+                initBasicTicketsPage();
+            }
+            
+            // Инициализируем тонкую версию грибной матрицы
+            if (typeof initMushroomMatrix === 'function') {
+                initMushroomMatrix(true); // subtle mode для рабочих страниц
+            }
+        });
+        
+        /**
+         * Базовая инициализация страницы тикетов на случай отсутствия tickets.js
+         */
+        function initBasicTicketsPage() {
+            console.log('🍄 Базовая инициализация страницы тикетов');
+            
+            // Загрузка тикетов
+            loadBasicTickets();
+            
+            // Обработчики фильтров
+            setupTicketFilters();
+            
+            // Обработчик кнопки обновления
+            const refreshBtn = document.getElementById('refresh-tickets');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', loadBasicTickets);
+            }
+            
+            // Обработчик закрытия детального просмотра
+            const closeDetailBtn = document.getElementById('close-ticket-detail');
+            if (closeDetailBtn) {
+                closeDetailBtn.addEventListener('click', closeTicketDetail);
+            }
+            
+            // Обработчик удаления тикета
+            setupTicketDeletion();
+        }
+        
+        /**
+         * Настройка фильтров тикетов
+         */
+        function setupTicketFilters() {
+            const statusFilter = document.getElementById('status-filter');
+            const priorityFilter = document.getElementById('priority-filter');
+            const searchInput = document.getElementById('search-tickets');
+            
+            if (statusFilter) {
+                statusFilter.addEventListener('change', () => {
+                    console.log('🍄 Изменен фильтр статуса:', statusFilter.value);
+                    loadBasicTickets();
+                });
+            }
+            
+            if (priorityFilter) {
+                priorityFilter.addEventListener('change', () => {
+                    console.log('🍄 Изменен фильтр приоритета:', priorityFilter.value);
+                    loadBasicTickets();
+                });
+            }
+            
+            if (searchInput) {
+                // Поиск с задержкой
+                let searchTimeout;
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        console.log('🍄 Поиск по запросу:', searchInput.value);
+                        loadBasicTickets();
+                    }, 500);
+                });
+            }
+        }
+        
+        /**
+         * Базовая загрузка тикетов (заглушка)
+         */
+        function loadBasicTickets() {
+            console.log('🍄 Загрузка базового списка обращений');
+            
+            const tbody = document.querySelector('#tickets-table tbody');
+            if (!tbody) return;
+            
+            // Заглушка данных
+            const mockTickets = [
+                {
+                    id: '#001',
+                    subject: 'Проблема подключения кошелька Xverse',
+                    status: 'open',
+                    priority: 'medium',
+                    user: 'user_123...abc',
+                    created: '2 часа назад',
+                    updated: '1 час назад'
+                },
+                {
+                    id: '#002',
+                    subject: 'Вопрос о токеномике SHROOMS',
+                    status: 'resolved',
+                    priority: 'low',
+                    user: 'user_456...def',
+                    created: '1 день назад',
+                    updated: '3 часа назад'
+                },
+                {
+                    id: '#003',
+                    subject: 'Ошибка при фарминге токенов',
+                    status: 'in_progress',
+                    priority: 'high',
+                    user: 'user_789...ghi',
+                    created: '3 часа назад',
+                    updated: '30 минут назад'
+                }
+            ];
+            
+            // Применяем фильтры
+            const statusFilter = document.getElementById('status-filter').value;
+            const priorityFilter = document.getElementById('priority-filter').value;
+            const searchQuery = document.getElementById('search-tickets').value.toLowerCase();
+            
+            let filteredTickets = mockTickets.filter(ticket => {
+                const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
+                const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
+                const matchesSearch = !searchQuery || 
+                    ticket.subject.toLowerCase().includes(searchQuery) ||
+                    ticket.id.toLowerCase().includes(searchQuery);
+                
+                return matchesStatus && matchesPriority && matchesSearch;
+            });
+            
+            // Отображаем результаты
+            tbody.innerHTML = filteredTickets.map(ticket => `
+                <tr onclick="showTicketDetail('${ticket.id}')">
+                    <td class="col-id">${ticket.id}</td>
+                    <td class="col-subject">${ticket.subject}</td>
+                    <td class="col-status">
+                        <span class="status-badge status-${ticket.status}">
+                            ${getStatusText(ticket.status)}
+                        </span>
+                    </td>
+                    <td class="col-priority">
+                        <span class="priority-badge priority-${ticket.priority}">
+                            ${getPriorityText(ticket.priority)}
+                        </span>
+                    </td>
+                    <td class="col-user">${ticket.user}</td>
+                    <td class="col-created">${ticket.created}</td>
+                    <td class="col-updated">${ticket.updated}</td>
+                    <td class="col-actions">
+                        <button class="btn btn-sm" onclick="showTicketDetail('${ticket.id}'); event.stopPropagation();">
+                            👁️ Просмотр
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Обновляем пагинацию
+            updatePagination(filteredTickets.length);
+        }
+        
+        /**
+         * Перевод статусов на русский
+         */
+        function getStatusText(status) {
+            const statusMap = {
+                'open': 'Открыт',
+                'in_progress': 'В работе',
+                'resolved': 'Решен',
+                'closed': 'Закрыт'
+            };
+            return statusMap[status] || status;
+        }
+        
+        /**
+         * Перевод приоритетов на русский
+         */
+        function getPriorityText(priority) {
+            const priorityMap = {
+                'low': 'Низкий',
+                'medium': 'Средний',
+                'high': 'Высокий',
+                'urgent': 'Срочный'
+            };
+            return priorityMap[priority] || priority;
+        }
+        
+        /**
+         * Обновление информации о пагинации
+         */
+        function updatePagination(totalTickets) {
+            const rangeElement = document.getElementById('pagination-range');
+            const totalElement = document.getElementById('pagination-total');
+            
+            if (rangeElement && totalElement) {
+                const start = totalTickets > 0 ? 1 : 0;
+                const end = totalTickets;
+                
+                rangeElement.textContent = `${start}-${end}`;
+                totalElement.textContent = totalTickets;
+            }
+        }
+        
+        /**
+         * Показ детального просмотра тикета
+         */
+        function showTicketDetail(ticketId) {
+            console.log('🍄 Открытие детального просмотра тикета:', ticketId);
+            
+            const overlay = document.getElementById('ticket-detail-overlay');
+            if (overlay) {
+                // Заполняем данные тикета (заглушка)
+                document.getElementById('detail-ticket-id').textContent = ticketId;
+                document.getElementById('detail-ticket-subject').textContent = 'Проблема подключения кошелька Xverse';
+                document.getElementById('detail-ticket-user').textContent = 'user_123...abc';
+                document.getElementById('detail-ticket-created').textContent = '2025-01-15 14:30:00';
+                document.getElementById('detail-ticket-updated').textContent = '2025-01-15 15:45:00';
+                document.getElementById('detail-ticket-message').textContent = 'Привет! У меня не получается подключить кошелек Xverse к платформе. Выдает ошибку при попытке подключения. Помогите пожалуйста!';
+                
+                // Показываем overlay
+                overlay.style.display = 'flex';
+            }
+        }
+        
+        /**
+         * Закрытие детального просмотра тикета
+         */
+        function closeTicketDetail() {
+            const overlay = document.getElementById('ticket-detail-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+        
+        /**
+         * Настройка удаления тикетов
+         */
+        function setupTicketDeletion() {
+            const deleteBtn = document.getElementById('delete-ticket');
+            const confirmDeleteBtn = document.getElementById('confirm-delete');
+            const cancelDeleteBtn = document.getElementById('cancel-delete');
+            const warningDiv = document.getElementById('deletion-warning');
+            
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => {
+                    if (warningDiv) {
+                        warningDiv.style.display = 'block';
+                    }
+                });
+            }
+            
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', () => {
+                    console.log('🍄 Подтверждено удаление тикета');
+                    
+                    // TODO: Реальное удаление через API
+                    showNotification('success', '🍄 Обращение успешно удалено');
+                    closeTicketDetail();
+                    loadBasicTickets();
+                });
+            }
+            
+            if (cancelDeleteBtn) {
+                cancelDeleteBtn.addEventListener('click', () => {
+                    if (warningDiv) {
+                        warningDiv.style.display = 'none';
+                    }
+                });
+            }
+        }
+        
+        /**
+         * Показ уведомления (базовая реализация)
+         */
+        function showNotification(type, message) {
+            const container = document.getElementById('notification-container');
+            if (!container) {
+                alert(message);
                 return;
             }
             
-            // Initialize tickets page
-            initTicketsPage();
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
             
-            // Initialize mushroom matrix background
-            initMushroomMatrix(true); // subtle mode for working pages
+            container.appendChild(notification);
             
-            // Load admin username
-            document.getElementById('admin-username').textContent = getAdminUsername();
-            
-            // Setup logout handler
-            document.getElementById('logout-btn').addEventListener('click', handleLogout);
-        });
+            // Удаляем уведомление через 5 секунд
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
     </script>
 </body>
 </html>
