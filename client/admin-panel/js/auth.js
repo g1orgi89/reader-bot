@@ -1,97 +1,94 @@
 /**
- * Authentication module for Shrooms AI Support Bot admin panel
- * @file client/admin-panel/js/auth.js
+ * Упрощенная система аутентификации для админ-панели Shrooms AI Support Bot
+ * Следует принципам грибной философии: простота, натуральность, рост без усложнений 🍄
+ * 
+ * @fileoverview Управление входом грибных администраторов в священные дебри поддержки
+ * @author Shrooms Development Team
  */
 
 /**
- * Initialize the login page functionality
+ * @typedef {Object} LoginCredentials
+ * @property {string} username - Имя грибного администратора
+ * @property {string} password - Секретная фраза для входа в мицелий
  */
-function initLoginPage() {
-  const loginForm = document.getElementById('login-form');
-  if (!loginForm) return;
 
-  // Add event listener to form submission
-  loginForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const errorElement = document.getElementById('login-error');
-    
-    // Clear previous error
-    if (errorElement) {
-      errorElement.textContent = '';
-    }
-    
-    // Validate input
-    if (!username || !password) {
-      if (errorElement) {
-        errorElement.textContent = 'Please enter both username and password';
-      }
-      return;
-    }
-    
-    try {
-      // Show loading state (could add a spinner here)
-      const submitButton = loginForm.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.querySelector('.btn-text').textContent = 'Logging in...';
-      }
-      
-      // Perform login
-      const result = await loginUser(username, password);
-      
-      if (result.success) {
-        // Store auth token
-        localStorage.setItem('adminToken', result.data.token);
-        localStorage.setItem('adminUsername', result.data.username);
-        
-        // Redirect to dashboard
-        window.location.href = 'index.html';
-      } else {
-        // Show error
-        if (errorElement) {
-          errorElement.textContent = result.error?.message || 'Login failed. Please check your credentials.';
-        }
-        
-        // Reset loading state
-        if (submitButton) {
-          submitButton.disabled = false;
-          submitButton.querySelector('.btn-text').textContent = 'Login';
-        }
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      if (errorElement) {
-        errorElement.textContent = 'An error occurred during login. Please try again.';
-      }
-      
-      // Reset loading state on error
-      const submitButton = loginForm.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.disabled = false;
-        submitButton.querySelector('.btn-text').textContent = 'Login';
-      }
-    }
-  });
-  
-  // Check if already logged in
-  const token = localStorage.getItem('adminToken');
-  if (token) {
-    // Redirect to dashboard if already logged in
-    window.location.href = 'index.html';
+/**
+ * @typedef {Object} LoginResult
+ * @property {boolean} success - Успешно ли проросли споры аутентификации
+ * @property {Object} [data] - Данные успешного входа
+ * @property {string} [data.token] - Токен доступа к грибному мицелию
+ * @property {string} [data.username] - Подтвержденное имя администратора
+ * @property {Object} [error] - Информация об ошибке прорастания
+ * @property {string} [error.message] - Сообщение об ошибке
+ */
+
+/**
+ * Проверяет аутентификацию пользователя в грибном мицелии
+ * УПРОЩЕННАЯ ВЕРСИЯ: проверяет только наличие токена в localStorage
+ * 
+ * @returns {boolean} Есть ли у администратора доступ к грибному мицелию
+ */
+function checkAuth() {
+  try {
+    const token = localStorage.getItem('adminToken');
+    // Простая проверка: если токен есть - значит админ авторизован
+    // Серверная проверка происходит при каждом API запросе через middleware
+    return !!token;
+  } catch (error) {
+    console.error('🍄 Ошибка проверки состояния грибного доступа:', error);
+    return false;
   }
 }
 
 /**
- * Send login request to the server
- * @param {string} username - Admin username
- * @param {string} password - Admin password
- * @returns {Promise<Object>} Login result
+ * Проверяет аутентификацию и перенаправляет на login при необходимости
+ * Используется для защиты всех админ-страниц
+ * 
+ * @returns {boolean} Разрешен ли доступ к текущей странице
+ */
+function requireAuth() {
+  if (!checkAuth()) {
+    console.log('🍄 Доступ к грибному мицелию запрещен, перенаправляем к входу');
+    window.location.href = 'login.html';
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Получает имя текущего администратора из хранилища спор
+ * 
+ * @returns {string} Имя грибного администратора или пустая строка
+ */
+function getAdminUsername() {
+  try {
+    return localStorage.getItem('adminUsername') || '';
+  } catch (error) {
+    console.error('🍄 Не удалось извлечь имя из грибного хранилища:', error);
+    return '';
+  }
+}
+
+/**
+ * Проверяет, находимся ли мы на странице входа
+ * 
+ * @returns {boolean} Это страница входа в грибной мицелий?
+ */
+function isLoginPage() {
+  return document.querySelector('.login-page') !== null;
+}
+
+/**
+ * Отправляет запрос на вход в систему через грибной API
+ * 
+ * @param {string} username - Имя грибного администратора
+ * @param {string} password - Секретная фраза доступа
+ * @returns {Promise<LoginResult>} Результат попытки входа
  */
 async function loginUser(username, password) {
   try {
+    console.log('🍄 Попытка прорастания в грибной мицелий...');
+    
     const response = await fetch('/api/admin/login', {
       method: 'POST',
       headers: {
@@ -100,55 +97,139 @@ async function loginUser(username, password) {
       body: JSON.stringify({ username, password })
     });
     
-    return await response.json();
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('🍄 Споры успешно проросли! Добро пожаловать в мицелий');
+    } else {
+      console.warn('🍄 Споры не смогли прорасти:', result.error?.message);
+    }
+    
+    return result;
   } catch (error) {
-    console.error('Login request error:', error);
+    console.error('🍄 Ошибка сети при попытке входа:', error);
     return {
       success: false,
       error: {
-        message: 'Network error. Please check your connection.'
+        message: 'Сетевая ошибка. Проверьте подключение к грибному мицелию.'
       }
     };
   }
 }
 
 /**
- * Check if user is authenticated
- * @returns {boolean} True if authenticated
- */
-function checkAuth() {
-  try {
-    const token = localStorage.getItem('adminToken');
-    return !!token;
-  } catch (error) {
-    console.error('Auth check error:', error);
-    return false;
-  }
-}
-
-/**
- * Logout the current user
+ * Выполняет выход из системы и очищает все следы пребывания в мицелии
  */
 function logout() {
   try {
+    console.log('🍄 Покидаем грибной мицелий...');
+    
+    // Очищаем все токены и данные администратора
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUsername');
+    
+    // Возвращаемся к входу в мицелий
     window.location.href = 'login.html';
   } catch (error) {
-    console.error('Logout error:', error);
-    alert('Error during logout. Please try again.');
+    console.error('🍄 Ошибка при покидании мицелия:', error);
+    alert('Ошибка при выходе. Попробуйте еще раз.');
   }
 }
 
 /**
- * Initialize the mushroom matrix background animation
+ * Инициализирует обработчики для страницы входа
+ */
+function initLoginPage() {
+  const loginForm = document.getElementById('login-form');
+  if (!loginForm) return;
+
+  console.log('🍄 Инициализация входа в грибной мицелий');
+
+  // Обработчик отправки формы входа
+  loginForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const errorElement = document.getElementById('login-error');
+    const submitButton = loginForm.querySelector('button[type="submit"]');
+    
+    // Очищаем предыдущие ошибки
+    if (errorElement) {
+      errorElement.textContent = '';
+    }
+    
+    // Проверяем заполнение полей
+    if (!username || !password) {
+      if (errorElement) {
+        errorElement.textContent = 'Введите имя и пароль для входа в грибной мицелий';
+      }
+      return;
+    }
+    
+    try {
+      // Показываем состояние загрузки
+      if (submitButton) {
+        submitButton.disabled = true;
+        const btnText = submitButton.querySelector('.btn-text');
+        if (btnText) {
+          btnText.textContent = 'Прорастание...';
+        }
+      }
+      
+      // Выполняем вход
+      const result = await loginUser(username, password);
+      
+      if (result.success) {
+        // Сохраняем данные аутентификации
+        localStorage.setItem('adminToken', result.data.token);
+        localStorage.setItem('adminUsername', result.data.username);
+        
+        console.log('🍄 Доступ к мицелию получен, перенаправляем в панель управления');
+        
+        // Перенаправляем в панель управления
+        window.location.href = 'index.html';
+      } else {
+        // Показываем ошибку
+        if (errorElement) {
+          errorElement.textContent = result.error?.message || 'Не удалось войти. Проверьте учетные данные.';
+        }
+      }
+    } catch (error) {
+      console.error('🍄 Непредвиденная ошибка входа:', error);
+      if (errorElement) {
+        errorElement.textContent = 'Произошла ошибка. Попробуйте еще раз.';
+      }
+    } finally {
+      // Восстанавливаем кнопку
+      if (submitButton) {
+        submitButton.disabled = false;
+        const btnText = submitButton.querySelector('.btn-text');
+        if (btnText) {
+          btnText.textContent = 'Войти';
+        }
+      }
+    }
+  });
+  
+  // Если уже авторизован - перенаправляем на главную
+  if (checkAuth()) {
+    console.log('🍄 Уже находимся в мицелии, перенаправляем в панель управления');
+    window.location.href = 'index.html';
+  }
+}
+
+/**
+ * Инициализирует анимацию грибного цифрового дождя для страницы входа
  */
 function initMushroomMatrix() {
   try {
     const container = document.querySelector('.mushroom-bg-animation');
     if (!container) return;
     
-    // Create canvas if it doesn't exist
+    console.log('🍄 Инициализация грибного цифрового дождя');
+    
+    // Создаем canvas для анимации
     let canvas = document.getElementById('mushroom-matrix-canvas');
     if (!canvas) {
       canvas = document.createElement('canvas');
@@ -156,98 +237,140 @@ function initMushroomMatrix() {
       container.appendChild(canvas);
     }
     
-    // Set canvas dimensions
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    
-    // Update canvas size on window resize
-    window.addEventListener('resize', () => {
+    // Устанавливаем размеры canvas
+    const updateCanvasSize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-    });
+    };
+    
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
     
     const ctx = canvas.getContext('2d');
     
-    // Mushroom symbols to use in the matrix
+    // Грибные символы для матрицы
     const mushroomSymbols = ['🍄', '•', '○', '◌', '◍', '◎', '◯', '⚪', '⭕', '✱', '✲', '✳', '✴', '✵'];
     
-    // Calculate columns based on canvas width (one column every 20px)
-    const columns = Math.floor(canvas.width / 20);
-    const drops = [];
+    // Вычисляем количество колонок (одна колонка каждые 20px)
+    const getColumns = () => Math.floor(canvas.width / 20);
+    let columns = getColumns();
+    let drops = [];
     
-    // Initialize drops at random positions
-    for (let i = 0; i < columns; i++) {
-      drops[i] = Math.floor(Math.random() * -canvas.height);
-    }
+    // Инициализируем капли на случайных позициях
+    const initDrops = () => {
+      columns = getColumns();
+      drops = [];
+      for (let i = 0; i < columns; i++) {
+        drops[i] = Math.floor(Math.random() * -canvas.height);
+      }
+    };
     
-    // Animation function
+    initDrops();
+    window.addEventListener('resize', initDrops);
+    
+    // Функция анимации
     function draw() {
-      // Semi-transparent black background to create trail effect
+      // Полупрозрачный черный фон для создания эффекта следа
       ctx.fillStyle = 'rgba(5, 5, 5, 0.05)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Set text color and font
-      ctx.fillStyle = '#39FF14'; // Neon green
+      // Устанавливаем цвет и шрифт для символов
+      ctx.fillStyle = '#39FF14'; // Неоновый зеленый
       ctx.font = '15px monospace';
       
-      // Draw each column
+      // Рисуем каждую колонку
       for (let i = 0; i < drops.length; i++) {
-        // Select a random mushroom symbol
+        // Выбираем случайный грибной символ
         const symbol = mushroomSymbols[Math.floor(Math.random() * mushroomSymbols.length)];
         
-        // Draw the symbol
+        // Рисуем символ
         ctx.fillText(symbol, i * 20, drops[i] * 20);
         
-        // Move the drop down
+        // Двигаем каплю вниз
         drops[i]++;
         
-        // Reset drop position when it reaches bottom or randomly
+        // Сбрасываем позицию капли при достижении низа или случайно
         if (drops[i] * 20 > canvas.height && Math.random() > 0.975) {
           drops[i] = 0;
         }
       }
       
-      // Call draw again on the next frame
+      // Вызываем отрисовку на следующем кадре
       requestAnimationFrame(draw);
     }
     
-    // Start the animation
+    // Запускаем анимацию
     draw();
   } catch (error) {
-    console.error('Matrix animation error:', error);
-    // Continue without animation in case of error
+    console.error('🍄 Ошибка анимации грибной матрицы:', error);
+    // Продолжаем работу без анимации в случае ошибки
   }
 }
 
-// Initialize the login page when the DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  // Initialize the login page functionality
-  if (document.querySelector('.login-page')) {
+/**
+ * Главная функция инициализации аутентификации
+ * Автоматически определяет тип страницы и настраивает соответствующие обработчики
+ */
+function initAuth() {
+  console.log('🍄 Инициализация системы доступа к грибному мицелию');
+  
+  if (isLoginPage()) {
+    // Инициализируем страницу входа
     initLoginPage();
     initMushroomMatrix();
-  }
-  
-  // Initialize logout button on other pages
-  const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      logout();
-    });
-  }
-  
-  // Protect admin pages (except login page)
-  if (!document.querySelector('.login-page') && !checkAuth()) {
-    // Redirect to login page if not authenticated
-    window.location.href = 'login.html';
-  }
-  
-  // Display username if available
-  const usernameElement = document.getElementById('admin-username');
-  if (usernameElement) {
-    const username = localStorage.getItem('adminUsername');
-    if (username) {
-      usernameElement.textContent = username;
+  } else {
+    // Защищаем админ-страницы
+    if (!requireAuth()) {
+      return; // Если не авторизован - перенаправлен на login
+    }
+    
+    // Настраиваем кнопку выхода
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        logout();
+      });
+    }
+    
+    // Отображаем имя администратора
+    const usernameElement = document.getElementById('admin-username');
+    if (usernameElement) {
+      const username = getAdminUsername();
+      if (username) {
+        usernameElement.textContent = username;
+      }
     }
   }
-});
+}
+
+// Устаревшие функции для обратной совместимости
+// Эти функции оставлены для совместимости с существующим кодом
+
+/**
+ * @deprecated Используйте checkAuth() вместо этой функции
+ * @returns {boolean} Статус аутентификации
+ */
+function isAuthenticated() {
+  console.warn('🍄 isAuthenticated() устарела, используйте checkAuth()');
+  return checkAuth();
+}
+
+/**
+ * @deprecated Используйте requireAuth() вместо этой функции
+ */
+function redirectToLogin() {
+  console.warn('🍄 redirectToLogin() устарела, используйте requireAuth()');
+  window.location.href = 'login.html';
+}
+
+/**
+ * @deprecated Используйте logout() вместо этой функции
+ */
+function handleLogout() {
+  console.warn('🍄 handleLogout() устарела, используйте logout()');
+  logout();
+}
+
+// Автоматическая инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', initAuth);
