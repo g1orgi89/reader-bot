@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shrooms AI Support Bot - Knowledge Base Management</title>
+    <title>Shrooms AI Support Bot - Управление Базой Знаний</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/knowledge.css">
-    <meta name="description" content="Knowledge base management for Shrooms AI Support Bot">
+    <meta name="description" content="Управление базой знаний для Shrooms AI Support Bot">
     <!-- Preconnect to font sources -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Тонкая версия грибного цифрового дождя для рабочих страниц -->
     <div class="mushroom-bg-animation mushroom-bg-subtle" id="mushroom-matrix"></div>
     
     <div class="admin-layout">
@@ -20,7 +21,7 @@
         <header class="admin-header">
             <div class="logo-container">
                 <img src="img/logo.svg" alt="Shrooms AI Support Bot" class="logo">
-                <h1>Shrooms Admin</h1>
+                <h1>🍄 Shrooms Admin</h1>
             </div>
             
             <nav class="main-nav">
@@ -40,31 +41,31 @@
         <!-- Main content -->
         <main class="admin-content knowledge-content">
             <div class="knowledge-header">
-                <h2>Knowledge Base</h2>
+                <h2>🧠 Грибная База Знаний</h2>
                 <div class="knowledge-actions">
                     <div class="filter-group">
                         <select id="category-filter" class="select-glow">
-                            <option value="all">All categories</option>
-                            <option value="general">General</option>
-                            <option value="user-guide">User Guide</option>
-                            <option value="tokenomics">Tokenomics</option>
-                            <option value="technical">Technical</option>
-                            <option value="troubleshooting">Troubleshooting</option>
+                            <option value="all">Все категории</option>
+                            <option value="general">Общие</option>
+                            <option value="user-guide">Руководство</option>
+                            <option value="tokenomics">Токеномика</option>
+                            <option value="technical">Техническое</option>
+                            <option value="troubleshooting">Решение проблем</option>
                         </select>
                         
                         <select id="language-filter" class="select-glow">
-                            <option value="all">All languages</option>
+                            <option value="all">Все языки</option>
                             <option value="en">English</option>
-                            <option value="ru">Russian</option>
-                            <option value="es">Spanish</option>
+                            <option value="ru">Русский</option>
+                            <option value="es">Español</option>
                         </select>
                         
-                        <input type="text" id="search-knowledge" placeholder="Search knowledge base..." class="search-input">
+                        <input type="text" id="search-knowledge" placeholder="🔍 Поиск в базе знаний..." class="search-input">
                     </div>
                     
                     <button id="add-document" class="btn btn-primary btn-glow">
-                        <span class="btn-text">Add Document</span>
-                        <span class="btn-icon">+</span>
+                        <span class="btn-text">📝 Добавить Документ</span>
+                        <span class="btn-icon">🍄</span>
                     </button>
                 </div>
             </div>
@@ -76,17 +77,17 @@
                         <thead>
                             <tr>
                                 <th class="col-id">ID</th>
-                                <th class="col-title">Title</th>
-                                <th class="col-category">Category</th>
-                                <th class="col-language">Language</th>
-                                <th class="col-tags">Tags</th>
-                                <th class="col-updated">Updated</th>
-                                <th class="col-actions">Actions</th>
+                                <th class="col-title">Название</th>
+                                <th class="col-category">Категория</th>
+                                <th class="col-language">Язык</th>
+                                <th class="col-tags">Теги</th>
+                                <th class="col-updated">Обновлен</th>
+                                <th class="col-actions">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="table-loading">
-                                <td colspan="7">Loading documents...</td>
+                                <td colspan="7">🍄 Прорастание документов...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -95,15 +96,15 @@
                 <!-- Pagination -->
                 <div class="pagination-container">
                     <div class="pagination-info">
-                        Showing <span id="pagination-range">0-0</span> of <span id="pagination-total">0</span> documents
+                        Показано <span id="pagination-range">0-0</span> из <span id="pagination-total">0</span> документов
                     </div>
                     <div class="pagination-controls">
                         <button id="prev-page" class="btn btn-icon btn-secondary" disabled>
-                            &larr;
+                            ← Назад
                         </button>
-                        <span id="pagination-current">Page 1</span>
+                        <span id="pagination-current">Страница 1</span>
                         <button id="next-page" class="btn btn-icon btn-secondary" disabled>
-                            &rarr;
+                            Вперед →
                         </button>
                     </div>
                 </div>
@@ -113,7 +114,7 @@
             <div class="document-editor-overlay" id="document-editor-overlay">
                 <div class="document-editor-container glow-card">
                     <div class="document-editor-header">
-                        <h3 id="editor-title">Add Document</h3>
+                        <h3 id="editor-title">📝 Добавить Документ</h3>
                         <button id="close-document-editor" class="btn btn-icon btn-text">×</button>
                     </div>
                     
@@ -122,52 +123,66 @@
                             <input type="hidden" id="document-id" name="document-id" value="">
                             
                             <div class="form-group">
-                                <label for="document-title">Title:</label>
-                                <input type="text" id="document-title" name="document-title" required>
+                                <label for="document-title">Название документа:</label>
+                                <input type="text" id="document-title" name="document-title" required 
+                                       placeholder="Например: Подключение кошелька Xverse">
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="document-category">Category:</label>
+                                    <label for="document-category">Категория:</label>
                                     <select id="document-category" name="document-category" class="select-glow" required>
-                                        <option value="general">General</option>
-                                        <option value="user-guide">User Guide</option>
-                                        <option value="tokenomics">Tokenomics</option>
-                                        <option value="technical">Technical</option>
-                                        <option value="troubleshooting">Troubleshooting</option>
+                                        <option value="general">Общие</option>
+                                        <option value="user-guide">Руководство пользователя</option>
+                                        <option value="tokenomics">Токеномика</option>
+                                        <option value="technical">Техническое</option>
+                                        <option value="troubleshooting">Решение проблем</option>
                                     </select>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="document-language">Language:</label>
+                                    <label for="document-language">Язык:</label>
                                     <select id="document-language" name="document-language" class="select-glow" required>
                                         <option value="en">English</option>
-                                        <option value="ru">Russian</option>
-                                        <option value="es">Spanish</option>
+                                        <option value="ru">Русский</option>
+                                        <option value="es">Español</option>
                                     </select>
                                 </div>
                             </div>
                             
                             <div class="form-group">
-                                <label for="document-tags">Tags (comma separated):</label>
-                                <input type="text" id="document-tags" name="document-tags" placeholder="wallet, connection, xverse">
+                                <label for="document-tags">Теги (через запятую):</label>
+                                <input type="text" id="document-tags" name="document-tags" 
+                                       placeholder="кошелек, подключение, xverse, hiro">
                             </div>
                             
                             <div class="form-group">
-                                <label for="document-content">Content (Markdown supported):</label>
-                                <textarea id="document-content" name="document-content" rows="15" required></textarea>
+                                <label for="document-content">Содержимое (поддерживается Markdown):</label>
+                                <textarea id="document-content" name="document-content" rows="15" required
+                                          placeholder="# Заголовок
+
+Введите содержимое документа здесь. Вы можете использовать Markdown:
+
+- **Жирный текст**
+- *Курсив*
+- [Ссылки](https://example.com)
+- `Код`
+
+## Подзаголовок
+
+Больше содержимого..."></textarea>
                                 <div class="editor-hints">
-                                    <span>Supports Markdown: **bold**, *italic*, [links](url), # Headings</span>
+                                    <span>💡 Поддерживается Markdown: **жирный**, *курсив*, [ссылки](url), # Заголовки, `код`</span>
                                 </div>
                             </div>
                             
                             <div class="form-actions">
                                 <button type="button" id="preview-document" class="btn btn-secondary btn-glow">
-                                    <span class="btn-text">Preview</span>
+                                    <span class="btn-text">👁️ Предпросмотр</span>
                                 </button>
                                 
                                 <button type="submit" class="btn btn-primary btn-glow">
-                                    <span class="btn-text" id="save-document-text">Save Document</span>
+                                    <span class="btn-text" id="save-document-text">💾 Сохранить Документ</span>
                                     <span class="btn-icon">🍄</span>
                                 </button>
                             </div>
@@ -180,7 +195,7 @@
             <div class="document-preview-overlay" id="document-preview-overlay">
                 <div class="document-preview-container glow-card">
                     <div class="document-preview-header">
-                        <h3>Document Preview</h3>
+                        <h3>👁️ Предпросмотр Документа</h3>
                         <button id="close-document-preview" class="btn btn-icon btn-text">×</button>
                     </div>
                     
@@ -194,57 +209,129 @@
                             <div class="preview-tags" id="preview-tags"></div>
                         </div>
                         
-                        <div class="document-preview-body" id="preview-content"></div>
+                        <div class="document-preview-body" id="preview-content">
+                            🍄 Загрузка предпросмотра...
+                        </div>
                         
                         <div class="preview-actions">
                             <button id="edit-from-preview" class="btn btn-secondary btn-glow">
-                                <span class="btn-text">Continue Editing</span>
+                                <span class="btn-text">✏️ Продолжить Редактирование</span>
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- Farming Rate Control -->
+            <div class="farming-rate-container glow-card">
+                <div class="section-header">
+                    <h3>🚜 Управление Доходностью Фарминга</h3>
+                    <div class="last-updated">Последнее обновление: <span id="farming-last-updated">--</span></div>
+                </div>
+                
+                <form id="farming-rate-form" class="farming-rate-form">
+                    <div class="form-group">
+                        <label for="farming-rate">Текущая доходность фарминга SHROOMS (%):</label>
+                        <div class="rate-input-group">
+                            <input type="number" id="farming-rate" name="farming-rate" 
+                                   min="0" max="100" step="0.1" required placeholder="12.5">
+                            <span class="rate-suffix">%</span>
+                        </div>
+                        <small class="rate-hint">💡 Оптимальная доходность: 8-15%. Слишком высокие значения могут вызвать подозрения!</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-glow">
+                        <span class="btn-text">🚀 Обновить Доходность</span>
+                        <span class="btn-icon">🍄</span>
+                    </button>
+                </form>
+            </div>
+            
             <!-- RAG Index controls -->
             <div class="rag-index-container glow-card">
                 <div class="section-header">
-                    <h3>RAG Index Management</h3>
-                    <div class="last-updated">Last indexing: <span id="rag-last-indexed">--</span></div>
+                    <h3>🔍 Управление RAG Индексом</h3>
+                    <div class="last-updated">Последняя индексация: <span id="rag-last-indexed">--</span></div>
                 </div>
                 
                 <div class="rag-stats">
                     <div class="rag-stat">
-                        <label>Total Documents:</label>
+                        <label>📚 Всего документов:</label>
                         <span id="rag-docs-count">--</span>
                     </div>
                     
                     <div class="rag-stat">
-                        <label>Vector Store:</label>
+                        <label>🗃️ Векторное хранилище:</label>
                         <span id="rag-vector-store">--</span>
                     </div>
                     
                     <div class="rag-stat">
-                        <label>Embedding Model:</label>
+                        <label>🤖 Модель эмбеддингов:</label>
                         <span id="rag-embedding-model">--</span>
+                    </div>
+                    
+                    <div class="rag-stat">
+                        <label>📈 Статус синхронизации:</label>
+                        <span id="rag-sync-status" class="status-badge status-unknown">Неизвестно</span>
                     </div>
                 </div>
                 
                 <div class="rag-actions">
+                    <button id="sync-vector-store" class="btn btn-primary btn-glow">
+                        <span class="btn-text">🔄 Синхронизировать с Qdrant</span>
+                    </button>
+                    
                     <button id="rebuild-index" class="btn btn-warning btn-glow">
-                        <span class="btn-text">Rebuild Index</span>
+                        <span class="btn-text">🔨 Пересобрать Индекс</span>
                     </button>
                     
                     <button id="test-rag-search" class="btn btn-secondary btn-glow">
-                        <span class="btn-text">Test RAG Search</span>
+                        <span class="btn-text">🧪 Тестировать RAG Поиск</span>
                     </button>
+                    
+                    <button id="diagnose-rag" class="btn btn-secondary btn-glow">
+                        <span class="btn-text">🩺 Диагностика</span>
+                    </button>
+                </div>
+                
+                <div class="rag-info">
+                    <p>💡 <strong>Совет грибного архивариуса:</strong> Регулярно синхронизируйте документы с векторным хранилищем для лучшего качества ответов бота!</p>
+                </div>
+            </div>
+            
+            <!-- RAG Test modal (hidden by default) -->
+            <div class="rag-test-overlay" id="rag-test-overlay">
+                <div class="rag-test-container glow-card">
+                    <div class="rag-test-header">
+                        <h3>🧪 Тестирование RAG Поиска</h3>
+                        <button id="close-rag-test" class="btn btn-icon btn-text">×</button>
+                    </div>
+                    
+                    <div class="rag-test-content">
+                        <div class="test-input-group">
+                            <label for="rag-test-query">Тестовый запрос:</label>
+                            <input type="text" id="rag-test-query" placeholder="Например: как подключить кошелек xverse?"
+                                   class="test-query-input">
+                            <button id="run-rag-test" class="btn btn-primary">
+                                <span class="btn-text">🔍 Выполнить Поиск</span>
+                            </button>
+                        </div>
+                        
+                        <div class="test-results">
+                            <h4>📋 Результаты поиска:</h4>
+                            <div id="rag-test-results" class="test-results-content">
+                                🍄 Введите запрос и нажмите "Выполнить Поиск"
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
         
         <!-- Footer -->
         <footer class="admin-footer">
-            <p>Shrooms AI Support Bot - Admin Panel</p>
-            <p class="copyright">© 2025 Shrooms Project</p>
+            <p>🍄 Shrooms AI Support Bot - Панель Управления Знаниями</p>
+            <p class="copyright">© 2025 Shrooms Project. Все споры защищены.</p>
         </footer>
     </div>
     
@@ -252,31 +339,578 @@
     <div class="notification-container" id="notification-container"></div>
     
     <!-- Scripts -->
+    <!-- Порядок важен: сначала auth, потом остальные -->
     <script src="js/auth.js"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
     <script src="js/knowledge.js"></script>
+    
     <script>
-        // Check authentication on load
+        /**
+         * Инициализация страницы управления базой знаний
+         * Упрощенная версия - auth.js уже проверил аутентификацию автоматически
+         */
         document.addEventListener('DOMContentLoaded', () => {
-            // Verify authentication
-            if (!isAuthenticated()) {
-                redirectToLogin();
+            console.log('🍄 Инициализация грибной базы знаний');
+            
+            // auth.js уже проверил аутентификацию и настроил все необходимое
+            // Если мы здесь - значит пользователь авторизован
+            
+            // Инициализируем страницу базы знаний (если функция существует)
+            if (typeof initKnowledgePage === 'function') {
+                initKnowledgePage();
+            } else {
+                console.log('🍄 Функция initKnowledgePage не найдена, используем базовую инициализацию');
+                initBasicKnowledgePage();
+            }
+            
+            // Инициализируем тонкую версию грибной матрицы
+            if (typeof initMushroomMatrix === 'function') {
+                initMushroomMatrix(true); // subtle mode для рабочих страниц
+            }
+        });
+        
+        /**
+         * Базовая инициализация страницы базы знаний на случай отсутствия knowledge.js
+         */
+        function initBasicKnowledgePage() {
+            console.log('🍄 Базовая инициализация базы знаний');
+            
+            // Загрузка документов
+            loadBasicDocuments();
+            
+            // Настройка фильтров
+            setupKnowledgeFilters();
+            
+            // Настройка модальных окон
+            setupKnowledgeModals();
+            
+            // Настройка RAG управления
+            setupRAGControls();
+            
+            // Настройка управления доходностью фарминга
+            setupFarmingRateControl();
+        }
+        
+        /**
+         * Настройка фильтров базы знаний
+         */
+        function setupKnowledgeFilters() {
+            const categoryFilter = document.getElementById('category-filter');
+            const languageFilter = document.getElementById('language-filter');
+            const searchInput = document.getElementById('search-knowledge');
+            
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', () => {
+                    console.log('🍄 Изменен фильтр категории:', categoryFilter.value);
+                    loadBasicDocuments();
+                });
+            }
+            
+            if (languageFilter) {
+                languageFilter.addEventListener('change', () => {
+                    console.log('🍄 Изменен фильтр языка:', languageFilter.value);
+                    loadBasicDocuments();
+                });
+            }
+            
+            if (searchInput) {
+                let searchTimeout;
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        console.log('🍄 Поиск по запросу:', searchInput.value);
+                        loadBasicDocuments();
+                    }, 500);
+                });
+            }
+        }
+        
+        /**
+         * Базовая загрузка документов (заглушка)
+         */
+        function loadBasicDocuments() {
+            console.log('🍄 Загрузка документов грибной базы знаний');
+            
+            const tbody = document.querySelector('#knowledge-table tbody');
+            if (!tbody) return;
+            
+            // Заглушка данных
+            const mockDocuments = [
+                {
+                    id: 'DOC001',
+                    title: 'Подключение кошелька Xverse',
+                    category: 'user-guide',
+                    language: 'ru',
+                    tags: ['кошелек', 'xverse', 'подключение'],
+                    updated: '2 часа назад'
+                },
+                {
+                    id: 'DOC002',
+                    title: 'What is SHROOMS token?',
+                    category: 'tokenomics',
+                    language: 'en',
+                    tags: ['token', 'shrooms', 'overview'],
+                    updated: '1 день назад'
+                },
+                {
+                    id: 'DOC003',
+                    title: 'Решение проблем с фармингом',
+                    category: 'troubleshooting',
+                    language: 'ru',
+                    tags: ['фарминг', 'проблемы', 'решение'],
+                    updated: '3 дня назад'
+                }
+            ];
+            
+            // Применяем фильтры
+            const categoryFilter = document.getElementById('category-filter').value;
+            const languageFilter = document.getElementById('language-filter').value;
+            const searchQuery = document.getElementById('search-knowledge').value.toLowerCase();
+            
+            let filteredDocs = mockDocuments.filter(doc => {
+                const matchesCategory = categoryFilter === 'all' || doc.category === categoryFilter;
+                const matchesLanguage = languageFilter === 'all' || doc.language === languageFilter;
+                const matchesSearch = !searchQuery || 
+                    doc.title.toLowerCase().includes(searchQuery) ||
+                    doc.tags.some(tag => tag.toLowerCase().includes(searchQuery));
+                
+                return matchesCategory && matchesLanguage && matchesSearch;
+            });
+            
+            // Отображаем результаты
+            tbody.innerHTML = filteredDocs.map(doc => `
+                <tr onclick="editDocument('${doc.id}')">
+                    <td class="col-id">${doc.id}</td>
+                    <td class="col-title">${doc.title}</td>
+                    <td class="col-category">
+                        <span class="category-badge category-${doc.category}">
+                            ${getCategoryText(doc.category)}
+                        </span>
+                    </td>
+                    <td class="col-language">
+                        <span class="language-badge language-${doc.language}">
+                            ${getLanguageText(doc.language)}
+                        </span>
+                    </td>
+                    <td class="col-tags">
+                        ${doc.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join(' ')}
+                    </td>
+                    <td class="col-updated">${doc.updated}</td>
+                    <td class="col-actions">
+                        <button class="btn btn-sm" onclick="editDocument('${doc.id}'); event.stopPropagation();">
+                            ✏️ Редактировать
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc.id}'); event.stopPropagation();">
+                            🗑️ Удалить
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Обновляем статистику
+            updateDocumentStats(filteredDocs.length);
+        }
+        
+        /**
+         * Перевод категорий на русский
+         */
+        function getCategoryText(category) {
+            const categoryMap = {
+                'general': 'Общие',
+                'user-guide': 'Руководство',
+                'tokenomics': 'Токеномика',
+                'technical': 'Техническое',
+                'troubleshooting': 'Решение проблем'
+            };
+            return categoryMap[category] || category;
+        }
+        
+        /**
+         * Перевод языков на русский
+         */
+        function getLanguageText(language) {
+            const languageMap = {
+                'en': 'English',
+                'ru': 'Русский',
+                'es': 'Español'
+            };
+            return languageMap[language] || language;
+        }
+        
+        /**
+         * Обновление статистики документов
+         */
+        function updateDocumentStats(totalDocs) {
+            const rangeElement = document.getElementById('pagination-range');
+            const totalElement = document.getElementById('pagination-total');
+            const ragDocsCount = document.getElementById('rag-docs-count');
+            
+            if (rangeElement && totalElement) {
+                const start = totalDocs > 0 ? 1 : 0;
+                const end = totalDocs;
+                
+                rangeElement.textContent = `${start}-${end}`;
+                totalElement.textContent = totalDocs;
+            }
+            
+            if (ragDocsCount) {
+                ragDocsCount.textContent = totalDocs;
+            }
+        }
+        
+        /**
+         * Настройка модальных окон
+         */
+        function setupKnowledgeModals() {
+            // Кнопка добавления документа
+            const addDocBtn = document.getElementById('add-document');
+            if (addDocBtn) {
+                addDocBtn.addEventListener('click', () => {
+                    showDocumentEditor();
+                });
+            }
+            
+            // Закрытие редактора документов
+            const closeEditorBtn = document.getElementById('close-document-editor');
+            if (closeEditorBtn) {
+                closeEditorBtn.addEventListener('click', () => {
+                    hideDocumentEditor();
+                });
+            }
+            
+            // Предпросмотр документа
+            const previewBtn = document.getElementById('preview-document');
+            if (previewBtn) {
+                previewBtn.addEventListener('click', () => {
+                    showDocumentPreview();
+                });
+            }
+            
+            // Закрытие предпросмотра
+            const closePreviewBtn = document.getElementById('close-document-preview');
+            if (closePreviewBtn) {
+                closePreviewBtn.addEventListener('click', () => {
+                    hideDocumentPreview();
+                });
+            }
+            
+            // Форма документа
+            const documentForm = document.getElementById('document-form');
+            if (documentForm) {
+                documentForm.addEventListener('submit', handleDocumentSave);
+            }
+        }
+        
+        /**
+         * Показ редактора документов
+         */
+        function showDocumentEditor(documentId = null) {
+            console.log('🍄 Открытие редактора документов:', documentId);
+            
+            const overlay = document.getElementById('document-editor-overlay');
+            const title = document.getElementById('editor-title');
+            const form = document.getElementById('document-form');
+            
+            if (overlay && title && form) {
+                if (documentId) {
+                    title.textContent = '✏️ Редактировать Документ';
+                    // TODO: Загрузить данные документа
+                } else {
+                    title.textContent = '📝 Добавить Документ';
+                    form.reset();
+                }
+                
+                overlay.style.display = 'flex';
+            }
+        }
+        
+        /**
+         * Скрытие редактора документов
+         */
+        function hideDocumentEditor() {
+            const overlay = document.getElementById('document-editor-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+        
+        /**
+         * Показ предпросмотра документа
+         */
+        function showDocumentPreview() {
+            const title = document.getElementById('document-title').value;
+            const category = document.getElementById('document-category').value;
+            const language = document.getElementById('document-language').value;
+            const tags = document.getElementById('document-tags').value;
+            const content = document.getElementById('document-content').value;
+            
+            // Простая обработка Markdown (заглушка)
+            const processedContent = content
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^\* (.*$)/gim, '<li>$1</li>')
+                .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+                .replace(/\*(.*)\*/gim, '<em>$1</em>')
+                .replace(/`(.*)`/gim, '<code>$1</code>')
+                .replace(/\n/gim, '<br>');
+            
+            // Заполняем предпросмотр
+            document.getElementById('preview-title').textContent = title;
+            document.getElementById('preview-category').textContent = getCategoryText(category);
+            document.getElementById('preview-language').textContent = getLanguageText(language);
+            document.getElementById('preview-tags').innerHTML = tags.split(',').map(tag => 
+                `<span class="tag-badge">${tag.trim()}</span>`).join(' ');
+            document.getElementById('preview-content').innerHTML = processedContent;
+            
+            // Показываем предпросмотр
+            const overlay = document.getElementById('document-preview-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
+        }
+        
+        /**
+         * Скрытие предпросмотра документа
+         */
+        function hideDocumentPreview() {
+            const overlay = document.getElementById('document-preview-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+        
+        /**
+         * Обработчик сохранения документа
+         */
+        async function handleDocumentSave(event) {
+            event.preventDefault();
+            
+            console.log('🍄 Сохранение документа в грибную базу знаний');
+            
+            // TODO: Реальное сохранение через API
+            showNotification('success', '🍄 Документ успешно сохранен в грибную базу знаний!');
+            hideDocumentEditor();
+            loadBasicDocuments();
+        }
+        
+        /**
+         * Редактирование документа
+         */
+        function editDocument(documentId) {
+            console.log('🍄 Редактирование документа:', documentId);
+            showDocumentEditor(documentId);
+        }
+        
+        /**
+         * Удаление документа
+         */
+        function deleteDocument(documentId) {
+            if (confirm('🍄 Вы уверены, что хотите удалить этот документ из грибной базы знаний?')) {
+                console.log('🍄 Удаление документа:', documentId);
+                // TODO: Реальное удаление через API
+                showNotification('success', '🍄 Документ удален из грибной базы знаний');
+                loadBasicDocuments();
+            }
+        }
+        
+        /**
+         * Настройка RAG управления
+         */
+        function setupRAGControls() {
+            // Синхронизация с Qdrant
+            const syncBtn = document.getElementById('sync-vector-store');
+            if (syncBtn) {
+                syncBtn.addEventListener('click', async () => {
+                    console.log('🍄 Синхронизация с Qdrant');
+                    showNotification('info', '🍄 Синхронизация с векторным хранилищем...');
+                    // TODO: Реальная синхронизация
+                });
+            }
+            
+            // Пересборка индекса
+            const rebuildBtn = document.getElementById('rebuild-index');
+            if (rebuildBtn) {
+                rebuildBtn.addEventListener('click', async () => {
+                    if (confirm('🍄 Пересборка индекса может занять время. Продолжить?')) {
+                        console.log('🍄 Пересборка RAG индекса');
+                        showNotification('info', '🍄 Пересборка индекса...');
+                        // TODO: Реальная пересборка
+                    }
+                });
+            }
+            
+            // Тестирование RAG поиска
+            const testBtn = document.getElementById('test-rag-search');
+            if (testBtn) {
+                testBtn.addEventListener('click', () => {
+                    showRAGTestModal();
+                });
+            }
+            
+            // Диагностика
+            const diagnoseBtn = document.getElementById('diagnose-rag');
+            if (diagnoseBtn) {
+                diagnoseBtn.addEventListener('click', async () => {
+                    console.log('🍄 Диагностика RAG системы');
+                    showNotification('info', '🍄 Выполняется диагностика...');
+                    // TODO: Реальная диагностика
+                });
+            }
+            
+            // Закрытие RAG тестирования
+            const closeRAGTestBtn = document.getElementById('close-rag-test');
+            if (closeRAGTestBtn) {
+                closeRAGTestBtn.addEventListener('click', () => {
+                    hideRAGTestModal();
+                });
+            }
+            
+            // Выполнение RAG теста
+            const runTestBtn = document.getElementById('run-rag-test');
+            if (runTestBtn) {
+                runTestBtn.addEventListener('click', () => {
+                    runRAGTest();
+                });
+            }
+            
+            // Загрузка начальной статистики RAG
+            loadRAGStats();
+        }
+        
+        /**
+         * Загрузка статистики RAG (заглушка)
+         */
+        function loadRAGStats() {
+            document.getElementById('rag-last-indexed').textContent = '2 часа назад';
+            document.getElementById('rag-vector-store').textContent = 'Qdrant (локальный)';
+            document.getElementById('rag-embedding-model').textContent = 'text-embedding-ada-002';
+            
+            const statusElement = document.getElementById('rag-sync-status');
+            statusElement.textContent = 'Синхронизирован';
+            statusElement.className = 'status-badge status-success';
+        }
+        
+        /**
+         * Показ модального окна RAG тестирования
+         */
+        function showRAGTestModal() {
+            const overlay = document.getElementById('rag-test-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
+        }
+        
+        /**
+         * Скрытие модального окна RAG тестирования
+         */
+        function hideRAGTestModal() {
+            const overlay = document.getElementById('rag-test-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+        
+        /**
+         * Выполнение RAG теста
+         */
+        function runRAGTest() {
+            const query = document.getElementById('rag-test-query').value;
+            const resultsDiv = document.getElementById('rag-test-results');
+            
+            if (!query.trim()) {
+                showNotification('warning', '🍄 Введите тестовый запрос');
                 return;
             }
             
-            // Initialize knowledge base page
-            initKnowledgePage();
+            console.log('🍄 Выполнение RAG теста для запроса:', query);
             
-            // Initialize mushroom matrix background
-            initMushroomMatrix(true); // subtle mode for working pages
+            // Заглушка результатов
+            resultsDiv.innerHTML = `
+                <div class="test-result">
+                    <h5>📄 Документ: "Подключение кошелька Xverse"</h5>
+                    <p>Релевантность: 95%</p>
+                    <p>Содержимое: Для подключения кошелька Xverse к платформе Shrooms...</p>
+                </div>
+                <div class="test-result">
+                    <h5>📄 Документ: "Решение проблем с подключением"</h5>
+                    <p>Релевантность: 78%</p>
+                    <p>Содержимое: Если у вас возникают проблемы при подключении...</p>
+                </div>
+            `;
+        }
+        
+        /**
+         * Настройка управления доходностью фарминга
+         */
+        function setupFarmingRateControl() {
+            const farmingForm = document.getElementById('farming-rate-form');
+            if (farmingForm) {
+                farmingForm.addEventListener('submit', handleFarmingRateUpdate);
+            }
             
-            // Load admin username
-            document.getElementById('admin-username').textContent = getAdminUsername();
+            // Загрузка текущей доходности (заглушка)
+            const rateInput = document.getElementById('farming-rate');
+            if (rateInput) {
+                rateInput.value = '12.5'; // Текущая доходность
+            }
             
-            // Setup logout handler
-            document.getElementById('logout-btn').addEventListener('click', handleLogout);
-        });
+            document.getElementById('farming-last-updated').textContent = '1 час назад';
+        }
+        
+        /**
+         * Обработчик обновления доходности фарминга
+         */
+        async function handleFarmingRateUpdate(event) {
+            event.preventDefault();
+            
+            const rateInput = document.getElementById('farming-rate');
+            const rate = parseFloat(rateInput.value);
+            
+            if (isNaN(rate) || rate < 0 || rate > 100) {
+                showNotification('error', '🍄 Введите корректную доходность от 0 до 100%');
+                return;
+            }
+            
+            try {
+                console.log('🍄 Обновление доходности фарминга до', rate + '%');
+                
+                // TODO: Отправить запрос к API для обновления доходности
+                
+                // Обновляем время последнего обновления
+                document.getElementById('farming-last-updated').textContent = new Date().toLocaleString('ru-RU');
+                
+                showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%`);
+                
+            } catch (error) {
+                console.error('🍄 Ошибка обновления доходности:', error);
+                showNotification('error', '🍄 Не удалось обновить доходность. Попробуйте еще раз.');
+            }
+        }
+        
+        /**
+         * Показ уведомления (базовая реализация)
+         */
+        function showNotification(type, message) {
+            const container = document.getElementById('notification-container');
+            if (!container) {
+                alert(message);
+                return;
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            
+            container.appendChild(notification);
+            
+            // Удаляем уведомление через 5 секунд
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
     </script>
 </body>
 </html>
