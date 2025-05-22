@@ -23,6 +23,15 @@
  */
 
 /**
+ * @typedef {Object} ApiResponse
+ * @property {boolean} success - Успешность выполнения запроса
+ * @property {*} [data] - Данные ответа
+ * @property {Object} [error] - Информация об ошибке
+ * @property {string} [error.message] - Сообщение об ошибке
+ * @property {string} [error.code] - Код ошибки
+ */
+
+/**
  * Проверяет аутентификацию пользователя в грибном мицелии
  * УПРОЩЕННАЯ ВЕРСИЯ: проверяет только наличие токена в localStorage
  * 
@@ -114,6 +123,85 @@ async function loginUser(username, password) {
         message: 'Сетевая ошибка. Проверьте подключение к грибному мицелию.'
       }
     };
+  }
+}
+
+/**
+ * Выполняет аутентифицированный запрос к API
+ * Основная функция для взаимодействия с серверным API из админ-панели
+ * 
+ * @param {string} url - URL для запроса
+ * @param {RequestInit} [options] - Дополнительные опции запроса
+ * @returns {Promise<ApiResponse>} Ответ API
+ * @throws {Error} При ошибках сети или неавторизованном доступе
+ */
+async function makeAuthenticatedRequest(url, options = {}) {
+  const token = localStorage.getItem('adminToken');
+  if (!token) {
+    console.error('🍄 Токен аутентификации не найден в грибном хранилище');
+    throw new Error('Токен аутентификации не найден');
+  }
+  
+  console.log(`🍄 Выполнение аутентифицированного запроса: ${options.method || 'GET'} ${url}`);
+  
+  try {
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      ...options.headers
+    };
+    
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
+    
+    // Проверяем авторизацию
+    if (response.status === 401 || response.status === 403) {
+      console.warn('🍄 Споры в мицелии увяли (401/403), требуется повторная авторизация');
+      
+      // Очищаем токены
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUsername');
+      
+      // Перенаправляем на страницу входа
+      window.location.href = 'login.html';
+      
+      throw new Error('Сессия истекла, требуется повторная авторизация');
+    }
+    
+    // Проверяем наличие тела ответа
+    const contentType = response.headers.get('content-type');
+    let result;
+    
+    if (contentType && contentType.includes('application/json')) {
+      result = await response.json();
+    } else {
+      // Если ответ не JSON, создаем стандартную структуру
+      result = {
+        success: response.ok,
+        data: response.ok ? { message: 'Запрос выполнен успешно' } : null,
+        error: response.ok ? null : { 
+          message: `HTTP ${response.status}: ${response.statusText}`,
+          code: `HTTP_${response.status}`
+        }
+      };
+    }
+    
+    // Если статус не OK, но JSON корректный - логируем предупреждение
+    if (!response.ok && result.success !== false) {
+      console.warn(`🍄 Сервер вернул статус ${response.status}, но success не равен false`);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('🍄 Ошибка при выполнении аутентифицированного запроса:', error);
+    
+    // Если это ошибка сети, а не наша ошибка авторизации
+    if (!error.message.includes('Сессия истекла')) {
+      throw new Error(`Ошибка запроса: ${error.message}`);
+    }
+    
+    throw error;
   }
 }
 
@@ -221,13 +309,14 @@ function initLoginPage() {
 
 /**
  * Инициализирует анимацию грибного цифрового дождя для страницы входа
+ * @param {boolean} [subtle=false] - Использовать ли тонкую версию анимации для рабочих страниц
  */
-function initMushroomMatrix() {
+function initMushroomMatrix(subtle = false) {
   try {
     const container = document.querySelector('.mushroom-bg-animation');
     if (!container) return;
     
-    console.log('🍄 Инициализация грибного цифрового дождя');
+    console.log(`🍄 Инициализация грибного цифрового дождя (${subtle ? 'тонкая версия' : 'полная версия'})`);
     
     // Создаем canvas для анимации
     let canvas = document.getElementById('mushroom-matrix-canvas');
@@ -251,8 +340,16 @@ function initMushroomMatrix() {
     // Грибные символы для матрицы
     const mushroomSymbols = ['🍄', '•', '○', '◌', '◍', '◎', '◯', '⚪', '⭕', '✱', '✲', '✳', '✴', '✵'];
     
-    // Вычисляем количество колонок (одна колонка каждые 20px)
-    const getColumns = () => Math.floor(canvas.width / 20);
+    // Настройки для разных режимов
+    const config = {
+      columnWidth: subtle ? 30 : 20,  // Ширже колонки для тонкой версии
+      dropSpeed: subtle ? 2 : 1,      // Быстрее для тонкой версии  
+      resetChance: subtle ? 0.99 : 0.975,  // Реже сброс для тонкой версии
+      opacity: subtle ? 0.03 : 0.05   // Более прозрачный фон для тонкой версии
+    };
+    
+    // Вычисляем количество колонок
+    const getColumns = () => Math.floor(canvas.width / config.columnWidth);
     let columns = getColumns();
     let drops = [];
     
@@ -271,11 +368,11 @@ function initMushroomMatrix() {
     // Функция анимации
     function draw() {
       // Полупрозрачный черный фон для создания эффекта следа
-      ctx.fillStyle = 'rgba(5, 5, 5, 0.05)';
+      ctx.fillStyle = `rgba(5, 5, 5, ${config.opacity})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       // Устанавливаем цвет и шрифт для символов
-      ctx.fillStyle = '#39FF14'; // Неоновый зеленый
+      ctx.fillStyle = subtle ? 'rgba(57, 255, 20, 0.15)' : '#39FF14'; // Неоновый зеленый
       ctx.font = '15px monospace';
       
       // Рисуем каждую колонку
@@ -284,13 +381,13 @@ function initMushroomMatrix() {
         const symbol = mushroomSymbols[Math.floor(Math.random() * mushroomSymbols.length)];
         
         // Рисуем символ
-        ctx.fillText(symbol, i * 20, drops[i] * 20);
+        ctx.fillText(symbol, i * config.columnWidth, drops[i] * 20);
         
         // Двигаем каплю вниз
-        drops[i]++;
+        drops[i] += config.dropSpeed;
         
         // Сбрасываем позицию капли при достижении низа или случайно
-        if (drops[i] * 20 > canvas.height && Math.random() > 0.975) {
+        if (drops[i] * 20 > canvas.height && Math.random() > config.resetChance) {
           drops[i] = 0;
         }
       }
