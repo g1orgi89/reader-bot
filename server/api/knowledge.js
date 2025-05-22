@@ -195,6 +195,92 @@ router.get('/vector-search', requireAdminAuth, async (req, res) => {
 });
 
 /**
+ * @route POST /api/knowledge/test-search
+ * @desc Test RAG search functionality for admin panel
+ * @access Private (Admin only)
+ * @body {string} query - Search query to test
+ * @body {number} [limit=5] - Number of results to return
+ */
+router.post('/test-search', requireAdminAuth, async (req, res) => {
+  try {
+    const { query, limit = 5 } = req.body;
+
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required',
+        errorCode: 'MISSING_SEARCH_QUERY'
+      });
+    }
+
+    logger.info(`RAG test search initiated: "${query}"`);
+
+    // Используем векторный поиск для тестирования
+    let results = [];
+    
+    if (vectorStoreService && typeof vectorStoreService.search === 'function') {
+      // Пробуем векторный поиск
+      const vectorResults = await vectorStoreService.search(query, { limit });
+      
+      if (vectorResults && vectorResults.results) {
+        results = vectorResults.results.map(result => ({
+          title: result.metadata?.title || 'Без названия',
+          content: result.content || result.text || '',
+          category: result.metadata?.category || 'general',
+          language: result.metadata?.language || 'en',
+          score: result.score || 0
+        }));
+      }
+    }
+    
+    // Если векторный поиск не дал результатов, используем MongoDB поиск
+    if (results.length === 0) {
+      logger.info('Vector search returned no results, falling back to MongoDB search');
+      
+      const mongoResults = await KnowledgeDocument.find({
+        $or: [
+          { title: { $regex: query, $options: 'i' } },
+          { content: { $regex: query, $options: 'i' } },
+          { tags: { $in: [new RegExp(query, 'i')] } }
+        ],
+        status: 'published'
+      })
+      .limit(parseInt(limit))
+      .select('title content category language tags')
+      .lean();
+      
+      results = mongoResults.map(doc => ({
+        title: doc.title,
+        content: doc.content.substring(0, 500), // Обрезаем для превью
+        category: doc.category,
+        language: doc.language,
+        score: 0.5 // Примерный score для MongoDB результатов
+      }));
+    }
+
+    res.json({
+      success: true,
+      data: {
+        results,
+        query,
+        totalFound: results.length,
+        searchType: results.length > 0 && results[0].score > 0 ? 'vector' : 'mongodb'
+      }
+    });
+
+    logger.info(`RAG test search completed: "${query}" - ${results.length} results found`);
+  } catch (error) {
+    logger.error(`Error in RAG test search: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Test search failed',
+      errorCode: 'TEST_SEARCH_ERROR',
+      details: error.message
+    });
+  }
+});
+
+/**
  * @route GET /api/knowledge/diagnose
  * @desc Diagnose vector store health and configuration
  * @access Private (Admin only)
