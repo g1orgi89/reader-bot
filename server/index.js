@@ -25,6 +25,7 @@ const chatRoutes = require('./api/chat');
 const ticketRoutes = require('./api/tickets');
 const adminRoutes = require('./api/admin');
 const knowledgeRoutes = require('./api/knowledge');
+const promptRoutes = require('./api/prompts'); // ДОБАВЛЕНО: импорт роута промптов
 
 // Services
 const dbService = require('./services/database');
@@ -124,6 +125,7 @@ app.use(`${config.app.apiPrefix}/chat`, chatRoutes);
 app.use(`${config.app.apiPrefix}/tickets`, ticketRoutes);
 app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
 app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
+app.use(`${config.app.apiPrefix}/prompts`, promptRoutes); // ДОБАВЛЕНО: регистрация роута промптов
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
