@@ -26,7 +26,7 @@ const { createHash } = require('crypto');
  * @property {string} [language] - Фильтр по языку
  * @property {string} [category] - Фильтр по категории
  * @property {string[]} [tags] - Фильтр по тегам
- * @property {number} [score_threshold=0.4] - Минимальный порог релевантности
+ * @property {number} [score_threshold=0.7] - Минимальный порог релевантности
  */
 
 /**
@@ -311,9 +311,10 @@ class VectorStoreService {
         language, 
         category, 
         tags,
-        score_threshold = 0.4
+        score_threshold = 0.7
       } = options;
       
+      logger.info(`🍄 Searching for relevant documents with threshold: ${score_threshold}`);
       logger.info(`Searching for: "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}" with options: ${JSON.stringify({
         limit, language, category, tags: Array.isArray(tags) ? tags.length : tags, score_threshold
       })}`);
@@ -608,10 +609,10 @@ class VectorStoreService {
    * Вспомогательный метод для тестирования поиска в векторном хранилище
    * @async
    * @param {string} query - Текст запроса
-   * @param {number} [threshold=0.4] - Порог релевантности для тестирования
+   * @param {number} [threshold=0.7] - Порог релевантности для тестирования
    * @returns {Promise<Object>} Результат тестирования с различными порогами
    */
-  async testSearch(query, threshold = 0.4) {
+  async testSearch(query, threshold = 0.7) {
     if (!query || typeof query !== 'string' || query.trim() === '') {
       return { error: 'Empty or invalid query provided' };
     }
