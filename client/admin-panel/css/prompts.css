@@ -227,14 +227,20 @@
   color: #ff4444;
 }
 
-/* Модальное окно редактора промптов */
-.prompt-editor-modal {
+/* ===============================
+   МОДАЛЬНЫЕ ОКНА - УЛУЧШЕННЫЕ РАЗМЕРЫ
+   =============================== */
+
+/* Основные модальные окна */
+.prompt-editor-overlay,
+.prompt-test-overlay,
+.import-export-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,43 +248,91 @@
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(8px);
+  padding: 1rem;
 }
 
-.prompt-editor-modal.active {
+.prompt-editor-overlay.active,
+.prompt-test-overlay.active,
+.import-export-overlay.active {
   opacity: 1;
   visibility: visible;
 }
 
-.prompt-editor-content {
+/* Контейнер редактора промптов - УВЕЛИЧЕННЫЙ */
+.prompt-editor-container {
+  background: var(--card-bg);
+  border: 2px solid var(--neon-green);
+  border-radius: 16px;
+  width: 95%;
+  max-width: 1400px; /* Увеличено с 1200px */
+  max-height: 95vh; /* Увеличено с 90vh */
+  overflow: hidden;
+  box-shadow: 0 0 50px rgba(57, 255, 20, 0.3);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Контейнер тестирования промптов - УВЕЛИЧЕННЫЙ */
+.prompt-test-container {
+  background: var(--card-bg);
+  border: 2px solid var(--neon-pink);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 1000px; /* Увеличено с 800px */
+  max-height: 90vh; /* Увеличено с 80vh */
+  overflow: hidden;
+  box-shadow: 0 0 50px rgba(255, 110, 199, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Контейнер импорта/экспорта */
+.import-export-container {
   background: var(--card-bg);
   border: 2px solid var(--neon-green);
   border-radius: 16px;
   width: 90%;
-  max-width: 1200px;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
   box-shadow: 0 0 50px rgba(57, 255, 20, 0.3);
-  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
-.prompt-editor-header {
+/* Заголовки модальных окон */
+.prompt-editor-header,
+.prompt-test-header,
+.import-export-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
   background: linear-gradient(135deg, var(--deep-purple) 0%, rgba(138, 43, 226, 0.8) 100%);
   border-bottom: 2px solid var(--neon-green);
+  flex-shrink: 0;
 }
 
-.prompt-editor-header h3 {
+.prompt-test-header {
+  background: linear-gradient(135deg, var(--neon-pink) 0%, var(--deep-purple) 100%);
+  border-bottom-color: var(--neon-pink);
+}
+
+.prompt-editor-header h3,
+.prompt-test-header h3,
+.import-export-header h3 {
   color: var(--text-white);
   font-family: 'Orbitron', monospace;
   margin: 0;
   font-size: 1.5rem;
 }
 
-.btn-close-editor {
+/* Кнопки закрытия */
+.btn-close-editor,
+.btn-close-test,
+.btn-close-import-export {
   background: none;
   border: none;
   color: var(--text-white);
@@ -287,21 +341,38 @@
   padding: 0.5rem;
   border-radius: 50%;
   transition: all 0.3s ease;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-close-editor:hover {
+.btn-close-editor:hover,
+.btn-close-test:hover,
+.btn-close-import-export:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: rotate(90deg);
 }
 
-.prompt-editor-body {
+/* Тело модальных окон */
+.prompt-editor-content,
+.prompt-test-content,
+.import-export-content {
   padding: 2rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
-/* Форма редактора промптов */
+/* ===============================
+   ФОРМА РЕДАКТОРА - УЛУЧШЕННАЯ
+   =============================== */
+
 .prompt-form {
   display: grid;
   gap: 1.5rem;
+  height: 100%;
 }
 
 .form-row {
@@ -345,20 +416,57 @@
   box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
 }
 
-/* Текстовая область для промпта */
+/* Обертка для редактора промпта - УЛУЧШЕННАЯ */
+.prompt-editor-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 400px; /* Увеличено с 300px */
+}
+
+/* Текстовая область для промпта - УЛУЧШЕННАЯ */
+#prompt-content,
 .prompt-content-textarea {
-  min-height: 300px;
+  flex: 1;
+  min-height: 400px; /* Увеличено с 300px */
+  max-height: 600px; /* Добавлен максимальный размер */
   font-family: 'Courier New', monospace;
   font-size: 0.9rem;
   line-height: 1.6;
   resize: vertical;
   background: rgba(18, 18, 18, 0.9);
   border: 2px solid rgba(57, 255, 20, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  color: var(--text-white);
+  transition: all 0.3s ease;
 }
 
+#prompt-content:focus,
 .prompt-content-textarea:focus {
   border-color: var(--neon-green);
   box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+}
+
+/* Счетчик токенов в редакторе */
+.prompt-editor-wrapper .token-counter {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  margin: 0;
+  font-size: 0.85rem;
+  background: rgba(18, 18, 18, 0.9);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+/* Подсказки редактора */
+.editor-hints {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  opacity: 0.7;
 }
 
 /* Панель инструментов редактора */
@@ -377,13 +485,14 @@
   margin-left: auto;
 }
 
-/* Кнопки действий */
-.prompt-actions {
+/* Кнопки действий формы */
+.form-actions {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
   padding-top: 1.5rem;
   border-top: 1px solid rgba(57, 255, 20, 0.3);
+  flex-shrink: 0;
 }
 
 .btn-test-prompt {
@@ -422,60 +531,21 @@
   box-shadow: 0 5px 20px rgba(57, 255, 20, 0.4);
 }
 
-/* Модальное окно тестирования */
-.test-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1100;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-}
-
-.test-modal.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-.test-modal-content {
-  background: var(--card-bg);
-  border: 2px solid var(--neon-pink);
-  border-radius: 16px;
-  width: 90%;
-  max-width: 800px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 0 50px rgba(255, 110, 199, 0.3);
-}
-
-.test-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem 2rem;
-  background: linear-gradient(135deg, var(--neon-pink) 0%, var(--deep-purple) 100%);
-  border-bottom: 2px solid var(--neon-pink);
-}
-
-.test-modal-header h3 {
-  color: var(--text-white);
-  font-family: 'Orbitron', monospace;
-  margin: 0;
-}
+/* ===============================
+   ТЕСТИРОВАНИЕ ПРОМПТОВ
+   =============================== */
 
 .test-form {
-  padding: 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  height: 100%;
+}
+
+.test-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .test-input {
@@ -496,7 +566,15 @@
   box-shadow: 0 0 10px rgba(255, 110, 199, 0.3);
 }
 
-.test-response {
+.test-results-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+.test-results-content {
   background: rgba(18, 18, 18, 0.9);
   border: 2px solid rgba(57, 255, 20, 0.3);
   border-radius: 8px;
@@ -509,6 +587,36 @@
   min-height: 200px;
   max-height: 400px;
   overflow-y: auto;
+  flex: 1;
+}
+
+.test-metadata {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(57, 255, 20, 0.3);
+  border-radius: 8px;
+}
+
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.metadata-item label {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metadata-item span {
+  font-weight: 600;
+  color: var(--neon-green);
 }
 
 .test-loading {
@@ -530,6 +638,10 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* ===============================
+   ТАБЛИЦА И ДЕЙСТВИЯ
+   =============================== */
 
 /* Переключатель активности */
 .activity-toggle {
@@ -663,8 +775,26 @@
 }
 
 /* ========================
-   АДАПТИВНОСТЬ
+   АДАПТИВНОСТЬ - УЛУЧШЕННАЯ
    ======================== */
+
+@media (max-width: 1024px) {
+  .prompt-editor-container {
+    width: 98%;
+    max-width: none;
+    max-height: 98vh;
+  }
+  
+  .prompt-test-container {
+    width: 95%;
+    max-width: none;
+  }
+  
+  .prompt-editor-content,
+  .prompt-test-content {
+    padding: 1.5rem;
+  }
+}
 
 @media (max-width: 768px) {
   .prompts-container {
@@ -693,14 +823,17 @@
     min-width: 800px;
   }
   
-  .prompt-editor-content,
-  .test-modal-content {
-    width: 95%;
-    max-height: 95vh;
+  .prompt-editor-container,
+  .prompt-test-container,
+  .import-export-container {
+    width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
   }
   
-  .prompt-editor-body,
-  .test-form {
+  .prompt-editor-content,
+  .prompt-test-content,
+  .import-export-content {
     padding: 1rem;
   }
   
@@ -708,7 +841,7 @@
     grid-template-columns: 1fr;
   }
   
-  .prompt-actions {
+  .form-actions {
     flex-direction: column;
   }
   
@@ -719,6 +852,11 @@
   .editor-toolbar .token-counter {
     margin-left: 0;
     margin-top: 0.5rem;
+  }
+  
+  #prompt-content,
+  .prompt-content-textarea {
+    min-height: 300px;
   }
 }
 
