@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shrooms AI Support Bot - Управление Промптами</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/prompts.css">
+    <meta name="description" content="Управление промптами для Shrooms AI Support Bot">
+    <!-- Preconnect to font sources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Тонкая версия грибного цифрового дождя для рабочих страниц -->
+    <div class="mushroom-bg-animation mushroom-bg-subtle" id="mushroom-matrix"></div>
+    
+    <div class="admin-layout">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="logo-container">
+                <img src="img/logo.svg" alt="Shrooms AI Support Bot" class="logo">
+                <h1>🍄 Shrooms Admin</h1>
+            </div>
+            
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html">Dashboard</a></li>
+                    <li><a href="tickets.html">Tickets</a></li>
+                    <li><a href="knowledge.html">Knowledge Base</a></li>
+                    <li><a href="prompts.html" class="active">Prompts</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-menu">
+                <span id="admin-username"></span>
+                <button id="logout-btn" class="btn btn-text">Logout</button>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="admin-content prompts-content">
+            <div class="prompts-header">
+                <h2>🧠 Управление Грибными Промптами</h2>
+                <div class="prompts-actions">
+                    <div class="filter-group">
+                        <select id="category-filter" class="select-glow">
+                            <option value="all">Все категории</option>
+                            <option value="system">Системные</option>
+                            <option value="safety">Безопасность</option>
+                            <option value="language">Языковые</option>
+                            <option value="custom">Пользовательские</option>
+                        </select>
+                        
+                        <select id="type-filter" class="select-glow">
+                            <option value="all">Все типы</option>
+                            <option value="basic">Базовый</option>
+                            <option value="rag">RAG</option>
+                            <option value="ticket_detection">Детекция тикетов</option>
+                            <option value="categorization">Категоризация</option>
+                            <option value="subject">Темы</option>
+                        </select>
+                        
+                        <select id="language-filter" class="select-glow">
+                            <option value="all">Все языки</option>
+                            <option value="en">English</option>
+                            <option value="ru">Русский</option>
+                            <option value="es">Español</option>
+                        </select>
+                        
+                        <input type="text" id="search-prompts" placeholder="🔍 Поиск промптов..." class="search-input">
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button id="test-prompts" class="btn btn-secondary btn-glow">
+                            <span class="btn-text">🧪 Тест Промпта</span>
+                        </button>
+                        
+                        <button id="export-prompts" class="btn btn-secondary btn-glow">
+                            <span class="btn-text">📤 Экспорт</span>
+                        </button>
+                        
+                        <button id="import-prompts" class="btn btn-secondary btn-glow">
+                            <span class="btn-text">📥 Импорт</span>
+                        </button>
+                        
+                        <button id="add-prompt" class="btn btn-primary btn-glow">
+                            <span class="btn-text">✨ Создать Промпт</span>
+                            <span class="btn-icon">🍄</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Prompts table -->
+            <div class="prompts-container glow-card">
+                <div class="table-container">
+                    <table class="data-table" id="prompts-table">
+                        <thead>
+                            <tr>
+                                <th class="col-id">ID</th>
+                                <th class="col-name">Название</th>
+                                <th class="col-category">Категория</th>
+                                <th class="col-type">Тип</th>
+                                <th class="col-language">Язык</th>
+                                <th class="col-status">Статус</th>
+                                <th class="col-tokens">Токены</th>
+                                <th class="col-version">Версия</th>
+                                <th class="col-actions">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-loading">
+                                <td colspan="9">🍄 Прорастание промптов...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Показано <span id="pagination-range">0-0</span> из <span id="pagination-total">0</span> промптов
+                    </div>
+                    <div class="pagination-controls">
+                        <button id="prev-page" class="btn btn-icon btn-secondary" disabled>
+                            ← Назад
+                        </button>
+                        <span id="pagination-current">Страница 1</span>
+                        <button id="next-page" class="btn btn-icon btn-secondary" disabled>
+                            Вперед →
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Prompt editor modal -->
+            <div class="prompt-editor-overlay" id="prompt-editor-overlay">
+                <div class="prompt-editor-container glow-card">
+                    <div class="prompt-editor-header">
+                        <h3 id="editor-title">✨ Создать Промпт</h3>
+                        <button id="close-prompt-editor" class="btn btn-icon btn-text">×</button>
+                    </div>
+                    
+                    <div class="prompt-editor-content">
+                        <form id="prompt-form" class="prompt-form">
+                            <input type="hidden" id="prompt-id" name="prompt-id" value="">
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="prompt-name">Название промпта:</label>
+                                    <input type="text" id="prompt-name" name="prompt-name" required 
+                                           placeholder="Например: Грибной ассистент поддержки">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="prompt-type">Тип:</label>
+                                    <select id="prompt-type" name="prompt-type" class="select-glow" required>
+                                        <option value="basic">Базовый</option>
+                                        <option value="rag">RAG</option>
+                                        <option value="ticket_detection">Детекция тикетов</option>
+                                        <option value="categorization">Категоризация</option>
+                                        <option value="subject">Темы</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="prompt-category">Категория:</label>
+                                    <select id="prompt-category" name="prompt-category" class="select-glow" required>
+                                        <option value="system">Системная</option>
+                                        <option value="safety">Безопасность</option>
+                                        <option value="language">Языковая</option>
+                                        <option value="custom">Пользовательская</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="prompt-language">Язык:</label>
+                                    <select id="prompt-language" name="prompt-language" class="select-glow" required>
+                                        <option value="en">English</option>
+                                        <option value="ru">Русский</option>
+                                        <option value="es">Español</option>
+                                        <option value="all">Все языки</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="prompt-max-tokens">Макс. токены:</label>
+                                    <input type="number" id="prompt-max-tokens" name="prompt-max-tokens" 
+                                           min="100" max="4000" value="1000" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="prompt-description">Описание:</label>
+                                <input type="text" id="prompt-description" name="prompt-description" 
+                                       placeholder="Краткое описание назначения промпта">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="prompt-content">Содержимое промпта:</label>
+                                <div class="prompt-editor-wrapper">
+                                    <textarea id="prompt-content" name="prompt-content" rows="12" required
+                                              placeholder="Ты - AI помощник службы поддержки Web3-платформы 'Shrooms'..."></textarea>
+                                    <div class="token-counter">
+                                        <span id="token-count">0</span> токенов
+                                    </div>
+                                </div>
+                                <div class="editor-hints">
+                                    <span>💡 Используйте переменные: {message}, {context}, {language}, {history}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="prompt-tags">Теги (через запятую):</label>
+                                <input type="text" id="prompt-tags" name="prompt-tags" 
+                                       placeholder="грибы, поддержка, web3, помощник">
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" id="test-current-prompt" class="btn btn-secondary btn-glow">
+                                    <span class="btn-text">🧪 Тестировать</span>
+                                </button>
+                                
+                                <button type="submit" class="btn btn-primary btn-glow">
+                                    <span class="btn-text" id="save-prompt-text">💾 Сохранить Промпт</span>
+                                    <span class="btn-icon">🍄</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Prompt test modal -->
+            <div class="prompt-test-overlay" id="prompt-test-overlay">
+                <div class="prompt-test-container glow-card">
+                    <div class="prompt-test-header">
+                        <h3>🧪 Тестирование Промпта</h3>
+                        <button id="close-prompt-test" class="btn btn-icon btn-text">×</button>
+                    </div>
+                    
+                    <div class="prompt-test-content">
+                        <div class="test-input-section">
+                            <div class="form-group">
+                                <label for="test-message">Тестовое сообщение:</label>
+                                <textarea id="test-message" rows="3" 
+                                          placeholder="Введите сообщение для тестирования промпта..."></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="test-language">Язык:</label>
+                                    <select id="test-language" class="select-glow">
+                                        <option value="en">English</option>
+                                        <option value="ru">Русский</option>
+                                        <option value="es">Español</option>
+                                    </select>
+                                </div>
+                                
+                                <button id="run-prompt-test" class="btn btn-primary btn-glow">
+                                    <span class="btn-text">🚀 Выполнить Тест</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="test-results-section">
+                            <h4>📋 Результат тестирования:</h4>
+                            <div id="test-results" class="test-results-content">
+                                🍄 Введите сообщение и нажмите "Выполнить Тест"
+                            </div>
+                            
+                            <div class="test-metadata" id="test-metadata" style="display: none;">
+                                <div class="metadata-item">
+                                    <label>Использовано токенов:</label>
+                                    <span id="test-tokens-used">--</span>
+                                </div>
+                                <div class="metadata-item">
+                                    <label>Время выполнения:</label>
+                                    <span id="test-execution-time">--</span>
+                                </div>
+                                <div class="metadata-item">
+                                    <label>AI провайдер:</label>
+                                    <span id="test-ai-provider">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Import/Export modal -->
+            <div class="import-export-overlay" id="import-export-overlay">
+                <div class="import-export-container glow-card">
+                    <div class="import-export-header">
+                        <h3 id="import-export-title">📤 Экспорт Промптов</h3>
+                        <button id="close-import-export" class="btn btn-icon btn-text">×</button>
+                    </div>
+                    
+                    <div class="import-export-content">
+                        <!-- Export content -->
+                        <div id="export-content" class="export-section">
+                            <p>Экспорт всех промптов в файл JSON для резервного копирования или переноса.</p>
+                            <button id="download-backup" class="btn btn-primary btn-glow">
+                                <span class="btn-text">💾 Скачать Резервную Копию</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Import content -->
+                        <div id="import-content" class="import-section" style="display: none;">
+                            <p>Импорт промптов из JSON файла. Существующие промпты будут обновлены.</p>
+                            <div class="file-upload-area">
+                                <input type="file" id="import-file" accept=".json" style="display: none;">
+                                <button id="select-import-file" class="btn btn-secondary btn-glow">
+                                    <span class="btn-text">📁 Выбрать Файл</span>
+                                </button>
+                                <div id="selected-file-info" class="file-info" style="display: none;"></div>
+                            </div>
+                            <button id="confirm-import" class="btn btn-primary btn-glow" style="display: none;">
+                                <span class="btn-text">📥 Импортировать</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="admin-footer">
+            <p>🍄 Shrooms AI Support Bot - Панель Управления Промптами</p>
+            <p class="copyright">© 2025 Shrooms Project. Все споры защищены.</p>
+        </footer>
+    </div>
+    
+    <!-- Notification system -->
+    <div class="notification-container" id="notification-container"></div>
+    
+    <!-- Scripts -->
+    <script src="js/auth.js"></script>
+    <script src="js/prompts.js"></script>
+    
+    <script>
+        /**
+         * Инициализация страницы управления промптами
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🍄 Инициализация управления грибными промптами');
+            
+            // auth.js уже проверил аутентификацию и настроил все необходимое
+            // Если мы здесь - значит пользователь авторизован
+            
+            // Инициализируем страницу промптов из prompts.js
+            if (typeof initPromptsPage === 'function') {
+                initPromptsPage();
+            } else {
+                console.error('🍄 Функция initPromptsPage не найдена в prompts.js');
+            }
+            
+            // Инициализируем тонкую версию грибной матрицы из auth.js
+            if (typeof initMushroomMatrix === 'function') {
+                initMushroomMatrix(true); // subtle mode для рабочих страниц
+            }
+        });
+    </script>
+</body>
+</html>
