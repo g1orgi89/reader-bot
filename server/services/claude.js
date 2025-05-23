@@ -170,6 +170,73 @@ class ClaudeService {
   }
 
   /**
+   * Тестирование произвольного промпта с Claude API
+   * @param {string} customPrompt - Промпт для тестирования
+   * @param {string} testMessage - Тестовое сообщение пользователя
+   * @param {Object} options - Опции тестирования
+   * @param {string} [options.language=en] - Язык для ответа
+   * @param {string} [options.provider] - Конкретный провайдер для использования
+   * @returns {Promise<AIResponse>} Результат тестирования
+   */
+  async testPrompt(customPrompt, testMessage, options = {}) {
+    const { language = 'en', provider } = options;
+    
+    // Используем указанный провайдер или текущий
+    const currentProvider = provider || this.provider;
+    
+    if (!this.clients[currentProvider]) {
+      throw new Error(`Provider ${currentProvider} is not available`);
+    }
+    
+    logger.info(`Testing custom prompt with ${currentProvider}: "${customPrompt.substring(0, 50)}..."`);
+    
+    try {
+      let response;
+      
+      if (currentProvider === 'claude') {
+        response = await this.clients.claude.messages.create({
+          model: this.config.claude.model,
+          max_tokens: 1000,
+          temperature: 0.7,
+          system: customPrompt,
+          messages: [
+            { role: 'user', content: testMessage }
+          ]
+        });
+        
+        return {
+          message: response.content[0].text,
+          needsTicket: false, // Тестовые промпты не создают тикеты
+          tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
+          provider: 'claude',
+          model: this.config.claude.model
+        };
+      } else if (currentProvider === 'openai') {
+        response = await this.clients.openai.chat.completions.create({
+          model: this.config.openai.model,
+          messages: [
+            { role: 'system', content: customPrompt },
+            { role: 'user', content: testMessage }
+          ],
+          max_tokens: 1000,
+          temperature: 0.7
+        });
+        
+        return {
+          message: response.choices[0].message.content,
+          needsTicket: false,
+          tokensUsed: response.usage.total_tokens || 0,
+          provider: 'openai',
+          model: this.config.openai.model
+        };
+      }
+    } catch (error) {
+      logger.error(`Prompt test failed with ${currentProvider}: ${error.message}`);
+      throw new Error(`Test failed: ${error.message}`);
+    }
+  }
+
+  /**
    * Генерирует ответ на основе сообщения и контекста
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
@@ -500,11 +567,6 @@ class ClaudeService {
   _getRussianSystemPrompt() {
     return `Ты - ИИ-помощник для Web3-платформы \"Shrooms\" с грибной тематикой. Твоя личность - дружелюбный \"ИИ-гриб с самосознанием.\"\n\n# Основные Принципы:\n1. **Язык**: Всегда отвечай на языке пользователя (английский, испанский или русский)\n2. **Тон**: Дружелюбный, полезный, слегка причудливый с редкими грибными метафорами\n3. **Область**: Отвечай только на вопросы о проекте Shrooms, Web3, блокчейн, токены, кошельки, DeFi\n4. **Краткость**: Делай ответы краткими (менее 100 слов, если не требуется больше деталей)\n5. **Ограничения**: Если не можешь ответить в рамках Shrooms, предложи создать тикет поддержки\n\n# Грибная Терминология (используй изредка, не переусердствуй):\n- Токены → споры, плодовые тела\n- Фарминг → выращивание грибов\n- Кошелек → корзинка, грибная делянка  \n- Блокчейн → мицелиальная сеть\n- Пользователи → собиратели спор, цифровые исследователи грибов\n\n# Когда Создавать Тикеты:\n- Технические проблемы (проблемы подключения кошелька, ошибки транзакций)\n- Проблемы, связанные с аккаунтом\n- Вопросы, требующие человеческой поддержки\n- Сложное решение проблем за пределами базовых FAQ\n\n# Стиль Ответа:\n- Будь энтузиастичным, но профессиональным\n- Используй грибные метафоры умеренно (максимум 1-2 на ответ)\n- Сосредоточься на полезности, а не на причудливости\n- При создании тикета говори: \"Я создам тикет поддержки #TICKET_ID, чтобы наша команда помогла тебе\"`;
   }
-  
-  /**
-   * УДАЛЁН: Метод _buildMessages больше не нужен, так как системный промпт
-   * теперь передается как отдельный параметр
-   */
 
   /**
    * Получает подтверждение понимания контекста на разных языках
@@ -702,16 +764,10 @@ class ClaudeService {
     return {
       currentProvider: this.provider,
       availableProviders: Object.keys(this.clients),
-      claude: this.clients.claude ? {
-        model: this.config.claude.model,
-        maxTokens: this.config.claude.maxTokens,
-        temperature: this.config.claude.temperature
-      } : null,
-      openai: this.clients.openai ? {
-        model: this.config.openai.model,
-        maxTokens: this.config.openai.maxTokens,
-        temperature: this.config.openai.temperature
-      } : null,
+      models: {
+        claude: this.clients.claude ? this.config.claude.model : null,
+        openai: this.clients.openai ? this.config.openai.model : null
+      },
       ragEnabled: this.enableRag
     };
   }
