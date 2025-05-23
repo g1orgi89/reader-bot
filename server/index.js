@@ -31,6 +31,7 @@ const promptRoutes = require('./api/prompts'); // ДОБАВЛЕНО: импор
 const dbService = require('./services/database');
 const vectorStoreService = require('./services/vectorStore');
 const claude = require('./services/claude'); // ИЗМЕНЕНО: claude вместо aiService
+const promptService = require('./services/promptService'); // 🍄 ДОБАВЛЕНО: PromptService
 const languageDetectService = require('./services/languageDetect');
 const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
@@ -137,6 +138,9 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
 
     // ИСПРАВЛЕНО: проверяем claude вместо aiService
     const aiProviderInfo = claude.getProviderInfo();
+    
+    // 🍄 ДОБАВЛЕНО: проверка здоровья PromptService
+    const promptHealth = await promptService.diagnose();
 
     const health = {
       status: 'ok',
@@ -146,9 +150,15 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       services: {
         database: dbHealth,
         vectorStore: vectorHealth,
-        ai: claude ? 'ok' : 'error'
+        ai: claude ? 'ok' : 'error',
+        prompts: promptHealth // 🍄 ДОБАВЛЕНО: статус промпт-сервиса
       },
       aiProvider: aiProviderInfo,
+      promptService: {
+        status: promptHealth.status,
+        cacheStats: promptHealth.cacheStats,
+        databaseConnection: promptHealth.databaseConnection
+      }, // 🍄 ДОБАВЛЕНО: детали PromptService
       features: config.features
     };
 
@@ -447,6 +457,16 @@ async function startServer() {
       logger.info('✅ Database indexes ensured');
     } catch (error) {
       logger.warn('⚠️ Failed to create indexes:', error.message);
+    }
+    
+    // 🍄 ДОБАВЛЕНО: Инициализация PromptService
+    logger.info('🍄 Initializing PromptService...');
+    try {
+      await promptService.initialize();
+      logger.info('✅ PromptService initialized successfully');
+    } catch (error) {
+      logger.warn('⚠️ PromptService initialization failed, will use fallback prompts:', error.message);
+      // Не прерываем запуск, так как есть fallback система
     }
     
     // Инициализация векторной базы (если включена)
