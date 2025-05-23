@@ -2,10 +2,18 @@
  * Prompt Service - Система управления промптами для Shrooms AI Support Bot
  * @file server/services/promptService.js
  * 🍄 Сервис для динамического управления промптами через базу данных
+ * ОБНОВЛЕНО: Использование нового fallback файла
  */
 
 const Prompt = require('../models/prompt');
 const logger = require('../utils/logger');
+const { 
+  FALLBACK_PROMPTS, 
+  RAG_FALLBACK_PROMPTS, 
+  TICKET_DETECTION_FALLBACK,
+  CATEGORIZATION_FALLBACK,
+  SUBJECT_FALLBACK 
+} = require('../config/fallbackPrompts');
 
 /**
  * @typedef {Object} CachedPrompt
@@ -126,31 +134,34 @@ class PromptService {
   }
 
   /**
-   * Fallback на дефолтные промпты если БД недоступна
+   * 🍄 ОБНОВЛЕНО: Fallback на новые минимальные промпты из файла
    * @param {string} type - Тип промпта
    * @param {string} [language='en'] - Язык промпта
    * @returns {string} Дефолтный промпт
    */
   getDefaultPrompt(type, language = 'en') {
-    const fallbackPrompts = this._getFallbackPrompts();
-    
     // Нормализуем язык
     const normalizedLanguage = ['en', 'es', 'ru'].includes(language) ? language : 'en';
     
     switch (type) {
       case 'basic':
-        return fallbackPrompts.basic[normalizedLanguage];
+        return FALLBACK_PROMPTS[normalizedLanguage];
+        
       case 'rag':
-        return `${fallbackPrompts.basic[normalizedLanguage]}\n\n${fallbackPrompts.rag[normalizedLanguage]}`;
+        return `${FALLBACK_PROMPTS[normalizedLanguage]}\n\n${RAG_FALLBACK_PROMPTS[normalizedLanguage]}`;
+        
       case 'ticket_detection':
-        return fallbackPrompts.ticketDetection;
+        return TICKET_DETECTION_FALLBACK;
+        
       case 'categorization':
-        return fallbackPrompts.categorization;
+        return CATEGORIZATION_FALLBACK;
+        
       case 'subject':
-        return fallbackPrompts.subject;
+        return SUBJECT_FALLBACK;
+        
       default:
         logger.warn(`🍄 Unknown prompt type for fallback: ${type}, using basic`);
-        return fallbackPrompts.basic[normalizedLanguage];
+        return FALLBACK_PROMPTS[normalizedLanguage];
     }
   }
 
@@ -295,29 +306,6 @@ class PromptService {
     }
 
     return diagnosis;
-  }
-
-  /**
-   * Минимальные fallback промпты на случай недоступности БД
-   * @private
-   * @returns {Object} Объект с fallback промптами
-   */
-  _getFallbackPrompts() {
-    return {
-      basic: {
-        en: "You are Sporus, AI assistant for Shrooms Web3 platform. Be helpful and friendly. You can only answer questions about the Shrooms project, wallet connections, farming, and technical support.",
-        ru: "Ты Sporus, ИИ-помощник платформы Shrooms. Будь полезным и дружелюбным. Ты можешь отвечать только на вопросы о проекте Shrooms, подключении кошельков, фарминге и технической поддержке.",
-        es: "Eres Sporus, asistente IA para la plataforma Shrooms. Sé útil y amigable. Solo puedes responder preguntas sobre el proyecto Shrooms, conexiones de billetera, farming y soporte técnico."
-      },
-      rag: {
-        en: "Use ONLY the information provided in the context to answer user questions about the Shrooms project. If context is insufficient, suggest creating a support ticket.",
-        ru: "Используй ТОЛЬКО предоставленную информацию из контекста для ответа на вопросы о проекте Shrooms. Если контекста недостаточно, предложи создать тикет поддержки.",
-        es: "Usa SOLO la información proporcionada en el contexto para responder preguntas sobre el proyecto Shrooms. Si el contexto es insuficiente, sugiere crear un ticket de soporte."
-      },
-      ticketDetection: "Analyze the user message and determine if a support ticket needs to be created. Respond only with 'YES' or 'NO'.",
-      categorization: "Categorize the support ticket based on the problem description. Categories: technical, account, billing, feature, other. Priorities: urgent, high, medium, low.",
-      subject: "Generate a brief, informative subject for the support ticket based on the user's message. Maximum 60 characters."
-    };
   }
 }
 
