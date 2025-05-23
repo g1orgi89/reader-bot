@@ -82,27 +82,27 @@ router.post(['/', '/message'], async (req, res) => {
         logger.debug(`Searching for: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}" with options: ${JSON.stringify({
           limit: 5,
           language: detectedLanguage,
-          score_threshold: 0.4
+          score_threshold: 0.7
         })}`);
         
         // Пытаемся получить релевантную информацию из векторного хранилища
         const contextResults = await vectorStoreService.search(message, {
           limit: 5,
           language: detectedLanguage,
-          score_threshold: 0.4  // Используем стандартное значение порога
+          score_threshold: 0.7  // Увеличен порог для более точного поиска
         });
         
         if (contextResults && contextResults.length > 0) {
           context = contextResults.map(result => result.content);
           logger.info(`Found ${context.length} relevant documents`);
         } else {
-          // Если ничего не найдено с порогом 0.4, попробуем с более низким порогом
-          logger.debug('No documents found with threshold 0.4, trying lower threshold 0.3');
+          // Если ничего не найдено с порогом 0.7, попробуем с более низким порогом
+          logger.debug('No documents found with threshold 0.7, trying lower threshold 0.4');
           
           const lowThresholdResults = await vectorStoreService.search(message, {
             limit: 3,
             language: detectedLanguage,
-            score_threshold: 0.3  // Более низкий порог для всесторонней проверки
+            score_threshold: 0.4  // Более низкий порог для всесторонней проверки
           });
           
           if (lowThresholdResults && lowThresholdResults.length > 0) {
