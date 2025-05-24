@@ -1,7 +1,7 @@
 /**
  * API маршруты для работы с чатом
  * @file server/api/chat.js
- * 🍄 ИСПРАВЛЕНО: Убран двойной поиск RAG с fallback, добавлена проверка релевантности
+ * 🔥 ПРИОРИТЕТ 1: Убран фильтр _checkProjectRelevance() который убивал 70% русских запросов
  */
 
 const express = require('express');
@@ -14,47 +14,6 @@ const ticketService = require('../services/ticketing');
 const logger = require('../utils/logger');
 
 const router = express.Router();
-
-/**
- * Проверяет, относится ли запрос к проекту Shrooms
- * @param {string} message - Сообщение пользователя
- * @param {string} language - Язык сообщения
- * @returns {boolean} Относится ли к проекту
- */
-function _checkProjectRelevance(message, language) {
-  const shroomsKeywords = {
-    en: ['shrooms', 'wallet', 'token', 'farming', 'staking', 'xverse', 'hiro', 'stacks', 'bitcoin', 'crypto', 'connect', 'transaction', 'balance', 'btc', 'stx'],
-    ru: ['шрумс', 'кошелек', 'токен', 'фарминг', 'стейкинг', 'xverse', 'hiro', 'stacks', 'биткоин', 'крипто', 'подключ', 'транзакция', 'баланс', 'btc', 'stx'],
-    es: ['shrooms', 'billetera', 'token', 'farming', 'staking', 'xverse', 'hiro', 'stacks', 'bitcoin', 'crypto', 'conectar', 'transacción', 'balance', 'btc', 'stx']
-  };
-  
-  const keywords = shroomsKeywords[language] || shroomsKeywords.en;
-  const messageWords = message.toLowerCase().split(/\s+/);
-  
-  // Проверяем наличие ключевых слов проекта
-  const hasProjectKeywords = keywords.some(keyword => 
-    messageWords.some(word => word.includes(keyword.toLowerCase()))
-  );
-  
-  // Проверяем на вопросительные слова + общая тематика
-  const questionWords = {
-    en: ['what', 'how', 'where', 'when', 'why', 'can', 'help', 'support', 'problem', 'issue', 'error'],
-    ru: ['что', 'как', 'где', 'когда', 'почему', 'можно', 'помощь', 'поддержка', 'проблема', 'ошибка'],
-    es: ['qué', 'cómo', 'dónde', 'cuándo', 'por qué', 'puedo', 'ayuda', 'soporte', 'problema', 'error']
-  };
-  
-  const currentQuestionWords = questionWords[language] || questionWords.en;
-  const hasQuestionWords = currentQuestionWords.some(word => 
-    messageWords.includes(word.toLowerCase())
-  );
-  
-  // Считаем релевантным если есть ключевые слова ИЛИ если это вопрос поддержки
-  const isRelevant = hasProjectKeywords || (hasQuestionWords && messageWords.length > 2);
-  
-  logger.debug(`🍄 Project relevance check: ${isRelevant} (keywords: ${hasProjectKeywords}, questions: ${hasQuestionWords}) for: "${message.substring(0, 30)}..."`);
-  
-  return isRelevant;
-}
 
 /**
  * @route POST /api/chat и POST /api/chat/message
@@ -115,40 +74,31 @@ router.post(['/', '/message'], async (req, res) => {
       await conversationService.updateLanguage(conversation._id, detectedLanguage);
     }
     
-    // 🍄 ИСПРАВЛЕНО: Улучшенная логика RAG с проверкой релевантности
+    // 🔥 ИСПРАВЛЕНО: RAG работает для ВСЕХ запросов без фильтрации
     let context = [];
     let ragUsed = false;
     const enableRag = process.env.ENABLE_RAG !== 'false' && useRag !== false;
     
     if (enableRag) {
       try {
-        // 🍄 НОВОЕ: Проверка релевантности запроса к проекту
-        const isRelevantToProject = _checkProjectRelevance(message, detectedLanguage);
+        logger.debug(`🍄 Searching for relevant documents for: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"`);
         
-        if (isRelevantToProject) {
-          logger.debug(`🍄 Searching for relevant documents for: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"`);
+        // 🔥 УБРАН ФИЛЬТР: Поиск работает для ВСЕХ запросов
+        const contextResults = await vectorStoreService.search(message, {
+          limit: 5,
+          language: detectedLanguage
+        });
+        
+        if (contextResults && contextResults.length > 0) {
+          context = contextResults.map(result => result.content);
+          ragUsed = true;
+          logger.info(`🍄 Found ${context.length} relevant documents`);
           
-          // 🍄 ИСПРАВЛЕНО: Убран двойной поиск, используем только один запрос
-          // Не передаем score_threshold - пусть vectorStore использует свои адаптивные пороги
-          const contextResults = await vectorStoreService.search(message, {
-            limit: 5,
-            language: detectedLanguage
-            // Убрали score_threshold - vectorStore сам определит оптимальный порог
-          });
-          
-          if (contextResults && contextResults.length > 0) {
-            context = contextResults.map(result => result.content);
-            ragUsed = true;
-            logger.info(`🍄 Found ${context.length} relevant documents for project-related query`);
-            
-            // Логируем scores для отладки
-            const scores = contextResults.map(r => r.score?.toFixed(3) || 'N/A').join(', ');
-            logger.debug(`🍄 Document scores: [${scores}]`);
-          } else {
-            logger.info(`🍄 No relevant documents found for project-related query: "${message.substring(0, 30)}..."`);
-          }
+          // Логируем scores для отладки
+          const scores = contextResults.map(r => r.score?.toFixed(3) || 'N/A').join(', ');
+          logger.debug(`🍄 Document scores: [${scores}]`);
         } else {
-          logger.info(`🍄 Query not relevant to Shrooms project, skipping RAG: "${message.substring(0, 30)}..."`);
+          logger.info(`🍄 No relevant documents found for: "${message.substring(0, 30)}..."`);
         }
       } catch (error) {
         logger.warn('🍄 Failed to get context from vector store:', error.message);
@@ -791,7 +741,7 @@ router.post('/switch-ai-provider', async (req, res) => {
 });
 
 /**
- * 🍄 НОВОЕ: Тестирование RAG функциональности
+ * 🔥 ИСПРАВЛЕНО: Упрощенное тестирование RAG без фильтра релевантности
  * @route POST /api/chat/test-rag
  * @desc Тестирование поиска в базе знаний с различными порогами
  * @access Public
@@ -808,8 +758,7 @@ router.post('/test-rag', async (req, res) => {
       });
     }
 
-    // Проверка релевантности
-    const isRelevant = _checkProjectRelevance(query, language);
+    // 🔥 УБРАН ФИЛЬТР релевантности - теперь тестируем ВСЕ запросы
     
     // Тестирование поиска с разными порогами
     const results = {};
@@ -863,7 +812,6 @@ router.post('/test-rag', async (req, res) => {
       data: {
         query,
         language,
-        isRelevantToProject: isRelevant,
         resultsByThreshold: results,
         automaticSearch: autoResults,
         timestamp: new Date().toISOString()
