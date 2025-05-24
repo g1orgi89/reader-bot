@@ -48,12 +48,21 @@ const ticketService = require('./services/ticketing');
 const app = express();
 const server = http.createServer(app);
 
-// Настройка Socket.IO
+// ИСПРАВЛЕНО: Настройка Socket.IO с более строгими ограничениями
 const io = socketIo(server, {
   cors: {
     origin: config.cors.origin,
     methods: config.cors.methods,
     credentials: config.cors.credentials
+  },
+  // Добавляем ограничения для предотвращения избыточных подключений
+  transports: ['websocket', 'polling'],
+  maxHttpBufferSize: 1e6, // 1MB
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  // Ограничиваем количество подключений с одного IP
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 60000
   }
 });
 
@@ -159,7 +168,12 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         cacheStats: promptHealth.cacheStats,
         databaseConnection: promptHealth.databaseConnection
       }, // 🍄 ДОБАВЛЕНО: детали PromptService
-      features: config.features
+      features: config.features,
+      // ДОБАВЛЕНО: информация о Socket.IO подключениях
+      socketConnections: {
+        total: io.engine.clientsCount,
+        active: io.sockets.sockets.size
+      }
     };
 
     // Если какой-то сервис неработоспособен, возвращаем 503
@@ -185,16 +199,48 @@ if (config.features.enableMetrics) {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       cpu: process.cpuUsage(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      socketConnections: {
+        total: io.engine.clientsCount,
+        active: io.sockets.sockets.size
+      }
     });
   });
 }
+
+// ИСПРАВЛЕНО: Более контролируемый Socket.IO с логированием и ограничениями
+const socketConnections = new Map(); // Отслеживание подключений
 
 /**
  * Обработчик Socket.IO соединений
  */
 io.on('connection', (socket) => {
-  logger.info(`🔌 Socket connected: ${socket.id}`);
+  const clientIp = socket.handshake.address;
+  const userAgent = socket.handshake.headers['user-agent'];
+  
+  // Проверяем количество подключений с одного IP
+  const ipConnections = Array.from(socketConnections.values())
+    .filter(conn => conn.ip === clientIp).length;
+  
+  if (ipConnections >= 3) { // Максимум 3 подключения с одного IP
+    logger.warn(`🚫 Too many connections from IP: ${clientIp}`);
+    socket.emit('error', {
+      code: 'TOO_MANY_CONNECTIONS',
+      message: 'Too many connections from your IP address'
+    });
+    socket.disconnect(true);
+    return;
+  }
+  
+  // Сохраняем информацию о подключении
+  socketConnections.set(socket.id, {
+    ip: clientIp,
+    userAgent,
+    connectedAt: new Date(),
+    messageCount: 0
+  });
+  
+  logger.info(`🔌 Socket connected: ${socket.id} from ${clientIp} (${socketConnections.size} total)`);
   
   // Отправляем приветственное сообщение
   socket.emit('system', {
@@ -211,9 +257,29 @@ io.on('connection', (socket) => {
    */
   socket.on('sendMessage', async (data) => {
     try {
+      const connection = socketConnections.get(socket.id);
+      if (!connection) {
+        socket.emit('error', {
+          code: ERROR_CODES.INTERNAL_SERVER_ERROR,
+          message: 'Connection not found'
+        });
+        return;
+      }
+
+      // Ограничение скорости сообщений
+      connection.messageCount++;
+      if (connection.messageCount > 10) { // Максимум 10 сообщений за сессию
+        socket.emit('error', {
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: 'Too many messages. Please slow down.'
+        });
+        return;
+      }
+
       logger.info(`📨 Message received from ${socket.id}:`, {
         message: data.message,
-        userId: data.userId
+        userId: data.userId,
+        messageCount: connection.messageCount
       });
 
       // Валидация входных данных
@@ -407,8 +473,17 @@ io.on('connection', (socket) => {
   });
 
   // Обработчик отключения
-  socket.on('disconnect', () => {
-    logger.info(`🔌 Socket disconnected: ${socket.id}`);
+  socket.on('disconnect', (reason) => {
+    const connection = socketConnections.get(socket.id);
+    socketConnections.delete(socket.id);
+    
+    logger.info(`🔌 Socket disconnected: ${socket.id} (${reason}) - ${socketConnections.size} remaining`);
+    
+    // Логируем статистику сессии
+    if (connection) {
+      const sessionDuration = Date.now() - connection.connectedAt.getTime();
+      logger.info(`📊 Session stats for ${socket.id}: ${connection.messageCount} messages, ${Math.round(sessionDuration/1000)}s duration`);
+    }
   });
 
   // Обработчик ошибок соединения
@@ -491,11 +566,24 @@ async function startServer() {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`🌐 API available at: http://localhost:${PORT}${config.app.apiPrefix}`);
       logger.info(`🏠 Client available at: http://localhost:${PORT}`);
+      logger.info(`🔌 Socket.IO available at: http://localhost:${PORT}/socket.io/`);
       
       // Логируем URL для разных режимов
       if (config.app.isDevelopment) {
         logger.info('🔄 Development mode: Hot reload enabled');
       }
+      
+      // Устанавливаем таймер для очистки старых подключений
+      setInterval(() => {
+        const now = Date.now();
+        for (const [socketId, connection] of socketConnections.entries()) {
+          const age = now - connection.connectedAt.getTime();
+          if (age > 3600000) { // 1 час
+            logger.info(`🧹 Cleaning up old connection: ${socketId}`);
+            socketConnections.delete(socketId);
+          }
+        }
+      }, 300000); // Каждые 5 минут
     });
     
     return server;
@@ -512,6 +600,12 @@ async function startServer() {
  */
 async function gracefulShutdown(signal) {
   logger.info(`🔄 Received ${signal}, shutting down gracefully...`);
+  
+  // Закрываем Socket.IO соединения
+  logger.info('🔌 Closing Socket.IO connections...');
+  io.close(() => {
+    logger.info('✅ Socket.IO closed');
+  });
   
   // Закрываем HTTP сервер
   server.close(async () => {
