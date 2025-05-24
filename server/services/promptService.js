@@ -2,7 +2,7 @@
  * Prompt Service - Система управления промптами для Shrooms AI Support Bot
  * @file server/services/promptService.js
  * 🍄 Сервис для динамического управления промптами через базу данных
- * ОБНОВЛЕНО: Использование нового fallback файла
+ * ОБНОВЛЕНО: Использование нового fallback файла + исправление языкового mapping
  */
 
 const Prompt = require('../models/prompt');
@@ -50,6 +50,17 @@ class PromptService {
     /** @type {boolean} Флаг инициализации */
     this.initialized = false;
     
+    /** @type {Object<string, string>} Mapping полных названий языков к кодам */
+    this.languageMap = {
+      'English': 'en',
+      'Русский': 'ru', 
+      'Español': 'es',
+      'en': 'en',
+      'ru': 'ru',
+      'es': 'es',
+      'all': 'all'
+    };
+    
     logger.info('🍄 PromptService initialized with cache timeout:', this.cacheTimeout);
   }
 
@@ -75,14 +86,46 @@ class PromptService {
   }
 
   /**
+   * Нормализует язык из полного названия к коду
+   * @param {string} language - Язык (полное название или код)
+   * @returns {string} Нормализованный код языка
+   */
+  normalizeLanguage(language) {
+    if (!language) return 'en';
+    
+    // Ищем в mapping таблице
+    const normalized = this.languageMap[language];
+    if (normalized) {
+      return normalized;
+    }
+    
+    // Если не найдено в mapping, пытаемся найти по подстроке (case-insensitive)
+    const lowerLanguage = language.toLowerCase();
+    for (const [key, value] of Object.entries(this.languageMap)) {
+      if (key.toLowerCase().includes(lowerLanguage) || lowerLanguage.includes(key.toLowerCase())) {
+        logger.info(`🍄 Language mapping found: ${language} -> ${value}`);
+        return value;
+      }
+    }
+    
+    // По умолчанию возвращаем английский
+    logger.warn(`🍄 Unknown language "${language}", defaulting to "en"`);
+    return 'en';
+  }
+
+  /**
    * Получить активный промпт по типу и языку из БД или кеша
    * @param {string} type - Тип промпта ('basic', 'rag', 'ticket_detection', 'categorization', 'subject')
-   * @param {string} [language='en'] - Язык промпта ('en', 'es', 'ru', 'all')
+   * @param {string} [language='en'] - Язык промпта ('en', 'es', 'ru', 'all' или полное название)
    * @returns {Promise<string>} Содержимое промпта
    */
   async getActivePrompt(type, language = 'en') {
     try {
-      const cacheKey = `${type}_${language}`;
+      // 🍄 ИСПРАВЛЕНИЕ: Нормализуем язык для обработки полных названий
+      const normalizedLanguage = this.normalizeLanguage(language);
+      const cacheKey = `${type}_${normalizedLanguage}`;
+      
+      logger.debug(`🍄 Getting prompt: type=${type}, original_language=${language}, normalized=${normalizedLanguage}`);
       
       // Проверяем кеш
       const cached = this.getCachedPrompt(cacheKey);
@@ -92,7 +135,7 @@ class PromptService {
       }
 
       // Ищем в базе данных
-      const prompt = await Prompt.getActivePrompt(type, language);
+      const prompt = await Prompt.getActivePrompt(type, normalizedLanguage);
       
       if (prompt) {
         // Кешируем найденный промпт
@@ -115,18 +158,19 @@ class PromptService {
 
       // Если в БД нет промпта, используем fallback
       if (this.enableFallback) {
-        logger.warn(`🍄 No active prompt found in database, using fallback spores: ${type}/${language}`);
-        return this.getDefaultPrompt(type, language);
+        logger.warn(`🍄 No active prompt found in database, using fallback spores: ${type}/${normalizedLanguage}`);
+        return this.getDefaultPrompt(type, normalizedLanguage);
       }
 
-      throw new Error(`No active prompt found for type: ${type}, language: ${language}`);
+      throw new Error(`No active prompt found for type: ${type}, language: ${normalizedLanguage}`);
     } catch (error) {
       logger.error(`🍄 Error getting active prompt (${type}/${language}):`, error.message);
       
       // В случае ошибки пытаемся использовать fallback
       if (this.enableFallback) {
         logger.warn('🍄 Database error, falling back to default spores');
-        return this.getDefaultPrompt(type, language);
+        const normalizedLanguage = this.normalizeLanguage(language);
+        return this.getDefaultPrompt(type, normalizedLanguage);
       }
       
       throw error;
@@ -140,15 +184,16 @@ class PromptService {
    * @returns {string} Дефолтный промпт
    */
   getDefaultPrompt(type, language = 'en') {
-    // Нормализуем язык
-    const normalizedLanguage = ['en', 'es', 'ru'].includes(language) ? language : 'en';
+    // Нормализуем язык и проверяем, что он поддерживается
+    const normalizedLanguage = this.normalizeLanguage(language);
+    const supportedLanguage = ['en', 'es', 'ru'].includes(normalizedLanguage) ? normalizedLanguage : 'en';
     
     switch (type) {
       case 'basic':
-        return FALLBACK_PROMPTS[normalizedLanguage];
+        return FALLBACK_PROMPTS[supportedLanguage];
         
       case 'rag':
-        return `${FALLBACK_PROMPTS[normalizedLanguage]}\n\n${RAG_FALLBACK_PROMPTS[normalizedLanguage]}`;
+        return `${FALLBACK_PROMPTS[supportedLanguage]}\n\n${RAG_FALLBACK_PROMPTS[supportedLanguage]}`;
         
       case 'ticket_detection':
         return TICKET_DETECTION_FALLBACK;
@@ -161,7 +206,7 @@ class PromptService {
         
       default:
         logger.warn(`🍄 Unknown prompt type for fallback: ${type}, using basic`);
-        return FALLBACK_PROMPTS[normalizedLanguage];
+        return FALLBACK_PROMPTS[supportedLanguage];
     }
   }
 
@@ -224,7 +269,8 @@ class PromptService {
    */
   clearCacheForType(type, language = null) {
     if (language) {
-      const key = `${type}_${language}`;
+      const normalizedLanguage = this.normalizeLanguage(language);
+      const key = `${type}_${normalizedLanguage}`;
       const deleted = this.cache.delete(key);
       if (deleted) {
         logger.info(`🍄 Cleared cached spore: ${key}`);
@@ -251,6 +297,7 @@ class PromptService {
     const stats = {
       totalCached: this.cache.size,
       cacheTimeout: this.cacheTimeout,
+      languageMapping: this.languageMap,
       entries: []
     };
 
@@ -276,6 +323,7 @@ class PromptService {
       service: 'PromptService',
       status: 'unknown',
       initialized: this.initialized,
+      languageMapping: this.languageMap,
       cacheStats: this.getCacheStats(),
       databaseConnection: false,
       promptCounts: {},
@@ -290,10 +338,11 @@ class PromptService {
       // Получаем статистику промптов
       diagnosis.promptCounts = await Prompt.getStats();
       
-      // Тестируем получение базового промпта
-      const testPrompt = await this.getActivePrompt('basic', 'en');
+      // Тестируем получение базового промпта с разными форматами языка
+      const testPromptEn = await this.getActivePrompt('basic', 'en');
+      const testPromptRu = await this.getActivePrompt('basic', 'Русский'); // Тестируем полное название
       
-      if (testPrompt && testPrompt.length > 0) {
+      if (testPromptEn && testPromptEn.length > 0 && testPromptRu && testPromptRu.length > 0) {
         diagnosis.status = 'healthy';
       } else {
         diagnosis.status = 'warning';
