@@ -61,7 +61,7 @@
             100% { background-position: 0% 50%; }
         }
 
-        /* Mushroom particle effects */
+        /* Mushroom particle effects - OPTIMIZED */
         .mushroom-particle {
             position: absolute;
             width: 20px;
@@ -70,6 +70,7 @@
             pointer-events: none;
             user-select: none;
             animation: drift 12s linear infinite;
+            will-change: transform;
         }
 
         .mushroom-particle::before {
@@ -282,6 +283,7 @@
             backdrop-filter: blur(10px);
             font-size: 0.9rem;
             z-index: 1001;
+            transition: all 0.3s ease;
         }
 
         .status-indicator.online {
@@ -294,19 +296,33 @@
             color: var(--accent-pink);
         }
 
+        .status-indicator.checking {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
         /* Loading animation */
         .loading {
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid var(--secondary-purple);
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--secondary-purple);
             border-radius: 50%;
             border-top-color: var(--primary-green);
             animation: spin 1s ease-in-out infinite;
+            margin-left: 0.5rem;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* Ripple effect animation */
+        @keyframes ripple {
+            to {
+                transform: scale(2);
+                opacity: 0;
+            }
         }
     </style>
 </head>
@@ -321,8 +337,8 @@
     </header>
 
     <!-- Status indicator -->
-    <div id="statusIndicator" class="status-indicator">
-        <span id="statusText">Connecting...</span>
+    <div id="statusIndicator" class="status-indicator checking">
+        <span id="statusText">Checking status...</span>
         <span class="loading"></span>
     </div>
 
@@ -405,56 +421,72 @@
 
     <!-- JavaScript -->
     <script>
-        // Mushroom particle system
+        // Global variables for cleanup
+        let particleInterval = null;
+        let statusInterval = null;
+        let particles = [];
+        
+        // OPTIMIZED: Mushroom particle system with cleanup
         function createMushroomParticle() {
+            // Limit maximum particles
+            if (particles.length >= 5) {
+                return;
+            }
+
             const particle = document.createElement('div');
             particle.className = 'mushroom-particle';
             particle.style.top = Math.random() * window.innerHeight + 'px';
             particle.style.animationDuration = (Math.random() * 5 + 8) + 's';
             particle.style.animationDelay = Math.random() * 2 + 's';
+            
             document.body.appendChild(particle);
+            particles.push(particle);
 
-            // Remove particle after animation
+            // Remove particle after animation with cleanup
             setTimeout(() => {
                 if (particle.parentNode) {
                     particle.parentNode.removeChild(particle);
+                    particles = particles.filter(p => p !== particle);
                 }
             }, 15000);
         }
 
-        // Create particles periodically
-        setInterval(createMushroomParticle, 3000);
-
-        // Initial particles
-        for (let i = 0; i < 5; i++) {
-            setTimeout(createMushroomParticle, i * 600);
-        }
-
-        // Status indicator
+        // Status indicator - HTTP ONLY, NO SOCKET.IO
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
 
         async function checkServerStatus() {
             try {
-                const response = await fetch('/api/health');
-                const data = await response.json();
+                // Use AbortController to prevent hanging requests
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
                 
-                if (data.status === 'ok') {
-                    statusIndicator.className = 'status-indicator online';
-                    statusText.innerHTML = '🟢 Online & Growing';
+                const response = await fetch('/api/health', {
+                    signal: controller.signal,
+                    cache: 'no-cache'
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.status === 'ok') {
+                        statusIndicator.className = 'status-indicator online';
+                        statusText.innerHTML = '🟢 Online & Growing';
+                    } else {
+                        statusIndicator.className = 'status-indicator offline';
+                        statusText.innerHTML = '🟡 Partial Services';
+                    }
                 } else {
-                    statusIndicator.className = 'status-indicator offline';
-                    statusText.innerHTML = '🟡 Partial Services';
+                    throw new Error(`HTTP ${response.status}`);
                 }
             } catch (error) {
+                console.warn('Health check failed:', error.message);
                 statusIndicator.className = 'status-indicator offline';
                 statusText.innerHTML = '🔴 Offline';
             }
         }
-
-        // Check status on load and every 30 seconds
-        checkServerStatus();
-        setInterval(checkServerStatus, 30000);
 
         // API Documentation placeholder
         function showApiDocs() {
@@ -462,9 +494,9 @@
 
 Basic Endpoints:
 • GET /api/health - Health check
-• POST /api/chat/message - Send chat message
-• GET /api/tickets - Get tickets
-• WebSocket: Socket.IO on same port
+• POST /api/chat - Send chat message (REST)
+• GET /api/tickets - Get tickets (Admin)
+• WebSocket: Socket.IO on same port (For chat apps)
 
 Features:
 • Multi-language support (EN, ES, RU)
@@ -475,63 +507,106 @@ Features:
 Contact the mycelium network for full documentation! 🌐`);
         }
 
-        // Smooth scrolling for anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+        // OPTIMIZED: Button click effects with cleanup
+        function addRippleEffect(element, event) {
+            // Remove any existing ripples
+            const existingRipples = element.querySelectorAll('.ripple-effect');
+            existingRipples.forEach(ripple => ripple.remove());
+
+            // Create new ripple
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple-effect';
+            ripple.style.position = 'absolute';
+            ripple.style.borderRadius = '50%';
+            ripple.style.background = 'rgba(255, 255, 255, 0.3)';
+            ripple.style.transform = 'scale(0)';
+            ripple.style.animation = 'ripple 0.6s linear';
+            ripple.style.pointerEvents = 'none';
+            
+            // Position ripple at click point
+            const rect = element.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = (event.clientX - rect.left - size / 2) + 'px';
+            ripple.style.top = (event.clientY - rect.top - size / 2) + 'px';
+            
+            element.style.position = 'relative';
+            element.style.overflow = 'hidden';
+            element.appendChild(ripple);
+            
+            // Remove ripple after animation
+            setTimeout(() => {
+                if (ripple.parentNode) {
+                    ripple.parentNode.removeChild(ripple);
+                }
+            }, 600);
+        }
+
+        // Initialize page functionality
+        function initializePage() {
+            // Initial status check
+            checkServerStatus();
+            
+            // Status check interval (less frequent)
+            statusInterval = setInterval(checkServerStatus, 45000);
+            
+            // Particle creation interval (less frequent)
+            particleInterval = setInterval(createMushroomParticle, 4000);
+            
+            // Create initial particles
+            for (let i = 0; i < 3; i++) {
+                setTimeout(createMushroomParticle, i * 1000);
+            }
+            
+            // Add button effects
+            document.querySelectorAll('.btn').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    addRippleEffect(this, e);
+                });
+            });
+            
+            console.log('🍄 Shrooms Support Bot - Main page initialized');
+        }
+
+        // Cleanup function for page unload
+        function cleanup() {
+            if (particleInterval) {
+                clearInterval(particleInterval);
+                particleInterval = null;
+            }
+            
+            if (statusInterval) {
+                clearInterval(statusInterval);
+                statusInterval = null;
+            }
+            
+            // Clean up particles
+            particles.forEach(particle => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
                 }
             });
-        });
+            particles = [];
+        }
 
-        // Add some visual feedback for button clicks
-        document.querySelectorAll('.btn').forEach(button => {
-            button.addEventListener('click', function(e) {
-                // Create ripple effect
-                const ripple = document.createElement('span');
-                ripple.style.position = 'absolute';
-                ripple.style.borderRadius = '50%';
-                ripple.style.background = 'rgba(255, 255, 255, 0.3)';
-                ripple.style.transform = 'scale(0)';
-                ripple.style.animation = 'ripple 0.6s linear';
-                
-                // Position ripple at click point
-                const rect = this.getBoundingClientRect();
-                const size = Math.max(rect.width, rect.height);
-                ripple.style.width = ripple.style.height = size + 'px';
-                ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
-                ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
-                
-                this.style.position = 'relative';
-                this.style.overflow = 'hidden';
-                this.appendChild(ripple);
-                
-                // Remove ripple after animation
-                setTimeout(() => {
-                    if (ripple.parentNode) {
-                        ripple.parentNode.removeChild(ripple);
-                    }
-                }, 600);
-            });
-        });
-
-        // Add CSS for ripple animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes ripple {
-                to {
-                    transform: scale(2);
-                    opacity: 0;
+        // Page lifecycle management
+        document.addEventListener('DOMContentLoaded', initializePage);
+        window.addEventListener('beforeunload', cleanup);
+        
+        // Handle visibility change to pause/resume effects
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Page is hidden, pause animations
+                if (particleInterval) {
+                    clearInterval(particleInterval);
+                }
+            } else {
+                // Page is visible, resume animations
+                if (!particleInterval) {
+                    particleInterval = setInterval(createMushroomParticle, 4000);
                 }
             }
-        `;
-        document.head.appendChild(style);
+        });
     </script>
 </body>
 </html>
