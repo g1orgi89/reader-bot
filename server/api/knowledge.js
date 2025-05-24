@@ -337,8 +337,8 @@ router.post('/sync-vector-store', requireAdminAuth, async (req, res) => {
       });
     }
     
-    // Получаем все документы из MongoDB
-    const documents = await KnowledgeDocument.find({ status: 'published' }).lean();
+    // Получаем ВСЕ документы из MongoDB (без фильтра status)
+    const documents = await KnowledgeDocument.find({}).lean();
     
     if (documents.length === 0) {
       return res.json({
