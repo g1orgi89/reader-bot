@@ -488,8 +488,8 @@ class VectorStoreService {
       // Проверка через запрос списка коллекций вместо healthCheck
       const collections = await this.client.getCollections();
       
-      // Получение информации о коллекции
-      let collectionInfo = { vectors_count: 0 };
+      // Получение информации о коллекции - используем правильное поле points_count
+      let collectionInfo = { points_count: 0 };
       try {
         collectionInfo = await this.client.getCollection(this.collectionName);
       } catch (error) {
@@ -503,7 +503,7 @@ class VectorStoreService {
         qdrantStatus: { collections_count: collections.collections.length },
         collection: {
           name: this.collectionName,
-          vectorCount: collectionInfo.vectors_count || 0,
+          vectorCount: collectionInfo.points_count || 0,
           vectorDimension: this.vectorDimension
         },
         languageThresholds: this.languageThresholds
@@ -533,7 +533,8 @@ class VectorStoreService {
         };
       }
       
-      let collectionInfo = { vectors_count: 0 };
+      // Получение информации о коллекции - используем правильное поле points_count
+      let collectionInfo = { points_count: 0 };
       try {
         collectionInfo = await this.client.getCollection(this.collectionName);
       } catch (error) {
@@ -542,7 +543,7 @@ class VectorStoreService {
       
       return {
         status: 'ok',
-        documentsCount: collectionInfo.vectors_count || 0,
+        documentsCount: collectionInfo.points_count || 0,
         cacheSize: this.embeddingCache.size,
         lastUpdate: new Date().toISOString(),
         languageThresholds: this.languageThresholds
@@ -742,7 +743,7 @@ class VectorStoreService {
         .then(() => ({ status: 'ok', message: 'Connected to Qdrant' }))
         .catch(error => ({ status: 'error', message: `Connection failed: ${error.message}` }));
       
-      // Проверка коллекции
+      // Проверка коллекции - используем правильное поле points_count
       let collectionStatus = { status: 'unknown' };
       try {
         const collectionInfo = await this.client.getCollection(this.collectionName);
@@ -750,7 +751,7 @@ class VectorStoreService {
           status: 'ok',
           message: `Collection ${this.collectionName} exists`,
           info: {
-            vectorCount: collectionInfo.vectors_count || 0,
+            vectorCount: collectionInfo.points_count || 0,
             vectorDimension: this.vectorDimension,
           }
         };
