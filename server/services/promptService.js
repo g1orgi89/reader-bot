@@ -2,12 +2,11 @@
  * Prompt Service - Система управления промптами для Shrooms AI Support Bot
  * @file server/services/promptService.js
  * 🍄 Сервис для динамического управления промптами через базу данных
- * ОБНОВЛЕНО: Использование нового fallback файла + исправление языкового mapping + векторная интеграция
+ * ОБНОВЛЕНО: Удалена векторная интеграция - промпты только в MongoDB
  */
 
 const Prompt = require('../models/prompt');
 const logger = require('../utils/logger');
-const vectorStore = require('./vectorStore');
 const { 
   FALLBACK_PROMPTS, 
   RAG_FALLBACK_PROMPTS, 
@@ -30,15 +29,8 @@ const {
  */
 
 /**
- * @typedef {Object} VectorSyncResult
- * @property {boolean} success - Успешность синхронизации
- * @property {string} message - Сообщение о результате
- * @property {string} [error] - Ошибка синхронизации (если есть)
- */
-
-/**
  * @class PromptService
- * @description Сервис для управления промптами с кешированием, fallback системой и векторной интеграцией
+ * @description Сервис для управления промптами с кешированием и fallback системой (только MongoDB)
  */
 class PromptService {
   /**
@@ -69,7 +61,7 @@ class PromptService {
       'all': 'all'
     };
     
-    logger.info('🍄 PromptService mycelium network initialized with cache timeout:', this.cacheTimeout);
+    logger.info('🍄 PromptService mycelium network initialized (MongoDB only)');
   }
 
   /**
@@ -83,7 +75,7 @@ class PromptService {
       logger.info(`🍄 Found ${promptCount} prompts spores in mushroom database`);
       
       this.initialized = true;
-      logger.info('🍄 PromptService mycelium network is ready for growing!');
+      logger.info('🍄 PromptService mycelium network is ready for growing (MongoDB only)!');
     } catch (error) {
       logger.error('🍄 Failed to initialize PromptService mycelium:', error.message);
       if (this.enableFallback) {
@@ -94,206 +86,17 @@ class PromptService {
   }
 
   /**
-   * 🍄 НОВОЕ: Синхронизация промпта в векторную базу для RAG поиска
-   * @param {Object} promptData - Данные промпта для синхронизации
-   * @param {string} promptData.id - ID промпта
-   * @param {string} promptData.name - Название промпта
-   * @param {string} promptData.content - Содержимое промпта
-   * @param {string} promptData.type - Тип промпта
-   * @param {string} promptData.category - Категория промпта
-   * @param {string} promptData.language - Язык промпта
-   * @param {string[]} [promptData.tags] - Теги промпта
-   * @returns {Promise<VectorSyncResult>} Результат синхронизации
-   */
-  async syncPromptToVector(promptData) {
-    try {
-      logger.info(`🍄 Synchronizing prompt spore to vector mushroom garden: ${promptData.name}`);
-      
-      // Формируем документ для векторной базы
-      const vectorDocument = {
-        id: `prompt_${promptData.id}`,
-        content: `${promptData.name}\n\n${promptData.content}`,
-        metadata: {
-          id: `prompt_${promptData.id}`,
-          title: promptData.name,
-          category: `prompt_${promptData.category}`, // Префикс для отличия от knowledge документов
-          language: promptData.language,
-          tags: ['prompt', promptData.type, ...(promptData.tags || [])],
-          source: 'prompt_system',
-          promptType: promptData.type,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      };
-
-      // Добавляем в векторную базу
-      const success = await vectorStore.addDocuments([vectorDocument]);
-      
-      if (success) {
-        logger.info(`🍄 Successfully planted prompt spore in vector garden: ${promptData.name}`);
-        return {
-          success: true,
-          message: `Prompt '${promptData.name}' successfully synced to vector store`
-        };
-      } else {
-        logger.warn(`🍄 Failed to plant prompt spore in vector garden: ${promptData.name}`);
-        return {
-          success: false,
-          message: `Failed to sync prompt '${promptData.name}' to vector store`,
-          error: 'Vector store operation failed'
-        };
-      }
-    } catch (error) {
-      logger.error(`🍄 Vector synchronization failed for prompt spore ${promptData.name}:`, error.message);
-      return {
-        success: false,
-        message: `Error syncing prompt '${promptData.name}' to vector store`,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * 🍄 НОВОЕ: Удаление промпта из векторной базы
-   * @param {string} promptId - ID промпта для удаления
-   * @returns {Promise<VectorSyncResult>} Результат удаления
-   */
-  async removePromptFromVector(promptId) {
-    try {
-      logger.info(`🍄 Removing prompt spore from vector garden: ${promptId}`);
-      
-      const vectorDocumentId = `prompt_${promptId}`;
-      const success = await vectorStore.deleteDocument(vectorDocumentId);
-      
-      if (success) {
-        logger.info(`🍄 Successfully removed prompt spore from vector garden: ${promptId}`);
-        return {
-          success: true,
-          message: `Prompt '${promptId}' successfully removed from vector store`
-        };
-      } else {
-        logger.warn(`🍄 Failed to remove prompt spore from vector garden: ${promptId}`);
-        return {
-          success: false,
-          message: `Failed to remove prompt '${promptId}' from vector store`,
-          error: 'Vector store operation failed'
-        };
-      }
-    } catch (error) {
-      logger.error(`🍄 Vector removal failed for prompt spore ${promptId}:`, error.message);
-      return {
-        success: false,
-        message: `Error removing prompt '${promptId}' from vector store`,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * 🍄 НОВОЕ: Массовая синхронизация всех промптов в векторную базу
-   * @returns {Promise<Object>} Результат массовой синхронизации
-   */
-  async syncAllPromptsToVector() {
-    try {
-      logger.info('🍄 Starting mass synchronization of all prompt spores to vector mushroom garden');
-      
-      // Получаем все промпты из базы данных
-      const prompts = await Prompt.find({}).sort({ type: 1, language: 1, name: 1 });
-      
-      if (prompts.length === 0) {
-        logger.warn('🍄 No prompt spores found in database for synchronization');
-        return {
-          success: true,
-          message: 'No prompts found to sync',
-          totalPrompts: 0,
-          syncedPrompts: 0,
-          failedPrompts: 0,
-          results: []
-        };
-      }
-
-      logger.info(`🍄 Found ${prompts.length} prompt spores to transplant to vector garden`);
-
-      // Подготавливаем все документы для векторной базы
-      const vectorDocuments = prompts.map(prompt => ({
-        id: `prompt_${prompt._id}`,
-        content: `${prompt.name}\n\n${prompt.content}`,
-        metadata: {
-          id: `prompt_${prompt._id}`,
-          title: prompt.name,
-          category: `prompt_${prompt.category}`, // Префикс для отличия от knowledge документов
-          language: prompt.language,
-          tags: ['prompt', prompt.type, ...(prompt.tags || [])],
-          source: 'prompt_system',
-          promptType: prompt.type,
-          createdAt: prompt.createdAt || new Date(),
-          updatedAt: new Date()
-        }
-      }));
-
-      // Массовое добавление в векторную базу
-      const success = await vectorStore.addDocuments(vectorDocuments);
-
-      const result = {
-        success,
-        totalPrompts: prompts.length,
-        syncedPrompts: success ? prompts.length : 0,
-        failedPrompts: success ? 0 : prompts.length,
-        message: success 
-          ? `Successfully synced all ${prompts.length} prompt spores to vector garden`
-          : `Failed to sync ${prompts.length} prompt spores to vector garden`,
-        details: vectorDocuments.map(doc => ({
-          id: doc.metadata.id,
-          title: doc.metadata.title,
-          category: doc.metadata.category,
-          language: doc.metadata.language,
-          status: success ? 'synced' : 'failed'
-        }))
-      };
-
-      if (success) {
-        logger.info(`🍄 Successfully transplanted all ${prompts.length} prompt spores to vector mushroom garden!`);
-      } else {
-        logger.error(`🍄 Failed to transplant prompt spores to vector garden`);
-      }
-
-      return result;
-    } catch (error) {
-      logger.error('🍄 Mass synchronization of prompt spores failed:', error.message);
-      return {
-        success: false,
-        totalPrompts: 0,
-        syncedPrompts: 0,
-        failedPrompts: 0,
-        message: `Mass synchronization failed: ${error.message}`,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * 🍄 ОБНОВЛЕННОЕ: Добавление промпта с автоматической синхронизацией в векторную базу
+   * 🍄 MongoDB-ONLY: Добавление промпта без векторной синхронизации
    * @param {Object} promptData - Данные нового промпта
-   * @returns {Promise<Object>} Результат создания и синхронизации
+   * @returns {Promise<Object>} Результат создания
    */
-  async addPrompt(promptData) {
+  async addPromptMongoOnly(promptData) {
     try {
-      // Создаем промпт в MongoDB
+      // Создаем промпт только в MongoDB
       const prompt = new Prompt(promptData);
       await prompt.save();
       
-      logger.info(`🍄 New prompt spore planted in database: ${prompt.name}`);
-
-      // Автоматически синхронизируем с векторной базой
-      const syncResult = await this.syncPromptToVector({
-        id: prompt._id.toString(),
-        name: prompt.name,
-        content: prompt.content,
-        type: prompt.type,
-        category: prompt.category,
-        language: prompt.language,
-        tags: prompt.tags
-      });
+      logger.info(`🍄 New prompt spore planted in MongoDB database: ${prompt.name}`);
 
       // Очищаем кеш для данного типа/языка
       this.clearCacheForType(prompt.type, prompt.language);
@@ -301,22 +104,21 @@ class PromptService {
       return {
         success: true,
         prompt: prompt.toPublicJSON(),
-        vectorSync: syncResult,
-        message: `Prompt '${prompt.name}' created and ${syncResult.success ? 'synced to vector store' : 'sync failed'}`
+        message: `Prompt '${prompt.name}' created in MongoDB`
       };
     } catch (error) {
-      logger.error(`🍄 Failed to add prompt spore:`, error.message);
+      logger.error(`🍄 Failed to add prompt spore to MongoDB:`, error.message);
       throw error;
     }
   }
 
   /**
-   * 🍄 ОБНОВЛЕННОЕ: Обновление промпта с автоматической синхронизацией в векторную базу
+   * 🍄 MongoDB-ONLY: Обновление промпта без векторной синхронизации
    * @param {string} promptId - ID промпта
    * @param {Object} updateData - Данные для обновления
-   * @returns {Promise<Object>} Результат обновления и синхронизации
+   * @returns {Promise<Object>} Результат обновления
    */
-  async updatePrompt(promptId, updateData) {
+  async updatePromptMongoOnly(promptId, updateData) {
     try {
       const prompt = await Prompt.findByIdAndUpdate(promptId, updateData, { new: true });
       
@@ -324,18 +126,7 @@ class PromptService {
         throw new Error(`Prompt with ID ${promptId} not found`);
       }
 
-      logger.info(`🍄 Prompt spore updated in database: ${prompt.name}`);
-
-      // Автоматически синхронизируем обновленный промпт с векторной базой
-      const syncResult = await this.syncPromptToVector({
-        id: prompt._id.toString(),
-        name: prompt.name,
-        content: prompt.content,
-        type: prompt.type,
-        category: prompt.category,
-        language: prompt.language,
-        tags: prompt.tags
-      });
+      logger.info(`🍄 Prompt spore updated in MongoDB database: ${prompt.name}`);
 
       // Очищаем кеш для данного типа/языка
       this.clearCacheForType(prompt.type, prompt.language);
@@ -343,21 +134,20 @@ class PromptService {
       return {
         success: true,
         prompt: prompt.toPublicJSON(),
-        vectorSync: syncResult,
-        message: `Prompt '${prompt.name}' updated and ${syncResult.success ? 'synced to vector store' : 'sync failed'}`
+        message: `Prompt '${prompt.name}' updated in MongoDB`
       };
     } catch (error) {
-      logger.error(`🍄 Failed to update prompt spore:`, error.message);
+      logger.error(`🍄 Failed to update prompt spore in MongoDB:`, error.message);
       throw error;
     }
   }
 
   /**
-   * 🍄 ОБНОВЛЕННОЕ: Удаление промпта с автоматическим удалением из векторной базы
+   * 🍄 MongoDB-ONLY: Удаление промпта без векторной синхронизации
    * @param {string} promptId - ID промпта для удаления
    * @returns {Promise<Object>} Результат удаления
    */
-  async deletePrompt(promptId) {
+  async deletePromptMongoOnly(promptId) {
     try {
       const prompt = await Prompt.findById(promptId);
       
@@ -369,25 +159,55 @@ class PromptService {
       const promptType = prompt.type;
       const promptLanguage = prompt.language;
 
-      // Удаляем из MongoDB
+      // Удаляем только из MongoDB
       await Prompt.findByIdAndDelete(promptId);
-      logger.info(`🍄 Prompt spore removed from database: ${promptName}`);
-
-      // Автоматически удаляем из векторной базы
-      const syncResult = await this.removePromptFromVector(promptId);
+      logger.info(`🍄 Prompt spore removed from MongoDB database: ${promptName}`);
 
       // Очищаем кеш для данного типа/языка
       this.clearCacheForType(promptType, promptLanguage);
 
       return {
         success: true,
-        vectorSync: syncResult,
-        message: `Prompt '${promptName}' deleted and ${syncResult.success ? 'removed from vector store' : 'vector removal failed'}`
+        message: `Prompt '${promptName}' deleted from MongoDB`
       };
     } catch (error) {
-      logger.error(`🍄 Failed to delete prompt spore:`, error.message);
+      logger.error(`🍄 Failed to delete prompt spore from MongoDB:`, error.message);
       throw error;
     }
+  }
+
+  /**
+   * 🍄 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
+   * @deprecated Используйте addPromptMongoOnly вместо этого
+   * @param {Object} promptData - Данные нового промпта
+   * @returns {Promise<Object>} Результат создания
+   */
+  async addPrompt(promptData) {
+    logger.warn('🍄 Using deprecated addPrompt method, redirecting to MongoDB-only version');
+    return this.addPromptMongoOnly(promptData);
+  }
+
+  /**
+   * 🍄 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
+   * @deprecated Используйте updatePromptMongoOnly вместо этого
+   * @param {string} promptId - ID промпта
+   * @param {Object} updateData - Данные для обновления
+   * @returns {Promise<Object>} Результат обновления
+   */
+  async updatePrompt(promptId, updateData) {
+    logger.warn('🍄 Using deprecated updatePrompt method, redirecting to MongoDB-only version');
+    return this.updatePromptMongoOnly(promptId, updateData);
+  }
+
+  /**
+   * 🍄 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
+   * @deprecated Используйте deletePromptMongoOnly вместо этого
+   * @param {string} promptId - ID промпта для удаления
+   * @returns {Promise<Object>} Результат удаления
+   */
+  async deletePrompt(promptId) {
+    logger.warn('🍄 Using deprecated deletePrompt method, redirecting to MongoDB-only version');
+    return this.deletePromptMongoOnly(promptId);
   }
 
   /**
@@ -632,7 +452,7 @@ class PromptService {
       cacheStats: this.getCacheStats(),
       databaseConnection: false,
       promptCounts: {},
-      vectorStoreIntegration: false,
+      vectorStoreIntegration: false, // Отключена
       lastError: null
     };
 
@@ -644,15 +464,9 @@ class PromptService {
       // Получаем статистику промптов
       diagnosis.promptCounts = await Prompt.getStats();
       
-      // Проверяем интеграцию с векторным хранилищем
-      try {
-        const vectorStats = await vectorStore.getStats();
-        diagnosis.vectorStoreIntegration = vectorStats.status === 'ok';
-        diagnosis.vectorStats = vectorStats;
-      } catch (vectorError) {
-        diagnosis.vectorStoreIntegration = false;
-        diagnosis.vectorError = vectorError.message;
-      }
+      // Векторная интеграция отключена для промптов
+      diagnosis.vectorStoreIntegration = false;
+      diagnosis.vectorNote = 'Vector store integration disabled for prompts - using MongoDB only';
       
       // Тестируем получение базового промпта с разными форматами языка
       const testPromptEn = await this.getActivePrompt('basic', 'en');
