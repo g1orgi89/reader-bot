@@ -1,6 +1,7 @@
 /**
  * API маршруты для работы с чатом
  * @file server/api/chat.js
+ * 🍄 ИСПРАВЛЕНО: Убран двойной поиск RAG с fallback, добавлена проверка релевантности
  */
 
 const express = require('express');
@@ -13,6 +14,47 @@ const ticketService = require('../services/ticketing');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+
+/**
+ * Проверяет, относится ли запрос к проекту Shrooms
+ * @param {string} message - Сообщение пользователя
+ * @param {string} language - Язык сообщения
+ * @returns {boolean} Относится ли к проекту
+ */
+function _checkProjectRelevance(message, language) {
+  const shroomsKeywords = {
+    en: ['shrooms', 'wallet', 'token', 'farming', 'staking', 'xverse', 'hiro', 'stacks', 'bitcoin', 'crypto', 'connect', 'transaction', 'balance', 'btc', 'stx'],
+    ru: ['шрумс', 'кошелек', 'токен', 'фарминг', 'стейкинг', 'xverse', 'hiro', 'stacks', 'биткоин', 'крипто', 'подключ', 'транзакция', 'баланс', 'btc', 'stx'],
+    es: ['shrooms', 'billetera', 'token', 'farming', 'staking', 'xverse', 'hiro', 'stacks', 'bitcoin', 'crypto', 'conectar', 'transacción', 'balance', 'btc', 'stx']
+  };
+  
+  const keywords = shroomsKeywords[language] || shroomsKeywords.en;
+  const messageWords = message.toLowerCase().split(/\s+/);
+  
+  // Проверяем наличие ключевых слов проекта
+  const hasProjectKeywords = keywords.some(keyword => 
+    messageWords.some(word => word.includes(keyword.toLowerCase()))
+  );
+  
+  // Проверяем на вопросительные слова + общая тематика
+  const questionWords = {
+    en: ['what', 'how', 'where', 'when', 'why', 'can', 'help', 'support', 'problem', 'issue', 'error'],
+    ru: ['что', 'как', 'где', 'когда', 'почему', 'можно', 'помощь', 'поддержка', 'проблема', 'ошибка'],
+    es: ['qué', 'cómo', 'dónde', 'cuándo', 'por qué', 'puedo', 'ayuda', 'soporte', 'problema', 'error']
+  };
+  
+  const currentQuestionWords = questionWords[language] || questionWords.en;
+  const hasQuestionWords = currentQuestionWords.some(word => 
+    messageWords.includes(word.toLowerCase())
+  );
+  
+  // Считаем релевантным если есть ключевые слова ИЛИ если это вопрос поддержки
+  const isRelevant = hasProjectKeywords || (hasQuestionWords && messageWords.length > 2);
+  
+  logger.debug(`🍄 Project relevance check: ${isRelevant} (keywords: ${hasProjectKeywords}, questions: ${hasQuestionWords}) for: "${message.substring(0, 30)}..."`);
+  
+  return isRelevant;
+}
 
 /**
  * @route POST /api/chat и POST /api/chat/message
@@ -73,47 +115,43 @@ router.post(['/', '/message'], async (req, res) => {
       await conversationService.updateLanguage(conversation._id, detectedLanguage);
     }
     
-    // Получение контекста из базы знаний (RAG включен по умолчанию, если параметр useRag не указан иначе)
+    // 🍄 ИСПРАВЛЕНО: Улучшенная логика RAG с проверкой релевантности
     let context = [];
+    let ragUsed = false;
     const enableRag = process.env.ENABLE_RAG !== 'false' && useRag !== false;
     
     if (enableRag) {
       try {
-        logger.debug(`Searching for: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}" with options: ${JSON.stringify({
-          limit: 5,
-          language: detectedLanguage,
-          score_threshold: 0.7
-        })}`);
+        // 🍄 НОВОЕ: Проверка релевантности запроса к проекту
+        const isRelevantToProject = _checkProjectRelevance(message, detectedLanguage);
         
-        // Пытаемся получить релевантную информацию из векторного хранилища
-        const contextResults = await vectorStoreService.search(message, {
-          limit: 5,
-          language: detectedLanguage,
-          score_threshold: 0.7  // Увеличен порог для более точного поиска
-        });
-        
-        if (contextResults && contextResults.length > 0) {
-          context = contextResults.map(result => result.content);
-          logger.info(`Found ${context.length} relevant documents`);
-        } else {
-          // Если ничего не найдено с порогом 0.7, попробуем с более низким порогом
-          logger.debug('No documents found with threshold 0.7, trying lower threshold 0.4');
+        if (isRelevantToProject) {
+          logger.debug(`🍄 Searching for relevant documents for: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"`);
           
-          const lowThresholdResults = await vectorStoreService.search(message, {
-            limit: 3,
-            language: detectedLanguage,
-            score_threshold: 0.4  // Более низкий порог для всесторонней проверки
+          // 🍄 ИСПРАВЛЕНО: Убран двойной поиск, используем только один запрос
+          // Не передаем score_threshold - пусть vectorStore использует свои адаптивные пороги
+          const contextResults = await vectorStoreService.search(message, {
+            limit: 5,
+            language: detectedLanguage
+            // Убрали score_threshold - vectorStore сам определит оптимальный порог
           });
           
-          if (lowThresholdResults && lowThresholdResults.length > 0) {
-            context = lowThresholdResults.map(result => result.content);
-            logger.info(`Found ${context.length} relevant documents with lower threshold`);
+          if (contextResults && contextResults.length > 0) {
+            context = contextResults.map(result => result.content);
+            ragUsed = true;
+            logger.info(`🍄 Found ${context.length} relevant documents for project-related query`);
+            
+            // Логируем scores для отладки
+            const scores = contextResults.map(r => r.score?.toFixed(3) || 'N/A').join(', ');
+            logger.debug(`🍄 Document scores: [${scores}]`);
           } else {
-            logger.info('No relevant documents found for message:', `"${message.substring(0, 30)}..."`);
+            logger.info(`🍄 No relevant documents found for project-related query: "${message.substring(0, 30)}..."`);
           }
+        } else {
+          logger.info(`🍄 Query not relevant to Shrooms project, skipping RAG: "${message.substring(0, 30)}..."`);
         }
       } catch (error) {
-        logger.warn('Failed to get context from vector store:', error.message);
+        logger.warn('🍄 Failed to get context from vector store:', error.message);
         // Продолжаем без контекста
       }
     }
@@ -126,7 +164,8 @@ router.post(['/', '/message'], async (req, res) => {
       conversationId: conversation._id,
       metadata: { 
         language: detectedLanguage,
-        source: 'api'
+        source: 'api',
+        ragUsed // Добавляем информацию об использовании RAG
       }
     });
     
@@ -152,14 +191,16 @@ router.post(['/', '/message'], async (req, res) => {
             aiResponse: aiResponse.message,
             userMessage: message,
             history: formattedHistory.slice(-3),
-            aiProvider: aiResponse.provider
+            aiProvider: aiResponse.provider,
+            ragUsed // Добавляем информацию об использовании RAG
           }),
           language: detectedLanguage,
           subject: `Support request: ${message.substring(0, 50)}...`,
           category: 'technical',
           metadata: {
             source: 'api',
-            aiProvider: aiResponse.provider
+            aiProvider: aiResponse.provider,
+            ragUsed
           }
         });
         ticketId = ticket.ticketId;
@@ -188,7 +229,8 @@ router.post(['/', '/message'], async (req, res) => {
         ticketCreated: aiResponse.needsTicket,
         ticketId,
         source: 'api',
-        aiProvider: aiResponse.provider // Сохраняем информацию о провайдере
+        aiProvider: aiResponse.provider, // Сохраняем информацию о провайдере
+        ragUsed // Добавляем информацию об использовании RAG
       }
     });
     
@@ -211,13 +253,14 @@ router.post(['/', '/message'], async (req, res) => {
         timestamp: new Date().toISOString(),
         metadata: {
           knowledgeResultsCount: context.length,
-          historyMessagesCount: formattedHistory.length
+          historyMessagesCount: formattedHistory.length,
+          ragUsed // Добавляем информацию об использовании RAG
         }
       }
     };
     
     res.json(response);
-    logger.info(`✅ Chat API response sent for user: ${userId} (via ${aiResponse.provider})`);
+    logger.info(`✅ Chat API response sent for user: ${userId} (via ${aiResponse.provider}, RAG: ${ragUsed})`);
     
   } catch (error) {
     logger.error(`❌ Chat API error:`, error);
@@ -743,6 +786,95 @@ router.post('/switch-ai-provider', async (req, res) => {
       success: false,
       error: error.message,
       code: 'PROVIDER_SWITCH_ERROR'
+    });
+  }
+});
+
+/**
+ * 🍄 НОВОЕ: Тестирование RAG функциональности
+ * @route POST /api/chat/test-rag
+ * @desc Тестирование поиска в базе знаний с различными порогами
+ * @access Public
+ */
+router.post('/test-rag', async (req, res) => {
+  try {
+    const { query, language = 'en', thresholds = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4] } = req.body;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query is required',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // Проверка релевантности
+    const isRelevant = _checkProjectRelevance(query, language);
+    
+    // Тестирование поиска с разными порогами
+    const results = {};
+    
+    for (const threshold of thresholds) {
+      try {
+        const searchResults = await vectorStoreService.search(query, {
+          limit: 10,
+          language: language,
+          score_threshold: threshold
+        });
+        
+        results[threshold] = {
+          count: searchResults.length,
+          scores: searchResults.map(r => r.score?.toFixed(4) || 'N/A'),
+          documents: searchResults.map(r => ({
+            id: r.id,
+            score: r.score?.toFixed(4) || 'N/A',
+            preview: r.content?.substring(0, 100) + '...'
+          }))
+        };
+      } catch (error) {
+        results[threshold] = {
+          error: error.message
+        };
+      }
+    }
+
+    // Автоматический поиск (без порога)
+    let autoResults = {};
+    try {
+      const autoSearch = await vectorStoreService.search(query, {
+        limit: 5,
+        language: language
+      });
+      autoResults = {
+        count: autoSearch.length,
+        scores: autoSearch.map(r => r.score?.toFixed(4) || 'N/A'),
+        documents: autoSearch.map(r => ({
+          id: r.id,
+          score: r.score?.toFixed(4) || 'N/A',
+          preview: r.content?.substring(0, 100) + '...'
+        }))
+      };
+    } catch (error) {
+      autoResults = { error: error.message };
+    }
+
+    res.json({
+      success: true,
+      data: {
+        query,
+        language,
+        isRelevantToProject: isRelevant,
+        resultsByThreshold: results,
+        automaticSearch: autoResults,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error testing RAG:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to test RAG functionality',
+      code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
