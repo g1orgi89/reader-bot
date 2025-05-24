@@ -266,7 +266,6 @@
             margin-top: 5px;
         }
 
-        /* Кнопка для очистки чата и начала нового conversation */
         .clear-chat-btn {
             background: #444;
             color: #ccc;
@@ -284,6 +283,25 @@
             border-color: #39FF14;
             color: #39FF14;
         }
+
+        .debug-info {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .debug-info .label {
+            color: #888;
+            margin-right: 8px;
+        }
+
+        .debug-info .value {
+            color: #39FF14;
+        }
     </style>
 </head>
 <body>
@@ -296,6 +314,12 @@
                 <button id="httpBtn" class="active" onclick="switchToHTTP()">HTTP API</button>
                 <button id="socketBtn" onclick="switchToSocket()">Socket.IO</button>
             </div>
+        </div>
+
+        <div class="debug-info">
+            <span class="label">Mode:</span><span class="value" id="currentMode">HTTP</span>
+            <span class="label">| Socket Status:</span><span class="value" id="socketStatus">Not Created</span>
+            <span class="label">| User ID:</span><span class="value" id="currentUserId">Loading...</span>
         </div>
 
         <div class="language-info" id="languageInfo">
@@ -322,9 +346,8 @@
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Fixed API base URL like in debug
+        // ИСПРАВЛЕНО: Socket.IO загружается только когда нужно, а не сразу
         const API_BASE = window.location.origin + '/api';
         
         let currentMode = 'http'; // 'http' or 'socket'
@@ -332,6 +355,7 @@
         let conversationId = null;
         let userId = 'test-user-' + Date.now();
         let currentLanguage = null;
+        let socketIOLoaded = false;
 
         const messagesEl = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
@@ -339,9 +363,27 @@
         const statusEl = document.getElementById('status');
         const typingEl = document.getElementById('typing');
         const languageInfoEl = document.getElementById('languageInfo');
+        
+        // Debug elements
+        const currentModeEl = document.getElementById('currentMode');
+        const socketStatusEl = document.getElementById('socketStatus');
+        const currentUserIdEl = document.getElementById('currentUserId');
+
+        // Update debug info
+        function updateDebugInfo() {
+            currentModeEl.textContent = currentMode.toUpperCase();
+            currentUserIdEl.textContent = userId;
+            
+            if (socket) {
+                socketStatusEl.textContent = socket.connected ? 'Connected' : 'Disconnected';
+            } else {
+                socketStatusEl.textContent = 'Not Created';
+            }
+        }
 
         // Initialize the chat
         function initializeChat() {
+            updateDebugInfo();
             if (currentMode === 'http') {
                 initHTTP();
             } else {
@@ -364,12 +406,10 @@
                 showTyping();
                 console.log('Making HTTP request to:', `${API_BASE}/chat`);
                 
-                // ИСПРАВЛЕНО: убираем все попытки определения языка на клиенте
                 const requestBody = {
                     message: message,
                     userId: userId,
                     conversationId: conversationId
-                    // Убираем language - пусть сервер полностью сам определяет
                 };
                 
                 console.log('Request body:', requestBody);
@@ -399,7 +439,6 @@
                         addMessage('System', `Создан тикет поддержки: ${data.data.ticketId}`, 'system');
                     }
 
-                    // Show metadata in development
                     if (data.data.metadata) {
                         const metaText = `Provider: ${data.data.aiProvider || 'N/A'}, Tokens: ${data.data.tokensUsed || 0}, Knowledge: ${data.data.metadata.knowledgeResultsCount || 0}, History: ${data.data.metadata.historyMessagesCount || 0}`;
                         addMessage('Debug', metaText, 'system');
@@ -415,62 +454,121 @@
             }
         }
 
-        // Socket.IO Mode
-        function initSocket() {
-            statusEl.textContent = 'Connecting to Socket.IO...';
-            statusEl.className = 'status connecting';
-            
-            socket = io();
+        // ИСПРАВЛЕНО: Динамическая загрузка Socket.IO только когда нужно
+        function loadSocketIO() {
+            return new Promise((resolve, reject) => {
+                if (socketIOLoaded) {
+                    resolve();
+                    return;
+                }
 
-            socket.on('connect', () => {
-                statusEl.textContent = 'Connected (Socket.IO Mode)';
-                statusEl.className = 'status connected';
-                messageInput.disabled = false;
-                sendButton.disabled = false;
-                addMessage('System', 'Socket.IO connected! Real-time chat with auto language detection.', 'system');
-                updateLanguageInfo('Server-side detection enabled');
+                const script = document.createElement('script');
+                script.src = '/socket.io/socket.io.js';
+                script.onload = () => {
+                    socketIOLoaded = true;
+                    console.log('Socket.IO library loaded');
+                    resolve();
+                };
+                script.onerror = () => {
+                    reject(new Error('Failed to load Socket.IO library'));
+                };
+                document.head.appendChild(script);
             });
+        }
 
-            socket.on('disconnect', () => {
-                statusEl.textContent = 'Disconnected';
+        // Socket.IO Mode - ИСПРАВЛЕНО: полная очистка старых соединений
+        async function initSocket() {
+            try {
+                // Закрываем старое соединение если есть
+                if (socket) {
+                    console.log('Disconnecting old socket...');
+                    socket.disconnect();
+                    socket = null;
+                    updateDebugInfo();
+                }
+
+                statusEl.textContent = 'Loading Socket.IO...';
+                statusEl.className = 'status connecting';
+
+                // Загружаем Socket.IO библиотеку если еще не загружена
+                await loadSocketIO();
+
+                statusEl.textContent = 'Connecting to Socket.IO...';
+                
+                // Создаем новое соединение
+                socket = io({
+                    forceNew: true,  // ИСПРАВЛЕНО: принудительно создаем новое соединение
+                    timeout: 10000
+                });
+
+                updateDebugInfo();
+
+                socket.on('connect', () => {
+                    console.log('Socket.IO connected:', socket.id);
+                    statusEl.textContent = 'Connected (Socket.IO Mode)';
+                    statusEl.className = 'status connected';
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    addMessage('System', 'Socket.IO connected! Real-time chat with auto language detection.', 'system');
+                    updateLanguageInfo('Server-side detection enabled');
+                    updateDebugInfo();
+                });
+
+                socket.on('disconnect', () => {
+                    console.log('Socket.IO disconnected');
+                    statusEl.textContent = 'Disconnected';
+                    statusEl.className = 'status disconnected';
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                    addMessage('System', 'Connection lost.', 'error');
+                    updateDebugInfo();
+                });
+
+                socket.on('system', (data) => {
+                    addMessage('System', data.message, 'system');
+                });
+
+                socket.on('message', (data) => {
+                    hideTyping();
+                    if (data.conversationId) {
+                        conversationId = data.conversationId;
+                    }
+                    if (data.language) {
+                        currentLanguage = data.language;
+                        updateLanguageInfo(`Detected language: ${getLanguageName(currentLanguage)}`);
+                    }
+                    
+                    addMessage('🍄 Shrooms Bot', data.message, 'bot');
+                    
+                    if (data.ticketId) {
+                        addMessage('System', `Создан тикет поддержки: ${data.ticketId}`, 'system');
+                    }
+                    
+                    if (data.metadata) {
+                        const metaText = `Provider: ${data.aiProvider || 'N/A'}, Tokens: ${data.tokensUsed || 0}, Knowledge: ${data.metadata.knowledgeResultsCount || 0}, History: ${data.metadata.historyMessagesCount || 0}`;
+                        addMessage('Debug', metaText, 'system');
+                    }
+                });
+
+                socket.on('error', (error) => {
+                    hideTyping();
+                    console.error('Socket error:', error);
+                    addMessage('Error', error.message || JSON.stringify(error), 'error');
+                });
+
+                socket.on('connect_error', (error) => {
+                    console.error('Socket connection error:', error);
+                    statusEl.textContent = 'Connection Failed';
+                    statusEl.className = 'status disconnected';
+                    addMessage('Error', 'Failed to connect to server', 'error');
+                });
+
+            } catch (error) {
+                console.error('Failed to initialize Socket.IO:', error);
+                statusEl.textContent = 'Socket.IO Load Failed';
                 statusEl.className = 'status disconnected';
-                messageInput.disabled = true;
-                sendButton.disabled = true;
-                addMessage('System', 'Connection lost. Trying to reconnect...', 'error');
-            });
-
-            socket.on('system', (data) => {
-                addMessage('System', data.message, 'system');
-            });
-
-            socket.on('message', (data) => {
-                hideTyping();
-                if (data.conversationId) {
-                    conversationId = data.conversationId;
-                }
-                if (data.language) {
-                    currentLanguage = data.language;
-                    updateLanguageInfo(`Detected language: ${getLanguageName(currentLanguage)}`);
-                }
-                
-                addMessage('🍄 Shrooms Bot', data.message, 'bot');
-                
-                if (data.ticketId) {
-                    addMessage('System', `Создан тикет поддержки: ${data.ticketId}`, 'system');
-                }
-                
-                // Show metadata if present
-                if (data.metadata) {
-                    const metaText = `Provider: ${data.aiProvider || 'N/A'}, Tokens: ${data.tokensUsed || 0}, Knowledge: ${data.metadata.knowledgeResultsCount || 0}, History: ${data.metadata.historyMessagesCount || 0}`;
-                    addMessage('Debug', metaText, 'system');
-                }
-            });
-
-            socket.on('error', (error) => {
-                hideTyping();
-                console.error('Socket error:', error);
-                addMessage('Error', error.message || JSON.stringify(error), 'error');
-            });
+                addMessage('Error', 'Failed to load Socket.IO library', 'error');
+            }
         }
 
         function sendMessageSocket(message) {
@@ -480,29 +578,32 @@
             }
 
             showTyping();
-            // ИСПРАВЛЕНО: убираем определение языка на клиенте
             const messageData = {
                 message: message,
                 userId: userId,
                 conversationId: conversationId
-                // Убираем language - пусть сервер сам определяет
             };
             
             console.log('Sending socket message:', messageData);
             socket.emit('sendMessage', messageData);
         }
 
-        // UI Functions
+        // UI Functions - ИСПРАВЛЕНО: правильная очистка соединений
         function switchToHTTP() {
+            console.log('Switching to HTTP mode...');
             currentMode = 'http';
             document.getElementById('httpBtn').classList.add('active');
             document.getElementById('socketBtn').classList.remove('active');
             
+            // ИСПРАВЛЕНО: полностью отключаем и очищаем socket
             if (socket) {
+                console.log('Disconnecting socket for HTTP mode...');
                 socket.disconnect();
+                socket.removeAllListeners(); // Удаляем все обработчики
                 socket = null;
             }
             
+            // Очищаем чат и сбрасываем состояние
             messagesEl.innerHTML = '';
             conversationId = null;
             currentLanguage = null;
@@ -510,10 +611,12 @@
         }
 
         function switchToSocket() {
+            console.log('Switching to Socket.IO mode...');
             currentMode = 'socket';
             document.getElementById('httpBtn').classList.remove('active');
             document.getElementById('socketBtn').classList.add('active');
             
+            // Очищаем чат и сбрасываем состояние
             messagesEl.innerHTML = '';
             conversationId = null;
             currentLanguage = null;
@@ -524,11 +627,9 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
-            // Add user message to chat
             addMessage('You', message, 'user');
             messageInput.value = '';
 
-            // Send based on current mode
             if (currentMode === 'http') {
                 sendMessageHTTP(message);
             } else {
@@ -545,7 +646,8 @@
             messagesEl.innerHTML = '';
             conversationId = null;
             currentLanguage = null;
-            userId = 'test-user-' + Date.now(); // Новый пользователь для эмуляции новой сессии
+            userId = 'test-user-' + Date.now();
+            updateDebugInfo();
             updateLanguageInfo('Server-side detection enabled');
             addMessage('System', 'New chat started! Language will be detected automatically.', 'system');
         }
@@ -554,7 +656,6 @@
             const messageEl = document.createElement('div');
             messageEl.className = 'message ' + type + '-message';
             
-            // Format message with basic HTML support
             const formattedMessage = message.replace(/\n/g, '<br>');
             
             messageEl.innerHTML = `
@@ -595,28 +696,36 @@
             }
         });
 
+        // ИСПРАВЛЕНО: убираем автоматическое переподключение при visibilitychange
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
+            updateDebugInfo();
             initializeChat();
             
-            // Add welcome message after a delay
             setTimeout(() => {
                 addMessage('System', 'Welcome to Shrooms Support Bot! 🍄', 'system');
                 addMessage('System', 'Type in English, Russian (Русский), or Spanish (Español) - language will be detected automatically!', 'system');
             }, 500);
         });
 
-        // Handle page visibility for Socket.IO
-        document.addEventListener('visibilitychange', () => {
-            if (currentMode === 'socket' && !document.hidden && socket && !socket.connected) {
-                // Reconnect if page becomes visible and socket is disconnected
-                setTimeout(() => {
-                    if (!socket.connected) {
-                        initSocket();
-                    }
-                }, 1000);
+        // ИСПРАВЛЕНО: убираем переподключение при изменении видимости страницы
+        // Это было источником множественных подключений
+        window.addEventListener('beforeunload', () => {
+            if (socket) {
+                socket.disconnect();
             }
         });
+
+        // Debug: выводим в консоль информацию о состоянии каждые 5 секунд
+        setInterval(() => {
+            console.log('Debug state:', {
+                mode: currentMode,
+                socketExists: !!socket,
+                socketConnected: socket ? socket.connected : false,
+                socketId: socket ? socket.id : null,
+                userId: userId
+            });
+        }, 5000);
     </script>
 </body>
 </html>
