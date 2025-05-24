@@ -172,7 +172,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       // ДОБАВЛЕНО: информация о Socket.IO подключениях
       socketConnections: {
         total: io.engine.clientsCount,
-        active: io.sockets.sockets.size
+        active: io.sockets.sockets.size,
+        byIP: getConnectionsByIP() // ДОБАВЛЕНО: статистика по IP
       }
     };
 
@@ -202,14 +203,75 @@ if (config.features.enableMetrics) {
       timestamp: new Date().toISOString(),
       socketConnections: {
         total: io.engine.clientsCount,
-        active: io.sockets.sockets.size
+        active: io.sockets.sockets.size,
+        byIP: getConnectionsByIP()
       }
     });
   });
 }
 
-// ИСПРАВЛЕНО: Более контролируемый Socket.IO с логированием и ограничениями
+// ИСПРАВЛЕНО: Улучшенный Socket.IO с динамическими лимитами
 const socketConnections = new Map(); // Отслеживание подключений
+
+/**
+ * Получает статистику подключений по IP
+ * @returns {Object} Статистика подключений
+ */
+function getConnectionsByIP() {
+  const ipStats = {};
+  for (const [socketId, connection] of socketConnections.entries()) {
+    const ip = connection.ip;
+    if (!ipStats[ip]) {
+      ipStats[ip] = { count: 0, sockets: [] };
+    }
+    ipStats[ip].count++;
+    ipStats[ip].sockets.push({
+      id: socketId,
+      connectedAt: connection.connectedAt,
+      messageCount: connection.messageCount
+    });
+  }
+  return ipStats;
+}
+
+/**
+ * Определяет максимальное количество подключений для IP
+ * @param {string} clientIp - IP адрес клиента
+ * @returns {number} Максимальное количество подключений
+ */
+function getMaxConnectionsForIP(clientIp) {
+  // ИСПРАВЛЕНО: Увеличиваем лимиты для development
+  if (config.app.isDevelopment) {
+    // В development режиме разрешаем больше подключений для тестирования
+    if (clientIp === '::1' || clientIp === '127.0.0.1' || clientIp.includes('localhost')) {
+      return 10; // Локальные подключения: до 10
+    }
+    return 5; // Другие IP в dev режиме: до 5
+  } else {
+    // В production более строгие лимиты
+    return 3; // Production: до 3 подключений с одного IP
+  }
+}
+
+/**
+ * Очищает старые/отключенные соединения из карты
+ */
+function cleanupStaleConnections() {
+  const now = Date.now();
+  const staleThreshold = 5 * 60 * 1000; // 5 минут
+  
+  for (const [socketId, connection] of socketConnections.entries()) {
+    const age = now - connection.connectedAt.getTime();
+    
+    // Проверяем, существует ли еще socket в Socket.IO
+    const socketExists = io.sockets.sockets.has(socketId);
+    
+    if (!socketExists || age > staleThreshold) {
+      logger.info(`🧹 Removing stale connection: ${socketId} (exists: ${socketExists}, age: ${Math.round(age/1000)}s)`);
+      socketConnections.delete(socketId);
+    }
+  }
+}
 
 /**
  * Обработчик Socket.IO соединений
@@ -218,15 +280,21 @@ io.on('connection', (socket) => {
   const clientIp = socket.handshake.address;
   const userAgent = socket.handshake.headers['user-agent'];
   
+  // Очищаем старые соединения перед проверкой лимитов
+  cleanupStaleConnections();
+  
+  // Определяем лимит для данного IP
+  const maxConnections = getMaxConnectionsForIP(clientIp);
+  
   // Проверяем количество подключений с одного IP
   const ipConnections = Array.from(socketConnections.values())
     .filter(conn => conn.ip === clientIp).length;
   
-  if (ipConnections >= 3) { // Максимум 3 подключения с одного IP
-    logger.warn(`🚫 Too many connections from IP: ${clientIp}`);
+  if (ipConnections >= maxConnections) {
+    logger.warn(`🚫 Too many connections from IP: ${clientIp} (${ipConnections}/${maxConnections})`);
     socket.emit('error', {
       code: 'TOO_MANY_CONNECTIONS',
-      message: 'Too many connections from your IP address'
+      message: `Too many connections from your IP address (${ipConnections}/${maxConnections}). Please close some browser tabs.`
     });
     socket.disconnect(true);
     return;
@@ -240,7 +308,7 @@ io.on('connection', (socket) => {
     messageCount: 0
   });
   
-  logger.info(`🔌 Socket connected: ${socket.id} from ${clientIp} (${socketConnections.size} total)`);
+  logger.info(`🔌 Socket connected: ${socket.id} from ${clientIp} (${socketConnections.size} total, ${ipConnections + 1}/${maxConnections} for this IP)`);
   
   // Отправляем приветственное сообщение
   socket.emit('system', {
@@ -268,7 +336,7 @@ io.on('connection', (socket) => {
 
       // Ограничение скорости сообщений
       connection.messageCount++;
-      if (connection.messageCount > 10) { // Максимум 10 сообщений за сессию
+      if (connection.messageCount > 20) { // УВЕЛИЧЕНО: 20 сообщений за сессию для тестирования
         socket.emit('error', {
           code: 'RATE_LIMIT_EXCEEDED',
           message: 'Too many messages. Please slow down.'
@@ -571,19 +639,15 @@ async function startServer() {
       // Логируем URL для разных режимов
       if (config.app.isDevelopment) {
         logger.info('🔄 Development mode: Hot reload enabled');
+        logger.info(`🔧 Socket connection limits: Localhost(10), Others(5)`);
+      } else {
+        logger.info(`🔧 Socket connection limit: 3 per IP`);
       }
       
       // Устанавливаем таймер для очистки старых подключений
       setInterval(() => {
-        const now = Date.now();
-        for (const [socketId, connection] of socketConnections.entries()) {
-          const age = now - connection.connectedAt.getTime();
-          if (age > 3600000) { // 1 час
-            logger.info(`🧹 Cleaning up old connection: ${socketId}`);
-            socketConnections.delete(socketId);
-          }
-        }
-      }, 300000); // Каждые 5 минут
+        cleanupStaleConnections();
+      }, 60000); // Каждую минуту
     });
     
     return server;
