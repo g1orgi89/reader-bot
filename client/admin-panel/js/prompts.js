@@ -4,7 +4,7 @@
  * Этот модуль отвечает за взаимодействие с API промптов,
  * управление промптами и тестирование через Claude API.
  * 
- * @fileoverview Управление грибными промптами для AI ассистента
+ * @fileoverview Управление грибными промптами для AI ассистента (только MongoDB)
  * @author Shrooms Development Team
  */
 
@@ -117,7 +117,7 @@ const promptsState = {
  * Основная точка входа после проверки аутентификации
  */
 function initPromptsPage() {
-  console.log('🍄 Инициализация управления грибными промптами...');
+  console.log('🍄 Инициализация управления грибными промптами (MongoDB-only)...');
   
   try {
     // Инициализируем компоненты интерфейса
@@ -131,7 +131,7 @@ function initPromptsPage() {
     loadPrompts();
     loadPromptsStats();
     
-    console.log('🍄 Управление промптами готово к созданию мудрости!');
+    console.log('🍄 Управление промптами готово к созданию мудрости (без векторной синхронизации)!');
   } catch (error) {
     console.error('🍄 Ошибка инициализации управления промптами:', error);
     showNotification('error', '🍄 Не удалось инициализировать управление промптами');
@@ -197,7 +197,7 @@ function initPromptsFilters() {
 async function loadPrompts() {
   if (promptsState.isLoading) return;
   
-  console.log('🍄 Загрузка промптов из грибного хранилища...');
+  console.log('🍄 Загрузка промптов из грибного хранилища MongoDB...');
   
   try {
     promptsState.isLoading = true;
@@ -272,7 +272,7 @@ function updateLoadingState(isLoading) {
       <tr class="table-loading">
         <td colspan="9" style="text-align: center; padding: var(--spacing-lg);">
           <div class="loading-spinner"></div>
-          🍄 Споры мудрости прорастают в промпты...
+          🍄 Споры мудрости прорастают в промпты из MongoDB...
         </td>
       </tr>
     `;
@@ -373,7 +373,7 @@ function renderEmptyPromptsTable() {
  * Инициализация редактора промптов
  */
 function initPromptEditor() {
-  console.log('🍄 Настройка редактора грибных промптов...');
+  console.log('🍄 Настройка редактора грибных промптов (MongoDB-only)...');
   
   // Кнопка добавления промпта
   const addPromptBtn = document.getElementById('add-prompt');
@@ -381,11 +381,8 @@ function initPromptEditor() {
     addPromptBtn.addEventListener('click', () => showPromptEditor());
   }
   
-  // Кнопка синхронизации с Qdrant
-  const syncVectorBtn = document.getElementById('sync-prompts-vector');
-  if (syncVectorBtn) {
-    syncVectorBtn.addEventListener('click', syncPromptsToVector);
-  }
+  // 🍄 УДАЛЕНО: Кнопка синхронизации с Qdrant больше не используется
+  // Промпты теперь хранятся только в MongoDB
   
   // Кнопки закрытия модальных окон
   const closeEditorBtn = document.getElementById('close-prompt-editor');
@@ -426,54 +423,6 @@ function initPromptEditor() {
       }
     }
   });
-}
-
-/**
- * Синхронизирует все промпты с векторной базой данных Qdrant
- * @returns {Promise<void>}
- */
-async function syncPromptsToVector() {
-  console.log('🍄 Начинаем синхронизацию промптов с Qdrant...');
-  
-  const syncBtn = document.getElementById('sync-prompts-vector');
-  const btnText = syncBtn?.querySelector('.btn-text');
-  
-  try {
-    // Показываем состояние загрузки
-    if (syncBtn) syncBtn.disabled = true;
-    if (btnText) btnText.textContent = '🔄 Синхронизация...';
-    
-    showNotification('info', '🍄 Начинаем синхронизацию промптов с грибной векторной базой...');
-    
-    const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/sync-vector-store`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (response.success) {
-      const { total, synced, errors } = response.data || {};
-      
-      let message = `🍄 Синхронизация завершена: ${synced || 0}/${total || 0} промптов`;
-      if (errors && errors > 0) {
-        message += ` (${errors} ошибок)`;
-      }
-      
-      showNotification('success', message);
-      console.log('🍄 Синхронизация промптов с Qdrant завершена успешно:', response.data);
-      
-      // Обновляем статистику, если есть
-      loadPromptsStats();
-    } else {
-      throw new Error(response.error?.message || 'Не удалось синхронизировать промпты');
-    }
-  } catch (error) {
-    console.error('🍄 Ошибка синхронизации промптов с Qdrant:', error);
-    showNotification('error', `🍄 Ошибка синхронизации: ${error.message}`);
-  } finally {
-    // Восстанавливаем кнопку
-    if (syncBtn) syncBtn.disabled = false;
-    if (btnText) btnText.textContent = '🔄 Синхронизация с Qdrant';
-  }
 }
 
 /**
@@ -556,7 +505,7 @@ async function loadPromptForEditing(promptId) {
       
       updateTokenCount();
       
-      console.log('🍄 Промпт загружен для редактирования');
+      console.log('🍄 Промпт загружен для редактирования из MongoDB');
     } else {
       throw new Error(response.error?.message || 'Не удалось загрузить промпт');
     }
@@ -594,7 +543,7 @@ function updateTokenCount() {
 }
 
 /**
- * Обработчик сохранения промпта
+ * Обработчик сохранения промпта (только MongoDB)
  * @param {Event} event - Событие отправки формы
  */
 async function handlePromptSave(event) {
@@ -641,14 +590,14 @@ async function handlePromptSave(event) {
     
     let response;
     if (promptId) {
-      // Обновляем существующий промпт
+      // Обновляем существующий промпт в MongoDB
       response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/${promptId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(promptData)
       });
     } else {
-      // Создаем новый промпт
+      // Создаем новый промпт в MongoDB
       response = await makeAuthenticatedRequest(PROMPTS_CONFIG.API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -658,12 +607,12 @@ async function handlePromptSave(event) {
     
     if (response.success) {
       const action = promptId ? 'обновлен' : 'создан';
-      showNotification('success', `🍄 Промпт успешно ${action} в грибном хранилище мудрости!`);
+      showNotification('success', `🍄 Промпт успешно ${action} в грибном хранилище MongoDB!`);
       
       hidePromptEditor();
       loadPrompts(); // Перезагружаем список промптов
       
-      console.log(`🍄 Промпт ${action}: ${promptData.name}`);
+      console.log(`🍄 Промпт ${action} в MongoDB: ${promptData.name}`);
     } else {
       throw new Error(response.error?.message || 'Не удалось сохранить промпт');
     }
@@ -985,7 +934,7 @@ function hideImportExportModal() {
  */
 async function downloadPromptsBackup() {
   try {
-    console.log('🍄 Создание резервной копии промптов...');
+    console.log('🍄 Создание резервной копии промптов из MongoDB...');
     showNotification('info', '🍄 Создание резервной копии...');
     
     const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/backup`);
@@ -1057,7 +1006,7 @@ async function importPrompts() {
   }
   
   try {
-    console.log('🍄 Импорт промптов из файла...');
+    console.log('🍄 Импорт промптов из файла в MongoDB...');
     showNotification('info', '🍄 Импорт промптов...');
     
     // Читаем файл
@@ -1129,18 +1078,18 @@ async function deletePrompt(promptId) {
   if (!confirmed) return;
   
   try {
-    console.log('🍄 Удаление промпта:', promptId);
+    console.log('🍄 Удаление промпта из MongoDB:', promptId);
     
     const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/${promptId}`, {
       method: 'DELETE'
     });
     
     if (response.success) {
-      showNotification('success', '🍄 Промпт удален из грибного хранилища мудрости');
+      showNotification('success', '🍄 Промпт удален из грибного хранилища MongoDB');
       
       loadPrompts(); // Перезагружаем список промптов
       
-      console.log('🍄 Промпт успешно удален');
+      console.log('🍄 Промпт успешно удален из MongoDB');
     } else {
       throw new Error(response.error?.message || 'Не удалось удалить промпт');
     }
