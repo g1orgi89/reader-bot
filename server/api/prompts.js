@@ -19,48 +19,6 @@ router.use((req, res, next) => {
 });
 
 /**
- * @route POST /api/prompts/sync-vector-store
- * @desc Синхронизирует все промпты с векторной базой для RAG поиска
- * @access Private (Admin only)
- * @returns {Object} Результат синхронизации всех промптов
- */
-router.post('/sync-vector-store', requireAdminAuth, async (req, res) => {
-  try {
-    logger.info(`🍄 Admin ${req.admin.username} initiated mass prompt synchronization to vector garden`);
-    
-    // Запускаем массовую синхронизацию через promptService
-    const syncResult = await promptService.syncAllPromptsToVector();
-    
-    if (syncResult.success) {
-      res.json({
-        success: true,
-        data: syncResult,
-        message: `Successfully synced ${syncResult.syncedPrompts} prompts to vector store`
-      });
-      
-      logger.info(`🍄 Vector synchronization completed: ${syncResult.syncedPrompts}/${syncResult.totalPrompts} prompts synced by ${req.admin.username}`);
-    } else {
-      res.status(500).json({
-        success: false,
-        data: syncResult,
-        error: 'Failed to sync prompts to vector store',
-        errorCode: 'VECTOR_SYNC_FAILED'
-      });
-      
-      logger.error(`🍄 Vector synchronization failed for ${req.admin.username}: ${syncResult.message}`);
-    }
-  } catch (error) {
-    logger.error(`🍄 Error during prompt vector synchronization by ${req.admin.username}: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Internal error during vector synchronization',
-      errorCode: 'SYNC_ERROR',
-      details: error.message
-    });
-  }
-});
-
-/**
  * @route GET /api/prompts
  * @desc Получить список промптов с фильтрацией
  * @access Private (Admin only)
@@ -327,11 +285,11 @@ router.post('/restore', requireAdminAuth, async (req, res) => {
         }
 
         if (existingPrompt) {
-          // Обновляем существующий промпт через promptService для синхронизации
-          await promptService.updatePrompt(existingPrompt._id, promptData);
+          // Обновляем существующий промпт (без векторной синхронизации)
+          await promptService.updatePromptMongoOnly(existingPrompt._id, promptData);
         } else {
-          // Создаем новый промпт через promptService для синхронизации
-          await promptService.addPrompt({
+          // Создаем новый промпт (без векторной синхронизации)
+          await promptService.addPromptMongoOnly({
             ...promptData,
             authorId: req.admin.id,
             isDefault: false // Импортированные промпты не могут быть системными
@@ -417,7 +375,7 @@ router.get('/:id', requireAdminAuth, async (req, res) => {
 
 /**
  * @route POST /api/prompts
- * @desc Создать новый промпт
+ * @desc Создать новый промпт (только MongoDB, без векторной синхронизации)
  * @access Private (Admin only)
  * @body {string} name - Название промпта
  * @body {string} type - Тип промпта
@@ -460,8 +418,8 @@ router.post('/', requireAdminAuth, async (req, res) => {
       });
     }
 
-    // Создаем промпт через promptService для автоматической синхронизации с векторной базой
-    const result = await promptService.addPrompt({
+    // Создаем промпт только в MongoDB (без векторной синхронизации)
+    const result = await promptService.addPromptMongoOnly({
       name: name.trim(),
       type,
       category,
@@ -477,8 +435,7 @@ router.post('/', requireAdminAuth, async (req, res) => {
     res.status(201).json({
       success: true,
       data: result.prompt,
-      vectorSync: result.vectorSync,
-      message: 'Промпт успешно создан и синхронизирован с векторной базой'
+      message: 'Промпт успешно создан в MongoDB'
     });
 
     logger.info(`Prompt created by ${req.admin.username}: ${result.prompt._id} - "${name}"`);
@@ -504,7 +461,7 @@ router.post('/', requireAdminAuth, async (req, res) => {
 
 /**
  * @route PUT /api/prompts/:id
- * @desc Обновить промпт
+ * @desc Обновить промпт (только MongoDB, без векторной синхронизации)
  * @access Private (Admin only)
  * @param {string} id - ID промпта
  * @body Поля для обновления
@@ -556,14 +513,13 @@ router.put('/:id', requireAdminAuth, async (req, res) => {
       }
     }
 
-    // Обновляем промпт через promptService для автоматической синхронизации с векторной базой
-    const result = await promptService.updatePrompt(id, updateData);
+    // Обновляем промпт только в MongoDB (без векторной синхронизации)
+    const result = await promptService.updatePromptMongoOnly(id, updateData);
 
     res.json({
       success: true,
       data: result.prompt,
-      vectorSync: result.vectorSync,
-      message: 'Промпт успешно обновлен и синхронизирован с векторной базой'
+      message: 'Промпт успешно обновлен в MongoDB'
     });
 
     logger.info(`Prompt updated by ${req.admin.username}: ${id}`);
@@ -597,7 +553,7 @@ router.put('/:id', requireAdminAuth, async (req, res) => {
 
 /**
  * @route DELETE /api/prompts/:id
- * @desc Удалить промпт
+ * @desc Удалить промпт (только из MongoDB, без векторной синхронизации)
  * @access Private (Admin only)
  * @param {string} id - ID промпта
  */
@@ -624,13 +580,12 @@ router.delete('/:id', requireAdminAuth, async (req, res) => {
       });
     }
 
-    // Удаляем промпт через promptService для автоматического удаления из векторной базы
-    const result = await promptService.deletePrompt(id);
+    // Удаляем промпт только из MongoDB (без векторной синхронизации)
+    const result = await promptService.deletePromptMongoOnly(id);
 
     res.json({
       success: true,
-      vectorSync: result.vectorSync,
-      message: 'Промпт успешно удален из базы данных и векторного хранилища'
+      message: 'Промпт успешно удален из MongoDB'
     });
 
     logger.info(`Prompt deleted by ${req.admin.username}: ${id} - "${prompt.name}"`);
