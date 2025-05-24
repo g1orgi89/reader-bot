@@ -381,6 +381,12 @@ function initPromptEditor() {
     addPromptBtn.addEventListener('click', () => showPromptEditor());
   }
   
+  // Кнопка синхронизации с Qdrant
+  const syncVectorBtn = document.getElementById('sync-prompts-vector');
+  if (syncVectorBtn) {
+    syncVectorBtn.addEventListener('click', syncPromptsToVector);
+  }
+  
   // Кнопки закрытия модальных окон
   const closeEditorBtn = document.getElementById('close-prompt-editor');
   if (closeEditorBtn) {
@@ -420,6 +426,54 @@ function initPromptEditor() {
       }
     }
   });
+}
+
+/**
+ * Синхронизирует все промпты с векторной базой данных Qdrant
+ * @returns {Promise<void>}
+ */
+async function syncPromptsToVector() {
+  console.log('🍄 Начинаем синхронизацию промптов с Qdrant...');
+  
+  const syncBtn = document.getElementById('sync-prompts-vector');
+  const btnText = syncBtn?.querySelector('.btn-text');
+  
+  try {
+    // Показываем состояние загрузки
+    if (syncBtn) syncBtn.disabled = true;
+    if (btnText) btnText.textContent = '🔄 Синхронизация...';
+    
+    showNotification('info', '🍄 Начинаем синхронизацию промптов с грибной векторной базой...');
+    
+    const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/sync-vector-store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.success) {
+      const { total, synced, errors } = response.data || {};
+      
+      let message = `🍄 Синхронизация завершена: ${synced || 0}/${total || 0} промптов`;
+      if (errors && errors > 0) {
+        message += ` (${errors} ошибок)`;
+      }
+      
+      showNotification('success', message);
+      console.log('🍄 Синхронизация промптов с Qdrant завершена успешно:', response.data);
+      
+      // Обновляем статистику, если есть
+      loadPromptsStats();
+    } else {
+      throw new Error(response.error?.message || 'Не удалось синхронизировать промпты');
+    }
+  } catch (error) {
+    console.error('🍄 Ошибка синхронизации промптов с Qdrant:', error);
+    showNotification('error', `🍄 Ошибка синхронизации: ${error.message}`);
+  } finally {
+    // Восстанавливаем кнопку
+    if (syncBtn) syncBtn.disabled = false;
+    if (btnText) btnText.textContent = '🔄 Синхронизация с Qdrant';
+  }
 }
 
 /**
