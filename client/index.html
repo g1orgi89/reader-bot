@@ -238,6 +238,16 @@
             box-shadow: 0 10px 30px rgba(138, 43, 226, 0.5);
         }
 
+        .btn-monitor {
+            background: linear-gradient(45deg, #FF6EC7, #00FFF9);
+            box-shadow: 0 0 20px rgba(255, 110, 199, 0.3);
+        }
+
+        .btn-monitor:hover {
+            background: linear-gradient(45deg, #00FFF9, #FF6EC7);
+            box-shadow: 0 10px 30px rgba(0, 255, 249, 0.5);
+        }
+
         /* Footer */
         .footer {
             text-align: center;
@@ -355,8 +365,11 @@
                 <a href="/test-comprehensive.html" class="btn btn-secondary">
                     🔬 Comprehensive Test
                 </a>
-                <a href="/test-chat-debug.html" class="btn btn-secondary" style="background: linear-gradient(45deg, #FF6EC7, #00FFF9);">
+                <a href="/test-chat-debug.html" class="btn btn-secondary">
                     🐛 Debug Chat
+                </a>
+                <a href="/socket-monitor.html" class="btn btn-monitor">
+                    📊 Socket Monitor
                 </a>
             </div>
         </section>
@@ -401,6 +414,9 @@
             <div>
                 <a href="/api/health" class="btn">
                     ❤️ Health Check
+                </a>
+                <a href="/api/metrics" class="btn btn-secondary">
+                    📈 Metrics
                 </a>
                 <a href="#" class="btn btn-secondary" onclick="showApiDocs()">
                     📚 API Documentation
@@ -473,7 +489,8 @@
                     
                     if (data.status === 'ok') {
                         statusIndicator.className = 'status-indicator online';
-                        statusText.innerHTML = '🟢 Online & Growing';
+                        const socketCount = data.socketConnections?.total || 0;
+                        statusText.innerHTML = `🟢 Online (${socketCount} sockets)`;
                     } else {
                         statusIndicator.className = 'status-indicator offline';
                         statusText.innerHTML = '🟡 Partial Services';
@@ -493,10 +510,16 @@
             alert(`🍄 Shrooms Support Bot API 🍄
 
 Basic Endpoints:
-• GET /api/health - Health check
+• GET /api/health - Health check with Socket.IO metrics
 • POST /api/chat - Send chat message (REST)
 • GET /api/tickets - Get tickets (Admin)
+• GET /api/metrics - Server performance metrics
 • WebSocket: Socket.IO on same port (For chat apps)
+
+Monitoring:
+• /socket-monitor.html - Real-time Socket.IO monitor
+• Connection limits: 3 per IP, 10 messages per session
+• Auto-cleanup of old connections
 
 Features:
 • Multi-language support (EN, ES, RU)
@@ -605,6 +628,8 @@ Contact the mycelium network for full documentation! 🌐`);
                 if (!particleInterval) {
                     particleInterval = setInterval(createMushroomParticle, 4000);
                 }
+                // Refresh status when page becomes visible
+                checkServerStatus();
             }
         });
     </script>
