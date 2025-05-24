@@ -26,7 +26,7 @@ const { createHash } = require('crypto');
  * @property {string} [language] - Фильтр по языку
  * @property {string} [category] - Фильтр по категории
  * @property {string[]} [tags] - Фильтр по тегам
- * @property {number} [score_threshold=0.7] - Минимальный порог релевантности
+ * @property {number} [score_threshold] - Минимальный порог релевантности (если не указан, используется автоматический)
  */
 
 /**
@@ -53,6 +53,14 @@ class VectorStoreService {
     this.embeddingModel = process.env.EMBEDDING_MODEL || 'text-embedding-ada-002';
     this.vectorDimension = 1536; // Размерность для text-embedding-ada-002
     
+    // Адаптивные пороги релевантности по языкам
+    this.languageThresholds = {
+      'ru': 0.8,  // Более строгий порог для русского языка
+      'en': 0.7,  // Стандартный порог для английского
+      'es': 0.7   // Стандартный порог для испанского
+    };
+    this.defaultThreshold = 0.7; // Порог по умолчанию для неизвестных языков
+    
     // Создание клиента будет происходить при инициализации
     this.client = null;
     this.embeddings = null;
@@ -60,6 +68,22 @@ class VectorStoreService {
     // Кэш для embeddings для оптимизации запросов
     this.embeddingCache = new Map();
     this.maxCacheSize = 100;
+  }
+
+  /**
+   * Определяет оптимальный порог релевантности для языка
+   * @private
+   * @param {string} [language] - Язык документов/запроса
+   * @returns {number} Порог релевантности
+   */
+  _getLanguageThreshold(language) {
+    if (!language) {
+      return this.defaultThreshold;
+    }
+    
+    const threshold = this.languageThresholds[language.toLowerCase()] || this.defaultThreshold;
+    logger.debug(`🍄 Using threshold ${threshold} for language: ${language}`);
+    return threshold;
   }
 
   /**
@@ -140,6 +164,7 @@ class VectorStoreService {
       
       this.initialized = true;
       logger.info('Vector store initialized successfully');
+      logger.info(`🍄 Language thresholds configured: ${JSON.stringify(this.languageThresholds)}`);
       return true;
     } catch (error) {
       logger.error(`Failed to initialize vector store: ${error.message}`);
@@ -310,11 +335,15 @@ class VectorStoreService {
         limit = 5, 
         language, 
         category, 
-        tags,
-        score_threshold = 0.7
+        tags
       } = options;
       
-      logger.info(`🍄 Searching for relevant documents with threshold: ${score_threshold}`);
+      // Определяем порог автоматически на основе языка, если не задан явно
+      const score_threshold = options.score_threshold !== undefined 
+        ? options.score_threshold 
+        : this._getLanguageThreshold(language);
+      
+      logger.info(`🍄 Searching for relevant documents with adaptive threshold: ${score_threshold} (language: ${language || 'auto'})`);
       logger.info(`Searching for: "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}" with options: ${JSON.stringify({
         limit, language, category, tags: Array.isArray(tags) ? tags.length : tags, score_threshold
       })}`);
@@ -364,7 +393,7 @@ class VectorStoreService {
       }
       
       // Выполнение поиска
-      logger.debug(`Executing search with score_threshold: ${score_threshold}`);
+      logger.debug(`🍄 Executing search with adaptive score_threshold: ${score_threshold} for language: ${language || 'auto'}`);
       const searchResults = await this.client.search(this.collectionName, {
         vector: embedding,
         limit: Math.min(limit, 20), // Ограничение максимального количества результатов
@@ -375,9 +404,11 @@ class VectorStoreService {
       
       // Подробное логирование результатов поиска
       if (searchResults.length > 0) {
-        logger.debug(`Search returned ${searchResults.length} results with scores: ${searchResults.map(r => r.score.toFixed(3)).join(', ')}`);
+        logger.debug(`🍄 Search returned ${searchResults.length} results with scores: ${searchResults.map(r => r.score.toFixed(3)).join(', ')}`);
+        logger.info(`🍄 Found ${searchResults.length} documents above threshold ${score_threshold} for ${language || 'auto'} language`);
       } else {
-        logger.debug(`Search returned no results with threshold: ${score_threshold}`);
+        logger.debug(`🍄 Search returned no results with adaptive threshold: ${score_threshold} for language: ${language || 'auto'}`);
+        logger.info(`🍄 No documents found above threshold ${score_threshold} - query may not be relevant to knowledge base`);
       }
       
       // Форматирование результатов
@@ -474,7 +505,8 @@ class VectorStoreService {
           name: this.collectionName,
           vectorCount: collectionInfo.vectors_count || 0,
           vectorDimension: this.vectorDimension
-        }
+        },
+        languageThresholds: this.languageThresholds
       };
     } catch (error) {
       return {
@@ -496,7 +528,8 @@ class VectorStoreService {
           status: 'not_initialized',
           documentsCount: 0,
           cacheSize: this.embeddingCache.size,
-          lastUpdate: null
+          lastUpdate: null,
+          languageThresholds: this.languageThresholds
         };
       }
       
@@ -511,7 +544,8 @@ class VectorStoreService {
         status: 'ok',
         documentsCount: collectionInfo.vectors_count || 0,
         cacheSize: this.embeddingCache.size,
-        lastUpdate: new Date().toISOString()
+        lastUpdate: new Date().toISOString(),
+        languageThresholds: this.languageThresholds
       };
     } catch (error) {
       logger.error(`Failed to get stats: ${error.message}`);
@@ -519,7 +553,8 @@ class VectorStoreService {
         status: 'error',
         documentsCount: 0,
         cacheSize: this.embeddingCache.size,
-        error: error.message
+        error: error.message,
+        languageThresholds: this.languageThresholds
       };
     }
   }
@@ -609,10 +644,11 @@ class VectorStoreService {
    * Вспомогательный метод для тестирования поиска в векторном хранилище
    * @async
    * @param {string} query - Текст запроса
-   * @param {number} [threshold=0.7] - Порог релевантности для тестирования
+   * @param {number} [threshold] - Порог релевантности для тестирования (если не указан, используется автоматический)
+   * @param {string} [language] - Язык для определения автоматического порога
    * @returns {Promise<Object>} Результат тестирования с различными порогами
    */
-  async testSearch(query, threshold = 0.7) {
+  async testSearch(query, threshold, language) {
     if (!query || typeof query !== 'string' || query.trim() === '') {
       return { error: 'Empty or invalid query provided' };
     }
@@ -626,6 +662,9 @@ class VectorStoreService {
         return { error: 'Vector store not initialized' };
       }
       
+      // Определяем порог автоматически, если не задан
+      const testThreshold = threshold !== undefined ? threshold : this._getLanguageThreshold(language);
+      
       // Создание embedding для запроса
       const embedding = await this._createEmbedding(query);
       
@@ -635,15 +674,15 @@ class VectorStoreService {
       const results = {};
       
       // Тестирование с разными порогами
-      for (const testThreshold of thresholds) {
+      for (const testThresholdValue of thresholds) {
         const searchResults = await this.client.search(this.collectionName, {
           vector: embedding,
           limit: 10,
           with_payload: true,
-          score_threshold: testThreshold
+          score_threshold: testThresholdValue
         });
         
-        results[testThreshold] = {
+        results[testThresholdValue] = {
           count: searchResults.length,
           scores: searchResults.map(r => r.score.toFixed(4))
         };
@@ -654,7 +693,7 @@ class VectorStoreService {
         vector: embedding,
         limit: 10,
         with_payload: true,
-        score_threshold: threshold
+        score_threshold: testThreshold
       });
       
       const formattedResults = currentResults.map(result => ({
@@ -666,7 +705,9 @@ class VectorStoreService {
       
       return {
         query,
-        threshold,
+        language,
+        threshold: testThreshold,
+        automaticThreshold: this._getLanguageThreshold(language),
         resultsByThreshold: results,
         documentsFound: formattedResults.length,
         topResults: formattedResults
@@ -752,7 +793,9 @@ class VectorStoreService {
           collectionName: this.collectionName,
           embeddingModel: this.embeddingModel,
           cacheSize: this.embeddingCache.size,
-          maxCacheSize: this.maxCacheSize
+          maxCacheSize: this.maxCacheSize,
+          languageThresholds: this.languageThresholds,
+          defaultThreshold: this.defaultThreshold
         }
       };
     } catch (error) {
