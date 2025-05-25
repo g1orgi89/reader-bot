@@ -1,11 +1,13 @@
 /**
  * @fileoverview Сервис для работы с векторной базой знаний Qdrant
  * Предоставляет методы для добавления, поиска и удаления документов
+ * ОБНОВЛЕНО: Добавлена поддержка автоматического чанкинга документов
  */
 
 const { QdrantClient } = require("@qdrant/js-client-rest");
 const { OpenAIEmbeddings } = require("@langchain/openai");
 const logger = require('../utils/logger');
+const textChunker = require('../utils/textChunker');
 const { createHash } = require('crypto');
 
 /**
@@ -38,6 +40,15 @@ const { createHash } = require('crypto');
  */
 
 /**
+ * @typedef {Object} ChunkingOptions
+ * @property {boolean} [enableChunking=true] - Включить автоматический чанкинг
+ * @property {number} [chunkSize=500] - Размер чанка в символах
+ * @property {number} [overlap=100] - Перекрытие между чанками
+ * @property {number} [minChunkSize=50] - Минимальный размер чанка
+ * @property {boolean} [preserveParagraphs=true] - Сохранять целостность параграфов
+ */
+
+/**
  * Сервис для работы с векторной базой знаний Qdrant
  * @class VectorStoreService
  */
@@ -52,6 +63,15 @@ class VectorStoreService {
     this.url = process.env.VECTOR_DB_URL || 'http://localhost:6333';
     this.embeddingModel = process.env.EMBEDDING_MODEL || 'text-embedding-ada-002';
     this.vectorDimension = 1536; // Размерность для text-embedding-ada-002
+    
+    // Настройки чанкинга по умолчанию
+    this.defaultChunkingOptions = {
+      enableChunking: true,
+      chunkSize: 500,      // Оптимально для качественных embeddings
+      overlap: 100,        // Сохранение контекста между чанками
+      minChunkSize: 50,    // Избегаем слишком маленьких чанков
+      preserveParagraphs: true  // Сохраняем целостность параграфов
+    };
     
     // Адаптивные пороги релевантности по языкам
     this.languageThresholds = {
@@ -154,6 +174,12 @@ class VectorStoreService {
             field_name: 'metadata.tags',
             field_schema: 'keyword'
           });
+
+          // Индекс для фильтрации по originalId чанков
+          await this.client.createPayloadIndex(this.collectionName, {
+            field_name: 'metadata.originalId',
+            field_schema: 'keyword'
+          });
         } else {
           logger.info(`Collection ${this.collectionName} already exists`);
         }
@@ -163,8 +189,9 @@ class VectorStoreService {
       }
       
       this.initialized = true;
-      logger.info('Vector store initialized successfully');
+      logger.info('🍄 Vector store initialized successfully with chunking support');
       logger.info(`🍄 Language thresholds configured: ${JSON.stringify(this.languageThresholds)}`);
+      logger.info(`🍄 Default chunking options: ${JSON.stringify(this.defaultChunkingOptions)}`);
       return true;
     } catch (error) {
       logger.error(`Failed to initialize vector store: ${error.message}`);
@@ -185,15 +212,16 @@ class VectorStoreService {
   }
 
   /**
-   * Добавляет документы в векторную базу
+   * Добавляет документы в векторную базу с автоматическим чанкингом
    * @async
    * @param {Object[]} documents - Документы для добавления
    * @param {string} documents[].id - ID документа
    * @param {string} documents[].content - Содержимое документа
    * @param {DocumentMetadata} documents[].metadata - Метаданные документа
+   * @param {ChunkingOptions} [chunkingOptions={}] - Настройки чанкинга
    * @returns {Promise<boolean>} Успешность операции
    */
-  async addDocuments(documents) {
+  async addDocuments(documents, chunkingOptions = {}) {
     try {
       if (!this.initialized) {
         const initialized = await this.initialize();
@@ -208,75 +236,116 @@ class VectorStoreService {
         return false;
       }
       
-      logger.info(`Adding ${documents.length} documents to vector store`);
+      // Объединяем настройки чанкинга
+      const chunkingConfig = { ...this.defaultChunkingOptions, ...chunkingOptions };
       
-      // Подготовка документов для Qdrant
+      logger.info(`🍄 Adding ${documents.length} documents to vector store with chunking: ${chunkingConfig.enableChunking ? 'enabled' : 'disabled'}`);
+      
+      // Сначала удаляем существующие чанки документов (если есть)
+      for (const doc of documents) {
+        await this._deleteDocumentChunks(doc.id);
+      }
+      
+      let allChunks = [];
+      
+      // Чанкинг документов, если включен
+      if (chunkingConfig.enableChunking) {
+        logger.info(`🍄 Chunking documents with config: size=${chunkingConfig.chunkSize}, overlap=${chunkingConfig.overlap}`);
+        allChunks = textChunker.chunkDocuments(documents, chunkingConfig);
+        
+        const stats = textChunker.getChunkingStats(allChunks);
+        logger.info(`🍄 Chunking stats: ${stats.totalChunks} chunks from ${stats.uniqueDocuments} documents, avg size: ${stats.averageChunkSize} chars`);
+      } else {
+        // Без чанкинга - используем документы как есть
+        allChunks = documents.map(doc => ({
+          id: doc.id,
+          content: doc.content,
+          metadata: {
+            ...doc.metadata,
+            originalId: doc.id,
+            chunkIndex: 0,
+            totalChunks: 1
+          }
+        }));
+      }
+      
+      if (allChunks.length === 0) {
+        logger.warn('🍄 No chunks to add after processing');
+        return false;
+      }
+      
+      // Подготовка точек для Qdrant
       const points = [];
       
-      for (const doc of documents) {
+      for (const chunk of allChunks) {
         try {
           // Проверка наличия обязательных полей
-          if (!doc.id || !doc.content) {
-            logger.warn(`Document missing required fields (id, content): ${JSON.stringify(doc)}`);
+          if (!chunk.id || !chunk.content) {
+            logger.warn(`🍄 Chunk missing required fields (id, content): ${JSON.stringify(chunk)}`);
             continue;
           }
           
           // Добавляем подробное логирование для отслеживания процесса
-          logger.debug(`Processing document ID: ${doc.id}, content length: ${doc.content.length} characters`);
+          logger.debug(`🍄 Processing chunk ID: ${chunk.id}, content length: ${chunk.content.length} characters`);
           
           // Создание числового ID из строкового ID (Qdrant требует уникальные числовые ID)
-          const pointId = this._createNumericalId(doc.id.toString());
+          const pointId = this._createNumericalId(chunk.id.toString());
           
-          // Создание embedding для текста документа
-          const embedding = await this._createEmbedding(doc.content);
+          // Создание embedding для текста чанка
+          const embedding = await this._createEmbedding(chunk.content);
           
           if (!embedding || !Array.isArray(embedding) || embedding.length !== 1536) {
-            logger.error(`Invalid embedding for document ${doc.id}: ${embedding ? 'Length: ' + embedding.length : 'null'}`);
+            logger.error(`🍄 Invalid embedding for chunk ${chunk.id}: ${embedding ? 'Length: ' + embedding.length : 'null'}`);
             continue;
           }
           
-          logger.debug(`Created embedding for document ${doc.id}, embedding size: ${embedding.length}`);
+          logger.debug(`🍄 Created embedding for chunk ${chunk.id}, embedding size: ${embedding.length}`);
           
           // Формирование точки для Qdrant с правильной структурой
           points.push({
             id: pointId,
             vector: embedding,
             payload: {
-              content: doc.content,
+              content: chunk.content,
               metadata: {
-                id: doc.id.toString(),
-                title: doc.metadata?.title || '',
-                category: doc.metadata?.category || '',
-                language: doc.metadata?.language || 'en',
-                tags: Array.isArray(doc.metadata?.tags) ? doc.metadata.tags : [],
-                createdAt: doc.metadata?.createdAt ? new Date(doc.metadata.createdAt).toISOString() : new Date().toISOString(),
+                id: chunk.id.toString(),
+                originalId: chunk.metadata.originalId || chunk.id,
+                title: chunk.metadata?.title || '',
+                category: chunk.metadata?.category || '',
+                language: chunk.metadata?.language || 'en',
+                tags: Array.isArray(chunk.metadata?.tags) ? chunk.metadata.tags : [],
+                chunkIndex: chunk.metadata.chunkIndex || 0,
+                totalChunks: chunk.metadata.totalChunks || 1,
+                startPosition: chunk.metadata.startPosition || 0,
+                endPosition: chunk.metadata.endPosition || chunk.content.length,
+                createdAt: chunk.metadata?.createdAt ? new Date(chunk.metadata.createdAt).toISOString() : new Date().toISOString(),
                 updatedAt: new Date().toISOString()
               }
             }
           });
           
-          logger.debug(`Successfully processed document ${doc.id} with point ID ${pointId}`);
-        } catch (docError) {
-          logger.error(`Error processing document ${doc.id}: ${docError.message}`);
-          // Продолжаем с другими документами
+          logger.debug(`🍄 Successfully processed chunk ${chunk.id} with point ID ${pointId}`);
+        } catch (chunkError) {
+          logger.error(`🍄 Error processing chunk ${chunk.id}: ${chunkError.message}`);
+          // Продолжаем с другими чанками
         }
       }
       
       // Добавление точек в Qdrant
       if (points.length > 0) {
         // Подробное логирование для отладки
-        logger.debug(`First point structure sample: ${JSON.stringify(points[0], null, 2).substring(0, 200)}...`);
-        logger.info(`Upserting ${points.length} documents to Qdrant collection ${this.collectionName}`);
+        logger.debug(`🍄 First point structure sample: ${JSON.stringify(points[0], null, 2).substring(0, 300)}...`);
+        logger.info(`🍄 Upserting ${points.length} chunks to Qdrant collection ${this.collectionName}`);
         
         try {
           // Пробуем добавить все точки за один запрос
           await this.client.upsert(this.collectionName, {
             points: points
           });
-          logger.info(`Successfully added ${points.length} documents to vector store`);
+          logger.info(`🍄 Successfully added ${points.length} chunks to vector store (from ${documents.length} documents)`);
           return true;
         } catch (upsertError) {
-          logger.error(`Upsert error: ${upsertError.message}`);
+          logger.error(`🍄 Upsert error: ${upsertError.message}`);
           
           // Если пакетное добавление не удалось, добавляем точки по одной
           let successCount = 0;
@@ -286,25 +355,68 @@ class VectorStoreService {
                 points: [point]
               });
               successCount++;
-              logger.debug(`Successfully added document with ID ${point.id}`);
+              logger.debug(`🍄 Successfully added chunk with ID ${point.id}`);
             } catch (singleUpsertError) {
-              logger.error(`Failed to add document ${point.id}: ${singleUpsertError.message}`);
+              logger.error(`🍄 Failed to add chunk ${point.id}: ${singleUpsertError.message}`);
             }
           }
           
           if (successCount > 0) {
-            logger.info(`Added ${successCount}/${points.length} documents individually`);
+            logger.info(`🍄 Added ${successCount}/${points.length} chunks individually`);
             return successCount > 0;
           }
           
           return false;
         }
       } else {
-        logger.warn('No valid documents to add after processing');
+        logger.warn('🍄 No valid chunks to add after processing');
         return false;
       }
     } catch (error) {
-      logger.error(`Failed to add documents to vector store: ${error.message}`);
+      logger.error(`🍄 Failed to add documents to vector store: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Удаляет все чанки документа из векторной базы
+   * @private
+   * @param {string} originalId - ID оригинального документа
+   * @returns {Promise<boolean>} Успешность операции
+   */
+  async _deleteDocumentChunks(originalId) {
+    try {
+      if (!this.initialized) {
+        return false;
+      }
+
+      logger.debug(`🍄 Deleting chunks for document: ${originalId}`);
+      
+      // Ищем все чанки документа
+      const searchResults = await this.client.scroll(this.collectionName, {
+        filter: {
+          must: [{
+            key: 'metadata.originalId',
+            match: { value: originalId }
+          }]
+        },
+        limit: 1000,
+        with_payload: false
+      });
+
+      if (searchResults.points.length > 0) {
+        const pointIds = searchResults.points.map(point => point.id);
+        
+        await this.client.delete(this.collectionName, {
+          points: pointIds
+        });
+        
+        logger.debug(`🍄 Deleted ${pointIds.length} chunks for document ${originalId}`);
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(`🍄 Failed to delete chunks for document ${originalId}: ${error.message}`);
       return false;
     }
   }
@@ -392,11 +504,12 @@ class VectorStoreService {
         logger.debug(`Applied filter with ${mustConditions.length} conditions`);
       }
       
-      // Выполнение поиска
-      logger.debug(`🍄 Executing search with adaptive score_threshold: ${score_threshold} for language: ${language || 'auto'}`);
+      // Выполнение поиска - увеличиваем лимит для поиска чанков
+      const searchLimit = Math.min(limit * 3, 30); // Ищем больше чанков для лучшего покрытия
+      logger.debug(`🍄 Executing search with adaptive score_threshold: ${score_threshold} for language: ${language || 'auto'}, limit: ${searchLimit}`);
       const searchResults = await this.client.search(this.collectionName, {
         vector: embedding,
-        limit: Math.min(limit, 20), // Ограничение максимального количества результатов
+        limit: searchLimit,
         filter: Object.keys(filter).length > 0 ? filter : undefined,
         with_payload: true,
         score_threshold: score_threshold
@@ -404,38 +517,60 @@ class VectorStoreService {
       
       // Подробное логирование результатов поиска
       if (searchResults.length > 0) {
-        logger.debug(`🍄 Search returned ${searchResults.length} results with scores: ${searchResults.map(r => r.score.toFixed(3)).join(', ')}`);
-        logger.info(`🍄 Found ${searchResults.length} documents above threshold ${score_threshold} for ${language || 'auto'} language`);
+        logger.debug(`🍄 Search returned ${searchResults.length} chunk results with scores: ${searchResults.map(r => r.score.toFixed(3)).join(', ')}`);
+        logger.info(`🍄 Found ${searchResults.length} chunks above threshold ${score_threshold} for ${language || 'auto'} language`);
       } else {
         logger.debug(`🍄 Search returned no results with adaptive threshold: ${score_threshold} for language: ${language || 'auto'}`);
-        logger.info(`🍄 No documents found above threshold ${score_threshold} - query may not be relevant to knowledge base`);
+        logger.info(`🍄 No chunks found above threshold ${score_threshold} - query may not be relevant to knowledge base`);
       }
       
-      // Форматирование результатов
-      const results = searchResults.map(result => ({
-        id: result.payload.metadata.id || result.id.toString(),
-        content: result.payload.content,
-        metadata: result.payload.metadata,
-        score: result.score
-      }));
+      // Группировка результатов по originalId и выбор лучшего чанка для каждого документа
+      const groupedResults = new Map();
       
-      logger.info(`Found ${results.length} relevant documents`);
+      searchResults.forEach(result => {
+        const originalId = result.payload.metadata.originalId || result.payload.metadata.id;
+        const existing = groupedResults.get(originalId);
+        
+        if (!existing || result.score > existing.score) {
+          groupedResults.set(originalId, result);
+        }
+      });
+      
+      // Форматирование результатов - берем только лучшие чанки для каждого документа
+      const results = Array.from(groupedResults.values())
+        .sort((a, b) => b.score - a.score) // Сортируем по релевантности
+        .slice(0, limit) // Ограничиваем количество документов
+        .map(result => ({
+          id: result.payload.metadata.originalId || result.payload.metadata.id,
+          content: result.payload.content,
+          metadata: {
+            ...result.payload.metadata,
+            // Убираем служебные поля чанкинга из пользовательского вывода
+            chunkIndex: undefined,
+            totalChunks: undefined,
+            startPosition: undefined,
+            endPosition: undefined
+          },
+          score: result.score
+        }));
+      
+      logger.info(`🍄 Found ${results.length} relevant documents (from ${searchResults.length} chunks)`);
       
       // Добавляем подробное логирование результатов
       results.forEach((result, index) => {
-        logger.debug(`Result #${index+1}: ID=${result.id}, Score=${result.score.toFixed(4)}, Language=${result.metadata?.language || 'unknown'}`);
-        logger.debug(`Content preview: ${result.content.substring(0, 100)}${result.content.length > 100 ? '...' : ''}`);
+        logger.debug(`🍄 Result #${index+1}: ID=${result.id}, Score=${result.score.toFixed(4)}, Language=${result.metadata?.language || 'unknown'}`);
+        logger.debug(`🍄 Content preview: ${result.content.substring(0, 100)}${result.content.length > 100 ? '...' : ''}`);
       });
       
       return results;
     } catch (error) {
-      logger.error(`Search failed: ${error.message}`);
+      logger.error(`🍄 Search failed: ${error.message}`);
       return [];
     }
   }
 
   /**
-   * Удаляет документ из векторной базы
+   * Удаляет документ из векторной базы (все его чанки)
    * @async
    * @param {string} documentId - ID документа для удаления
    * @returns {Promise<boolean>} Успешность операции
@@ -450,19 +585,20 @@ class VectorStoreService {
         }
       }
       
-      logger.info(`Deleting document: ${documentId}`);
+      logger.info(`🍄 Deleting document and all its chunks: ${documentId}`);
       
-      // Преобразуем ID в числовой формат для Qdrant
-      const numericId = this._createNumericalId(documentId.toString());
+      // Удаляем все чанки документа
+      const success = await this._deleteDocumentChunks(documentId);
       
-      await this.client.delete(this.collectionName, {
-        points: [numericId]
-      });
+      if (success) {
+        logger.info(`🍄 Document and chunks deleted: ${documentId}`);
+      } else {
+        logger.warn(`🍄 Failed to delete some chunks for document: ${documentId}`);
+      }
       
-      logger.info(`Document deleted: ${documentId}`);
-      return true;
+      return success;
     } catch (error) {
-      logger.error(`Failed to delete document: ${error.message}`);
+      logger.error(`🍄 Failed to delete document: ${error.message}`);
       return false;
     }
   }
@@ -481,7 +617,8 @@ class VectorStoreService {
         return {
           status: 'not_initialized',
           message: 'Vector store not initialized',
-          isInitialized: false
+          isInitialized: false,
+          chunkingEnabled: this.defaultChunkingOptions.enableChunking
         };
       }
       
@@ -506,13 +643,15 @@ class VectorStoreService {
           vectorCount: collectionInfo.points_count || 0,
           vectorDimension: this.vectorDimension
         },
-        languageThresholds: this.languageThresholds
+        languageThresholds: this.languageThresholds,
+        chunkingConfig: this.defaultChunkingOptions
       };
     } catch (error) {
       return {
         status: 'error',
         message: `Vector store health check failed: ${error.message}`,
-        isInitialized: this.initialized
+        isInitialized: this.initialized,
+        chunkingEnabled: this.defaultChunkingOptions.enableChunking
       };
     }
   }
@@ -527,9 +666,11 @@ class VectorStoreService {
         return {
           status: 'not_initialized',
           documentsCount: 0,
+          chunksCount: 0,
           cacheSize: this.embeddingCache.size,
           lastUpdate: null,
-          languageThresholds: this.languageThresholds
+          languageThresholds: this.languageThresholds,
+          chunkingConfig: this.defaultChunkingOptions
         };
       }
       
@@ -540,22 +681,46 @@ class VectorStoreService {
       } catch (error) {
         logger.warn(`Could not get collection info: ${error.message}`);
       }
+
+      // Подсчет уникальных документов (по originalId)
+      let uniqueDocuments = 0;
+      try {
+        const scrollResult = await this.client.scroll(this.collectionName, {
+          limit: 10000,
+          with_payload: ['metadata.originalId']
+        });
+        
+        const originalIds = new Set();
+        scrollResult.points.forEach(point => {
+          const originalId = point.payload?.metadata?.originalId;
+          if (originalId) {
+            originalIds.add(originalId);
+          }
+        });
+        uniqueDocuments = originalIds.size;
+      } catch (error) {
+        logger.warn(`Could not count unique documents: ${error.message}`);
+      }
       
       return {
         status: 'ok',
-        documentsCount: collectionInfo.points_count || 0,
+        documentsCount: uniqueDocuments,
+        chunksCount: collectionInfo.points_count || 0,
         cacheSize: this.embeddingCache.size,
         lastUpdate: new Date().toISOString(),
-        languageThresholds: this.languageThresholds
+        languageThresholds: this.languageThresholds,
+        chunkingConfig: this.defaultChunkingOptions
       };
     } catch (error) {
       logger.error(`Failed to get stats: ${error.message}`);
       return {
         status: 'error',
         documentsCount: 0,
+        chunksCount: 0,
         cacheSize: this.embeddingCache.size,
         error: error.message,
-        languageThresholds: this.languageThresholds
+        languageThresholds: this.languageThresholds,
+        chunkingConfig: this.defaultChunkingOptions
       };
     }
   }
@@ -575,7 +740,7 @@ class VectorStoreService {
         }
       }
       
-      logger.warn(`Clearing entire collection: ${this.collectionName}`);
+      logger.warn(`🍄 Clearing entire collection: ${this.collectionName}`);
       
       // Удаление и пересоздание коллекции
       await this.client.deleteCollection(this.collectionName);
@@ -586,10 +751,10 @@ class VectorStoreService {
       // Инициализируем заново для создания пустой коллекции
       await this.initialize();
       
-      logger.info(`Collection cleared: ${this.collectionName}`);
+      logger.info(`🍄 Collection cleared: ${this.collectionName}`);
       return true;
     } catch (error) {
-      logger.error(`Failed to clear collection: ${error.message}`);
+      logger.error(`🍄 Failed to clear collection: ${error.message}`);
       return false;
     }
   }
@@ -699,6 +864,7 @@ class VectorStoreService {
       
       const formattedResults = currentResults.map(result => ({
         id: result.payload.metadata.id || result.id.toString(),
+        originalId: result.payload.metadata.originalId,
         score: result.score,
         content: result.payload.content.substring(0, 100) + (result.payload.content.length > 100 ? '...' : ''),
         metadata: result.payload.metadata
@@ -710,17 +876,18 @@ class VectorStoreService {
         threshold: testThreshold,
         automaticThreshold: this._getLanguageThreshold(language),
         resultsByThreshold: results,
-        documentsFound: formattedResults.length,
-        topResults: formattedResults
+        chunksFound: formattedResults.length,
+        topResults: formattedResults,
+        chunkingEnabled: this.defaultChunkingOptions.enableChunking
       };
     } catch (error) {
-      logger.error(`Test search failed: ${error.message}`);
+      logger.error(`🍄 Test search failed: ${error.message}`);
       return { error: `Test search failed: ${error.message}` };
     }
   }
   
   /**
-   * Диагностика векторного хранилища
+   * Диагностика векторного хранилища с поддержкой чанкинга
    * @async
    * @returns {Promise<Object>} Диагностическая информация
    */
@@ -734,7 +901,8 @@ class VectorStoreService {
         return { 
           status: 'error',
           message: 'Vector store not initialized',
-          initialized: false
+          initialized: false,
+          chunkingEnabled: this.defaultChunkingOptions.enableChunking
         };
       }
       
@@ -777,18 +945,43 @@ class VectorStoreService {
           message: `Embedding creation failed: ${error.message}`
         };
       }
+
+      // Проверка чанкинга
+      let chunkingStatus = { status: 'unknown' };
+      try {
+        const testDoc = {
+          id: 'test-doc',
+          content: 'This is a test document for chunking functionality. '.repeat(20),
+          metadata: { title: 'Test', language: 'en', category: 'test' }
+        };
+        
+        const chunks = textChunker.chunkDocument(testDoc);
+        chunkingStatus = {
+          status: 'ok',
+          message: 'Chunking functionality works',
+          testChunks: chunks.length,
+          chunkingEnabled: this.defaultChunkingOptions.enableChunking
+        };
+      } catch (error) {
+        chunkingStatus = {
+          status: 'error',
+          message: `Chunking test failed: ${error.message}`
+        };
+      }
       
       // Общий статус
       const overallStatus = 
         connectionStatus.status === 'ok' && 
         collectionStatus.status === 'ok' && 
-        embeddingStatus.status === 'ok' ? 'ok' : 'error';
+        embeddingStatus.status === 'ok' &&
+        chunkingStatus.status === 'ok' ? 'ok' : 'error';
       
       return {
         status: overallStatus,
         connection: connectionStatus,
         collection: collectionStatus,
         embedding: embeddingStatus,
+        chunking: chunkingStatus,
         config: {
           url: this.url,
           collectionName: this.collectionName,
@@ -796,14 +989,16 @@ class VectorStoreService {
           cacheSize: this.embeddingCache.size,
           maxCacheSize: this.maxCacheSize,
           languageThresholds: this.languageThresholds,
-          defaultThreshold: this.defaultThreshold
+          defaultThreshold: this.defaultThreshold,
+          chunkingConfig: this.defaultChunkingOptions
         }
       };
     } catch (error) {
-      logger.error(`Diagnostics failed: ${error.message}`);
+      logger.error(`🍄 Diagnostics failed: ${error.message}`);
       return {
         status: 'error',
-        message: `Diagnostics failed: ${error.message}`
+        message: `Diagnostics failed: ${error.message}`,
+        chunkingEnabled: this.defaultChunkingOptions.enableChunking
       };
     }
   }
