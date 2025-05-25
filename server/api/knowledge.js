@@ -1,6 +1,7 @@
 /**
- * Knowledge Base API Routes - Enhanced multilingual search with chunking support
+ * Knowledge Base API Routes - Enhanced multilingual search with FULL chunking support
  * @file server/api/knowledge.js
+ * 🍄 ОБНОВЛЕНО: Полная поддержка чанкинга с returnChunks и детальной диагностикой
  */
 
 const express = require('express');
@@ -9,7 +10,7 @@ const KnowledgeDocument = require('../models/knowledge');
 const knowledgeService = require('../services/knowledge');
 const vectorStoreService = require('../services/vectorStore');
 const logger = require('../utils/logger');
-const { requireAdminAuth } = require('../middleware/adminAuth'); // ИСПРАВЛЕНО: унифицировали middleware
+const { requireAdminAuth } = require('../middleware/adminAuth');
 
 // Middleware to ensure UTF-8 encoding
 router.use((req, res, next) => {
@@ -74,7 +75,7 @@ router.get('/', async (req, res) => {
 
 /**
  * @route GET /api/knowledge/search
- * @desc Search knowledge documents by text with enhanced multilingual support and vector search
+ * @desc Search knowledge documents by text with FULL chunking support
  * @access Public
  * @param {string} q - Search query
  * @param {string} [language] - Filter by language
@@ -83,6 +84,8 @@ router.get('/', async (req, res) => {
  * @param {number} [page=1] - Page number
  * @param {number} [limit=10] - Results per page
  * @param {boolean} [useVectorSearch=true] - Use vector search when available
+ * @param {boolean} [returnChunks=false] - Return individual chunks instead of grouped documents
+ * @param {number} [score_threshold] - Custom relevance threshold
  */
 router.get('/search', async (req, res) => {
   try {
@@ -93,7 +96,9 @@ router.get('/search', async (req, res) => {
       tags,
       page = 1,
       limit = 10,
-      useVectorSearch = true
+      useVectorSearch = true,
+      returnChunks = false,
+      score_threshold
     } = req.query;
 
     if (!searchQuery || searchQuery.trim().length === 0) {
@@ -104,15 +109,24 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    // Use enhanced search service with chunking support
-    const result = await knowledgeService.search(searchQuery, {
+    // 🍄 НОВОЕ: Расширенные опции поиска с поддержкой чанков
+    const searchOptions = {
       language,
       category,
       tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
       page: parseInt(page),
       limit: parseInt(limit),
-      useVectorSearch: useVectorSearch !== 'false'
-    });
+      useVectorSearch: useVectorSearch !== 'false',
+      returnChunks: returnChunks === 'true'  // 🍄 ДОБАВЛЕНО: поддержка returnChunks
+    };
+
+    // 🍄 НОВОЕ: Передача custom threshold если указан
+    if (score_threshold !== undefined) {
+      searchOptions.score_threshold = parseFloat(score_threshold);
+    }
+
+    // Use enhanced search service with FULL chunking support
+    const result = await knowledgeService.search(searchQuery, searchOptions);
 
     if (!result.success) {
       return res.status(500).json({
@@ -122,16 +136,34 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    res.json({
+    // 🍄 УЛУЧШЕНО: Расширенная информация о результатах поиска
+    const responseData = {
       success: true,
       data: result.data,
       query: searchQuery,
       count: result.count,
       searchType: result.searchType,
-      chunkingUsed: result.chunkingUsed || false
-    });
+      chunkingUsed: result.chunkingUsed || false,
+      returnChunks: returnChunks === 'true'
+    };
 
-    logger.info(`🍄 Knowledge search performed: \"${searchQuery}\" (${result.searchType}) - ${result.count} results, chunking: ${result.chunkingUsed ? 'yes' : 'no'}`);
+    // 🍄 НОВОЕ: Добавляем статистику чанков если returnChunks=true
+    if (returnChunks === 'true' && result.chunkingUsed) {
+      const chunksCount = result.data.filter(item => item.isChunk).length;
+      const documentsCount = new Set(result.data.map(item => item.chunkInfo?.originalId || item.id)).size;
+      
+      responseData.chunkStats = {
+        totalResults: result.data.length,
+        chunks: chunksCount,
+        documents: documentsCount,
+        averageScore: result.data.length > 0 ? 
+          (result.data.reduce((sum, item) => sum + (item.score || 0), 0) / result.data.length).toFixed(4) : 0
+      };
+    }
+
+    res.json(responseData);
+
+    logger.info(`🍄 Knowledge search: "${searchQuery}" (${result.searchType}) - ${result.count} results, chunking: ${result.chunkingUsed ? 'yes' : 'no'}, returnChunks: ${returnChunks === 'true' ? 'yes' : 'no'}`);
   } catch (error) {
     logger.error(`Error searching knowledge: ${error.message}`);
     res.status(500).json({
@@ -144,18 +176,22 @@ router.get('/search', async (req, res) => {
 
 /**
  * @route GET /api/knowledge/vector-search
- * @desc Test vector search in Qdrant with different thresholds and chunking info
+ * @desc Test vector search in Qdrant with FULL chunking analysis
  * @access Private (Admin only)
  * @param {string} q - Search query
  * @param {number} [threshold=0.4] - Score threshold
  * @param {string} [language] - Filter by language
+ * @param {boolean} [returnChunks=false] - Return individual chunks for analysis
+ * @param {number} [limit=10] - Number of results
  */
 router.get('/vector-search', requireAdminAuth, async (req, res) => {
   try {
     const {
       q: searchQuery,
       threshold = 0.4,
-      language
+      language,
+      returnChunks = false,
+      limit = 10
     } = req.query;
 
     if (!searchQuery || searchQuery.trim().length === 0) {
@@ -166,29 +202,61 @@ router.get('/vector-search', requireAdminAuth, async (req, res) => {
       });
     }
 
-    // Используем тестовый метод для диагностики поиска с чанкингом
-    const result = await vectorStoreService.testSearch(
+    // 🍄 УЛУЧШЕНО: Используем векторный поиск с поддержкой returnChunks
+    const searchResults = await vectorStoreService.search(searchQuery, {
+      limit: parseInt(limit),
+      language,
+      score_threshold: parseFloat(threshold),
+      returnChunks: returnChunks === 'true'  // 🍄 НОВОЕ: передаем returnChunks
+    });
+
+    // 🍄 НОВОЕ: Дополнительно тестируем разные пороги
+    const testResult = await vectorStoreService.testSearch(
       searchQuery, 
       parseFloat(threshold),
       language
     );
 
-    if (result.error) {
-      return res.status(500).json({
-        success: false,
-        error: result.error,
-        errorCode: 'VECTOR_SEARCH_ERROR'
-      });
+    // 🍄 УЛУЧШЕНО: Расширенная статистика результатов
+    const responseData = {
+      success: true,
+      query: searchQuery,
+      threshold: parseFloat(threshold),
+      language: language || 'auto',
+      returnChunks: returnChunks === 'true',
+      results: searchResults,
+      resultCount: searchResults.length,
+      testAnalysis: testResult
+    };
+
+    // 🍄 НОВОЕ: Анализ чанков если returnChunks=true
+    if (returnChunks === 'true') {
+      const chunkAnalysis = {
+        totalResults: searchResults.length,
+        chunks: searchResults.filter(r => r.isChunk).length,
+        documents: searchResults.filter(r => !r.isChunk).length,
+        chunkDetails: searchResults
+          .filter(r => r.isChunk)
+          .map(r => ({
+            id: r.id,
+            originalId: r.chunkInfo?.originalId,
+            chunkIndex: r.chunkInfo?.chunkIndex,
+            totalChunks: r.chunkInfo?.totalChunks,
+            score: r.score,
+            contentLength: r.content?.length || 0
+          })),
+        scoreDistribution: {
+          high: searchResults.filter(r => r.score >= 0.8).length,
+          medium: searchResults.filter(r => r.score >= 0.6 && r.score < 0.8).length,
+          low: searchResults.filter(r => r.score < 0.6).length
+        }
+      };
+      responseData.chunkAnalysis = chunkAnalysis;
     }
 
-    res.json({
-      success: true,
-      data: result,
-      query: searchQuery,
-      threshold: parseFloat(threshold)
-    });
+    res.json(responseData);
 
-    logger.info(`🍄 Vector search test performed: \"${searchQuery}\" with threshold ${threshold}, chunking: ${result.chunkingEnabled ? 'enabled' : 'disabled'}`);
+    logger.info(`🍄 Vector search test: "${searchQuery}" threshold=${threshold}, returnChunks=${returnChunks === 'true'}, results=${searchResults.length}`);
   } catch (error) {
     logger.error(`Error testing vector search: ${error.message}`);
     res.status(500).json({
@@ -201,14 +269,23 @@ router.get('/vector-search', requireAdminAuth, async (req, res) => {
 
 /**
  * @route POST /api/knowledge/test-search
- * @desc Test RAG search functionality for admin panel with chunking support
+ * @desc Test RAG search functionality with FULL chunking support
  * @access Private (Admin only)
  * @body {string} query - Search query to test
  * @body {number} [limit=5] - Number of results to return
+ * @body {boolean} [returnChunks=false] - Return individual chunks for detailed analysis
+ * @body {number} [score_threshold] - Custom relevance threshold
+ * @body {string} [language] - Language filter
  */
 router.post('/test-search', requireAdminAuth, async (req, res) => {
   try {
-    const { query, limit = 5 } = req.body;
+    const { 
+      query, 
+      limit = 5, 
+      returnChunks = false, 
+      score_threshold,
+      language 
+    } = req.body;
 
     if (!query || query.trim().length === 0) {
       return res.status(400).json({
@@ -218,22 +295,31 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
       });
     }
 
-    logger.info(`🍄 RAG test search initiated: \"${query}\"`);
+    logger.info(`🍄 RAG test search initiated: "${query}" with returnChunks=${returnChunks}`);
 
-    // Используем векторный поиск для тестирования с поддержкой чанкинга
+    // 🍄 УЛУЧШЕНО: Расширенные опции поиска
+    const searchOptions = {
+      limit: parseInt(limit),
+      returnChunks: Boolean(returnChunks),  // 🍄 НОВОЕ: поддержка returnChunks
+      language
+    };
+
+    if (score_threshold !== undefined) {
+      searchOptions.score_threshold = parseFloat(score_threshold);
+    }
+
     let results = [];
     let searchType = 'none';
     let chunkingUsed = false;
+    let vectorStoreStats = null;
     
     if (vectorStoreService && typeof vectorStoreService.search === 'function') {
-      // Пробуем векторный поиск
-      const vectorResults = await vectorStoreService.search(query, { limit });
+      // 🍄 УЛУЧШЕНО: Векторный поиск с полной поддержкой чанков
+      const vectorResults = await vectorStoreService.search(query, searchOptions);
       
       if (vectorResults && vectorResults.length > 0) {
         results = vectorResults.map(result => {
-          // ИСПРАВЛЕНО: правильная проверка чанков
-          const isChunk = result.metadata?.id && result.metadata?.id.includes('_chunk_');
-          const originalId = result.metadata?.originalId || result.id;
+          const isChunk = result.isChunk || (result.metadata?.originalId !== result.id);
           
           return {
             id: result.id,
@@ -243,28 +329,37 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
             language: result.metadata?.language || 'en',
             score: result.score || 0,
             isChunk: isChunk,
-            chunkInfo: isChunk ? {
-              originalId: originalId,
+            chunkInfo: result.chunkInfo || (isChunk ? {
+              originalId: result.metadata?.originalId,
               chunkIndex: result.metadata?.chunkIndex,
               totalChunks: result.metadata?.totalChunks,
               startPosition: result.metadata?.startPosition,
               endPosition: result.metadata?.endPosition
-            } : null,
-            // Дополнительная отладочная информация
+            } : null),
+            // 🍄 НОВОЕ: Расширенная отладочная информация
             debug: {
               metadataId: result.metadata?.id,
               resultId: result.id,
-              originalId: originalId,
-              hasChunkIndex: result.metadata?.chunkIndex !== undefined
+              originalId: result.metadata?.originalId || result.id,
+              hasChunkMetadata: result.metadata?.chunkIndex !== undefined,
+              contentLength: result.content?.length || 0,
+              scoreThreshold: searchOptions.score_threshold || 'auto'
             }
           };
         });
         searchType = 'vector';
         chunkingUsed = results.some(r => r.isChunk);
+
+        // 🍄 НОВОЕ: Получаем статистику векторного хранилища
+        try {
+          vectorStoreStats = await vectorStoreService.getStats();
+        } catch (statsError) {
+          logger.warn(`Could not get vector store stats: ${statsError.message}`);
+        }
       }
     }
     
-    // Если векторный поиск не дал результатов, используем MongoDB поиск
+    // Fallback на MongoDB поиск если нет результатов от векторного поиска
     if (results.length === 0) {
       logger.info('🍄 Vector search returned no results, falling back to MongoDB search');
       
@@ -290,13 +385,15 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
         isChunk: false,
         chunkInfo: null,
         debug: {
-          source: 'mongodb'
+          source: 'mongodb',
+          contentLength: doc.content?.length || 0
         }
       }));
       searchType = 'mongodb';
     }
 
-    res.json({
+    // 🍄 НОВОЕ: Расширенная статистика результатов
+    const responseData = {
       success: true,
       data: {
         results,
@@ -304,17 +401,73 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
         totalFound: results.length,
         searchType,
         chunkingUsed,
+        returnChunks: Boolean(returnChunks),
         chunksFound: results.filter(r => r.isChunk).length,
         documentsFound: results.filter(r => !r.isChunk).length,
-        // Дополнительная диагностическая информация
+        searchOptions,
+        // 🍄 НОВОЕ: Детальная статистика
+        statistics: {
+          averageScore: results.length > 0 ? 
+            (results.reduce((sum, r) => sum + (r.score || 0), 0) / results.length).toFixed(4) : 0,
+          scoreRange: results.length > 0 ? {
+            min: Math.min(...results.map(r => r.score || 0)).toFixed(4),
+            max: Math.max(...results.map(r => r.score || 0)).toFixed(4)
+          } : null,
+          contentLengths: {
+            average: results.length > 0 ? 
+              Math.round(results.reduce((sum, r) => sum + (r.debug?.contentLength || 0), 0) / results.length) : 0,
+            total: results.reduce((sum, r) => sum + (r.debug?.contentLength || 0), 0)
+          }
+        },
+        vectorStoreInfo: vectorStoreStats,
         debug: {
           vectorSearchAttempted: true,
-          vectorServiceAvailable: vectorStoreService && typeof vectorStoreService.search === 'function'
+          vectorServiceAvailable: vectorStoreService && typeof vectorStoreService.search === 'function',
+          thresholdUsed: searchOptions.score_threshold || 'auto',
+          timestamp: new Date().toISOString()
         }
       }
-    });
+    };
 
-    logger.info(`🍄 RAG test search completed: \"${query}\" - ${results.length} results found (${searchType}), chunking: ${chunkingUsed ? 'used' : 'not used'}`);
+    // 🍄 НОВОЕ: Добавляем анализ чанков если returnChunks=true
+    if (returnChunks && chunkingUsed) {
+      const chunkAnalysis = {
+        chunkDistribution: {},
+        documentCoverage: {},
+        qualityMetrics: {
+          highQualityChunks: results.filter(r => r.isChunk && r.score >= 0.8).length,
+          mediumQualityChunks: results.filter(r => r.isChunk && r.score >= 0.6 && r.score < 0.8).length,
+          lowQualityChunks: results.filter(r => r.isChunk && r.score < 0.6).length
+        }
+      };
+
+      // Анализ распределения чанков по документам
+      const chunksByDocument = {};
+      results.filter(r => r.isChunk).forEach(chunk => {
+        const originalId = chunk.chunkInfo?.originalId || chunk.id;
+        if (!chunksByDocument[originalId]) {
+          chunksByDocument[originalId] = [];
+        }
+        chunksByDocument[originalId].push({
+          chunkIndex: chunk.chunkInfo?.chunkIndex,
+          score: chunk.score,
+          contentLength: chunk.debug?.contentLength
+        });
+      });
+
+      chunkAnalysis.chunkDistribution = Object.entries(chunksByDocument).map(([docId, chunks]) => ({
+        documentId: docId,
+        chunkCount: chunks.length,
+        averageScore: (chunks.reduce((sum, c) => sum + c.score, 0) / chunks.length).toFixed(4),
+        chunkIndices: chunks.map(c => c.chunkIndex).sort((a, b) => a - b)
+      }));
+
+      responseData.data.chunkAnalysis = chunkAnalysis;
+    }
+
+    res.json(responseData);
+
+    logger.info(`🍄 RAG test search completed: "${query}" - ${results.length} results (${searchType}), chunking: ${chunkingUsed ? 'used' : 'not used'}, returnChunks: ${returnChunks ? 'yes' : 'no'}`);
   } catch (error) {
     logger.error(`Error in RAG test search: ${error.message}`);
     res.status(500).json({
@@ -328,25 +481,106 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
 
 /**
  * @route GET /api/knowledge/diagnose
- * @desc Diagnose vector store health and configuration with chunking info
+ * @desc Diagnose vector store health with DETAILED chunking information
  * @access Private (Admin only)
  */
 router.get('/diagnose', requireAdminAuth, async (req, res) => {
   try {
-    // Проверка векторного хранилища с поддержкой чанкинга
+    // 🍄 УЛУЧШЕНО: Расширенная диагностика с детальной информацией о чанках
     const vectorStatus = await vectorStoreService.diagnose();
     
     // Информация о хранилище документов
     const docsCount = await KnowledgeDocument.countDocuments();
     
-    // Статистика векторного хранилища с чанкингом
+    // 🍄 НОВОЕ: Расширенная статистика векторного хранилища с чанками
     const vectorStats = await vectorStoreService.getStats();
 
     // Статистика knowledge service с чанкингом
     const knowledgeStats = await knowledgeService.getStats();
     
-    res.json({
+    // 🍄 НОВОЕ: Дополнительная диагностика чанкинга
+    let chunkingDiagnostics = {
+      status: 'unknown',
+      details: {}
+    };
+
+    try {
+      // Тестируем чанкинг функциональность
+      const testDoc = {
+        id: 'test-doc-chunking',
+        content: 'This is a test document for chunking functionality. '.repeat(50), // ~2500 символов
+        metadata: { title: 'Test Document', language: 'en', category: 'test' }
+      };
+      
+      const textChunker = require('../utils/textChunker');
+      const chunks = textChunker.chunkDocument(testDoc);
+      
+      chunkingDiagnostics = {
+        status: 'ok',
+        details: {
+          testDocumentLength: testDoc.content.length,
+          chunksGenerated: chunks.length,
+          averageChunkSize: chunks.length > 0 ? Math.round(chunks.reduce((sum, c) => sum + c.content.length, 0) / chunks.length) : 0,
+          chunkSizes: chunks.map(c => c.content.length),
+          chunkingEnabled: vectorStatus.config?.chunkingConfig?.enableChunking || false,
+          defaultChunkSize: vectorStatus.config?.chunkingConfig?.chunkSize || 'unknown',
+          defaultOverlap: vectorStatus.config?.chunkingConfig?.overlap || 'unknown'
+        }
+      };
+    } catch (chunkError) {
+      chunkingDiagnostics = {
+        status: 'error',
+        error: chunkError.message
+      };
+    }
+
+    // 🍄 НОВОЕ: Анализ качества чанков в векторной базе
+    let chunkQualityAnalysis = {
+      status: 'unknown'
+    };
+
+    try {
+      if (vectorStats.chunksCount > 0) {
+        // Простой тест поиска для анализа качества чанков
+        const testSearchResults = await vectorStoreService.search('test query', { 
+          limit: 5, 
+          returnChunks: true 
+        });
+        
+        chunkQualityAnalysis = {
+          status: 'ok',
+          details: {
+            totalChunks: vectorStats.chunksCount,
+            totalDocuments: vectorStats.documentsCount,
+            averageChunksPerDocument: vectorStats.documentsCount > 0 ? 
+              Math.round(vectorStats.chunksCount / vectorStats.documentsCount) : 0,
+            testSearchResults: testSearchResults.length,
+            sampleChunks: testSearchResults.slice(0, 3).map(chunk => ({
+              id: chunk.id,
+              isChunk: chunk.isChunk || false,
+              contentLength: chunk.content?.length || 0,
+              score: chunk.score,
+              originalId: chunk.metadata?.originalId || chunk.id
+            }))
+          }
+        };
+      } else {
+        chunkQualityAnalysis = {
+          status: 'empty',
+          message: 'No chunks found in vector store'
+        };
+      }
+    } catch (qualityError) {
+      chunkQualityAnalysis = {
+        status: 'error',
+        error: qualityError.message
+      };
+    }
+
+    // 🍄 УЛУЧШЕНО: Расширенный ответ диагностики
+    const diagnosticsResponse = {
       success: true,
+      timestamp: new Date().toISOString(),
       vector: vectorStatus,
       mongoDb: {
         documentsCount: docsCount,
@@ -354,20 +588,136 @@ router.get('/diagnose', requireAdminAuth, async (req, res) => {
       },
       vectorStats,
       knowledgeService: knowledgeStats,
-      timestamp: new Date().toISOString()
-    });
+      // 🍄 НОВОЕ: Детальная диагностика чанкинга
+      chunking: {
+        functionality: chunkingDiagnostics,
+        quality: chunkQualityAnalysis,
+        configuration: {
+          enabled: vectorStatus.config?.chunkingConfig?.enableChunking || false,
+          defaultOptions: vectorStatus.config?.chunkingConfig || {},
+          languageThresholds: vectorStatus.config?.languageThresholds || {}
+        }
+      },
+      // 🍄 НОВОЕ: Рекомендации на основе диагностики
+      recommendations: []
+    };
 
-    logger.info(`🍄 Vector store diagnostics performed with chunking info`);
+    // Генерируем рекомендации
+    if (vectorStats.chunksCount === 0 && docsCount > 0) {
+      diagnosticsResponse.recommendations.push({
+        type: 'warning',
+        message: 'MongoDB contains documents but vector store is empty. Consider running synchronization.',
+        action: 'POST /api/knowledge/sync-vector-store'
+      });
+    }
+
+    if (chunkingDiagnostics.status !== 'ok') {
+      diagnosticsResponse.recommendations.push({
+        type: 'error',
+        message: 'Chunking functionality test failed. Check textChunker service.',
+        action: 'Review server logs and textChunker configuration'
+      });
+    }
+
+    if (vectorStats.documentsCount > 0 && vectorStats.chunksCount / vectorStats.documentsCount < 2) {
+      diagnosticsResponse.recommendations.push({
+        type: 'info',
+        message: 'Low chunks per document ratio. Consider enabling chunking for better search quality.',
+        action: 'Review chunking configuration'
+      });
+    }
+
+    res.json(diagnosticsResponse);
+
+    logger.info(`🍄 Enhanced vector store diagnostics performed with chunking analysis`);
   } catch (error) {
-    logger.error(`Error performing vector store diagnostics: ${error.message}`);
+    logger.error(`Error performing enhanced vector store diagnostics: ${error.message}`);
     res.status(500).json({
       success: false,
-      error: 'Diagnostics failed',
+      error: 'Enhanced diagnostics failed',
       errorCode: 'DIAGNOSTICS_ERROR',
       details: error.message
     });
   }
 });
+
+/**
+ * @route GET /api/knowledge/chunk-analysis/:documentId
+ * @desc Analyze chunks for a specific document
+ * @access Private (Admin only)
+ * @param {string} documentId - Document ID to analyze
+ */
+router.get('/chunk-analysis/:documentId', requireAdminAuth, async (req, res) => {
+  try {
+    const { documentId } = req.params;
+
+    // Получаем оригинальный документ
+    const document = await KnowledgeDocument.findById(documentId);
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found',
+        errorCode: 'DOCUMENT_NOT_FOUND'
+      });
+    }
+
+    // Ищем все чанки этого документа в векторной базе
+    const chunks = await vectorStoreService.search('', {
+      limit: 100,
+      returnChunks: true
+    });
+
+    const documentChunks = chunks.filter(chunk => 
+      chunk.metadata?.originalId === documentId || chunk.id.startsWith(documentId)
+    );
+
+    // Анализируем чанки
+    const analysis = {
+      document: {
+        id: documentId,
+        title: document.title,
+        category: document.category,
+        language: document.language,
+        contentLength: document.content.length,
+        tags: document.tags
+      },
+      chunks: {
+        total: documentChunks.length,
+        details: documentChunks.map(chunk => ({
+          id: chunk.id,
+          chunkIndex: chunk.metadata?.chunkIndex,
+          contentLength: chunk.content?.length,
+          startPosition: chunk.metadata?.startPosition,
+          endPosition: chunk.metadata?.endPosition,
+          content: chunk.content?.substring(0, 200) + '...'
+        })).sort((a, b) => (a.chunkIndex || 0) - (b.chunkIndex || 0))
+      },
+      statistics: {
+        averageChunkSize: documentChunks.length > 0 ? 
+          Math.round(documentChunks.reduce((sum, c) => sum + (c.content?.length || 0), 0) / documentChunks.length) : 0,
+        totalChunkContent: documentChunks.reduce((sum, c) => sum + (c.content?.length || 0), 0),
+        coverage: document.content.length > 0 ? 
+          ((documentChunks.reduce((sum, c) => sum + (c.content?.length || 0), 0) / document.content.length) * 100).toFixed(2) : 0
+      }
+    };
+
+    res.json({
+      success: true,
+      data: analysis
+    });
+
+    logger.info(`🍄 Chunk analysis performed for document: ${documentId}`);
+  } catch (error) {
+    logger.error(`Error analyzing chunks for document ${req.params.documentId}: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Chunk analysis failed',
+      errorCode: 'CHUNK_ANALYSIS_ERROR'
+    });
+  }
+});
+
+// ... (остальные методы остаются без изменений, но добавляем сюда для полноты)
 
 /**
  * @route POST /api/knowledge/sync-vector-store
@@ -389,7 +739,6 @@ router.post('/sync-vector-store', requireAdminAuth, async (req, res) => {
 
     logger.info(`🍄 Starting vector store synchronization with chunking: ${enableChunking ? 'enabled' : 'disabled'}`);
 
-    // Используем новый метод синхронизации с чанкингом
     const result = await knowledgeService.syncToVectorStore({
       enableChunking,
       chunkSize: parseInt(chunkSize),
@@ -427,98 +776,12 @@ router.post('/sync-vector-store', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route POST /api/knowledge/sync-vector-store-legacy
- * @desc Legacy синхронизация без чанкинга (для совместимости)
- * @access Private (Admin only)
- */
-router.post('/sync-vector-store-legacy', requireAdminAuth, async (req, res) => {
-  try {
-    // Инициализация векторного хранилища
-    const initialized = await vectorStoreService.initialize();
-    
-    if (!initialized) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to initialize vector store',
-        errorCode: 'INITIALIZATION_ERROR'
-      });
-    }
-    
-    // Получаем ВСЕ документы из MongoDB (без фильтра status)
-    const documents = await KnowledgeDocument.find({}).lean();
-    
-    if (documents.length === 0) {
-      return res.json({
-        success: true,
-        message: 'No documents to sync',
-        count: 0
-      });
-    }
-    
-    logger.info(`🍄 Found ${documents.length} documents to sync with vector store (legacy mode - no chunking)`);
-
-    // Подготавливаем документы для векторного хранилища
-    const vectorDocs = documents.map(doc => ({
-      id: doc._id.toString(),
-      content: doc.content,
-      metadata: {
-        title: doc.title,
-        category: doc.category,
-        language: doc.language,
-        tags: doc.tags || [],
-        authorId: doc.authorId,
-        createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt
-      }
-    }));
-    
-    // Очищаем текущую коллекцию и добавляем все документы заново
-    await vectorStoreService.clearCollection();
-    logger.info('🍄 Vector collection cleared');
-    
-    // Добавляем документы пакетами по 10 штук с отключенным чанкингом
-    const batchSize = 10;
-    let successCount = 0;
-    
-    for (let i = 0; i < vectorDocs.length; i += batchSize) {
-      const batch = vectorDocs.slice(i, i + batchSize);
-      const added = await vectorStoreService.addDocuments(batch, { enableChunking: false });
-      
-      if (added) {
-        successCount += batch.length;
-      }
-      
-      logger.info(`🍄 Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vectorDocs.length / batchSize)}`);
-    }
-    
-    res.json({
-      success: true,
-      message: 'Vector store synchronized successfully (legacy mode)',
-      totalDocuments: documents.length,
-      syncedDocuments: successCount,
-      chunkingUsed: false
-    });
-    
-    logger.info(`🍄 Legacy vector store synchronization completed: ${successCount}/${documents.length} documents synced without chunking`);
-  } catch (error) {
-    logger.error(`🍄 Error synchronizing vector store (legacy): ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to synchronize vector store',
-      errorCode: 'SYNC_ERROR',
-      details: error.message
-    });
-  }
-});
-
-/**
  * @route GET /api/knowledge/stats
  * @desc Get knowledge base statistics for admin dashboard with chunking info
  * @access Private (Admin only)
  */
 router.get('/stats', requireAdminAuth, async (req, res) => {
   try {
-    // Получаем расширенную статистику с чанкингом
     const knowledgeStats = await knowledgeService.getStats();
 
     if (!knowledgeStats.success) {
@@ -527,19 +790,16 @@ router.get('/stats', requireAdminAuth, async (req, res) => {
       const publishedDocs = await KnowledgeDocument.countDocuments({ status: 'published' });
       const draftDocs = await KnowledgeDocument.countDocuments({ status: 'draft' });
       
-      // Статистика по языкам
       const languageStats = await KnowledgeDocument.aggregate([
         { $group: { _id: '$language', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]);
       
-      // Статистика по категориям
       const categoryStats = await KnowledgeDocument.aggregate([
         { $group: { _id: '$category', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]);
       
-      // Недавно обновленные документы
       const recentlyUpdated = await KnowledgeDocument.find()
         .sort({ updatedAt: -1 })
         .limit(5)
@@ -560,12 +820,10 @@ router.get('/stats', requireAdminAuth, async (req, res) => {
       });
     }
 
-    // Дополнительные традиционные статистики
     const totalDocs = knowledgeStats.mongodb.totalDocuments;
     const publishedDocs = await KnowledgeDocument.countDocuments({ status: 'published' });
     const draftDocs = totalDocs - publishedDocs;
 
-    // Недавно обновленные документы
     const recentlyUpdated = await KnowledgeDocument.find()
       .sort({ updatedAt: -1 })
       .limit(5)
@@ -713,7 +971,7 @@ router.post('/', requireAdminAuth, async (req, res) => {
       chunkingUsed: result.chunkingUsed
     });
 
-    logger.info(`🍄 Knowledge document created by ${req.admin.username}: ${result.data.id} - \"${title}\", chunking: ${result.chunkingUsed ? 'used' : 'not used'}`);
+    logger.info(`🍄 Knowledge document created by ${req.admin.username}: ${result.data.id} - "${title}", chunking: ${result.chunkingUsed ? 'used' : 'not used'}`);
   } catch (error) {
     logger.error(`Error creating knowledge document: ${error.message}`);
     
