@@ -229,7 +229,7 @@ class KnowledgeService {
   }
 
   /**
-   * Search documents by text query with enhanced multilingual support
+   * Search documents by text query with enhanced multilingual support and FULL chunking support
    * @param {string} query - Search query
    * @param {Object} options - Search options
    * @param {string} [options.language] - Filter by language
@@ -239,6 +239,8 @@ class KnowledgeService {
    * @param {number} [options.page=1] - Page number
    * @param {boolean} [options.forceRegex=false] - Force regex search for Cyrillic
    * @param {boolean} [options.useVectorSearch=true] - Use vector search when available
+   * @param {boolean} [options.returnChunks=false] - Return individual chunks instead of grouped documents (🍄 НОВОЕ!)
+   * @param {number} [options.score_threshold] - Custom relevance threshold
    * @returns {Promise<Object>} Search results
    */
   async search(query, options = {}) {
@@ -250,22 +252,34 @@ class KnowledgeService {
         limit = 10,
         page = 1,
         forceRegex = false,
-        useVectorSearch = true
+        useVectorSearch = true,
+        returnChunks = false,  // 🍄 НОВЫЙ ПАРАМЕТР
+        score_threshold
       } = options;
 
       // Попробуем сначала векторный поиск, если доступен
       if (useVectorSearch) {
         try {
-          const vectorResults = await vectorStoreService.search(query, {
+          // 🍄 ИСПРАВЛЕНО: Передаем returnChunks в vectorStoreService
+          const vectorSearchOptions = {
             language,
             category,
             tags,
-            limit
-          });
+            limit,
+            returnChunks  // 🍄 ВАЖНО: передаем returnChunks дальше
+          };
+
+          // Передаем score_threshold если указан
+          if (score_threshold !== undefined) {
+            vectorSearchOptions.score_threshold = score_threshold;
+          }
+
+          const vectorResults = await vectorStoreService.search(query, vectorSearchOptions);
           
           if (vectorResults && vectorResults.length > 0) {
             logger.info(`🍄 Vector search found ${vectorResults.length} results for: "${query.substring(0, 50)}..."`);
             
+            // 🍄 УЛУЧШЕНО: Правильное форматирование результатов с поддержкой returnChunks
             const formattedResults = vectorResults.map(doc => ({
               id: doc.id,
               title: doc.metadata?.title || '',
@@ -275,8 +289,14 @@ class KnowledgeService {
               tags: doc.metadata?.tags || [],
               createdAt: doc.metadata?.createdAt,
               updatedAt: doc.metadata?.updatedAt,
-              score: doc.score
+              score: doc.score,
+              // 🍄 НОВОЕ: добавляем информацию о чанках если returnChunks=true
+              isChunk: doc.isChunk || false,
+              chunkInfo: doc.chunkInfo || null
             }));
+
+            // 🍄 НОВОЕ: Определяем, использовался ли чанкинг
+            const chunkingUsed = formattedResults.some(result => result.isChunk);
 
             return {
               success: true,
@@ -284,7 +304,8 @@ class KnowledgeService {
               query,
               count: formattedResults.length,
               searchType: 'vector',
-              chunkingUsed: true
+              chunkingUsed,  // 🍄 ДОБАВЛЕНО: информация об использовании чанкинга
+              returnChunks   // 🍄 ДОБАВЛЕНО: подтверждение режима
             };
           }
         } catch (vectorError) {
@@ -327,7 +348,10 @@ class KnowledgeService {
 
       const formattedResults = results.map(doc => ({
         ...doc.toPublicJSON(),
-        score: doc.score || null
+        score: doc.score || null,
+        // 🍄 НОВОЕ: MongoDB результаты никогда не являются чанками
+        isChunk: false,
+        chunkInfo: null
       }));
 
       logger.logKnowledgeSearch(query, formattedResults.length, searchType);
@@ -338,7 +362,8 @@ class KnowledgeService {
         query,
         count: formattedResults.length,
         searchType,
-        chunkingUsed: false
+        chunkingUsed: false,  // 🍄 ДОБАВЛЕНО: MongoDB поиск не использует чанкинг
+        returnChunks         // 🍄 ДОБАВЛЕНО: подтверждение режима
       };
     } catch (error) {
       logger.error('🍄 Knowledge search failed:', error);
