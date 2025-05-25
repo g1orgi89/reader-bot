@@ -417,7 +417,7 @@ class ClaudeService {
 
   /**
    * Генерация ответа через Claude API
-   * 🍄 ОБНОВЛЕНО: Динамическое получение промптов через PromptService
+   * 🍄 ИСПРАВЛЕНО: Убираем контекстные сообщения, которые затирают роль AI-гриба
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
@@ -441,27 +441,25 @@ class ClaudeService {
       // Используем fallback промпт
       systemPrompt = promptService.getDefaultPrompt(context && context.length > 0 ? 'rag' : 'basic', language);
     }
-    
-    // ИСПРАВЛЕНИЕ: Создание сообщений без system role
-    const messages = [];
-    
-    // Добавляем контекст если есть
+
+    // 🍄 ИСПРАВЛЕНИЕ: Интегрируем контекст прямо в системный промпт
+    let enhancedSystemPrompt = systemPrompt;
+
     if (context && context.length > 0) {
-      const contextMessages = {
-        en: `Relevant information from knowledge base: ${context.slice(0, 3).join('\n\n')}`,
-        es: `Información relevante de la base de conocimientos: ${context.slice(0, 3).join('\n\n')}`,
-        ru: `Релевантная информация из базы знаний: ${context.slice(0, 3).join('\n\n')}`
-      };
-      
-      const contextMessage = contextMessages[language] || contextMessages.en;
-      messages.push({ role: 'user', content: contextMessage });
-      messages.push({ 
-        role: 'assistant', 
-        content: this._getContextAcknowledgment(language)
-      });
+      enhancedSystemPrompt += `\n\nДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ:\n${context.slice(0, 3).join('\n\n')}`;
     }
     
-    // Добавляем только последние 2 сообщения из истории
+    // 🍄 ИСПРАВЛЕНИЕ: Создание сообщений БЕЗ дополнительных контекстных сообщений
+    const messages = [];
+    
+    // ❌ УБИРАЕМ: Контекстные сообщения, которые затирают роль AI-гриба
+    // if (context && context.length > 0) {
+    //   const contextMessage = contextMessages[language] || contextMessages.en;
+    //   messages.push({ role: 'user', content: contextMessage });
+    //   messages.push({ role: 'assistant', content: this._getContextAcknowledgment(language) });
+    // }
+    
+    // ✅ ОСТАВЛЯЕМ: Только последние 2 сообщения из истории для сохранения контекста разговора
     if (history && history.length > 0) {
       const recentHistory = history.slice(-2);
       recentHistory.forEach(msg => {
@@ -481,14 +479,14 @@ class ClaudeService {
     }
     
     try {
-      // ИСПРАВЛЕНИЕ: Передаем системный промпт как параметр верхнего уровня
+      // 🍄 ИСПРАВЛЕНИЕ: Передаем расширенный системный промпт как параметр верхнего уровня
       const claudeConfig = this.config.claude;
       const response = await this.clients.claude.messages.create({
         model: claudeConfig.model,
         max_tokens: claudeConfig.maxTokens,
         temperature: claudeConfig.temperature,
-        system: systemPrompt, // ИСПРАВЛЕНИЕ: system параметр вынесен на верхний уровень
-        messages: messages // ИСПРАВЛЕНИЕ: система нет в массиве messages
+        system: enhancedSystemPrompt, // 🍄 ИСПРАВЛЕНИЕ: Контекст интегрирован в системный промпт
+        messages: messages // 🍄 ИСПРАВЛЕНИЕ: Чистые сообщения без контекстного спама
       });
       
       const answer = response.content[0].text;
@@ -511,7 +509,7 @@ class ClaudeService {
 
   /**
    * Генерация ответа через OpenAI API
-   * 🍄 ОБНОВЛЕНО: Динамическое получение промптов через PromptService
+   * 🍄 ИСПРАВЛЕНО: Убираем контекстные сообщения, которые затирают роль AI-гриба
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
@@ -535,27 +533,25 @@ class ClaudeService {
       // Используем fallback промпт
       systemPrompt = promptService.getDefaultPrompt(context && context.length > 0 ? 'rag' : 'basic', language);
     }
+
+    // 🍄 ИСПРАВЛЕНИЕ: Интегрируем контекст прямо в системный промпт
+    let enhancedSystemPrompt = systemPrompt;
+
+    if (context && context.length > 0) {
+      enhancedSystemPrompt += `\n\nДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ:\n${context.slice(0, 3).join('\n\n')}`;
+    }
     
     // Формирование сообщений для OpenAI
     const messages = [
-      { role: 'system', content: systemPrompt }
+      { role: 'system', content: enhancedSystemPrompt } // 🍄 ИСПРАВЛЕНИЕ: Контекст интегрирован в системный промпт
     ];
     
-    // Добавление контекста если есть
-    if (context && context.length > 0) {
-      const contextMessages = {
-        en: `Relevant information from knowledge base: ${context.slice(0, 3).join('\n\n')}`,
-        es: `Información relevante de la base de conocimientos: ${context.slice(0, 3).join('\n\n')}`,
-        ru: `Релевантная информация из базы знаний: ${context.slice(0, 3).join('\n\n')}`
-      };
-      
-      const contextMessage = contextMessages[language] || contextMessages.en;
-      messages.push({ role: 'user', content: contextMessage });
-      messages.push({ 
-        role: 'assistant', 
-        content: this._getContextAcknowledgment(language)
-      });
-    }
+    // ❌ УБИРАЕМ: Контекстные сообщения, которые затирают роль AI-гриба
+    // if (context && context.length > 0) {
+    //   const contextMessage = contextMessages[language] || contextMessages.en;
+    //   messages.push({ role: 'user', content: contextMessage });
+    //   messages.push({ role: 'assistant', content: this._getContextAcknowledgment(language) });
+    // }
     
     // Добавление истории сообщений
     if (history && history.length > 0) {
@@ -605,19 +601,9 @@ class ClaudeService {
   }
 
   /**
-   * Получает подтверждение понимания контекста на разных языках
-   * @private
-   * @param {string} language - Язык
-   * @returns {string} Подтверждение
+   * 🍄 УБРАНО: Функция получения подтверждения контекста больше не используется
+   * Контекст теперь интегрируется непосредственно в системный промпт
    */
-  _getContextAcknowledgment(language) {
-    const acknowledgments = {
-      en: 'I understand the provided context and will use it to better answer your question.',
-      es: 'Entiendo el contexto proporcionado y lo usaré para responder mejor tu pregunta.',
-      ru: 'Я понимаю предоставленный контекст и использую его для лучшего ответа на твой вопрос.'
-    };
-    return acknowledgments[language] || acknowledgments.en;
-  }
   
   /**
    * Проверяет, является ли сообщение тестовым
