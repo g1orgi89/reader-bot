@@ -663,8 +663,8 @@ class ClaudeService {
   }
   
   /**
-   * Анализирует необходимость создания тикета с учетом языка
-   * 🍄 ОБНОВЛЕНО: Использование PromptService для анализа тикетов
+   * 🍄 ИСПРАВЛЕНО: Упрощенный анализ необходимости создания тикета
+   * Доверяем решение Claude - тикеты создаются только когда Claude сам решит в ответе
    * @private
    * @param {string} response - Ответ от AI
    * @param {string} message - Исходное сообщение
@@ -674,72 +674,58 @@ class ClaudeService {
   async _analyzeTicketNeed(response, message, language = 'en') {
     // Тестовые сообщения не должны создавать тикеты
     if (this._isTestMessage(message)) {
+      logger.debug('🍄 Test message detected, no ticket needed');
       return false;
     }
     
     try {
-      // 🍄 НОВОЕ: Попытка использовать специализированный промпт для определения тикетов
+      // 🍄 ПОПЫТКА 1: Использовать специализированный промпт для определения тикетов
       const ticketPrompt = await promptService.getActivePrompt('ticket_detection', language);
       
       // Если у нас есть специализированный промпт, используем его
       if (ticketPrompt && ticketPrompt !== promptService.getDefaultPrompt('ticket_detection', language)) {
         try {
           const ticketAnalysis = await this._analyzeWithTicketPrompt(response, message, ticketPrompt);
+          logger.info(`🍄 Ticket detection via specialized prompt: ${ticketAnalysis} for message: "${message.substring(0, 30)}..."`);
           return ticketAnalysis;
         } catch (promptError) {
-          logger.warn(`🍄 Ticket detection prompt failed, using fallback: ${promptError.message}`);
-          // Продолжаем с обычной логикой
+          logger.warn(`🍄 Ticket detection prompt failed, using simplified logic: ${promptError.message}`);
+          // Продолжаем с упрощенной логикой
         }
       }
     } catch (error) {
       logger.error(`🍄 Error getting ticket detection prompt: ${error.message}`);
-      // Продолжаем с обычной логикой
+      // Продолжаем с упрощенной логикой
     }
     
-    // 🍄 FALLBACK: Обычная логика определения тикетов (сохранена для совместимости)
-    // Ключевые слова в ответе, указывающие на тикет (мультиязычные)
-    const ticketIndicators = {
-      en: ['create a ticket', 'create ticket', 'support ticket', 'human support', 'technical support', '#TICKET_ID'],
-      ru: ['создать тикет', 'создам тикет', 'тикет поддержки', 'человеческая поддержка', 'техническая поддержка', '#TICKET_ID'],
-      es: ['crear un ticket', 'ticket de soporte', 'soporte humano', 'soporte técnico', '#TICKET_ID']
-    };
+    // 🍄 УПРОЩЕННАЯ ЛОГИКА: Доверяем решение Claude
+    // Тикеты создаются ТОЛЬКО когда Claude сам решил в ответе, что нужен тикет
+    const ticketIndicators = [
+      '#TICKET_ID',
+      'создал тикет',
+      'создать тикет', 
+      'тикет поддержки',
+      'created ticket',
+      'create a ticket',
+      'support ticket',
+      'created a ticket',
+      'crear ticket',
+      'crear un ticket',
+      'ticket de soporte',
+      'creado un ticket'
+    ];
     
-    const currentLanguageKeywords = ticketIndicators[language] || ticketIndicators.en;
-    const allKeywords = [...new Set([].concat(...Object.values(ticketIndicators)))];
-    
-    const responseNeedsTicket = allKeywords.some(indicator => 
+    const responseNeedsTicket = ticketIndicators.some(indicator => 
       response.toLowerCase().includes(indicator.toLowerCase())
     );
     
-    // Проблемные ключевые слова в сообщении пользователя (мультиязычные)
-    const problemKeywords = {
-      en: [/error/i, /problem/i, /issue/i, /stuck/i, /failed/i, /not working/i, /doesn't work/i, /broken/i],
-      ru: [/ошибка/i, /проблема/i, /не работает/i, /не получается/i, /не могу/i, /сломано/i, /зависло/i, /баг/i],
-      es: [/error/i, /problema/i, /no funciona/i, /no puede/i, /roto/i, /falla/i, /bug/i]
-    };
+    if (responseNeedsTicket) {
+      logger.info(`🍄 Ticket creation detected in Claude's response for message: "${message.substring(0, 30)}..."`);
+    } else {
+      logger.debug(`🍄 No ticket indicators found in response for message: "${message.substring(0, 30)}..."`);
+    }
     
-    const currentLanguageProblems = problemKeywords[language] || problemKeywords.en;
-    const allProblems = [].concat(...Object.values(problemKeywords));
-    
-    const messageHasProblem = allProblems.some(keyword => 
-      keyword.test(message)
-    );
-    
-    // Дополнительные проверки для технических проблем
-    const technicalIssues = [
-      /wallet.*connect/i,
-      /transaction.*fail/i,
-      /кошелек.*подключ/i,
-      /транзакция.*ошибка/i,
-      /billetera.*conectar/i,
-      /transacción.*error/i
-    ];
-    
-    const hasTechnicalIssue = technicalIssues.some(pattern => 
-      pattern.test(message)
-    );
-    
-    return responseNeedsTicket || messageHasProblem || hasTechnicalIssue;
+    return responseNeedsTicket;
   }
 
   /**
