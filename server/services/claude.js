@@ -493,8 +493,8 @@ class ClaudeService {
       
       const answer = response.content[0].text;
       
-      // 🍄 ОБНОВЛЕНО: Определяем необходимость создания тикета через PromptService
-      const needsTicket = await this._analyzeTicketNeed(answer, message, language);
+      // 🍄 ИСПРАВЛЕНО: Упрощенная логика определения необходимости создания тикета
+      const needsTicket = this._analyzeTicketNeed(answer, message, language);
       
       return {
         message: answer,
@@ -588,8 +588,8 @@ class ClaudeService {
       
       const answer = response.choices[0].message.content;
       
-      // 🍄 ОБНОВЛЕНО: Определяем необходимость создания тикета через PromptService
-      const needsTicket = await this._analyzeTicketNeed(answer, message, language);
+      // 🍄 ИСПРАВЛЕНО: Упрощенная логика определения необходимости создания тикета
+      const needsTicket = this._analyzeTicketNeed(answer, message, language);
       
       return {
         message: answer,
@@ -663,99 +663,57 @@ class ClaudeService {
   }
   
   /**
-   * 🍄 ИСПРАВЛЕНО: Упрощенный анализ необходимости создания тикета
-   * Доверяем решение Claude - тикеты создаются только когда Claude сам решит в ответе
+   * 🍄 ИСПРАВЛЕНО: Упрощенная логика анализа необходимости создания тикета
+   * Тикеты создаются только для СЕРЬЕЗНЫХ проблем, указанных в ответе Claude
    * @private
    * @param {string} response - Ответ от AI
    * @param {string} message - Исходное сообщение
    * @param {string} language - Язык сообщения
-   * @returns {Promise<boolean>} Нужно ли создавать тикет
+   * @returns {boolean} Нужно ли создавать тикет
    */
-  async _analyzeTicketNeed(response, message, language = 'en') {
-    // Тестовые сообщения не должны создавать тикеты
+  _analyzeTicketNeed(response, message, language = 'en') {
+    // Тестовые сообщения не создают тикеты
     if (this._isTestMessage(message)) {
       logger.debug('🍄 Test message detected, no ticket needed');
       return false;
     }
     
-    try {
-      // 🍄 ПОПЫТКА 1: Использовать специализированный промпт для определения тикетов
-      const ticketPrompt = await promptService.getActivePrompt('ticket_detection', language);
-      
-      // Если у нас есть специализированный промпт, используем его
-      if (ticketPrompt && ticketPrompt !== promptService.getDefaultPrompt('ticket_detection', language)) {
-        try {
-          const ticketAnalysis = await this._analyzeWithTicketPrompt(response, message, ticketPrompt);
-          logger.info(`🍄 Ticket detection via specialized prompt: ${ticketAnalysis} for message: "${message.substring(0, 30)}..."`);
-          return ticketAnalysis;
-        } catch (promptError) {
-          logger.warn(`🍄 Ticket detection prompt failed, using simplified logic: ${promptError.message}`);
-          // Продолжаем с упрощенной логикой
-        }
-      }
-    } catch (error) {
-      logger.error(`🍄 Error getting ticket detection prompt: ${error.message}`);
-      // Продолжаем с упрощенной логикой
-    }
-    
-    // 🍄 УПРОЩЕННАЯ ЛОГИКА: Доверяем решение Claude
-    // Тикеты создаются ТОЛЬКО когда Claude сам решил в ответе, что нужен тикет
-    const ticketIndicators = [
+    // 🍄 НОВАЯ ЛОГИКА: Ищем ТОЛЬКО прямые указания на создание тикета в ответе Claude
+    const directTicketIndicators = [
       '#TICKET_ID',
       'создал тикет',
-      'создать тикет', 
+      'создать тикет',
       'тикет поддержки',
+      'созданы тикет',
       'created ticket',
       'create a ticket',
       'support ticket',
       'created a ticket',
-      'crear ticket',
+      'crear ticket', 
       'crear un ticket',
       'ticket de soporte',
-      'creado un ticket'
+      'creado un ticket',
+      'садовники мицелия',
+      'грибники-эксперты',
+      'наша команда свяжется',
+      'наши эксперты свяжутся'
     ];
     
-    const responseNeedsTicket = ticketIndicators.some(indicator => 
+    // Проверяем только ответ Claude на наличие прямых указаний на тикет
+    const claudeWantsTicket = directTicketIndicators.some(indicator => 
       response.toLowerCase().includes(indicator.toLowerCase())
     );
     
-    if (responseNeedsTicket) {
-      logger.info(`🍄 Ticket creation detected in Claude's response for message: "${message.substring(0, 30)}..."`);
+    if (claudeWantsTicket) {
+      logger.info(`🍄 Ticket creation requested by Claude for message: "${message.substring(0, 30)}..."`);
     } else {
-      logger.debug(`🍄 No ticket indicators found in response for message: "${message.substring(0, 30)}..."`);
+      logger.debug(`🍄 No ticket indicators in Claude response for message: "${message.substring(0, 30)}..."`);
     }
     
-    return responseNeedsTicket;
-  }
-
-  /**
-   * 🍄 НОВОЕ: Анализ через специализированный промпт для определения тикетов
-   * @private
-   * @param {string} response - Ответ AI
-   * @param {string} message - Сообщение пользователя
-   * @param {string} ticketPrompt - Промпт для анализа тикетов
-   * @returns {Promise<boolean>} Нужно ли создавать тикет
-   */
-  async _analyzeWithTicketPrompt(response, message, ticketPrompt) {
-    try {
-      const analysisText = `Response: ${response}\n\nUser Message: ${message}`;
-      
-      const analysis = await this.clients.claude.messages.create({
-        model: this.config.claude.model,
-        max_tokens: 10,
-        temperature: 0.1,
-        system: ticketPrompt,
-        messages: [
-          { role: 'user', content: analysisText }
-        ]
-      });
-      
-      const result = analysis.content[0].text.trim().toLowerCase();
-      return result.includes('да') || result.includes('yes') || result.includes('sí');
-    } catch (error) {
-      logger.error(`🍄 Error in ticket analysis: ${error.message}`);
-      throw error;
-    }
+    // 🍄 УБРАНО: Анализ сообщения пользователя на "проблемные" слова
+    // Теперь доверяем решению Claude, а не ключевым словам в вопросе
+    
+    return claudeWantsTicket;
   }
   
   /**
