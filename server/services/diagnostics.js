@@ -2,9 +2,9 @@
  * Сервис для диагностики проблем пользователей
  * Предоставляет быстрые решения перед созданием тикетов
  * @file server/services/diagnostics.js
+ * 🍄 ИСПРАВЛЕНО: Убрана зависимость от prompts-fixed.js
  */
 
-const { DIAGNOSTIC_QUESTIONS, QUICK_SOLUTIONS } = require('../config/prompts-fixed');
 const logger = require('../utils/logger');
 
 /**
@@ -15,6 +15,239 @@ const logger = require('../utils/logger');
  * @property {boolean} needsTicket - Требуется ли создание тикета
  * @property {string} response - Готовый ответ для пользователя
  */
+
+// 🍄 ИСПРАВЛЕНО: Inline константы вместо внешнего файла prompts-fixed.js
+const DIAGNOSTIC_QUESTIONS = {
+  wallet_connection: {
+    en: [
+      "What wallet are you trying to connect (Xverse, Hiro)?",
+      "Do you see any error message?",
+      "Is your wallet extension enabled?",
+      "Do you have STX for transaction fees?"
+    ],
+    ru: [
+      "Какой кошелек вы пытаетесь подключить (Xverse, Hiro)?",
+      "Видите ли вы сообщение об ошибке?",
+      "Включено ли расширение кошелька?",
+      "Есть ли у вас STX для оплаты комиссий?"
+    ],
+    es: [
+      "¿Qué billetera intentas conectar (Xverse, Hiro)?",
+      "¿Ves algún mensaje de error?",
+      "¿Está habilitada la extensión de la billetera?",
+      "¿Tienes STX para las tarifas de transacción?"
+    ]
+  },
+  
+  transaction_stuck: {
+    en: [
+      "How long has the transaction been pending?",
+      "What is the transaction hash?",
+      "What type of transaction were you making?",
+      "Did you set custom gas fees?"
+    ],
+    ru: [
+      "Как долго транзакция находится в ожидании?",
+      "Какой хеш транзакции?",
+      "Какой тип транзакции вы выполняли?",
+      "Устанавливали ли вы пользовательские комиссии?"
+    ],
+    es: [
+      "¿Cuánto tiempo lleva pendiente la transacción?",
+      "¿Cuál es el hash de la transacción?",
+      "¿Qué tipo de transacción estabas haciendo?",
+      "¿Estableciste tarifas de gas personalizadas?"
+    ]
+  },
+  
+  tokens_missing: {
+    en: [
+      "What tokens are missing?",
+      "When did you last see them?",
+      "What was your last transaction?",
+      "Are you looking at the correct wallet address?"
+    ],
+    ru: [
+      "Какие токены пропали?",
+      "Когда вы их видели в последний раз?",
+      "Какая была ваша последняя транзакция?",
+      "Проверяете ли вы правильный адрес кошелька?"
+    ],
+    es: [
+      "¿Qué tokens faltan?",
+      "¿Cuándo los viste por última vez?",
+      "¿Cuál fue tu última transacción?",
+      "¿Estás mirando la dirección de billetera correcta?"
+    ]
+  },
+  
+  staking_issues: {
+    en: [
+      "What error do you see when staking?",
+      "How much are you trying to stake?",
+      "Which staking pool are you using?",
+      "Do you have enough tokens for fees?"
+    ],
+    ru: [
+      "Какую ошибку вы видите при стейкинге?",
+      "Сколько вы пытаетесь застейкать?",
+      "Какой пул стейкинга используете?",
+      "Достаточно ли у вас токенов для комиссий?"
+    ],
+    es: [
+      "¿Qué error ves al hacer staking?",
+      "¿Cuánto intentas apostar?",
+      "¿Qué pool de staking estás usando?",
+      "¿Tienes suficientes tokens para las tarifas?"
+    ]
+  },
+  
+  farming_issues: {
+    en: [
+      "Which farming pool has the issue?",
+      "Are you able to see your deposited tokens?",
+      "When did you last harvest rewards?",
+      "Do you see any error messages?"
+    ],
+    ru: [
+      "В каком пуле фарминга проблема?",
+      "Видите ли вы депозитные токены?",
+      "Когда вы в последний раз собирали награды?",
+      "Видите ли вы сообщения об ошибках?"
+    ],
+    es: [
+      "¿Qué pool de farming tiene el problema?",
+      "¿Puedes ver tus tokens depositados?",
+      "¿Cuándo cosechaste recompensas por última vez?",
+      "¿Ves algún mensaje de error?"
+    ]
+  }
+};
+
+const QUICK_SOLUTIONS = {
+  wallet_connection: {
+    en: [
+      "1. Refresh the page and try connecting again",
+      "2. Make sure your wallet extension is unlocked",
+      "3. Clear browser cache and cookies",
+      "4. Try connecting in incognito mode",
+      "5. Disable other wallet extensions temporarily",
+      "6. Check if wallet has sufficient STX for fees"
+    ],
+    ru: [
+      "1. Обновите страницу и попробуйте подключиться снова",
+      "2. Убедитесь, что расширение кошелька разблокировано",
+      "3. Очистите кеш и куки браузера",
+      "4. Попробуйте подключиться в режиме инкогнито",
+      "5. Временно отключите другие расширения кошельков",
+      "6. Проверьте, достаточно ли STX для комиссий"
+    ],
+    es: [
+      "1. Actualiza la página e intenta conectar de nuevo",
+      "2. Asegúrate de que la extensión de la billetera esté desbloqueada",
+      "3. Limpia el caché y las cookies del navegador",
+      "4. Intenta conectar en modo incógnito",
+      "5. Desactiva temporalmente otras extensiones de billetera",
+      "6. Verifica que tengas suficiente STX para las tarifas"
+    ]
+  },
+  
+  transaction_stuck: {
+    en: [
+      "1. Check transaction status on Stacks Explorer",
+      "2. Wait for network congestion to clear (can take 30-60 minutes)",
+      "3. Do not retry the same transaction multiple times",
+      "4. Check if you have enough STX for fees",
+      "5. Try increasing gas fees for future transactions"
+    ],
+    ru: [
+      "1. Проверьте статус транзакции в Stacks Explorer",
+      "2. Подождите пока пройдет перегрузка сети (может занять 30-60 минут)",
+      "3. Не пытайтесь повторить ту же транзакцию несколько раз",
+      "4. Проверьте, достаточно ли у вас STX для комиссий",
+      "5. Попробуйте увеличить комиссии для будущих транзакций"
+    ],
+    es: [
+      "1. Verifica el estado de la transacción en Stacks Explorer",
+      "2. Espera a que se despeje la congestión de la red (puede tomar 30-60 minutos)",
+      "3. No reintentes la misma transacción múltiples veces",
+      "4. Verifica que tengas suficiente STX para las tarifas",
+      "5. Intenta aumentar las tarifas de gas para futuras transacciones"
+    ]
+  },
+  
+  tokens_missing: {
+    en: [
+      "1. Check if you're viewing the correct wallet address",
+      "2. Look for pending transactions that might not be confirmed",
+      "3. Verify transaction history on Stacks Explorer",
+      "4. Make sure you didn't send tokens to wrong address",
+      "5. Check if tokens are staked or in farming pools"
+    ],
+    ru: [
+      "1. Проверьте, что смотрите на правильный адрес кошелька",
+      "2. Поищите ожидающие транзакции, которые могут быть не подтверждены",
+      "3. Проверьте историю транзакций в Stacks Explorer",
+      "4. Убедитесь, что не отправили токены на неправильный адрес",
+      "5. Проверьте, не находятся ли токены в стейкинге или фарминге"
+    ],
+    es: [
+      "1. Verifica que estés viendo la dirección de billetera correcta",
+      "2. Busca transacciones pendientes que podrían no estar confirmadas",
+      "3. Verifica el historial de transacciones en Stacks Explorer",
+      "4. Asegúrate de no haber enviado tokens a la dirección incorrecta",
+      "5. Verifica si los tokens están en staking o en pools de farming"
+    ]
+  },
+  
+  staking_issues: {
+    en: [
+      "1. Make sure you have minimum required amount for staking",
+      "2. Check that you have enough STX for transaction fees",
+      "3. Try refreshing the page and reconnecting wallet",
+      "4. Verify that the staking pool is active",
+      "5. Check if there are any maintenance periods"
+    ],
+    ru: [
+      "1. Убедитесь, что у вас есть минимальная сумма для стейкинга",
+      "2. Проверьте, что у вас достаточно STX для комиссий",
+      "3. Попробуйте обновить страницу и переподключить кошелек",
+      "4. Убедитесь, что пул стейкинга активен",
+      "5. Проверьте, нет ли периодов обслуживания"
+    ],
+    es: [
+      "1. Asegúrate de tener la cantidad mínima requerida para staking",
+      "2. Verifica que tengas suficiente STX para las tarifas de transacción",
+      "3. Intenta actualizar la página y reconectar la billetera",
+      "4. Verifica que el pool de staking esté activo",
+      "5. Verifica si hay períodos de mantenimiento"
+    ]
+  },
+  
+  farming_issues: {
+    en: [
+      "1. Check if the farming pool is still active",
+      "2. Verify that you have liquidity tokens in the pool",
+      "3. Try harvesting rewards to see if they appear",
+      "4. Refresh the page and reconnect your wallet",
+      "5. Check pool statistics for any changes"
+    ],
+    ru: [
+      "1. Проверьте, активен ли пул фарминга",
+      "2. Убедитесь, что у вас есть токены ликвидности в пуле",
+      "3. Попробуйте собрать награды чтобы увидеть, появятся ли они",
+      "4. Обновите страницу и переподключите кошелек",
+      "5. Проверьте статистику пула на предмет изменений"
+    ],
+    es: [
+      "1. Verifica si el pool de farming sigue activo",
+      "2. Verifica que tengas tokens de liquidez en el pool",
+      "3. Intenta cosechar recompensas para ver si aparecen",
+      "4. Actualiza la página y reconecta tu billetera",
+      "5. Verifica las estadísticas del pool para cualquier cambio"
+    ]
+  }
+};
 
 /**
  * Класс для диагностики проблем пользователей
