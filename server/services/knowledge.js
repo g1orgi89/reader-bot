@@ -1,5 +1,5 @@
 /**
- * Knowledge Base Service - Enhanced with combined search
+ * Knowledge Base Service - Enhanced with combined search and chunking support
  * @file server/services/knowledge.js
  */
 
@@ -8,8 +8,17 @@ const vectorStoreService = require('./vectorStore');
 const logger = require('../utils/logger');
 
 /**
+ * @typedef {Object} ChunkingOptions
+ * @property {boolean} [enableChunking=true] - Включить автоматический чанкинг
+ * @property {number} [chunkSize=500] - Размер чанка в символах
+ * @property {number} [overlap=100] - Перекрытие между чанками
+ * @property {number} [minChunkSize=50] - Минимальный размер чанка
+ * @property {boolean} [preserveParagraphs=true] - Сохранять целостность параграфов
+ */
+
+/**
  * @class KnowledgeService
- * @description Service for managing knowledge base with enhanced search
+ * @description Service for managing knowledge base with enhanced search and chunking
  */
 class KnowledgeService {
   /**
@@ -17,6 +26,39 @@ class KnowledgeService {
    */
   constructor() {
     this.initialized = false;
+    
+    // Настройки чанкинга по умолчанию для разных типов документов
+    this.defaultChunkingOptions = {
+      enableChunking: true,
+      chunkSize: 500,      // Оптимально для качественных embeddings
+      overlap: 100,        // Сохранение контекста между чанками
+      minChunkSize: 50,    // Избегаем слишком маленьких чанков
+      preserveParagraphs: true  // Сохраняем целостность параграфов
+    };
+    
+    // Специальные настройки чанкинга для разных категорий
+    this.categoryChunkingOptions = {
+      'user-guide': {
+        chunkSize: 600,    // Больше для пошаговых инструкций
+        overlap: 150,      // Больше overlap для сохранения последовательности
+        preserveParagraphs: true
+      },
+      'technical': {
+        chunkSize: 800,    // Больше для технической документации
+        overlap: 200,      // Больше overlap для технических терминов
+        preserveParagraphs: true
+      },
+      'troubleshooting': {
+        chunkSize: 400,    // Меньше для быстрого поиска решений
+        overlap: 100,
+        preserveParagraphs: true
+      },
+      'tokenomics': {
+        chunkSize: 500,    // Стандартный размер
+        overlap: 100,
+        preserveParagraphs: true
+      }
+    };
   }
 
   /**
@@ -54,12 +96,14 @@ class KnowledgeService {
       }
 
       this.initialized = true;
-      logger.info('Knowledge service initialized successfully');
+      logger.info('🍄 Knowledge service initialized successfully with chunking support');
+      logger.info(`🍄 Default chunking options: ${JSON.stringify(this.defaultChunkingOptions)}`);
       
       return {
         success: true,
-        message: 'Knowledge service initialized',
-        type: 'mongodb-enhanced'
+        message: 'Knowledge service initialized with chunking support',
+        type: 'mongodb-enhanced-chunking',
+        chunkingEnabled: this.defaultChunkingOptions.enableChunking
       };
     } catch (error) {
       logger.error('Knowledge service initialization failed:', error);
@@ -71,7 +115,47 @@ class KnowledgeService {
   }
 
   /**
-   * Add a document to the knowledge base
+   * Получает оптимальные настройки чанкинга для документа
+   * @private
+   * @param {string} category - Категория документа
+   * @param {string} content - Содержимое документа
+   * @param {ChunkingOptions} [userOptions={}] - Пользовательские настройки
+   * @returns {ChunkingOptions} Оптимизированные настройки чанкинга
+   */
+  _getOptimalChunkingOptions(category, content, userOptions = {}) {
+    // Базовые настройки по категории
+    const categoryOptions = this.categoryChunkingOptions[category] || {};
+    
+    // Адаптация настроек в зависимости от размера документа
+    const contentLength = content?.length || 0;
+    let adaptiveOptions = {};
+    
+    if (contentLength < 1000) {
+      // Маленькие документы - отключаем чанкинг
+      adaptiveOptions = { enableChunking: false };
+    } else if (contentLength < 2000) {
+      // Средние документы - маленькие чанки
+      adaptiveOptions = { chunkSize: 400, overlap: 80 };
+    } else if (contentLength > 10000) {
+      // Большие документы - большие чанки
+      adaptiveOptions = { chunkSize: 600, overlap: 150 };
+    }
+    
+    // Объединяем все настройки с приоритетом пользовательских
+    const finalOptions = {
+      ...this.defaultChunkingOptions,
+      ...categoryOptions,
+      ...adaptiveOptions,
+      ...userOptions
+    };
+    
+    logger.debug(`🍄 Chunking options for category '${category}' (${contentLength} chars): ${JSON.stringify(finalOptions)}`);
+    
+    return finalOptions;
+  }
+
+  /**
+   * Add a document to the knowledge base with optimized chunking
    * @param {Object} docData - Document data
    * @param {string} docData.title - Document title
    * @param {string} docData.content - Document content
@@ -79,24 +163,34 @@ class KnowledgeService {
    * @param {string} [docData.language='en'] - Document language
    * @param {string[]} [docData.tags=[]] - Document tags
    * @param {string} [docData.authorId] - Author ID
+   * @param {ChunkingOptions} [chunkingOptions={}] - Custom chunking options
    * @returns {Promise<Object>} Creation result
    */
-  async addDocument(docData) {
+  async addDocument(docData, chunkingOptions = {}) {
     try {
       // Сохраняем в MongoDB
       const document = new KnowledgeDocument(docData);
       await document.save();
 
       const result = document.toPublicJSON();
-      logger.info(`Knowledge document added to MongoDB: ${result.id} - "${result.title}"`);
+      logger.info(`🍄 Knowledge document added to MongoDB: ${result.id} - "${result.title}"`);
 
-      // ИСПРАВЛЕНО: Добавляем документ также в векторное хранилище
+      // Добавляем документ также в векторное хранилище с чанкингом
       try {
         // Инициализируем векторное хранилище, если не инициализировано
         await vectorStoreService.initialize();
         
+        // Определяем оптимальные настройки чанкинга
+        const optimalChunkingOptions = this._getOptimalChunkingOptions(
+          result.category, 
+          result.content, 
+          chunkingOptions
+        );
+        
+        logger.info(`🍄 Adding document to vector store with chunking: ${optimalChunkingOptions.enableChunking ? 'enabled' : 'disabled'}`);
+        
         // Добавляем документ в векторное хранилище
-        await vectorStoreService.addDocuments([{
+        const vectorSuccess = await vectorStoreService.addDocuments([{
           id: result.id,
           content: result.content,
           metadata: {
@@ -108,20 +202,25 @@ class KnowledgeService {
             createdAt: result.createdAt,
             updatedAt: result.updatedAt
           }
-        }]);
+        }], optimalChunkingOptions);
         
-        logger.info(`Knowledge document added to vector store: ${result.id}`);
+        if (vectorSuccess) {
+          logger.info(`🍄 Knowledge document successfully vectorized: ${result.id}`);
+        } else {
+          logger.warn(`🍄 Failed to vectorize document: ${result.id}`);
+        }
       } catch (vectorError) {
         // Если не удалось добавить в векторное хранилище, логируем ошибку, но продолжаем
-        logger.error(`Failed to add document to vector store: ${vectorError.message}`);
+        logger.error(`🍄 Failed to add document to vector store: ${vectorError.message}`);
       }
 
       return {
         success: true,
-        data: result
+        data: result,
+        chunkingUsed: chunkingOptions.enableChunking !== false
       };
     } catch (error) {
-      logger.error('Failed to add knowledge document:', error);
+      logger.error('🍄 Failed to add knowledge document:', error);
       return {
         success: false,
         error: error.message
@@ -139,6 +238,7 @@ class KnowledgeService {
    * @param {number} [options.limit=10] - Maximum results
    * @param {number} [options.page=1] - Page number
    * @param {boolean} [options.forceRegex=false] - Force regex search for Cyrillic
+   * @param {boolean} [options.useVectorSearch=true] - Use vector search when available
    * @returns {Promise<Object>} Search results
    */
   async search(query, options = {}) {
@@ -149,9 +249,50 @@ class KnowledgeService {
         tags = [],
         limit = 10,
         page = 1,
-        forceRegex = false
+        forceRegex = false,
+        useVectorSearch = true
       } = options;
 
+      // Попробуем сначала векторный поиск, если доступен
+      if (useVectorSearch) {
+        try {
+          const vectorResults = await vectorStoreService.search(query, {
+            language,
+            category,
+            tags,
+            limit
+          });
+          
+          if (vectorResults && vectorResults.length > 0) {
+            logger.info(`🍄 Vector search found ${vectorResults.length} results for: "${query.substring(0, 50)}..."`);
+            
+            const formattedResults = vectorResults.map(doc => ({
+              id: doc.id,
+              title: doc.metadata?.title || '',
+              content: doc.content,
+              category: doc.metadata?.category || '',
+              language: doc.metadata?.language || 'en',
+              tags: doc.metadata?.tags || [],
+              createdAt: doc.metadata?.createdAt,
+              updatedAt: doc.metadata?.updatedAt,
+              score: doc.score
+            }));
+
+            return {
+              success: true,
+              data: formattedResults,
+              query,
+              count: formattedResults.length,
+              searchType: 'vector',
+              chunkingUsed: true
+            };
+          }
+        } catch (vectorError) {
+          logger.warn(`🍄 Vector search failed, falling back to MongoDB: ${vectorError.message}`);
+        }
+      }
+
+      // Fallback на MongoDB поиск
       // Check if query contains Cyrillic characters
       const hasCyrillic = /[а-яё]/i.test(query);
       
@@ -196,10 +337,11 @@ class KnowledgeService {
         data: formattedResults,
         query,
         count: formattedResults.length,
-        searchType
+        searchType,
+        chunkingUsed: false
       };
     } catch (error) {
-      logger.error('Knowledge search failed:', error);
+      logger.error('🍄 Knowledge search failed:', error);
       return {
         success: false,
         error: error.message,
@@ -271,7 +413,7 @@ class KnowledgeService {
         }
       };
     } catch (error) {
-      logger.error('Failed to get knowledge documents:', error);
+      logger.error('🍄 Failed to get knowledge documents:', error);
       return {
         success: false,
         error: error.message
@@ -311,7 +453,7 @@ class KnowledgeService {
         data: result
       };
     } catch (error) {
-      logger.error('Failed to get knowledge document:', error);
+      logger.error('🍄 Failed to get knowledge document:', error);
       return {
         success: false,
         error: error.message
@@ -320,12 +462,13 @@ class KnowledgeService {
   }
 
   /**
-   * Update a document
+   * Update a document with re-chunking support
    * @param {string} documentId - Document ID
    * @param {Object} updateData - Data to update
+   * @param {ChunkingOptions} [chunkingOptions={}] - Custom chunking options for re-vectorization
    * @returns {Promise<Object>} Update result
    */
-  async updateDocument(documentId, updateData) {
+  async updateDocument(documentId, updateData, chunkingOptions = {}) {
     try {
       // Remove fields that shouldn't be updated
       const cleanedData = { ...updateData };
@@ -347,12 +490,21 @@ class KnowledgeService {
       }
 
       const result = document.toPublicJSON();
-      logger.info(`Knowledge document updated in MongoDB: ${documentId}`);
+      logger.info(`🍄 Knowledge document updated in MongoDB: ${documentId}`);
 
-      // ИСПРАВЛЕНО: Обновляем документ в векторном хранилище
+      // Обновляем документ в векторном хранилище с новым чанкингом
       try {
-        // Обновляем документ в векторном хранилище
-        await vectorStoreService.addDocuments([{
+        // Определяем оптимальные настройки чанкинга для обновленного документа
+        const optimalChunkingOptions = this._getOptimalChunkingOptions(
+          result.category, 
+          result.content, 
+          chunkingOptions
+        );
+        
+        logger.info(`🍄 Re-vectorizing document with chunking: ${optimalChunkingOptions.enableChunking ? 'enabled' : 'disabled'}`);
+        
+        // Обновляем документ в векторном хранилище (addDocuments заменит существующие чанки)
+        const vectorSuccess = await vectorStoreService.addDocuments([{
           id: result.id,
           content: result.content,
           metadata: {
@@ -364,19 +516,24 @@ class KnowledgeService {
             createdAt: result.createdAt,
             updatedAt: result.updatedAt
           }
-        }]);
+        }], optimalChunkingOptions);
         
-        logger.info(`Knowledge document updated in vector store: ${result.id}`);
+        if (vectorSuccess) {
+          logger.info(`🍄 Knowledge document successfully re-vectorized: ${result.id}`);
+        } else {
+          logger.warn(`🍄 Failed to re-vectorize document: ${result.id}`);
+        }
       } catch (vectorError) {
-        logger.error(`Failed to update document in vector store: ${vectorError.message}`);
+        logger.error(`🍄 Failed to update document in vector store: ${vectorError.message}`);
       }
 
       return {
         success: true,
-        data: result
+        data: result,
+        chunkingUsed: chunkingOptions.enableChunking !== false
       };
     } catch (error) {
-      logger.error('Failed to update knowledge document:', error);
+      logger.error('🍄 Failed to update knowledge document:', error);
       return {
         success: false,
         error: error.message
@@ -385,7 +542,7 @@ class KnowledgeService {
   }
 
   /**
-   * Delete a document
+   * Delete a document and all its chunks
    * @param {string} documentId - Document ID
    * @returns {Promise<Object>} Deletion result
    */
@@ -400,22 +557,26 @@ class KnowledgeService {
         };
       }
 
-      logger.info(`Knowledge document deleted from MongoDB: ${documentId}`);
+      logger.info(`🍄 Knowledge document deleted from MongoDB: ${documentId}`);
 
-      // ИСПРАВЛЕНО: Удаляем документ из векторного хранилища
+      // Удаляем документ и все его чанки из векторного хранилища
       try {
-        await vectorStoreService.deleteDocument(documentId);
-        logger.info(`Knowledge document deleted from vector store: ${documentId}`);
+        const vectorSuccess = await vectorStoreService.deleteDocument(documentId);
+        if (vectorSuccess) {
+          logger.info(`🍄 Knowledge document and chunks deleted from vector store: ${documentId}`);
+        } else {
+          logger.warn(`🍄 Failed to delete some chunks from vector store: ${documentId}`);
+        }
       } catch (vectorError) {
-        logger.error(`Failed to delete document from vector store: ${vectorError.message}`);
+        logger.error(`🍄 Failed to delete document from vector store: ${vectorError.message}`);
       }
 
       return {
         success: true,
-        message: 'Document deleted successfully'
+        message: 'Document and all chunks deleted successfully'
       };
     } catch (error) {
-      logger.error('Failed to delete knowledge document:', error);
+      logger.error('🍄 Failed to delete knowledge document:', error);
       return {
         success: false,
         error: error.message
@@ -424,23 +585,61 @@ class KnowledgeService {
   }
 
   /**
-   * Get relevant context for a query (enhanced search)
+   * Get relevant context for a query using vector search with chunking
    * @param {string} query - Search query
    * @param {Object} options - Search options
    * @param {string} [options.language] - Filter by language
    * @param {number} [options.limit=3] - Maximum context documents
+   * @param {boolean} [options.useVectorSearch=true] - Use vector search when available
    * @returns {Promise<Object>} Context documents
    */
   async getContextForQuery(query, options = {}) {
     try {
-      const { language, limit = 3 } = options;
+      const { language, limit = 3, useVectorSearch = true } = options;
 
-      // Search for relevant documents
+      // Сначала пробуем векторный поиск для лучшей релевантности
+      if (useVectorSearch) {
+        try {
+          const vectorResults = await vectorStoreService.search(query, {
+            language,
+            limit: limit * 2  // Ищем больше для лучшего выбора
+          });
+          
+          if (vectorResults && vectorResults.length > 0) {
+            // Форматируем контекст из векторных результатов
+            const context = vectorResults
+              .slice(0, limit)  // Берем только нужное количество
+              .map(doc => ({
+                title: doc.metadata?.title || 'Untitled',
+                content: doc.content,
+                category: doc.metadata?.category || '',
+                score: doc.score,
+                language: doc.metadata?.language || language,
+                source: 'vector'
+              }));
+
+            logger.info(`🍄 Vector search provided ${context.length} context documents with chunking`);
+
+            return {
+              success: true,
+              data: context,
+              count: context.length,
+              searchType: 'vector',
+              chunkingUsed: true
+            };
+          }
+        } catch (vectorError) {
+          logger.warn(`🍄 Vector context search failed, falling back to MongoDB: ${vectorError.message}`);
+        }
+      }
+
+      // Fallback на обычный поиск
       const searchResult = await this.search(query, {
         language,
         limit,
         page: 1,
-        forceRegex: /[а-яё]/i.test(query) // Force regex for Cyrillic
+        forceRegex: /[а-яё]/i.test(query), // Force regex for Cyrillic
+        useVectorSearch: false // Избегаем рекурсии
       });
 
       if (!searchResult.success) {
@@ -456,17 +655,19 @@ class KnowledgeService {
         content: doc.content,
         category: doc.category,
         score: doc.score,
-        language: doc.language
+        language: doc.language,
+        source: 'mongodb'
       }));
 
       return {
         success: true,
         data: context,
         count: context.length,
-        searchType: searchResult.searchType
+        searchType: searchResult.searchType,
+        chunkingUsed: false
       };
     } catch (error) {
-      logger.error('Failed to get context for query:', error);
+      logger.error('🍄 Failed to get context for query:', error);
       return {
         success: false,
         error: error.message
@@ -475,7 +676,102 @@ class KnowledgeService {
   }
 
   /**
-   * Get knowledge service health status
+   * Synchronize all documents to vector store with chunking
+   * @param {ChunkingOptions} [globalChunkingOptions={}] - Global chunking options
+   * @returns {Promise<Object>} Synchronization result
+   */
+  async syncToVectorStore(globalChunkingOptions = {}) {
+    try {
+      logger.info('🍄 Starting full synchronization to vector store with chunking...');
+      
+      // Get all published documents
+      const allDocuments = await KnowledgeDocument.find({ status: 'published' }).lean();
+      
+      if (allDocuments.length === 0) {
+        return {
+          success: true,
+          message: 'No documents to synchronize',
+          processed: 0,
+          errors: 0
+        };
+      }
+
+      logger.info(`🍄 Found ${allDocuments.length} documents to synchronize`);
+      
+      // Clear existing collection to avoid duplicates
+      await vectorStoreService.clearCollection();
+      
+      let processed = 0;
+      let errors = 0;
+      const batchSize = 5; // Process in small batches to avoid overwhelming the system
+      
+      // Process documents in batches
+      for (let i = 0; i < allDocuments.length; i += batchSize) {
+        const batch = allDocuments.slice(i, i + batchSize);
+        
+        for (const doc of batch) {
+          try {
+            // Determine optimal chunking options for each document
+            const optimalChunkingOptions = this._getOptimalChunkingOptions(
+              doc.category, 
+              doc.content, 
+              globalChunkingOptions
+            );
+            
+            const vectorSuccess = await vectorStoreService.addDocuments([{
+              id: doc._id.toString(),
+              content: doc.content,
+              metadata: {
+                title: doc.title,
+                category: doc.category,
+                language: doc.language,
+                tags: doc.tags || [],
+                authorId: doc.authorId,
+                createdAt: doc.createdAt,
+                updatedAt: doc.updatedAt
+              }
+            }], optimalChunkingOptions);
+            
+            if (vectorSuccess) {
+              processed++;
+              logger.debug(`🍄 Synced document: ${doc._id} - "${doc.title}"`);
+            } else {
+              errors++;
+              logger.warn(`🍄 Failed to sync document: ${doc._id}`);
+            }
+          } catch (docError) {
+            errors++;
+            logger.error(`🍄 Error syncing document ${doc._id}: ${docError.message}`);
+          }
+        }
+        
+        // Small delay between batches to prevent overwhelming
+        if (i + batchSize < allDocuments.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      logger.info(`🍄 Synchronization completed: ${processed} processed, ${errors} errors`);
+      
+      return {
+        success: true,
+        message: `Synchronization completed with chunking`,
+        processed,
+        errors,
+        total: allDocuments.length,
+        chunkingUsed: globalChunkingOptions.enableChunking !== false
+      };
+    } catch (error) {
+      logger.error('🍄 Full synchronization failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Get knowledge service health status with chunking info
    * @returns {Promise<Object>} Health status
    */
   async healthCheck() {
@@ -490,17 +786,82 @@ class KnowledgeService {
       // Check if we can query documents
       const testQuery = await KnowledgeDocument.countDocuments({ status: 'published' });
 
+      // Check vector store health
+      let vectorStoreHealth = { status: 'unknown' };
+      try {
+        vectorStoreHealth = await vectorStoreService.healthCheck();
+      } catch (vectorError) {
+        vectorStoreHealth = {
+          status: 'error',
+          message: vectorError.message
+        };
+      }
+
       return {
         status: 'healthy',
-        message: 'Knowledge service is working',
+        message: 'Knowledge service is working with chunking support',
         documentCount: testQuery,
-        type: 'mongodb-enhanced'
+        type: 'mongodb-enhanced-chunking',
+        vectorStore: vectorStoreHealth,
+        chunkingEnabled: this.defaultChunkingOptions.enableChunking,
+        categoryOptions: Object.keys(this.categoryChunkingOptions)
       };
     } catch (error) {
-      logger.error('Knowledge service health check failed:', error);
+      logger.error('🍄 Knowledge service health check failed:', error);
       return {
         status: 'unhealthy',
         message: error.message
+      };
+    }
+  }
+
+  /**
+   * Get detailed statistics including chunking info
+   * @returns {Promise<Object>} Detailed statistics
+   */
+  async getStats() {
+    try {
+      // MongoDB statistics
+      const mongoStats = await Promise.all([
+        KnowledgeDocument.countDocuments({ status: 'published' }),
+        KnowledgeDocument.countDocuments({ status: 'published', language: 'en' }),
+        KnowledgeDocument.countDocuments({ status: 'published', language: 'ru' }),
+        KnowledgeDocument.countDocuments({ status: 'published', language: 'es' })
+      ]);
+
+      // Vector store statistics
+      let vectorStats = { status: 'unknown', chunksCount: 0, documentsCount: 0 };
+      try {
+        vectorStats = await vectorStoreService.getStats();
+      } catch (vectorError) {
+        logger.warn(`🍄 Could not get vector store stats: ${vectorError.message}`);
+      }
+
+      return {
+        success: true,
+        mongodb: {
+          totalDocuments: mongoStats[0],
+          languages: {
+            en: mongoStats[1],
+            ru: mongoStats[2],
+            es: mongoStats[3]
+          }
+        },
+        vectorStore: vectorStats,
+        chunking: {
+          enabled: this.defaultChunkingOptions.enableChunking,
+          defaultOptions: this.defaultChunkingOptions,
+          categoryOptions: this.categoryChunkingOptions,
+          averageChunksPerDocument: vectorStats.documentsCount > 0 
+            ? Math.round(vectorStats.chunksCount / vectorStats.documentsCount) 
+            : 0
+        }
+      };
+    } catch (error) {
+      logger.error('🍄 Failed to get knowledge service stats:', error);
+      return {
+        success: false,
+        error: error.message
       };
     }
   }
