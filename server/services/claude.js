@@ -417,7 +417,7 @@ class ClaudeService {
 
   /**
    * Генерация ответа через Claude API
-   * 🍄 ИСПРАВЛЕНО: Убираем контекстные сообщения, которые затирают роль AI-гриба
+   * 🍄 ИСПРАВЛЕНО: Убираем контекстные сообщения, которые затирали роль AI-гриба
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
@@ -459,9 +459,9 @@ class ClaudeService {
     //   messages.push({ role: 'assistant', content: this._getContextAcknowledgment(language) });
     // }
     
-    // ✅ ОСТАВЛЯЕМ: Только последние 2 сообщения из истории для сохранения контекста разговора
+    // ✅ УЛУЧШЕНО: Берём последние 4 сообщения из истории (2 пары вопрос-ответ)
     if (history && history.length > 0) {
-      const recentHistory = history.slice(-2);
+      const recentHistory = history.slice(-4); // Увеличено с -2 до -4
       recentHistory.forEach(msg => {
         messages.push({
           role: msg.role === 'user' ? 'user' : 'assistant',
@@ -475,7 +475,7 @@ class ClaudeService {
     
     // Loggers
     if (userId) {
-      logger.info(`🍄 Generating Claude response for user ${userId} (lang: ${language})`);
+      logger.info(`🍄 Generating Claude response for user ${userId} (lang: ${language}, history: ${history?.length || 0} msgs)`);
     }
     
     try {
@@ -509,7 +509,7 @@ class ClaudeService {
 
   /**
    * Генерация ответа через OpenAI API
-   * 🍄 ИСПРАВЛЕНО: Убираем контекстные сообщения, которые затирают роль AI-гриба
+   * 🍄 ИСПРАВЛЕНО: Убираем контекстные сообщения, которые затирали роль AI-гриба
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
@@ -553,7 +553,7 @@ class ClaudeService {
     //   messages.push({ role: 'assistant', content: this._getContextAcknowledgment(language) });
     // }
     
-    // Добавление истории сообщений
+    // Добавление истории сообщений (оставляем 5 для OpenAI)
     if (history && history.length > 0) {
       const recentHistory = history.slice(-5); // больше историй для OpenAI
       recentHistory.forEach(msg => {
@@ -569,7 +569,7 @@ class ClaudeService {
     
     // Loggers
     if (userId) {
-      logger.info(`🍄 Generating OpenAI response for user ${userId} (lang: ${language})`);
+      logger.info(`🍄 Generating OpenAI response for user ${userId} (lang: ${language}, history: ${history?.length || 0} msgs)`);
     }
     
     try {
