@@ -611,23 +611,34 @@ class KnowledgeService {
 
   /**
    * Get relevant context for a query using vector search with chunking
+   * 🍄 ИСПРАВЛЕНО: Теперь правильно использует returnChunks=true для получения отдельных чанков
    * @param {string} query - Search query
    * @param {Object} options - Search options
    * @param {string} [options.language] - Filter by language
-   * @param {number} [options.limit=3] - Maximum context documents
+   * @param {number} [options.limit=3] - Maximum context documents/chunks
    * @param {boolean} [options.useVectorSearch=true] - Use vector search when available
-   * @returns {Promise<Object>} Context documents
+   * @param {boolean} [options.returnChunks=true] - Return individual chunks for better context (🍄 НОВОЕ!)
+   * @returns {Promise<Object>} Context documents/chunks
    */
   async getContextForQuery(query, options = {}) {
     try {
-      const { language, limit = 3, useVectorSearch = true } = options;
+      const { 
+        language, 
+        limit = 3, 
+        useVectorSearch = true,
+        returnChunks = true  // 🍄 ИСПРАВЛЕНО: По умолчанию возвращаем чанки для лучшего контекста
+      } = options;
 
-      // Сначала пробуем векторный поиск для лучшей релевантности
+      // 🍄 ИСПРАВЛЕНО: Сначала пробуем векторный поиск для лучшей релевантности с чанкингом
       if (useVectorSearch) {
         try {
+          logger.info(`🍄 Searching context with chunking mode: ${returnChunks ? 'individual chunks' : 'grouped documents'}`);
+          
+          // 🍄 ИСПРАВЛЕНО: Теперь передаем returnChunks=true для получения отдельных чанков!
           const vectorResults = await vectorStoreService.search(query, {
             language,
-            limit: limit * 2  // Ищем больше для лучшего выбора
+            limit: returnChunks ? limit * 2 : limit,  // Ищем больше чанков если нужны отдельные чанки
+            returnChunks  // 🍄 КРИТИЧЕСКИ ВАЖНО: теперь передаем этот параметр!
           });
           
           if (vectorResults && vectorResults.length > 0) {
@@ -640,17 +651,26 @@ class KnowledgeService {
                 category: doc.metadata?.category || '',
                 score: doc.score,
                 language: doc.metadata?.language || language,
-                source: 'vector'
+                source: 'vector',
+                // 🍄 НОВОЕ: Добавляем информацию о чанкинге в контекст
+                isChunk: doc.isChunk || false,
+                chunkInfo: doc.chunkInfo || null
               }));
 
-            logger.info(`🍄 Vector search provided ${context.length} context documents with chunking`);
+            const chunkingUsed = context.some(ctx => ctx.isChunk);
+            const chunkCount = context.filter(ctx => ctx.isChunk).length;
+            
+            logger.info(`🍄 Vector search provided ${context.length} context items (${chunkCount} chunks, ${context.length - chunkCount} documents) with chunking`);
 
             return {
               success: true,
               data: context,
               count: context.length,
               searchType: 'vector',
-              chunkingUsed: true
+              chunkingUsed,
+              chunksReturned: chunkCount,
+              documentsReturned: context.length - chunkCount,
+              returnChunks
             };
           }
         } catch (vectorError) {
@@ -658,13 +678,16 @@ class KnowledgeService {
         }
       }
 
-      // Fallback на обычный поиск
+      // Fallback на обычный поиск (MongoDB)
+      logger.info(`🍄 Using MongoDB fallback for context search`);
+      
       const searchResult = await this.search(query, {
         language,
         limit,
         page: 1,
         forceRegex: /[а-яё]/i.test(query), // Force regex for Cyrillic
-        useVectorSearch: false // Избегаем рекурсии
+        useVectorSearch: false, // Избегаем рекурсии
+        returnChunks: false     // MongoDB не поддерживает чанкинг
       });
 
       if (!searchResult.success) {
@@ -681,7 +704,9 @@ class KnowledgeService {
         category: doc.category,
         score: doc.score,
         language: doc.language,
-        source: 'mongodb'
+        source: 'mongodb',
+        isChunk: false,
+        chunkInfo: null
       }));
 
       return {
@@ -689,7 +714,10 @@ class KnowledgeService {
         data: context,
         count: context.length,
         searchType: searchResult.searchType,
-        chunkingUsed: false
+        chunkingUsed: false,
+        chunksReturned: 0,
+        documentsReturned: context.length,
+        returnChunks: false
       };
     } catch (error) {
       logger.error('🍄 Failed to get context for query:', error);
