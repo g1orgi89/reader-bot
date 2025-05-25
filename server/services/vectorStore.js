@@ -29,6 +29,7 @@ const { createHash } = require('crypto');
  * @property {string} [category] - Фильтр по категории
  * @property {string[]} [tags] - Фильтр по тегам
  * @property {number} [score_threshold] - Минимальный порог релевантности (если не указан, используется автоматический)
+ * @property {boolean} [returnChunks=false] - Возвращать отдельные чанки вместо группировки по документам
  */
 
 /**
@@ -37,6 +38,8 @@ const { createHash } = require('crypto');
  * @property {string} content - Содержимое документа
  * @property {DocumentMetadata} metadata - Метаданные документа
  * @property {number} score - Релевантность (0-1)
+ * @property {boolean} [isChunk] - Является ли результат чанком (только при returnChunks=true)
+ * @property {Object} [chunkInfo] - Информация о чанке (только при returnChunks=true)
  */
 
 /**
@@ -447,7 +450,8 @@ class VectorStoreService {
         limit = 5, 
         language, 
         category, 
-        tags
+        tags,
+        returnChunks = false  // НОВАЯ ОПЦИЯ: для возврата отдельных чанков
       } = options;
       
       // Определяем порог автоматически на основе языка, если не задан явно
@@ -456,8 +460,8 @@ class VectorStoreService {
         : this._getLanguageThreshold(language);
       
       logger.info(`🍄 Searching for relevant documents with adaptive threshold: ${score_threshold} (language: ${language || 'auto'})`);
-      logger.info(`Searching for: "${query.substring(0, 30)}${query.length > 30 ? '...' : ''}" with options: ${JSON.stringify({
-        limit, language, category, tags: Array.isArray(tags) ? tags.length : tags, score_threshold
+      logger.info(`Searching for: \"${query.substring(0, 30)}${query.length > 30 ? '...' : ''}\" with options: ${JSON.stringify({
+        limit, language, category, tags: Array.isArray(tags) ? tags.length : tags, score_threshold, returnChunks
       })}`);
       
       // Создание embedding для запроса
@@ -523,6 +527,30 @@ class VectorStoreService {
         logger.debug(`🍄 Search returned no results with adaptive threshold: ${score_threshold} for language: ${language || 'auto'}`);
         logger.info(`🍄 No chunks found above threshold ${score_threshold} - query may not be relevant to knowledge base`);
       }
+
+      // НОВОЕ: Выбор между возвратом чанков или группировкой по документам
+      if (returnChunks) {
+        // Возвращаем чанки как есть для детального анализа
+        const results = searchResults
+          .slice(0, limit)
+          .map(result => ({
+            id: result.payload.metadata.id,
+            content: result.payload.content,
+            metadata: result.payload.metadata,
+            score: result.score,
+            isChunk: result.payload.metadata.originalId !== result.payload.metadata.id,
+            chunkInfo: result.payload.metadata.originalId !== result.payload.metadata.id ? {
+              originalId: result.payload.metadata.originalId,
+              chunkIndex: result.payload.metadata.chunkIndex,
+              totalChunks: result.payload.metadata.totalChunks,
+              startPosition: result.payload.metadata.startPosition,
+              endPosition: result.payload.metadata.endPosition
+            } : null
+          }));
+
+        logger.info(`🍄 Found ${results.length} relevant chunks (detailed mode)`);
+        return results;
+      }
       
       // Группировка результатов по originalId и выбор лучшего чанка для каждого документа
       const groupedResults = new Map();
@@ -540,25 +568,35 @@ class VectorStoreService {
       const results = Array.from(groupedResults.values())
         .sort((a, b) => b.score - a.score) // Сортируем по релевантности
         .slice(0, limit) // Ограничиваем количество документов
-        .map(result => ({
-          id: result.payload.metadata.originalId || result.payload.metadata.id,
-          content: result.payload.content,
-          metadata: {
-            ...result.payload.metadata,
-            // Убираем служебные поля чанкинга из пользовательского вывода
-            chunkIndex: undefined,
-            totalChunks: undefined,
-            startPosition: undefined,
-            endPosition: undefined
-          },
-          score: result.score
-        }));
+        .map(result => {
+          const isChunk = result.payload.metadata.originalId !== result.payload.metadata.id;
+          
+          return {
+            id: result.payload.metadata.originalId || result.payload.metadata.id,
+            content: result.payload.content,
+            metadata: {
+              ...result.payload.metadata,
+              // Убираем служебные поля чанкинга из пользовательского вывода при группировке
+              chunkIndex: undefined,
+              totalChunks: undefined,
+              startPosition: undefined,
+              endPosition: undefined,
+              // Но добавляем информацию о том, что это результат из чанка
+              sourceType: isChunk ? 'chunk' : 'document',
+              sourceChunkIndex: isChunk ? result.payload.metadata.chunkIndex : undefined
+            },
+            score: result.score
+          };
+        });
       
       logger.info(`🍄 Found ${results.length} relevant documents (from ${searchResults.length} chunks)`);
       
       // Добавляем подробное логирование результатов
       results.forEach((result, index) => {
-        logger.debug(`🍄 Result #${index+1}: ID=${result.id}, Score=${result.score.toFixed(4)}, Language=${result.metadata?.language || 'unknown'}`);
+        const sourceInfo = result.metadata.sourceType === 'chunk' 
+          ? `chunk ${result.metadata.sourceChunkIndex}` 
+          : 'full document';
+        logger.debug(`🍄 Result #${index+1}: ID=${result.id}, Score=${result.score.toFixed(4)}, Source=${sourceInfo}, Language=${result.metadata?.language || 'unknown'}`);
         logger.debug(`🍄 Content preview: ${result.content.substring(0, 100)}${result.content.length > 100 ? '...' : ''}`);
       });
       
