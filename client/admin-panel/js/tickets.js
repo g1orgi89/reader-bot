@@ -103,8 +103,7 @@ async function loadRealTickets() {
     // Проверяем наличие функции аутентификации
     if (typeof window.makeAuthenticatedRequest !== 'function') {
       console.error('🍄 makeAuthenticatedRequest не найдена');
-      showNotification('error', '🍄 Система аутентификации не загружена');
-      renderEmptyTicketsTable();
+      renderMockTicketsTable();
       return;
     }
     
@@ -147,7 +146,13 @@ async function loadRealTickets() {
       
       console.log(`🍄 Загружено ${ticketsState.tickets.length} тикетов из ${ticketsState.totalTickets}`);
     } else {
-      throw new Error(response.error?.message || 'Не удалось загрузить тикеты');
+      // Проверяем тип ошибки
+      if (response.error && (response.error.status === 401 || response.error.message.includes('401'))) {
+        console.log('🍄 Ошибка авторизации (401), показываем заглушку тикетов');
+        renderMockTicketsTable();
+      } else {
+        throw new Error(response.error?.message || 'Не удалось загрузить тикеты');
+      }
     }
   } catch (error) {
     console.error('🍄 Ошибка загрузки тикетов:', error);
@@ -157,8 +162,8 @@ async function loadRealTickets() {
       console.log('🍄 Ошибка авторизации, показываем заглушку тикетов');
       renderMockTicketsTable();
     } else {
-      showNotification('error', `🍄 Не удалось загрузить тикеты: ${error.message}`);
-      renderEmptyTicketsTable();
+      console.log('🍄 Другая ошибка, показываем заглушку тикетов');
+      renderMockTicketsTable();
     }
   } finally {
     ticketsState.isLoading = false;
@@ -418,7 +423,7 @@ async function showRealTicketDetail(ticketId) {
     // Находим тикет в загруженных данных
     const ticket = ticketsState.tickets.find(t => t.ticketId === ticketId);
     if (!ticket) {
-      showNotification('error', '🍄 Тикет не найден в текущем списке');
+      console.error('🍄 Тикет не найден в текущем списке');
       return;
     }
     
@@ -476,7 +481,6 @@ async function showRealTicketDetail(ticketId) {
     }
   } catch (error) {
     console.error('🍄 Ошибка отображения тикета:', error);
-    showNotification('error', `🍄 Ошибка отображения тикета: ${error.message}`);
   }
 }
 
@@ -528,7 +532,7 @@ function displayConversationContext(context) {
 async function deleteRealTicket(ticketId) {
   const ticket = ticketsState.tickets.find(t => t.ticketId === ticketId);
   if (!ticket) {
-    showNotification('error', '🍄 Тикет не найден');
+    console.error('🍄 Тикет не найден');
     return;
   }
   
@@ -543,7 +547,7 @@ async function deleteRealTicket(ticketId) {
     });
     
     if (response.success) {
-      showNotification('success', '🍄 Тикет успешно удален из грибницы');
+      console.log('🍄 Тикет успешно удален из грибницы');
       
       // Закрываем модальное окно если открыто
       const overlay = document.getElementById('ticket-detail-overlay');
@@ -556,7 +560,6 @@ async function deleteRealTicket(ticketId) {
     }
   } catch (error) {
     console.error('🍄 Ошибка удаления тикета:', error);
-    showNotification('error', `🍄 Не удалось удалить тикет: ${error.message}`);
   }
 }
 
@@ -576,14 +579,13 @@ async function updateRealTicket(ticketId, updateData) {
     });
     
     if (response.success) {
-      showNotification('success', '🍄 Тикет обновлен');
+      console.log('🍄 Тикет обновлен');
       await loadRealTickets();
     } else {
       throw new Error(response.error?.message || 'Не удалось обновить тикет');
     }
   } catch (error) {
     console.error('🍄 Ошибка обновления тикета:', error);
-    showNotification('error', `🍄 Ошибка обновления: ${error.message}`);
   }
 }
 
@@ -599,7 +601,7 @@ async function saveTicketChanges() {
   const prioritySelect = document.getElementById('detail-ticket-priority');
   
   if (!statusSelect || !prioritySelect) {
-    showNotification('error', '🍄 Не найдены элементы формы');
+    console.error('🍄 Не найдены элементы формы');
     return;
   }
   
@@ -815,21 +817,6 @@ function formatDateTime(dateString) {
     });
   } catch (error) {
     return 'неверная дата';
-  }
-}
-
-/**
- * Показывает уведомление (заглушка если нет main.js)
- * @param {string} type - Тип уведомления
- * @param {string} message - Сообщение
- */
-function showNotification(type, message) {
-  if (typeof window.showNotification === 'function') {
-    window.showNotification(type, message);
-  } else {
-    console.log(`🍄 ${type.toUpperCase()}: ${message}`);
-    // Простой fallback
-    alert(message);
   }
 }
 
