@@ -296,7 +296,61 @@
 
 .col-actions {
   text-align: center;
-  width: 120px;
+  width: 180px; /* УВЕЛИЧЕНО для двух кнопок */
+}
+
+/* ==========================================================================
+   НОВЫЕ СТИЛИ ДЛЯ КНОПОК В ТАБЛИЦЕ
+   ========================================================================== */
+.table-action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-table-action {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+  min-width: 70px;
+}
+
+.btn-table-view {
+  background: var(--neon-blue);
+  color: var(--dark-bg);
+}
+
+.btn-table-view:hover {
+  background: var(--neon-green);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 255, 249, 0.3);
+}
+
+.btn-table-delete {
+  background: var(--btn-danger);
+  color: white;
+}
+
+.btn-table-delete:hover {
+  background: #c0392b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
+}
+
+/* Анимация для кнопок при наведении на строку */
+.tickets-table tbody tr:hover .btn-table-action {
+  transform: scale(1.05);
 }
 
 /* ==========================================================================
@@ -937,6 +991,10 @@
   .tickets-filters {
     grid-template-columns: 1fr;
   }
+  
+  .col-actions {
+    width: 160px; /* Уменьшаем на планшетах */
+  }
 }
 
 @media (max-width: 768px) {
@@ -993,6 +1051,18 @@
   .deletion-actions {
     justify-content: center;
   }
+  
+  /* Адаптивность для кнопок в таблице */
+  .table-action-buttons {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  
+  .btn-table-action {
+    min-width: 60px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1032,5 +1102,20 @@
   
   .btn-copy-mini {
     align-self: flex-end;
+  }
+  
+  /* Компактная версия для мобильных */
+  .col-actions {
+    width: 100px;
+  }
+  
+  .btn-table-action {
+    min-width: 40px;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.65rem;
+  }
+  
+  .table-action-buttons {
+    gap: 0.2rem;
   }
 }
