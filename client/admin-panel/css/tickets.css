@@ -1,429 +1,734 @@
 /**
- * tickets.css - стили для страницы управления тикетами админ-панели Shrooms AI Support Bot
+ * tickets.css - стили для управления тикетами Shrooms Support Bot
+ * Следует общей грибной тематике проекта
+ * 
+ * @fileoverview CSS стили для страницы управления тикетами поддержки
+ * @author Shrooms Development Team
  */
 
-/* ---------- Заголовок страницы тикетов ---------- */
+/* ==========================================================================
+   ПЕРЕМЕННЫЕ ДЛЯ ТИКЕТОВ
+   ========================================================================== */
+:root {
+  /* Грибные цвета из основной темы */
+  --neon-green: #39FF14;
+  --deep-purple: #8A2BE2;
+  --dark-bg: #121212;
+  --card-bg: #1e1e1e;
+  --text-light: #E0E0E0;
+  --text-white: #FFFFFF;
+  --neon-pink: #FF6EC7;
+  --neon-blue: #00FFF9;
+  
+  /* Специфичные цвета для тикетов */
+  --status-open: #ff6b6b;
+  --status-in-progress: #4ecdc4;
+  --status-resolved: #45b7d1;
+  --status-closed: #6c757d;
+  
+  --priority-low: #28a745;
+  --priority-medium: #ffc107;
+  --priority-high: #fd7e14;
+  --priority-urgent: #dc3545;
+  
+  /* Анимации */
+  --transition-fast: 0.2s ease;
+  --transition-smooth: 0.3s ease;
+  --glow-animation: 1.5s ease-in-out infinite alternate;
+}
+
+/* ==========================================================================
+   ОБЩИЕ СТИЛИ ДЛЯ СТРАНИЦЫ ТИКЕТОВ
+   ========================================================================== */
+.tickets-page {
+  min-height: 100vh;
+  background: var(--dark-bg);
+  color: var(--text-light);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.tickets-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* ==========================================================================
+   ЗАГОЛОВОК СТРАНИЦЫ
+   ========================================================================== */
 .tickets-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--neon-green);
 }
 
-.tickets-actions {
-  display: flex;
-  gap: var(--spacing-md);
-  align-items: center;
+.tickets-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-white);
+  text-shadow: 0 0 10px var(--neon-green);
+  margin: 0;
+}
+
+.tickets-title::before {
+  content: "🎫 ";
+  filter: drop-shadow(0 0 5px var(--neon-green));
+}
+
+/* ==========================================================================
+   ФИЛЬТРЫ И ПОИСК
+   ========================================================================== */
+.tickets-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--neon-green);
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
 }
 
 .filter-group {
   display: flex;
-  gap: var(--spacing-md);
-  align-items: center;
-}
-
-/* ---------- Контейнер списка тикетов ---------- */
-.tickets-container {
-  position: relative;
-}
-
-/* Специфические стили для таблицы тикетов */
-.tickets-container .data-table .col-id {
-  width: 80px;
-}
-
-.tickets-container .data-table .col-subject {
-  min-width: 250px;
-}
-
-.tickets-container .data-table .col-status {
-  width: 120px;
-  text-align: center;
-}
-
-.tickets-container .data-table .col-priority {
-  width: 120px;
-  text-align: center;
-}
-
-.tickets-container .data-table .col-user {
-  width: 150px;
-}
-
-.tickets-container .data-table .col-created,
-.tickets-container .data-table .col-updated {
-  width: 180px;
-}
-
-.tickets-container .data-table .col-actions {
-  width: 120px;
-  text-align: right;
-}
-
-/* Стили для задержки загрузки */
-.table-loading {
-  text-align: center;
-  padding: var(--spacing-xl);
-  color: var(--color-text-dim);
-}
-
-/* ---------- Контейнер детальной информации о тикете ---------- */
-.ticket-detail-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(5, 5, 5, 0.85);
-  backdrop-filter: blur(5px);
-  z-index: 1000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  visibility: hidden;
-  transition: all var(--animation-normal) ease-in-out;
-}
-
-.ticket-detail-overlay.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-.ticket-detail-container {
-  width: 90%;
-  max-width: 900px;
-  max-height: 90vh;
-  overflow-y: auto;
-  background-color: var(--color-bg-card);
-  border-radius: var(--border-radius-lg);
-  box-shadow: 0 0 30px rgba(57, 255, 20, 0.15);
-  display: flex;
   flex-direction: column;
-  transform: translateY(20px);
-  transition: transform var(--animation-normal) ease-out;
+  gap: 0.5rem;
 }
 
-.ticket-detail-overlay.active .ticket-detail-container {
-  transform: translateY(0);
-}
-
-/* Стили для заголовка детальной информации */
-.ticket-detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-lg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: sticky;
-  top: 0;
-  background-color: var(--color-bg-card);
-  z-index: 10;
-}
-
-.ticket-detail-header h3 {
-  margin-bottom: 0;
-  font-size: var(--font-size-lg);
-}
-
-/* Стили для контента детальной информации */
-.ticket-detail-content {
-  padding: var(--spacing-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-}
-
-/* Стили для основной информации о тикете */
-.ticket-info {
-  display: flex;
-  gap: var(--spacing-lg);
-  flex-wrap: wrap;
-}
-
-.ticket-info > div {
-  flex: 1;
-  min-width: 200px;
-}
-
-.ticket-info label, 
-.ticket-subject label,
-.ticket-user-info label,
-.ticket-dates label,
-.ticket-message label,
-.ticket-conversation label,
-.ticket-response label,
-.ticket-resolution label {
-  display: block;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-dim);
-  margin-bottom: var(--spacing-xs);
-}
-
-/* Стили для темы тикета */
-.ticket-subject {
-  margin-bottom: var(--spacing-md);
-}
-
-#detail-ticket-subject {
-  font-size: var(--font-size-lg);
+.filter-label {
   font-weight: 600;
-  color: var(--color-text-bright);
+  color: var(--neon-green);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* Стили для даты */
-.ticket-dates {
-  display: flex;
-  gap: var(--spacing-xl);
+.filter-select,
+.filter-input {
+  padding: 0.75rem;
+  background: var(--dark-bg);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: var(--text-white);
+  font-size: 1rem;
+  transition: var(--transition-smooth);
 }
 
-.ticket-dates > div {
-  flex: 1;
+.filter-select:focus,
+.filter-input:focus {
+  outline: none;
+  border-color: var(--neon-green);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
 }
 
-/* Стили для сообщения */
-.ticket-message {
-  margin-top: var(--spacing-md);
+.filter-input::placeholder {
+  color: var(--text-light);
+  opacity: 0.7;
 }
 
-.message-content {
-  background-color: rgba(18, 18, 18, 0.5);
-  border-radius: var(--border-radius-md);
-  padding: var(--spacing-md);
-  white-space: pre-wrap;
-  max-height: 200px;
-  overflow-y: auto;
+/* ==========================================================================
+   ТАБЛИЦА ТИКЕТОВ
+   ========================================================================== */
+.tickets-table-container {
+  background: var(--card-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--neon-green);
+  box-shadow: 0 0 30px rgba(57, 255, 20, 0.1);
 }
 
-/* Стили для истории переписки */
-.ticket-conversation {
-  margin-top: var(--spacing-md);
+.tickets-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.conversation-container {
-  background-color: rgba(18, 18, 18, 0.5);
-  border-radius: var(--border-radius-md);
-  padding: var(--spacing-md);
-  max-height: 300px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
+.tickets-table thead {
+  background: linear-gradient(135deg, var(--neon-green), var(--neon-blue));
 }
 
-.conversation-message {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius-md);
+.tickets-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 700;
+  color: var(--dark-bg);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   position: relative;
 }
 
-.conversation-message.user {
-  background-color: rgba(138, 43, 226, 0.15);
-  align-self: flex-start;
-  margin-right: 20%;
-  border-top-left-radius: 0;
+.tickets-table th::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--dark-bg);
+  opacity: 0.3;
 }
 
-.conversation-message.admin {
-  background-color: rgba(57, 255, 20, 0.1);
-  align-self: flex-end;
-  margin-left: 20%;
-  border-top-right-radius: 0;
+.tickets-table tbody tr {
+  border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+  transition: var(--transition-fast);
 }
 
-.conversation-message-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-dim);
+.tickets-table tbody tr:hover {
+  background: rgba(57, 255, 20, 0.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(57, 255, 20, 0.1);
 }
 
-.conversation-message-sender {
+.tickets-table td {
+  padding: 1rem;
+  vertical-align: middle;
+  color: var(--text-light);
+}
+
+/* Специфичные стили для колонок */
+.col-id {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: var(--neon-blue);
+  font-weight: 600;
+}
+
+.col-subject {
   font-weight: 500;
-  color: var(--color-text-light);
+  color: var(--text-white);
+  max-width: 300px;
 }
 
-.conversation-message-content {
-  white-space: pre-wrap;
+.col-user {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: var(--neon-pink);
 }
 
-.conversation-message-time {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-dim);
-  align-self: flex-end;
+.col-created,
+.col-updated {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  white-space: nowrap;
 }
 
-/* Стили для формы ответа */
-.ticket-response {
-  margin-top: var(--spacing-md);
+.col-actions {
+  text-align: center;
+  width: 120px;
 }
 
-#ticket-response-text {
-  width: 100%;
-  min-height: 120px;
-  resize: vertical;
-  margin-bottom: var(--spacing-md);
+/* ==========================================================================
+   БЕЙДЖИ СТАТУСОВ И ПРИОРИТЕТОВ
+   ========================================================================== */
+.status-badge,
+.priority-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
-/* Стили для формы разрешения тикета */
-.ticket-resolution {
-  margin-top: var(--spacing-md);
-  display: none;
+/* Статусы */
+.status-open {
+  background: var(--status-open);
+  color: white;
+  animation: pulse-red var(--glow-animation);
 }
 
-.ticket-resolution.active {
-  display: block;
+.status-in_progress {
+  background: var(--status-in-progress);
+  color: white;
+  animation: pulse-teal var(--glow-animation);
 }
 
-#ticket-resolution-text {
-  width: 100%;
-  min-height: 100px;
-  resize: vertical;
-  margin-bottom: var(--spacing-md);
+.status-resolved {
+  background: var(--status-resolved);
+  color: white;
 }
 
-/* Стили для кнопок действий */
-.ticket-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-lg);
+.status-closed {
+  background: var(--status-closed);
+  color: white;
 }
 
-/* ---------- Пагинация ---------- */
-.pagination-container {
+/* Приоритеты */
+.priority-low {
+  background: var(--priority-low);
+  color: white;
+}
+
+.priority-medium {
+  background: var(--priority-medium);
+  color: var(--dark-bg);
+}
+
+.priority-high {
+  background: var(--priority-high);
+  color: white;
+}
+
+.priority-urgent {
+  background: var(--priority-urgent);
+  color: white;
+  animation: pulse-red var(--glow-animation);
+}
+
+/* ==========================================================================
+   АНИМАЦИИ ДЛЯ БЕЙДЖЕЙ
+   ========================================================================== */
+@keyframes pulse-red {
+  from { box-shadow: 0 0 5px rgba(220, 53, 69, 0.5); }
+  to { box-shadow: 0 0 15px rgba(220, 53, 69, 0.8); }
+}
+
+@keyframes pulse-teal {
+  from { box-shadow: 0 0 5px rgba(78, 205, 196, 0.5); }
+  to { box-shadow: 0 0 15px rgba(78, 205, 196, 0.8); }
+}
+
+/* ==========================================================================
+   ПАГИНАЦИЯ
+   ========================================================================== */
+.tickets-pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--spacing-md);
-  padding-top: var(--spacing-md);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 2rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--neon-green);
 }
 
 .pagination-info {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-dim);
+  color: var(--text-light);
+  font-size: 0.9rem;
 }
 
 .pagination-controls {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+  gap: 1rem;
 }
 
-#pagination-current {
-  font-size: var(--font-size-sm);
+.pagination-btn {
+  padding: 0.5rem 1rem;
+  background: var(--neon-green);
+  color: var(--dark-bg);
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
 }
 
-/* ---------- Кнопки действий в таблице ---------- */
-.action-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-xs);
+.pagination-btn:hover:not(:disabled) {
+  background: var(--neon-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 249, 0.3);
 }
 
-.action-view,
-.action-edit,
-.action-resolve,
-.action-close {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
+.pagination-btn:disabled {
+  background: var(--status-closed);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ==========================================================================
+   МОДАЛЬНОЕ ОКНО ДЕТАЛЬНОГО ПРОСМОТРА
+   ========================================================================== */
+.ticket-detail-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: none;
   justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.ticket-detail-modal {
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 2px solid var(--neon-green);
+  box-shadow: 0 0 50px rgba(57, 255, 20, 0.2);
+  max-width: 800px;
+  width: 90%;
+  max-height: 90%;
+  overflow-y: auto;
+  position: relative;
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ticket-detail-header {
+  padding: 2rem;
+  border-bottom: 2px solid var(--neon-green);
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.1), rgba(0, 255, 249, 0.1));
+}
+
+.ticket-detail-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-white);
+  margin: 0 0 0.5rem 0;
+  text-shadow: 0 0 10px var(--neon-green);
+}
+
+.ticket-detail-id {
+  font-family: 'Courier New', monospace;
+  color: var(--neon-blue);
+  font-size: 0.9rem;
+}
+
+.ticket-detail-body {
+  padding: 2rem;
+}
+
+.detail-section {
+  margin-bottom: 2rem;
+}
+
+.detail-section-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--neon-green);
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.detail-field {
+  background: var(--dark-bg);
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid var(--neon-green);
+}
+
+.detail-field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--neon-green);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.detail-field-value {
+  color: var(--text-white);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* ==========================================================================
+   КОНТЕКСТ ДИАЛОГА
+   ========================================================================== */
+.conversation-context {
+  background: var(--dark-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--neon-green);
+}
+
+.conversation-message {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  position: relative;
+}
+
+.user-message {
+  background: rgba(255, 110, 199, 0.1);
+  border-left: 4px solid var(--neon-pink);
+}
+
+.bot-message {
+  background: rgba(57, 255, 20, 0.1);
+  border-left: 4px solid var(--neon-green);
+}
+
+.conversation-meta {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(57, 255, 20, 0.2);
+}
+
+/* ==========================================================================
+   КНОПКИ И ЭЛЕМЕНТЫ УПРАВЛЕНИЯ
+   ========================================================================== */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.btn-primary {
+  background: var(--neon-green);
+  color: var(--dark-bg);
+}
+
+.btn-primary:hover {
+  background: var(--neon-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 249, 0.3);
+}
+
+.btn-danger {
+  background: var(--status-open);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #e74c3c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-light);
+  border: 2px solid var(--text-light);
+}
+
+.btn-secondary:hover {
+  background: var(--text-light);
+  color: var(--dark-bg);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   ЗАГРУЗКА И ПУСТЫЕ СОСТОЯНИЯ
+   ========================================================================== */
+.table-loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.table-empty {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--neon-green);
   border-radius: 50%;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-light);
-  background-color: rgba(18, 18, 18, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all var(--animation-fast) ease-in-out;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
 }
 
-.action-view:hover {
-  background-color: rgba(57, 255, 20, 0.2);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-.action-edit:hover {
-  background-color: rgba(0, 255, 249, 0.2);
-  border-color: var(--color-info);
-  color: var(--color-info);
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.action-resolve:hover {
-  background-color: rgba(255, 204, 0, 0.2);
-  border-color: var(--color-warning);
-  color: var(--color-warning);
+/* ==========================================================================
+   УВЕДОМЛЕНИЯ
+   ========================================================================== */
+.notification {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  z-index: 1100;
+  animation: slideInRight 0.3s ease;
+  max-width: 400px;
+  word-wrap: break-word;
 }
 
-.action-close:hover {
-  background-color: rgba(255, 51, 102, 0.2);
-  border-color: var(--color-danger);
-  color: var(--color-danger);
+.notification.success {
+  background: var(--priority-low);
+  border-left: 4px solid #1e7e34;
 }
 
-/* Адаптивные стили */
+.notification.error {
+  background: var(--status-open);
+  border-left: 4px solid #c82333;
+}
+
+.notification.warning {
+  background: var(--priority-medium);
+  color: var(--dark-bg);
+  border-left: 4px solid #e0a800;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   СЕЛЕКТЫ В МОДАЛЬНОМ ОКНЕ
+   ========================================================================== */
+.detail-select {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--dark-bg);
+  border: 2px solid var(--neon-green);
+  border-radius: 8px;
+  color: var(--text-white);
+  font-size: 1rem;
+}
+
+.detail-select:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+}
+
+/* ==========================================================================
+   КНОПКИ ДЕЙСТВИЙ В МОДАЛЬНОМ ОКНЕ
+   ========================================================================== */
+.ticket-detail-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding: 2rem;
+  border-top: 2px solid var(--neon-green);
+  background: rgba(57, 255, 20, 0.05);
+}
+
+.close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+
+.close-btn:hover {
+  background: var(--status-open);
+  color: white;
+}
+
+/* ==========================================================================
+   АДАПТИВНОСТЬ
+   ========================================================================== */
 @media (max-width: 1200px) {
-  .filter-group {
-    flex-wrap: wrap;
+  .tickets-container {
+    padding: 1rem;
   }
   
-  .ticket-info {
-    flex-direction: column;
-    gap: var(--spacing-md);
-  }
-  
-  .ticket-dates {
-    flex-direction: column;
-    gap: var(--spacing-md);
+  .tickets-filters {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
   .tickets-header {
     flex-direction: column;
+    gap: 1rem;
     align-items: flex-start;
-    gap: var(--spacing-md);
   }
   
-  .tickets-actions {
-    width: 100%;
+  .tickets-title {
+    font-size: 2rem;
+  }
+  
+  .tickets-table-container {
+    overflow-x: auto;
+  }
+  
+  .tickets-table {
+    min-width: 800px;
+  }
+  
+  .ticket-detail-modal {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .ticket-detail-header,
+  .ticket-detail-body,
+  .ticket-detail-actions {
+    padding: 1rem;
+  }
+  
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .tickets-pagination {
     flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .filter-group {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .filter-group select,
-  .filter-group input {
-    width: 100%;
-  }
-  
-  .ticket-actions {
-    flex-direction: column;
-  }
-  
-  .ticket-actions button {
-    width: 100%;
+    gap: 1rem;
   }
 }
 
 @media (max-width: 480px) {
-  .pagination-container {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-md);
+  .tickets-title {
+    font-size: 1.5rem;
   }
   
-  .pagination-controls {
-    width: 100%;
-    justify-content: space-between;
+  .filter-group {
+    gap: 0.25rem;
+  }
+  
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .ticket-detail-actions {
+    flex-direction: column;
   }
 }
