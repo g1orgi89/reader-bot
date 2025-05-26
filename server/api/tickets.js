@@ -366,14 +366,67 @@ router.patch('/:id', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * Закрыть тикет
+ * 🗑️ ФИЗИЧЕСКИ УДАЛИТЬ тикет (НЕОБРАТИМО)
  * @route DELETE /api/tickets/:id
  * @access Private (Admin)
+ * @param {string} id - ID тикета (ticketId или MongoDB ObjectId)
+ * @returns {Promise<TicketResponse>} Подтверждение удаления
+ */
+router.delete('/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Получаем информацию об администраторе для логирования
+    const deletedBy = req.admin ? `${req.admin.username} (${req.admin.id})` : 'Administrator';
+    
+    // Пробуем удалить тикет сначала по ticketId, затем по ObjectId
+    let deletedTicket = await ticketService.deleteTicketByTicketId(id, deletedBy);
+    
+    if (!deletedTicket && id.match(/^[0-9a-fA-F]{24}$/)) {
+      deletedTicket = await ticketService.deleteTicketById(id, deletedBy);
+    }
+
+    if (!deletedTicket) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket not found',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    // Формируем безопасный ответ (без полных данных тикета)
+    const response = {
+      success: true,
+      data: {
+        ticketId: deletedTicket.ticketId,
+        subject: deletedTicket.subject,
+        status: 'deleted',
+        deletedAt: new Date().toISOString(),
+        deletedBy: deletedBy
+      },
+      message: `Ticket ${deletedTicket.ticketId} permanently deleted`
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error(`Error deleting ticket ${req.params.id}: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete ticket',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * 🔒 Закрыть тикет (НЕ удалять)
+ * @route POST /api/tickets/:id/close
+ * @access Private (Admin) 
  * @param {string} id - ID тикета
  * @body {Object} closeData - Причина закрытия
  * @returns {Promise<TicketResponse>} Закрытый тикет
  */
-router.delete('/:id', requireAdminAuth, async (req, res) => {
+router.post('/:id/close', requireAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { resolution = 'Closed by administrator' } = req.body;
