@@ -158,21 +158,38 @@ async function loadRealTickets() {
         console.log('🍄 Ошибка авторизации (401), показываем заглушку тикетов');
         renderMockTicketsTable();
       } else {
-        throw new Error(response?.error?.message || response?.error || 'Не удалось загрузить тикеты');
+        console.log('🍄 API ответил неуспешно, показываем заглушку тикетов');
+        renderMockTicketsTable();
       }
     }
   } catch (error) {
     console.error('🍄 Ошибка загрузки тикетов:', error);
     
-    // Если ошибка авторизации, показываем заглушку
-    const errorMessage = error.message || error.toString();
-    if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('token')) {
+    // ИСПРАВЛЕНО: Безопасная обработка всех типов ошибок
+    let isAuthError = false;
+    
+    // Проверяем разные варианты ошибок аутентификации
+    if (error && error.message) {
+      const errorMessage = error.message.toString();
+      isAuthError = errorMessage.includes('401') || 
+                   errorMessage.includes('Unauthorized') || 
+                   errorMessage.includes('Authentication required') ||
+                   errorMessage.includes('token') ||
+                   errorMessage.includes('авторизац');
+    } else if (error && typeof error === 'string') {
+      isAuthError = error.includes('401') || 
+                   error.includes('Unauthorized') || 
+                   error.includes('Authentication required');
+    }
+    
+    if (isAuthError) {
       console.log('🍄 Ошибка авторизации, показываем заглушку тикетов');
-      renderMockTicketsTable();
     } else {
       console.log('🍄 Другая ошибка, показываем заглушку тикетов');
-      renderMockTicketsTable();
     }
+    
+    // В любом случае показываем заглушку
+    renderMockTicketsTable();
   } finally {
     ticketsState.isLoading = false;
     updateLoadingState(false);
