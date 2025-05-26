@@ -223,32 +223,7 @@
                 </div>
             </div>
             
-            <!-- Farming Rate Control -->
-            <div class="farming-rate-container glow-card">
-                <div class="section-header">
-                    <h3>🚜 Управление Доходностью Фарминга</h3>
-                    <div class="last-updated">Последнее обновление: <span id="farming-last-updated">--</span></div>
-                </div>
-                
-                <form id="farming-rate-form" class="farming-rate-form">
-                    <div class="form-group">
-                        <label for="farming-rate">Текущая доходность фарминга SHROOMS (%):</label>
-                        <div class="rate-input-group">
-                            <input type="number" id="farming-rate" name="farming-rate" 
-                                   min="0" max="100" step="0.1" required placeholder="12.5">
-                            <span class="rate-suffix">%</span>
-                        </div>
-                        <small class="rate-hint">💡 Оптимальная доходность: 8-15%. Слишком высокие значения могут вызвать подозрения!</small>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary btn-glow">
-                        <span class="btn-text">🚀 Обновить Доходность</span>
-                        <span class="btn-icon">🍄</span>
-                    </button>
-                </form>
-            </div>
-            
-            <!-- RAG Index controls -->
+            <!-- RAG Index controls - SOFTENED STYLES -->
             <div class="rag-index-container glow-card">
                 <div class="section-header">
                     <h3>🔍 Управление RAG Индексом</h3>
@@ -273,24 +248,24 @@
                     
                     <div class="rag-stat">
                         <label>📈 Статус синхронизации:</label>
-                        <span id="rag-sync-status" class="status-badge status-unknown">Неизвестно</span>
+                        <span id="rag-sync-status" class="status-badge status-neutral">Неизвестно</span>
                     </div>
                 </div>
                 
                 <div class="rag-actions">
-                    <button id="sync-vector-store" class="btn btn-primary btn-glow">
+                    <button id="sync-vector-store" class="btn btn-primary btn-subtle">
                         <span class="btn-text">🔄 Синхронизировать с Qdrant</span>
                     </button>
                     
-                    <button id="rebuild-index" class="btn btn-warning btn-glow">
+                    <button id="rebuild-index" class="btn btn-warning btn-subtle">
                         <span class="btn-text">🔨 Пересобрать Индекс</span>
                     </button>
                     
-                    <button id="test-rag-search" class="btn btn-secondary btn-glow">
+                    <button id="test-rag-search" class="btn btn-secondary btn-subtle">
                         <span class="btn-text">🧪 Тестировать RAG Поиск</span>
                     </button>
                     
-                    <button id="diagnose-rag" class="btn btn-secondary btn-glow">
+                    <button id="diagnose-rag" class="btn btn-secondary btn-subtle">
                         <span class="btn-text">🩺 Диагностика</span>
                     </button>
                 </div>
