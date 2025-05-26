@@ -129,30 +129,6 @@
                     </table>
                 </div>
             </div>
-            
-            <!-- Farming Rate Control -->
-            <div class="farming-rate-container glow-card">
-                <div class="section-header">
-                    <h3>🚜 Управление Доходностью Фарминга</h3>
-                    <div class="last-updated">Последнее обновление: <span id="farming-last-updated">--</span></div>
-                </div>
-                
-                <form id="farming-rate-form" class="farming-rate-form">
-                    <div class="form-group">
-                        <label for="farming-rate">Текущая доходность фарминга SHROOMS (%)</label>
-                        <input type="number" id="farming-rate" name="farming-rate" min="0" max="100" step="0.1" required>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary btn-glow">
-                        <span class="btn-text">Обновить Доходность</span>
-                        <span class="btn-icon">🍄</span>
-                    </button>
-                </form>
-                
-                <div class="farming-info">
-                    <p>💡 <strong>Совет грибного культиватора:</strong> Оптимальная доходность для привлечения новых грибников: 8-15%. Слишком высокая доходность может вызвать подозрения у сообщества!</p>
-                </div>
-            </div>
         </main>
         
         <!-- Footer -->
@@ -204,12 +180,6 @@
             
             // Базовая загрузка статистики
             loadBasicStats();
-            
-            // Обработчик формы доходности фарминга
-            const farmingForm = document.getElementById('farming-rate-form');
-            if (farmingForm) {
-                farmingForm.addEventListener('submit', handleFarmingRateUpdate);
-            }
             
             // Обработчик изменения периода
             const dateRange = document.getElementById('date-range');
@@ -272,60 +242,6 @@
                     <td><button class="btn btn-sm">Просмотр</button></td>
                 </tr>
             `;
-        }
-        
-        /**
-         * Обработчик обновления доходности фарминга
-         */
-        async function handleFarmingRateUpdate(event) {
-            event.preventDefault();
-            
-            const rateInput = document.getElementById('farming-rate');
-            const rate = parseFloat(rateInput.value);
-            
-            if (isNaN(rate) || rate < 0 || rate > 100) {
-                alert('🍄 Пожалуйста, введите корректную доходность от 0 до 100%');
-                return;
-            }
-            
-            try {
-                console.log('🍄 Обновление доходности фарминга до', rate + '%');
-                
-                // Используем makeAuthenticatedRequest из auth.js
-                if (typeof makeAuthenticatedRequest === 'function') {
-                    const response = await makeAuthenticatedRequest('/api/admin/farming-rate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ rate })
-                    });
-                    
-                    if (response.success) {
-                        // Обновляем время последнего изменения
-                        const lastUpdated = document.getElementById('farming-last-updated');
-                        if (lastUpdated) {
-                            lastUpdated.textContent = 'только что';
-                        }
-                        
-                        showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%`);
-                    } else {
-                        throw new Error(response.error?.message || 'Не удалось обновить доходность');
-                    }
-                } else {
-                    // Fallback если auth.js не загружен
-                    console.warn('🍄 makeAuthenticatedRequest не найдена, используем заглушку');
-                    
-                    const lastUpdated = document.getElementById('farming-last-updated');
-                    if (lastUpdated) {
-                        lastUpdated.textContent = new Date().toLocaleString('ru-RU');
-                    }
-                    
-                    showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%`);
-                }
-                
-            } catch (error) {
-                console.error('🍄 Ошибка обновления доходности:', error);
-                showNotification('error', `🍄 Не удалось обновить доходность: ${error.message}`);
-            }
         }
         
         /**
