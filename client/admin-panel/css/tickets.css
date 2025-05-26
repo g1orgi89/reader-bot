@@ -31,6 +31,11 @@
   --priority-high: #fd7e14;
   --priority-urgent: #dc3545;
   
+  /* Цвета для новых кнопок */
+  --btn-warning: #f39c12;
+  --btn-danger: #e74c3c;
+  --btn-success: #27ae60;
+  
   /* Анимации */
   --transition-fast: 0.2s ease;
   --transition-smooth: 0.3s ease;
@@ -189,12 +194,85 @@
   color: var(--text-light);
 }
 
-/* Специфичные стили для колонок */
-.col-id {
+/* ==========================================================================
+   ПРИОРИТЕТ 2: СТИЛИ ДЛЯ ID ТИКЕТОВ С КНОПКОЙ КОПИРОВАНИЯ
+   ========================================================================== */
+.ticket-id-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-family: 'Courier New', monospace;
   font-size: 0.85rem;
   color: var(--neon-blue);
   font-weight: 600;
+}
+
+.ticket-id-short {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.btn-copy-mini {
+  background: transparent;
+  border: 1px solid var(--neon-blue);
+  color: var(--neon-blue);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.btn-copy-mini:hover {
+  background: var(--neon-blue);
+  color: var(--dark-bg);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Полный ID в модальном окне */
+.ticket-id-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--dark-bg);
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--neon-blue);
+}
+
+.ticket-id-full {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: var(--neon-blue);
+  font-weight: 600;
+  word-break: break-all;
+  flex: 1;
+}
+
+.btn-copy {
+  background: var(--neon-blue);
+  color: var(--dark-bg);
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: 1rem;
+}
+
+.btn-copy:hover {
+  background: var(--neon-green);
+  transform: scale(1.1);
+}
+
+/* Специфичные стили для колонок */
+.col-id {
+  width: 150px;
+  min-width: 150px;
 }
 
 .col-subject {
@@ -484,6 +562,78 @@
 }
 
 /* ==========================================================================
+   ПРИОРИТЕТ 1: НОВЫЕ СТИЛИ ДЛЯ ПРЕДУПРЕЖДЕНИЙ
+   ========================================================================== */
+.ticket-close-warning,
+.ticket-deletion-warning {
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.1), rgba(230, 126, 34, 0.1));
+  border: 2px solid var(--btn-warning);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  animation: warningGlow 2s ease-in-out infinite alternate;
+}
+
+.ticket-deletion-warning {
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(192, 57, 43, 0.1));
+  border-color: var(--btn-danger);
+  animation: dangerGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes warningGlow {
+  from { box-shadow: 0 0 10px rgba(243, 156, 18, 0.3); }
+  to { box-shadow: 0 0 20px rgba(243, 156, 18, 0.6); }
+}
+
+@keyframes dangerGlow {
+  from { box-shadow: 0 0 10px rgba(231, 76, 60, 0.3); }
+  to { box-shadow: 0 0 20px rgba(231, 76, 60, 0.6); }
+}
+
+.ticket-close-warning p,
+.ticket-deletion-warning p {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-white);
+}
+
+.ticket-close-warning p:first-child,
+.ticket-deletion-warning p:first-child {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.close-actions,
+.deletion-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.close-actions textarea {
+  width: 100%;
+  min-height: 80px;
+  background: var(--dark-bg);
+  border: 2px solid var(--btn-warning);
+  border-radius: 8px;
+  color: var(--text-white);
+  padding: 0.75rem;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 1rem;
+}
+
+.close-actions textarea:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(243, 156, 18, 0.3);
+}
+
+.close-actions textarea::placeholder {
+  color: var(--text-light);
+  opacity: 0.7;
+}
+
+/* ==========================================================================
    КНОПКИ И ЭЛЕМЕНТЫ УПРАВЛЕНИЯ
    ========================================================================== */
 .btn {
@@ -497,6 +647,23 @@
   display: inline-block;
   text-align: center;
   font-size: 0.9rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn:hover::before {
+  left: 100%;
 }
 
 .btn-primary {
@@ -510,13 +677,35 @@
   box-shadow: 0 4px 12px rgba(0, 255, 249, 0.3);
 }
 
+.btn-success {
+  background: var(--btn-success);
+  color: white;
+}
+
+.btn-success:hover {
+  background: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.btn-warning {
+  background: var(--btn-warning);
+  color: white;
+}
+
+.btn-warning:hover {
+  background: #e67e22;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+}
+
 .btn-danger {
-  background: var(--status-open);
+  background: var(--btn-danger);
   color: white;
 }
 
 .btn-danger:hover {
-  background: #e74c3c;
+  background: #c0392b;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
 }
@@ -535,6 +724,43 @@
 .btn-sm {
   padding: 0.5rem 1rem;
   font-size: 0.8rem;
+}
+
+.btn-glow {
+  position: relative;
+  overflow: visible;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity var(--transition-smooth);
+}
+
+.btn-primary.btn-glow::after {
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.6);
+}
+
+.btn-success.btn-glow::after {
+  box-shadow: 0 0 20px rgba(39, 174, 96, 0.6);
+}
+
+.btn-warning.btn-glow::after {
+  box-shadow: 0 0 20px rgba(243, 156, 18, 0.6);
+}
+
+.btn-danger.btn-glow::after {
+  box-shadow: 0 0 20px rgba(231, 76, 60, 0.6);
+}
+
+.btn-glow:hover::after {
+  opacity: 1;
 }
 
 /* ==========================================================================
@@ -569,7 +795,7 @@
 }
 
 /* ==========================================================================
-   УВЕДОМЛЕНИЯ (из main.js)
+   УВЕДОМЛЕНИЯ
    ========================================================================== */
 .notification-container {
   position: fixed;
@@ -597,6 +823,18 @@
   pointer-events: auto;
   position: relative;
   overflow: hidden;
+  animation: notificationSlideIn 0.3s ease;
+}
+
+@keyframes notificationSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .notification::before {
@@ -630,50 +868,6 @@
   border-left: 4px solid var(--neon-blue);
 }
 
-.notification-icon {
-  font-size: 1.2rem;
-  flex-shrink: 0;
-}
-
-.notification-message {
-  flex: 1;
-  word-wrap: break-word;
-}
-
-.notification-close {
-  background: none;
-  border: none;
-  color: inherit;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
-  transition: var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.notification-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* Индикатор загрузки */
-.loading-indicator {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, rgba(57, 255, 20, 0.1), rgba(0, 255, 249, 0.1));
-  border: 1px solid var(--neon-green);
-  border-radius: 12px;
-  color: var(--text-white);
-  backdrop-filter: blur(10px);
-}
-
-.loading-indicator .loading-spinner {
-  width: 16px;
-  height: 16px;
-}
-
 /* ==========================================================================
    СЕЛЕКТЫ В МОДАЛЬНОМ ОКНЕ
    ========================================================================== */
@@ -702,6 +896,15 @@
   padding: 2rem;
   border-top: 2px solid var(--neon-green);
   background: rgba(57, 255, 20, 0.05);
+  flex-wrap: wrap;
+}
+
+.ticket-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  flex-wrap: wrap;
 }
 
 .close-btn {
@@ -781,6 +984,15 @@
     left: 1rem;
     max-width: none;
   }
+  
+  .ticket-actions {
+    justify-content: center;
+  }
+  
+  .close-actions,
+  .deletion-actions {
+    justify-content: center;
+  }
 }
 
 @media (max-width: 480px) {
@@ -797,12 +1009,28 @@
     font-size: 0.8rem;
   }
   
-  .ticket-detail-actions {
+  .ticket-detail-actions,
+  .ticket-actions {
+    flex-direction: column;
+  }
+  
+  .close-actions,
+  .deletion-actions {
     flex-direction: column;
   }
   
   .notification {
     padding: 0.75rem 1rem;
     font-size: 0.9rem;
+  }
+  
+  .ticket-id-cell {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .btn-copy-mini {
+    align-self: flex-end;
   }
 }
