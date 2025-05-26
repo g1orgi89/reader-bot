@@ -569,47 +569,109 @@
 }
 
 /* ==========================================================================
-   УВЕДОМЛЕНИЯ
+   УВЕДОМЛЕНИЯ (из main.js)
    ========================================================================== */
-.notification {
+.notification-container {
   position: fixed;
   top: 2rem;
   right: 2rem;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+  pointer-events: none;
+}
+
+.notification {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   padding: 1rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 12px;
   color: white;
   font-weight: 600;
-  z-index: 1100;
-  animation: slideInRight 0.3s ease;
-  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--neon-green), var(--neon-blue));
+}
+
+.notification-success {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.9), rgba(40, 167, 69, 0.7));
+  border-left: 4px solid var(--priority-low);
+}
+
+.notification-error {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.9), rgba(220, 53, 69, 0.7));
+  border-left: 4px solid var(--status-open);
+}
+
+.notification-warning {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.9), rgba(255, 193, 7, 0.7));
+  color: var(--dark-bg);
+  border-left: 4px solid var(--priority-medium);
+}
+
+.notification-info {
+  background: linear-gradient(135deg, rgba(0, 123, 255, 0.9), rgba(0, 123, 255, 0.7));
+  border-left: 4px solid var(--neon-blue);
+}
+
+.notification-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.notification-message {
+  flex: 1;
   word-wrap: break-word;
 }
 
-.notification.success {
-  background: var(--priority-low);
-  border-left: 4px solid #1e7e34;
+.notification-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: var(--transition-fast);
+  flex-shrink: 0;
 }
 
-.notification.error {
-  background: var(--status-open);
-  border-left: 4px solid #c82333;
+.notification-close:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.notification.warning {
-  background: var(--priority-medium);
-  color: var(--dark-bg);
-  border-left: 4px solid #e0a800;
+/* Индикатор загрузки */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.1), rgba(0, 255, 249, 0.1));
+  border: 1px solid var(--neon-green);
+  border-radius: 12px;
+  color: var(--text-white);
+  backdrop-filter: blur(10px);
 }
 
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+.loading-indicator .loading-spinner {
+  width: 16px;
+  height: 16px;
 }
 
 /* ==========================================================================
@@ -712,6 +774,13 @@
     flex-direction: column;
     gap: 1rem;
   }
+  
+  .notification-container {
+    top: 1rem;
+    right: 1rem;
+    left: 1rem;
+    max-width: none;
+  }
 }
 
 @media (max-width: 480px) {
@@ -730,5 +799,10 @@
   
   .ticket-detail-actions {
     flex-direction: column;
+  }
+  
+  .notification {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
   }
 }
