@@ -1,0 +1,794 @@
+/**
+ * @fileoverview Основные стили для админ-панели Shrooms AI Support Bot
+ * @description Общие стили, переменные, компоненты и грибная тематика
+ * @author Shrooms Development Team
+ */
+
+/* ========================================
+   CSS Custom Properties (Переменные)
+   ======================================== */
+
+:root {
+  /* Основная цветовая схема грибной тематики */
+  --neon-green: #39FF14;      /* Неоновый зеленый - основной акцент */
+  --neon-green-glow: rgba(57, 255, 20, 0.3);
+  --deep-purple: #8A2BE2;     /* Глубокий фиолетовый - вторичный */
+  --dark-bg: #121212;         /* Очень темный фон */
+  --card-bg: #1e1e1e;         /* Фон карточек */
+  --text-light: #E0E0E0;      /* Основной светлый текст */
+  --text-white: #FFFFFF;      /* Белый текст для заголовков */
+  --neon-pink: #FF6EC7;       /* Неоновый розовый для CTA */
+  --cyber-blue: #00FFF9;      /* Киберпанк голубой */
+  
+  /* Дополнительные цвета */
+  --border-color: #333333;
+  --hover-bg: #2a2a2a;
+  --success-color: #4CAF50;
+  --warning-color: #FF9800;
+  --error-color: #F44336;
+  --info-color: var(--cyber-blue);
+  
+  /* Шрифты */
+  --font-primary: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Orbitron', 'Courier New', monospace;
+  
+  /* Размеры и отступы */
+  --header-height: 70px;
+  --sidebar-width: 250px;
+  --border-radius: 8px;
+  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --box-shadow-glow: 0 0 20px var(--neon-green-glow);
+  
+  /* Переходы */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* ========================================
+   Сброс стилей и базовые настройки
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-primary);
+  background-color: var(--dark-bg);
+  color: var(--text-light);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ========================================
+   Типографика
+   ======================================== */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--text-white);
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+h5 { font-size: 1.1rem; }
+h6 { font-size: 1rem; }
+
+p {
+  margin-bottom: 1rem;
+}
+
+a {
+  color: var(--neon-green);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--cyber-blue);
+  text-shadow: 0 0 10px currentColor;
+}
+
+/* ========================================
+   Основной Layout
+   ======================================== */
+
+.admin-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-header {
+  background: rgba(30, 30, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid var(--neon-green);
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(57, 255, 20, 0.2);
+}
+
+.admin-content {
+  flex: 1;
+  padding: 2rem;
+  margin-top: var(--header-height);
+  position: relative;
+  z-index: 2;
+}
+
+.admin-footer {
+  background: var(--card-bg);
+  padding: 1rem 2rem;
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+
+/* ========================================
+   Header компоненты
+   ======================================== */
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo {
+  height: 40px;
+  width: auto;
+  filter: drop-shadow(0 0 10px var(--neon-green));
+}
+
+.logo-container h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--neon-green);
+  text-shadow: 0 0 10px var(--neon-green-glow);
+}
+
+.main-nav ul {
+  display: flex;
+  list-style: none;
+  gap: 2rem;
+  margin: 0;
+  padding: 0;
+}
+
+.main-nav a {
+  color: var(--text-light);
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.main-nav a:hover,
+.main-nav a.active {
+  color: var(--neon-green);
+  background: rgba(57, 255, 20, 0.1);
+  box-shadow: 0 0 15px var(--neon-green-glow);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+#admin-username {
+  color: var(--text-white);
+  font-weight: 500;
+}
+
+/* ========================================
+   Кнопки
+   ======================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--border-radius);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--neon-green), var(--cyber-blue));
+  color: var(--dark-bg);
+}
+
+.btn-secondary {
+  background: var(--deep-purple);
+  color: var(--text-white);
+  border: 1px solid var(--deep-purple);
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--text-light);
+  border: 1px solid var(--border-color);
+}
+
+.btn-danger {
+  background: var(--error-color);
+  color: var(--text-white);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+}
+
+.btn-lg {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--box-shadow-glow);
+}
+
+.btn-glow {
+  animation: pulseGlow 2s infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 5px var(--neon-green-glow); }
+  50% { box-shadow: 0 0 20px var(--neon-green-glow), 0 0 30px var(--neon-green-glow); }
+}
+
+/* ========================================
+   Карточки и контейнеры
+   ======================================== */
+
+.glow-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--box-shadow);
+  transition: all var(--transition-normal);
+  position: relative;
+}
+
+.glow-card:hover {
+  border-color: var(--neon-green);
+  box-shadow: var(--box-shadow-glow);
+}
+
+.glow-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent, rgba(57, 255, 20, 0.1), transparent);
+  border-radius: var(--border-radius);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: none;
+}
+
+.glow-card:hover::before {
+  opacity: 1;
+}
+
+/* ========================================
+   Формы
+   ======================================== */
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-white);
+  font-weight: 500;
+}
+
+.form-control,
+.select-glow,
+textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-light);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+}
+
+.form-control:focus,
+.select-glow:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--neon-green);
+  box-shadow: 0 0 10px var(--neon-green-glow);
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* ========================================
+   Таблицы
+   ======================================== */
+
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--border-radius);
+  background: var(--card-bg);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+}
+
+.data-table th,
+.data-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+  background: rgba(57, 255, 20, 0.1);
+  color: var(--text-white);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.data-table tr:hover {
+  background: rgba(57, 255, 20, 0.05);
+}
+
+.table-loading td {
+  text-align: center;
+  color: var(--text-light);
+  font-style: italic;
+  padding: 2rem;
+}
+
+/* ========================================
+   Статусы и бейджи
+   ======================================== */
+
+.status-badge,
+.priority-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-open { background: var(--warning-color); color: var(--dark-bg); }
+.status-resolved { background: var(--success-color); color: var(--dark-bg); }
+.status-closed { background: var(--border-color); color: var(--text-light); }
+
+.priority-low { background: var(--info-color); color: var(--dark-bg); }
+.priority-medium { background: var(--warning-color); color: var(--dark-bg); }
+.priority-high { background: var(--error-color); color: var(--text-white); }
+
+/* ========================================
+   Уведомления
+   ======================================== */
+
+.notification-container {
+  position: fixed;
+  top: 90px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notification {
+  padding: 1rem 1.5rem;
+  border-radius: var(--border-radius);
+  color: var(--text-white);
+  font-weight: 500;
+  min-width: 300px;
+  box-shadow: var(--box-shadow);
+  animation: slideInRight 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-success {
+  background: var(--success-color);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.notification-error {
+  background: var(--error-color);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.notification-warning {
+  background: var(--warning-color);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.notification-info {
+  background: var(--info-color);
+  border: 1px solid rgba(0, 255, 249, 0.3);
+  color: var(--dark-bg);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ========================================
+   Грибной цифровой дождь (фон)
+   ======================================== */
+
+.mushroom-bg-animation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.mushroom-bg-subtle {
+  opacity: 0.3;
+}
+
+/* Canvas для анимации будет управляться через JavaScript */
+#mushroom-matrix {
+  background: radial-gradient(ellipse at center, rgba(57, 255, 20, 0.1) 0%, transparent 70%);
+}
+
+/* ========================================
+   Модальные окна
+   ======================================== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-normal);
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border: 2px solid var(--neon-green);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  transform: scale(0.8);
+  transition: transform var(--transition-normal);
+}
+
+.modal-overlay.active .modal-content {
+  transform: scale(1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+  background: var(--error-color);
+  color: var(--text-white);
+}
+
+/* ========================================
+   Утилитарные классы
+   ======================================== */
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mb-4 { margin-bottom: 2rem; }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mt-4 { margin-top: 2rem; }
+
+.d-flex { display: flex; }
+.align-items-center { align-items: center; }
+.justify-content-center { justify-content: center; }
+.justify-content-between { justify-content: space-between; }
+.flex-column { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.gap-1 { gap: 0.5rem; }
+.gap-2 { gap: 1rem; }
+.gap-3 { gap: 1.5rem; }
+
+.w-100 { width: 100%; }
+.h-100 { height: 100%; }
+
+.text-success { color: var(--success-color); }
+.text-warning { color: var(--warning-color); }
+.text-error { color: var(--error-color); }
+.text-info { color: var(--info-color); }
+
+.bg-success { background-color: var(--success-color); }
+.bg-warning { background-color: var(--warning-color); }
+.bg-error { background-color: var(--error-color); }
+.bg-info { background-color: var(--info-color); }
+
+/* ========================================
+   Адаптивность
+   ======================================== */
+
+/* Tablets */
+@media (max-width: 1024px) {
+  .admin-content {
+    padding: 1.5rem;
+  }
+  
+  .admin-header {
+    padding: 1rem;
+  }
+  
+  .main-nav ul {
+    gap: 1rem;
+  }
+  
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.75rem; }
+  h3 { font-size: 1.5rem; }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .admin-header {
+    flex-direction: column;
+    height: auto;
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .admin-content {
+    margin-top: 120px; /* Увеличенный отступ для мобильного header */
+    padding: 1rem;
+  }
+  
+  .main-nav ul {
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  
+  .main-nav a {
+    display: block;
+    text-align: center;
+    padding: 0.75rem;
+  }
+  
+  .user-menu {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .logo-container h1 {
+    font-size: 1.2rem;
+  }
+  
+  .modal-content {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .notification {
+    min-width: auto;
+    width: calc(100vw - 40px);
+  }
+  
+  .notification-container {
+    left: 20px;
+    right: 20px;
+    top: 80px;
+  }
+  
+  /* Скрытие сложных анимаций на мобильных устройствах */
+  .mushroom-bg-animation {
+    display: none;
+  }
+  
+  /* Упрощение эффектов свечения */
+  .btn-glow {
+    animation: none;
+  }
+  
+  .glow-card:hover {
+    box-shadow: var(--box-shadow);
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+  
+  .admin-content {
+    margin-top: 140px;
+    padding: 0.75rem;
+  }
+  
+  .glow-card {
+    padding: 1rem;
+  }
+  
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Темная тема для системных предпочтений */
+@media (prefers-color-scheme: dark) {
+  /* Основные цвета уже настроены для темной темы */
+}
+
+/* Учет предпочтений по анимации */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .mushroom-bg-animation {
+    display: none;
+  }
+}
+
+/* Высокий контраст */
+@media (prefers-contrast: high) {
+  :root {
+    --neon-green: #00FF00;
+    --text-light: #FFFFFF;
+    --border-color: #666666;
+  }
+}
+
+/* ========================================
+   Состояния загрузки
+   ======================================== */
+
+.loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.loading::after {
+  content: '🍄';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  animation: mushroomSpin 1s linear infinite;
+}
+
+@keyframes mushroomSpin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Скелетон загрузки */
+.skeleton {
+  background: linear-gradient(90deg, var(--card-bg) 25%, var(--hover-bg) 50%, var(--card-bg) 75%);
+  background-size: 200% 100%;
+  animation: skeletonLoading 1.5s infinite;
+  border-radius: var(--border-radius);
+  height: 1rem;
+}
+
+@keyframes skeletonLoading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
