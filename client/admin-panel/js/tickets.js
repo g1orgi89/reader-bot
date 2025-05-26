@@ -237,7 +237,7 @@ function renderMockTicketsTable() {
 
   tbody.innerHTML = mockTickets.map(ticket => `
     <tr onclick="showMockTicketDetail('${ticket.ticketId}')" style="cursor: pointer;">
-      <td class="col-id">${ticket.ticketId}</td>
+      <td class="col-id">${formatTicketIdForTable(ticket.ticketId)}</td>
       <td class="col-subject">${escapeHtml(ticket.subject)}</td>
       <td class="col-status">
         <span class="status-badge status-${ticket.status}">
@@ -268,6 +268,86 @@ function renderMockTicketsTable() {
   if (rangeElement) rangeElement.textContent = '1-3';
   if (totalElement) totalElement.textContent = '3';
   if (currentElement) currentElement.textContent = 'Страница 1';
+}
+
+/**
+ * Форматирует ID тикета для отображения в таблице
+ * Приоритет 2: показать 16-20 символов + кнопка копирования
+ * @param {string} ticketId - Полный ID тикета
+ * @returns {string} HTML код для отображения ID
+ */
+function formatTicketIdForTable(ticketId) {
+  if (!ticketId) return '';
+  
+  // Показываем до 18 символов (компромисс между 16-20)
+  const displayId = ticketId.length > 18 ? ticketId.substring(0, 18) + '...' : ticketId;
+  
+  return `
+    <div class="ticket-id-cell" title="${escapeHtml(ticketId)}">
+      <span class="ticket-id-short">${escapeHtml(displayId)}</span>
+      <button class="btn-copy-mini" onclick="copyTicketId('${escapeHtml(ticketId)}'); event.stopPropagation();" title="Копировать полный ID">
+        📋
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * Копирует ID тикета в буфер обмена
+ * @param {string} ticketId - ID тикета для копирования
+ */
+async function copyTicketId(ticketId) {
+  try {
+    await navigator.clipboard.writeText(ticketId);
+    console.log('🍄 ID тикета скопирован:', ticketId);
+    
+    // Показываем уведомление
+    showNotification('📋 ID тикета скопирован в буфер обмена', 'success');
+  } catch (error) {
+    console.error('🍄 Ошибка копирования:', error);
+    
+    // Fallback для старых браузеров
+    const textArea = document.createElement('textarea');
+    textArea.value = ticketId;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      showNotification('📋 ID тикета скопирован в буфер обмена', 'success');
+    } catch (fallbackError) {
+      showNotification('❌ Не удалось скопировать ID', 'error');
+    }
+    document.body.removeChild(textArea);
+  }
+}
+
+/**
+ * Показывает уведомление пользователю
+ * @param {string} message - Текст уведомления
+ * @param {string} type - Тип уведомления ('success', 'error', 'info')
+ */
+function showNotification(message, type = 'info') {
+  // Ищем существующий контейнер уведомлений
+  let container = document.getElementById('notification-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'notification-container';
+    container.className = 'notification-container';
+    document.body.appendChild(container);
+  }
+  
+  const notification = document.createElement('div');
+  notification.className = `notification notification-${type}`;
+  notification.textContent = message;
+  
+  container.appendChild(notification);
+  
+  // Удаляем уведомление через 3 секунды
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 3000);
 }
 
 /**
@@ -358,7 +438,7 @@ function renderRealTicketsTable() {
   
   tbody.innerHTML = ticketsState.tickets.map(ticket => `
     <tr onclick="showRealTicketDetail('${ticket.ticketId}')" style="cursor: pointer;">
-      <td class="col-id" title="${ticket.ticketId}">${ticket.ticketId.substring(0, 12)}...</td>
+      <td class="col-id">${formatTicketIdForTable(ticket.ticketId)}</td>
       <td class="col-subject" title="${escapeHtml(ticket.subject)}">${escapeHtml(ticket.subject.substring(0, 50))}${ticket.subject.length > 50 ? '...' : ''}</td>
       <td class="col-status">
         <span class="status-badge status-${ticket.status}">
@@ -454,7 +534,6 @@ async function showRealTicketDetail(ticketId) {
     
     // Заполняем модальное окно (используем существующие ID элементы из HTML)
     const detailElements = {
-      'detail-ticket-id': ticket.ticketId,
       'detail-ticket-subject': ticket.subject,
       'detail-ticket-user': ticket.userId,
       'detail-ticket-created': formatDateTime(ticket.createdAt),
@@ -469,6 +548,18 @@ async function showRealTicketDetail(ticketId) {
         element.textContent = value;
       }
     });
+    
+    // Приоритет 2: Полный ID тикета + удобное копирование
+    const ticketIdElement = document.getElementById('detail-ticket-id');
+    if (ticketIdElement) {
+      ticketIdElement.textContent = ticket.ticketId;
+    }
+    
+    // Кнопка копирования ID
+    const copyIdBtn = document.getElementById('copy-ticket-id');
+    if (copyIdBtn) {
+      copyIdBtn.onclick = () => copyTicketId(ticket.ticketId);
+    }
     
     // Устанавливаем значения селектов
     const statusSelect = document.getElementById('detail-ticket-status');
@@ -551,32 +642,83 @@ function displayConversationContext(context) {
 }
 
 /**
- * Удаляет тикет (заменяет заглушку)
+ * Приоритет 1: Закрывает тикет с резолюцией (заменяет удаление)
+ * @param {string} ticketId - MongoDB ObjectId тикета
+ * @param {string} resolution - Причина закрытия (опционально)
+ */
+async function closeRealTicket(ticketId, resolution = '') {
+  if (!ticketId) {
+    console.error('🍄 ID тикета не указан');
+    return;
+  }
+  
+  try {
+    console.log('🍄 Закрытие тикета:', ticketId);
+    
+    const updateData = {
+      status: 'closed'
+    };
+    
+    if (resolution && resolution.trim()) {
+      updateData.resolution = resolution.trim();
+    }
+    
+    const response = await window.makeAuthenticatedRequest(`${TICKETS_CONFIG.API_BASE}/${ticketId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData)
+    });
+    
+    if (response.success) {
+      console.log('🍄 Тикет успешно закрыт');
+      showNotification('🔒 Обращение закрыто', 'success');
+      
+      // Закрываем модальное окно
+      const overlay = document.getElementById('ticket-detail-overlay');
+      if (overlay) overlay.style.display = 'none';
+      
+      // Скрываем предупреждение
+      hideCloseWarning();
+      
+      // Перезагружаем список
+      await loadRealTickets();
+    } else {
+      throw new Error(response.error?.message || 'Не удалось закрыть тикет');
+    }
+  } catch (error) {
+    console.error('🍄 Ошибка закрытия тикета:', error);
+    showNotification('❌ Ошибка закрытия тикета', 'error');
+  }
+}
+
+/**
+ * Приоритет 1: Удаляет тикет НАВСЕГДА (опасная операция)
  * @param {string} ticketId - ID тикета для удаления
  */
-async function deleteRealTicket(ticketId) {
+async function deleteRealTicketForever(ticketId) {
   const ticket = ticketsState.tickets.find(t => t.ticketId === ticketId);
   if (!ticket) {
     console.error('🍄 Тикет не найден');
     return;
   }
   
-  const confirmed = confirm(`🍄 Удалить тикет ${ticketId}?\n\nТема: ${ticket.subject}\n\nЭто действие нельзя отменить!`);
-  if (!confirmed) return;
-  
   try {
-    console.log('🍄 Удаление тикета:', ticket._id);
+    console.log('🍄 ФИЗИЧЕСКОЕ УДАЛЕНИЕ тикета:', ticket._id);
     
     const response = await window.makeAuthenticatedRequest(`${TICKETS_CONFIG.API_BASE}/${ticket._id}`, {
       method: 'DELETE'
     });
     
     if (response.success) {
-      console.log('🍄 Тикет успешно удален из грибницы');
+      console.log('🍄 Тикет НАВСЕГДА удален из грибницы');
+      showNotification('🗑️ Обращение удалено навсегда', 'info');
       
-      // Закрываем модальное окно если открыто
+      // Закрываем модальное окно
       const overlay = document.getElementById('ticket-detail-overlay');
       if (overlay) overlay.style.display = 'none';
+      
+      // Скрываем предупреждение
+      hideDeletionWarning();
       
       // Перезагружаем список
       await loadRealTickets();
@@ -585,6 +727,68 @@ async function deleteRealTicket(ticketId) {
     }
   } catch (error) {
     console.error('🍄 Ошибка удаления тикета:', error);
+    showNotification('❌ Ошибка удаления тикета', 'error');
+  }
+}
+
+/**
+ * Показывает предупреждение о закрытии тикета
+ */
+function showCloseWarning() {
+  const warning = document.getElementById('close-warning');
+  if (warning) {
+    warning.style.display = 'block';
+  }
+}
+
+/**
+ * Скрывает предупреждение о закрытии тикета
+ */
+function hideCloseWarning() {
+  const warning = document.getElementById('close-warning');
+  if (warning) {
+    warning.style.display = 'none';
+  }
+  
+  // Очищаем поле резолюции
+  const resolutionField = document.getElementById('close-resolution');
+  if (resolutionField) {
+    resolutionField.value = '';
+  }
+}
+
+/**
+ * Показывает предупреждение об удалении тикета
+ */
+function showDeletionWarning() {
+  const warning = document.getElementById('deletion-warning');
+  if (warning) {
+    warning.style.display = 'block';
+  }
+}
+
+/**
+ * Скрывает предупреждение об удалении тикета
+ */
+function hideDeletionWarning() {
+  const warning = document.getElementById('deletion-warning');
+  if (warning) {
+    warning.style.display = 'none';
+  }
+}
+
+/**
+ * Удаляет тикет (заменяет заглушку)
+ * УСТАРЕЛО: Заменено на closeRealTicket()
+ * @param {string} ticketId - ID тикета для удаления
+ */
+async function deleteRealTicket(ticketId) {
+  console.warn('🍄 УСТАРЕЛО: deleteRealTicket заменено на closeRealTicket');
+  
+  // Для совместимости с существующим кодом
+  const overlay = document.getElementById('ticket-detail-overlay');
+  if (overlay && overlay.dataset.currentTicketId) {
+    showCloseWarning();
   }
 }
 
@@ -605,12 +809,14 @@ async function updateRealTicket(ticketId, updateData) {
     
     if (response.success) {
       console.log('🍄 Тикет обновлен');
+      showNotification('💾 Изменения сохранены', 'success');
       await loadRealTickets();
     } else {
       throw new Error(response.error?.message || 'Не удалось обновить тикет');
     }
   } catch (error) {
     console.error('🍄 Ошибка обновления тикета:', error);
+    showNotification('❌ Ошибка сохранения изменений', 'error');
   }
 }
 
@@ -651,6 +857,11 @@ function initTicketsPage() {
   window.deleteTicket = deleteRealTicket;
   window.saveTicketChanges = saveTicketChanges;
   window.showMockTicketDetail = showMockTicketDetail;
+  
+  // Новые функции для закрытия и удаления
+  window.closeRealTicket = closeRealTicket;
+  window.deleteRealTicketForever = deleteRealTicketForever;
+  window.copyTicketId = copyTicketId;
   
   // Используем существующие обработчики фильтров из HTML
   setupRealTicketFilters();
@@ -734,6 +945,7 @@ function setupPaginationControls() {
 
 /**
  * Настройка обработчиков событий модального окна
+ * ОБНОВЛЕНО: Добавлены новые кнопки закрытия и удаления
  */
 function setupModalEventHandlers() {
   // Кнопка закрытия модального окна
@@ -748,15 +960,57 @@ function setupModalEventHandlers() {
     saveBtn.addEventListener('click', saveTicketChanges);
   }
   
-  // Кнопка удаления тикета
-  const deleteBtn = document.getElementById('delete-ticket');
-  if (deleteBtn) {
-    deleteBtn.addEventListener('click', () => {
+  // НОВАЯ: Кнопка закрытия тикета
+  const closeTicketBtn = document.getElementById('close-ticket');
+  if (closeTicketBtn) {
+    closeTicketBtn.addEventListener('click', () => {
+      showCloseWarning();
+    });
+  }
+  
+  // НОВАЯ: Подтверждение закрытия тикета
+  const confirmCloseBtn = document.getElementById('confirm-close');
+  if (confirmCloseBtn) {
+    confirmCloseBtn.addEventListener('click', () => {
       const overlay = document.getElementById('ticket-detail-overlay');
-      if (overlay && overlay.dataset.currentTicketDisplayId) {
-        deleteRealTicket(overlay.dataset.currentTicketDisplayId);
+      const resolutionField = document.getElementById('close-resolution');
+      
+      if (overlay && overlay.dataset.currentTicketId) {
+        const resolution = resolutionField ? resolutionField.value : '';
+        closeRealTicket(overlay.dataset.currentTicketId, resolution);
       }
     });
+  }
+  
+  // НОВАЯ: Отмена закрытия тикета
+  const cancelCloseBtn = document.getElementById('cancel-close');
+  if (cancelCloseBtn) {
+    cancelCloseBtn.addEventListener('click', hideCloseWarning);
+  }
+  
+  // НОВАЯ: Кнопка удаления навсегда
+  const deleteForeverBtn = document.getElementById('delete-ticket-forever');
+  if (deleteForeverBtn) {
+    deleteForeverBtn.addEventListener('click', () => {
+      showDeletionWarning();
+    });
+  }
+  
+  // НОВАЯ: Подтверждение удаления навсегда
+  const confirmDeleteBtn = document.getElementById('confirm-delete');
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener('click', () => {
+      const overlay = document.getElementById('ticket-detail-overlay');
+      if (overlay && overlay.dataset.currentTicketDisplayId) {
+        deleteRealTicketForever(overlay.dataset.currentTicketDisplayId);
+      }
+    });
+  }
+  
+  // НОВАЯ: Отмена удаления
+  const cancelDeleteBtn = document.getElementById('cancel-delete');
+  if (cancelDeleteBtn) {
+    cancelDeleteBtn.addEventListener('click', hideDeletionWarning);
   }
   
   // Кнопка решения тикета
@@ -766,6 +1020,16 @@ function setupModalEventHandlers() {
       const overlay = document.getElementById('ticket-detail-overlay');
       if (overlay && overlay.dataset.currentTicketId) {
         updateRealTicket(overlay.dataset.currentTicketId, { status: 'resolved' });
+      }
+    });
+  }
+  
+  // Закрытие модального окна по клику на оверлей
+  const overlay = document.getElementById('ticket-detail-overlay');
+  if (overlay) {
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) {
+        closeTicketDetail();
       }
     });
   }
@@ -781,6 +1045,21 @@ function closeTicketDetail() {
     // Очищаем сохраненные ID
     delete overlay.dataset.currentTicketId;
     delete overlay.dataset.currentTicketDisplayId;
+  }
+  
+  // Скрываем все предупреждения
+  hideCloseWarning();
+  hideDeletionWarning();
+  
+  // Очищаем поля ввода
+  const resolutionField = document.getElementById('ticket-resolution-text');
+  if (resolutionField) {
+    resolutionField.value = '';
+  }
+  
+  const responseField = document.getElementById('ticket-response-text');
+  if (responseField) {
+    responseField.value = '';
   }
 }
 
@@ -850,7 +1129,11 @@ window.loadRealTickets = loadRealTickets;
 window.showRealTicketDetail = showRealTicketDetail;
 window.showMockTicketDetail = showMockTicketDetail;
 window.deleteRealTicket = deleteRealTicket;
+window.closeRealTicket = closeRealTicket;
+window.deleteRealTicketForever = deleteRealTicketForever;
 window.updateRealTicket = updateRealTicket;
 window.saveTicketChanges = saveTicketChanges;
 window.closeTicketDetail = closeTicketDetail;
+window.copyTicketId = copyTicketId;
+window.showNotification = showNotification;
 window.initTicketsPage = initTicketsPage;
