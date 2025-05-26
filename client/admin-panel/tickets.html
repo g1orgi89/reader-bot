@@ -123,7 +123,12 @@
                         <div class="ticket-info">
                             <div class="ticket-id">
                                 <label>ID обращения:</label>
-                                <span id="detail-ticket-id"></span>
+                                <div class="ticket-id-container">
+                                    <span id="detail-ticket-id" class="ticket-id-full"></span>
+                                    <button id="copy-ticket-id" class="btn btn-icon btn-copy" title="Копировать ID">
+                                        📋
+                                    </button>
+                                </div>
                             </div>
                             
                             <div class="ticket-status">
@@ -194,6 +199,7 @@
                             <textarea id="ticket-resolution-text" placeholder="Опишите как было решено это обращение..."></textarea>
                         </div>
                         
+                        <!-- ОБНОВЛЕННЫЕ КНОПКИ ДЕЙСТВИЙ -->
                         <div class="ticket-actions">
                             <button id="save-ticket" class="btn btn-primary btn-glow">
                                 <span class="btn-text">💾 Сохранить Изменения</span>
@@ -203,15 +209,35 @@
                                 <span class="btn-text">✅ Решить Обращение</span>
                             </button>
                             
-                            <button id="delete-ticket" class="btn btn-danger btn-glow">
-                                <span class="btn-text">🗑️ Удалить Обращение</span>
+                            <!-- ОСНОВНАЯ КНОПКА: ЗАКРЫТЬ -->
+                            <button id="close-ticket" class="btn btn-warning btn-glow">
+                                <span class="btn-text">🔒 Закрыть Обращение</span>
+                            </button>
+                            
+                            <!-- ОПАСНАЯ КНОПКА: УДАЛИТЬ НАВСЕГДА -->
+                            <button id="delete-ticket-forever" class="btn btn-danger btn-glow">
+                                <span class="btn-text">🗑️ Удалить Навсегда</span>
                             </button>
                         </div>
                         
+                        <!-- ПРЕДУПРЕЖДЕНИЕ О ЗАКРЫТИИ -->
+                        <div class="ticket-close-warning" id="close-warning" style="display: none;">
+                            <p>🔒 <strong>Закрытие обращения</strong></p>
+                            <p>Обращение будет закрыто, но данные сохранятся в системе для анализа.</p>
+                            <div class="close-actions">
+                                <textarea id="close-resolution" placeholder="Причина закрытия (опционально)..."></textarea>
+                                <button id="confirm-close" class="btn btn-warning">Закрыть Обращение</button>
+                                <button id="cancel-close" class="btn btn-secondary">Отмена</button>
+                            </div>
+                        </div>
+                        
+                        <!-- ПРЕДУПРЕЖДЕНИЕ ОБ УДАЛЕНИИ -->
                         <div class="ticket-deletion-warning" id="deletion-warning" style="display: none;">
-                            <p>⚠️ <strong>Осторожно!</strong> Удаление обращения необратимо. Все связанные данные будут потеряны.</p>
+                            <p>⚠️ <strong>ВНИМАНИЕ!</strong> Удаление обращения необратимо!</p>
+                            <p>Все связанные данные будут <strong>НАВСЕГДА</strong> потеряны.</p>
+                            <p>Вы уверены, что хотите <strong>ФИЗИЧЕСКИ УДАЛИТЬ</strong> это обращение?</p>
                             <div class="deletion-actions">
-                                <button id="confirm-delete" class="btn btn-danger">Подтвердить Удаление</button>
+                                <button id="confirm-delete" class="btn btn-danger">⚠️ Да, Удалить Навсегда</button>
                                 <button id="cancel-delete" class="btn btn-secondary">Отмена</button>
                             </div>
                         </div>
