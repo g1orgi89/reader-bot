@@ -352,6 +352,94 @@ class TicketService {
   }
 
   /**
+   * ФИЗИЧЕСКИ УДАЛЯЕТ тикет по MongoDB ObjectId
+   * ⚠️ НЕОБРАТИМАЯ ОПЕРАЦИЯ - тикет будет полностью удален из базы данных
+   * @param {string} id - MongoDB ObjectId тикета
+   * @param {string} [deletedBy] - Кто удалил тикет (для логирования)
+   * @returns {Promise<Object|null>} Удаленный тикет или null
+   */
+  async deleteTicketById(id, deletedBy = 'Administrator') {
+    try {
+      // Сначала получаем тикет для логирования
+      const ticket = await Ticket.findById(id).populate('conversationId');
+      
+      if (!ticket) {
+        logger.warn(`Attempt to delete non-existent ticket by ID: ${id}`);
+        return null;
+      }
+
+      // Сохраняем информацию о тикете для логирования
+      const ticketInfo = {
+        ticketId: ticket.ticketId,
+        subject: ticket.subject,
+        userId: ticket.userId,
+        status: ticket.status,
+        createdAt: ticket.createdAt
+      };
+
+      // ФИЗИЧЕСКИ УДАЛЯЕМ тикет из базы данных
+      const deletedTicket = await Ticket.findByIdAndDelete(id);
+      
+      if (deletedTicket) {
+        logger.info(`🗑️ Ticket PERMANENTLY DELETED: ${ticketInfo.ticketId} by ${deletedBy}`, {
+          ticketInfo,
+          deletedBy,
+          deletedAt: new Date().toISOString()
+        });
+      }
+
+      return deletedTicket;
+    } catch (error) {
+      logger.error(`Error deleting ticket by ID ${id}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * ФИЗИЧЕСКИ УДАЛЯЕТ тикет по читаемому ID
+   * ⚠️ НЕОБРАТИМАЯ ОПЕРАЦИЯ - тикет будет полностью удален из базы данных
+   * @param {string} ticketId - Читаемый ID тикета (например, SHRM...)
+   * @param {string} [deletedBy] - Кто удалил тикет (для логирования)
+   * @returns {Promise<Object|null>} Удаленный тикет или null
+   */
+  async deleteTicketByTicketId(ticketId, deletedBy = 'Administrator') {
+    try {
+      // Сначала получаем тикет для логирования
+      const ticket = await Ticket.findOne({ ticketId }).populate('conversationId');
+      
+      if (!ticket) {
+        logger.warn(`Attempt to delete non-existent ticket by ticketId: ${ticketId}`);
+        return null;
+      }
+
+      // Сохраняем информацию о тикете для логирования
+      const ticketInfo = {
+        ticketId: ticket.ticketId,
+        subject: ticket.subject,
+        userId: ticket.userId,
+        status: ticket.status,
+        createdAt: ticket.createdAt
+      };
+
+      // ФИЗИЧЕСКИ УДАЛЯЕМ тикет из базы данных
+      const deletedTicket = await Ticket.findOneAndDelete({ ticketId });
+      
+      if (deletedTicket) {
+        logger.info(`🗑️ Ticket PERMANENTLY DELETED: ${ticketInfo.ticketId} by ${deletedBy}`, {
+          ticketInfo,
+          deletedBy,
+          deletedAt: new Date().toISOString()
+        });
+      }
+
+      return deletedTicket;
+    } catch (error) {
+      logger.error(`Error deleting ticket by ticketId ${ticketId}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Получает статистику по тикетам
    * @returns {Promise<Object>} Статистика тикетов
    */
