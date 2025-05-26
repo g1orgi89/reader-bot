@@ -128,17 +128,18 @@ async function loadRealTickets() {
     // API запрос через аутентификацию (используем функцию из auth.js)
     const response = await window.makeAuthenticatedRequest(`${TICKETS_CONFIG.API_BASE}?${params}`);
     
-    if (response.success) {
+    // Проверяем структуру ответа
+    if (response && response.success) {
       // Используем точную структуру из curl результата
-      ticketsState.tickets = response.data.tickets || [];
-      ticketsState.totalTickets = response.data.pagination?.totalCount || 0;
+      ticketsState.tickets = response.data?.tickets || [];
+      ticketsState.totalTickets = response.data?.pagination?.totalCount || 0;
       
       // Обновляем информацию о пагинации
       ticketsState.pagination = {
-        currentPage: response.data.pagination?.currentPage || 1,
-        totalPages: response.data.pagination?.totalPages || 1,
-        hasNextPage: response.data.pagination?.hasNextPage || false,
-        hasPrevPage: response.data.pagination?.hasPrevPage || false
+        currentPage: response.data?.pagination?.currentPage || 1,
+        totalPages: response.data?.pagination?.totalPages || 1,
+        hasNextPage: response.data?.pagination?.hasNextPage || false,
+        hasPrevPage: response.data?.pagination?.hasPrevPage || false
       };
       
       renderRealTicketsTable();
@@ -146,19 +147,26 @@ async function loadRealTickets() {
       
       console.log(`🍄 Загружено ${ticketsState.tickets.length} тикетов из ${ticketsState.totalTickets}`);
     } else {
-      // Проверяем тип ошибки
-      if (response.error && (response.error.status === 401 || response.error.message.includes('401'))) {
+      // Проверяем тип ошибки - если это объект response
+      const isAuthError = response && (
+        (response.error && response.error.status === 401) ||
+        (response.status === 401) ||
+        (typeof response.error === 'string' && response.error.includes('401'))
+      );
+      
+      if (isAuthError) {
         console.log('🍄 Ошибка авторизации (401), показываем заглушку тикетов');
         renderMockTicketsTable();
       } else {
-        throw new Error(response.error?.message || 'Не удалось загрузить тикеты');
+        throw new Error(response?.error?.message || response?.error || 'Не удалось загрузить тикеты');
       }
     }
   } catch (error) {
     console.error('🍄 Ошибка загрузки тикетов:', error);
     
     // Если ошибка авторизации, показываем заглушку
-    if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+    const errorMessage = error.message || error.toString();
+    if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('token')) {
       console.log('🍄 Ошибка авторизации, показываем заглушку тикетов');
       renderMockTicketsTable();
     } else {
@@ -179,7 +187,7 @@ function renderMockTicketsTable() {
   
   const mockTickets = [
     {
-      ticketId: '#STX001',
+      ticketId: 'SHRM001',
       subject: 'Проблема подключения кошелька Xverse',
       status: 'open',
       priority: 'medium',
@@ -188,7 +196,7 @@ function renderMockTicketsTable() {
       updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
     },
     {
-      ticketId: '#STX002',
+      ticketId: 'SHRM002',
       subject: 'Вопрос о токеномике SHROOMS',
       status: 'resolved',
       priority: 'low',
@@ -197,7 +205,7 @@ function renderMockTicketsTable() {
       updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
     },
     {
-      ticketId: '#STX003',
+      ticketId: 'SHRM003',
       subject: 'Ошибка при фарминге токенов',
       status: 'in_progress',
       priority: 'high',
