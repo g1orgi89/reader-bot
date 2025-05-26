@@ -225,20 +225,33 @@ function renderEmptyTicketsTable() {
 }
 
 /**
- * Обновляет информацию о пагинации
+ * Обновляет информацию о пагинации в HTML (соответствие существующим элементам)
  */
 function updatePaginationInfo() {
-  const paginationInfo = document.querySelector('.pagination-info');
-  if (paginationInfo) {
-    const start = (ticketsState.pagination.currentPage - 1) * ticketsState.currentFilters.limit + 1;
+  // Обновляем диапазон показанных записей
+  const rangeElement = document.getElementById('pagination-range');
+  if (rangeElement) {
+    const start = ticketsState.tickets.length > 0 ? 
+                  (ticketsState.pagination.currentPage - 1) * ticketsState.currentFilters.limit + 1 : 0;
     const end = Math.min(start + ticketsState.tickets.length - 1, ticketsState.totalTickets);
-    
-    paginationInfo.textContent = `Показано ${start}-${end} из ${ticketsState.totalTickets} тикетов`;
+    rangeElement.textContent = `${start}-${end}`;
   }
   
-  // Обновляем кнопки пагинации
-  const prevBtn = document.querySelector('.pagination-prev');
-  const nextBtn = document.querySelector('.pagination-next');
+  // Обновляем общее количество
+  const totalElement = document.getElementById('pagination-total');
+  if (totalElement) {
+    totalElement.textContent = ticketsState.totalTickets.toString();
+  }
+  
+  // Обновляем текущую страницу
+  const currentElement = document.getElementById('pagination-current');
+  if (currentElement) {
+    currentElement.textContent = `Страница ${ticketsState.pagination.currentPage}`;
+  }
+  
+  // Обновляем кнопки пагинации (используем существующие ID из HTML)
+  const prevBtn = document.getElementById('prev-page');
+  const nextBtn = document.getElementById('next-page');
   
   if (prevBtn) {
     prevBtn.disabled = !ticketsState.pagination.hasPrevPage;
@@ -265,7 +278,7 @@ async function showRealTicketDetail(ticketId) {
       return;
     }
     
-    // Заполняем модальное окно (используем существующие ID элементов)
+    // Заполняем модальное окно (используем существующие ID элементы из HTML)
     const detailElements = {
       'detail-ticket-id': ticket.ticketId,
       'detail-ticket-subject': ticket.subject,
@@ -289,17 +302,6 @@ async function showRealTicketDetail(ticketId) {
     
     if (statusSelect) statusSelect.value = ticket.status;
     if (prioritySelect) prioritySelect.value = ticket.priority;
-    
-    // Дополнительные поля
-    const emailElement = document.getElementById('detail-ticket-email');
-    if (emailElement) {
-      emailElement.textContent = ticket.email || 'Не указан';
-    }
-    
-    const categoryElement = document.getElementById('detail-ticket-category');
-    if (categoryElement) {
-      categoryElement.textContent = TICKETS_CONFIG.CATEGORY_LABELS[ticket.category] || ticket.category || 'Не указана';
-    }
     
     // Парсим и отображаем контекст диалога
     if (ticket.context) {
@@ -481,6 +483,7 @@ function initRealTicketsPage() {
   // Используем существующие обработчики фильтров из HTML
   setupRealTicketFilters();
   setupPaginationControls();
+  setupModalEventHandlers();
   
   // Загружаем данные
   loadRealTickets();
@@ -493,6 +496,7 @@ function setupRealTicketFilters() {
   const statusFilter = document.getElementById('status-filter');
   const priorityFilter = document.getElementById('priority-filter');
   const searchInput = document.getElementById('search-tickets');
+  const refreshBtn = document.getElementById('refresh-tickets');
   
   if (statusFilter) {
     statusFilter.addEventListener('change', () => {
@@ -521,14 +525,21 @@ function setupRealTicketFilters() {
       }, 500); // Debounce 500ms
     });
   }
+  
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      console.log('🍄 Принудительное обновление списка тикетов');
+      loadRealTickets();
+    });
+  }
 }
 
 /**
  * Настройка управления пагинацией
  */
 function setupPaginationControls() {
-  const prevBtn = document.querySelector('.pagination-prev');
-  const nextBtn = document.querySelector('.pagination-next');
+  const prevBtn = document.getElementById('prev-page');
+  const nextBtn = document.getElementById('next-page');
   
   if (prevBtn) {
     prevBtn.addEventListener('click', () => {
@@ -544,6 +555,45 @@ function setupPaginationControls() {
       if (ticketsState.pagination.hasNextPage) {
         ticketsState.currentFilters.page++;
         loadRealTickets();
+      }
+    });
+  }
+}
+
+/**
+ * Настройка обработчиков событий модального окна
+ */
+function setupModalEventHandlers() {
+  // Кнопка закрытия модального окна
+  const closeDetailBtn = document.getElementById('close-ticket-detail');
+  if (closeDetailBtn) {
+    closeDetailBtn.addEventListener('click', closeTicketDetail);
+  }
+  
+  // Кнопка сохранения изменений
+  const saveBtn = document.getElementById('save-ticket');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', saveTicketChanges);
+  }
+  
+  // Кнопка удаления тикета
+  const deleteBtn = document.getElementById('delete-ticket');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      const overlay = document.getElementById('ticket-detail-overlay');
+      if (overlay && overlay.dataset.currentTicketDisplayId) {
+        deleteRealTicket(overlay.dataset.currentTicketDisplayId);
+      }
+    });
+  }
+  
+  // Кнопка решения тикета
+  const resolveBtn = document.getElementById('resolve-ticket');
+  if (resolveBtn) {
+    resolveBtn.addEventListener('click', () => {
+      const overlay = document.getElementById('ticket-detail-overlay');
+      if (overlay && overlay.dataset.currentTicketId) {
+        updateRealTicket(overlay.dataset.currentTicketId, { status: 'resolved' });
       }
     });
   }
@@ -638,3 +688,4 @@ window.deleteRealTicket = deleteRealTicket;
 window.updateRealTicket = updateRealTicket;
 window.saveTicketChanges = saveTicketChanges;
 window.closeTicketDetail = closeTicketDetail;
+window.initRealTicketsPage = initRealTicketsPage;
