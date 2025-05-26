@@ -8,7 +8,7 @@ const router = express.Router();
 const ticketService = require('../services/ticketing');
 const conversationService = require('../services/conversation');
 const logger = require('../utils/logger');
-const { authenticate } = require('../utils/auth');
+const { requireAdminAuth } = require('../middleware/adminAuth');
 
 /**
  * @typedef {Object} TicketResponse
@@ -32,7 +32,7 @@ const { authenticate } = require('../utils/auth');
  * @access Private (Admin)
  * @returns {Promise<Object>} Статистика тикетов
  */
-router.get('/stats/summary', authenticate, async (req, res) => {
+router.get('/stats/summary', requireAdminAuth, async (req, res) => {
   try {
     const stats = await ticketService.getTicketStats();
     
@@ -57,7 +57,7 @@ router.get('/stats/summary', authenticate, async (req, res) => {
  * @param {TicketFilters} query - Параметры фильтрации
  * @returns {Promise<TicketResponse>} Список тикетов с пагинацией
  */
-router.get('/', authenticate, async (req, res) => {
+router.get('/', requireAdminAuth, async (req, res) => {
   try {
     const {
       status,
@@ -175,7 +175,7 @@ router.post('/', async (req, res) => {
       metadata: {
         source,
         tags: [],
-        createdBy: req.user ? req.user.id : 'system'
+        createdBy: req.admin ? req.admin.id : 'system'
       }
     };
 
@@ -203,7 +203,7 @@ router.post('/', async (req, res) => {
  * @body {Object} commentData - Данные комментария
  * @returns {Promise<TicketResponse>} Обновленный тикет с комментарием
  */
-router.post('/:id/comments', authenticate, async (req, res) => {
+router.post('/:id/comments', requireAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { content, isInternal = false } = req.body;
@@ -218,8 +218,8 @@ router.post('/:id/comments', authenticate, async (req, res) => {
 
     const comment = {
       content,
-      authorId: req.user ? req.user.id : 'system',
-      authorName: req.user ? req.user.name || req.user.username : 'Administrator',
+      authorId: req.admin ? req.admin.id : 'system',
+      authorName: req.admin ? req.admin.username : 'Administrator',
       isInternal,
       createdAt: new Date()
     };
@@ -260,7 +260,7 @@ router.post('/:id/comments', authenticate, async (req, res) => {
  * @param {string} id - ID тикета (ticketId или _id)
  * @returns {Promise<TicketResponse>} Данные тикета
  */
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', requireAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -302,7 +302,7 @@ router.get('/:id', authenticate, async (req, res) => {
  * @body {Object} updateData - Данные для обновления
  * @returns {Promise<TicketResponse>} Обновленный тикет
  */
-router.patch('/:id', authenticate, async (req, res) => {
+router.patch('/:id', requireAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
@@ -327,8 +327,8 @@ router.patch('/:id', authenticate, async (req, res) => {
 
     // Добавляем информацию об обновлении
     filteredData.updatedAt = new Date();
-    if (req.user) {
-      filteredData.lastUpdatedBy = req.user.id;
+    if (req.admin) {
+      filteredData.lastUpdatedBy = req.admin.id;
     }
 
     // Если статус меняется на resolved или closed, добавляем время завершения
@@ -373,16 +373,16 @@ router.patch('/:id', authenticate, async (req, res) => {
  * @body {Object} closeData - Причина закрытия
  * @returns {Promise<TicketResponse>} Закрытый тикет
  */
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', requireAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { resolution = 'Closed by administrator' } = req.body;
 
     // Пробуем закрыть тикет по ticketId, затем по ObjectId
-    let ticket = await ticketService.closeTicketByTicketId(id, resolution, req.user?.id);
+    let ticket = await ticketService.closeTicketByTicketId(id, resolution, req.admin?.id);
     
     if (!ticket && id.match(/^[0-9a-fA-F]{24}$/)) {
-      ticket = await ticketService.closeTicketById(id, resolution, req.user?.id);
+      ticket = await ticketService.closeTicketById(id, resolution, req.admin?.id);
     }
 
     if (!ticket) {
