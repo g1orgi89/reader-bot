@@ -7,8 +7,10 @@
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
     "dev:debug": "nodemon --inspect server/index.js",
-    "telegram": "node telegram/bot.js",
+    "telegram": "node telegram/start.js",
+    "telegram:dev": "nodemon telegram/start.js",
     "load-kb": "node scripts/loadKnowledge.js",
+    "migrate:telegram-prompts": "node scripts/addTelegramPrompts.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -26,7 +28,9 @@
     "build": "echo 'Building project...' && npm run lint",
     "check-health": "curl -f http://localhost:3000/api/health || exit 1",
     "setup": "npm install && cp .env.example .env && echo 'Setup complete! Please edit .env file'",
+    "setup:telegram": "npm run migrate:telegram-prompts && echo 'Telegram prompts migrated!'",
     "start:prod": "NODE_ENV=production node server/index.js",
+    "start:telegram:prod": "NODE_ENV=production node telegram/start.js",
     "logs": "tail -f logs/combined.log",
     "logs:error": "tail -f logs/error.log"
   },
@@ -40,7 +44,8 @@
     "cryptocurrency",
     "rag",
     "vector-search",
-    "mongodb"
+    "mongodb",
+    "telegram"
   ],
   "author": "Shrooms Team",
   "license": "MIT",
@@ -149,6 +154,7 @@
   "nodemonConfig": {
     "watch": [
       "server/",
+      "telegram/",
       ".env"
     ],
     "ext": "js,json",
