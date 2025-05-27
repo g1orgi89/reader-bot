@@ -229,6 +229,52 @@ class KnowledgeService {
   }
 
   /**
+   * 🍄 Search documents method for Telegram bot compatibility
+   * This method provides the same interface as used by the Telegram bot
+   * @param {string} query - Search query
+   * @param {Object} options - Search options
+   * @param {string} [options.language] - Filter by language
+   * @param {string} [options.category] - Filter by category
+   * @param {number} [options.limit=5] - Maximum results
+   * @returns {Promise<Object[]>} Array of matching documents
+   */
+  async searchDocuments(query, options = {}) {
+    try {
+      logger.info(`🍄 Telegram bot searching for: "${query}"`);
+      
+      // Use our existing search method
+      const searchResult = await this.search(query, {
+        ...options,
+        limit: options.limit || 5,
+        useVectorSearch: true,
+        returnChunks: true  // Get individual chunks for better context
+      });
+      
+      if (!searchResult.success) {
+        logger.warn(`🍄 Search failed for Telegram: ${searchResult.error}`);
+        return [];
+      }
+      
+      // Format results for Telegram bot
+      const documents = searchResult.data.map(doc => ({
+        title: doc.title,
+        content: doc.content,
+        category: doc.category,
+        language: doc.language,
+        score: doc.score,
+        isChunk: doc.isChunk || false
+      }));
+      
+      logger.info(`🍄 Found ${documents.length} documents for Telegram bot (${searchResult.chunkingUsed ? 'with chunking' : 'without chunking'})`);
+      
+      return documents;
+    } catch (error) {
+      logger.error('🍄 Telegram searchDocuments failed:', error);
+      return [];
+    }
+  }
+
+  /**
    * Search documents by text query with enhanced multilingual support and FULL chunking support
    * @param {string} query - Search query
    * @param {Object} options - Search options
