@@ -209,6 +209,7 @@ function renderMockTicketsTable() {
       status: 'open',
       priority: 'medium',
       userId: 'user_123...abc',
+      email: 'user123@example.com',
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
     },
@@ -218,6 +219,7 @@ function renderMockTicketsTable() {
       status: 'resolved',
       priority: 'low',
       userId: 'user_456...def',
+      email: 'grower456@shrooms.io',
       createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
       updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
     },
@@ -227,6 +229,7 @@ function renderMockTicketsTable() {
       status: 'in_progress',
       priority: 'high',
       userId: 'user_789...ghi',
+      // Этот тикет без email
       createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
       updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
     }
@@ -249,7 +252,7 @@ function renderMockTicketsTable() {
           ${TICKETS_CONFIG.PRIORITY_LABELS[ticket.priority] || ticket.priority}
         </span>
       </td>
-      <td class="col-user">${ticket.userId}</td>
+      <td class="col-user">${formatUserForTable(ticket.userId, ticket.email)}</td>
       <td class="col-created">${formatRelativeTime(ticket.createdAt)}</td>
       <td class="col-updated">${formatRelativeTime(ticket.updatedAt)}</td>
       <td class="col-actions">
@@ -273,6 +276,65 @@ function renderMockTicketsTable() {
   if (rangeElement) rangeElement.textContent = '1-3';
   if (totalElement) totalElement.textContent = '3';
   if (currentElement) currentElement.textContent = 'Страница 1';
+}
+
+/**
+ * НОВАЯ ФУНКЦИЯ: Форматирует пользователя для отображения в таблице
+ * Приоритет отдается email, если он есть
+ * @param {string} userId - ID пользователя
+ * @param {string} [email] - Email пользователя (опционально)
+ * @returns {string} HTML код для отображения пользователя
+ */
+function formatUserForTable(userId, email) {
+  if (email && email.trim()) {
+    // Если есть email, показываем полный email + кнопку копирования
+    return `
+      <div class="user-info-cell" title="ID: ${escapeHtml(userId)}">
+        <div class="user-email-display">
+          <span class="user-email-text">${escapeHtml(email)}</span>
+          <button class="btn-copy-mini" onclick="copyUserEmail('${escapeHtml(email)}'); event.stopPropagation();" title="Копировать email">
+            📧
+          </button>
+        </div>
+        <div class="user-id-small">${userId.substring(0, 8)}...</div>
+      </div>
+    `;
+  } else {
+    // Если нет email, показываем только userID
+    return `
+      <div class="user-info-cell">
+        <div class="user-id-only">${userId.substring(0, 12)}...</div>
+        <div class="user-no-email">📧 нет email</div>
+      </div>
+    `;
+  }
+}
+
+/**
+ * НОВАЯ ФУНКЦИЯ: Копирует email пользователя в буфер обмена
+ * @param {string} email - Email для копирования
+ */
+async function copyUserEmail(email) {
+  try {
+    await navigator.clipboard.writeText(email);
+    console.log('🍄 Email пользователя скопирован:', email);
+    showNotification('📧 Email скопирован в буфер обмена', 'success');
+  } catch (error) {
+    console.error('🍄 Ошибка копирования email:', error);
+    
+    // Fallback для старых браузеров
+    const textArea = document.createElement('textarea');
+    textArea.value = email;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      showNotification('📧 Email скопирован в буфер обмена', 'success');
+    } catch (fallbackError) {
+      showNotification('❌ Не удалось скопировать email', 'error');
+    }
+    document.body.removeChild(textArea);
+  }
 }
 
 /**
@@ -360,7 +422,7 @@ function showNotification(message, type = 'info') {
  * @param {string} ticketId - ID тикета для удаления
  */
 function quickDeleteTicket(ticketId) {
-  if (confirm(`🗑️ Удалить тикет ${ticketId} навсегда?\n\nЭто действие нельзя будет отменить!`)) {
+  if (confirm(`🗑️ Удалить тикет ${ticketId} навсегда?\\n\\nЭто действие нельзя будет отменить!`)) {
     console.log('🍄 Быстрое удаление тикета:', ticketId);
     showNotification('🗑️ Тикет удален из списка', 'info');
     
@@ -395,6 +457,27 @@ function showMockTicketDetail(ticketId) {
       element.textContent = value;
     }
   });
+  
+  // НОВОЕ: Показываем email пользователя в деталях
+  const emailContainer = document.getElementById('detail-ticket-email-container');
+  const emailValue = document.getElementById('detail-ticket-email');
+  const copyEmailBtn = document.getElementById('copy-user-email');
+  
+  if (ticketId === 'SHRM001' || ticketId === 'SHRM002') {
+    // Для первых двух тикетов показываем email
+    const mockEmail = ticketId === 'SHRM001' ? 'user123@example.com' : 'grower456@shrooms.io';
+    
+    if (emailContainer) emailContainer.style.display = 'block';
+    if (emailValue) emailValue.textContent = mockEmail;
+    if (copyEmailBtn) {
+      copyEmailBtn.style.display = 'inline-block';
+      copyEmailBtn.onclick = () => copyUserEmail(mockEmail);
+    }
+  } else {
+    // Для остальных тикетов скрываем email
+    if (emailContainer) emailContainer.style.display = 'none';
+    if (copyEmailBtn) copyEmailBtn.style.display = 'none';
+  }
   
   // Устанавливаем значения селектов
   const statusSelect = document.getElementById('detail-ticket-status');
@@ -472,7 +555,7 @@ function renderRealTicketsTable() {
           ${TICKETS_CONFIG.PRIORITY_LABELS[ticket.priority] || ticket.priority}
         </span>
       </td>
-      <td class="col-user" title="${ticket.userId}">${ticket.userId.substring(0, 12)}...</td>
+      <td class="col-user">${formatUserForTable(ticket.userId, ticket.email)}</td>
       <td class="col-created">${formatRelativeTime(ticket.createdAt)}</td>
       <td class="col-updated">${formatRelativeTime(ticket.updatedAt)}</td>
       <td class="col-actions">
@@ -495,7 +578,7 @@ function renderRealTicketsTable() {
  * @param {string} displayId - Человеко-читаемый ID для отображения
  */
 async function quickDeleteRealTicket(mongoId, displayId) {
-  if (!confirm(`🗑️ Удалить тикет ${displayId} навсегда?\n\nЭто действие нельзя будет отменить!`)) {
+  if (!confirm(`🗑️ Удалить тикет ${displayId} навсегда?\\n\\nЭто действие нельзя будет отменить!`)) {
     return;
   }
   
@@ -615,6 +698,25 @@ async function showRealTicketDetail(ticketId) {
     const copyIdBtn = document.getElementById('copy-ticket-id');
     if (copyIdBtn) {
       copyIdBtn.onclick = () => copyTicketId(ticket.ticketId);
+    }
+    
+    // НОВОЕ: Отображение email пользователя
+    const emailContainer = document.getElementById('detail-ticket-email-container');
+    const emailValue = document.getElementById('detail-ticket-email');
+    const copyEmailBtn = document.getElementById('copy-user-email');
+    
+    if (ticket.email && ticket.email.trim()) {
+      // Показываем email, если он есть
+      if (emailContainer) emailContainer.style.display = 'block';
+      if (emailValue) emailValue.textContent = ticket.email;
+      if (copyEmailBtn) {
+        copyEmailBtn.style.display = 'inline-block';
+        copyEmailBtn.onclick = () => copyUserEmail(ticket.email);
+      }
+    } else {
+      // Скрываем блок email, если его нет
+      if (emailContainer) emailContainer.style.display = 'none';
+      if (copyEmailBtn) copyEmailBtn.style.display = 'none';
     }
     
     // Устанавливаем значения селектов
@@ -937,6 +1039,7 @@ function initTicketsPage() {
   window.closeRealTicket = closeRealTicket;
   window.deleteRealTicketForever = deleteRealTicketForever;
   window.copyTicketId = copyTicketId;
+  window.copyUserEmail = copyUserEmail;
   window.quickDeleteTicket = quickDeleteTicket;
   window.quickDeleteRealTicket = quickDeleteRealTicket;
   window.changeTicketStatus = changeTicketStatus;
@@ -1203,6 +1306,7 @@ window.updateRealTicket = updateRealTicket;
 window.saveTicketChanges = saveTicketChanges;
 window.closeTicketDetail = closeTicketDetail;
 window.copyTicketId = copyTicketId;
+window.copyUserEmail = copyUserEmail;
 window.showNotification = showNotification;
 window.initTicketsPage = initTicketsPage;
 window.quickDeleteTicket = quickDeleteTicket;
