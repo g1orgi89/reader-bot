@@ -99,14 +99,14 @@ class ShroomsTelegramBot {
       
       for (const lang of languages) {
         try {
-          // Ищем документы в базе знаний по тегам telegram + язык
-          const welcomeDoc = await knowledgeService.searchDocuments({
+          // 🍄 ИСПРАВЛЕНО: Добавляем строку запроса как первый параметр
+          const welcomeDoc = await knowledgeService.searchDocuments('telegram welcome', {
             tags: ['telegram', 'welcome', lang],
             limit: 1,
             language: lang
           });
 
-          const helpDoc = await knowledgeService.searchDocuments({
+          const helpDoc = await knowledgeService.searchDocuments('telegram help', {
             tags: ['telegram', 'help', lang],
             limit: 1,
             language: lang
