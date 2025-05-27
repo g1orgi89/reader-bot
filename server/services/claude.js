@@ -1,7 +1,7 @@
 /**
  * Сервис для взаимодействия с API Claude и другими AI провайдерами
  * @file server/services/claude.js
- * 🍄 ОБНОВЛЕНО: Упрощенная логика создания тикетов с интеграцией ticketEmailService
+ * 🍄 ОБНОВЛЕНО: Добавлена поддержка платформ (web, telegram) и специальных промптов
  */
 
 const { Anthropic } = require('@anthropic-ai/sdk');
@@ -25,6 +25,7 @@ const promptService = require('./promptService');
  * @property {string[]} [context] - Контекст из базы знаний
  * @property {Array<{role: string, content: string}>} [history] - История сообщений
  * @property {string} [language] - Язык общения
+ * @property {string} [platform] - Платформа (web, telegram)
  * @property {string} [userId] - ID пользователя для логирования
  * @property {boolean} [useRag=true] - Использовать ли RAG функциональность
  * @property {number} [ragLimit=3] - Количество документов для RAG
@@ -88,13 +89,29 @@ class ClaudeService {
   }
 
   /**
-   * 🍄 Получить системный промпт через PromptService
+   * 🍄 Получить системный промпт через PromptService с поддержкой платформ
    * @private
    * @param {string} [language='en'] - Язык промпта
+   * @param {string} [platform='web'] - Платформа (web, telegram)
    * @returns {Promise<string>} Системный промпт
    */
-  async _getSystemPrompt(language = 'en') {
+  async _getSystemPrompt(language = 'en', platform = 'web') {
     try {
+      // Для Telegram пытаемся получить специальный промпт
+      if (platform === 'telegram') {
+        const telegramPromptName = `telegram_basic_${language}`;
+        try {
+          const telegramPrompt = await promptService.getPromptByName(telegramPromptName);
+          if (telegramPrompt && telegramPrompt.active) {
+            logger.info(`🍄 Using Telegram-specific prompt for ${language}`);
+            return telegramPrompt.content;
+          }
+        } catch (telegramError) {
+          logger.warn(`🍄 Telegram prompt not found (${telegramPromptName}), falling back to web prompt`);
+        }
+      }
+      
+      // Возвращаемся к обычному промпту
       return await promptService.getActivePrompt('basic', language);
     } catch (error) {
       logger.error(`🍄 Error getting system prompt from PromptService: ${error.message}`);
@@ -103,13 +120,29 @@ class ClaudeService {
   }
 
   /**
-   * 🍄 Получить RAG промпт через PromptService
+   * 🍄 Получить RAG промпт через PromptService с поддержкой платформ
    * @private
    * @param {string} [language='en'] - Язык промпта
+   * @param {string} [platform='web'] - Платформа (web, telegram)
    * @returns {Promise<string>} RAG промпт
    */
-  async _getRagPrompt(language = 'en') {
+  async _getRagPrompt(language = 'en', platform = 'web') {
     try {
+      // Для Telegram пытаемся получить специальный RAG промпт
+      if (platform === 'telegram') {
+        const telegramRagPromptName = `telegram_rag_${language}`;
+        try {
+          const telegramRagPrompt = await promptService.getPromptByName(telegramRagPromptName);
+          if (telegramRagPrompt && telegramRagPrompt.active) {
+            logger.info(`🍄 Using Telegram-specific RAG prompt for ${language}`);
+            return telegramRagPrompt.content;
+          }
+        } catch (telegramError) {
+          logger.warn(`🍄 Telegram RAG prompt not found (${telegramRagPromptName}), falling back to web prompt`);
+        }
+      }
+      
+      // Возвращаемся к обычному RAG промпту
       return await promptService.getActivePrompt('rag', language);
     } catch (error) {
       logger.error(`🍄 Error getting RAG prompt from PromptService: ${error.message}`);
@@ -250,7 +283,7 @@ class ClaudeService {
 
   /**
    * Генерирует ответ на основе сообщения и контекста
-   * 🍄 ОБНОВЛЕНО: Упрощенная логика создания тикетов
+   * 🍄 ОБНОВЛЕНО: Добавлена поддержка платформ и специальных промптов
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
    * @returns {Promise<AIResponse>} Ответ от AI
@@ -261,6 +294,7 @@ class ClaudeService {
         context = [], 
         history = [], 
         language = 'en', 
+        platform = 'web',
         userId, 
         useRag = this.enableRag,
         ragLimit = 3 
@@ -271,8 +305,10 @@ class ClaudeService {
         logger.info(`🍄 Provider normalized from 'anthropic' to 'claude' for message: ${message.substring(0, 20)}...`);
       }
       
+      logger.info(`🍄 Generating response for platform: ${platform}, language: ${language}`);
+      
       if (!useRag && this._isCacheable(message)) {
-        const cacheKey = this._getCacheKey(message, language);
+        const cacheKey = this._getCacheKey(message, language, platform);
         if (this.responseCache.has(cacheKey)) {
           const cached = this.responseCache.get(cacheKey);
           if (Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -283,7 +319,7 @@ class ClaudeService {
       }
       
       if (this._isTestMessage(message)) {
-        return this._handleTestMessage(message, language);
+        return this._handleTestMessage(message, language, platform);
       }
       
       if (useRag && this.enableRag) {
@@ -307,12 +343,12 @@ class ClaudeService {
       
       let response;
       
-      logger.info(`🍄 Using AI provider: ${this.provider} for message: ${message.substring(0, 20)}...`);
+      logger.info(`🍄 Using AI provider: ${this.provider} for platform: ${platform}, message: ${message.substring(0, 20)}...`);
       
       if (this.provider === 'claude') {
-        response = await this._generateClaudeResponse(message, { ...options, context });
+        response = await this._generateClaudeResponse(message, { ...options, context, platform });
       } else if (this.provider === 'openai') {
-        response = await this._generateOpenAIResponse(message, { ...options, context });
+        response = await this._generateOpenAIResponse(message, { ...options, context, platform });
       } else {
         throw new Error(`Unsupported AI provider: ${this.provider}`);
       }
@@ -322,7 +358,7 @@ class ClaudeService {
       }
       
       if (!useRag && this._isCacheable(message)) {
-        const cacheKey = this._getCacheKey(message, language);
+        const cacheKey = this._getCacheKey(message, language, platform);
         this.responseCache.set(cacheKey, {
           response,
           timestamp: Date.now()
@@ -332,7 +368,7 @@ class ClaudeService {
       return response;
     } catch (error) {
       logger.error(`🍄 AI generation error: ${error.message}`);
-      return this._getErrorResponse(error, options.language);
+      return this._getErrorResponse(error, options.language, options.platform);
     }
   }
 
@@ -377,33 +413,29 @@ class ClaudeService {
 
   /**
    * Генерация ответа через Claude API
-   * 🍄 ОБНОВЛЕНО: Упрощенная логика создания тикетов без жестких правил
+   * 🍄 ОБНОВЛЕНО: Добавлена поддержка платформ
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
    * @returns {Promise<AIResponse>} Ответ от Claude
    */
   async _generateClaudeResponse(message, options) {
-    const { context, history, language, userId } = options;
+    const { context, history, language, platform = 'web', userId } = options;
     
     let systemPrompt;
     try {
       if (context && context.length > 0) {
-        systemPrompt = await this._getRagPrompt(language);
+        systemPrompt = await this._getRagPrompt(language, platform);
+        // Заменяем {context} плейсхолдер в RAG промпте
+        systemPrompt = systemPrompt.replace('{context}', context.slice(0, 3).join('\n\n'));
       } else {
-        systemPrompt = await this._getSystemPrompt(language);
+        systemPrompt = await this._getSystemPrompt(language, platform);
       }
     } catch (error) {
       logger.error(`🍄 Error getting prompt from PromptService: ${error.message}`);
       systemPrompt = promptService.getDefaultPrompt(context && context.length > 0 ? 'rag' : 'basic', language);
     }
 
-    let enhancedSystemPrompt = systemPrompt;
-
-    if (context && context.length > 0) {
-      enhancedSystemPrompt += `\n\nДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ:\n${context.slice(0, 3).join('\n\n')}`;
-    }
-    
     const messages = [];
     
     if (history && history.length > 0) {
@@ -419,7 +451,7 @@ class ClaudeService {
     messages.push({ role: 'user', content: message });
     
     if (userId) {
-      logger.info(`🍄 Generating Claude response for user ${userId} (lang: ${language}, history: ${history?.length || 0} msgs)`);
+      logger.info(`🍄 Generating Claude response for user ${userId} (platform: ${platform}, lang: ${language}, history: ${history?.length || 0} msgs)`);
     }
     
     try {
@@ -428,14 +460,13 @@ class ClaudeService {
         model: claudeConfig.model,
         max_tokens: claudeConfig.maxTokens,
         temperature: claudeConfig.temperature,
-        system: enhancedSystemPrompt,
+        system: systemPrompt,
         messages: messages
       });
       
       const answer = response.content[0].text;
       
-      // 🍄 УПРОЩЕНО: Создание тикетов теперь происходит в chat.js с использованием ticketEmailService
-      // Здесь мы только анализируем ответ Claude на предмет явных указаний на создание тикета
+      // Анализ необходимости создания тикета
       const needsTicket = this._analyzeTicketNeedFromResponse(answer);
       
       return {
@@ -453,34 +484,31 @@ class ClaudeService {
 
   /**
    * Генерация ответа через OpenAI API
+   * 🍄 ОБНОВЛЕНО: Добавлена поддержка платформ
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
    * @returns {Promise<AIResponse>} Ответ от OpenAI
    */
   async _generateOpenAIResponse(message, options) {
-    const { context, history, language, userId } = options;
+    const { context, history, language, platform = 'web', userId } = options;
     
     let systemPrompt;
     try {
       if (context && context.length > 0) {
-        systemPrompt = await this._getRagPrompt(language);
+        systemPrompt = await this._getRagPrompt(language, platform);
+        // Заменяем {context} плейсхолдер в RAG промпте
+        systemPrompt = systemPrompt.replace('{context}', context.slice(0, 3).join('\n\n'));
       } else {
-        systemPrompt = await this._getSystemPrompt(language);
+        systemPrompt = await this._getSystemPrompt(language, platform);
       }
     } catch (error) {
       logger.error(`🍄 Error getting prompt from PromptService: ${error.message}`);
       systemPrompt = promptService.getDefaultPrompt(context && context.length > 0 ? 'rag' : 'basic', language);
     }
-
-    let enhancedSystemPrompt = systemPrompt;
-
-    if (context && context.length > 0) {
-      enhancedSystemPrompt += `\n\nДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ:\n${context.slice(0, 3).join('\n\n')}`;
-    }
     
     const messages = [
-      { role: 'system', content: enhancedSystemPrompt }
+      { role: 'system', content: systemPrompt }
     ];
     
     if (history && history.length > 0) {
@@ -496,7 +524,7 @@ class ClaudeService {
     messages.push({ role: 'user', content: message });
     
     if (userId) {
-      logger.info(`🍄 Generating OpenAI response for user ${userId} (lang: ${language}, history: ${history?.length || 0} msgs)`);
+      logger.info(`🍄 Generating OpenAI response for user ${userId} (platform: ${platform}, lang: ${language}, history: ${history?.length || 0} msgs)`);
     }
     
     try {
@@ -510,7 +538,7 @@ class ClaudeService {
       
       const answer = response.choices[0].message.content;
       
-      // 🍄 УПРОЩЕНО: Создание тикетов теперь происходит в chat.js с использованием ticketEmailService
+      // Анализ необходимости создания тикета
       const needsTicket = this._analyzeTicketNeedFromResponse(answer);
       
       return {
@@ -548,20 +576,31 @@ class ClaudeService {
   
   /**
    * Обрабатывает тестовые сообщения быстро на соответствующем языке
+   * 🍄 ОБНОВЛЕНО: Добавлена поддержка платформ
    * @private
    * @param {string} message - Сообщение
    * @param {string} language - Язык
+   * @param {string} [platform='web'] - Платформа
    * @returns {AIResponse} Быстрый ответ
    */
-  _handleTestMessage(message, language) {
+  _handleTestMessage(message, language, platform = 'web') {
     const responses = {
-      en: "*mushroom spores sparkle* Hello, digital explorer! How can I help you navigate the Shrooms ecosystem today?",
-      ru: "*грибные споры сверкают* Привет, цифровой исследователь! Как могу помочь тебе в экосистеме Shrooms сегодня?",
-      es: "*las esporas de hongos brillan* ¡Hola, explorador digital! ¿Cómo puedo ayudarte en el ecosistema Shrooms hoy?"
+      web: {
+        en: "*mushroom spores sparkle* Hello, digital explorer! How can I help you navigate the Shrooms ecosystem today?",
+        ru: "*грибные споры сверкают* Привет, цифровой исследователь! Как могу помочь тебе в экосистеме Shrooms сегодня?",
+        es: "*las esporas de hongos brillan* ¡Hola, explorador digital! ¿Cómo puedo ayudarte en el ecosistema Shrooms hoy?"
+      },
+      telegram: {
+        en: "🍄 *mushroom spores sparkle* Hello, digital explorer! How can I help you navigate the Shrooms ecosystem today?",
+        ru: "🍄 *грибные споры сверкают* Привет, цифровой исследователь! Как могу помочь тебе в экосистеме Shrooms сегодня?",
+        es: "🍄 *las esporas de hongos brillan* ¡Hola, explorador digital! ¿Cómo puedo ayudarte en el ecosistema Shrooms hoy?"
+      }
     };
     
+    const platformResponses = responses[platform] || responses.web;
+    
     return {
-      message: responses[language] || responses.en,
+      message: platformResponses[language] || platformResponses.en,
       needsTicket: false,
       tokensUsed: 50,
       provider: this.provider,
@@ -570,14 +609,13 @@ class ClaudeService {
   }
   
   /**
-   * 🍄 НОВОЕ: Упрощенный анализ необходимости создания тикета только из ответа Claude
-   * Ищет только явные указания Claude на создание тикета
+   * Анализ необходимости создания тикета из ответа AI
    * @private
    * @param {string} response - Ответ от AI
    * @returns {boolean} Нужно ли создавать тикет
    */
   _analyzeTicketNeedFromResponse(response) {
-    // Ищем только прямые указания Claude на создание тикета
+    // Ищем только прямые указания AI на создание тикета
     const directTicketIndicators = [
       '#TICKET_ID',
       'создал тикет',
@@ -598,15 +636,15 @@ class ClaudeService {
       'наши эксперты свяжутся'
     ];
     
-    const claudeWantsTicket = directTicketIndicators.some(indicator => 
+    const aiWantsTicket = directTicketIndicators.some(indicator => 
       response.toLowerCase().includes(indicator.toLowerCase())
     );
     
-    if (claudeWantsTicket) {
-      logger.info(`🍄 Ticket creation requested by Claude in response`);
+    if (aiWantsTicket) {
+      logger.info(`🍄 Ticket creation requested by AI in response`);
     }
     
-    return claudeWantsTicket;
+    return aiWantsTicket;
   }
   
   /**
@@ -620,14 +658,15 @@ class ClaudeService {
   }
   
   /**
-   * Получает ключ для кэша
+   * Получает ключ для кэша с учетом платформы
    * @private
    * @param {string} message - Сообщение
    * @param {string} language - Язык
+   * @param {string} [platform='web'] - Платформа
    * @returns {string} Ключ кэша
    */
-  _getCacheKey(message, language) {
-    return `${language}:${message.toLowerCase()}`;
+  _getCacheKey(message, language, platform = 'web') {
+    return `${platform}:${language}:${message.toLowerCase()}`;
   }
   
   /**
@@ -635,17 +674,27 @@ class ClaudeService {
    * @private
    * @param {Error} error - Ошибка
    * @param {string} language - Язык
+   * @param {string} [platform='web'] - Платформа
    * @returns {AIResponse} Ответ об ошибке
    */
-  _getErrorResponse(error, language = 'en') {
+  _getErrorResponse(error, language = 'en', platform = 'web') {
     const errorMessages = {
-      en: "I'm experiencing technical difficulties right now. Let me create a support ticket for you so our team can help.",
-      ru: "У меня сейчас технические проблемы. Позвольте мне создать тикет поддержки, чтобы наша команда могла помочь.",
-      es: "Estoy experimentando dificultades técnicas ahora. Permíteme crear un ticket de soporte para que nuestro equipo pueda ayudarte."
+      web: {
+        en: "I'm experiencing technical difficulties right now. Let me create a support ticket for you so our team can help.",
+        ru: "У меня сейчас технические проблемы. Позвольте мне создать тикет поддержки, чтобы наша команда могла помочь.",
+        es: "Estoy experimentando dificultades técnicas ahora. Permíteme crear un ticket de soporte para que nuestro equipo pueda ayudarte."
+      },
+      telegram: {
+        en: "🍄 I'm experiencing technical difficulties right now. Let me create a support ticket for you so our team can help.",
+        ru: "🍄 У меня сейчас технические проблемы. Позвольте мне создать тикет поддержки, чтобы наша команда могла помочь.",
+        es: "🍄 Estoy experimentando dificultades técnicas ahora. Permíteme crear un ticket de soporte para que nuestro equipo pueda ayudarte."
+      }
     };
     
+    const platformMessages = errorMessages[platform] || errorMessages.web;
+    
     return {
-      message: errorMessages[language] || errorMessages.en,
+      message: platformMessages[language] || platformMessages.en,
       needsTicket: true,
       tokensUsed: 0,
       provider: this.provider,
@@ -682,6 +731,7 @@ class ClaudeService {
         },
         promptCache: promptStats,
         supportedLanguages: ['en', 'es', 'ru'],
+        supportedPlatforms: ['web', 'telegram'],
         ragEnabled: this.enableRag
       };
     } catch (error) {
@@ -692,6 +742,7 @@ class ClaudeService {
         },
         promptCache: { error: error.message },
         supportedLanguages: ['en', 'es', 'ru'],
+        supportedPlatforms: ['web', 'telegram'],
         ragEnabled: this.enableRag
       };
     }
@@ -709,6 +760,7 @@ class ClaudeService {
         claude: this.clients.claude ? this.config.claude.model : null,
         openai: this.clients.openai ? this.config.openai.model : null
       },
+      supportedPlatforms: ['web', 'telegram'],
       ragEnabled: this.enableRag
     };
   }
@@ -753,13 +805,15 @@ class ClaudeService {
         status: diagnosis.status,
         cacheStats: diagnosis.cacheStats,
         databaseConnection: diagnosis.databaseConnection,
-        promptCounts: diagnosis.promptCounts
+        promptCounts: diagnosis.promptCounts,
+        supportedPlatforms: ['web', 'telegram']
       };
     } catch (error) {
       return {
         service: 'PromptService',
         status: 'error',
-        error: error.message
+        error: error.message,
+        supportedPlatforms: ['web', 'telegram']
       };
     }
   }
