@@ -80,7 +80,7 @@
                                 <th class="col-subject">Тема</th>
                                 <th class="col-status">Статус</th>
                                 <th class="col-priority">Приоритет</th>
-                                <th class="col-user">Грибник</th>
+                                <th class="col-user">Пользователь</th>
                                 <th class="col-created">Создан</th>
                                 <th class="col-updated">Обновлен</th>
                                 <th class="col-actions">Действия</th>
@@ -158,8 +158,20 @@
                         </div>
                         
                         <div class="ticket-user-info">
-                            <label>Грибник:</label>
-                            <span id="detail-ticket-user"></span>
+                            <label>Пользователь:</label>
+                            <div class="user-info-container">
+                                <div class="user-id">
+                                    <span class="user-label">ID:</span>
+                                    <span id="detail-ticket-user"></span>
+                                </div>
+                                <div class="user-email" id="detail-ticket-email-container" style="display: none;">
+                                    <span class="user-label">Email:</span>
+                                    <span id="detail-ticket-email" class="user-email-value"></span>
+                                    <button id="copy-user-email" class="btn btn-icon btn-copy" title="Копировать email" style="display: none;">
+                                        📧
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="ticket-dates">
