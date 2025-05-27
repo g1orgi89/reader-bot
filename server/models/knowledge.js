@@ -24,7 +24,7 @@ const knowledgeSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['general', 'user-guide', 'tokenomics', 'technical', 'troubleshooting', 'prompts'],
+    enum: ['general', 'user-guide', 'tokenomics', 'technical', 'troubleshooting', 'prompts', 'telegram'],
     index: true
   },
   language: {
