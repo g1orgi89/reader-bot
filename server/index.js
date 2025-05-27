@@ -36,6 +36,7 @@ const languageDetectService = require('./services/languageDetect');
 const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
 const ticketService = require('./services/ticketing');
+const ticketEmailService = require('./services/ticketEmail'); // 🎫 НОВЫЙ СЕРВИС
 
 /**
  * @typedef {import('./types').ShroomsError} ShroomsError
@@ -150,6 +151,9 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
     
     // 🍄 ДОБАВЛЕНО: проверка здоровья PromptService
     const promptHealth = await promptService.diagnose();
+    
+    // 🎫 НОВОЕ: статистика по ожидающим тикетам
+    const pendingTicketsStats = ticketEmailService.getPendingTicketsStats();
 
     const health = {
       status: 'ok',
@@ -160,7 +164,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         database: dbHealth,
         vectorStore: vectorHealth,
         ai: claude ? 'ok' : 'error',
-        prompts: promptHealth // 🍄 ДОБАВЛЕНО: статус промпт-сервиса
+        prompts: promptHealth, // 🍄 ДОБАВЛЕНО: статус промпт-сервиса
+        ticketEmail: 'ok' // 🎫 НОВОЕ: статус сервиса email
       },
       aiProvider: aiProviderInfo,
       promptService: {
@@ -168,6 +173,7 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         cacheStats: promptHealth.cacheStats,
         databaseConnection: promptHealth.databaseConnection
       }, // 🍄 ДОБАВЛЕНО: детали PromptService
+      ticketEmailService: pendingTicketsStats, // 🎫 НОВОЕ: статистика ожидающих тикетов
       features: config.features,
       // ДОБАВЛЕНО: информация о Socket.IO подключениях
       socketConnections: {
@@ -205,7 +211,8 @@ if (config.features.enableMetrics) {
         total: io.engine.clientsCount,
         active: io.sockets.sockets.size,
         byIP: getConnectionsByIP()
-      }
+      },
+      pendingTickets: ticketEmailService.getPendingTicketsStats() // 🎫 НОВОЕ
     });
   });
 }
@@ -400,6 +407,157 @@ io.on('connection', (socket) => {
         await conversationService.updateLanguage(conversation._id, detectedLanguage);
         logger.info(`🌍 Language updated for conversation ${conversation._id}: ${conversation.language} → ${detectedLanguage}`);
       }
+
+      // 🎫 НОВАЯ ЛОГИКА: Проверяем, ожидает ли пользователь ввода email
+      const pendingTicket = ticketEmailService.getPendingTicket(data.userId);
+      
+      if (pendingTicket && ticketEmailService.isEmailMessage(data.message)) {
+        // Пользователь отправил email для существующего тикета
+        const email = ticketEmailService.extractEmail(data.message);
+        
+        if (email) {
+          // Обновляем тикет с email
+          const emailResult = await ticketEmailService.updateTicketWithEmail(
+            data.userId, 
+            email, 
+            detectedLanguage
+          );
+          
+          // Сохраняем сообщение пользователя
+          await messageService.create({
+            text: data.message,
+            role: 'user',
+            userId: data.userId,
+            conversationId: conversation._id,
+            metadata: { 
+              language: detectedLanguage,
+              source: 'socket',
+              isEmailResponse: true,
+              ticketId: pendingTicket.ticketId
+            }
+          });
+          
+          // Сохраняем ответ бота
+          const botMessage = await messageService.create({
+            text: emailResult.message,
+            role: 'assistant',
+            userId: data.userId,
+            conversationId: conversation._id,
+            metadata: {
+              language: detectedLanguage,
+              source: 'socket',
+              ticketEmailCollected: true,
+              ticketId: pendingTicket.ticketId
+            }
+          });
+          
+          // Обновляем разговор
+          await conversationService.incrementMessageCount(conversation._id);
+          
+          // Отправляем ответ
+          socket.emit('message', {
+            message: emailResult.message,
+            conversationId: conversation._id.toString(),
+            messageId: botMessage._id.toString(),
+            language: detectedLanguage,
+            timestamp: new Date().toISOString(),
+            emailCollected: true,
+            ticketId: pendingTicket.ticketId
+          });
+          
+          logger.info(`✅ Email collected for ticket: ${pendingTicket.ticketId} - ${email}`);
+          return;
+        } else {
+          // Email не валиден - просим повторить
+          const errorMessage = detectedLanguage === 'ru' 
+            ? "Пожалуйста, введите корректный email адрес (например: user@gmail.com):"
+            : detectedLanguage === 'es'
+            ? "Por favor, ingresa una dirección de email válida (ejemplo: user@gmail.com):"
+            : "Please enter a valid email address (example: user@gmail.com):";
+          
+          socket.emit('message', {
+            message: errorMessage,
+            conversationId: conversation._id.toString(),
+            language: detectedLanguage,
+            timestamp: new Date().toISOString(),
+            awaitingEmail: true
+          });
+          return;
+        }
+      }
+      
+      // 🎫 НОВАЯ ЛОГИКА: Проверяем, нужно ли создать тикет для этого сообщения
+      const shouldCreateTicket = ticketEmailService.shouldCreateTicket(data.message, detectedLanguage);
+      
+      if (shouldCreateTicket) {
+        // Создаем тикет и запрашиваем email
+        const ticketResult = await ticketEmailService.createPendingTicket({
+          userId: data.userId,
+          conversationId: conversation._id,
+          subject: `Support request: ${data.message.substring(0, 50)}...`,
+          initialMessage: data.message,
+          context: JSON.stringify({
+            userMessage: data.message,
+            history: formattedHistory.slice(-3)
+          }),
+          language: detectedLanguage,
+          category: 'technical',
+          priority: 'medium',
+          metadata: {
+            source: 'socket',
+            detectedProblem: true
+          }
+        });
+        
+        // Сохраняем сообщение пользователя
+        await messageService.create({
+          text: data.message,
+          role: 'user',
+          userId: data.userId,
+          conversationId: conversation._id,
+          metadata: { 
+            language: detectedLanguage,
+            source: 'socket',
+            ticketCreated: true,
+            ticketId: ticketResult.ticket.ticketId
+          }
+        });
+        
+        // Сохраняем ответ бота
+        const botMessage = await messageService.create({
+          text: ticketResult.message,
+          role: 'assistant',
+          userId: data.userId,
+          conversationId: conversation._id,
+          metadata: {
+            language: detectedLanguage,
+            source: 'socket',
+            ticketCreated: true,
+            ticketId: ticketResult.ticket.ticketId,
+            awaitingEmailResponse: true
+          }
+        });
+        
+        // Обновляем разговор
+        await conversationService.incrementMessageCount(conversation._id);
+        
+        // Отправляем ответ с запросом email
+        socket.emit('message', {
+          message: ticketResult.message,
+          conversationId: conversation._id.toString(),
+          messageId: botMessage._id.toString(),
+          language: detectedLanguage,
+          timestamp: new Date().toISOString(),
+          ticketCreated: true,
+          ticketId: ticketResult.ticket.ticketId,
+          awaitingEmail: true
+        });
+        
+        logger.info(`🎫 Ticket created and email requested: ${ticketResult.ticket.ticketId}`);
+        return;
+      }
+      
+      // ОБЫЧНАЯ ЛОГИКА: Генерируем обычный ответ через Claude
       
       // Получение контекста из базы знаний (если RAG включен)
       let context = [];
@@ -436,55 +594,15 @@ io.on('connection', (socket) => {
         userId: data.userId
       });
       
-      // Проверка на создание тикета
-      let ticketId = null;
-      let ticketError = null;
-      
-      if (aiResponse.needsTicket) {
-        try {
-          const ticket = await ticketService.createTicket({
-            userId: data.userId,
-            conversationId: conversation._id,
-            initialMessage: data.message, // ИСПРАВЛЕНО: изменено с 'message' на 'initialMessage'
-            context: JSON.stringify({
-              aiResponse: aiResponse.message,
-              userMessage: data.message,
-              history: formattedHistory.slice(-3),
-              aiProvider: aiResponse.provider // Добавляем информацию о провайдере
-            }),
-            language: detectedLanguage,
-            subject: `Support request: ${data.message.substring(0, 50)}...`,
-            category: 'technical',
-            metadata: {
-              source: 'socket',
-              aiProvider: aiResponse.provider
-            }
-          });
-          ticketId = ticket.ticketId;
-          logger.info(`🎫 Ticket created: ${ticketId} via ${aiResponse.provider}`);
-        } catch (error) {
-          logger.error('Failed to create ticket:', error);
-          ticketError = error.message;
-        }
-      }
-      
-      // Замена TICKET_ID в ответе
-      let botResponse = aiResponse.message;
-      if (ticketId) {
-        botResponse = botResponse.replace('#TICKET_ID', `#${ticketId}`);
-      }
-      
       // Сохранение ответа бота
       const botMessage = await messageService.create({
-        text: botResponse,
+        text: aiResponse.message,
         role: 'assistant',
         userId: data.userId,
         conversationId: conversation._id,
         metadata: {
           language: detectedLanguage,
           tokensUsed: aiResponse.tokensUsed,
-          ticketCreated: aiResponse.needsTicket,
-          ticketId,
           source: 'socket',
           aiProvider: aiResponse.provider
         }
@@ -498,12 +616,9 @@ io.on('connection', (socket) => {
        * @type {ChatResponse}
        */
       const response = {
-        message: botResponse,
+        message: aiResponse.message,
         conversationId: conversation._id.toString(),
         messageId: botMessage._id.toString(),
-        needsTicket: aiResponse.needsTicket,
-        ticketId,
-        ticketError,
         tokensUsed: aiResponse.tokensUsed,
         language: detectedLanguage,
         aiProvider: aiResponse.provider, // Добавляем информацию о провайдере
@@ -612,6 +727,10 @@ async function startServer() {
       // Не прерываем запуск, так как есть fallback система
     }
     
+    // 🎫 НОВОЕ: Инициализация TicketEmailService
+    logger.info('🎫 Initializing Ticket Email Service...');
+    logger.info(`✅ Ticket Email Service ready (Email timeout: ${ticketEmailService.EMAIL_TIMEOUT / 1000}s)`);
+    
     // Инициализация векторной базы (если включена)
     if (config.features.enableRAG) {
       logger.info('📡 Initializing vector store...');
@@ -635,6 +754,7 @@ async function startServer() {
       logger.info(`🌐 API available at: http://localhost:${PORT}${config.app.apiPrefix}`);
       logger.info(`🏠 Client available at: http://localhost:${PORT}`);
       logger.info(`🔌 Socket.IO available at: http://localhost:${PORT}/socket.io/`);
+      logger.info(`🎫 Email collection workflow: ACTIVE`); // 🎫 НОВОЕ
       
       // Логируем URL для разных режимов
       if (config.app.isDevelopment) {
@@ -664,6 +784,12 @@ async function startServer() {
  */
 async function gracefulShutdown(signal) {
   logger.info(`🔄 Received ${signal}, shutting down gracefully...`);
+  
+  // 🎫 НОВОЕ: Логируем статистику перед выключением
+  const pendingStats = ticketEmailService.getPendingTicketsStats();
+  if (pendingStats.active > 0) {
+    logger.warn(`⚠️  Shutting down with ${pendingStats.active} pending tickets awaiting email`);
+  }
   
   // Закрываем Socket.IO соединения
   logger.info('🔌 Closing Socket.IO connections...');
