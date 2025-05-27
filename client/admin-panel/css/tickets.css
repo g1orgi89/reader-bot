@@ -269,6 +269,135 @@
   transform: scale(1.1);
 }
 
+/* ==========================================================================
+   НОВОЕ: СТИЛИ ДЛЯ ОТОБРАЖЕНИЯ ПОЛЬЗОВАТЕЛЕЙ С EMAIL
+   ========================================================================== */
+.user-info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  min-width: 180px;
+}
+
+.user-email-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 110, 199, 0.1);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--neon-pink);
+}
+
+.user-email-text {
+  color: var(--neon-pink);
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-id-small {
+  color: var(--text-light);
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  padding-left: 0.3rem;
+}
+
+.user-id-only {
+  color: var(--neon-pink);
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  background: rgba(255, 110, 199, 0.1);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--neon-pink);
+}
+
+.user-no-email {
+  color: var(--text-light);
+  font-size: 0.7rem;
+  opacity: 0.6;
+  font-style: italic;
+  padding-left: 0.3rem;
+}
+
+/* Стили для кнопки копирования email */
+.btn-copy-mini[onclick*="copyUserEmail"] {
+  border-color: var(--neon-pink);
+  color: var(--neon-pink);
+}
+
+.btn-copy-mini[onclick*="copyUserEmail"]:hover {
+  background: var(--neon-pink);
+  color: var(--dark-bg);
+}
+
+/* ==========================================================================
+   МОДАЛЬНОЕ ОКНО: НОВЫЕ СТИЛИ ДЛЯ EMAIL ПОЛЬЗОВАТЕЛЯ
+   ========================================================================== */
+.user-info-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--dark-bg);
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid var(--neon-pink);
+}
+
+.user-id {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-email {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255, 110, 199, 0.1);
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--neon-pink);
+}
+
+.user-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--neon-pink);
+  text-transform: uppercase;
+  min-width: 40px;
+}
+
+.user-email-value {
+  color: var(--text-white);
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  flex: 1;
+}
+
+.btn-icon[onclick*="copyUserEmail"] {
+  background: var(--neon-pink);
+  color: var(--dark-bg);
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: 1rem;
+}
+
+.btn-icon[onclick*="copyUserEmail"]:hover {
+  background: var(--neon-green);
+  transform: scale(1.1);
+}
+
 /* Специфичные стили для колонок */
 .col-id {
   width: 150px;
@@ -282,9 +411,8 @@
 }
 
 .col-user {
-  font-family: 'Courier New', monospace;
-  font-size: 0.85rem;
-  color: var(--neon-pink);
+  width: 200px;
+  min-width: 200px;
 }
 
 .col-created,
@@ -995,6 +1123,11 @@
   .col-actions {
     width: 160px; /* Уменьшаем на планшетах */
   }
+  
+  .col-user {
+    width: 180px;
+    min-width: 180px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1063,6 +1196,24 @@
     padding: 0.3rem 0.6rem;
     font-size: 0.7rem;
   }
+  
+  /* Адаптивность для отображения пользователей */
+  .user-info-cell {
+    min-width: 150px;
+  }
+  
+  .user-email-display {
+    padding: 0.3rem 0.5rem;
+  }
+  
+  .user-email-text {
+    font-size: 0.75rem;
+  }
+  
+  .col-user {
+    width: 160px;
+    min-width: 160px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1117,5 +1268,53 @@
   
   .table-action-buttons {
     gap: 0.2rem;
+  }
+  
+  /* Мобильная версия отображения пользователей */
+  .user-info-cell {
+    min-width: 120px;
+    gap: 0.2rem;
+  }
+  
+  .user-email-display {
+    padding: 0.25rem 0.4rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+  
+  .user-email-text {
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+  
+  .user-id-small {
+    font-size: 0.65rem;
+  }
+  
+  .col-user {
+    width: 130px;
+    min-width: 130px;
+  }
+  
+  /* Модальное окно: компактная версия user info */
+  .user-info-container {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+  
+  .user-email {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+  
+  .user-label {
+    font-size: 0.75rem;
+  }
+  
+  .user-email-value {
+    font-size: 0.8rem;
   }
 }
