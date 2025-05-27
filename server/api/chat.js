@@ -1,16 +1,17 @@
 /**
  * API маршруты для работы с чатом
  * @file server/api/chat.js
- * 🔥 ПРИОРИТЕТ 1: Убран фильтр _checkProjectRelevance() который убивал 70% русских запросов
+ * 🍄 ОБНОВЛЕНО: Интеграция с ticketEmailService для сбора email при создании тикетов
  */
 
 const express = require('express');
-const claude = require('../services/claude'); // Вернули обратно к claude.js
+const claude = require('../services/claude');
 const messageService = require('../services/message');
 const conversationService = require('../services/conversation');
 const languageDetectService = require('../services/languageDetect');
 const vectorStoreService = require('../services/vectorStore');
 const ticketService = require('../services/ticketing');
+const ticketEmailService = require('../services/ticketEmail'); // 🍄 НОВОЕ: Добавлен ticketEmailService
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -33,20 +34,81 @@ router.post(['/', '/message'], async (req, res) => {
       });
     }
 
+    // 🍄 НОВОЕ: Проверяем, есть ли у пользователя тикет в ожидании email
+    const pendingTicket = ticketEmailService.getPendingTicket(userId);
+    
+    // 🍄 НОВОЕ: Если есть тикет в ожидании и сообщение содержит email
+    if (pendingTicket && ticketEmailService.isEmailMessage(message)) {
+      const email = ticketEmailService.extractEmail(message);
+      
+      if (email) {
+        try {
+          const result = await ticketEmailService.updateTicketWithEmail(
+            userId, 
+            email, 
+            language || 'en'
+          );
+          
+          if (result.success) {
+            // Сохраняем сообщение пользователя с email
+            await messageService.create({
+              text: message,
+              role: 'user',
+              userId,
+              conversationId: pendingTicket.conversationId,
+              metadata: { 
+                language: language || 'en',
+                source: 'api',
+                emailProvided: true,
+                ticketId: result.ticket.ticketId
+              }
+            });
+            
+            // Сохраняем ответ бота
+            await messageService.create({
+              text: result.message,
+              role: 'assistant',
+              userId,
+              conversationId: pendingTicket.conversationId,
+              metadata: {
+                language: language || 'en',
+                source: 'api',
+                emailCollected: true,
+                ticketId: result.ticket.ticketId
+              }
+            });
+            
+            return res.json({
+              success: true,
+              data: {
+                message: result.message,
+                conversationId: pendingTicket.conversationId,
+                ticketId: result.ticket.ticketId,
+                emailCollected: true,
+                language: language || 'en',
+                timestamp: new Date().toISOString()
+              }
+            });
+          }
+        } catch (error) {
+          logger.error(`🍄 Error updating ticket with email: ${error.message}`);
+          // Продолжаем обычную обработку сообщения
+        }
+      }
+    }
+
     // Получение или создание разговора
     let conversation;
     if (conversationId) {
       conversation = await conversationService.getConversationById(conversationId);
       if (!conversation) {
         logger.warn(`Conversation ${conversationId} not found, creating new one`);
-        // Создаем разговор с базовым языком
         conversation = await conversationService.createConversation(userId, {
           language: language || 'en',
           source: 'api'
         });
       }
     } else {
-      // Создаем новый разговор с базовым языком
       conversation = await conversationService.createConversation(userId, {
         language: language || 'en',
         source: 'api'
@@ -74,7 +136,7 @@ router.post(['/', '/message'], async (req, res) => {
       await conversationService.updateLanguage(conversation._id, detectedLanguage);
     }
     
-    // 🔥 ИСПРАВЛЕНО: RAG работает для ВСЕХ запросов без фильтрации
+    // RAG функциональность
     let context = [];
     let ragUsed = false;
     const enableRag = process.env.ENABLE_RAG !== 'false' && useRag !== false;
@@ -83,7 +145,6 @@ router.post(['/', '/message'], async (req, res) => {
       try {
         logger.debug(`🍄 Searching for relevant documents for: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"`);
         
-        // 🔥 УБРАН ФИЛЬТР: Поиск работает для ВСЕХ запросов
         const contextResults = await vectorStoreService.search(message, {
           limit: 5,
           language: detectedLanguage
@@ -94,7 +155,6 @@ router.post(['/', '/message'], async (req, res) => {
           ragUsed = true;
           logger.info(`🍄 Found ${context.length} relevant documents`);
           
-          // Логируем scores для отладки
           const scores = contextResults.map(r => r.score?.toFixed(3) || 'N/A').join(', ');
           logger.debug(`🍄 Document scores: [${scores}]`);
         } else {
@@ -102,7 +162,6 @@ router.post(['/', '/message'], async (req, res) => {
         }
       } catch (error) {
         logger.warn('🍄 Failed to get context from vector store:', error.message);
-        // Продолжаем без контекста
       }
     }
     
@@ -115,7 +174,7 @@ router.post(['/', '/message'], async (req, res) => {
       metadata: { 
         language: detectedLanguage,
         source: 'api',
-        ragUsed // Добавляем информацию об использовании RAG
+        ragUsed
       }
     });
     
@@ -124,25 +183,31 @@ router.post(['/', '/message'], async (req, res) => {
       context,
       history: formattedHistory,
       language: detectedLanguage,
-      userId // Добавляем userId для логирования
+      userId
     });
     
-    // Проверка на создание тикета
+    // 🍄 ОБНОВЛЕНО: Обработка создания тикетов с использованием ticketEmailService
     let ticketId = null;
     let ticketError = null;
+    let emailRequested = false;
     
-    if (aiResponse.needsTicket) {
+    // Проверяем, нужно ли создать тикет используя ticketEmailService
+    const shouldCreateTicket = aiResponse.needsTicket || 
+      ticketEmailService.shouldCreateTicket(message, detectedLanguage);
+    
+    if (shouldCreateTicket) {
       try {
-        const ticket = await ticketService.createTicket({
+        // 🍄 НОВОЕ: Используем ticketEmailService для создания тикета с запросом email
+        const ticketResult = await ticketEmailService.createPendingTicket({
           userId,
           conversationId: conversation._id,
-          initialMessage: message,  // Исправлено: message -> initialMessage
+          initialMessage: message,
           context: JSON.stringify({
             aiResponse: aiResponse.message,
             userMessage: message,
             history: formattedHistory.slice(-3),
             aiProvider: aiResponse.provider,
-            ragUsed // Добавляем информацию об использовании RAG
+            ragUsed
           }),
           language: detectedLanguage,
           subject: `Support request: ${message.substring(0, 50)}...`,
@@ -153,11 +218,48 @@ router.post(['/', '/message'], async (req, res) => {
             ragUsed
           }
         });
-        ticketId = ticket.ticketId;
-        logger.info(`🎫 Ticket created: ${ticketId}`);
+        
+        if (ticketResult.success) {
+          ticketId = ticketResult.ticket.ticketId;
+          emailRequested = ticketResult.pendingEmail;
+          
+          // Заменяем ответ Claude на запрос email
+          aiResponse.message = ticketResult.message;
+          
+          logger.info(`🎫 Pending ticket created: ${ticketId}, email requested`);
+        }
       } catch (error) {
-        logger.error('Failed to create ticket:', error);
+        logger.error('Failed to create pending ticket:', error);
         ticketError = error.message;
+        
+        // Fallback к обычному созданию тикета
+        try {
+          const ticket = await ticketService.createTicket({
+            userId,
+            conversationId: conversation._id,
+            initialMessage: message,
+            context: JSON.stringify({
+              aiResponse: aiResponse.message,
+              userMessage: message,
+              history: formattedHistory.slice(-3),
+              aiProvider: aiResponse.provider,
+              ragUsed
+            }),
+            language: detectedLanguage,
+            subject: `Support request: ${message.substring(0, 50)}...`,
+            category: 'technical',
+            metadata: {
+              source: 'api',
+              aiProvider: aiResponse.provider,
+              ragUsed
+            }
+          });
+          ticketId = ticket.ticketId;
+          logger.info(`🎫 Fallback ticket created: ${ticketId}`);
+        } catch (fallbackError) {
+          logger.error('Fallback ticket creation also failed:', fallbackError);
+          ticketError = fallbackError.message;
+        }
       }
     }
     
@@ -176,11 +278,12 @@ router.post(['/', '/message'], async (req, res) => {
       metadata: {
         language: detectedLanguage,
         tokensUsed: aiResponse.tokensUsed,
-        ticketCreated: aiResponse.needsTicket,
+        ticketCreated: shouldCreateTicket,
         ticketId,
+        emailRequested, // 🍄 НОВОЕ: Добавляем информацию о запросе email
         source: 'api',
-        aiProvider: aiResponse.provider, // Сохраняем информацию о провайдере
-        ragUsed // Добавляем информацию об использовании RAG
+        aiProvider: aiResponse.provider,
+        ragUsed
       }
     });
     
@@ -194,28 +297,28 @@ router.post(['/', '/message'], async (req, res) => {
         message: botResponse,
         conversationId: conversation._id.toString(),
         messageId: botMessage._id.toString(),
-        needsTicket: aiResponse.needsTicket,
+        needsTicket: shouldCreateTicket,
         ticketId,
         ticketError,
+        emailRequested, // 🍄 НОВОЕ: Информация о запросе email
         tokensUsed: aiResponse.tokensUsed,
         language: detectedLanguage,
-        aiProvider: aiResponse.provider, // Добавляем информацию о провайдере
+        aiProvider: aiResponse.provider,
         timestamp: new Date().toISOString(),
         metadata: {
           knowledgeResultsCount: context.length,
           historyMessagesCount: formattedHistory.length,
-          ragUsed // Добавляем информацию об использовании RAG
+          ragUsed
         }
       }
     };
     
     res.json(response);
-    logger.info(`✅ Chat API response sent for user: ${userId} (via ${aiResponse.provider}, RAG: ${ragUsed})`);
+    logger.info(`✅ Chat API response sent for user: ${userId} (via ${aiResponse.provider}, RAG: ${ragUsed}, Email requested: ${emailRequested})`);
     
   } catch (error) {
     logger.error(`❌ Chat API error:`, error);
     
-    // Определяем тип ошибки и возвращаем соответствующий код
     let statusCode = 500;
     let errorCode = 'INTERNAL_SERVER_ERROR';
     let errorMessage = 'Service temporarily unavailable. Please try again.';
@@ -236,6 +339,73 @@ router.post(['/', '/message'], async (req, res) => {
       error: errorMessage,
       code: errorCode,
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * 🍄 НОВОЕ: Эндпойнт для получения статуса тикета в ожидании email
+ * @route GET /api/chat/users/:userId/pending-ticket
+ * @desc Получение информации о тикете в ожидании email
+ * @access Public
+ */
+router.get('/users/:userId/pending-ticket', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const pendingTicket = ticketEmailService.getPendingTicket(userId);
+    
+    if (pendingTicket) {
+      res.json({
+        success: true,
+        data: {
+          hasPendingTicket: true,
+          ticketId: pendingTicket.ticketId,
+          createdAt: pendingTicket.createdAt,
+          expiresAt: pendingTicket.expiresAt,
+          conversationId: pendingTicket.conversationId
+        }
+      });
+    } else {
+      res.json({
+        success: true,
+        data: {
+          hasPendingTicket: false
+        }
+      });
+    }
+  } catch (error) {
+    logger.error('❌ Error getting pending ticket:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get pending ticket status',
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+/**
+ * 🍄 НОВОЕ: Эндпойнт для получения статистики по тикетам с email
+ * @route GET /api/chat/ticket-email-stats
+ * @desc Получение статистики по сбору email для тикетов
+ * @access Public
+ */
+router.get('/ticket-email-stats', async (req, res) => {
+  try {
+    const stats = ticketEmailService.getPendingTicketsStats();
+    
+    res.json({
+      success: true,
+      data: {
+        pendingTickets: stats,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('❌ Error getting ticket email stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get ticket email statistics',
+      code: 'INTERNAL_SERVER_ERROR'
     });
   }
 });
@@ -376,10 +546,8 @@ router.get('/languages', async (req, res) => {
  */
 router.post('/detect-language', async (req, res) => {
   try {
-    // Проверяем raw body и основной body
     const { text, userId, conversationId } = req.body;
     
-    // Логируем входящий текст для отладки
     logger.info('Language detection request:', {
       originalText: text,
       rawBody: req.rawBody,
@@ -395,10 +563,8 @@ router.post('/detect-language', async (req, res) => {
       });
     }
 
-    // Проверяем, что текст не содержит знаки вопроса (признак неправильной кодировки)
     const hasQuestionMarks = /^\?+,?\s*\?+/.test(text.trim());
     if (hasQuestionMarks && req.rawBody) {
-      // Пытаемся распарсить текст из rawBody
       try {
         const rawBodyParsed = JSON.parse(req.rawBody);
         if (rawBodyParsed.text && rawBodyParsed.text !== text) {
@@ -411,13 +577,11 @@ router.post('/detect-language', async (req, res) => {
       }
     }
 
-    // Используем исправленный текст
     const processedText = req.body.text;
     let detectedLanguage;
     let method = 'basic';
     let history = [];
 
-    // Если есть userId и conversationId, получаем историю для контекстного определения
     if (userId && conversationId) {
       try {
         const conversation = await conversationService.getConversationById(conversationId);
@@ -428,7 +592,6 @@ router.post('/detect-language', async (req, res) => {
             content: msg.text
           }));
           
-          // Используем контекстное определение языка
           detectedLanguage = languageDetectService.detectLanguageWithContext(processedText, {
             userId,
             conversationId,
@@ -437,20 +600,16 @@ router.post('/detect-language', async (req, res) => {
           });
           method = 'context-aware';
         } else {
-          // Если разговор не найден, используем базовое определение
           detectedLanguage = languageDetectService.detectLanguage(processedText);
         }
       } catch (error) {
         logger.warn('Failed to get conversation history for language detection:', error);
-        // Fallback к базовому определению
         detectedLanguage = languageDetectService.detectLanguage(processedText);
       }
     } else {
-      // Используем базовое определение языка
       detectedLanguage = languageDetectService.detectLanguage(processedText);
     }
 
-    // Подготавливаем безопасный вывод текста (ограничиваем длину)
     const safeText = processedText.substring(0, 50) + (processedText.length > 50 ? '...' : '');
 
     res.json({
@@ -484,12 +643,11 @@ router.post('/detect-language', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   try {
-    // Объединяем статистику из разных сервисов
     const [messagesStats, conversationsStats, languageStats, aiStats] = await Promise.all([
       messageService.getStats(),
       conversationService.getConversationStats(),
       Promise.resolve(languageDetectService.getStats()),
-      Promise.resolve(claude.getProviderInfo()) // Используем claude вместо aiService
+      Promise.resolve(claude.getProviderInfo())
     ]);
 
     res.json({
@@ -498,7 +656,7 @@ router.get('/stats', async (req, res) => {
         messages: messagesStats,
         conversations: conversationsStats,
         language: languageStats,
-        ai: aiStats, // Добавляем информацию о провайдере AI
+        ai: aiStats,
         timestamp: new Date().toISOString()
       }
     });
@@ -609,28 +767,21 @@ router.get('/search', async (req, res) => {
  */
 router.get('/health', async (req, res) => {
   try {
-    // Проверяем здоровье всех зависимых сервисов
     const healthChecks = await Promise.allSettled([
-      // AI service health
       claude.isHealthy ? claude.isHealthy() : Promise.resolve(true),
-      // Message service health
       messageService.healthCheck ? messageService.healthCheck() : Promise.resolve({ status: 'ok' }),
-      // Conversation service health
       conversationService.healthCheck ? conversationService.healthCheck() : Promise.resolve({ status: 'ok' }),
-      // Vector store health (optional, может не быть инициализирован)
       vectorStoreService.healthCheck ? vectorStoreService.healthCheck() : Promise.resolve({ status: 'ok' })
     ]);
 
-    // Обрабатываем результаты проверок
     const [aiHealth, messageHealth, conversationHealth, vectorHealth] = healthChecks.map(result => 
       result.status === 'fulfilled' ? result.value : { status: 'error', error: result.reason?.message }
     );
 
-    // Определяем общее состояние здоровья
     const isAiHealthy = aiHealth === true || aiHealth?.status === 'ok';
     const isMessageHealthy = messageHealth?.status === 'ok';
     const isConversationHealthy = conversationHealth?.status === 'ok';
-    const isVectorHealthy = vectorHealth?.status === 'ok' || vectorHealth?.status === 'error'; // Vector store опциональный
+    const isVectorHealthy = vectorHealth?.status === 'ok' || vectorHealth?.status === 'error';
 
     const overall = isAiHealthy && isMessageHealthy && isConversationHealthy;
 
@@ -641,7 +792,6 @@ router.get('/health', async (req, res) => {
       vectorStore: vectorHealth?.status || 'not_initialized'
     };
 
-    // Добавляем информацию о текущем AI провайдере
     const aiProviderInfo = claude.getProviderInfo();
 
     res.status(overall ? 200 : 503).json({
@@ -654,7 +804,7 @@ router.get('/health', async (req, res) => {
         conversations: conversationHealth?.message || 'Unknown status',
         vectorStore: vectorHealth?.status === 'error' ? 'Not initialized (RAG disabled)' : 'Available'
       },
-      aiProvider: aiProviderInfo, // Добавляем детальную информацию о AI провайдере
+      aiProvider: aiProviderInfo,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -714,10 +864,8 @@ router.post('/switch-ai-provider', async (req, res) => {
       });
     }
     
-    // Переключаем провайдера
     claude.switchProvider(provider);
     
-    // Получаем обновленную информацию
     const providerInfo = claude.getProviderInfo();
     
     res.json({
@@ -741,7 +889,6 @@ router.post('/switch-ai-provider', async (req, res) => {
 });
 
 /**
- * 🔥 ИСПРАВЛЕНО: Упрощенное тестирование RAG без фильтра релевантности
  * @route POST /api/chat/test-rag
  * @desc Тестирование поиска в базе знаний с различными порогами
  * @access Public
@@ -758,9 +905,6 @@ router.post('/test-rag', async (req, res) => {
       });
     }
 
-    // 🔥 УБРАН ФИЛЬТР релевантности - теперь тестируем ВСЕ запросы
-    
-    // Тестирование поиска с разными порогами
     const results = {};
     
     for (const threshold of thresholds) {
@@ -787,7 +931,6 @@ router.post('/test-rag', async (req, res) => {
       }
     }
 
-    // Автоматический поиск (без порога)
     let autoResults = {};
     try {
       const autoSearch = await vectorStoreService.search(query, {
