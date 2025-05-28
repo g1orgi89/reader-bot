@@ -102,8 +102,7 @@ const ticketSchema = new mongoose.Schema({
   },
   language: {
     type: String,
-    enum: ['en', 'es', 'ru'],
-    default: 'en',
+    default: 'auto',
     index: true
   },
   // Комментарии к тикету
