@@ -29,9 +29,7 @@ const knowledgeSchema = new mongoose.Schema({
   },
   language: {
     type: String,
-    required: true,
-    enum: ['en', 'es', 'ru'],
-    default: 'en',
+    default: 'auto',
     index: true
   },
   tags: [{
