@@ -14,7 +14,7 @@
  * @property {string} name - Название промпта
  * @property {string} type - Тип промпта (basic|rag|ticket_detection|categorization|subject)
  * @property {string} category - Категория (system|safety|language|custom)
- * @property {string} language - Язык (en|ru|es|all)
+ * @property {string} language - Язык (universal|en|ru|es|fr|de|zh|ja|auto)
  * @property {string} content - Содержимое промпта
  * @property {string} [description] - Описание промпта
  * @property {number} [maxTokens] - Максимальное количество токенов
@@ -76,12 +76,18 @@ const PROMPTS_CONFIG = {
     'subject': 'Темы'
   },
   
-  /** @type {Object<string, string>} Переводы языков */
+  /** @type {Object<string, string>} Упрощенные переводы языков */
   LANGUAGE_LABELS: {
+    'universal': 'Универсальный',
+    'auto': 'Авто-определение',
     'en': 'English',
     'ru': 'Русский',
     'es': 'Español',
-    'all': 'Все языки'
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'zh': '中文',
+    'ja': '日本語',
+    'other': 'Другой'
   }
 };
 
@@ -730,7 +736,7 @@ async function runPromptTest() {
   if (!messageInput || !resultsDiv) return;
   
   const testMessage = messageInput.value.trim();
-  const language = languageSelect?.value || 'en';
+  const language = languageSelect?.value || 'auto';
   
   if (!testMessage) {
     showNotification('warning', '🍄 Введите тестовое сообщение');
