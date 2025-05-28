@@ -1,7 +1,7 @@
 /**
  * Knowledge Base API Routes - Enhanced multilingual search with FULL chunking support
  * @file server/api/knowledge.js
- * 🍄 ОБНОВЛЕНО: Полная поддержка чанкинга с returnChunks и детальной диагностикой
+ * 🍄 УПРОЩЕНО: Универсальный поиск без языковых ограничений
  */
 
 const express = require('express');
@@ -24,16 +24,15 @@ router.use((req, res, next) => {
  * @desc Get knowledge documents with optional filtering
  * @access Public
  * @param {string} [category] - Filter by category
- * @param {string} [language] - Filter by language
  * @param {string} [tags] - Filter by tags (comma-separated)
  * @param {number} [page=1] - Page number
  * @param {number} [limit=10] - Results per page
+ * 🍄 УПРОЩЕНО: Убран language фильтр
  */
 router.get('/', async (req, res) => {
   try {
     const {
       category,
-      language,
       tags,
       page = 1,
       limit = 10
@@ -42,7 +41,6 @@ router.get('/', async (req, res) => {
     // Use knowledge service for better handling
     const result = await knowledgeService.getDocuments({
       category,
-      language,
       tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
       page: parseInt(page),
       limit: parseInt(limit)
@@ -78,7 +76,6 @@ router.get('/', async (req, res) => {
  * @desc Search knowledge documents by text with FULL chunking support
  * @access Public
  * @param {string} q - Search query
- * @param {string} [language] - Filter by language
  * @param {string} [category] - Filter by category
  * @param {string} [tags] - Filter by tags (comma-separated)
  * @param {number} [page=1] - Page number
@@ -86,12 +83,12 @@ router.get('/', async (req, res) => {
  * @param {boolean} [useVectorSearch=true] - Use vector search when available
  * @param {boolean} [returnChunks=false] - Return individual chunks instead of grouped documents
  * @param {number} [score_threshold] - Custom relevance threshold
+ * 🍄 УПРОЩЕНО: Убран language фильтр
  */
 router.get('/search', async (req, res) => {
   try {
     const {
       q: searchQuery,
-      language,
       category,
       tags,
       page = 1,
@@ -109,15 +106,14 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    // 🍄 НОВОЕ: Расширенные опции поиска с поддержкой чанков
+    // 🍄 УПРОЩЕНО: Убрали language из опций поиска
     const searchOptions = {
-      language,
       category,
       tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
       page: parseInt(page),
       limit: parseInt(limit),
       useVectorSearch: useVectorSearch !== 'false',
-      returnChunks: returnChunks === 'true'  // 🍄 ДОБАВЛЕНО: поддержка returnChunks
+      returnChunks: returnChunks === 'true'
     };
 
     // 🍄 НОВОЕ: Передача custom threshold если указан
@@ -179,17 +175,16 @@ router.get('/search', async (req, res) => {
  * @desc Test vector search in Qdrant with FULL chunking analysis
  * @access Private (Admin only)
  * @param {string} q - Search query
- * @param {number} [threshold=0.4] - Score threshold
- * @param {string} [language] - Filter by language
+ * @param {number} [threshold=0.7] - Score threshold (now universal)
  * @param {boolean} [returnChunks=false] - Return individual chunks for analysis
  * @param {number} [limit=10] - Number of results
+ * 🍄 УПРОЩЕНО: Убран language фильтр
  */
 router.get('/vector-search', requireAdminAuth, async (req, res) => {
   try {
     const {
       q: searchQuery,
-      threshold = 0.4,
-      language,
+      threshold = 0.7, // 🍄 ИЗМЕНЕНО: универсальный порог по умолчанию
       returnChunks = false,
       limit = 10
     } = req.query;
@@ -202,19 +197,17 @@ router.get('/vector-search', requireAdminAuth, async (req, res) => {
       });
     }
 
-    // 🍄 УЛУЧШЕНО: Используем векторный поиск с поддержкой returnChunks
+    // 🍄 УПРОЩЕНО: Убрали language из поиска
     const searchResults = await vectorStoreService.search(searchQuery, {
       limit: parseInt(limit),
-      language,
       score_threshold: parseFloat(threshold),
-      returnChunks: returnChunks === 'true'  // 🍄 НОВОЕ: передаем returnChunks
+      returnChunks: returnChunks === 'true'
     });
 
-    // 🍄 НОВОЕ: Дополнительно тестируем разные пороги
+    // 🍄 УПРОЩЕНО: Тестируем разные пороги без language
     const testResult = await vectorStoreService.testSearch(
       searchQuery, 
-      parseFloat(threshold),
-      language
+      parseFloat(threshold)
     );
 
     // 🍄 УЛУЧШЕНО: Расширенная статистика результатов
@@ -222,7 +215,7 @@ router.get('/vector-search', requireAdminAuth, async (req, res) => {
       success: true,
       query: searchQuery,
       threshold: parseFloat(threshold),
-      language: language || 'auto',
+      universalSearch: true, // 🍄 НОВОЕ: индикатор универсального поиска
       returnChunks: returnChunks === 'true',
       results: searchResults,
       resultCount: searchResults.length,
@@ -256,7 +249,7 @@ router.get('/vector-search', requireAdminAuth, async (req, res) => {
 
     res.json(responseData);
 
-    logger.info(`🍄 Vector search test: "${searchQuery}" threshold=${threshold}, returnChunks=${returnChunks === 'true'}, results=${searchResults.length}`);
+    logger.info(`🍄 Universal vector search test: "${searchQuery}" threshold=${threshold}, returnChunks=${returnChunks === 'true'}, results=${searchResults.length}`);
   } catch (error) {
     logger.error(`Error testing vector search: ${error.message}`);
     res.status(500).json({
@@ -275,7 +268,7 @@ router.get('/vector-search', requireAdminAuth, async (req, res) => {
  * @body {number} [limit=5] - Number of results to return
  * @body {boolean} [returnChunks=false] - Return individual chunks for detailed analysis
  * @body {number} [score_threshold] - Custom relevance threshold
- * @body {string} [language] - Language filter
+ * 🍄 УПРОЩЕНО: Убран language фильтр
  */
 router.post('/test-search', requireAdminAuth, async (req, res) => {
   try {
@@ -283,8 +276,7 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
       query, 
       limit = 5, 
       returnChunks = false, 
-      score_threshold,
-      language 
+      score_threshold
     } = req.body;
 
     if (!query || query.trim().length === 0) {
@@ -297,11 +289,10 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
 
     logger.info(`🍄 RAG test search initiated: "${query}" with returnChunks=${returnChunks}`);
 
-    // 🍄 УЛУЧШЕНО: Расширенные опции поиска
+    // 🍄 УПРОЩЕНО: Убрали language из опций поиска
     const searchOptions = {
       limit: parseInt(limit),
-      returnChunks: Boolean(returnChunks),  // 🍄 НОВОЕ: поддержка returnChunks
-      language
+      returnChunks: Boolean(returnChunks)
     };
 
     if (score_threshold !== undefined) {
@@ -326,7 +317,7 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
             title: result.metadata?.title || 'Без названия',
             content: result.content || '',
             category: result.metadata?.category || 'general',
-            language: result.metadata?.language || 'en',
+            language: result.metadata?.language || 'auto', // 🍄 ИЗМЕНЕНО
             score: result.score || 0,
             isChunk: isChunk,
             chunkInfo: result.chunkInfo || (isChunk ? {
@@ -343,7 +334,7 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
               originalId: result.metadata?.originalId || result.id,
               hasChunkMetadata: result.metadata?.chunkIndex !== undefined,
               contentLength: result.content?.length || 0,
-              scoreThreshold: searchOptions.score_threshold || 'auto'
+              scoreThreshold: searchOptions.score_threshold || 'universal'
             }
           };
         });
@@ -380,7 +371,7 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
         title: doc.title,
         content: doc.content.substring(0, 500), // Обрезаем для превью
         category: doc.category,
-        language: doc.language,
+        language: doc.language || 'auto', // 🍄 ИЗМЕНЕНО
         score: 0.5, // Примерный score для MongoDB результатов
         isChunk: false,
         chunkInfo: null,
@@ -405,6 +396,7 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
         chunksFound: results.filter(r => r.isChunk).length,
         documentsFound: results.filter(r => !r.isChunk).length,
         searchOptions,
+        universalSearch: true, // 🍄 НОВОЕ: индикатор универсального поиска
         // 🍄 НОВОЕ: Детальная статистика
         statistics: {
           averageScore: results.length > 0 ? 
@@ -423,7 +415,7 @@ router.post('/test-search', requireAdminAuth, async (req, res) => {
         debug: {
           vectorSearchAttempted: true,
           vectorServiceAvailable: vectorStoreService && typeof vectorStoreService.search === 'function',
-          thresholdUsed: searchOptions.score_threshold || 'auto',
+          thresholdUsed: searchOptions.score_threshold || 'universal',
           timestamp: new Date().toISOString()
         }
       }
@@ -509,7 +501,7 @@ router.get('/diagnose', requireAdminAuth, async (req, res) => {
       const testDoc = {
         id: 'test-doc-chunking',
         content: 'This is a test document for chunking functionality. '.repeat(50), // ~2500 символов
-        metadata: { title: 'Test Document', language: 'en', category: 'test' }
+        metadata: { title: 'Test Document', language: 'auto', category: 'test' }
       };
       
       const textChunker = require('../utils/textChunker');
@@ -595,7 +587,7 @@ router.get('/diagnose', requireAdminAuth, async (req, res) => {
         configuration: {
           enabled: vectorStatus.config?.chunkingConfig?.enableChunking || false,
           defaultOptions: vectorStatus.config?.chunkingConfig || {},
-          languageThresholds: vectorStatus.config?.languageThresholds || {}
+          universalThreshold: vectorStatus.config?.universalThreshold || 'unknown' // 🍄 ИЗМЕНЕНО
         }
       },
       // 🍄 НОВОЕ: Рекомендации на основе диагностики
@@ -629,7 +621,7 @@ router.get('/diagnose', requireAdminAuth, async (req, res) => {
 
     res.json(diagnosticsResponse);
 
-    logger.info(`🍄 Enhanced vector store diagnostics performed with chunking analysis`);
+    logger.info(`🍄 Enhanced vector store diagnostics performed with universal search and chunking analysis`);
   } catch (error) {
     logger.error(`Error performing enhanced vector store diagnostics: ${error.message}`);
     res.status(500).json({
@@ -677,7 +669,7 @@ router.get('/chunk-analysis/:documentId', requireAdminAuth, async (req, res) => 
         id: documentId,
         title: document.title,
         category: document.category,
-        language: document.language,
+        language: document.language || 'auto', // 🍄 ИЗМЕНЕНО
         contentLength: document.content.length,
         tags: document.tags
       },
@@ -717,8 +709,6 @@ router.get('/chunk-analysis/:documentId', requireAdminAuth, async (req, res) => 
   }
 });
 
-// ... (остальные методы остаются без изменений, но добавляем сюда для полноты)
-
 /**
  * @route POST /api/knowledge/sync-vector-store
  * @desc Синхронизация существующих документов с векторным хранилищем с чанкингом
@@ -737,7 +727,7 @@ router.post('/sync-vector-store', requireAdminAuth, async (req, res) => {
       preserveParagraphs = true
     } = req.body;
 
-    logger.info(`🍄 Starting vector store synchronization with chunking: ${enableChunking ? 'enabled' : 'disabled'}`);
+    logger.info(`🍄 Starting vector store synchronization with universal search and chunking: ${enableChunking ? 'enabled' : 'disabled'}`);
 
     const result = await knowledgeService.syncToVectorStore({
       enableChunking,
@@ -815,7 +805,8 @@ router.get('/stats', requireAdminAuth, async (req, res) => {
           byCategory: categoryStats,
           recentlyUpdated: recentlyUpdated,
           lastUpdated: new Date().toISOString(),
-          chunkingEnabled: false
+          chunkingEnabled: false,
+          universalSearch: true // 🍄 НОВОЕ
         }
       });
     }
@@ -829,26 +820,29 @@ router.get('/stats', requireAdminAuth, async (req, res) => {
       .limit(5)
       .select('title category language updatedAt');
 
+    // 🍄 УПРОЩЕНО: Возвращаем языковую статистику в ожидаемом формате
+    const languageArray = Object.entries(knowledgeStats.mongodb.languages).map(([lang, count]) => ({
+      _id: lang,
+      count
+    }));
+
     res.json({
       success: true,
       data: {
         total: totalDocs,
         published: publishedDocs,
         draft: draftDocs,
-        byLanguage: [
-          { _id: 'en', count: knowledgeStats.mongodb.languages.en },
-          { _id: 'ru', count: knowledgeStats.mongodb.languages.ru },
-          { _id: 'es', count: knowledgeStats.mongodb.languages.es }
-        ],
+        byLanguage: languageArray, // 🍄 ИЗМЕНЕНО: возвращаем в ожидаемом формате
         recentlyUpdated: recentlyUpdated,
         lastUpdated: new Date().toISOString(),
         chunkingEnabled: knowledgeStats.chunking?.enabled || false,
         vectorStore: knowledgeStats.vectorStore,
-        chunking: knowledgeStats.chunking
+        chunking: knowledgeStats.chunking,
+        universalSearch: true // 🍄 НОВОЕ: индикатор универсального поиска
       }
     });
 
-    logger.info(`🍄 Knowledge base statistics retrieved with chunking info`);
+    logger.info(`🍄 Knowledge base statistics retrieved with universal search and chunking info`);
   } catch (error) {
     logger.error(`🍄 Error retrieving knowledge base statistics: ${error.message}`);
     res.status(500).json({
@@ -911,12 +905,13 @@ router.get('/:id', async (req, res) => {
  * @body {string} title - Document title
  * @body {string} content - Document content
  * @body {string} category - Document category
- * @body {string} [language=en] - Document language
+ * @body {string} [language=auto] - Document language (auto-detected if not specified)
  * @body {string[]} [tags] - Document tags
  * @body {string} [authorId] - Author ID
  * @body {boolean} [enableChunking] - Override chunking for this document
  * @body {number} [chunkSize] - Custom chunk size for this document
  * @body {number} [overlap] - Custom overlap for this document
+ * 🍄 УПРОЩЕНО: language по умолчанию 'auto'
  */
 router.post('/', requireAdminAuth, async (req, res) => {
   try {
@@ -924,7 +919,7 @@ router.post('/', requireAdminAuth, async (req, res) => {
       title,
       content,
       category,
-      language = 'en',
+      language = 'auto', // 🍄 ИЗМЕНЕНО: по умолчанию 'auto'
       tags = [],
       authorId,
       enableChunking,
