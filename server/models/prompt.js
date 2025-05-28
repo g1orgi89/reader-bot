@@ -33,7 +33,7 @@ const promptSchema = new mongoose.Schema({
   },
   language: {
     type: String,
-    default: 'auto',
+    default: 'none', // Изменено с 'auto' на 'none' для консистентности с Knowledge моделью
     index: true
   },
   content: {
@@ -194,10 +194,10 @@ promptSchema.methods.addTestResult = function(testResult) {
   return this.save();
 };
 
-// Статические методы для поиска
+// Статические методы для поиска (обновленные для поддержки 'none' вместо 'auto')
 promptSchema.statics.findByType = function(type, language = null, activeOnly = true) {
   const query = { type };
-  if (language && language !== 'auto') query.language = { $in: [language, 'auto'] };
+  if (language && language !== 'none') query.language = { $in: [language, 'none'] };
   if (activeOnly) query.active = true;
   
   return this.find(query).sort({ isDefault: -1, updatedAt: -1 });
@@ -209,8 +209,8 @@ promptSchema.statics.findByType = function(type, language = null, activeOnly = t
  * @param {string} language - Язык
  * @returns {Promise<PromptDocument|null>} Промпт
  */
-promptSchema.statics.getActivePrompt = function(type, language = 'auto') {
-  const languageOptions = language === 'auto' ? ['auto'] : [language, 'auto'];
+promptSchema.statics.getActivePrompt = function(type, language = 'none') {
+  const languageOptions = language === 'none' ? ['none'] : [language, 'none'];
   
   return this.findOne({
     type,
@@ -244,7 +244,7 @@ promptSchema.statics.searchText = function(searchQuery, options = {}) {
 
   if (category) query.category = category;
   if (type) query.type = type;
-  if (language && language !== 'auto') query.language = { $in: [language, 'auto'] };
+  if (language && language !== 'none') query.language = { $in: [language, 'none'] };
   if (activeOnly) query.active = true;
 
   const skip = (page - 1) * limit;
@@ -305,7 +305,7 @@ promptSchema.statics.findByCategory = function(category, options = {}) {
   const { language = null, activeOnly = true } = options;
   
   const query = { category };
-  if (language && language !== 'auto') query.language = { $in: [language, 'auto'] };
+  if (language && language !== 'none') query.language = { $in: [language, 'none'] };
   if (activeOnly) query.active = true;
   
   return this.find(query).sort({ isDefault: -1, name: 1 });
