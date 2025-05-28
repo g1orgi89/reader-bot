@@ -3,6 +3,7 @@
  * @file server/services/promptService.js
  * 🍄 Сервис для динамического управления промптами через базу данных
  * ОБНОВЛЕНО: Удалена векторная интеграция - промпты только в MongoDB
+ * ИСПРАВЛЕНО: Корректная работа с универсальными промптами (language: 'none')
  */
 
 const Prompt = require('../models/prompt');
@@ -243,6 +244,7 @@ class PromptService {
   /**
    * Получить активный промпт по типу и языку из БД или кеша
    * 🍄 УПРОЩЕНО: Убрана сложная языковая логика
+   * 🍄 ИСПРАВЛЕНО: Теперь корректно ищет language: 'none' вместо 'auto'
    * @param {string} type - Тип промпта ('basic', 'rag', 'ticket_detection', 'categorization', 'subject')
    * @param {string} [language='auto'] - Язык промпта (теперь игнорируется)
    * @returns {Promise<string>} Содержимое промпта
@@ -260,8 +262,8 @@ class PromptService {
         return cached.content;
       }
 
-      // Ищем в базе данных
-      const prompt = await Prompt.getActivePrompt(type, 'auto');
+      // 🍄 ИСПРАВЛЕНО: Ищем в базе данных с language: 'none' вместо 'auto'
+      const prompt = await Prompt.getActivePrompt(type, 'none');
       
       if (prompt) {
         // Кешируем найденный промпт
@@ -278,7 +280,7 @@ class PromptService {
           logger.warn('🍄 Failed to increment prompt usage:', usageError.message);
         }
         
-        logger.info(`🍄 Retrieved active prompt from mushroom database: ${prompt.name}`);
+        logger.info(`🍄 Retrieved active prompt from mushroom database: ${prompt.name} (language: ${prompt.language})`);
         return prompt.content;
       }
 
