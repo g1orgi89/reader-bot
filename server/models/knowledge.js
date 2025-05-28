@@ -29,7 +29,7 @@ const knowledgeSchema = new mongoose.Schema({
   },
   language: {
     type: String,
-    default: 'auto',
+    default: 'none', // Изменено с 'auto' на 'none' для совместимости с text index
     index: true
   },
   tags: [{
