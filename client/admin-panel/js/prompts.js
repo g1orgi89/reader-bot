@@ -14,7 +14,7 @@
  * @property {string} name - Название промпта
  * @property {string} type - Тип промпта (basic|rag|ticket_detection|categorization|subject)
  * @property {string} category - Категория (system|safety|language|custom)
- * @property {string} language - Язык (universal|en|ru|es|fr|de|zh|ja|auto)
+ * @property {string} language - Язык (none|en|ru|es|fr|de|zh|ja)
  * @property {string} content - Содержимое промпта
  * @property {string} [description] - Описание промпта
  * @property {number} [maxTokens] - Максимальное количество токенов
@@ -78,8 +78,7 @@ const PROMPTS_CONFIG = {
   
   /** @type {Object<string, string>} Упрощенные переводы языков */
   LANGUAGE_LABELS: {
-    'universal': 'Универсальный',
-    'auto': 'Авто-определение',
+    'none': 'Универсальный',
     'en': 'English',
     'ru': 'Русский',
     'es': 'Español',
@@ -563,7 +562,7 @@ async function handlePromptSave(event) {
     name: formData.get('prompt-name').trim(),
     type: formData.get('prompt-type'),
     category: formData.get('prompt-category'),
-    language: formData.get('prompt-language'),
+    language: formData.get('prompt-language') || 'none',
     content: formData.get('prompt-content').trim(),
     description: formData.get('prompt-description').trim(),
     maxTokens: parseInt(formData.get('prompt-max-tokens')),
@@ -736,7 +735,7 @@ async function runPromptTest() {
   if (!messageInput || !resultsDiv) return;
   
   const testMessage = messageInput.value.trim();
-  const language = languageSelect?.value || 'auto';
+  const language = languageSelect?.value || 'none';
   
   if (!testMessage) {
     showNotification('warning', '🍄 Введите тестовое сообщение');
