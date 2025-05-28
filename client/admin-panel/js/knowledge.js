@@ -14,7 +14,7 @@
  * @property {string} title - Название документа (заголовок споры знаний)
  * @property {string} content - Содержимое документа в формате Markdown
  * @property {string} category - Категория документа (general|user-guide|tokenomics|technical|troubleshooting)
- * @property {string} language - Язык документа (en|es|ru)
+ * @property {string} language - Язык документа (auto|en|es|ru|fr|de|zh|ja|other)
  * @property {string[]} tags - Массив тегов для категоризации
  * @property {string} [status] - Статус документа (published|draft|archived)
  * @property {string} [createdAt] - Дата создания документа
@@ -73,11 +73,18 @@ const KNOWLEDGE_CONFIG = {
     'troubleshooting': 'Решение проблем'
   },
   
-  /** @type {Object<string, string>} Переводы языков */
+  /** @type {Object<string, string>} Упрощенные переводы языков */
   LANGUAGE_LABELS: {
+    'auto': 'Авто-определение',
+    'universal': 'Универсальный',
     'en': 'English',
     'ru': 'Русский',
-    'es': 'Español'
+    'es': 'Español',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'zh': '中文',
+    'ja': '日本語',
+    'other': 'Другой'
   }
 };
 
