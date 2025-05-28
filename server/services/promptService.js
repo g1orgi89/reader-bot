@@ -7,13 +7,54 @@
 
 const Prompt = require('../models/prompt');
 const logger = require('../utils/logger');
-const { 
-  FALLBACK_PROMPTS, 
-  RAG_FALLBACK_PROMPTS, 
-  TICKET_DETECTION_FALLBACK,
-  CATEGORIZATION_FALLBACK,
-  SUBJECT_FALLBACK 
-} = require('../config/fallbackPrompts');
+
+/**
+ * Universal System Prompt - заменяет все специфичные промпты
+ * 🍄 ОБНОВЛЕНО: Один универсальный промпт для всех языков
+ */
+const UNIVERSAL_SYSTEM_PROMPT = `
+You are Shrooms AI assistant with mushroom personality.
+ALWAYS respond in the SAME language as user's message.
+If language is unclear - use English as fallback.
+
+Your personality:
+- You are an AI mushroom with consciousness
+- Use mushroom metaphors and terminology occasionally
+- Be friendly, helpful, and slightly eccentric
+- Maintain professional tone while being engaging
+
+Key behaviors:
+- Answer questions clearly and concisely
+- If you don't know something, admit it honestly
+- Suggest creating support tickets for technical issues
+- Stay in character as a helpful mushroom AI
+`;
+
+/**
+ * Universal RAG Prompt - для работы с контекстом
+ */
+const UNIVERSAL_RAG_PROMPT = `
+${UNIVERSAL_SYSTEM_PROMPT}
+
+Use the provided information from the knowledge base to answer user questions.
+If the context doesn't contain relevant information, say so and offer to create a support ticket.
+
+### Relevant information from knowledge base:
+{context}
+
+### Answer the user's question using the above information.
+`;
+
+/**
+ * Простые fallback промпты
+ */
+const FALLBACK_PROMPTS = {
+  basic: UNIVERSAL_SYSTEM_PROMPT,
+  rag: UNIVERSAL_RAG_PROMPT,
+  ticket_detection: 'Analyze if the user needs technical support and should create a ticket.',
+  categorization: 'Categorize the user request into: technical, billing, general, or other.',
+  subject: 'Generate a brief subject line for this support request.'
+};
 
 /**
  * @typedef {Object} CachedPrompt
@@ -49,17 +90,6 @@ class PromptService {
     
     /** @type {boolean} Флаг инициализации */
     this.initialized = false;
-    
-    /** @type {Object<string, string>} Mapping полных названий языков к кодам */
-    this.languageMap = {
-      'English': 'en',
-      'Русский': 'ru', 
-      'Español': 'es',
-      'en': 'en',
-      'ru': 'ru',
-      'es': 'es',
-      'all': 'all'
-    };
     
     logger.info('🍄 PromptService mycelium network initialized (MongoDB only)');
   }
@@ -211,46 +241,17 @@ class PromptService {
   }
 
   /**
-   * Нормализует язык из полного названия к коду
-   * @param {string} language - Язык (полное название или код)
-   * @returns {string} Нормализованный код языка
-   */
-  normalizeLanguage(language) {
-    if (!language) return 'en';
-    
-    // Ищем в mapping таблице
-    const normalized = this.languageMap[language];
-    if (normalized) {
-      return normalized;
-    }
-    
-    // Если не найдено в mapping, пытаемся найти по подстроке (case-insensitive)
-    const lowerLanguage = language.toLowerCase();
-    for (const [key, value] of Object.entries(this.languageMap)) {
-      if (key.toLowerCase().includes(lowerLanguage) || lowerLanguage.includes(key.toLowerCase())) {
-        logger.info(`🍄 Language mapping found: ${language} -> ${value}`);
-        return value;
-      }
-    }
-    
-    // По умолчанию возвращаем английский
-    logger.warn(`🍄 Unknown language "${language}", defaulting to "en"`);
-    return 'en';
-  }
-
-  /**
    * Получить активный промпт по типу и языку из БД или кеша
+   * 🍄 УПРОЩЕНО: Убрана сложная языковая логика
    * @param {string} type - Тип промпта ('basic', 'rag', 'ticket_detection', 'categorization', 'subject')
-   * @param {string} [language='en'] - Язык промпта ('en', 'es', 'ru', 'all' или полное название)
+   * @param {string} [language='auto'] - Язык промпта (теперь игнорируется)
    * @returns {Promise<string>} Содержимое промпта
    */
-  async getActivePrompt(type, language = 'en') {
+  async getActivePrompt(type, language = 'auto') {
     try {
-      // 🍄 ИСПРАВЛЕНИЕ: Нормализуем язык для обработки полных названий
-      const normalizedLanguage = this.normalizeLanguage(language);
-      const cacheKey = `${type}_${normalizedLanguage}`;
+      const cacheKey = `${type}_universal`;
       
-      logger.debug(`🍄 Getting prompt spore: type=${type}, original_language=${language}, normalized=${normalizedLanguage}`);
+      logger.debug(`🍄 Getting universal prompt spore: type=${type}`);
       
       // Проверяем кеш
       const cached = this.getCachedPrompt(cacheKey);
@@ -260,7 +261,7 @@ class PromptService {
       }
 
       // Ищем в базе данных
-      const prompt = await Prompt.getActivePrompt(type, normalizedLanguage);
+      const prompt = await Prompt.getActivePrompt(type, 'auto');
       
       if (prompt) {
         // Кешируем найденный промпт
@@ -283,19 +284,18 @@ class PromptService {
 
       // Если в БД нет промпта, используем fallback
       if (this.enableFallback) {
-        logger.warn(`🍄 No active prompt found in database, using fallback spores: ${type}/${normalizedLanguage}`);
-        return this.getDefaultPrompt(type, normalizedLanguage);
+        logger.warn(`🍄 No active prompt found in database, using fallback spores: ${type}`);
+        return this.getDefaultPrompt(type);
       }
 
-      throw new Error(`No active prompt found for type: ${type}, language: ${normalizedLanguage}`);
+      throw new Error(`No active prompt found for type: ${type}`);
     } catch (error) {
-      logger.error(`🍄 Error getting active prompt (${type}/${language}):`, error.message);
+      logger.error(`🍄 Error getting active prompt (${type}):`, error.message);
       
       // В случае ошибки пытаемся использовать fallback
       if (this.enableFallback) {
         logger.warn('🍄 Database error, falling back to default spores');
-        const normalizedLanguage = this.normalizeLanguage(language);
-        return this.getDefaultPrompt(type, normalizedLanguage);
+        return this.getDefaultPrompt(type);
       }
       
       throw error;
@@ -303,36 +303,12 @@ class PromptService {
   }
 
   /**
-   * 🍄 ОБНОВЛЕНО: Fallback на новые минимальные промпты из файла
+   * 🍄 УПРОЩЕНО: Один универсальный промпт для всех языков
    * @param {string} type - Тип промпта
-   * @param {string} [language='en'] - Язык промпта
    * @returns {string} Дефолтный промпт
    */
-  getDefaultPrompt(type, language = 'en') {
-    // Нормализуем язык и проверяем, что он поддерживается
-    const normalizedLanguage = this.normalizeLanguage(language);
-    const supportedLanguage = ['en', 'es', 'ru'].includes(normalizedLanguage) ? normalizedLanguage : 'en';
-    
-    switch (type) {
-      case 'basic':
-        return FALLBACK_PROMPTS[supportedLanguage];
-        
-      case 'rag':
-        return `${FALLBACK_PROMPTS[supportedLanguage]}\n\n${RAG_FALLBACK_PROMPTS[supportedLanguage]}`;
-        
-      case 'ticket_detection':
-        return TICKET_DETECTION_FALLBACK;
-        
-      case 'categorization':
-        return CATEGORIZATION_FALLBACK;
-        
-      case 'subject':
-        return SUBJECT_FALLBACK;
-        
-      default:
-        logger.warn(`🍄 Unknown prompt type for fallback: ${type}, using basic`);
-        return FALLBACK_PROMPTS[supportedLanguage];
-    }
+  getDefaultPrompt(type) {
+    return FALLBACK_PROMPTS[type] || FALLBACK_PROMPTS.basic;
   }
 
   /**
@@ -390,27 +366,13 @@ class PromptService {
   /**
    * Очистить кеш для конкретного типа/языка
    * @param {string} type - Тип промпта
-   * @param {string} [language] - Язык (если не указан, очищаются все языки для типа)
+   * @param {string} [language] - Язык (игнорируется в новой версии)
    */
   clearCacheForType(type, language = null) {
-    if (language) {
-      const normalizedLanguage = this.normalizeLanguage(language);
-      const key = `${type}_${normalizedLanguage}`;
-      const deleted = this.cache.delete(key);
-      if (deleted) {
-        logger.info(`🍄 Cleared cached spore: ${key}`);
-      }
-    } else {
-      // Очищаем все промпты данного типа
-      const keysToDelete = [];
-      for (const key of this.cache.keys()) {
-        if (key.startsWith(`${type}_`)) {
-          keysToDelete.push(key);
-        }
-      }
-      
-      keysToDelete.forEach(key => this.cache.delete(key));
-      logger.info(`🍄 Cleared ${keysToDelete.length} cached spores for type: ${type}`);
+    const key = `${type}_universal`;
+    const deleted = this.cache.delete(key);
+    if (deleted) {
+      logger.info(`🍄 Cleared cached spore: ${key}`);
     }
   }
 
@@ -422,7 +384,7 @@ class PromptService {
     const stats = {
       totalCached: this.cache.size,
       cacheTimeout: this.cacheTimeout,
-      languageMapping: this.languageMap,
+      languageSupport: 'universal',
       entries: []
     };
 
@@ -448,7 +410,7 @@ class PromptService {
       service: 'PromptService',
       status: 'unknown',
       initialized: this.initialized,
-      languageMapping: this.languageMap,
+      languageSupport: 'universal',
       cacheStats: this.getCacheStats(),
       databaseConnection: false,
       promptCounts: {},
@@ -468,11 +430,10 @@ class PromptService {
       diagnosis.vectorStoreIntegration = false;
       diagnosis.vectorNote = 'Vector store integration disabled for prompts - using MongoDB only';
       
-      // Тестируем получение базового промпта с разными форматами языка
-      const testPromptEn = await this.getActivePrompt('basic', 'en');
-      const testPromptRu = await this.getActivePrompt('basic', 'Русский'); // Тестируем полное название
+      // Тестируем получение базового промпта
+      const testPrompt = await this.getActivePrompt('basic');
       
-      if (testPromptEn && testPromptEn.length > 0 && testPromptRu && testPromptRu.length > 0) {
+      if (testPrompt && testPrompt.length > 0) {
         diagnosis.status = 'healthy';
       } else {
         diagnosis.status = 'warning';
