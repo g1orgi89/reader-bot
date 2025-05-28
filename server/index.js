@@ -30,9 +30,9 @@ const promptRoutes = require('./api/prompts'); // ДОБАВЛЕНО: импор
 // Services
 const dbService = require('./services/database');
 const vectorStoreService = require('./services/vectorStore');
-const claude = require('./services/claude'); // ИЗМЕНЕНО: claude вместо aiService
+const claude = require('./services/claude'); // ИЗМЕНЕНО: claude вместо aiService  
 const promptService = require('./services/promptService'); // 🍄 ДОБАВЛЕНО: PromptService
-const languageDetectService = require('./services/languageDetect');
+const simpleLanguageService = require('./services/simpleLanguage'); // 🍄 ИЗМЕНЕНО: Простой сервис языков
 const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
 const ticketService = require('./services/ticketing');
@@ -165,7 +165,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         vectorStore: vectorHealth,
         ai: claude ? 'ok' : 'error',
         prompts: promptHealth, // 🍄 ДОБАВЛЕНО: статус промпт-сервиса
-        ticketEmail: 'ok' // 🎫 НОВОЕ: статус сервиса email
+        ticketEmail: 'ok', // 🎫 НОВОЕ: статус сервиса email
+        language: simpleLanguageService.healthCheck() // 🍄 НОВОЕ: простой языковой сервис
       },
       aiProvider: aiProviderInfo,
       promptService: {
@@ -174,6 +175,7 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         databaseConnection: promptHealth.databaseConnection
       }, // 🍄 ДОБАВЛЕНО: детали PromptService
       ticketEmailService: pendingTicketsStats, // 🎫 НОВОЕ: статистика ожидающих тикетов
+      languageService: simpleLanguageService.getStats(), // 🍄 НОВОЕ: статистика языков
       features: config.features,
       // ДОБАВЛЕНО: информация о Socket.IO подключениях
       socketConnections: {
@@ -393,14 +395,12 @@ io.on('connection', (socket) => {
         content: msg.text
       }));
 
-      // ИСПРАВЛЕННОЕ определение языка с учетом контекста
-      const detectedLanguage = data.language || 
-        languageDetectService.detectLanguageWithContext(data.message, {
-          userId: data.userId,
-          conversationId: conversation._id.toString(),
-          history: formattedHistory,
-          previousLanguage: conversation.language
-        });
+      // 🍄 НОВОЕ: Упрощенное определение языка
+      const detectedLanguage = simpleLanguageService.detectLanguage(data.message, {
+        userLanguage: data.language,
+        previousLanguage: conversation.language,
+        browserLanguage: socket.handshake.headers['accept-language']
+      });
       
       // Обновляем язык разговора, если он изменился
       if (conversation.language !== detectedLanguage) {
@@ -704,6 +704,10 @@ async function startServer() {
     logger.info(`🤖 AI Provider: ${aiProviderInfo.currentProvider}`);
     logger.info(`Models: ${JSON.stringify(aiProviderInfo.models, null, 2)}`);
     
+    // 🍄 НОВОЕ: Логируем информацию о языковом сервисе
+    const languageStats = simpleLanguageService.getStats();
+    logger.info(`🌍 Language Service: Simple (${languageStats.supportedLanguages.length} languages supported)`);
+    
     // Подключение к базе данных
     logger.info('📡 Connecting to MongoDB...');
     await dbService.connect();
@@ -755,6 +759,7 @@ async function startServer() {
       logger.info(`🏠 Client available at: http://localhost:${PORT}`);
       logger.info(`🔌 Socket.IO available at: http://localhost:${PORT}/socket.io/`);
       logger.info(`🎫 Email collection workflow: ACTIVE`); // 🎫 НОВОЕ
+      logger.info(`🌍 Language detection: SIMPLIFIED (no complex analysis)`); // 🍄 НОВОЕ
       
       // Логируем URL для разных режимов
       if (config.app.isDevelopment) {
@@ -790,6 +795,10 @@ async function gracefulShutdown(signal) {
   if (pendingStats.active > 0) {
     logger.warn(`⚠️  Shutting down with ${pendingStats.active} pending tickets awaiting email`);
   }
+  
+  // 🍄 НОВОЕ: Логируем статистику языков
+  const languageStats = simpleLanguageService.getStats();
+  logger.info(`🌍 Language usage stats: ${JSON.stringify(languageStats.usage)}`);
   
   // Закрываем Socket.IO соединения
   logger.info('🔌 Closing Socket.IO connections...');
