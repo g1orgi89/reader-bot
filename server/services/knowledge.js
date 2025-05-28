@@ -1,6 +1,7 @@
 /**
  * Knowledge Base Service - Enhanced with combined search and chunking support
  * @file server/services/knowledge.js
+ * 🍄 УПРОЩЕНО: Универсальный поиск без языковых ограничений
  */
 
 const KnowledgeDocument = require('../models/knowledge');
@@ -96,12 +97,12 @@ class KnowledgeService {
       }
 
       this.initialized = true;
-      logger.info('🍄 Knowledge service initialized successfully with chunking support');
+      logger.info('🍄 Knowledge service initialized successfully with universal search and chunking support');
       logger.info(`🍄 Default chunking options: ${JSON.stringify(this.defaultChunkingOptions)}`);
       
       return {
         success: true,
-        message: 'Knowledge service initialized with chunking support',
+        message: 'Knowledge service initialized with universal search and chunking support',
         type: 'mongodb-enhanced-chunking',
         chunkingEnabled: this.defaultChunkingOptions.enableChunking
       };
@@ -160,7 +161,7 @@ class KnowledgeService {
    * @param {string} docData.title - Document title
    * @param {string} docData.content - Document content
    * @param {string} docData.category - Document category
-   * @param {string} [docData.language='en'] - Document language
+   * @param {string} [docData.language='auto'] - Document language (stored but not used for filtering)
    * @param {string[]} [docData.tags=[]] - Document tags
    * @param {string} [docData.authorId] - Author ID
    * @param {ChunkingOptions} [chunkingOptions={}] - Custom chunking options
@@ -168,6 +169,11 @@ class KnowledgeService {
    */
   async addDocument(docData, chunkingOptions = {}) {
     try {
+      // 🍄 ИЗМЕНЕНО: language по умолчанию 'auto'
+      if (!docData.language) {
+        docData.language = 'auto';
+      }
+
       // Сохраняем в MongoDB
       const document = new KnowledgeDocument(docData);
       await document.save();
@@ -233,7 +239,6 @@ class KnowledgeService {
    * This method provides the same interface as used by the Telegram bot
    * @param {string} query - Search query
    * @param {Object} options - Search options
-   * @param {string} [options.language] - Filter by language
    * @param {string} [options.category] - Filter by category
    * @param {number} [options.limit=5] - Maximum results
    * @returns {Promise<Object[]>} Array of matching documents
@@ -242,7 +247,7 @@ class KnowledgeService {
     try {
       logger.info(`🍄 Telegram bot searching for: "${query}"`);
       
-      // Use our existing search method
+      // Use our existing search method (без language фильтра)
       const searchResult = await this.search(query, {
         ...options,
         limit: options.limit || 5,
@@ -276,43 +281,41 @@ class KnowledgeService {
 
   /**
    * Search documents by text query with enhanced multilingual support and FULL chunking support
+   * 🍄 УПРОЩЕНО: Убран language фильтр, универсальный поиск
    * @param {string} query - Search query
    * @param {Object} options - Search options
-   * @param {string} [options.language] - Filter by language
    * @param {string} [options.category] - Filter by category
    * @param {string[]} [options.tags] - Filter by tags
    * @param {number} [options.limit=10] - Maximum results
    * @param {number} [options.page=1] - Page number
    * @param {boolean} [options.forceRegex=false] - Force regex search for Cyrillic
    * @param {boolean} [options.useVectorSearch=true] - Use vector search when available
-   * @param {boolean} [options.returnChunks=false] - Return individual chunks instead of grouped documents (🍄 НОВОЕ!)
+   * @param {boolean} [options.returnChunks=false] - Return individual chunks instead of grouped documents
    * @param {number} [options.score_threshold] - Custom relevance threshold
    * @returns {Promise<Object>} Search results
    */
   async search(query, options = {}) {
     try {
       const {
-        language,
         category,
         tags = [],
         limit = 10,
         page = 1,
         forceRegex = false,
         useVectorSearch = true,
-        returnChunks = false,  // 🍄 НОВЫЙ ПАРАМЕТР
+        returnChunks = false,
         score_threshold
       } = options;
 
       // Попробуем сначала векторный поиск, если доступен
       if (useVectorSearch) {
         try {
-          // 🍄 ИСПРАВЛЕНО: Передаем returnChunks в vectorStoreService
+          // 🍄 УПРОЩЕНО: Убрали language из поиска
           const vectorSearchOptions = {
-            language,
             category,
             tags,
             limit,
-            returnChunks  // 🍄 ВАЖНО: передаем returnChunks дальше
+            returnChunks
           };
 
           // Передаем score_threshold если указан
@@ -331,7 +334,7 @@ class KnowledgeService {
               title: doc.metadata?.title || '',
               content: doc.content,
               category: doc.metadata?.category || '',
-              language: doc.metadata?.language || 'en',
+              language: doc.metadata?.language || 'auto', // 🍄 ИЗМЕНЕНО: возвращаем сохраненный язык
               tags: doc.metadata?.tags || [],
               createdAt: doc.metadata?.createdAt,
               updatedAt: doc.metadata?.updatedAt,
@@ -350,8 +353,8 @@ class KnowledgeService {
               query,
               count: formattedResults.length,
               searchType: 'vector',
-              chunkingUsed,  // 🍄 ДОБАВЛЕНО: информация об использовании чанкинга
-              returnChunks   // 🍄 ДОБАВЛЕНО: подтверждение режима
+              chunkingUsed,
+              returnChunks
             };
           }
         } catch (vectorError) {
@@ -369,8 +372,8 @@ class KnowledgeService {
       // Use regex search for Cyrillic text or if explicitly requested
       if (hasCyrillic || forceRegex) {
         searchType = 'regex';
+        // 🍄 УПРОЩЕНО: Убрали language из MongoDB поиска
         results = await KnowledgeDocument.searchRegex(query, {
-          language,
           category,
           tags,
           limit,
@@ -379,7 +382,6 @@ class KnowledgeService {
       } else {
         // Try combined search (text search with regex fallback)
         results = await KnowledgeDocument.combinedSearch(query, {
-          language,
           category,
           tags,
           limit,
@@ -423,9 +425,9 @@ class KnowledgeService {
 
   /**
    * Get documents with filter options
+   * 🍄 УПРОЩЕНО: Убран обязательный language фильтр
    * @param {Object} filters - Filter options
    * @param {string} [filters.category] - Filter by category
-   * @param {string} [filters.language] - Filter by language
    * @param {string[]} [filters.tags] - Filter by tags
    * @param {number} [filters.limit=10] - Maximum results
    * @param {number} [filters.page=1] - Page number
@@ -435,7 +437,6 @@ class KnowledgeService {
     try {
       const {
         category,
-        language,
         tags,
         limit = 10,
         page = 1
@@ -444,7 +445,7 @@ class KnowledgeService {
       // Build query
       const query = { status: 'published' };
       if (category) query.category = category;
-      if (language) query.language = language;
+      // 🍄 УПРОЩЕНО: Убрали language фильтр
       if (tags && tags.length > 0) {
         query.tags = { $in: tags };
       }
@@ -467,7 +468,7 @@ class KnowledgeService {
         title: doc.title,
         content: doc.content,
         category: doc.category,
-        language: doc.language,
+        language: doc.language || 'auto', // 🍄 ИЗМЕНЕНО: возвращаем сохраненный язык
         tags: doc.tags || [],
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt
@@ -513,7 +514,7 @@ class KnowledgeService {
         title: document.title,
         content: document.content,
         category: document.category,
-        language: document.language,
+        language: document.language || 'auto', // 🍄 ИЗМЕНЕНО
         tags: document.tags || [],
         createdAt: document.createdAt,
         updatedAt: document.updatedAt
@@ -657,22 +658,20 @@ class KnowledgeService {
 
   /**
    * Get relevant context for a query using vector search with chunking
-   * 🍄 ИСПРАВЛЕНО: Теперь правильно использует returnChunks=true для получения отдельных чанков
+   * 🍄 УПРОЩЕНО: Убран language фильтр из поиска контекста
    * @param {string} query - Search query
    * @param {Object} options - Search options
-   * @param {string} [options.language] - Filter by language
    * @param {number} [options.limit=3] - Maximum context documents/chunks
    * @param {boolean} [options.useVectorSearch=true] - Use vector search when available
-   * @param {boolean} [options.returnChunks=true] - Return individual chunks for better context (🍄 НОВОЕ!)
+   * @param {boolean} [options.returnChunks=true] - Return individual chunks for better context
    * @returns {Promise<Object>} Context documents/chunks
    */
   async getContextForQuery(query, options = {}) {
     try {
       const { 
-        language, 
         limit = 3, 
         useVectorSearch = true,
-        returnChunks = true  // 🍄 ИСПРАВЛЕНО: По умолчанию возвращаем чанки для лучшего контекста
+        returnChunks = true
       } = options;
 
       // 🍄 ИСПРАВЛЕНО: Сначала пробуем векторный поиск для лучшей релевантности с чанкингом
@@ -680,9 +679,8 @@ class KnowledgeService {
         try {
           logger.info(`🍄 Searching context with chunking mode: ${returnChunks ? 'individual chunks' : 'grouped documents'}`);
           
-          // 🍄 ИСПРАВЛЕНО: Теперь передаем returnChunks=true для получения отдельных чанков!
+          // 🍄 УПРОЩЕНО: Убрали language из поиска контекста
           const vectorResults = await vectorStoreService.search(query, {
-            language,
             limit: returnChunks ? limit * 2 : limit,  // Ищем больше чанков если нужны отдельные чанки
             returnChunks  // 🍄 КРИТИЧЕСКИ ВАЖНО: теперь передаем этот параметр!
           });
@@ -696,7 +694,7 @@ class KnowledgeService {
                 content: doc.content,
                 category: doc.metadata?.category || '',
                 score: doc.score,
-                language: doc.metadata?.language || language,
+                language: doc.metadata?.language || 'auto', // 🍄 ИЗМЕНЕНО
                 source: 'vector',
                 // 🍄 НОВОЕ: Добавляем информацию о чанкинге в контекст
                 isChunk: doc.isChunk || false,
@@ -728,7 +726,6 @@ class KnowledgeService {
       logger.info(`🍄 Using MongoDB fallback for context search`);
       
       const searchResult = await this.search(query, {
-        language,
         limit,
         page: 1,
         forceRegex: /[а-яё]/i.test(query), // Force regex for Cyrillic
@@ -823,7 +820,7 @@ class KnowledgeService {
               metadata: {
                 title: doc.title,
                 category: doc.category,
-                language: doc.language,
+                language: doc.language || 'auto', // 🍄 ИЗМЕНЕНО
                 tags: doc.tags || [],
                 authorId: doc.authorId,
                 createdAt: doc.createdAt,
@@ -898,7 +895,7 @@ class KnowledgeService {
 
       return {
         status: 'healthy',
-        message: 'Knowledge service is working with chunking support',
+        message: 'Knowledge service is working with universal search and chunking support',
         documentCount: testQuery,
         type: 'mongodb-enhanced-chunking',
         vectorStore: vectorStoreHealth,
@@ -920,13 +917,20 @@ class KnowledgeService {
    */
   async getStats() {
     try {
-      // MongoDB statistics
+      // MongoDB statistics (убрали отдельный подсчет по языкам)
       const mongoStats = await Promise.all([
         KnowledgeDocument.countDocuments({ status: 'published' }),
-        KnowledgeDocument.countDocuments({ status: 'published', language: 'en' }),
-        KnowledgeDocument.countDocuments({ status: 'published', language: 'ru' }),
-        KnowledgeDocument.countDocuments({ status: 'published', language: 'es' })
+        // 🍄 УПРОЩЕНО: подсчет языков для совместимости, но без жесткой фильтрации
+        KnowledgeDocument.aggregate([
+          { $group: { _id: '$language', count: { $sum: 1 } } }
+        ])
       ]);
+
+      // Преобразуем результат агрегации в удобный формат
+      const languageStats = mongoStats[1].reduce((acc, item) => {
+        acc[item._id || 'auto'] = item.count;
+        return acc;
+      }, { en: 0, ru: 0, es: 0, auto: 0 });
 
       // Vector store statistics
       let vectorStats = { status: 'unknown', chunksCount: 0, documentsCount: 0 };
@@ -940,11 +944,7 @@ class KnowledgeService {
         success: true,
         mongodb: {
           totalDocuments: mongoStats[0],
-          languages: {
-            en: mongoStats[1],
-            ru: mongoStats[2],
-            es: mongoStats[3]
-          }
+          languages: languageStats // 🍄 ИЗМЕНЕНО: возвращаем агрегированные данные
         },
         vectorStore: vectorStats,
         chunking: {
