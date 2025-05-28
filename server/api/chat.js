@@ -1,14 +1,14 @@
 /**
  * API маршруты для работы с чатом
  * @file server/api/chat.js
- * 🍄 ОБНОВЛЕНО: Интеграция с ticketEmailService для сбора email при создании тикетов
+ * 🍄 ОБНОВЛЕНО: Замена сложной детекции языка на простой сервис
  */
 
 const express = require('express');
 const claude = require('../services/claude');
 const messageService = require('../services/message');
 const conversationService = require('../services/conversation');
-const languageDetectService = require('../services/languageDetect');
+const simpleLanguageService = require('../services/simpleLanguage'); // 🍄 ИЗМЕНЕНО: Простой сервис языков
 const vectorStoreService = require('../services/vectorStore');
 const ticketService = require('../services/ticketing');
 const ticketEmailService = require('../services/ticketEmail'); // 🍄 НОВОЕ: Добавлен ticketEmailService
@@ -122,14 +122,12 @@ router.post(['/', '/message'], async (req, res) => {
       content: msg.text
     }));
 
-    // Определение языка сообщения с учетом контекста
-    const detectedLanguage = language || 
-      languageDetectService.detectLanguageWithContext(message, {
-        userId,
-        conversationId: conversation._id.toString(),
-        history: formattedHistory,
-        previousLanguage: conversation.language
-      });
+    // 🍄 НОВОЕ: Упрощенное определение языка
+    const detectedLanguage = simpleLanguageService.detectLanguage(message, {
+      userLanguage: language,
+      previousLanguage: conversation.language,
+      browserLanguage: req.headers['accept-language']
+    });
     
     // Обновляем язык разговора, если он изменился
     if (conversation.language !== detectedLanguage) {
@@ -518,8 +516,8 @@ router.post('/conversations/:conversationId/close', async (req, res) => {
  */
 router.get('/languages', async (req, res) => {
   try {
-    const supportedLanguages = languageDetectService.getSupportedLanguages();
-    const stats = languageDetectService.getStats();
+    const supportedLanguages = simpleLanguageService.getSupportedLanguages();
+    const stats = simpleLanguageService.getStats();
 
     res.json({
       success: true,
@@ -541,7 +539,7 @@ router.get('/languages', async (req, res) => {
 
 /**
  * @route POST /api/chat/detect-language
- * @desc Определение языка текста
+ * @desc Определение языка текста (упрощенная версия)
  * @access Public
  */
 router.post('/detect-language', async (req, res) => {
@@ -549,10 +547,9 @@ router.post('/detect-language', async (req, res) => {
     const { text, userId, conversationId } = req.body;
     
     logger.info('Language detection request:', {
-      originalText: text,
-      rawBody: req.rawBody,
-      headers: req.headers,
-      contentType: req.headers['content-type']
+      originalText: text?.substring(0, 50),
+      hasUserId: !!userId,
+      hasConversationId: !!conversationId
     });
 
     if (!text || typeof text !== 'string') {
@@ -563,54 +560,29 @@ router.post('/detect-language', async (req, res) => {
       });
     }
 
-    const hasQuestionMarks = /^\?+,?\s*\?+/.test(text.trim());
-    if (hasQuestionMarks && req.rawBody) {
-      try {
-        const rawBodyParsed = JSON.parse(req.rawBody);
-        if (rawBodyParsed.text && rawBodyParsed.text !== text) {
-          logger.info('Using text from rawBody due to encoding issues');
-          const correctedText = rawBodyParsed.text;
-          req.body.text = correctedText;
-        }
-      } catch (parseError) {
-        logger.warn('Failed to parse rawBody:', parseError.message);
-      }
-    }
-
-    const processedText = req.body.text;
     let detectedLanguage;
-    let method = 'basic';
-    let history = [];
+    let method = 'simple';
+    let previousLanguage = null;
 
     if (userId && conversationId) {
       try {
         const conversation = await conversationService.getConversationById(conversationId);
         if (conversation) {
-          const recentMessages = await messageService.getRecentMessages(conversationId, 5);
-          history = recentMessages.map(msg => ({
-            role: msg.role,
-            content: msg.text
-          }));
-          
-          detectedLanguage = languageDetectService.detectLanguageWithContext(processedText, {
-            userId,
-            conversationId,
-            history,
-            previousLanguage: conversation.language
-          });
+          previousLanguage = conversation.language;
           method = 'context-aware';
-        } else {
-          detectedLanguage = languageDetectService.detectLanguage(processedText);
         }
       } catch (error) {
-        logger.warn('Failed to get conversation history for language detection:', error);
-        detectedLanguage = languageDetectService.detectLanguage(processedText);
+        logger.warn('Failed to get conversation for language detection:', error);
       }
-    } else {
-      detectedLanguage = languageDetectService.detectLanguage(processedText);
     }
 
-    const safeText = processedText.substring(0, 50) + (processedText.length > 50 ? '...' : '');
+    // 🍄 НОВОЕ: Используем простой сервис определения языка
+    detectedLanguage = simpleLanguageService.detectLanguage(text, {
+      previousLanguage,
+      browserLanguage: req.headers['accept-language']
+    });
+
+    const safeText = text.substring(0, 50) + (text.length > 50 ? '...' : '');
 
     res.json({
       success: true,
@@ -619,10 +591,10 @@ router.post('/detect-language', async (req, res) => {
         text: safeText,
         method,
         metadata: {
-          hasHistory: history.length > 0,
-          historyCount: history.length,
-          textLength: processedText.length,
-          encoding: 'utf-8'
+          textLength: text.length,
+          encoding: 'utf-8',
+          previousLanguage,
+          simplified: true // 🍄 НОВОЕ: Указываем, что используем упрощенную детекцию
         }
       }
     });
@@ -646,7 +618,7 @@ router.get('/stats', async (req, res) => {
     const [messagesStats, conversationsStats, languageStats, aiStats] = await Promise.all([
       messageService.getStats(),
       conversationService.getConversationStats(),
-      Promise.resolve(languageDetectService.getStats()),
+      Promise.resolve(simpleLanguageService.getStats()), // 🍄 ИЗМЕНЕНО: Простой сервис
       Promise.resolve(claude.getProviderInfo())
     ]);
 
@@ -789,7 +761,8 @@ router.get('/health', async (req, res) => {
       ai: isAiHealthy ? 'ok' : 'error',
       messages: messageHealth?.status || 'error',
       conversations: conversationHealth?.status || 'error',
-      vectorStore: vectorHealth?.status || 'not_initialized'
+      vectorStore: vectorHealth?.status || 'not_initialized',
+      language: simpleLanguageService.healthCheck().status // 🍄 НОВОЕ: Простой сервис
     };
 
     const aiProviderInfo = claude.getProviderInfo();
@@ -802,7 +775,8 @@ router.get('/health', async (req, res) => {
         ai: isAiHealthy ? `Service is responding (${aiProviderInfo.currentProvider})` : 'Service not available',
         messages: messageHealth?.message || 'Unknown status',
         conversations: conversationHealth?.message || 'Unknown status',
-        vectorStore: vectorHealth?.status === 'error' ? 'Not initialized (RAG disabled)' : 'Available'
+        vectorStore: vectorHealth?.status === 'error' ? 'Not initialized (RAG disabled)' : 'Available',
+        language: 'Simple language service (no complex detection)' // 🍄 НОВОЕ
       },
       aiProvider: aiProviderInfo,
       timestamp: new Date().toISOString()
@@ -821,19 +795,20 @@ router.get('/health', async (req, res) => {
 
 /**
  * @route POST /api/chat/users/:userId/clear-language-cache
- * @desc Очищает кеш языковых предпочтений пользователя
+ * @desc Очищает кеш языковых предпочтений пользователя (упрощенная версия)
  * @access Public
  */
 router.post('/users/:userId/clear-language-cache', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    languageDetectService.clearLanguageCache(userId);
+    // 🍄 НОВОЕ: В простом сервисе нет кеша, но поддерживаем совместимость API
+    simpleLanguageService.clearLanguageCache(userId);
     
     res.json({
       success: true,
       data: {
-        message: `Language cache cleared for user: ${userId}`,
+        message: `Language cache cleared for user: ${userId} (simplified service)`,
         timestamp: new Date().toISOString()
       }
     });
