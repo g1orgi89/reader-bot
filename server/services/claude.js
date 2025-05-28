@@ -2,6 +2,7 @@
  * Сервис для взаимодействия с API Claude и другими AI провайдерами
  * @file server/services/claude.js
  * 🍄 ОБНОВЛЕНО: Упрощена языковая логика - универсальные промпты
+ * 🍄 ИСПРАВЛЕНО: Убрана проверка "Привет" как тестового сообщения
  */
 
 const { Anthropic } = require('@anthropic-ai/sdk');
@@ -251,6 +252,7 @@ class ClaudeService {
   /**
    * Генерирует ответ на основе сообщения и контекста
    * 🍄 УПРОЩЕНО: Убрана сложная языковая логика
+   * 🍄 ИСПРАВЛЕНО: Убрана обработка "Привет" как тестового сообщения
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
    * @returns {Promise<AIResponse>} Ответ от AI
@@ -274,17 +276,8 @@ class ClaudeService {
       
       logger.info(`🍄 Generating response for platform: ${platform}`);
       
-      if (!useRag && this._isCacheable(message)) {
-        const cacheKey = this._getCacheKey(message, platform);
-        if (this.responseCache.has(cacheKey)) {
-          const cached = this.responseCache.get(cacheKey);
-          if (Date.now() - cached.timestamp < this.cacheTimeout) {
-            logger.debug(`🍄 Returning cached response for "${message.substring(0, 20)}..."`);
-            return cached.response;
-          }
-        }
-      }
-      
+      // 🍄 ИСПРАВЛЕНО: Убрана проверка на тестовые сообщения для реальных пользовательских запросов
+      // Теперь только технические тесты считаются "тестовыми", а обычные приветствия идут через AI
       if (this._isTestMessage(message)) {
         return this._handleTestMessage(message, platform);
       }
@@ -322,14 +315,6 @@ class ClaudeService {
       
       if (useRag && options.fetchedContext) {
         response.context = options.fetchedContext;
-      }
-      
-      if (!useRag && this._isCacheable(message)) {
-        const cacheKey = this._getCacheKey(message, platform);
-        this.responseCache.set(cacheKey, {
-          response,
-          timestamp: Date.now()
-        });
       }
       
       return response;
@@ -522,7 +507,8 @@ class ClaudeService {
   }
   
   /**
-   * Проверяет, является ли сообщение тестовым
+   * Проверяет, является ли сообщение техническим тестом
+   * 🍄 ИСПРАВЛЕНО: Убраны обычные приветствия, оставлены только технические тесты
    * @private
    * @param {string} message - Сообщение
    * @returns {boolean} Является ли тестовым
@@ -531,19 +517,17 @@ class ClaudeService {
     const testPatterns = [
       /performance test/i,
       /concurrent test/i,
-      /^test$/i,
-      /^hello$/i,
-      /^hi$/i,
-      /^привет$/i,
-      /^hola$/i
+      /^test$/i
+      // Убрали /^hello$/i, /^hi$/i, /^привет$/i, /^hola$/i
+      // Теперь только технические тесты обрабатываются как "тестовые"
     ];
     
     return testPatterns.some(pattern => pattern.test(message));
   }
   
   /**
-   * Обрабатывает тестовые сообщения быстро
-   * 🍄 УПРОЩЕНО: Один ответ для всех языков
+   * Обрабатывает технические тестовые сообщения быстро
+   * 🍄 УПРОЩЕНО: Только для технических тестов
    * @private
    * @param {string} message - Сообщение
    * @param {string} [platform='web'] - Платформа
@@ -551,8 +535,8 @@ class ClaudeService {
    */
   _handleTestMessage(message, platform = 'web') {
     const response = platform === 'telegram' 
-      ? "🍄 *mushroom spores sparkle* Hello! I respond in your language. How can I help you explore Shrooms today?"
-      : "*mushroom spores sparkle* Hello! I respond in your language. How can I help you explore Shrooms today?";
+      ? "🍄 *Technical test acknowledged* System operational. How can I help you explore Shrooms today?"
+      : "*Technical test acknowledged* System operational. How can I help you explore Shrooms today?";
     
     return {
       message: response,
@@ -603,13 +587,13 @@ class ClaudeService {
   }
   
   /**
-   * Проверяет, можно ли кэшировать ответ
+   * Проверяет, можно ли кэшировать ответ (только для технических тестов)
    * @private
    * @param {string} message - Сообщение
    * @returns {boolean} Можно ли кэшировать
    */
   _isCacheable(message) {
-    return this._isTestMessage(message) || message.length < 50;
+    return this._isTestMessage(message);
   }
   
   /**
