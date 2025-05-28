@@ -2,6 +2,7 @@
  * Основной Telegram бот для проекта Shrooms с грибной тематикой
  * @file telegram/index.js
  * 🍄 ИСПРАВЛЕНО: Убрана устаревшая языковая логика, используются универсальные промпты
+ * 🍄 DEBUG: Добавлено детальное логирование для диагностики проблем
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -122,21 +123,26 @@ class ShroomsTelegramBot {
       try {
         const userId = ctx.from.id.toString();
         
+        logger.info(`🍄 DEBUG: Processing /start command for user ${userId}`);
+        
         // Сохраняем информацию о пользователе
         await this._saveUserInfo(ctx);
         
         // Отправляем приветствие через Claude
+        logger.info(`🍄 DEBUG: Calling Claude for /start command`);
         const response = await claudeService.generateResponse('/start', {
           userId,
           platform: 'telegram',
           useRag: false
         });
 
+        logger.info(`🍄 DEBUG: Claude response received: "${response.message.substring(0, 50)}..."`);
         await this._sendResponse(ctx, response.message);
         
         logger.info(`🍄 /start command handled for user ${userId}`);
       } catch (error) {
-        logger.error(`🍄 Error handling /start command: ${error.message}`);
+        logger.error(`🍄 ERROR in /start command: ${error.message}`);
+        logger.error(`🍄 ERROR stack: ${error.stack}`);
         await ctx.reply('🍄 Welcome to Shrooms! How can I help you today?');
       }
     });
@@ -146,6 +152,8 @@ class ShroomsTelegramBot {
       try {
         const userId = ctx.from.id.toString();
         
+        logger.info(`🍄 DEBUG: Processing /help command for user ${userId}`);
+        
         // Отправляем помощь через Claude
         const response = await claudeService.generateResponse('/help', {
           userId,
@@ -153,11 +161,13 @@ class ShroomsTelegramBot {
           useRag: false
         });
 
+        logger.info(`🍄 DEBUG: Claude /help response: "${response.message.substring(0, 50)}..."`);
         await this._sendResponse(ctx, response.message);
         
         logger.info(`🍄 /help command handled for user ${userId}`);
       } catch (error) {
-        logger.error(`🍄 Error handling /help command: ${error.message}`);
+        logger.error(`🍄 ERROR in /help command: ${error.message}`);
+        logger.error(`🍄 ERROR stack: ${error.stack}`);
         await ctx.reply('🍄 I can help you with questions about Shrooms! Just ask me anything.');
       }
     });
@@ -180,6 +190,7 @@ class ShroomsTelegramBot {
         // Получаем или создаем conversation через существующий сервис
         let conversationId;
         try {
+          logger.info(`🍄 DEBUG: Getting conversation for user ${userId}`);
           const conversation = await conversationService.getOrCreateConversation(userId, {
             platform: 'telegram',
             chatId: chatId,
@@ -190,31 +201,58 @@ class ShroomsTelegramBot {
             }
           });
           conversationId = conversation._id;
+          logger.info(`🍄 DEBUG: Conversation ID: ${conversationId}`);
         } catch (error) {
           logger.error(`🍄 Error managing conversation: ${error.message}`);
           conversationId = null;
         }
 
         // Получаем историю сообщений
-        const history = conversationId ? 
-          await messageService.getRecentMessages(conversationId, 5) : [];
+        let history = [];
+        try {
+          if (conversationId) {
+            logger.info(`🍄 DEBUG: Getting message history for conversation ${conversationId}`);
+            history = await messageService.getRecentMessages(conversationId, 5);
+            logger.info(`🍄 DEBUG: Found ${history.length} historical messages`);
+          }
+        } catch (error) {
+          logger.error(`🍄 Error getting message history: ${error.message}`);
+          history = [];
+        }
 
         // 🍄 УПРОЩЕНО: Прямая отправка в Claude без языковой логики
         logger.info(`🍄 Generating response for platform: telegram`);
-        const response = await claudeService.generateResponse(messageText, {
-          userId,
-          platform: 'telegram',
-          history: history.map(msg => ({
-            role: msg.role,
-            content: msg.text
-          })),
-          useRag: true,
-          ragLimit: 3
-        });
+        logger.info(`🍄 DEBUG: About to call Claude API with message: "${messageText}"`);
+        
+        let response;
+        try {
+          response = await claudeService.generateResponse(messageText, {
+            userId,
+            platform: 'telegram',
+            history: history.map(msg => ({
+              role: msg.role,
+              content: msg.text
+            })),
+            useRag: true,
+            ragLimit: 3
+          });
+          
+          logger.info(`🍄 DEBUG: Claude API response received successfully`);
+          logger.info(`🍄 DEBUG: Response message: "${response.message.substring(0, 100)}..."`);
+          logger.info(`🍄 DEBUG: Needs ticket: ${response.needsTicket}`);
+          logger.info(`🍄 DEBUG: Tokens used: ${response.tokensUsed}`);
+          
+        } catch (claudeError) {
+          logger.error(`🍄 CRITICAL: Claude API call failed: ${claudeError.message}`);
+          logger.error(`🍄 CRITICAL: Claude error stack: ${claudeError.stack}`);
+          throw claudeError;
+        }
 
         // Сохраняем сообщения через messageService
         if (conversationId) {
           try {
+            logger.info(`🍄 DEBUG: Saving messages to database`);
+            
             // Сохраняем пользовательское сообщение
             await messageService.create({
               text: messageText,
@@ -248,17 +286,22 @@ class ShroomsTelegramBot {
               }
             });
 
+            logger.info(`🍄 DEBUG: Messages saved to database successfully`);
+
           } catch (error) {
             logger.error(`🍄 Error saving messages: ${error.message}`);
           }
         }
 
         // Отправляем ответ пользователю
+        logger.info(`🍄 DEBUG: About to send response to user`);
         await this._sendResponse(ctx, response.message);
+        logger.info(`🍄 DEBUG: Response sent to user successfully`);
 
         // Создаем тикет если необходимо
         if (response.needsTicket) {
           try {
+            logger.info(`🍄 DEBUG: Creating support ticket`);
             const ticketData = {
               userId,
               conversationId,
@@ -286,7 +329,8 @@ class ShroomsTelegramBot {
         }
 
       } catch (error) {
-        logger.error(`🍄 Error processing message: ${error.message}`);
+        logger.error(`🍄 CRITICAL ERROR processing message: ${error.message}`);
+        logger.error(`🍄 CRITICAL ERROR stack: ${error.stack}`);
         await this._sendErrorMessage(ctx, error);
       }
     });
@@ -299,6 +343,7 @@ class ShroomsTelegramBot {
   _setupErrorHandling() {
     this.bot.catch((err, ctx) => {
       logger.error(`🍄 Telegram bot error for user ${ctx.from?.id}: ${err.message}`);
+      logger.error(`🍄 Telegram bot error stack: ${err.stack}`);
       
       // Отправляем пользователю сообщение об ошибке
       ctx.reply('🍄 Oops! Something went wrong. Please try again in a moment.')
@@ -349,19 +394,25 @@ class ShroomsTelegramBot {
    */
   async _sendResponse(ctx, message) {
     try {
+      logger.info(`🍄 DEBUG: _sendResponse called with message length: ${message.length}`);
+      
       // Разбиваем длинные сообщения
       const chunks = this._splitMessage(message);
+      logger.info(`🍄 DEBUG: Message split into ${chunks.length} chunks`);
       
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         
         try {
+          logger.info(`🍄 DEBUG: Sending chunk ${i + 1}/${chunks.length}`);
           // Пробуем отправить с Markdown форматированием
           await ctx.replyWithMarkdown(chunk);
+          logger.info(`🍄 DEBUG: Chunk ${i + 1} sent successfully with Markdown`);
         } catch (markdownError) {
           // Если Markdown не работает, отправляем как обычный текст
           logger.warn(`🍄 Markdown formatting failed, sending as plain text: ${markdownError.message}`);
           await ctx.reply(chunk);
+          logger.info(`🍄 DEBUG: Chunk ${i + 1} sent successfully as plain text`);
         }
         
         // Небольшая задержка между сообщениями
@@ -369,8 +420,11 @@ class ShroomsTelegramBot {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
+      
+      logger.info(`🍄 DEBUG: All chunks sent successfully`);
     } catch (error) {
       logger.error(`🍄 Error sending response: ${error.message}`);
+      logger.error(`🍄 Error stack: ${error.stack}`);
       // Отправляем простое сообщение об ошибке
       await ctx.reply('🍄 I encountered an issue sending the response. Please try again.');
     }
