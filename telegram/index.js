@@ -12,6 +12,7 @@ const claudeService = require('../server/services/claude');
 const knowledgeService = require('../server/services/knowledge');
 const ticketingService = require('../server/services/ticketing');
 const conversationService = require('../server/services/conversation');
+const messageService = require('../server/services/message'); // 🍄 ИСПРАВЛЕНО: Добавлен messageService
 const simpleLanguageService = require('../server/services/simpleLanguage');
 
 /**
@@ -389,9 +390,9 @@ Para problemas complejos, crearé un ticket de soporte para nuestro equipo.
           conversationId = null;
         }
 
-        // Получаем историю сообщений для контекста
+        // 🍄 ИСПРАВЛЕНО: Получаем историю сообщений через messageService
         const history = conversationId ? 
-          await conversationService.getRecentMessages(conversationId, 5) : [];
+          await messageService.getRecentMessages(conversationId, 5) : [];
 
         // Генерируем ответ через Claude с указанием платформы
         const response = await claudeService.generateResponse(messageText, {
@@ -400,31 +401,50 @@ Para problemas complejos, crearé un ticket de soporte para nuestro equipo.
           platform: 'telegram',
           history: history.map(msg => ({
             role: msg.role,
-            content: msg.content
+            content: msg.text
           })),
           useRag: true,
           ragLimit: 3
         });
 
-        // Сохраняем сообщения в базу данных
+        // 🍄 ИСПРАВЛЕНО: Сохраняем сообщения через messageService
         if (conversationId) {
           try {
-            await conversationService.addMessage(conversationId, {
+            // Сохраняем пользовательское сообщение
+            await messageService.create({
+              text: messageText,
               role: 'user',
-              content: messageText,
-              platform: 'telegram'
-            });
-
-            await conversationService.addMessage(conversationId, {
-              role: 'assistant',
-              content: response.message,
-              platform: 'telegram',
+              userId,
+              conversationId,
               metadata: {
-                tokensUsed: response.tokensUsed,
-                provider: response.provider,
-                model: response.model
+                language,
+                source: 'telegram',
+                additional: {
+                  telegramChatId: chatId,
+                  firstName: ctx.from.first_name,
+                  lastName: ctx.from.last_name,
+                  username: ctx.from.username
+                }
               }
             });
+
+            // Сохраняем ответ ассистента
+            await messageService.create({
+              text: response.message,
+              role: 'assistant',
+              userId,
+              conversationId,
+              metadata: {
+                language,
+                source: 'telegram',
+                tokensUsed: response.tokensUsed,
+                additional: {
+                  provider: response.provider,
+                  model: response.model
+                }
+              }
+            });
+
           } catch (error) {
             logger.error(`🍄 Error saving messages: ${error.message}`);
           }
