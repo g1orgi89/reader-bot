@@ -12,7 +12,7 @@ const claudeService = require('../server/services/claude');
 const knowledgeService = require('../server/services/knowledge');
 const ticketingService = require('../server/services/ticketing');
 const conversationService = require('../server/services/conversation');
-const languageDetectService = require('../server/services/languageDetect');
+const simpleLanguageService = require('../server/services/simpleLanguage');
 
 /**
  * @typedef {Object} TelegramBotConfig
@@ -502,7 +502,9 @@ Para problemas complejos, crearé un ticket de soporte para nuestro equipo.
     try {
       // Сначала пробуем определить по тексту сообщения
       if (text) {
-        const detectedLang = await languageDetectService.detectLanguage(text);
+        const detectedLang = simpleLanguageService.detectLanguage(text, {
+          browserLanguage: ctx.from?.language_code
+        });
         if (detectedLang && ['en', 'es', 'ru'].includes(detectedLang)) {
           return detectedLang;
         }
