@@ -2,6 +2,7 @@
  * @fileoverview Сервис для работы с векторной базой знаний Qdrant
  * Предоставляет методы для добавления, поиска и удаления документов
  * ОБНОВЛЕНО: Добавлена поддержка автоматического чанкинга документов
+ * 🍄 УПРОЩЕНО: Универсальный поиск без языковых ограничений
  */
 
 const { QdrantClient } = require("@qdrant/js-client-rest");
@@ -15,7 +16,7 @@ const { createHash } = require('crypto');
  * @property {string} id - Уникальный идентификатор документа
  * @property {string} title - Заголовок документа
  * @property {string} category - Категория документа
- * @property {string} language - Язык документа (en, ru, es)
+ * @property {string} language - Язык документа (хранится, но не используется для фильтрации)
  * @property {string[]} [tags] - Теги для документа
  * @property {string} [source] - Источник документа
  * @property {Date} [createdAt] - Дата создания
@@ -25,10 +26,9 @@ const { createHash } = require('crypto');
 /**
  * @typedef {Object} SearchOptions
  * @property {number} [limit=5] - Максимальное количество результатов
- * @property {string} [language] - Фильтр по языку
  * @property {string} [category] - Фильтр по категории
  * @property {string[]} [tags] - Фильтр по тегам
- * @property {number} [score_threshold] - Минимальный порог релевантности (если не указан, используется автоматический)
+ * @property {number} [score_threshold] - Минимальный порог релевантности
  * @property {boolean} [returnChunks=false] - Возвращать отдельные чанки вместо группировки по документам
  */
 
@@ -76,13 +76,8 @@ class VectorStoreService {
       preserveParagraphs: true  // Сохраняем целостность параграфов
     };
     
-    // Адаптивные пороги релевантности по языкам
-    this.languageThresholds = {
-      'ru': 0.75, // Снижен с 0.8 до 0.75 для лучшего покрытия русских документов
-      'en': 0.7,  // Стандартный порог для английского
-      'es': 0.7   // Стандартный порог для испанского
-    };
-    this.defaultThreshold = 0.7; // Порог по умолчанию для неизвестных языков
+    // 🍄 УПРОЩЕНО: Единый порог релевантности для всех языков
+    this.defaultThreshold = 0.7; // Универсальный порог для всех языков
     
     // Создание клиента будет происходить при инициализации
     this.client = null;
@@ -94,18 +89,14 @@ class VectorStoreService {
   }
 
   /**
-   * Определяет оптимальный порог релевантности для языка
+   * Определяет оптимальный порог релевантности (упрощенная версия)
    * @private
-   * @param {string} [language] - Язык документов/запроса
+   * @param {number} [customThreshold] - Пользовательский порог
    * @returns {number} Порог релевантности
    */
-  _getLanguageThreshold(language) {
-    if (!language) {
-      return this.defaultThreshold;
-    }
-    
-    const threshold = this.languageThresholds[language.toLowerCase()] || this.defaultThreshold;
-    logger.debug(`🍄 Using threshold ${threshold} for language: ${language}`);
+  _getThreshold(customThreshold) {
+    const threshold = customThreshold !== undefined ? customThreshold : this.defaultThreshold;
+    logger.debug(`🍄 Using universal threshold: ${threshold}`);
     return threshold;
   }
 
@@ -162,12 +153,7 @@ class VectorStoreService {
             }
           });
           
-          // Создание индексов для фильтрации
-          await this.client.createPayloadIndex(this.collectionName, {
-            field_name: 'metadata.language',
-            field_schema: 'keyword'
-          });
-          
+          // 🍄 УПРОЩЕНО: Создание только необходимых индексов (без language)
           await this.client.createPayloadIndex(this.collectionName, {
             field_name: 'metadata.category',
             field_schema: 'keyword'
@@ -193,7 +179,7 @@ class VectorStoreService {
       
       this.initialized = true;
       logger.info('🍄 Vector store initialized successfully with chunking support');
-      logger.info(`🍄 Language thresholds configured: ${JSON.stringify(this.languageThresholds)}`);
+      logger.info(`🍄 Universal threshold configured: ${this.defaultThreshold}`);
       logger.info(`🍄 Default chunking options: ${JSON.stringify(this.defaultChunkingOptions)}`);
       return true;
     } catch (error) {
@@ -315,7 +301,7 @@ class VectorStoreService {
                 originalId: chunk.metadata.originalId || chunk.id,
                 title: chunk.metadata?.title || '',
                 category: chunk.metadata?.category || '',
-                language: chunk.metadata?.language || 'en',
+                language: chunk.metadata?.language || 'auto', // 🍄 ИЗМЕНЕНО: хранится, но не используется для фильтрации
                 tags: Array.isArray(chunk.metadata?.tags) ? chunk.metadata.tags : [],
                 chunkIndex: chunk.metadata.chunkIndex || 0,
                 totalChunks: chunk.metadata.totalChunks || 1,
@@ -425,7 +411,7 @@ class VectorStoreService {
   }
 
   /**
-   * Ищет документы, релевантные запросу
+   * Ищет документы, релевантные запросу (универсальный поиск)
    * @async
    * @param {string} query - Текст запроса
    * @param {SearchOptions} [options={}] - Опции поиска
@@ -448,39 +434,29 @@ class VectorStoreService {
       
       const { 
         limit = 5, 
-        language, 
         category, 
         tags,
-        returnChunks = false  // НОВАЯ ОПЦИЯ: для возврата отдельных чанков
+        returnChunks = false,  // НОВАЯ ОПЦИЯ: для возврата отдельных чанков
+        score_threshold
       } = options;
       
-      // Определяем порог автоматически на основе языка, если не задан явно
-      const score_threshold = options.score_threshold !== undefined 
-        ? options.score_threshold 
-        : this._getLanguageThreshold(language);
+      // 🍄 УПРОЩЕНО: Определяем порог без языковой зависимости
+      const threshold = this._getThreshold(score_threshold);
       
-      logger.info(`🍄 Searching for relevant documents with adaptive threshold: ${score_threshold} (language: ${language || 'auto'})`);
+      logger.info(`🍄 Searching for relevant documents with universal threshold: ${threshold}`);
       logger.info(`Searching for: \"${query.substring(0, 30)}${query.length > 30 ? '...' : ''}\" with options: ${JSON.stringify({
-        limit, language, category, tags: Array.isArray(tags) ? tags.length : tags, score_threshold, returnChunks
+        limit, category, tags: Array.isArray(tags) ? tags.length : tags, score_threshold: threshold, returnChunks
       })}`);
       
       // Создание embedding для запроса
       const embedding = await this._createEmbedding(query);
       logger.debug(`Created embedding for search query, embedding size: ${embedding.length}`);
       
-      // Подготовка фильтра
+      // Подготовка фильтра (без language)
       const filter = {};
       const mustConditions = [];
       
-      // Добавление фильтров для языка, категории и тегов
-      if (language) {
-        mustConditions.push({ 
-          key: 'metadata.language', 
-          match: { value: language } 
-        });
-        logger.debug(`Added language filter: ${language}`);
-      }
-      
+      // 🍄 УПРОЩЕНО: Убрали language фильтр
       if (category) {
         mustConditions.push({ 
           key: 'metadata.category', 
@@ -510,22 +486,22 @@ class VectorStoreService {
       
       // Выполнение поиска - увеличиваем лимит для поиска чанков
       const searchLimit = Math.min(limit * 3, 30); // Ищем больше чанков для лучшего покрытия
-      logger.debug(`🍄 Executing search with adaptive score_threshold: ${score_threshold} for language: ${language || 'auto'}, limit: ${searchLimit}`);
+      logger.debug(`🍄 Executing search with universal threshold: ${threshold}, limit: ${searchLimit}`);
       const searchResults = await this.client.search(this.collectionName, {
         vector: embedding,
         limit: searchLimit,
         filter: Object.keys(filter).length > 0 ? filter : undefined,
         with_payload: true,
-        score_threshold: score_threshold
+        score_threshold: threshold
       });
       
       // Подробное логирование результатов поиска
       if (searchResults.length > 0) {
         logger.debug(`🍄 Search returned ${searchResults.length} chunk results with scores: ${searchResults.map(r => r.score.toFixed(3)).join(', ')}`);
-        logger.info(`🍄 Found ${searchResults.length} chunks above threshold ${score_threshold} for ${language || 'auto'} language`);
+        logger.info(`🍄 Found ${searchResults.length} chunks above universal threshold ${threshold}`);
       } else {
-        logger.debug(`🍄 Search returned no results with adaptive threshold: ${score_threshold} for language: ${language || 'auto'}`);
-        logger.info(`🍄 No chunks found above threshold ${score_threshold} - query may not be relevant to knowledge base`);
+        logger.debug(`🍄 Search returned no results with universal threshold: ${threshold}`);
+        logger.info(`🍄 No chunks found above threshold ${threshold} - query may not be relevant to knowledge base`);
       }
 
       // НОВОЕ: Выбор между возвратом чанков или группировкой по документам
@@ -596,7 +572,7 @@ class VectorStoreService {
         const sourceInfo = result.metadata.sourceType === 'chunk' 
           ? `chunk ${result.metadata.sourceChunkIndex}` 
           : 'full document';
-        logger.debug(`🍄 Result #${index+1}: ID=${result.id}, Score=${result.score.toFixed(4)}, Source=${sourceInfo}, Language=${result.metadata?.language || 'unknown'}`);
+        logger.debug(`🍄 Result #${index+1}: ID=${result.id}, Score=${result.score.toFixed(4)}, Source=${sourceInfo}, Language=${result.metadata?.language || 'auto'}`);
         logger.debug(`🍄 Content preview: ${result.content.substring(0, 100)}${result.content.length > 100 ? '...' : ''}`);
       });
       
@@ -673,7 +649,7 @@ class VectorStoreService {
       
       return {
         status: 'ok',
-        message: 'Vector store is healthy',
+        message: 'Vector store is healthy with universal search',
         isInitialized: true,
         qdrantStatus: { collections_count: collections.collections.length },
         collection: {
@@ -681,7 +657,7 @@ class VectorStoreService {
           vectorCount: collectionInfo.points_count || 0,
           vectorDimension: this.vectorDimension
         },
-        languageThresholds: this.languageThresholds,
+        universalThreshold: this.defaultThreshold, // 🍄 ИЗМЕНЕНО: убрали languageThresholds
         chunkingConfig: this.defaultChunkingOptions
       };
     } catch (error) {
@@ -707,7 +683,7 @@ class VectorStoreService {
           chunksCount: 0,
           cacheSize: this.embeddingCache.size,
           lastUpdate: null,
-          languageThresholds: this.languageThresholds,
+          universalThreshold: this.defaultThreshold, // 🍄 ИЗМЕНЕНО
           chunkingConfig: this.defaultChunkingOptions
         };
       }
@@ -746,7 +722,7 @@ class VectorStoreService {
         chunksCount: collectionInfo.points_count || 0,
         cacheSize: this.embeddingCache.size,
         lastUpdate: new Date().toISOString(),
-        languageThresholds: this.languageThresholds,
+        universalThreshold: this.defaultThreshold, // 🍄 ИЗМЕНЕНО
         chunkingConfig: this.defaultChunkingOptions
       };
     } catch (error) {
@@ -757,7 +733,7 @@ class VectorStoreService {
         chunksCount: 0,
         cacheSize: this.embeddingCache.size,
         error: error.message,
-        languageThresholds: this.languageThresholds,
+        universalThreshold: this.defaultThreshold, // 🍄 ИЗМЕНЕНО
         chunkingConfig: this.defaultChunkingOptions
       };
     }
@@ -848,11 +824,10 @@ class VectorStoreService {
    * Вспомогательный метод для тестирования поиска в векторном хранилище
    * @async
    * @param {string} query - Текст запроса
-   * @param {number} [threshold] - Порог релевантности для тестирования (если не указан, используется автоматический)
-   * @param {string} [language] - Язык для определения автоматического порога
+   * @param {number} [threshold] - Порог релевантности для тестирования
    * @returns {Promise<Object>} Результат тестирования с различными порогами
    */
-  async testSearch(query, threshold, language) {
+  async testSearch(query, threshold) {
     if (!query || typeof query !== 'string' || query.trim() === '') {
       return { error: 'Empty or invalid query provided' };
     }
@@ -866,8 +841,8 @@ class VectorStoreService {
         return { error: 'Vector store not initialized' };
       }
       
-      // Определяем порог автоматически, если не задан
-      const testThreshold = threshold !== undefined ? threshold : this._getLanguageThreshold(language);
+      // 🍄 УПРОЩЕНО: Определяем порог без языковой зависимости
+      const testThreshold = this._getThreshold(threshold);
       
       // Создание embedding для запроса
       const embedding = await this._createEmbedding(query);
@@ -910,9 +885,8 @@ class VectorStoreService {
       
       return {
         query,
-        language,
         threshold: testThreshold,
-        automaticThreshold: this._getLanguageThreshold(language),
+        universalThreshold: this.defaultThreshold, // 🍄 ИЗМЕНЕНО
         resultsByThreshold: results,
         chunksFound: formattedResults.length,
         topResults: formattedResults,
@@ -990,7 +964,7 @@ class VectorStoreService {
         const testDoc = {
           id: 'test-doc',
           content: 'This is a test document for chunking functionality. '.repeat(20),
-          metadata: { title: 'Test', language: 'en', category: 'test' }
+          metadata: { title: 'Test', language: 'auto', category: 'test' }
         };
         
         const chunks = textChunker.chunkDocument(testDoc);
@@ -1026,8 +1000,7 @@ class VectorStoreService {
           embeddingModel: this.embeddingModel,
           cacheSize: this.embeddingCache.size,
           maxCacheSize: this.maxCacheSize,
-          languageThresholds: this.languageThresholds,
-          defaultThreshold: this.defaultThreshold,
+          universalThreshold: this.defaultThreshold, // 🍄 ИЗМЕНЕНО
           chunkingConfig: this.defaultChunkingOptions
         }
       };
