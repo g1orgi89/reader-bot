@@ -44,7 +44,7 @@ const conversationSchema = new mongoose.Schema({
   },
   source: {
     type: String,
-    enum: ['socket', 'api', 'telegram', 'ticket'],
+    enum: ['socket', 'api', 'telegram', 'ticket', 'chat', 'web'],
     default: 'socket'
   },
   // Дополнительные поля для интеграции с тикетами
