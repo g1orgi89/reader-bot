@@ -16,8 +16,7 @@ const conversationSchema = new mongoose.Schema({
   },
   language: {
     type: String,
-    enum: ['en', 'es', 'ru'],
-    default: 'en',
+    default: 'auto',
     index: true
   },
   startedAt: {
