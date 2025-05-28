@@ -35,8 +35,7 @@ const messageSchema = new mongoose.Schema({
   metadata: {
     language: {
       type: String,
-      enum: ['en', 'es', 'ru'],
-      default: 'en'
+      default: 'auto'
     },
     tokensUsed: {
       type: Number,
@@ -133,7 +132,7 @@ messageSchema.statics.findRecentByUser = function(userId, limit = 10) {
 // Middleware
 messageSchema.pre('save', function(next) {
   if (!this.metadata.language && this.text) {
-    this.metadata.language = 'en'; // По умолчанию
+    this.metadata.language = 'auto'; // По умолчанию
   }
   next();
 });
