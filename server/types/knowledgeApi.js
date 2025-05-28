@@ -16,7 +16,7 @@
  * @property {string} query - Поисковый запрос
  * @property {number} [limit=10] - Максимальное количество результатов
  * @property {number} [threshold=0.7] - Порог релевантности (0-1)
- * @property {string} [language] - Код языка для фильтрации (en, es, ru)
+ * @property {string} [language] - Код языка для фильтрации (en, es, ru, none)
  * @property {string} [category] - Категория для фильтрации
  * @property {string[]} [tags] - Теги для фильтрации
  * @property {boolean} [includeMetadata=true] - Включать ли метаданные в результаты
@@ -90,7 +90,7 @@
  * @property {string} title - Заголовок документа
  * @property {string} content - Содержимое документа
  * @property {string} category - Категория документа
- * @property {string} [language='en'] - Язык документа
+ * @property {string} [language='none'] - Язык документа (none = универсальный)
  * @property {string[]} [tags=[]] - Теги документа
  * @property {DocumentMetadata} [metadata] - Дополнительные метаданные
  * @property {ProcessingOptions} [processingOptions] - Опции обработки
@@ -147,7 +147,7 @@
  * @typedef {Object} FileUploadRequest
  * @property {File[]} files - Загружаемые файлы
  * @property {string} [category='general'] - Категория для всех файлов
- * @property {string} [language='en'] - Язык для всех файлов
+ * @property {string} [language='none'] - Язык для всех файлов (none = универсальный)
  * @property {string[]} [tags] - Теги для всех файлов
  * @property {ProcessingOptions} [processingOptions] - Опции обработки
  * @property {boolean} [overwrite=false] - Перезаписывать ли существующие файлы
@@ -375,13 +375,15 @@ const API_ERROR_CODES = {
 };
 
 /**
+ * Поддерживаемые языки системы
  * @readonly
  * @enum {string}
  */
 const SUPPORTED_LANGUAGES = {
-  ENGLISH: 'en',
-  SPANISH: 'es',
-  RUSSIAN: 'ru'
+  NONE: 'none',        // Универсальный (AI определяет язык автоматически)
+  ENGLISH: 'en',       // Английский
+  SPANISH: 'es',       // Испанский
+  RUSSIAN: 'ru'        // Русский
 };
 
 /**
