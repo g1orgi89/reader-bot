@@ -1,6 +1,8 @@
 /**
  * Основной Telegram бот для проекта Shrooms с грибной тематикой
  * @file telegram/index.js
+ * 🍄 ДОБАВЛЕНО: Система сбора email для тикетов
+ * 🍄 ДОБАВЛЕНО: State management для пользователей
  * 🍄 ИСПРАВЛЕНО: Убрана устаревшая языковая логика, используются универсальные промпты
  * 🍄 DEBUG: Добавлено детальное логирование для диагностики проблем
  */
@@ -13,6 +15,7 @@ const claudeService = require('../server/services/claude');
 const ticketingService = require('../server/services/ticketing');
 const conversationService = require('../server/services/conversation');
 const messageService = require('../server/services/message');
+const ticketEmailService = require('../server/services/ticketEmail');
 
 /**
  * @typedef {Object} TelegramBotConfig
@@ -32,8 +35,15 @@ const messageService = require('../server/services/message');
  */
 
 /**
+ * @typedef {Object} UserState
+ * @property {string} state - Текущее состояние пользователя
+ * @property {Object} data - Данные состояния
+ * @property {Date} createdAt - Время создания состояния
+ */
+
+/**
  * @class ShroomsTelegramBot
- * @description Telegram бот для поддержки проекта Shrooms с упрощенной архитектурой
+ * @description Telegram бот для поддержки проекта Shrooms с упрощенной архитектурой и email workflow
  */
 class ShroomsTelegramBot {
   /**
@@ -46,13 +56,32 @@ class ShroomsTelegramBot {
       environment: config.environment || 'production',
       maxMessageLength: config.maxMessageLength || 4096,
       typingDelay: 1500,
-      platform: 'telegram'
+      platform: 'telegram',
+      emailTimeout: 10 * 60 * 1000 // 10 минут для ввода email
     };
 
     this.bot = new Telegraf(this.config.token);
     this.isInitialized = false;
     
-    logger.info('🍄 ShroomsTelegramBot constructor initialized (simplified version)');
+    // 🍄 НОВОЕ: Maps для отслеживания состояний пользователей
+    /**
+     * Состояния пользователей
+     * @type {Map<string, UserState>}
+     */
+    this.userStates = new Map();
+    
+    /**
+     * Pending тикеты, ожидающие email
+     * @type {Map<string, Object>}
+     */
+    this.pendingTickets = new Map();
+    
+    logger.info('🍄 ShroomsTelegramBot constructor initialized with email workflow');
+    
+    // Запускаем очистку состояний каждые 5 минут
+    setInterval(() => {
+      this._cleanupExpiredStates();
+    }, 5 * 60 * 1000);
   }
 
   /**
@@ -74,7 +103,7 @@ class ShroomsTelegramBot {
       this._setupErrorHandling();
       
       this.isInitialized = true;
-      logger.info('🍄 Telegram bot initialized successfully (simplified)');
+      logger.info('🍄 Telegram bot initialized successfully with email workflow');
     } catch (error) {
       logger.error(`🍄 Failed to initialize Telegram bot: ${error.message}`);
       throw error;
@@ -125,6 +154,9 @@ class ShroomsTelegramBot {
         
         logger.info(`🍄 DEBUG: Processing /start command for user ${userId}`);
         
+        // Очищаем состояние пользователя при старте
+        this._clearUserState(userId);
+        
         // Сохраняем информацию о пользователе
         await this._saveUserInfo(ctx);
         
@@ -171,6 +203,36 @@ class ShroomsTelegramBot {
         await ctx.reply('🍄 I can help you with questions about Shrooms! Just ask me anything.');
       }
     });
+
+    // 🍄 НОВОЕ: Команда /cancel для отмены ожидания email
+    this.bot.command('cancel', async (ctx) => {
+      try {
+        const userId = ctx.from.id.toString();
+        
+        logger.info(`🍄 DEBUG: Processing /cancel command for user ${userId}`);
+        
+        const userState = this.userStates.get(userId);
+        if (userState && userState.state === 'awaiting_email') {
+          this._clearUserState(userId);
+          const pendingTicket = this.pendingTickets.get(userId);
+          this.pendingTickets.delete(userId);
+          
+          if (pendingTicket) {
+            logger.info(`🍄 Cancelled email collection for ticket ${pendingTicket.ticketId}`);
+          }
+          
+          const language = this._detectLanguage(ctx);
+          const cancelMessage = this._getCancelMessage(language);
+          await ctx.reply(cancelMessage);
+        } else {
+          await ctx.reply('🍄 No active email request to cancel.');
+        }
+        
+      } catch (error) {
+        logger.error(`🍄 ERROR in /cancel command: ${error.message}`);
+        await ctx.reply('🍄 Something went wrong with the cancel command.');
+      }
+    });
   }
 
   /**
@@ -186,6 +248,13 @@ class ShroomsTelegramBot {
         const chatId = ctx.chat.id.toString();
 
         logger.info(`🍄 Processing message from user ${userId}: "${messageText.substring(0, 30)}..."`);
+
+        // 🍄 НОВОЕ: Проверка состояния ожидания email
+        const userState = this.userStates.get(userId);
+        if (userState && userState.state === 'awaiting_email') {
+          await this._handleEmailCollection(ctx, messageText, userId);
+          return;
+        }
 
         // Получаем или создаем conversation через существующий сервис
         let conversationId;
@@ -218,6 +287,13 @@ class ShroomsTelegramBot {
         } catch (error) {
           logger.error(`🍄 Error getting message history: ${error.message}`);
           history = [];
+        }
+
+        // 🍄 НОВОЕ: Проверка необходимости создания тикета
+        const shouldCreateTicket = await this._shouldCreateTicket(messageText, userId);
+        if (shouldCreateTicket) {
+          await this._initiateTicketCreation(ctx, messageText, userId, conversationId);
+          return;
         }
 
         // 🍄 УПРОЩЕНО: Прямая отправка в Claude без языковой логики
@@ -298,42 +374,238 @@ class ShroomsTelegramBot {
         await this._sendResponse(ctx, response.message);
         logger.info(`🍄 DEBUG: Response sent to user successfully`);
 
-        // Создаем тикет если необходимо
-        if (response.needsTicket) {
-          try {
-            logger.info(`🍄 DEBUG: Creating support ticket`);
-            const ticketData = {
-              userId,
-              conversationId,
-              message: messageText,
-              platform: 'telegram',
-              userInfo: {
-                telegramId: userId,
-                chatId: chatId,
-                firstName: ctx.from.first_name,
-                lastName: ctx.from.last_name,
-                username: ctx.from.username
-              },
-              context: response.context || []
-            };
-
-            const ticket = await ticketingService.createTicket(ticketData);
-            
-            const ticketMessage = `🎫 *Support Ticket Created*\n\nI've created ticket \`${ticket.ticketId}\` for our mushroom experts team! \n\nOur growers will review your question and get back to you soon.\n\n*Thank you for helping our mycelium grow stronger!* 🍄`;
-            await ctx.replyWithMarkdown(ticketMessage);
-            
-            logger.info(`🍄 Ticket ${ticket.ticketId} created for user ${userId}`);
-          } catch (error) {
-            logger.error(`🍄 Error creating ticket: ${error.message}`);
-          }
-        }
-
       } catch (error) {
         logger.error(`🍄 CRITICAL ERROR processing message: ${error.message}`);
         logger.error(`🍄 CRITICAL ERROR stack: ${error.stack}`);
         await this._sendErrorMessage(ctx, error);
       }
     });
+  }
+
+  /**
+   * 🍄 НОВОЕ: Проверка необходимости создания тикета
+   * @private
+   * @param {string} message - Сообщение пользователя
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<boolean>} Нужно ли создать тикет
+   */
+  async _shouldCreateTicket(message, userId) {
+    try {
+      return await ticketEmailService.shouldCreateTicket(message, 'auto');
+    } catch (error) {
+      logger.error(`🍄 Error checking ticket creation: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * 🍄 НОВОЕ: Инициация создания тикета с запросом email
+   * @private
+   * @param {Object} ctx - Контекст Telegram
+   * @param {string} message - Сообщение пользователя
+   * @param {string} userId - ID пользователя
+   * @param {string} conversationId - ID разговора
+   */
+  async _initiateTicketCreation(ctx, message, userId, conversationId) {
+    try {
+      logger.info(`🍄 DEBUG: Initiating ticket creation for user ${userId}`);
+      
+      // Создаем pending тикет
+      const ticketResult = await ticketEmailService.createPendingTicket({
+        userId,
+        conversationId,
+        subject: `Telegram Support: ${message.substring(0, 50)}...`,
+        initialMessage: message,
+        context: JSON.stringify({
+          platform: 'telegram',
+          userInfo: {
+            telegramId: userId,
+            firstName: ctx.from.first_name,
+            lastName: ctx.from.last_name,
+            username: ctx.from.username
+          }
+        }),
+        language: this._detectLanguage(ctx),
+        category: 'technical',
+        priority: 'medium'
+      });
+
+      // Сохраняем состояние пользователя
+      this.userStates.set(userId, {
+        state: 'awaiting_email',
+        data: {
+          ticketId: ticketResult.ticket.ticketId,
+          conversationId
+        },
+        createdAt: new Date()
+      });
+
+      // Сохраняем pending тикет
+      this.pendingTickets.set(userId, ticketResult.ticket);
+
+      // Отправляем запрос email
+      const emailRequest = this._getEmailRequestMessage(this._detectLanguage(ctx));
+      await ctx.replyWithMarkdown(emailRequest);
+      
+      logger.info(`🍄 Ticket ${ticketResult.ticket.ticketId} created, awaiting email from user ${userId}`);
+      
+    } catch (error) {
+      logger.error(`🍄 Error creating ticket: ${error.message}`);
+      await ctx.reply('🍄 Sorry, there was an issue creating your support ticket. Please try again.');
+    }
+  }
+
+  /**
+   * 🍄 НОВОЕ: Обработка сбора email
+   * @private
+   * @param {Object} ctx - Контекст Telegram
+   * @param {string} messageText - Текст сообщения
+   * @param {string} userId - ID пользователя
+   */
+  async _handleEmailCollection(ctx, messageText, userId) {
+    try {
+      logger.info(`🍄 DEBUG: Handling email collection from user ${userId}`);
+      
+      const email = this._extractEmail(messageText);
+      
+      if (!email) {
+        // Неправильный email - просим повторить
+        const errorMessage = this._getInvalidEmailMessage(this._detectLanguage(ctx));
+        await ctx.reply(errorMessage);
+        return;
+      }
+
+      logger.info(`🍄 DEBUG: Valid email received: ${email}`);
+
+      // Обновляем тикет с email
+      const language = this._detectLanguage(ctx);
+      const emailResult = await ticketEmailService.updateTicketWithEmail(
+        userId, 
+        email, 
+        language
+      );
+
+      // Очищаем состояние
+      this._clearUserState(userId);
+      const ticketData = this.pendingTickets.get(userId);
+      this.pendingTickets.delete(userId);
+
+      // Отправляем подтверждение
+      await ctx.replyWithMarkdown(emailResult.message);
+      
+      logger.info(`🍄 Email ${email} collected for ticket ${ticketData?.ticketId}`);
+      
+    } catch (error) {
+      logger.error(`🍄 Error handling email collection: ${error.message}`);
+      // Очищаем состояние при ошибке
+      this._clearUserState(userId);
+      this.pendingTickets.delete(userId);
+      await ctx.reply('🍄 Sorry, there was an issue processing your email. Please try again.');
+    }
+  }
+
+  /**
+   * 🍄 НОВОЕ: Извлечение email из текста
+   * @private
+   * @param {string} text - Текст сообщения
+   * @returns {string|null} Email или null
+   */
+  _extractEmail(text) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmedText = text.trim();
+    return emailRegex.test(trimmedText) ? trimmedText : null;
+  }
+
+  /**
+   * 🍄 НОВОЕ: Очистка состояния пользователя
+   * @private
+   * @param {string} userId - ID пользователя
+   */
+  _clearUserState(userId) {
+    this.userStates.delete(userId);
+    this.pendingTickets.delete(userId);
+    logger.info(`🍄 Cleared state for user ${userId}`);
+  }
+
+  /**
+   * 🍄 НОВОЕ: Очистка просроченных состояний
+   * @private
+   */
+  _cleanupExpiredStates() {
+    const now = Date.now();
+    let cleanedCount = 0;
+    
+    for (const [userId, state] of this.userStates.entries()) {
+      if (state.state === 'awaiting_email') {
+        const ticketData = this.pendingTickets.get(userId);
+        if (ticketData && (now - state.createdAt.getTime()) > this.config.emailTimeout) {
+          this._clearUserState(userId);
+          cleanedCount++;
+          logger.info(`🍄 Cleaned up expired email state for user ${userId}`);
+        }
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      logger.info(`🍄 Cleaned up ${cleanedCount} expired states`);
+    }
+  }
+
+  /**
+   * 🍄 НОВОЕ: Сообщения для запроса email на разных языках
+   * @private
+   * @param {string} language - Язык
+   * @returns {string} Сообщение запроса email
+   */
+  _getEmailRequestMessage(language) {
+    const messages = {
+      'ru': '🎫 *Тикет поддержки создан!*\n\nДля связи с нашими экспертами, пожалуйста, укажите ваш email адрес:\n\n_Или отправьте /cancel для отмены_',
+      'es': '🎫 *¡Ticket de soporte creado!*\n\nPara contactar con nuestros expertos, por favor proporciona tu dirección de email:\n\n_O envía /cancel para cancelar_',
+      'en': '🎫 *Support ticket created!*\n\nTo connect with our experts, please provide your email address:\n\n_Or send /cancel to cancel_'
+    };
+    return messages[language] || messages['en'];
+  }
+
+  /**
+   * 🍄 НОВОЕ: Сообщения об ошибке email
+   * @private
+   * @param {string} language - Язык
+   * @returns {string} Сообщение об ошибке
+   */
+  _getInvalidEmailMessage(language) {
+    const messages = {
+      'ru': '❌ Пожалуйста, введите корректный email адрес (например: user@gmail.com):\n\n_Или отправьте /cancel для отмены_',
+      'es': '❌ Por favor, ingresa una dirección de email válida (ejemplo: user@gmail.com):\n\n_O envía /cancel para cancelar_',
+      'en': '❌ Please enter a valid email address (example: user@gmail.com):\n\n_Or send /cancel to cancel_'
+    };
+    return messages[language] || messages['en'];
+  }
+
+  /**
+   * 🍄 НОВОЕ: Сообщения об отмене
+   * @private
+   * @param {string} language - Язык
+   * @returns {string} Сообщение об отмене
+   */
+  _getCancelMessage(language) {
+    const messages = {
+      'ru': '🍄 Сбор email отменен. Можете продолжить обычное общение!',
+      'es': '🍄 Recolección de email cancelada. ¡Puedes continuar la conversación normal!',
+      'en': '🍄 Email collection cancelled. You can continue with normal conversation!'
+    };
+    return messages[language] || messages['en'];
+  }
+
+  /**
+   * Определение языка пользователя
+   * @private
+   * @param {Object} ctx - Контекст Telegram
+   * @returns {string} Код языка
+   */
+  _detectLanguage(ctx) {
+    const telegramLang = ctx.from?.language_code?.split('-')[0];
+    const supportedLanguages = ['en', 'ru', 'es'];
+    return supportedLanguages.includes(telegramLang) ? telegramLang : 'en';
   }
 
   /**
@@ -512,7 +784,7 @@ class ShroomsTelegramBot {
 
     try {
       await this.bot.launch();
-      logger.info('🍄 Telegram bot started successfully');
+      logger.info('🍄 Telegram bot started successfully with email workflow');
       
       // Graceful stop
       process.once('SIGINT', () => this.stop('SIGINT'));
@@ -547,6 +819,14 @@ class ShroomsTelegramBot {
     try {
       const me = await this.bot.telegram.getMe();
       
+      // 🍄 НОВОЕ: Статистика состояний пользователей
+      let awaitingEmailCount = 0;
+      for (const state of this.userStates.values()) {
+        if (state.state === 'awaiting_email') {
+          awaitingEmailCount++;
+        }
+      }
+      
       return {
         botInfo: {
           id: me.id,
@@ -556,14 +836,27 @@ class ShroomsTelegramBot {
         config: {
           environment: this.config.environment,
           maxMessageLength: this.config.maxMessageLength,
-          platform: this.config.platform
+          platform: this.config.platform,
+          emailTimeout: this.config.emailTimeout
         },
         status: {
           initialized: this.isInitialized,
           uptime: process.uptime()
         },
-        languageSupport: 'universal', // 🍄 ИСПРАВЛЕНО: Универсальная поддержка языков
-        systemMessages: 'none' // 🍄 ИСПРАВЛЕНО: Системные сообщения не используются
+        userStates: {
+          total: this.userStates.size,
+          awaitingEmail: awaitingEmailCount
+        },
+        pendingTickets: {
+          total: this.pendingTickets.size
+        },
+        features: {
+          emailWorkflow: true,
+          stateManagement: true,
+          ticketCreation: true
+        },
+        languageSupport: 'universal',
+        systemMessages: 'none'
       };
     } catch (error) {
       logger.error(`🍄 Error getting bot stats: ${error.message}`);
