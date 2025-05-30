@@ -5,6 +5,7 @@
  * 🍄 ДОБАВЛЕНО: State management для пользователей
  * 🍄 ИСПРАВЛЕНО: Убрана устаревшая языковая логика, используются универсальные промпты
  * 🍄 DEBUG: Добавлено детальное логирование для диагностики проблем
+ * 🍄 ИСПРАВЛЕНО: Правильные параметры для shouldCreateTicket и улучшенная обработка email
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -289,8 +290,12 @@ class ShroomsTelegramBot {
           history = [];
         }
 
-        // 🍄 НОВОЕ: Проверка необходимости создания тикета
-        const shouldCreateTicket = await this._shouldCreateTicket(messageText, userId);
+        // 🍄 ИСПРАВЛЕНО: Проверка необходимости создания тикета с правильными параметрами
+        const language = this._detectLanguage(ctx);
+        const shouldCreateTicket = ticketEmailService.shouldCreateTicket(messageText, language);
+        
+        logger.info(`🍄 DEBUG: shouldCreateTicket result: ${shouldCreateTicket} for message: "${messageText.substring(0, 30)}..."`);
+        
         if (shouldCreateTicket) {
           await this._initiateTicketCreation(ctx, messageText, userId, conversationId);
           return;
@@ -383,22 +388,6 @@ class ShroomsTelegramBot {
   }
 
   /**
-   * 🍄 НОВОЕ: Проверка необходимости создания тикета
-   * @private
-   * @param {string} message - Сообщение пользователя
-   * @param {string} userId - ID пользователя
-   * @returns {Promise<boolean>} Нужно ли создать тикет
-   */
-  async _shouldCreateTicket(message, userId) {
-    try {
-      return await ticketEmailService.shouldCreateTicket(message, 'auto');
-    } catch (error) {
-      logger.error(`🍄 Error checking ticket creation: ${error.message}`);
-      return false;
-    }
-  }
-
-  /**
    * 🍄 НОВОЕ: Инициация создания тикета с запросом email
    * @private
    * @param {Object} ctx - Контекст Telegram
@@ -409,6 +398,8 @@ class ShroomsTelegramBot {
   async _initiateTicketCreation(ctx, message, userId, conversationId) {
     try {
       logger.info(`🍄 DEBUG: Initiating ticket creation for user ${userId}`);
+      
+      const language = this._detectLanguage(ctx);
       
       // Создаем pending тикет
       const ticketResult = await ticketEmailService.createPendingTicket({
@@ -425,10 +416,16 @@ class ShroomsTelegramBot {
             username: ctx.from.username
           }
         }),
-        language: this._detectLanguage(ctx),
+        language: language,
         category: 'technical',
         priority: 'medium'
       });
+
+      if (!ticketResult.success) {
+        throw new Error('Failed to create pending ticket');
+      }
+
+      logger.info(`🍄 DEBUG: Ticket creation result:`, ticketResult.ticket);
 
       // Сохраняем состояние пользователя
       this.userStates.set(userId, {
@@ -440,17 +437,18 @@ class ShroomsTelegramBot {
         createdAt: new Date()
       });
 
-      // Сохраняем pending тикет
+      // Сохраняем pending тикет для быстрого доступа
       this.pendingTickets.set(userId, ticketResult.ticket);
 
       // Отправляем запрос email
-      const emailRequest = this._getEmailRequestMessage(this._detectLanguage(ctx));
+      const emailRequest = ticketResult.message;
       await ctx.replyWithMarkdown(emailRequest);
       
       logger.info(`🍄 Ticket ${ticketResult.ticket.ticketId} created, awaiting email from user ${userId}`);
       
     } catch (error) {
       logger.error(`🍄 Error creating ticket: ${error.message}`);
+      logger.error(`🍄 Error stack: ${error.stack}`);
       await ctx.reply('🍄 Sorry, there was an issue creating your support ticket. Please try again.');
     }
   }
@@ -464,9 +462,9 @@ class ShroomsTelegramBot {
    */
   async _handleEmailCollection(ctx, messageText, userId) {
     try {
-      logger.info(`🍄 DEBUG: Handling email collection from user ${userId}`);
+      logger.info(`🍄 DEBUG: Handling email collection from user ${userId}: "${messageText}"`);
       
-      const email = this._extractEmail(messageText);
+      const email = ticketEmailService.extractEmail(messageText);
       
       if (!email) {
         // Неправильный email - просим повторить
@@ -485,6 +483,10 @@ class ShroomsTelegramBot {
         language
       );
 
+      if (!emailResult.success) {
+        throw new Error(emailResult.message || 'Failed to update ticket with email');
+      }
+
       // Очищаем состояние
       this._clearUserState(userId);
       const ticketData = this.pendingTickets.get(userId);
@@ -493,27 +495,17 @@ class ShroomsTelegramBot {
       // Отправляем подтверждение
       await ctx.replyWithMarkdown(emailResult.message);
       
-      logger.info(`🍄 Email ${email} collected for ticket ${ticketData?.ticketId}`);
+      logger.info(`🍄 SUCCESS: Email ${email} collected for ticket ${emailResult.ticketId || ticketData?.ticketId}`);
       
     } catch (error) {
       logger.error(`🍄 Error handling email collection: ${error.message}`);
+      logger.error(`🍄 Error stack: ${error.stack}`);
+      
       // Очищаем состояние при ошибке
       this._clearUserState(userId);
       this.pendingTickets.delete(userId);
       await ctx.reply('🍄 Sorry, there was an issue processing your email. Please try again.');
     }
-  }
-
-  /**
-   * 🍄 НОВОЕ: Извлечение email из текста
-   * @private
-   * @param {string} text - Текст сообщения
-   * @returns {string|null} Email или null
-   */
-  _extractEmail(text) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const trimmedText = text.trim();
-    return emailRegex.test(trimmedText) ? trimmedText : null;
   }
 
   /**
@@ -605,7 +597,11 @@ class ShroomsTelegramBot {
   _detectLanguage(ctx) {
     const telegramLang = ctx.from?.language_code?.split('-')[0];
     const supportedLanguages = ['en', 'ru', 'es'];
-    return supportedLanguages.includes(telegramLang) ? telegramLang : 'en';
+    const detectedLang = supportedLanguages.includes(telegramLang) ? telegramLang : 'en';
+    
+    logger.info(`🍄 DEBUG: Detected language: ${detectedLang} (from Telegram: ${telegramLang})`);
+    
+    return detectedLang;
   }
 
   /**
