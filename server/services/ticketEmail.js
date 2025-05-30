@@ -28,10 +28,10 @@ class TicketEmailService {
     this.pendingTickets = new Map();
     
     /**
-     * Время ожидания email в миллисекундах (5 минут)
+     * Время ожидания email в миллисекундах (10 минут)
      * @type {number}
      */
-    this.EMAIL_TIMEOUT = 5 * 60 * 1000;
+    this.EMAIL_TIMEOUT = 10 * 60 * 1000;
     
     // Запускаем очистку просроченных тикетов каждую минуту
     this.startCleanupTimer();
@@ -46,21 +46,26 @@ class TicketEmailService {
   shouldCreateTicket(message, language = 'en') {
     const lowerMessage = message.toLowerCase();
     
+    logger.info(`🍄 DEBUG: Checking if message should create ticket: "${message.substring(0, 30)}..." (language: ${language})`);
+    
     // Ключевые слова проблем на разных языках
     const problemKeywords = {
       en: [
         'error', 'bug', 'problem', 'issue', 'not work', 'broken', 'failed', 'stuck',
         'can\'t', 'cannot', 'unable', 'help', 'support', 'urgent', 'crash',
-        'wallet', 'transaction', 'balance', 'staking', 'farming'
+        'wallet', 'transaction', 'balance', 'staking', 'farming', 'not working',
+        'doesn\'t work', 'trouble', 'difficulty'
       ],
       ru: [
         'ошибка', 'баг', 'проблема', 'не работает', 'сломано', 'неисправность',
         'не могу', 'не получается', 'помощь', 'поддержка', 'срочно', 'авария',
-        'кошелек', 'транзакция', 'баланс', 'стейкинг', 'фарминг'
+        'кошелек', 'транзакция', 'баланс', 'стейкинг', 'фарминг', 'сбой',
+        'не функционирует', 'неполадка'
       ],
       es: [
         'error', 'problema', 'fallo', 'roto', 'no funciona', 'ayuda', 'soporte',
-        'urgente', 'billetera', 'transacción', 'balance', 'staking', 'farming'
+        'urgente', 'billetera', 'transacción', 'balance', 'staking', 'farming',
+        'no trabajo', 'dificultad'
       ]
     };
 
@@ -72,8 +77,15 @@ class TicketEmailService {
     // Дополнительные проверки
     const hasQuestionMark = message.includes('?');
     const isLongMessage = message.length > 50; // Длинные сообщения часто содержат описания проблем
+    const hasCriticalWords = ['urgent', 'help', 'срочно', 'помощь', 'ayuda'].some(word => 
+      lowerMessage.includes(word)
+    );
     
-    return hasKeywords || (hasQuestionMark && isLongMessage);
+    const shouldCreate = hasKeywords || hasCriticalWords || (hasQuestionMark && isLongMessage);
+    
+    logger.info(`🍄 DEBUG: shouldCreateTicket result: ${shouldCreate} (hasKeywords: ${hasKeywords}, hasCriticalWords: ${hasCriticalWords}, hasQuestionMark: ${hasQuestionMark}, isLongMessage: ${isLongMessage})`);
+    
+    return shouldCreate;
   }
 
   /**
@@ -83,39 +95,52 @@ class TicketEmailService {
    */
   async createPendingTicket(ticketData) {
     try {
-      // Создаем тикет без email со статусом pending_email
+      logger.info(`🍄 DEBUG: Creating pending ticket for user ${ticketData.userId}`);
+      
+      // Создаем тикет без email со статусом open
       const ticket = await TicketService.createTicket({
         ...ticketData,
         email: null, // Специально не указываем email
-        status: 'open', // Оставляем стандартный статус
+        status: 'open', // Стандартный статус
         metadata: {
           ...ticketData.metadata,
           pendingEmail: true, // Помечаем что ожидаем email
-          emailRequested: true
+          emailRequested: true,
+          source: 'telegram'
         }
       });
 
+      logger.info(`🍄 DEBUG: Ticket created with ID: ${ticket.ticketId}`);
+
       // Добавляем в временное хранилище
       const pendingTicket = {
-        ticketId: ticket.ticketId,
+        ticketId: ticket.ticketId, // Используем ticketId из созданного тикета
         userId: ticketData.userId,
         conversationId: ticketData.conversationId,
+        mongoId: ticket._id, // Сохраняем MongoDB ID для обновлений
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + this.EMAIL_TIMEOUT)
       };
 
       this.pendingTickets.set(ticketData.userId, pendingTicket);
       
-      logger.info(`Pending ticket created: ${ticket.ticketId} for user ${ticketData.userId}`);
+      logger.info(`🍄 Pending ticket created: ${ticket.ticketId} for user ${ticketData.userId} (expires in ${this.EMAIL_TIMEOUT/60000} minutes)`);
       
       return {
         success: true,
-        ticket,
+        ticket: {
+          ticketId: ticket.ticketId, // Возвращаем правильный ticketId
+          _id: ticket._id,
+          userId: ticket.userId,
+          subject: ticket.subject,
+          status: ticket.status
+        },
         pendingEmail: true,
         message: this.getEmailRequestMessage(ticketData.language)
       };
     } catch (error) {
-      logger.error(`Error creating pending ticket: ${error.message}`);
+      logger.error(`🍄 ERROR: Failed to create pending ticket: ${error.message}`);
+      logger.error(`🍄 ERROR stack: ${error.stack}`);
       throw error;
     }
   }
@@ -129,9 +154,15 @@ class TicketEmailService {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const trimmedMessage = message.trim();
     
-    // Проверяем на точное соответствие email или содержание email в коротком сообщении
-    return emailRegex.test(trimmedMessage) || 
-           (trimmedMessage.length < 50 && trimmedMessage.includes('@'));
+    // Проверяем на точное соответствие email
+    const isExactEmail = emailRegex.test(trimmedMessage);
+    
+    // Или если это короткое сообщение содержащее @
+    const isPotentialEmail = trimmedMessage.length < 50 && trimmedMessage.includes('@') && trimmedMessage.includes('.');
+    
+    logger.info(`🍄 DEBUG: isEmailMessage("${trimmedMessage}"): ${isExactEmail || isPotentialEmail}`);
+    
+    return isExactEmail || isPotentialEmail;
   }
 
   /**
@@ -140,9 +171,28 @@ class TicketEmailService {
    * @returns {string|null} Email адрес или null
    */
   extractEmail(message) {
-    const emailRegex = /([^\s@]+@[^\s@]+\.[^\s@]+)/;
-    const match = message.match(emailRegex);
-    return match ? match[1].toLowerCase() : null;
+    // Более строгая регулярка для email
+    const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+    const trimmedMessage = message.trim();
+    
+    // Сначала проверяем, является ли все сообщение email
+    const simpleEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (simpleEmailRegex.test(trimmedMessage)) {
+      const email = trimmedMessage.toLowerCase();
+      logger.info(`🍄 DEBUG: Extracted email (full message): ${email}`);
+      return email;
+    }
+    
+    // Затем ищем email в тексте
+    const match = trimmedMessage.match(emailRegex);
+    if (match) {
+      const email = match[1].toLowerCase();
+      logger.info(`🍄 DEBUG: Extracted email (from text): ${email}`);
+      return email;
+    }
+    
+    logger.info(`🍄 DEBUG: No valid email found in message: "${trimmedMessage}"`);
+    return null;
   }
 
   /**
@@ -156,27 +206,31 @@ class TicketEmailService {
     try {
       const pendingTicket = this.pendingTickets.get(userId);
       
+      logger.info(`🍄 DEBUG: Updating ticket with email for user ${userId}, pendingTicket exists: ${!!pendingTicket}`);
+      
       if (!pendingTicket) {
-        logger.warn(`No pending ticket found for user: ${userId}`);
+        logger.warn(`🍄 WARNING: No pending ticket found for user: ${userId}`);
         return {
           success: false,
-          message: 'No pending ticket found'
+          message: 'No pending ticket found. Please create a new support request.'
         };
       }
 
       // Проверяем не истек ли тикет
       if (new Date() > pendingTicket.expiresAt) {
         this.pendingTickets.delete(userId);
-        logger.warn(`Pending ticket expired for user: ${userId}`);
+        logger.warn(`🍄 WARNING: Pending ticket expired for user: ${userId}, ticketId: ${pendingTicket.ticketId}`);
         return {
           success: false,
           message: 'Ticket request expired. Please create a new support request.'
         };
       }
 
-      // Обновляем тикет с email
-      const updatedTicket = await TicketService.updateTicketByTicketId(
-        pendingTicket.ticketId, 
+      logger.info(`🍄 DEBUG: Updating ticket ${pendingTicket.ticketId} with email: ${email}`);
+
+      // Обновляем тикет с email используя MongoDB ID
+      const updatedTicket = await TicketService.updateTicketById(
+        pendingTicket.mongoId, 
         {
           email: email,
           'metadata.pendingEmail': false,
@@ -189,22 +243,24 @@ class TicketEmailService {
         // Удаляем из ожидающих
         this.pendingTickets.delete(userId);
         
-        logger.info(`Email collected for ticket: ${pendingTicket.ticketId} - ${email}`);
+        logger.info(`🍄 SUCCESS: Email collected for ticket: ${pendingTicket.ticketId} - ${email}`);
         
         return {
           success: true,
           ticket: updatedTicket,
-          message: this.getEmailConfirmationMessage(language)
+          ticketId: pendingTicket.ticketId,
+          message: this.getEmailConfirmationMessage(language, pendingTicket.ticketId)
         };
       } else {
-        logger.error(`Failed to update ticket: ${pendingTicket.ticketId}`);
+        logger.error(`🍄 ERROR: Failed to update ticket in database: ${pendingTicket.ticketId}`);
         return {
           success: false,
-          message: 'Failed to update ticket with email'
+          message: 'Failed to update ticket with email. Please try again.'
         };
       }
     } catch (error) {
-      logger.error(`Error updating ticket with email: ${error.message}`);
+      logger.error(`🍄 ERROR: Error updating ticket with email: ${error.message}`);
+      logger.error(`🍄 ERROR stack: ${error.stack}`);
       throw error;
     }
   }
@@ -220,6 +276,7 @@ class TicketEmailService {
     if (pendingTicket && new Date() > pendingTicket.expiresAt) {
       // Удаляем просроченный тикет
       this.pendingTickets.delete(userId);
+      logger.info(`🍄 Removed expired pending ticket for user ${userId}: ${pendingTicket.ticketId}`);
       return null;
     }
     
@@ -233,9 +290,9 @@ class TicketEmailService {
    */
   getEmailRequestMessage(language = 'en') {
     const messages = {
-      en: "🎫 I've created a support ticket for you! To help our mushroom experts reach you, please share your email address:",
-      ru: "🎫 Я создал тикет поддержки для тебя! Чтобы наши грибные эксперты смогли с тобой связаться, поделись своим email адресом:",
-      es: "🎫 ¡He creado un ticket de soporte para ti! Para que nuestros expertos en hongos puedan contactarte, comparte tu dirección de email:"
+      en: "🎫 *Support ticket created!*\n\nTo help our mushroom experts reach you, please share your email address:\n\n_Or send /cancel to cancel_",
+      ru: "🎫 *Тикет поддержки создан!*\n\nЧтобы наши грибные эксперты смогли с тобой связаться, поделись своим email адресом:\n\n_Или отправь /cancel для отмены_",
+      es: "🎫 *¡Ticket de soporte creado!*\n\nPara que nuestros expertos en hongos puedan contactarte, comparte tu dirección de email:\n\n_O envía /cancel para cancelar_"
     };
     
     return messages[language] || messages.en;
@@ -244,13 +301,14 @@ class TicketEmailService {
   /**
    * Получает сообщение подтверждения получения email
    * @param {string} language - Язык сообщения  
+   * @param {string} ticketId - ID тикета для отображения
    * @returns {string} Сообщение подтверждения
    */
-  getEmailConfirmationMessage(language = 'en') {
+  getEmailConfirmationMessage(language = 'en', ticketId = '') {
     const messages = {
-      en: "✅ Perfect! Your ticket has been updated with your email. Our mushroom experts will contact you within 24 hours. Your spores are in good hands! 🍄",
-      ru: "✅ Отлично! Тикет обновлен с твоим email. Наши грибные эксперты свяжутся с тобой в течение 24 часов. Твои споры в надежных руках! 🍄",
-      es: "✅ ¡Perfecto! Tu ticket ha sido actualizado con tu email. Nuestros expertos en hongos te contactarán dentro de 24 horas. ¡Tus esporas están en buenas manos! 🍄"
+      en: `✅ *Perfect!* Your support ticket \`${ticketId}\` has been updated with your email.\n\nOur mushroom experts will contact you within 24 hours. Your spores are in good hands! 🍄`,
+      ru: `✅ *Отлично!* Тикет поддержки \`${ticketId}\` обновлен с твоим email.\n\nНаши грибные эксперты свяжутся с тобой в течение 24 часов. Твои споры в надежных руках! 🍄`,
+      es: `✅ *¡Perfecto!* Tu ticket de soporte \`${ticketId}\` ha sido actualizado con tu email.\n\nNuestros expertos en hongos te contactarán dentro de 24 horas. ¡Tus esporas están en buenas manos! 🍄`
     };
     
     return messages[language] || messages.en;
@@ -278,12 +336,12 @@ class TicketEmailService {
       if (now > pendingTicket.expiresAt) {
         this.pendingTickets.delete(userId);
         cleanedCount++;
-        logger.info(`Cleaned up expired pending ticket: ${pendingTicket.ticketId}`);
+        logger.info(`🍄 Cleaned up expired pending ticket: ${pendingTicket.ticketId} for user ${userId}`);
       }
     }
     
     if (cleanedCount > 0) {
-      logger.info(`Cleaned up ${cleanedCount} expired pending tickets`);
+      logger.info(`🍄 Cleaned up ${cleanedCount} expired pending tickets`);
     }
   }
 
