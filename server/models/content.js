@@ -4,7 +4,19 @@
  */
 
 const mongoose = require('mongoose');
-const { CONTENT_TYPES, SUPPORTED_LANGUAGES } = require('../types');
+
+// Константы для типов контента и языков
+const CONTENT_TYPES = {
+  MESSAGE: 'message',
+  PROMPT: 'prompt', 
+  TEMPLATE: 'template',
+  EMAIL_TEMPLATE: 'email_template'
+};
+
+const SUPPORTED_LANGUAGES = {
+  RUSSIAN: 'ru',
+  ENGLISH: 'en'
+};
 
 /**
  * @typedef {import('../types/reader').ContentItem} ContentItem
@@ -16,39 +28,39 @@ const { CONTENT_TYPES, SUPPORTED_LANGUAGES } = require('../types');
 const metadataSchema = new mongoose.Schema({
   title: {
     type: String,
-    maxlength: 200,
-    description: 'Заголовок контента'
+    maxlength: 200
+    // Заголовок контента
   },
   description: {
     type: String,
-    maxlength: 500,
-    description: 'Описание контента'
+    maxlength: 500
+    // Описание контента
   },
   tags: [{
     type: String,
-    maxlength: 50,
-    description: 'Теги для категоризации'
+    maxlength: 50
+    // Теги для категоризации
   }],
   category: {
     type: String,
-    maxlength: 100,
-    description: 'Категория контента'
+    maxlength: 100
+    // Категория контента
   },
   version: {
     type: String,
-    default: '1.0',
-    description: 'Версия контента'
+    default: '1.0'
+    // Версия контента
   },
   author: {
     type: String,
-    maxlength: 100,
-    description: 'Автор контента'
+    maxlength: 100
+    // Автор контента
   },
   lastTestResult: {
     success: Boolean,
     testedAt: Date,
-    errorMessage: String,
-    description: 'Результат последнего тестирования'
+    errorMessage: String
+    // Результат последнего тестирования
   }
 }, { _id: false });
 
@@ -60,44 +72,44 @@ const contentSchema = new mongoose.Schema({
     type: String,
     required: true,
     index: true,
-    maxlength: 100,
-    description: 'Уникальный ключ контента'
+    maxlength: 100
+    // Уникальный ключ контента
   },
   content: {
     type: String,
     required: true,
-    maxlength: 10000,
-    description: 'Сам текст/промпт/шаблон'
+    maxlength: 10000
+    // Сам текст/промпт/шаблон
   },
   language: {
     type: String,
     enum: Object.values(SUPPORTED_LANGUAGES),
     default: SUPPORTED_LANGUAGES.RUSSIAN,
-    index: true,
-    description: 'Язык контента'
+    index: true
+    // Язык контента
   },
   type: {
     type: String,
     enum: Object.values(CONTENT_TYPES),
     required: true,
-    index: true,
-    description: 'Тип контента'
+    index: true
+    // Тип контента
   },
   isActive: {
     type: Boolean,
     default: true,
-    index: true,
-    description: 'Активен ли контент'
+    index: true
+    // Активен ли контент
   },
   metadata: {
     type: metadataSchema,
-    default: () => ({}),
-    description: 'Дополнительная информация'
+    default: () => ({})
+    // Дополнительная информация
   },
   createdBy: {
     type: String,
-    default: 'system',
-    description: 'Кто создал контент'
+    default: 'system'
+    // Кто создал контент
   },
   // История изменений
   changeHistory: [{
@@ -105,8 +117,8 @@ const contentSchema = new mongoose.Schema({
     newContent: String,
     changedBy: String,
     changedAt: Date,
-    changeReason: String,
-    description: 'История изменений контента'
+    changeReason: String
+    // История изменений контента
   }],
   // A/B тестирование
   abTestData: {
@@ -116,12 +128,12 @@ const contentSchema = new mongoose.Schema({
     },
     testGroup: {
       type: String,
-      enum: ['A', 'B'],
-      description: 'Группа A/B теста'
+      enum: ['A', 'B']
+      // Группа A/B теста
     },
     alternativeContent: {
-      type: String,
-      description: 'Альтернативная версия для A/B теста'
+      type: String
+      // Альтернативная версия для A/B теста
     },
     testStartDate: Date,
     testEndDate: Date,
@@ -423,65 +435,6 @@ contentSchema.statics = {
           description: 'Промпт для анализа цитат пользователей',
           category: 'ai_prompts'
         }
-      },
-
-      // Шаблоны напоминаний
-      {
-        key: 'reminder_week1_morning',
-        type: CONTENT_TYPES.TEMPLATE,
-        content: `☀️ Доброе утро!
-
-Сегодня будет день, полный новых смыслов. Если встретите слова, которые заденут - поделитесь ими здесь.
-
-Хватит сидеть в телефоне - читайте книги!`,
-        metadata: {
-          title: 'Утреннее напоминание (1 неделя)',
-          description: 'Напоминание для новых пользователей утром',
-          category: 'reminders'
-        }
-      },
-
-      {
-        key: 'reminder_week1_evening',
-        type: CONTENT_TYPES.TEMPLATE,
-        content: `🌅 Добрый вечер!
-
-Как прошел день? Возможно, встретили что-то, что стоит сохранить в вашем дневнике цитат?
-
-"Хорошая жизнь строится, а не дается по умолчанию" - помните об этом.`,
-        metadata: {
-          title: 'Вечернее напоминание (1 неделя)',
-          description: 'Напоминание для новых пользователей вечером',
-          category: 'reminders'
-        }
-      },
-
-      // Шаблон еженедельного отчета
-      {
-        key: 'weekly_report_template',
-        type: CONTENT_TYPES.EMAIL_TEMPLATE,
-        content: `📊 Ваш отчет за неделю
-
-Друзья, здравствуйте!
-
-За эту неделю вы сохранили {quotesCount} цитат:
-
-{quotesList}
-
-🎯 Анализ недели:
-{weeklyAnalysis}
-
-💎 Рекомендации от Анны:
-{recommendations}
-
-🎁 {promoCode} - скидка {discountPercent}% до {validUntil}!
-
-Продолжайте собирать моменты вдохновения!`,
-        metadata: {
-          title: 'Шаблон еженедельного отчета',
-          description: 'Email шаблон для еженедельных отчетов',
-          category: 'email_templates'
-        }
       }
     ];
 
@@ -503,17 +456,6 @@ contentSchema.statics = {
   },
 
   /**
-   * Получить активные A/B тесты
-   * @returns {Promise<ContentItem[]>}
-   */
-  async getActiveABTests() {
-    return this.find({
-      'abTestData.isTestActive': true,
-      'abTestData.testEndDate': { $gte: new Date() }
-    });
-  },
-
-  /**
    * Получить статистику контента
    * @returns {Promise<Object>}
    */
@@ -526,16 +468,7 @@ contentSchema.statics = {
           activeCount: {
             $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] }
           },
-          languages: { $addToSet: '$language' },
-          recentCount: {
-            $sum: {
-              $cond: [
-                { $gte: ['$createdAt', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)] },
-                1,
-                0
-              ]
-            }
-          }
+          languages: { $addToSet: '$language' }
         }
       },
       { $sort: { count: -1 } }
@@ -548,15 +481,14 @@ contentSchema.statics = {
         $group: {
           _id: null,
           totalContent: { $sum: 1 },
-          activeContent: { $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] } },
-          activeTests: { $sum: { $cond: [{ $eq: ['$abTestData.isTestActive', true] }, 1, 0] } }
+          activeContent: { $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] } }
         }
       }
     ]);
 
     return {
       byType: typeStats,
-      total: totalStats[0] || { totalContent: 0, activeContent: 0, activeTests: 0 }
+      total: totalStats[0] || { totalContent: 0, activeContent: 0 }
     };
   }
 };
