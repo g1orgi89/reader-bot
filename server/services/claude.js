@@ -1,8 +1,8 @@
 /**
  * Сервис для взаимодействия с API Claude и другими AI провайдерами
  * @file server/services/claude.js
- * 🍄 ОБНОВЛЕНО: Упрощена языковая логика - универсальные промпты
- * 🍄 ИСПРАВЛЕНО: Убрана проверка "Привет" как тестового сообщения
+ * 📖 ОБНОВЛЕНО: Упрощена языковая логика - универсальные промпты
+ * 📖 ИСПРАВЛЕНО: Убрана проверка "Привет" как тестового сообщения
  */
 
 const { Anthropic } = require('@anthropic-ai/sdk');
@@ -42,12 +42,12 @@ class ClaudeService {
     
     if (this.config.provider === 'anthropic') {
       this.provider = 'claude';
-      logger.info('🍄 Provider name normalized from "anthropic" to "claude"');
+      logger.info('📖 Provider name normalized from "anthropic" to "claude"');
     } else {
       this.provider = this.config.provider || 'claude';
     }
     
-    logger.info(`🍄 AI Provider configuration loaded: ${this.provider}`);
+    logger.info(`📖 AI Provider configuration loaded: ${this.provider}`);
     
     this.clients = {};
     this.initializeProviders();
@@ -59,7 +59,7 @@ class ClaudeService {
     
     this.enableRag = process.env.ENABLE_RAG?.toLowerCase() === 'true';
     
-    logger.info(`🍄 ClaudeService initialized with provider: ${this.provider}, RAG enabled: ${this.enableRag}`);
+    logger.info(`📖 ClaudeService initialized with provider: ${this.provider}, RAG enabled: ${this.enableRag}`);
   }
 
   /**
@@ -71,9 +71,9 @@ class ClaudeService {
       this.clients.claude = new Anthropic({
         apiKey: this.config.claude.apiKey,
       });
-      logger.info('🍄 Claude client initialized successfully');
+      logger.info('📖 Claude client initialized successfully');
     } catch (error) {
-      logger.error(`🍄 Failed to initialize Claude client: ${error.message}`);
+      logger.error(`📖 Failed to initialize Claude client: ${error.message}`);
     }
     
     if (this.config.openai && this.config.openai.apiKey) {
@@ -82,15 +82,15 @@ class ClaudeService {
         this.clients.openai = new OpenAI({
           apiKey: this.config.openai.apiKey
         });
-        logger.info('🍄 OpenAI client initialized successfully');
+        logger.info('📖 OpenAI client initialized successfully');
       } catch (error) {
-        logger.error(`🍄 Failed to initialize OpenAI client: ${error.message}`);
+        logger.error(`📖 Failed to initialize OpenAI client: ${error.message}`);
       }
     }
   }
 
   /**
-   * 🍄 УПРОЩЕНО: Получить универсальный системный промпт
+   * 📖 УПРОЩЕНО: Получить универсальный системный промпт
    * @private
    * @param {string} [platform='web'] - Платформа (web, telegram)
    * @returns {Promise<string>} Системный промпт
@@ -99,13 +99,13 @@ class ClaudeService {
     try {
       return await promptService.getActivePrompt('basic');
     } catch (error) {
-      logger.error(`🍄 Error getting system prompt from PromptService: ${error.message}`);
+      logger.error(`📖 Error getting system prompt from PromptService: ${error.message}`);
       return promptService.getDefaultPrompt('basic');
     }
   }
 
   /**
-   * 🍄 УПРОЩЕНО: Получить универсальный RAG промпт
+   * 📖 УПРОЩЕНО: Получить универсальный RAG промпт
    * @private
    * @param {string} [platform='web'] - Платформа (web, telegram)
    * @returns {Promise<string>} RAG промпт
@@ -114,7 +114,7 @@ class ClaudeService {
     try {
       return await promptService.getActivePrompt('rag');
     } catch (error) {
-      logger.error(`🍄 Error getting RAG prompt from PromptService: ${error.message}`);
+      logger.error(`📖 Error getting RAG prompt from PromptService: ${error.message}`);
       return promptService.getDefaultPrompt('rag');
     }
   }
@@ -127,21 +127,21 @@ class ClaudeService {
   switchProvider(providerName) {
     if (providerName === 'anthropic') {
       providerName = 'claude';
-      logger.info('🍄 Provider name normalized from "anthropic" to "claude"');
+      logger.info('📖 Provider name normalized from "anthropic" to "claude"');
     }
     
     if (!['claude', 'openai'].includes(providerName)) {
-      logger.error(`🍄 Invalid provider name: ${providerName}`);
+      logger.error(`📖 Invalid provider name: ${providerName}`);
       return false;
     }
     
     if (!this.clients[providerName]) {
-      logger.error(`🍄 Provider ${providerName} is not initialized`);
+      logger.error(`📖 Provider ${providerName} is not initialized`);
       return false;
     }
     
     this.provider = providerName;
-    logger.info(`🍄 Switched to provider: ${providerName}`);
+    logger.info(`📖 Switched to provider: ${providerName}`);
     return true;
   }
 
@@ -179,7 +179,7 @@ class ClaudeService {
       }
       return true;
     } catch (error) {
-      logger.error(`🍄 Health check failed for ${currentProvider}: ${error.message}`);
+      logger.error(`📖 Health check failed for ${currentProvider}: ${error.message}`);
       return false;
     }
   }
@@ -201,7 +201,7 @@ class ClaudeService {
       throw new Error(`Provider ${currentProvider} is not available`);
     }
     
-    logger.info(`🍄 Testing custom prompt with ${currentProvider}: "${customPrompt.substring(0, 50)}..."`);
+    logger.info(`📖 Testing custom prompt with ${currentProvider}: "${customPrompt.substring(0, 50)}..."`);
     
     try {
       let response;
@@ -244,15 +244,15 @@ class ClaudeService {
         };
       }
     } catch (error) {
-      logger.error(`🍄 Prompt test failed with ${currentProvider}: ${error.message}`);
+      logger.error(`📖 Prompt test failed with ${currentProvider}: ${error.message}`);
       throw new Error(`Test failed: ${error.message}`);
     }
   }
 
   /**
    * Генерирует ответ на основе сообщения и контекста
-   * 🍄 УПРОЩЕНО: Убрана сложная языковая логика
-   * 🍄 ИСПРАВЛЕНО: Убрана обработка "Привет" как тестового сообщения
+   * 📖 УПРОЩЕНО: Убрана сложная языковая логика
+   * 📖 ИСПРАВЛЕНО: Убрана обработка "Привет" как тестового сообщения
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
    * @returns {Promise<AIResponse>} Ответ от AI
@@ -271,12 +271,12 @@ class ClaudeService {
       
       if (this.provider === 'anthropic') {
         this.provider = 'claude';
-        logger.info(`🍄 Provider normalized from 'anthropic' to 'claude' for message: ${message.substring(0, 20)}...`);
+        logger.info(`📖 Provider normalized from 'anthropic' to 'claude' for message: ${message.substring(0, 20)}...`);
       }
       
-      logger.info(`🍄 Generating response for platform: ${platform}`);
+      logger.info(`📖 Generating response for platform: ${platform}`);
       
-      // 🍄 ИСПРАВЛЕНО: Убрана проверка на тестовые сообщения для реальных пользовательских запросов
+      // 📖 ИСПРАВЛЕНО: Убрана проверка на тестовые сообщения для реальных пользовательских запросов
       // Теперь только технические тесты считаются "тестовыми", а обычные приветствия идут через AI
       if (this._isTestMessage(message)) {
         return this._handleTestMessage(message, platform);
@@ -287,23 +287,23 @@ class ClaudeService {
           const contextResults = await this._getRelevantContext(message, ragLimit);
           
           if (contextResults && contextResults.length > 0) {
-            logger.info(`🍄 Found ${contextResults.length} relevant documents for message: "${message.substring(0, 30)}..."`);
+            logger.info(`📖 Found ${contextResults.length} relevant documents for message: "${message.substring(0, 30)}..."`);
             
             const contextTexts = contextResults.map(doc => doc.content);
             context = [...contextTexts, ...context];
             
             options.fetchedContext = contextResults;
           } else {
-            logger.info(`🍄 No relevant documents found for message: "${message.substring(0, 30)}..."`);
+            logger.info(`📖 No relevant documents found for message: "${message.substring(0, 30)}..."`);
           }
         } catch (ragError) {
-          logger.error(`🍄 Error fetching context from vector store: ${ragError.message}`);
+          logger.error(`📖 Error fetching context from vector store: ${ragError.message}`);
         }
       }
       
       let response;
       
-      logger.info(`🍄 Using AI provider: ${this.provider} for platform: ${platform}, message: ${message.substring(0, 20)}...`);
+      logger.info(`📖 Using AI provider: ${this.provider} for platform: ${platform}, message: ${message.substring(0, 20)}...`);
       
       if (this.provider === 'claude') {
         response = await this._generateClaudeResponse(message, { ...options, context, platform });
@@ -319,14 +319,14 @@ class ClaudeService {
       
       return response;
     } catch (error) {
-      logger.error(`🍄 AI generation error: ${error.message}`);
+      logger.error(`📖 AI generation error: ${error.message}`);
       return this._getErrorResponse(error, options.platform);
     }
   }
 
   /**
    * Получает релевантный контекст из векторной базы знаний
-   * 🍄 УПРОЩЕНО: Убран языковой фильтр
+   * 📖 УПРОЩЕНО: Убран языковой фильтр
    * @private
    * @param {string} query - Запрос пользователя
    * @param {number} [limit=3] - Количество документов для поиска
@@ -337,12 +337,12 @@ class ClaudeService {
       const vectorStoreReady = await vectorStoreService.initialize();
       
       if (!vectorStoreReady) {
-        logger.warn('🍄 Vector store not initialized, skipping context retrieval');
+        logger.warn('📖 Vector store not initialized, skipping context retrieval');
         return [];
       }
       
       const score_threshold = 0.7;
-      logger.info(`🍄 Searching for relevant documents with threshold: ${score_threshold}`);
+      logger.info(`📖 Searching for relevant documents with threshold: ${score_threshold}`);
       
       const searchResults = await vectorStoreService.search(query, {
         limit,
@@ -351,21 +351,21 @@ class ClaudeService {
       });
       
       if (searchResults.length > 0) {
-        logger.info(`🍄 Found ${searchResults.length} documents with scores: ${searchResults.map(doc => doc.score.toFixed(3)).join(', ')}`);
+        logger.info(`📖 Found ${searchResults.length} documents with scores: ${searchResults.map(doc => doc.score.toFixed(3)).join(', ')}`);
         return searchResults;
       }
       
-      logger.info(`🍄 No documents found with threshold ${score_threshold}`);
+      logger.info(`📖 No documents found with threshold ${score_threshold}`);
       return [];
     } catch (error) {
-      logger.error(`🍄 Error in _getRelevantContext: ${error.message}`);
+      logger.error(`📖 Error in _getRelevantContext: ${error.message}`);
       return [];
     }
   }
 
   /**
    * Генерация ответа через Claude API
-   * 🍄 УПРОЩЕНО: Убрана языковая логика
+   * 📖 УПРОЩЕНО: Убрана языковая логика
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
@@ -384,7 +384,7 @@ class ClaudeService {
         systemPrompt = await this._getSystemPrompt(platform);
       }
     } catch (error) {
-      logger.error(`🍄 Error getting prompt from PromptService: ${error.message}`);
+      logger.error(`📖 Error getting prompt from PromptService: ${error.message}`);
       systemPrompt = promptService.getDefaultPrompt(context && context.length > 0 ? 'rag' : 'basic');
     }
 
@@ -403,7 +403,7 @@ class ClaudeService {
     messages.push({ role: 'user', content: message });
     
     if (userId) {
-      logger.info(`🍄 Generating Claude response for user ${userId} (platform: ${platform}, history: ${history?.length || 0} msgs)`);
+      logger.info(`📖 Generating Claude response for user ${userId} (platform: ${platform}, history: ${history?.length || 0} msgs)`);
     }
     
     try {
@@ -429,14 +429,14 @@ class ClaudeService {
         model: claudeConfig.model
       };
     } catch (error) {
-      logger.error(`🍄 Claude API error: ${error.message}`);
+      logger.error(`📖 Claude API error: ${error.message}`);
       throw new Error(`Claude API error: ${error.message}`);
     }
   }
 
   /**
    * Генерация ответа через OpenAI API
-   * 🍄 УПРОЩЕНО: Убрана языковая логика
+   * 📖 УПРОЩЕНО: Убрана языковая логика
    * @private
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
@@ -455,7 +455,7 @@ class ClaudeService {
         systemPrompt = await this._getSystemPrompt(platform);
       }
     } catch (error) {
-      logger.error(`🍄 Error getting prompt from PromptService: ${error.message}`);
+      logger.error(`📖 Error getting prompt from PromptService: ${error.message}`);
       systemPrompt = promptService.getDefaultPrompt(context && context.length > 0 ? 'rag' : 'basic');
     }
     
@@ -476,7 +476,7 @@ class ClaudeService {
     messages.push({ role: 'user', content: message });
     
     if (userId) {
-      logger.info(`🍄 Generating OpenAI response for user ${userId} (platform: ${platform}, history: ${history?.length || 0} msgs)`);
+      logger.info(`📖 Generating OpenAI response for user ${userId} (platform: ${platform}, history: ${history?.length || 0} msgs)`);
     }
     
     try {
@@ -501,14 +501,14 @@ class ClaudeService {
         model: openaiConfig.model
       };
     } catch (error) {
-      logger.error(`🍄 OpenAI API error: ${error.message}`);
+      logger.error(`📖 OpenAI API error: ${error.message}`);
       throw new Error(`OpenAI API error: ${error.message}`);
     }
   }
   
   /**
    * Проверяет, является ли сообщение техническим тестом
-   * 🍄 ИСПРАВЛЕНО: Убраны обычные приветствия, оставлены только технические тесты
+   * 📖 ИСПРАВЛЕНО: Убраны обычные приветствия, оставлены только технические тесты
    * @private
    * @param {string} message - Сообщение
    * @returns {boolean} Является ли тестовым
@@ -527,7 +527,7 @@ class ClaudeService {
   
   /**
    * Обрабатывает технические тестовые сообщения быстро
-   * 🍄 УПРОЩЕНО: Только для технических тестов
+   * 📖 УПРОЩЕНО: Только для технических тестов
    * @private
    * @param {string} message - Сообщение
    * @param {string} [platform='web'] - Платформа
@@ -535,8 +535,8 @@ class ClaudeService {
    */
   _handleTestMessage(message, platform = 'web') {
     const response = platform === 'telegram' 
-      ? "🍄 *Technical test acknowledged* System operational. How can I help you explore Shrooms today?"
-      : "*Technical test acknowledged* System operational. How can I help you explore Shrooms today?";
+      ? "📖 *Technical test acknowledged* System operational. How can I help you with your reading journey today?"
+      : "*Technical test acknowledged* System operational. How can I help you with your reading journey today?";
     
     return {
       message: response,
@@ -569,10 +569,10 @@ class ClaudeService {
       'crear un ticket',
       'ticket de soporte',
       'creado un ticket',
-      'садовники мицелия',
-      'грибники-эксперты',
+      'наши эксперты свяжутся',
       'наша команда свяжется',
-      'наши эксперты свяжутся'
+      'специалисты свяжутся',
+      'поддержка свяжется'
     ];
     
     const aiWantsTicket = directTicketIndicators.some(indicator => 
@@ -580,7 +580,7 @@ class ClaudeService {
     );
     
     if (aiWantsTicket) {
-      logger.info(`🍄 Ticket creation requested by AI in response`);
+      logger.info(`📖 Ticket creation requested by AI in response`);
     }
     
     return aiWantsTicket;
@@ -616,7 +616,7 @@ class ClaudeService {
    */
   _getErrorResponse(error, platform = 'web') {
     const message = platform === 'telegram'
-      ? "🍄 I'm experiencing technical difficulties. Let me create a support ticket so our team can help."
+      ? "📖 I'm experiencing technical difficulties. Let me create a support ticket so our team can help."
       : "I'm experiencing technical difficulties right now. Let me create a support ticket for you so our team can help.";
     
     return {
@@ -722,7 +722,7 @@ class ClaudeService {
   }
 
   /**
-   * 🍄 Получает информацию о PromptService
+   * 📖 Получает информацию о PromptService
    * @returns {Promise<Object>} Информация о промптах
    */
   async getPromptInfo() {
@@ -750,7 +750,7 @@ class ClaudeService {
   }
 
   /**
-   * 🍄 Очистка кеша промптов
+   * 📖 Очистка кеша промптов
    * @param {string} [type] - Тип промптов для очистки
    */
   clearPromptCache(type = null) {
@@ -759,7 +759,7 @@ class ClaudeService {
     } else {
       promptService.clearCache();
     }
-    logger.info(`🍄 Prompt cache cleared for type: ${type || 'all'}`);
+    logger.info(`📖 Prompt cache cleared for type: ${type || 'all'}`);
   }
 }
 
