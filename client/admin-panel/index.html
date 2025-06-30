@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shrooms AI Support Bot - Admin Dashboard</title>
+    <title>Reader AI Support Bot - Admin Dashboard</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/dashboard.css">
-    <meta name="description" content="Admin dashboard for Shrooms AI Support Bot">
+    <meta name="description" content="Admin dashboard for Reader AI Support Bot">
     <!-- Preconnect to font sources -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Грибной цифровой дождь - тонкая версия для дашборда -->
-    <div class="mushroom-bg-animation mushroom-bg-subtle" id="mushroom-matrix"></div>
+    <!-- Книжная фоновая анимация - тонкая версия для дашборда -->
+    <div class="reader-bg-animation reader-bg-subtle" id="reader-matrix"></div>
     
     <div class="admin-layout">
         <!-- Header -->
         <header class="admin-header">
             <div class="logo-container">
-                <img src="img/logo.svg" alt="Shrooms AI Support Bot" class="logo">
-                <h1>🍄 Shrooms Admin</h1>
+                <img src="img/logo.svg" alt="Reader AI Support Bot" class="logo">
+                <h1>📖 Reader Admin</h1>
             </div>
             
             <nav class="main-nav">
@@ -42,9 +42,9 @@
         <!-- Main content -->
         <main class="admin-content">
             <div class="dashboard-header">
-                <h2>🍄 Грибной Дашборд</h2>
+                <h2>📖 Читательский Дашборд</h2>
                 <div class="date-range-picker">
-                    <label for="date-range">Период мониторинга мицелия:</label>
+                    <label for="date-range">Период мониторинга:</label>
                     <select id="date-range" class="select-glow">
                         <option value="today">Сегодня</option>
                         <option value="week" selected>Последние 7 дней</option>
@@ -57,7 +57,7 @@
             <!-- Stats cards -->
             <div class="stats-cards">
                 <div class="stat-card glow-card">
-                    <h3>🌱 Активные Беседы</h3>
+                    <h3>💬 Активные Беседы</h3>
                     <div class="stat-value" id="active-conversations-count">--</div>
                     <div class="stat-change positive">+5% к прошлому периоду</div>
                 </div>
@@ -87,7 +87,7 @@
                     <h3>📈 Рост Бесед во Времени</h3>
                     <div class="chart" id="conversations-chart">
                         <div class="chart-placeholder">
-                            🍄 Загрузка графика роста мицелия...
+                            📖 Загрузка графика активности пользователей...
                         </div>
                     </div>
                 </div>
@@ -96,7 +96,7 @@
                     <h3>🔥 Популярные Темы</h3>
                     <div class="chart" id="topics-chart">
                         <div class="chart-placeholder">
-                            🍄 Анализ популярности тем...
+                            📖 Анализ популярности тем...
                         </div>
                     </div>
                 </div>
@@ -123,7 +123,7 @@
                         </thead>
                         <tbody>
                             <tr class="table-loading">
-                                <td colspan="6">🍄 Прорастание тикетов...</td>
+                                <td colspan="6">📖 Загрузка тикетов...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -133,8 +133,8 @@
         
         <!-- Footer -->
         <footer class="admin-footer">
-            <p>🍄 Shrooms AI Support Bot - Панель Управления Мицелием</p>
-            <p class="copyright">© 2025 Shrooms Project. Все споры защищены.</p>
+            <p>📖 Reader AI Support Bot - Панель Управления</p>
+            <p class="copyright">© 2025 Reader Project. Все права защищены.</p>
         </footer>
     </div>
     
@@ -153,7 +153,7 @@
          * Упрощенная версия - auth.js уже проверил аутентификацию автоматически
          */
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🍄 Инициализация грибного дашборда');
+            console.log('📖 Инициализация дашборда для читателей');
             
             // auth.js уже проверил аутентификацию и настроил все необходимое
             // Если мы здесь - значит пользователь авторизован
@@ -162,13 +162,13 @@
             if (typeof initDashboard === 'function') {
                 initDashboard();
             } else {
-                console.log('🍄 Функция initDashboard не найдена, используем базовую инициализацию');
+                console.log('📖 Функция initDashboard не найдена, используем базовую инициализацию');
                 initBasicDashboard();
             }
             
-            // Инициализируем тонкую версию грибной матрицы для дашборда
-            if (typeof initMushroomMatrix === 'function') {
-                initMushroomMatrix(true); // subtle mode
+            // Инициализируем тонкую версию книжной анимации для дашборда
+            if (typeof initReaderMatrix === 'function') {
+                initReaderMatrix(true); // subtle mode
             }
         });
         
@@ -176,7 +176,7 @@
          * Базовая инициализация дашборда на случай отсутствия dashboard.js
          */
         function initBasicDashboard() {
-            console.log('🍄 Базовая инициализация дашборда');
+            console.log('📖 Базовая инициализация дашборда');
             
             // Базовая загрузка статистики
             loadBasicStats();
@@ -185,7 +185,7 @@
             const dateRange = document.getElementById('date-range');
             if (dateRange) {
                 dateRange.addEventListener('change', () => {
-                    console.log('🍄 Изменен период мониторинга:', dateRange.value);
+                    console.log('📖 Изменен период мониторинга:', dateRange.value);
                     loadBasicStats();
                 });
             }
@@ -195,7 +195,7 @@
          * Базовая загрузка статистики (заглушка)
          */
         function loadBasicStats() {
-            console.log('🍄 Загрузка базовой статистики мицелия');
+            console.log('📖 Загрузка базовой статистики');
             
             // Заглушки для статистики
             const stats = {
@@ -227,7 +227,7 @@
             tbody.innerHTML = `
                 <tr>
                     <td>#001</td>
-                    <td>Проблема подключения кошелька Xverse</td>
+                    <td>Проблема с сохранением цитат</td>
                     <td><span class="status-badge status-open">Открыт</span></td>
                     <td><span class="priority-badge priority-medium">Средний</span></td>
                     <td>2 часа назад</td>
@@ -235,7 +235,7 @@
                 </tr>
                 <tr>
                     <td>#002</td>
-                    <td>Вопрос о токеномике SHROOMS</td>
+                    <td>Вопрос о еженедельных отчетах</td>
                     <td><span class="status-badge status-resolved">Решен</span></td>
                     <td><span class="priority-badge priority-low">Низкий</span></td>
                     <td>1 день назад</td>
