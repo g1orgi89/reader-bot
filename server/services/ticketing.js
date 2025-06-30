@@ -48,7 +48,7 @@ class TicketService {
    * @returns {string} Уникальный ID тикета
    */
   generateTicketId() {
-    const prefix = 'SHRM';
+    const prefix = 'RDER';
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `${prefix}${timestamp}${random}`;
@@ -172,7 +172,7 @@ class TicketService {
 
   /**
    * Получает тикет по его читаемому ID
-   * @param {string} ticketId - Читаемый ID тикета (например, SHRM...)
+   * @param {string} ticketId - Читаемый ID тикета (например, RDER...)
    * @returns {Promise<Object|null>} Тикет или null
    */
   async getTicketByTicketId(ticketId) {
@@ -398,7 +398,7 @@ class TicketService {
   /**
    * ФИЗИЧЕСКИ УДАЛЯЕТ тикет по читаемому ID
    * ⚠️ НЕОБРАТИМАЯ ОПЕРАЦИЯ - тикет будет полностью удален из базы данных
-   * @param {string} ticketId - Читаемый ID тикета (например, SHRM...)
+   * @param {string} ticketId - Читаемый ID тикета (например, RDER...)
    * @param {string} [deletedBy] - Кто удалил тикет (для логирования)
    * @returns {Promise<Object|null>} Удаленный тикет или null
    */
