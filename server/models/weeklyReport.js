@@ -20,24 +20,24 @@ const weeklyAnalysisSchema = new mongoose.Schema({
   summary: {
     type: String,
     required: true,
-    maxlength: 500,
-    description: 'Краткий анализ недели одним предложением'
+    maxlength: 500
+    // Краткий анализ недели одним предложением
   },
   dominantThemes: [{
-    type: String,
-    description: 'Доминирующие темы'
+    type: String
+    // Доминирующие темы
   }],
   emotionalTone: {
     type: String,
     required: true,
-    enum: ['позитивный', 'нейтральный', 'задумчивый', 'вдохновляющий', 'меланхоличный', 'энергичный'],
-    description: 'Эмоциональный тон недели'
+    enum: ['позитивный', 'нейтральный', 'задумчивый', 'вдохновляющий', 'меланхоличный', 'энергичный']
+    // Эмоциональный тон недели
   },
   insights: {
     type: String,
     required: true,
-    maxlength: 2000,
-    description: 'Подробный психологический анализ от Анны'
+    maxlength: 2000
+    // Подробный психологический анализ от Анны
   }
 }, { _id: false });
 
@@ -48,31 +48,31 @@ const bookRecommendationSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    maxlength: 200,
-    description: 'Название книги/курса'
+    maxlength: 200
+    // Название книги/курса
   },
   description: {
     type: String,
     required: true,
-    maxlength: 500,
-    description: 'Краткое описание почему подходит'
+    maxlength: 500
+    // Краткое описание почему подходит
   },
   price: {
     type: String,
     required: true,
-    match: /^\$\d+$/,
-    description: 'Цена в формате $8, $12'
+    match: /^\$\d+$/
+    // Цена в формате $8, $12
   },
   link: {
     type: String,
-    required: true,
-    description: 'Ссылка с UTM метками'
+    required: true
+    // Ссылка с UTM метками
   },
   reasoning: {
     type: String,
     required: true,
-    maxlength: 300,
-    description: 'Почему именно эта книга подойдет пользователю'
+    maxlength: 300
+    // Почему именно эта книга подойдет пользователю
   }
 }, { _id: false });
 
@@ -84,20 +84,20 @@ const promoCodeSchema = new mongoose.Schema({
     type: String,
     required: true,
     uppercase: true,
-    match: /^[A-Z0-9]{6,12}$/,
-    description: 'Код промокода'
+    match: /^[A-Z0-9]{6,12}$/
+    // Код промокода
   },
   discount: {
     type: Number,
     required: true,
     min: 5,
-    max: 50,
-    description: 'Размер скидки в процентах'
+    max: 50
+    // Размер скидки в процентах
   },
   validUntil: {
     type: Date,
-    required: true,
-    description: 'Действует до'
+    required: true
+    // Действует до
   }
 }, { _id: false });
 
@@ -108,17 +108,17 @@ const feedbackSchema = new mongoose.Schema({
   rating: {
     type: Number,
     min: 1,
-    max: 5,
-    description: 'Оценка 1-5 звезд'
+    max: 5
+    // Оценка 1-5 звезд
   },
   comment: {
     type: String,
-    maxlength: 1000,
-    description: 'Комментарий пользователя'
+    maxlength: 1000
+    // Комментарий пользователя
   },
   respondedAt: {
-    type: Date,
-    description: 'Дата ответа'
+    type: Date
+    // Дата ответа
   }
 }, { _id: false });
 
@@ -129,70 +129,70 @@ const weeklyReportSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true,
-    index: true,
-    description: 'ID пользователя Telegram'
+    index: true
+    // ID пользователя Telegram
   },
   weekNumber: {
     type: Number,
     required: true,
     min: 1,
-    max: 53,
-    description: 'Номер недели (ISO)'
+    max: 53
+    // Номер недели (ISO)
   },
   year: {
     type: Number,
-    required: true,
-    description: 'Год'
+    required: true
+    // Год
   },
   quotes: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Quote',
-    description: 'Ссылки на цитаты за неделю'
+    ref: 'Quote'
+    // Ссылки на цитаты за неделю
   }],
   analysis: {
     type: weeklyAnalysisSchema,
-    required: true,
-    description: 'AI-анализ недели'
+    required: true
+    // AI-анализ недели
   },
   recommendations: [bookRecommendationSchema],
   promoCode: {
     type: promoCodeSchema,
-    required: true,
-    description: 'Промокод со скидкой'
+    required: true
+    // Промокод со скидкой
   },
   feedback: {
-    type: feedbackSchema,
-    description: 'Обратная связь от пользователя'
+    type: feedbackSchema
+    // Обратная связь от пользователя
   },
   sentAt: {
     type: Date,
-    default: Date.now,
-    description: 'Дата отправки отчета'
+    default: Date.now
+    // Дата отправки отчета
   },
   isRead: {
     type: Boolean,
-    default: false,
-    description: 'Прочитан ли отчет'
+    default: false
+    // Прочитан ли отчет
   },
   readAt: {
-    type: Date,
-    description: 'Дата прочтения'
+    type: Date
+    // Дата прочтения
   },
   
   // Техническая информация
   telegramMessageId: {
-    type: String,
-    description: 'ID сообщения отчета в Telegram'
+    type: String
+    // ID сообщения отчета в Telegram
   },
   generatedBy: {
     type: String,
     default: 'claude',
-    enum: ['claude', 'openai', 'manual'],
-    description: 'Кем сгенерирован анализ'
+    enum: ['claude', 'openai', 'manual']
+    // Кем сгенерирован анализ
   },
   generationTime: {
-    type: Number,
-    description: 'Время генерации в миллисекундах'
+    type: Number
+    // Время генерации в миллисекундах
   }
 }, {
   timestamps: true,
@@ -271,22 +271,7 @@ weeklyReportSchema.methods = {
       return `${index + 1}. [${rec.title}](${rec.link}) - ${rec.price}\n   ${rec.description}`;
     }).join('\n\n');
 
-    return `📊 *Ваш отчет за неделю*
-
-За эту неделю вы сохранили ${this.quotesCount} ${this._declensionQuotes(this.quotesCount)}:
-
-${quotesText}
-
-🎯 *Анализ недели:*
-${this.analysis.insights}
-
-💎 *Рекомендации от Анны:*
-${recommendationsText}
-
-🎁 *Промокод ${this.promoCode.code}* - скидка ${this.promoCode.discount}% до ${this.promoCode.validUntil.toLocaleDateString()}!
-
----
-💬 Как вам этот отчет?`;
+    return `📊 *Ваш отчет за неделю*\n\nЗа эту неделю вы сохранили ${this.quotesCount} ${this._declensionQuotes(this.quotesCount)}:\n\n${quotesText}\n\n🎯 *Анализ недели:*\n${this.analysis.insights}\n\n💎 *Рекомендации от Анны:*\n${recommendationsText}\n\n🎁 *Промокод ${this.promoCode.code}* - скидка ${this.promoCode.discount}% до ${this.promoCode.validUntil.toLocaleDateString()}!\n\n---\n💬 Как вам этот отчет?`;
   },
 
   /**
@@ -458,8 +443,7 @@ weeklyReportSchema.statics = {
     // Получаем пользователей с цитатами за неделю
     const usersWithQuotes = await Quote.distinct('userId', {
       weekNumber,
-      yearNumber: year,
-      isDeleted: false
+      yearNumber: year
     });
     
     // Получаем пользователей у которых уже есть отчет
