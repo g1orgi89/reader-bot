@@ -1,5 +1,5 @@
 /**
- * @fileoverview Модель цитат для бота "Читатель" - обновленная версия
+ * @fileoverview Модель цитаты для бота "Читатель"
  * @author g1orgi89
  */
 
@@ -10,105 +10,78 @@ const mongoose = require('mongoose');
  */
 
 /**
- * Схема цитаты для проекта "Читатель"
+ * Основная схема цитаты
  */
 const quoteSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true,
-    index: true,
-    description: 'ID пользователя Telegram'
+    index: true
+    // ID пользователя Telegram
   },
   text: {
     type: String,
     required: true,
     maxlength: 1000,
-    description: 'Текст цитаты (лимит 1000 символов)'
+    trim: true
+    // Текст цитаты
   },
   author: {
     type: String,
-    maxlength: 200,
-    description: 'Автор цитаты (может быть пустым)'
+    trim: true,
+    maxlength: 200
+    // Автор цитаты (может быть пустым)
   },
   source: {
     type: String,
-    maxlength: 300,
-    description: 'Источник книги'
+    trim: true,
+    maxlength: 300
+    // Источник (название книги)
   },
   category: {
     type: String,
-    required: true,
-    enum: [
-      'Саморазвитие',
-      'Любовь',
-      'Философия',
-      'Мотивация',
-      'Мудрость',
-      'Творчество',
-      'Отношения',
-      'Материнство',
-      'Женственность',
-      'Другое'
-    ],
-    index: true,
-    description: 'AI-определенная категория'
+    enum: ['Саморазвитие', 'Любовь', 'Философия', 'Мотивация', 'Мудрость', 'Творчество', 'Отношения', 'Материнство', 'Карьера', 'Другое'],
+    default: 'Другое'
+    // AI-определенная категория
   },
   weekNumber: {
     type: Number,
-    required: true,
     min: 1,
     max: 53,
-    index: true,
-    description: 'Номер недели года (ISO)'
+    index: true
+    // ISO номер недели года
   },
   monthNumber: {
     type: Number,
-    required: true,
     min: 1,
     max: 12,
-    index: true,
-    description: 'Номер месяца'
+    index: true
+    // Номер месяца
   },
   yearNumber: {
     type: Number,
-    required: true,
-    index: true,
-    description: 'Год'
+    index: true
+    // Год
   },
   sentiment: {
     type: String,
     enum: ['positive', 'neutral', 'negative'],
-    default: 'neutral',
-    description: 'Эмоциональная окраска'
+    default: 'neutral'
+    // Эмоциональная окраска
   },
   themes: [{
     type: String,
-    description: 'AI-определенные темы'
+    maxlength: 100
+    // AI-определенные темы
   }],
-  
-  // Техническая информация
-  telegramMessageId: {
-    type: String,
-    description: 'ID сообщения в Telegram'
-  },
-  
-  // История изменений
-  editedAt: {
-    type: Date,
-    description: 'Дата последнего редактирования'
-  },
-  
-  editHistory: [{
-    oldText: String,
-    newText: String,
-    editedAt: { type: Date, default: Date.now }
-  }],
-  
-  // Флаги
-  isDeleted: {
+  isEdited: {
     type: Boolean,
-    default: false,
-    index: true
+    default: false
+    // Была ли отредактирована
+  },
+  editedAt: {
+    type: Date
+    // Дата последнего редактирования
   }
 }, {
   timestamps: true,
@@ -116,204 +89,115 @@ const quoteSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Составные индексы для оптимизации
+// Композитные индексы для оптимизации запросов
 quoteSchema.index({ userId: 1, createdAt: -1 });
 quoteSchema.index({ userId: 1, weekNumber: 1, yearNumber: 1 });
 quoteSchema.index({ userId: 1, monthNumber: 1, yearNumber: 1 });
-quoteSchema.index({ userId: 1, category: 1 });
-quoteSchema.index({ userId: 1, isDeleted: 1 });
 quoteSchema.index({ category: 1, createdAt: -1 });
-quoteSchema.index({ createdAt: -1 });
+quoteSchema.index({ author: 1, createdAt: -1 });
+quoteSchema.index({ sentiment: 1 });
 
 // Виртуальные поля
-quoteSchema.virtual('isRecent').get(function() {
-  const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  return this.createdAt > weekAgo;
+quoteSchema.virtual('displayAuthor').get(function() {
+  return this.author || 'Неизвестный автор';
 });
 
 quoteSchema.virtual('shortText').get(function() {
-  return this.text.length > 100 ? this.text.substring(0, 97) + '...' : this.text;
+  if (this.text.length <= 100) return this.text;
+  return this.text.substring(0, 97) + '...';
 });
 
-quoteSchema.virtual('wordCount').get(function() {
-  return this.text.split(/\s+/).filter(word => word.length > 0).length;
-});
-
-quoteSchema.virtual('hasAuthor').get(function() {
-  return !!this.author && this.author.trim().length > 0;
+quoteSchema.virtual('ageInDays').get(function() {
+  return Math.floor((new Date() - this.createdAt) / (1000 * 60 * 60 * 24));
 });
 
 // Методы экземпляра
 quoteSchema.methods = {
   /**
-   * Редактировать текст цитаты
-   * @param {string} newText - Новый текст
+   * Обновить цитату
+   * @param {Object} updates - Обновления
    * @returns {Promise<Quote>}
    */
-  async editText(newText) {
-    // Добавляем в историю
-    this.editHistory.push({
-      oldText: this.text,
-      newText: newText,
-      editedAt: new Date()
-    });
-    
-    this.text = newText;
+  async updateQuote(updates) {
+    Object.assign(this, updates);
+    this.isEdited = true;
     this.editedAt = new Date();
-    
     return this.save();
   },
 
   /**
-   * Мягкое удаление цитаты
-   * @returns {Promise<Quote>}
-   */
-  async softDelete() {
-    this.isDeleted = true;
-    return this.save();
-  },
-
-  /**
-   * Восстановить цитату
-   * @returns {Promise<Quote>}
-   */
-  async restore() {
-    this.isDeleted = false;
-    return this.save();
-  },
-
-  /**
-   * Обновить AI-анализ цитаты
-   * @param {Object} analysis - Результат анализа
-   * @param {string} analysis.category - Категория
-   * @param {Array<string>} analysis.themes - Темы
-   * @param {string} analysis.sentiment - Эмоциональная окраска
-   * @returns {Promise<Quote>}
-   */
-  async updateAnalysis(analysis) {
-    if (analysis.category) this.category = analysis.category;
-    if (analysis.themes) this.themes = analysis.themes;
-    if (analysis.sentiment) this.sentiment = analysis.sentiment;
-    
-    return this.save();
-  },
-
-  /**
-   * Получить отформатированное представление для отчета
-   * @returns {string}
-   */
-  toReportFormat() {
-    const authorText = this.hasAuthor ? ` (${this.author})` : '';
-    return `"${this.text}"${authorText}`;
-  },
-
-  /**
-   * Получить краткое представление
+   * Получить краткую информацию о цитате
    * @returns {Object}
    */
   toSummary() {
     return {
       id: this._id,
       text: this.shortText,
-      author: this.author,
+      author: this.displayAuthor,
       category: this.category,
       sentiment: this.sentiment,
       createdAt: this.createdAt,
-      hasAuthor: this.hasAuthor,
-      isRecent: this.isRecent
+      isEdited: this.isEdited
     };
+  },
+
+  /**
+   * Получить полную информацию для отчета
+   * @returns {Object}
+   */
+  toReportFormat() {
+    const author = this.author ? ` (${this.author})` : '';
+    return `"${this.text}"${author}`;
   }
 };
 
 // Статические методы
 quoteSchema.statics = {
   /**
-   * Создать новую цитату с автоматическим заполнением недели/месяца
-   * @param {Object} quoteData - Данные цитаты
-   * @returns {Promise<Quote>}
+   * Получить цитаты пользователя за период
+   * @param {string} userId - ID пользователя
+   * @param {Date} startDate - Начальная дата
+   * @param {Date} [endDate] - Конечная дата
+   * @returns {Promise<Quote[]>}
    */
-  async createWithTimeData(quoteData) {
-    const now = new Date();
-    
-    const quote = new this({
-      ...quoteData,
-      weekNumber: this.getWeekNumber(now),
-      monthNumber: now.getMonth() + 1,
-      yearNumber: now.getFullYear()
-    });
-    
-    return quote.save();
+  async getUserQuotes(userId, startDate, endDate = new Date()) {
+    return this.find({
+      userId,
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    }).sort({ createdAt: 1 });
   },
 
   /**
-   * Найти цитаты пользователя за неделю
+   * Получить цитаты пользователя за неделю
    * @param {string} userId - ID пользователя
    * @param {number} weekNumber - Номер недели
    * @param {number} year - Год
    * @returns {Promise<Quote[]>}
    */
-  async findByUserWeek(userId, weekNumber, year) {
+  async getWeeklyQuotes(userId, weekNumber, year) {
     return this.find({
       userId,
       weekNumber,
-      yearNumber: year,
-      isDeleted: false
+      yearNumber: year
     }).sort({ createdAt: 1 });
   },
 
   /**
-   * Найти цитаты пользователя за месяц
+   * Получить цитаты пользователя за месяц
    * @param {string} userId - ID пользователя
    * @param {number} month - Номер месяца
    * @param {number} year - Год
    * @returns {Promise<Quote[]>}
    */
-  async findByUserMonth(userId, month, year) {
+  async getMonthlyQuotes(userId, month, year) {
     return this.find({
       userId,
       monthNumber: month,
-      yearNumber: year,
-      isDeleted: false
+      yearNumber: year
     }).sort({ createdAt: 1 });
-  },
-
-  /**
-   * Получить последние цитаты пользователя
-   * @param {string} userId - ID пользователя
-   * @param {number} [limit=20] - Количество цитат
-   * @returns {Promise<Quote[]>}
-   */
-  async getUserRecentQuotes(userId, limit = 20) {
-    return this.find({
-      userId,
-      isDeleted: false
-    })
-    .sort({ createdAt: -1 })
-    .limit(limit);
-  },
-
-  /**
-   * Поиск цитат по тексту
-   * @param {string} userId - ID пользователя
-   * @param {string} searchText - Текст для поиска
-   * @param {number} [limit=10] - Лимит результатов
-   * @returns {Promise<Quote[]>}
-   */
-  async searchByText(userId, searchText, limit = 10) {
-    const searchRegex = new RegExp(searchText, 'i');
-    
-    return this.find({
-      userId,
-      isDeleted: false,
-      $or: [
-        { text: searchRegex },
-        { author: searchRegex },
-        { source: searchRegex }
-      ]
-    })
-    .sort({ createdAt: -1 })
-    .limit(limit);
   },
 
   /**
@@ -321,15 +205,14 @@ quoteSchema.statics = {
    * @param {string} userId - ID пользователя
    * @returns {Promise<number>}
    */
-  async countTodayQuotes(userId) {
+  async getTodayQuotesCount(userId) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     return this.countDocuments({
       userId,
-      isDeleted: false,
       createdAt: {
         $gte: today,
         $lt: tomorrow
@@ -338,51 +221,18 @@ quoteSchema.statics = {
   },
 
   /**
-   * Получить статистику категорий пользователя
-   * @param {string} userId - ID пользователя
+   * Получить топ авторов за период
    * @param {Date} [startDate] - Начальная дата
    * @returns {Promise<Array>}
    */
-  async getCategoryStats(userId, startDate = null) {
-    const match = {
-      userId,
-      isDeleted: false
+  async getTopAuthors(startDate = null) {
+    const match = startDate ? { 
+      createdAt: { $gte: startDate },
+      author: { $ne: null, $ne: '' }
+    } : { 
+      author: { $ne: null, $ne: '' }
     };
-    
-    if (startDate) {
-      match.createdAt = { $gte: startDate };
-    }
-    
-    return this.aggregate([
-      { $match: match },
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { count: -1 } }
-    ]);
-  },
 
-  /**
-   * Получить топ авторов пользователя
-   * @param {string} userId - ID пользователя
-   * @param {number} [limit=10] - Лимит результатов
-   * @param {Date} [startDate] - Начальная дата
-   * @returns {Promise<Array>}
-   */
-  async getTopAuthors(userId, limit = 10, startDate = null) {
-    const match = {
-      userId,
-      isDeleted: false,
-      author: { $exists: true, $ne: null, $ne: '' }
-    };
-    
-    if (startDate) {
-      match.createdAt = { $gte: startDate };
-    }
-    
     return this.aggregate([
       { $match: match },
       {
@@ -392,102 +242,147 @@ quoteSchema.statics = {
         }
       },
       { $sort: { count: -1 } },
-      { $limit: limit }
+      { $limit: 10 }
     ]);
   },
 
   /**
-   * Получить популярные цитаты (повторяющиеся тексты)
+   * Получить топ категории за период
    * @param {Date} [startDate] - Начальная дата
    * @returns {Promise<Array>}
    */
-  async getPopularQuotes(startDate = null) {
-    const match = { isDeleted: false };
-    
-    if (startDate) {
-      match.createdAt = { $gte: startDate };
-    }
-    
+  async getTopCategories(startDate = null) {
+    const match = startDate ? { createdAt: { $gte: startDate } } : {};
+
     return this.aggregate([
       { $match: match },
       {
         $group: {
-          _id: '$text',
-          author: { $first: '$author' },
+          _id: '$category',
           count: { $sum: 1 }
         }
       },
-      { $match: { count: { $gt: 1 } } },
       { $sort: { count: -1 } },
-      { $limit: 5 }
+      { $limit: 10 }
     ]);
   },
 
   /**
-   * Получить номер недели по ISO стандарту
-   * @param {Date} date - Дата
-   * @returns {number} Номер недели
-   */
-  getWeekNumber(date) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-    const week1 = new Date(d.getFullYear(), 0, 4);
-    return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-  },
-
-  /**
-   * Получить пользователей с цитатами за период (для отчетов)
-   * @param {Date} startDate - Начальная дата
-   * @param {Date} endDate - Конечная дата
+   * Найти похожие цитаты
+   * @param {string} text - Текст для поиска
+   * @param {string} [excludeUserId] - Исключить пользователя
    * @returns {Promise<Array>}
    */
-  async getUsersWithQuotesInPeriod(startDate, endDate) {
-    return this.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: startDate, $lte: endDate },
-          isDeleted: false
+  async findSimilarQuotes(text, excludeUserId = null) {
+    const match = {
+      $text: { $search: text }
+    };
+
+    if (excludeUserId) {
+      match.userId = { $ne: excludeUserId };
+    }
+
+    return this.find(match, { score: { $meta: 'textScore' } })
+      .sort({ score: { $meta: 'textScore' } })
+      .limit(5);
+  },
+
+  /**
+   * Получить статистику по цитатам
+   * @param {string} period - Период ('7d', '30d', '90d')
+   * @returns {Promise<Object>}
+   */
+  async getQuoteStats(period = '7d') {
+    const days = parseInt(period);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const [totalQuotes, avgPerDay, topCategory] = await Promise.all([
+      this.countDocuments({ createdAt: { $gte: startDate } }),
+      this.aggregate([
+        { $match: { createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+            },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            avgPerDay: { $avg: '$count' }
+          }
         }
-      },
-      {
-        $group: {
-          _id: '$userId',
-          quotesCount: { $sum: 1 },
-          quotes: { $push: '$$ROOT' }
-        }
-      },
-      { $match: { quotesCount: { $gt: 0 } } }
+      ]),
+      this.getTopCategories(startDate)
     ]);
+
+    return {
+      totalQuotes,
+      avgPerDay: avgPerDay.length > 0 ? Math.round(avgPerDay[0].avgPerDay) : 0,
+      topCategory: topCategory.length > 0 ? topCategory[0]._id : 'Другое',
+      period
+    };
+  },
+
+  /**
+   * Поиск цитат пользователя
+   * @param {string} userId - ID пользователя
+   * @param {string} searchText - Текст для поиска
+   * @param {number} [limit=20] - Лимит результатов
+   * @returns {Promise<Quote[]>}
+   */
+  async searchUserQuotes(userId, searchText, limit = 20) {
+    const searchRegex = new RegExp(searchText, 'i');
+    
+    return this.find({
+      userId,
+      $or: [
+        { text: searchRegex },
+        { author: searchRegex },
+        { source: searchRegex }
+      ]
+    })
+    .sort({ createdAt: -1 })
+    .limit(limit);
   }
 };
 
 // Middleware перед сохранением
 quoteSchema.pre('save', function(next) {
-  // Автоматически заполняем временные поля для новых цитат
   if (this.isNew) {
-    const now = this.createdAt || new Date();
+    const now = new Date();
     
-    if (!this.weekNumber) {
-      this.weekNumber = this.constructor.getWeekNumber(now);
-    }
-    
-    if (!this.monthNumber) {
-      this.monthNumber = now.getMonth() + 1;
-    }
-
-    if (!this.yearNumber) {
-      this.yearNumber = now.getFullYear();
-    }
-    
-    // Устанавливаем дефолтную категорию если не указана
-    if (!this.category) {
-      this.category = 'Другое';
-    }
+    // Автоматически устанавливаем номер недели и месяца
+    this.weekNumber = getWeekNumber(now);
+    this.monthNumber = now.getMonth() + 1;
+    this.yearNumber = now.getFullYear();
   }
   
   next();
 });
+
+// Индекс для текстового поиска
+quoteSchema.index({
+  text: 'text',
+  author: 'text',
+  source: 'text'
+});
+
+/**
+ * Получить номер недели ISO 8601
+ * @param {Date} date - Дата
+ * @returns {number} Номер недели
+ */
+function getWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
 
 const Quote = mongoose.model('Quote', quoteSchema);
 
