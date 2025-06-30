@@ -1,114 +1,72 @@
 /**
- * @fileoverview Модель профиля пользователя для бота "Читатель"
+ * @fileoverview Модель профиля пользователя для бота "Читатель" - полная версия
  * @author g1orgi89
  */
 
 const mongoose = require('mongoose');
-const { USER_SOURCES, REMINDER_FREQUENCIES, SUPPORTED_LANGUAGES } = require('../types');
 
 /**
  * @typedef {import('../types/reader').UserProfile} UserProfile
- * @typedef {import('../types/reader').TestAnswer} TestAnswer
+ * @typedef {import('../types/reader').TestResults} TestResults
+ * @typedef {import('../types/reader').UserStatistics} UserStatistics
+ * @typedef {import('../types/reader').UserSettings} UserSettings
  */
 
 /**
- * Схема ответа на вопрос теста
- */
-const testAnswerSchema = new mongoose.Schema({
-  questionNumber: {
-    type: Number,
-    required: true,
-    min: 1,
-    max: 7
-  },
-  question: {
-    type: String,
-    required: true
-  },
-  answer: {
-    type: String,
-    required: true
-  },
-  selectedOption: {
-    type: String,
-    description: 'Выбранная опция для вопросов с вариантами'
-  }
-}, { _id: false });
-
-/**
- * Схема результатов теста
+ * Схема результатов теста из 7 вопросов
  */
 const testResultsSchema = new mongoose.Schema({
-  status: {
+  question1_name: {
     type: String,
-    enum: ['not_started', 'in_progress', 'completed'],
-    default: 'not_started'
+    description: 'Как вас зовут?'
   },
-  answers: [testAnswerSchema],
-  personality: {
+  question2_lifestyle: {
     type: String,
-    description: 'Определенный тип личности на основе ответов'
+    description: 'О себе (мама/замужем/свободна)'
+  },
+  question3_time: {
+    type: String,
+    description: 'Как находите время для себя?'
+  },
+  question4_priorities: {
+    type: String,
+    description: 'Что сейчас важнее всего?'
+  },
+  question5_reading_feeling: {
+    type: String,
+    description: 'Что чувствуете, читая книги?'
+  },
+  question6_phrase: {
+    type: String,
+    description: 'Какая фраза ближе?'
+  },
+  question7_reading_time: {
+    type: String,
+    description: 'Сколько времени читаете в неделю?'
   },
   completedAt: {
     type: Date,
     description: 'Дата завершения теста'
-  },
-  currentQuestion: {
-    type: Number,
-    min: 1,
-    max: 7,
-    description: 'Текущий вопрос (для состояния in_progress)'
   }
 }, { _id: false });
 
 /**
- * Схема настроек пользователя
+ * Схема для статистики по месяцам
  */
-const preferencesSchema = new mongoose.Schema({
-  remindersEnabled: {
-    type: Boolean,
-    default: true,
-    description: 'Включены ли напоминания'
-  },
-  reminderTimes: [{
-    type: String,
-    match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
-    description: 'Время напоминаний в формате HH:MM'
-  }],
-  reminderFrequency: {
-    type: String,
-    enum: Object.values(REMINDER_FREQUENCIES),
-    default: REMINDER_FREQUENCIES.DAILY,
-    description: 'Частота напоминаний'
-  },
-  language: {
-    type: String,
-    enum: Object.values(SUPPORTED_LANGUAGES),
-    default: SUPPORTED_LANGUAGES.RUSSIAN,
-    description: 'Язык интерфейса'
-  },
-  timezone: {
-    type: String,
-    default: 'Europe/Moscow',
-    description: 'Часовой пояс пользователя'
-  },
-  emailReportsEnabled: {
-    type: Boolean,
-    default: true,
-    description: 'Включены ли email отчеты'
-  },
-  weeklyReportDay: {
+const monthlyStatsSchema = new mongoose.Schema({
+  month: {
     type: Number,
-    min: 0,
-    max: 6,
-    default: 0,
-    description: 'День недели для еженедельного отчета (0 = воскресенье)'
+    required: true,
+    min: 1,
+    max: 12
   },
-  weeklyReportTime: {
-    type: String,
-    default: '11:00',
-    match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
-    description: 'Время еженедельного отчета'
+  year: {
+    type: Number,
+    required: true
+  },
+  count: {
+    type: Number,
+    default: 0
   }
 }, { _id: false });
 
@@ -131,34 +89,71 @@ const statisticsSchema = new mongoose.Schema({
     default: 0,
     description: 'Самая длинная серия'
   },
-  lastActiveDate: {
-    type: Date,
-    description: 'Последняя дата активности'
-  },
   favoriteAuthors: [{
-    author: String,
-    count: Number
+    type: String,
+    description: 'Список любимых авторов'
   }],
-  categoriesCount: {
-    type: Map,
-    of: Number,
-    default: new Map(),
-    description: 'Количество цитат по категориям'
+  monthlyQuotes: [monthlyStatsSchema]
+}, { _id: false });
+
+/**
+ * Схема достижений пользователя
+ */
+const achievementSchema = new mongoose.Schema({
+  achievementId: {
+    type: String,
+    required: true,
+    description: 'ID достижения'
   },
-  weeklyQuotesAverage: {
-    type: Number,
-    default: 0,
-    description: 'Среднее количество цитат в неделю'
-  },
-  totalWeeksActive: {
-    type: Number,
-    default: 0,
-    description: 'Общее количество активных недель'
+  unlockedAt: {
+    type: Date,
+    required: true,
+    description: 'Дата получения достижения'
   }
 }, { _id: false });
 
 /**
- * Основная схема профиля пользователя
+ * Схема настроек пользователя
+ */
+const settingsSchema = new mongoose.Schema({
+  reminderEnabled: {
+    type: Boolean,
+    default: true,
+    description: 'Включены ли напоминания'
+  },
+  reminderTimes: [{
+    type: String,
+    match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
+    description: 'Время напоминаний в формате HH:MM'
+  }],
+  language: {
+    type: String,
+    default: 'ru',
+    enum: ['ru', 'en'],
+    description: 'Язык интерфейса'
+  }
+}, { _id: false });
+
+/**
+ * Схема AI-анализа предпочтений
+ */
+const preferencesSchema = new mongoose.Schema({
+  mainThemes: [{
+    type: String,
+    description: 'AI-анализ интересов'
+  }],
+  personalityType: {
+    type: String,
+    description: 'Тип личности по тесту'
+  },
+  recommendationStyle: {
+    type: String,
+    description: 'Стиль рекомендаций'
+  }
+}, { _id: false });
+
+/**
+ * Основная схема профиля пользователя для бота "Читатель"
  */
 const userProfileSchema = new mongoose.Schema({
   userId: {
@@ -168,56 +163,67 @@ const userProfileSchema = new mongoose.Schema({
     index: true,
     description: 'ID пользователя Telegram'
   },
+  telegramUsername: {
+    type: String,
+    description: '@username (авто-определение)'
+  },
   name: {
     type: String,
     required: true,
     maxlength: 100,
-    description: 'Имя пользователя'
+    description: 'Имя из вопроса 1 теста'
   },
   email: {
     type: String,
+    required: true,
     lowercase: true,
     trim: true,
     match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    description: 'Email адрес для отчетов'
-  },
-  telegramUsername: {
-    type: String,
-    lowercase: true,
-    trim: true,
-    description: 'Username в Telegram'
+    description: 'Email ОБЯЗАТЕЛЬНО после теста'
   },
   testResults: {
     type: testResultsSchema,
-    default: () => ({ status: 'not_started' }),
-    description: 'Результаты вступительного теста'
+    required: true,
+    description: 'Ответы на 7 вопросов'
+  },
+  source: {
+    type: String,
+    required: true,
+    enum: ['Instagram', 'Telegram', 'YouTube', 'Threads', 'Друзья', 'Другое'],
+    description: 'Откуда узнал о боте'
   },
   preferences: {
     type: preferencesSchema,
     default: () => ({}),
-    description: 'Настройки пользователя'
-  },
-  source: {
-    type: String,
-    enum: Object.values(USER_SOURCES),
-    required: true,
-    description: 'Откуда узнал о боте'
-  },
-  registeredAt: {
-    type: Date,
-    default: Date.now,
-    description: 'Дата регистрации'
-  },
-  lastActiveAt: {
-    type: Date,
-    default: Date.now,
-    description: 'Последняя активность'
+    description: 'AI-анализ теста'
   },
   statistics: {
     type: statisticsSchema,
     default: () => ({}),
     description: 'Статистика пользователя'
   },
+  achievements: [achievementSchema],
+  settings: {
+    type: settingsSchema,
+    default: () => ({}),
+    description: 'Настройки пользователя'
+  },
+  registeredAt: {
+    type: Date,
+    default: Date.now,
+    description: 'Дата регистрации'
+  },
+  isOnboardingComplete: {
+    type: Boolean,
+    default: false,
+    description: 'Завершен ли онбординг'
+  },
+  lastActiveAt: {
+    type: Date,
+    default: Date.now,
+    description: 'Последняя активность'
+  },
+
   // Техническая информация
   telegramData: {
     firstName: String,
@@ -226,7 +232,8 @@ const userProfileSchema = new mongoose.Schema({
     chatId: String,
     description: 'Данные из Telegram'
   },
-  // Состояние бота для этого пользователя
+
+  // Состояние бота для онбординга
   botState: {
     currentState: {
       type: String,
@@ -235,31 +242,24 @@ const userProfileSchema = new mongoose.Schema({
     },
     stateData: {
       type: mongoose.Schema.Types.Mixed,
-      description: 'Данные состояния'
+      description: 'Данные состояния (временные ответы на тест)'
     },
     stateUpdatedAt: {
       type: Date,
-      default: Date.now,
-      description: 'Время обновления состояния'
+      default: Date.now
     }
   },
+
   // Флаги
   isActive: {
     type: Boolean,
     default: true,
-    index: true,
-    description: 'Активен ли пользователь'
+    index: true
   },
   isBlocked: {
     type: Boolean,
     default: false,
-    index: true,
-    description: 'Заблокирован ли пользователь'
-  },
-  emailVerified: {
-    type: Boolean,
-    default: false,
-    description: 'Подтвержден ли email'
+    index: true
   }
 }, {
   timestamps: true,
@@ -267,14 +267,14 @@ const userProfileSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Индексы для оптимизации запросов
+// Индексы для оптимизации
 userProfileSchema.index({ userId: 1 }, { unique: true });
-userProfileSchema.index({ email: 1 }, { sparse: true });
+userProfileSchema.index({ email: 1 });
 userProfileSchema.index({ source: 1, registeredAt: -1 });
 userProfileSchema.index({ lastActiveAt: -1 });
-userProfileSchema.index({ isActive: 1, isBlocked: 1 });
-userProfileSchema.index({ 'testResults.status': 1 });
+userProfileSchema.index({ isOnboardingComplete: 1 });
 userProfileSchema.index({ registeredAt: -1 });
+userProfileSchema.index({ 'settings.reminderEnabled': 1 });
 
 // Виртуальные поля
 userProfileSchema.virtual('daysSinceRegistration').get(function() {
@@ -289,12 +289,8 @@ userProfileSchema.virtual('isNewUser').get(function() {
   return this.daysSinceRegistration <= 7;
 });
 
-userProfileSchema.virtual('isTestCompleted').get(function() {
-  return this.testResults.status === 'completed';
-});
-
-userProfileSchema.virtual('hasEmail').get(function() {
-  return !!this.email;
+userProfileSchema.virtual('hasCompletedTest').get(function() {
+  return this.testResults && this.testResults.completedAt;
 });
 
 // Методы экземпляра
@@ -309,83 +305,50 @@ userProfileSchema.methods = {
   },
 
   /**
-   * Начать тест
+   * Добавить ответ на вопрос теста
+   * @param {number} questionNumber - Номер вопроса (1-7)
+   * @param {string} answer - Ответ пользователя
    * @returns {Promise<UserProfile>}
    */
-  async startTest() {
-    this.testResults.status = 'in_progress';
-    this.testResults.currentQuestion = 1;
-    this.testResults.answers = [];
+  async addTestAnswer(questionNumber, answer) {
+    const questionFields = [
+      '', // индекс 0 не используется
+      'question1_name',
+      'question2_lifestyle', 
+      'question3_time',
+      'question4_priorities',
+      'question5_reading_feeling',
+      'question6_phrase',
+      'question7_reading_time'
+    ];
+
+    if (questionNumber >= 1 && questionNumber <= 7) {
+      this.testResults[questionFields[questionNumber]] = answer;
+      
+      // Если это последний вопрос, завершаем тест
+      if (questionNumber === 7) {
+        this.testResults.completedAt = new Date();
+      }
+    }
+
     return this.save();
   },
 
   /**
-   * Добавить ответ на вопрос теста
-   * @param {number} questionNumber - Номер вопроса
-   * @param {string} question - Текст вопроса
-   * @param {string} answer - Ответ пользователя
-   * @param {string} [selectedOption] - Выбранная опция
+   * Завершить онбординг
    * @returns {Promise<UserProfile>}
    */
-  async addTestAnswer(questionNumber, question, answer, selectedOption = null) {
-    // Удаляем предыдущий ответ на этот вопрос, если есть
-    this.testResults.answers = this.testResults.answers.filter(
-      a => a.questionNumber !== questionNumber
-    );
+  async completeOnboarding() {
+    this.isOnboardingComplete = true;
+    this.botState.currentState = 'active';
+    this.botState.stateData = null;
     
-    // Добавляем новый ответ
-    this.testResults.answers.push({
-      questionNumber,
-      question,
-      answer,
-      selectedOption
-    });
-    
-    // Обновляем текущий вопрос
-    this.testResults.currentQuestion = questionNumber + 1;
-    
-    // Если это последний вопрос, завершаем тест
-    if (questionNumber >= 7) {
-      await this.completeTest();
+    // Инициализируем дефолтные настройки
+    if (!this.settings.reminderTimes.length) {
+      this.settings.reminderTimes = ['09:00', '19:00'];
     }
     
     return this.save();
-  },
-
-  /**
-   * Завершить тест
-   * @returns {Promise<UserProfile>}
-   */
-  async completeTest() {
-    this.testResults.status = 'completed';
-    this.testResults.completedAt = new Date();
-    this.testResults.personality = this._analyzePersonality();
-    delete this.testResults.currentQuestion;
-    return this.save();
-  },
-
-  /**
-   * Анализ личности на основе ответов
-   * @private
-   * @returns {string}
-   */
-  _analyzePersonality() {
-    const answers = this.testResults.answers;
-    
-    // Простой алгоритм определения типа личности
-    // На основе ответа на 6-й вопрос и других факторов
-    const sixthAnswer = answers.find(a => a.questionNumber === 6);
-    
-    if (!sixthAnswer) return 'unknown';
-    
-    const option = sixthAnswer.selectedOption;
-    
-    if (option?.includes('понять себя')) return 'self_explorer';
-    if (option?.includes('гармонии')) return 'harmony_seeker';
-    if (option?.includes('практические решения')) return 'problem_solver';
-    if (option?.includes('вдохновения')) return 'inspiration_seeker';
-    
-    return 'balanced';
   },
 
   /**
@@ -403,40 +366,92 @@ userProfileSchema.methods = {
 
   /**
    * Обновить статистику цитат
-   * @param {number} quotesCount - Количество цитат
-   * @param {string} category - Категория цитаты
+   * @param {string} [author] - Автор цитаты
    * @returns {Promise<UserProfile>}
    */
-  async updateQuoteStats(quotesCount = 1, category = null) {
-    this.statistics.totalQuotes += quotesCount;
+  async updateQuoteStats(author = null) {
+    this.statistics.totalQuotes += 1;
     
-    if (category) {
-      const currentCount = this.statistics.categoriesCount.get(category) || 0;
-      this.statistics.categoriesCount.set(category, currentCount + quotesCount);
+    // Обновляем любимых авторов
+    if (author && !this.statistics.favoriteAuthors.includes(author)) {
+      this.statistics.favoriteAuthors.push(author);
+      // Ограничиваем до 10 авторов
+      if (this.statistics.favoriteAuthors.length > 10) {
+        this.statistics.favoriteAuthors = this.statistics.favoriteAuthors.slice(-10);
+      }
     }
+    
+    // Обновляем статистику по месяцам
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    let monthStat = this.statistics.monthlyQuotes.find(
+      m => m.month === currentMonth && m.year === currentYear
+    );
+    
+    if (!monthStat) {
+      monthStat = { month: currentMonth, year: currentYear, count: 0 };
+      this.statistics.monthlyQuotes.push(monthStat);
+    }
+    
+    monthStat.count += 1;
     
     // Обновляем серию дней
-    const today = new Date().toDateString();
-    const lastActiveDay = this.statistics.lastActiveDate?.toDateString();
-    
-    if (lastActiveDay !== today) {
-      if (lastActiveDay === new Date(Date.now() - 86400000).toDateString()) {
-        // Вчера была активность - продолжаем серию
-        this.statistics.currentStreak += 1;
-      } else {
-        // Пропуск - начинаем новую серию
-        this.statistics.currentStreak = 1;
-      }
-      
-      this.statistics.lastActiveDate = new Date();
-      
-      // Обновляем максимальную серию
-      if (this.statistics.currentStreak > this.statistics.longestStreak) {
-        this.statistics.longestStreak = this.statistics.currentStreak;
-      }
-    }
+    this._updateStreak();
     
     return this.save();
+  },
+
+  /**
+   * Обновить серию дней (приватный метод)
+   * @private
+   */
+  _updateStreak() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const lastActive = new Date(this.lastActiveAt);
+    lastActive.setHours(0, 0, 0, 0);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (lastActive.getTime() === today.getTime()) {
+      // Уже была активность сегодня - не меняем серию
+      return;
+    } else if (lastActive.getTime() === yesterday.getTime()) {
+      // Была активность вчера - продолжаем серию
+      this.statistics.currentStreak += 1;
+    } else {
+      // Пропуск дней - начинаем новую серию
+      this.statistics.currentStreak = 1;
+    }
+    
+    // Обновляем максимальную серию
+    if (this.statistics.currentStreak > this.statistics.longestStreak) {
+      this.statistics.longestStreak = this.statistics.currentStreak;
+    }
+  },
+
+  /**
+   * Добавить достижение
+   * @param {string} achievementId - ID достижения
+   * @returns {Promise<UserProfile>}
+   */
+  async addAchievement(achievementId) {
+    // Проверяем, нет ли уже такого достижения
+    const hasAchievement = this.achievements.some(a => a.achievementId === achievementId);
+    
+    if (!hasAchievement) {
+      this.achievements.push({
+        achievementId,
+        unlockedAt: new Date()
+      });
+      await this.save();
+    }
+    
+    return this;
   },
 
   /**
@@ -448,8 +463,8 @@ userProfileSchema.methods = {
       userId: this.userId,
       name: this.name,
       email: this.email,
-      hasEmail: this.hasEmail,
-      isTestCompleted: this.isTestCompleted,
+      hasCompletedTest: this.hasCompletedTest,
+      isOnboardingComplete: this.isOnboardingComplete,
       daysSinceRegistration: this.daysSinceRegistration,
       totalQuotes: this.statistics.totalQuotes,
       currentStreak: this.statistics.currentStreak,
@@ -475,119 +490,93 @@ userProfileSchema.statics = {
         userId,
         ...userData
       });
-      await user.save();
     }
     
     return user;
   },
 
   /**
-   * Получить активных пользователей
-   * @param {number} [daysBack=7] - Количество дней назад
-   * @returns {Promise<UserProfile[]>}
-   */
-  async getActiveUsers(daysBack = 7) {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-    
-    return this.find({
-      lastActiveAt: { $gte: cutoffDate },
-      isActive: true,
-      isBlocked: false
-    }).sort({ lastActiveAt: -1 });
-  },
-
-  /**
-   * Получить пользователей для отправки напоминаний
+   * Получить пользователей для напоминаний
    * @returns {Promise<UserProfile[]>}
    */
   async getUsersForReminders() {
     return this.find({
-      'preferences.remindersEnabled': true,
+      'settings.reminderEnabled': true,
       isActive: true,
       isBlocked: false,
-      'testResults.status': 'completed'
+      isOnboardingComplete: true
     });
   },
 
   /**
    * Получить пользователей для еженедельных отчетов
-   * @param {number} dayOfWeek - День недели (0 = воскресенье)
    * @returns {Promise<UserProfile[]>}
    */
-  async getUsersForWeeklyReports(dayOfWeek) {
+  async getUsersForWeeklyReports() {
     return this.find({
-      'preferences.emailReportsEnabled': true,
-      'preferences.weeklyReportDay': dayOfWeek,
+      isOnboardingComplete: true,
       email: { $exists: true, $ne: null },
-      emailVerified: true,
       isActive: true,
-      isBlocked: false,
-      'testResults.status': 'completed'
+      isBlocked: false
     });
   },
 
   /**
    * Получить статистику по источникам
-   * @returns {Promise<Object>}
+   * @param {Date} [startDate] - Начальная дата
+   * @returns {Promise<Array>}
    */
-  async getSourcesStats() {
-    const pipeline = [
+  async getSourceStats(startDate = null) {
+    const match = startDate ? { registeredAt: { $gte: startDate } } : {};
+    
+    return this.aggregate([
+      { $match: match },
       {
         $group: {
           _id: '$source',
-          count: { $sum: 1 },
-          activeCount: {
-            $sum: {
-              $cond: [{ $eq: ['$isActive', true] }, 1, 0]
-            }
-          }
-        }
-      },
-      { $sort: { count: -1 } }
-    ];
-    
-    return this.aggregate(pipeline);
-  },
-
-  /**
-   * Получить статистику регистраций по дням
-   * @param {number} [daysBack=30] - Количество дней назад
-   * @returns {Promise<Object>}
-   */
-  async getRegistrationStats(daysBack = 30) {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysBack);
-    
-    const pipeline = [
-      {
-        $match: {
-          registeredAt: { $gte: startDate }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: '%Y-%m-%d',
-              date: '$registeredAt'
-            }
-          },
           count: { $sum: 1 }
         }
       },
-      { $sort: { _id: 1 } }
-    ];
+      { $sort: { count: -1 } }
+    ]);
+  },
+
+  /**
+   * Получить статистику активности
+   * @param {string} period - Период ('7d', '30d', '90d')
+   * @returns {Promise<Object>}
+   */
+  async getActivityStats(period = '7d') {
+    const days = parseInt(period);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
     
-    return this.aggregate(pipeline);
+    const [totalUsers, newUsers, activeUsers] = await Promise.all([
+      this.countDocuments({ isOnboardingComplete: true }),
+      this.countDocuments({ 
+        registeredAt: { $gte: startDate },
+        isOnboardingComplete: true 
+      }),
+      this.countDocuments({ 
+        lastActiveAt: { $gte: startDate },
+        isActive: true 
+      })
+    ]);
+    
+    return {
+      totalUsers,
+      newUsers,
+      activeUsers,
+      period
+    };
   }
 };
 
 // Middleware перед сохранением
 userProfileSchema.pre('save', function(next) {
-  // Устанавливаем дефолтные времена напоминаний
-  if (this.isNew && !this.preferences.reminderTimes.length) {
-    this.preferences.reminderTimes = ['09:00', '19:00'];
+  // Обновляем lastActiveAt при любом изменении
+  if (this.isModified() && !this.isModified('lastActiveAt')) {
+    this.lastActiveAt = new Date();
   }
   
   next();
