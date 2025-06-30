@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 🍄 Shrooms Support Bot - Quick Start Script
+# 📖 Reader Support Bot - Quick Start Script
 
-echo "🍄 Starting Shrooms AI Support Bot..."
+echo "📖 Starting Reader AI Support Bot..."
 echo "=================================="
 
 # Check if .env exists
