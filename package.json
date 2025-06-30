@@ -2,10 +2,12 @@
   "name": "reader-bot",
   "version": "1.0.0",
   "description": "AI бот 'Читатель' для Анны Бусел - персональный дневник цитат с аналитикой и рекомендациями книг",
-  "main": "server/index.js",
+  "main": "reader-bot.js",
   "scripts": {
     "start": "node server/index.js",
+    "start:reader": "node reader-bot.js",
     "dev": "nodemon server/index.js",
+    "dev:reader": "nodemon reader-bot.js",
     "dev:debug": "nodemon --inspect server/index.js",
     "telegram": "node telegram/start.js",
     "telegram:dev": "nodemon telegram/start.js",
@@ -30,6 +32,7 @@
     "setup": "npm install && cp .env.example .env && echo 'Setup complete! Please edit .env file'",
     "setup:reader": "npm run migrate:content && npm run seed:books && echo 'Reader bot content setup complete!'",
     "start:prod": "NODE_ENV=production node server/index.js",
+    "start:reader:prod": "NODE_ENV=production node reader-bot.js",
     "start:telegram:prod": "NODE_ENV=production node telegram/start.js",
     "logs": "tail -f logs/combined.log",
     "logs:error": "tail -f logs/error.log"
@@ -157,6 +160,7 @@
     "watch": [
       "server/",
       "telegram/",
+      "reader-bot.js",
       ".env"
     ],
     "ext": "js,json",
