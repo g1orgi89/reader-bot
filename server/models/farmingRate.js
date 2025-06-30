@@ -84,4 +84,18 @@ farmingRateSchema.statics.updateRate = async function(newRate, updatedBy = 'admi
     isActive: true,
     metadata: {
       source: 'admin-panel',
-      
+      version: '1.0.0'
+    }
+  });
+};
+
+// Static method to get rate history
+farmingRateSchema.statics.getRateHistory = async function(limit = 10) {
+  return await this.find({})
+    .sort({ updatedAt: -1 })
+    .limit(limit);
+};
+
+const FarmingRate = mongoose.model('FarmingRate', farmingRateSchema);
+
+module.exports = FarmingRate;
