@@ -5,7 +5,7 @@
 
 require('dotenv').config();
 
-const logger = require('./server/utils/logger');
+const logger = require('./server/utils/simpleLogger');
 
 // Import Reader bot services
 const { initializeModels } = require('./server/models');
