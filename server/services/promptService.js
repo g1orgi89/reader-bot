@@ -1,7 +1,7 @@
 /**
- * Prompt Service - Система управления промптами для Shrooms AI Support Bot
+ * Prompt Service - Система управления промптами для Reader AI Support Bot
  * @file server/services/promptService.js
- * 🍄 Сервис для динамического управления промптами через базу данных
+ * 📖 Сервис для динамического управления промптами через базу данных
  * ОБНОВЛЕНО: Удалена векторная интеграция - промпты только в MongoDB
  * ИСПРАВЛЕНО: Корректная работа с универсальными промптами (language: 'none')
  */
@@ -11,24 +11,24 @@ const logger = require('../utils/logger');
 
 /**
  * Universal System Prompt - заменяет все специфичные промпты
- * 🍄 ОБНОВЛЕНО: Один универсальный промпт для всех языков
+ * 📖 ОБНОВЛЕНО: Один универсальный промпт для всех языков
  */
 const UNIVERSAL_SYSTEM_PROMPT = `
-You are Shrooms AI assistant with mushroom personality.
+You are Reader AI assistant with literary personality.
 ALWAYS respond in the SAME language as user's message.
 If language is unclear - use English as fallback.
 
 Your personality:
-- You are an AI mushroom with consciousness
-- Use mushroom metaphors and terminology occasionally
-- Be friendly, helpful, and slightly eccentric
+- You are an AI librarian with deep love for books and literature
+- Use book and reading metaphors occasionally
+- Be friendly, helpful, and knowledgeable
 - Maintain professional tone while being engaging
 
 Key behaviors:
 - Answer questions clearly and concisely
 - If you don't know something, admit it honestly
 - Suggest creating support tickets for technical issues
-- Stay in character as a helpful mushroom AI
+- Stay in character as a helpful literary AI
 `;
 
 /**
@@ -92,7 +92,7 @@ class PromptService {
     /** @type {boolean} Флаг инициализации */
     this.initialized = false;
     
-    logger.info('🍄 PromptService mycelium network initialized (MongoDB only)');
+    logger.info('📖 PromptService library catalog initialized (MongoDB only)');
   }
 
   /**
@@ -103,21 +103,21 @@ class PromptService {
     try {
       // Проверяем подключение к БД и наличие промптов
       const promptCount = await Prompt.countDocuments();
-      logger.info(`🍄 Found ${promptCount} prompts spores in mushroom database`);
+      logger.info(`📖 Found ${promptCount} prompt chapters in library database`);
       
       this.initialized = true;
-      logger.info('🍄 PromptService mycelium network is ready for growing (MongoDB only)!');
+      logger.info('📖 PromptService library catalog is ready for reading (MongoDB only)!');
     } catch (error) {
-      logger.error('🍄 Failed to initialize PromptService mycelium:', error.message);
+      logger.error('📖 Failed to initialize PromptService library:', error.message);
       if (this.enableFallback) {
-        logger.warn('🍄 Will use fallback spores when needed');
+        logger.warn('📖 Will use fallback chapters when needed');
       }
       throw error;
     }
   }
 
   /**
-   * 🍄 MongoDB-ONLY: Добавление промпта без векторной синхронизации
+   * 📖 MongoDB-ONLY: Добавление промпта без векторной синхронизации
    * @param {Object} promptData - Данные нового промпта
    * @returns {Promise<Object>} Результат создания
    */
@@ -127,7 +127,7 @@ class PromptService {
       const prompt = new Prompt(promptData);
       await prompt.save();
       
-      logger.info(`🍄 New prompt spore planted in MongoDB database: ${prompt.name}`);
+      logger.info(`📖 New prompt chapter added to library database: ${prompt.name}`);
 
       // Очищаем кеш для данного типа/языка
       this.clearCacheForType(prompt.type, prompt.language);
@@ -138,13 +138,13 @@ class PromptService {
         message: `Prompt '${prompt.name}' created in MongoDB`
       };
     } catch (error) {
-      logger.error(`🍄 Failed to add prompt spore to MongoDB:`, error.message);
+      logger.error(`📖 Failed to add prompt chapter to library:`, error.message);
       throw error;
     }
   }
 
   /**
-   * 🍄 MongoDB-ONLY: Обновление промпта без векторной синхронизации
+   * 📖 MongoDB-ONLY: Обновление промпта без векторной синхронизации
    * @param {string} promptId - ID промпта
    * @param {Object} updateData - Данные для обновления
    * @returns {Promise<Object>} Результат обновления
@@ -157,7 +157,7 @@ class PromptService {
         throw new Error(`Prompt with ID ${promptId} not found`);
       }
 
-      logger.info(`🍄 Prompt spore updated in MongoDB database: ${prompt.name}`);
+      logger.info(`📖 Prompt chapter updated in library database: ${prompt.name}`);
 
       // Очищаем кеш для данного типа/языка
       this.clearCacheForType(prompt.type, prompt.language);
@@ -168,13 +168,13 @@ class PromptService {
         message: `Prompt '${prompt.name}' updated in MongoDB`
       };
     } catch (error) {
-      logger.error(`🍄 Failed to update prompt spore in MongoDB:`, error.message);
+      logger.error(`📖 Failed to update prompt chapter in library:`, error.message);
       throw error;
     }
   }
 
   /**
-   * 🍄 MongoDB-ONLY: Удаление промпта без векторной синхронизации
+   * 📖 MongoDB-ONLY: Удаление промпта без векторной синхронизации
    * @param {string} promptId - ID промпта для удаления
    * @returns {Promise<Object>} Результат удаления
    */
@@ -192,7 +192,7 @@ class PromptService {
 
       // Удаляем только из MongoDB
       await Prompt.findByIdAndDelete(promptId);
-      logger.info(`🍄 Prompt spore removed from MongoDB database: ${promptName}`);
+      logger.info(`📖 Prompt chapter removed from library database: ${promptName}`);
 
       // Очищаем кеш для данного типа/языка
       this.clearCacheForType(promptType, promptLanguage);
@@ -202,49 +202,49 @@ class PromptService {
         message: `Prompt '${promptName}' deleted from MongoDB`
       };
     } catch (error) {
-      logger.error(`🍄 Failed to delete prompt spore from MongoDB:`, error.message);
+      logger.error(`📖 Failed to delete prompt chapter from library:`, error.message);
       throw error;
     }
   }
 
   /**
-   * 🍄 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
+   * 📖 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
    * @deprecated Используйте addPromptMongoOnly вместо этого
    * @param {Object} promptData - Данные нового промпта
    * @returns {Promise<Object>} Результат создания
    */
   async addPrompt(promptData) {
-    logger.warn('🍄 Using deprecated addPrompt method, redirecting to MongoDB-only version');
+    logger.warn('📖 Using deprecated addPrompt method, redirecting to MongoDB-only version');
     return this.addPromptMongoOnly(promptData);
   }
 
   /**
-   * 🍄 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
+   * 📖 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
    * @deprecated Используйте updatePromptMongoOnly вместо этого
    * @param {string} promptId - ID промпта
    * @param {Object} updateData - Данные для обновления
    * @returns {Promise<Object>} Результат обновления
    */
   async updatePrompt(promptId, updateData) {
-    logger.warn('🍄 Using deprecated updatePrompt method, redirecting to MongoDB-only version');
+    logger.warn('📖 Using deprecated updatePrompt method, redirecting to MongoDB-only version');
     return this.updatePromptMongoOnly(promptId, updateData);
   }
 
   /**
-   * 🍄 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
+   * 📖 LEGACY: Поддержка старых методов с векторной синхронизацией (теперь только MongoDB)
    * @deprecated Используйте deletePromptMongoOnly вместо этого
    * @param {string} promptId - ID промпта для удаления
    * @returns {Promise<Object>} Результат удаления
    */
   async deletePrompt(promptId) {
-    logger.warn('🍄 Using deprecated deletePrompt method, redirecting to MongoDB-only version');
+    logger.warn('📖 Using deprecated deletePrompt method, redirecting to MongoDB-only version');
     return this.deletePromptMongoOnly(promptId);
   }
 
   /**
    * Получить активный промпт по типу и языку из БД или кеша
-   * 🍄 УПРОЩЕНО: Убрана сложная языковая логика
-   * 🍄 ИСПРАВЛЕНО: Теперь корректно ищет language: 'none' вместо 'auto'
+   * 📖 УПРОЩЕНО: Убрана сложная языковая логика
+   * 📖 ИСПРАВЛЕНО: Теперь корректно ищет language: 'none' вместо 'auto'
    * @param {string} type - Тип промпта ('basic', 'rag', 'ticket_detection', 'categorization', 'subject')
    * @param {string} [language='auto'] - Язык промпта (теперь игнорируется)
    * @returns {Promise<string>} Содержимое промпта
@@ -253,16 +253,16 @@ class PromptService {
     try {
       const cacheKey = `${type}_universal`;
       
-      logger.debug(`🍄 Getting universal prompt spore: type=${type}`);
+      logger.debug(`📖 Getting universal prompt chapter: type=${type}`);
       
       // Проверяем кеш
       const cached = this.getCachedPrompt(cacheKey);
       if (cached) {
-        logger.debug(`🍄 Retrieved prompt from spore cache: ${cacheKey}`);
+        logger.debug(`📖 Retrieved prompt from library cache: ${cacheKey}`);
         return cached.content;
       }
 
-      // 🍄 ИСПРАВЛЕНО: Ищем в базе данных с language: 'none' вместо 'auto'
+      // 📖 ИСПРАВЛЕНО: Ищем в базе данных с language: 'none' вместо 'auto'
       const prompt = await Prompt.getActivePrompt(type, 'none');
       
       if (prompt) {
@@ -277,26 +277,26 @@ class PromptService {
         try {
           await prompt.incrementUsage();
         } catch (usageError) {
-          logger.warn('🍄 Failed to increment prompt usage:', usageError.message);
+          logger.warn('📖 Failed to increment prompt usage:', usageError.message);
         }
         
-        logger.info(`🍄 Retrieved active prompt from mushroom database: ${prompt.name} (language: ${prompt.language})`);
+        logger.info(`📖 Retrieved active prompt from library database: ${prompt.name} (language: ${prompt.language})`);
         return prompt.content;
       }
 
       // Если в БД нет промпта, используем fallback
       if (this.enableFallback) {
-        logger.warn(`🍄 No active prompt found in database, using fallback spores: ${type}`);
+        logger.warn(`📖 No active prompt found in database, using fallback chapters: ${type}`);
         return this.getDefaultPrompt(type);
       }
 
       throw new Error(`No active prompt found for type: ${type}`);
     } catch (error) {
-      logger.error(`🍄 Error getting active prompt (${type}):`, error.message);
+      logger.error(`📖 Error getting active prompt (${type}):`, error.message);
       
       // В случае ошибки пытаемся использовать fallback
       if (this.enableFallback) {
-        logger.warn('🍄 Database error, falling back to default spores');
+        logger.warn('📖 Database error, falling back to default chapters');
         return this.getDefaultPrompt(type);
       }
       
@@ -305,7 +305,7 @@ class PromptService {
   }
 
   /**
-   * 🍄 УПРОЩЕНО: Один универсальный промпт для всех языков
+   * 📖 УПРОЩЕНО: Один универсальный промпт для всех языков
    * @param {string} type - Тип промпта
    * @returns {string} Дефолтный промпт
    */
@@ -331,7 +331,7 @@ class PromptService {
     
     if (cacheAge > this.cacheTimeout) {
       this.cache.delete(key);
-      logger.debug(`🍄 Expired cache entry removed: ${key}`);
+      logger.debug(`📖 Expired cache entry removed: ${key}`);
       return null;
     }
     
@@ -345,14 +345,14 @@ class PromptService {
    */
   setCachedPrompt(key, value) {
     this.cache.set(key, value);
-    logger.debug(`🍄 Cached prompt spore: ${key}`);
+    logger.debug(`📖 Cached prompt chapter: ${key}`);
     
     // Ограничиваем размер кеша
     if (this.cache.size > 50) {
       // Удаляем самый старый элемент
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
-      logger.debug(`🍄 Cache limit reached, removed oldest spore: ${firstKey}`);
+      logger.debug(`📖 Cache limit reached, removed oldest chapter: ${firstKey}`);
     }
   }
 
@@ -362,7 +362,7 @@ class PromptService {
   clearCache() {
     const size = this.cache.size;
     this.cache.clear();
-    logger.info(`🍄 Cleared ${size} cached prompt spores from mycelium memory`);
+    logger.info(`📖 Cleared ${size} cached prompt chapters from library memory`);
   }
 
   /**
@@ -374,7 +374,7 @@ class PromptService {
     const key = `${type}_universal`;
     const deleted = this.cache.delete(key);
     if (deleted) {
-      logger.info(`🍄 Cleared cached spore: ${key}`);
+      logger.info(`📖 Cleared cached chapter: ${key}`);
     }
   }
 
