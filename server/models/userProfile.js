@@ -1,5 +1,5 @@
 /**
- * @fileoverview Модель профиля пользователя для бота "Читатель" - полная версия
+ * @fileoverview Модель профиля пользователя для бота "Читатель" - исправленная версия
  * @author g1orgi89
  */
 
@@ -17,36 +17,36 @@ const mongoose = require('mongoose');
  */
 const testResultsSchema = new mongoose.Schema({
   question1_name: {
-    type: String,
-    description: 'Как вас зовут?'
+    type: String
+    // Как вас зовут?
   },
   question2_lifestyle: {
-    type: String,
-    description: 'О себе (мама/замужем/свободна)'
+    type: String
+    // О себе (мама/замужем/свободна)
   },
   question3_time: {
-    type: String,
-    description: 'Как находите время для себя?'
+    type: String
+    // Как находите время для себя?
   },
   question4_priorities: {
-    type: String,
-    description: 'Что сейчас важнее всего?'
+    type: String
+    // Что сейчас важнее всего?
   },
   question5_reading_feeling: {
-    type: String,
-    description: 'Что чувствуете, читая книги?'
+    type: String
+    // Что чувствуете, читая книги?
   },
   question6_phrase: {
-    type: String,
-    description: 'Какая фраза ближе?'
+    type: String
+    // Какая фраза ближе?
   },
   question7_reading_time: {
-    type: String,
-    description: 'Сколько времени читаете в неделю?'
+    type: String
+    // Сколько времени читаете в неделю?
   },
   completedAt: {
-    type: Date,
-    description: 'Дата завершения теста'
+    type: Date
+    // Дата завершения теста
   }
 }, { _id: false });
 
@@ -76,22 +76,22 @@ const monthlyStatsSchema = new mongoose.Schema({
 const statisticsSchema = new mongoose.Schema({
   totalQuotes: {
     type: Number,
-    default: 0,
-    description: 'Общее количество цитат'
+    default: 0
+    // Общее количество цитат
   },
   currentStreak: {
     type: Number,
-    default: 0,
-    description: 'Текущая серия дней подряд'
+    default: 0
+    // Текущая серия дней подряд
   },
   longestStreak: {
     type: Number,
-    default: 0,
-    description: 'Самая длинная серия'
+    default: 0
+    // Самая длинная серия
   },
   favoriteAuthors: [{
-    type: String,
-    description: 'Список любимых авторов'
+    type: String
+    // Список любимых авторов
   }],
   monthlyQuotes: [monthlyStatsSchema]
 }, { _id: false });
@@ -102,13 +102,13 @@ const statisticsSchema = new mongoose.Schema({
 const achievementSchema = new mongoose.Schema({
   achievementId: {
     type: String,
-    required: true,
-    description: 'ID достижения'
+    required: true
+    // ID достижения
   },
   unlockedAt: {
     type: Date,
-    required: true,
-    description: 'Дата получения достижения'
+    required: true
+    // Дата получения достижения
   }
 }, { _id: false });
 
@@ -118,19 +118,19 @@ const achievementSchema = new mongoose.Schema({
 const settingsSchema = new mongoose.Schema({
   reminderEnabled: {
     type: Boolean,
-    default: true,
-    description: 'Включены ли напоминания'
+    default: true
+    // Включены ли напоминания
   },
   reminderTimes: [{
     type: String,
-    match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
-    description: 'Время напоминаний в формате HH:MM'
+    match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
+    // Время напоминаний в формате HH:MM
   }],
   language: {
     type: String,
     default: 'ru',
-    enum: ['ru', 'en'],
-    description: 'Язык интерфейса'
+    enum: ['ru', 'en']
+    // Язык интерфейса
   }
 }, { _id: false });
 
@@ -139,16 +139,16 @@ const settingsSchema = new mongoose.Schema({
  */
 const preferencesSchema = new mongoose.Schema({
   mainThemes: [{
-    type: String,
-    description: 'AI-анализ интересов'
+    type: String
+    // AI-анализ интересов
   }],
   personalityType: {
-    type: String,
-    description: 'Тип личности по тесту'
+    type: String
+    // Тип личности по тесту
   },
   recommendationStyle: {
-    type: String,
-    description: 'Стиль рекомендаций'
+    type: String
+    // Стиль рекомендаций
   }
 }, { _id: false });
 
@@ -160,68 +160,68 @@ const userProfileSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    index: true,
-    description: 'ID пользователя Telegram'
+    index: true
+    // ID пользователя Telegram
   },
   telegramUsername: {
-    type: String,
-    description: '@username (авто-определение)'
+    type: String
+    // @username (авто-определение)
   },
   name: {
     type: String,
     required: true,
-    maxlength: 100,
-    description: 'Имя из вопроса 1 теста'
+    maxlength: 100
+    // Имя из вопроса 1 теста
   },
   email: {
     type: String,
     required: true,
     lowercase: true,
     trim: true,
-    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    description: 'Email ОБЯЗАТЕЛЬНО после теста'
+    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    // Email ОБЯЗАТЕЛЬНО после теста
   },
   testResults: {
     type: testResultsSchema,
-    required: true,
-    description: 'Ответы на 7 вопросов'
+    required: true
+    // Ответы на 7 вопросов
   },
   source: {
     type: String,
     required: true,
-    enum: ['Instagram', 'Telegram', 'YouTube', 'Threads', 'Друзья', 'Другое'],
-    description: 'Откуда узнал о боте'
+    enum: ['Instagram', 'Telegram', 'YouTube', 'Threads', 'Друзья', 'Другое']
+    // Откуда узнал о боте
   },
   preferences: {
     type: preferencesSchema,
-    default: () => ({}),
-    description: 'AI-анализ теста'
+    default: () => ({})
+    // AI-анализ теста
   },
   statistics: {
     type: statisticsSchema,
-    default: () => ({}),
-    description: 'Статистика пользователя'
+    default: () => ({})
+    // Статистика пользователя
   },
   achievements: [achievementSchema],
   settings: {
     type: settingsSchema,
-    default: () => ({}),
-    description: 'Настройки пользователя'
+    default: () => ({})
+    // Настройки пользователя
   },
   registeredAt: {
     type: Date,
-    default: Date.now,
-    description: 'Дата регистрации'
+    default: Date.now
+    // Дата регистрации
   },
   isOnboardingComplete: {
     type: Boolean,
-    default: false,
-    description: 'Завершен ли онбординг'
+    default: false
+    // Завершен ли онбординг
   },
   lastActiveAt: {
     type: Date,
-    default: Date.now,
-    description: 'Последняя активность'
+    default: Date.now
+    // Последняя активность
   },
 
   // Техническая информация
@@ -229,20 +229,20 @@ const userProfileSchema = new mongoose.Schema({
     firstName: String,
     lastName: String,
     languageCode: String,
-    chatId: String,
-    description: 'Данные из Telegram'
+    chatId: String
+    // Данные из Telegram
   },
 
   // Состояние бота для онбординга
   botState: {
     currentState: {
       type: String,
-      default: 'start',
-      description: 'Текущее состояние бота'
+      default: 'start'
+      // Текущее состояние бота
     },
     stateData: {
-      type: mongoose.Schema.Types.Mixed,
-      description: 'Данные состояния (временные ответы на тест)'
+      type: mongoose.Schema.Types.Mixed
+      // Данные состояния (временные ответы на тест)
     },
     stateUpdatedAt: {
       type: Date,
