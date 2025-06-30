@@ -1,7 +1,7 @@
 {
-  "name": "shrooms-support-bot",
+  "name": "reader-bot",
   "version": "1.0.0",
-  "description": "AI Support Bot for Shrooms Web3 platform with mushroom-themed personality and RAG capabilities",
+  "description": "AI бот 'Читатель' для Анны Бусел - персональный дневник цитат с аналитикой и рекомендациями книг",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
@@ -9,8 +9,8 @@
     "dev:debug": "nodemon --inspect server/index.js",
     "telegram": "node telegram/start.js",
     "telegram:dev": "nodemon telegram/start.js",
-    "load-kb": "node scripts/loadKnowledge.js",
-    "migrate:telegram-prompts": "node scripts/addTelegramPrompts.js",
+    "migrate:content": "node scripts/migrateContent.js",
+    "seed:books": "node scripts/seedBooks.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -23,12 +23,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "migrate": "node scripts/dbMigration.js",
-    "export-tickets": "node scripts/exportTickets.js",
+    "export-reports": "node scripts/exportReports.js",
     "deploy": "npm run lint && npm test && npm run build",
     "build": "echo 'Building project...' && npm run lint",
     "check-health": "curl -f http://localhost:3000/api/health || exit 1",
     "setup": "npm install && cp .env.example .env && echo 'Setup complete! Please edit .env file'",
-    "setup:telegram": "npm run migrate:telegram-prompts && echo 'Telegram prompts migrated!'",
+    "setup:reader": "npm run migrate:content && npm run seed:books && echo 'Reader bot content setup complete!'",
     "start:prod": "NODE_ENV=production node server/index.js",
     "start:telegram:prod": "NODE_ENV=production node telegram/start.js",
     "logs": "tail -f logs/combined.log",
@@ -37,26 +37,27 @@
   "keywords": [
     "ai",
     "chatbot",
-    "support",
+    "reader",
+    "quotes",
+    "books",
+    "psychology",
+    "analytics",
     "claude",
-    "shrooms",
-    "web3",
-    "cryptocurrency",
-    "rag",
-    "vector-search",
-    "mongodb",
-    "telegram"
+    "telegram",
+    "recommendations",
+    "anna-busel",
+    "book-club"
   ],
-  "author": "Shrooms Team",
+  "author": "Anna Busel Book Club Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/g1orgi89/shrooms-support-bot.git"
+    "url": "https://github.com/g1orgi89/reader-bot.git"
   },
   "bugs": {
-    "url": "https://github.com/g1orgi89/shrooms-support-bot/issues"
+    "url": "https://github.com/g1orgi89/reader-bot/issues"
   },
-  "homepage": "https://github.com/g1orgi89/shrooms-support-bot#readme",
+  "homepage": "https://github.com/g1orgi89/reader-bot#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.7",
     "@langchain/anthropic": "^0.3.20",
@@ -115,6 +116,7 @@
     ],
     "collectCoverageFrom": [
       "server/**/*.js",
+      "telegram/**/*.js",
       "!server/index.js",
       "!**/*.test.js",
       "!**/node_modules/**"
