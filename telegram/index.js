@@ -19,8 +19,9 @@ const messageService = require('../server/services/message');
 // Import Reader bot models
 const { UserProfile, Quote } = require('../server/models');
 
-// Import Reader bot handlers
+// Import Reader bot handlers and helpers
 const { OnboardingHandler } = require('./handlers/onboardingHandler');
+const BotHelpers = require('./helpers/botHelpers');
 
 /**
  * @typedef {Object} ReaderTelegramBotConfig
@@ -210,7 +211,7 @@ class ReaderTelegramBot {
         }
 
         // Handle other callbacks here (like feedback, recommendations, etc.)
-        await this._handleOtherCallbacks(ctx, callbackData);
+        await BotHelpers.handleOtherCallbacks(ctx, callbackData);
 
       } catch (error) {
         logger.error(`📖 Error handling callback query: ${error.message}`);
@@ -250,13 +251,13 @@ class ReaderTelegramBot {
         }
 
         // Check if it's a complex question that needs Anna's attention
-        if (await this._isComplexQuestion(messageText)) {
-          await this._handleComplexQuestion(ctx, messageText, userProfile);
+        if (await BotHelpers.isComplexQuestion(messageText)) {
+          await BotHelpers.handleComplexQuestion(ctx, messageText, userProfile);
           return;
         }
 
         // Handle as general conversation with Anna Busel's AI
-        await this._handleGeneralMessage(ctx, messageText, userProfile);
+        await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
 
       } catch (error) {
         logger.error(`📖 Error processing text message: ${error.message}`);
@@ -399,7 +400,13 @@ ${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1
     await quote.save();
 
     // Update user statistics
-    await this._updateUserStatistics(userId, author);
+    await BotHelpers.updateUserStatistics(userId, author);
+
+    // Check for achievements
+    const achievements = await BotHelpers.checkAchievements(userId);
+    if (achievements.length > 0) {
+      await BotHelpers.notifyAchievements(ctx, achievements);
+    }
 
     // Generate Anna's response
     const response = await this._generateAnnaResponse(text, author, todayQuotesCount + 1);
@@ -479,6 +486,41 @@ ${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1
   }
 
   /**
+   * Helper methods
+   */
+  _getWeekNumber() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const diff = now - start;
+    const oneWeek = 1000 * 60 * 60 * 24 * 7;
+    return Math.floor(diff / oneWeek) + 1;
+  }
+
+  _getDaysWithBot(registrationDate) {
+    const now = new Date();
+    const diff = now - registrationDate;
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  }
+
+  _setupErrorHandling() {
+    this.bot.catch((err, ctx) => {
+      logger.error(`📖 Telegram bot error: ${err.message}`);
+      ctx.reply('📖 Упс! Что-то пошло не так. Попробуйте еще раз.')
+        .catch(sendError => {
+          logger.error(`📖 Failed to send error message: ${sendError.message}`);
+        });
+    });
+  }
+
+  async _sendErrorMessage(ctx, error) {
+    try {
+      await ctx.reply('📖 Произошла ошибка. Попробуйте еще раз через минуту.');
+    } catch (sendError) {
+      logger.error(`📖 Failed to send error message: ${sendError.message}`);
+    }
+  }
+
+  /**
    * Start the bot
    * @returns {Promise<void>}
    */
@@ -516,45 +558,57 @@ ${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1
     }
   }
 
-  // Helper methods (keeping essential ones, removing helpers for brevity)
-  _getWeekNumber() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now - start;
-    const oneWeek = 1000 * 60 * 60 * 24 * 7;
-    return Math.floor(diff / oneWeek) + 1;
-  }
-
-  _getDaysWithBot(registrationDate) {
-    const now = new Date();
-    const diff = now - registrationDate;
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
-  }
-
-  _setupErrorHandling() {
-    this.bot.catch((err, ctx) => {
-      logger.error(`📖 Telegram bot error: ${err.message}`);
-      ctx.reply('📖 Упс! Что-то пошло не так. Попробуйте еще раз.')
-        .catch(sendError => {
-          logger.error(`📖 Failed to send error message: ${sendError.message}`);
-        });
-    });
-  }
-
-  async _sendErrorMessage(ctx, error) {
+  /**
+   * Get bot statistics
+   * @returns {Promise<Object>}
+   */
+  async getStats() {
     try {
-      await ctx.reply('📖 Произошла ошибка. Попробуйте еще раз через минуту.');
-    } catch (sendError) {
-      logger.error(`📖 Failed to send error message: ${sendError.message}`);
+      const me = await this.bot.telegram.getMe();
+      
+      // Reader bot specific stats
+      const totalUsers = await UserProfile.countDocuments({ isOnboardingComplete: true });
+      const totalQuotes = await Quote.countDocuments();
+      const onboardingUsers = this.onboardingHandler.userStates.size;
+      
+      return {
+        botInfo: {
+          id: me.id,
+          username: me.username,
+          firstName: me.first_name
+        },
+        config: {
+          environment: this.config.environment,
+          maxMessageLength: this.config.maxMessageLength,
+          platform: this.config.platform,
+          maxQuotesPerDay: this.config.maxQuotesPerDay
+        },
+        status: {
+          initialized: this.isInitialized,
+          uptime: process.uptime()
+        },
+        readerStats: {
+          totalUsers,
+          totalQuotes,
+          onboardingUsers,
+          averageQuotesPerUser: totalUsers > 0 ? Math.round(totalQuotes / totalUsers * 10) / 10 : 0
+        },
+        features: {
+          onboardingFlow: true,
+          quoteCollection: true,
+          achievementSystem: true,
+          complexQuestionHandling: true,
+          annaPersona: true
+        }
+      };
+    } catch (error) {
+      logger.error(`📖 Error getting bot stats: ${error.message}`);
+      return {
+        status: 'error',
+        error: error.message
+      };
     }
   }
-
-  // TODO: Implement remaining helper methods as needed
-  async _isComplexQuestion(message) { return false; }
-  async _handleComplexQuestion(ctx, message, userProfile) {}
-  async _handleGeneralMessage(ctx, messageText, userProfile) {}
-  async _handleOtherCallbacks(ctx, callbackData) {}
-  async _updateUserStatistics(userId, author) {}
 }
 
 module.exports = ReaderTelegramBot;
