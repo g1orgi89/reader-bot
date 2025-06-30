@@ -17,49 +17,39 @@ const utmClickSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true,
-    index: true,
-    description: 'ID пользователя'
+    index: true
   },
   source: {
     type: String,
-    required: true,
-    description: 'utm_source (telegram_bot, email, etc.)'
+    required: true
   },
   medium: {
     type: String,
-    required: true,
-    description: 'utm_medium (weekly_report, monthly_report, etc.)'
+    required: true
   },
   campaign: {
     type: String,
-    required: true,
-    description: 'utm_campaign (reader_recommendations, etc.)'
+    required: true
   },
   content: {
-    type: String,
-    description: 'utm_content (book_title, etc.)'
+    type: String
   },
   timestamp: {
     type: Date,
     default: Date.now,
-    index: true,
-    description: 'Время клика'
+    index: true
   },
   userAgent: {
-    type: String,
-    description: 'User Agent браузера'
+    type: String
   },
   referrer: {
-    type: String,
-    description: 'Referrer URL'
+    type: String
   },
   ipAddress: {
-    type: String,
-    description: 'IP адрес (хешированный)'
+    type: String
   },
   sessionId: {
-    type: String,
-    description: 'ID сессии'
+    type: String
   }
 }, {
   timestamps: true
@@ -79,60 +69,50 @@ const promoCodeUsageSchema = new mongoose.Schema({
     type: String,
     required: true,
     uppercase: true,
-    index: true,
-    description: 'Использованный промокод'
+    index: true
   },
   userId: {
     type: String,
     required: true,
-    index: true,
-    description: 'ID пользователя'
+    index: true
   },
   orderValue: {
     type: Number,
     required: true,
-    min: 0,
-    description: 'Сумма заказа в долларах'
+    min: 0
   },
   discount: {
     type: Number,
     required: true,
     min: 0,
-    max: 100,
-    description: 'Размер скидки в процентах'
+    max: 100
   },
   discountAmount: {
     type: Number,
     required: true,
-    min: 0,
-    description: 'Сумма скидки в долларах'
+    min: 0
   },
   finalAmount: {
     type: Number,
     required: true,
-    min: 0,
-    description: 'Итоговая сумма после скидки'
+    min: 0
   },
   timestamp: {
     type: Date,
     default: Date.now,
-    index: true,
-    description: 'Время использования'
+    index: true
   },
   source: {
     type: String,
     default: 'telegram_bot',
-    enum: ['telegram_bot', 'website', 'email', 'manual'],
-    description: 'Источник промокода'
+    enum: ['telegram_bot', 'website', 'email', 'manual']
   },
   reportType: {
     type: String,
-    enum: ['weekly', 'monthly', 'special'],
-    description: 'Тип отчета, откуда промокод'
+    enum: ['weekly', 'monthly', 'special']
   },
   booksPurchased: [{
-    type: String,
-    description: 'Список купленных книг/курсов'
+    type: String
   }]
 }, {
   timestamps: true
@@ -151,8 +131,7 @@ const userActionSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true,
-    index: true,
-    description: 'ID пользователя'
+    index: true
   },
   action: {
     type: String,
@@ -166,8 +145,7 @@ const userActionSchema = new mongoose.Schema({
       'achievement_unlocked',
       'search_performed',
       'settings_changed'
-    ],
-    description: 'Тип действия'
+    ]
   },
   metadata: {
     quoteId: String,
@@ -176,24 +154,20 @@ const userActionSchema = new mongoose.Schema({
     reportId: String,
     achievementId: String,
     searchQuery: String,
-    settingChanged: String,
-    description: 'Дополнительные данные действия'
+    settingChanged: String
   },
   timestamp: {
     type: Date,
     default: Date.now,
-    index: true,
-    description: 'Время действия'
+    index: true
   },
   sessionId: {
-    type: String,
-    description: 'ID сессии пользователя'
+    type: String
   },
   platform: {
     type: String,
     default: 'telegram',
-    enum: ['telegram', 'web', 'mobile'],
-    description: 'Платформа'
+    enum: ['telegram', 'web', 'mobile']
   }
 }, {
   timestamps: true
