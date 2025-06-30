@@ -233,6 +233,178 @@ router.put('/password', requireAdminAuth, async (req, res) => {
   }
 });
 
+// ======================================
+// 🎯 STAGE 1 COMPLETION: CONTENT MANAGEMENT ENDPOINTS
+// Добавляем API для управления Content через админ-панель
+// ======================================
+
+/**
+ * GET /api/admin/content
+ * Получить список контента для админ-панели
+ */
+router.get('/content', requireAdminAuth, async (req, res) => {
+  try {
+    const Content = require('../models/content');
+    const { type, language = 'ru', page = 1, limit = 20 } = req.query;
+    
+    const query = { language };
+    if (type) query.type = type;
+    
+    const content = await Content.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+    
+    const total = await Content.countDocuments(query);
+    
+    logger.info(`📄 Admin retrieved ${content.length} content items`);
+    
+    res.json({
+      success: true,
+      data: content,
+      pagination: { page: parseInt(page), limit: parseInt(limit), total }
+    });
+  } catch (error) {
+    logger.error('❌ Error fetching content for admin:', error.message);
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * GET /api/admin/content/:key
+ * Получить конкретный контент по ключу
+ */
+router.get('/content/:key', requireAdminAuth, async (req, res) => {
+  try {
+    const Content = require('../models/content');
+    const { language = 'ru' } = req.query;
+    
+    const content = await Content.findOne({ 
+      key: req.params.key, 
+      language 
+    });
+    
+    if (!content) {
+      return res.status(404).json({ success: false, error: 'Content not found' });
+    }
+    
+    res.json({ success: true, data: content });
+  } catch (error) {
+    logger.error(`❌ Error fetching content ${req.params.key}:`, error.message);
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * PUT /api/admin/content/:key
+ * Обновить контент через админ-панель
+ */
+router.put('/content/:key', requireAdminAuth, async (req, res) => {
+  try {
+    const Content = require('../models/content');
+    const { language = 'ru' } = req.query;
+    const { content: newContent, metadata } = req.body;
+    
+    const content = await Content.findOne({ 
+      key: req.params.key, 
+      language 
+    });
+    
+    if (!content) {
+      return res.status(404).json({ success: false, error: 'Content not found' });
+    }
+    
+    if (newContent) {
+      await content.updateContent(newContent, req.admin.username || 'admin', 'Updated via admin panel');
+    }
+    
+    if (metadata) {
+      content.metadata = { ...content.metadata.toObject(), ...metadata };
+      await content.save();
+    }
+    
+    logger.info(`📝 Admin updated content: ${req.params.key}`);
+    
+    res.json({ success: true, data: content, message: 'Content updated successfully' });
+  } catch (error) {
+    logger.error(`❌ Error updating content ${req.params.key}:`, error.message);
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * POST /api/admin/content
+ * Создать новый контент через админ-панель
+ */
+router.post('/content', requireAdminAuth, async (req, res) => {
+  try {
+    const Content = require('../models/content');
+    const { key, content, type, language = 'ru', metadata = {} } = req.body;
+    
+    if (!key || !content || !type) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: key, content, type' 
+      });
+    }
+    
+    const newContent = new Content({
+      key,
+      content,
+      type,
+      language,
+      metadata,
+      createdBy: req.admin.username || 'admin'
+    });
+    
+    await newContent.save();
+    
+    logger.info(`📄 Admin created new content: ${key}`);
+    
+    res.json({ success: true, data: newContent, message: 'Content created successfully' });
+  } catch (error) {
+    logger.error('❌ Error creating content:', error.message);
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+/**
+ * DELETE /api/admin/content/:key
+ * Удалить контент (деактивировать)
+ */
+router.delete('/content/:key', requireAdminAuth, async (req, res) => {
+  try {
+    const Content = require('../models/content');
+    const { language = 'ru' } = req.query;
+    
+    const content = await Content.findOneAndUpdate(
+      { key: req.params.key, language },
+      { isActive: false },
+      { new: true }
+    );
+    
+    if (!content) {
+      return res.status(404).json({ success: false, error: 'Content not found' });
+    }
+    
+    logger.info(`🗑️ Admin deactivated content: ${req.params.key}`);
+    
+    res.json({ success: true, message: 'Content deactivated successfully' });
+  } catch (error) {
+    logger.error(`❌ Error deleting content ${req.params.key}:`, error.message);
+    const errorResponse = createErrorResponse('INTERNAL_ERROR');
+    res.status(errorResponse.httpStatus).json(errorResponse);
+  }
+});
+
+// ======================================
+// EXISTING TICKET ENDPOINTS (unchanged)
+// ======================================
+
 /**
  * GET /api/admin/tickets
  * Get all tickets (admin endpoint)
