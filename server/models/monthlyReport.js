@@ -25,26 +25,26 @@ const additionalSurveySchema = new mongoose.Schema({
       'Любовь и отношения',
       'Вдохновение и рост',
       'Материнство и семья'
-    ],
-    description: 'Как ощущали этот месяц - главная тема'
+    ]
+    // Как ощущали этот месяц - главная тема
   },
   mainTheme: {
-    type: String,
-    description: 'Главная тема месяца по ощущениям пользователя'
+    type: String
+    // Главная тема месяца по ощущениям пользователя
   },
   satisfaction: {
     type: Number,
     min: 1,
-    max: 5,
-    description: 'Удовлетворенность месяцем 1-5'
+    max: 5
+    // Удовлетворенность месяцем 1-5
   },
   responses: [{
-    type: String,
-    description: 'Дополнительные ответы на вопросы'
+    type: String
+    // Дополнительные ответы на вопросы
   }],
   respondedAt: {
-    type: Date,
-    description: 'Дата ответа на опрос'
+    type: Date
+    // Дата ответа на опрос
   }
 }, { _id: false });
 
@@ -55,24 +55,24 @@ const monthlyAnalysisSchema = new mongoose.Schema({
   psychologicalProfile: {
     type: String,
     required: true,
-    maxlength: 3000,
-    description: 'Детальный анализ личности на основе всех данных'
+    maxlength: 3000
+    // Детальный анализ личности на основе всех данных
   },
   personalGrowth: {
     type: String,
     required: true,
-    maxlength: 2000,
-    description: 'Анализ роста и изменений за месяц'
+    maxlength: 2000
+    // Анализ роста и изменений за месяц
   },
   recommendations: {
     type: String,
     required: true,
-    maxlength: 2000,
-    description: 'Персональные рекомендации от психолога'
+    maxlength: 2000
+    // Персональные рекомендации от психолога
   },
   bookSuggestions: [{
-    type: String,
-    description: 'Рекомендации конкретных книг'
+    type: String
+    // Рекомендации конкретных книг
   }]
 }, { _id: false });
 
@@ -85,23 +85,23 @@ const specialOfferSchema = new mongoose.Schema({
     required: true,
     min: 20,
     max: 50,
-    default: 25,
-    description: 'Размер скидки в процентах'
+    default: 25
+    // Размер скидки в процентах
   },
   validUntil: {
     type: Date,
-    required: true,
-    description: 'Действует до'
+    required: true
+    // Действует до
   },
   books: [{
-    type: String,
-    description: 'Список книг для специального предложения'
+    type: String
+    // Список книг для специального предложения
   }],
   promoCode: {
     type: String,
     uppercase: true,
-    match: /^[A-Z0-9]{6,12}$/,
-    description: 'Специальный промокод'
+    match: /^[A-Z0-9]{6,12}$/
+    // Специальный промокод
   }
 }, { _id: false });
 
@@ -112,39 +112,39 @@ const monthlyReportSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true,
-    index: true,
-    description: 'ID пользователя Telegram'
+    index: true
+    // ID пользователя Telegram
   },
   month: {
     type: Number,
     required: true,
     min: 1,
-    max: 12,
-    description: 'Номер месяца'
+    max: 12
+    // Номер месяца
   },
   year: {
     type: Number,
-    required: true,
-    description: 'Год'
+    required: true
+    // Год
   },
   additionalSurvey: {
-    type: additionalSurveySchema,
-    description: 'Дополнительный опрос для точности'
+    type: additionalSurveySchema
+    // Дополнительный опрос для точности
   },
   analysis: {
     type: monthlyAnalysisSchema,
-    required: true,
-    description: 'Глубокий психологический анализ'
+    required: true
+    // Глубокий психологический анализ
   },
   specialOffer: {
     type: specialOfferSchema,
-    required: true,
-    description: 'Специальное предложение со скидкой'
+    required: true
+    // Специальное предложение со скидкой
   },
   sentAt: {
     type: Date,
-    default: Date.now,
-    description: 'Дата отправки отчета'
+    default: Date.now
+    // Дата отправки отчета
   },
   
   // Обратная связь на месячный отчет
@@ -152,44 +152,44 @@ const monthlyReportSchema = new mongoose.Schema({
     rating: {
       type: Number,
       min: 1,
-      max: 5,
-      description: 'Оценка работы бота за месяц (1-5 звезд)'
+      max: 5
+      // Оценка работы бота за месяц (1-5 звезд)
     },
     whatLikes: {
       type: String,
-      maxlength: 1000,
-      description: 'Что нравится больше всего'
+      maxlength: 1000
+      // Что нравится больше всего
     },
     whatImprove: {
       type: String,
-      maxlength: 1000,
-      description: 'Что хотели бы улучшить'
+      maxlength: 1000
+      // Что хотели бы улучшить
     },
     newFeatures: {
       type: String,
-      maxlength: 1000,
-      description: 'Какие функции добавить'
+      maxlength: 1000
+      // Какие функции добавить
     },
     respondedAt: {
-      type: Date,
-      description: 'Дата ответа'
+      type: Date
+      // Дата ответа
     }
   },
   
   // Техническая информация
   telegramMessageId: {
-    type: String,
-    description: 'ID сообщения в Telegram'
+    type: String
+    // ID сообщения в Telegram
   },
   generatedBy: {
     type: String,
     default: 'claude',
-    enum: ['claude', 'openai', 'manual'],
-    description: 'Кем сгенерирован анализ'
+    enum: ['claude', 'openai', 'manual']
+    // Кем сгенерирован анализ
   },
   generationTime: {
-    type: Number,
-    description: 'Время генерации в миллисекундах'
+    type: Number
+    // Время генерации в миллисекундах
   },
   
   // Статистика за месяц
@@ -292,36 +292,13 @@ monthlyReportSchema.methods = {
    * @returns {string}
    */
   toTelegramFormat() {
-    const statsText = `
-📊 *Статистика:*
-└ Цитат сохранено: ${this.monthStats.totalQuotes}
-└ Доминирующая тема: ${this.additionalSurvey?.mood || 'не указана'}
-└ Эмоциональная динамика: развитие через размышления
-`;
+    const statsText = `\n📊 *Статистика:*\n└ Цитат сохранено: ${this.monthStats.totalQuotes}\n└ Доминирующая тема: ${this.additionalSurvey?.mood || 'не указана'}\n└ Эмоциональная динамика: развитие через размышления\n`;
 
     const booksText = this.analysis.bookSuggestions.map((book, i) => 
       `${i + 1}. ${book}`
     ).join('\n');
 
-    return `📈 *Ваш персональный разбор месяца*
-
-🎉 Поздравляю! Вы с «Читателем» уже месяц!
-
-${statsText}
-
-🧠 *Психологический анализ:*
-${this.analysis.psychologicalProfile}
-
-📈 *Ваш личностный рост:*
-${this.analysis.personalGrowth}
-
-💡 *Персональные рекомендации:*
-${this.analysis.recommendations}
-
-📚 *Специально для вас* (скидка ${this.specialOffer.discount}% до ${this.specialOffer.validUntil.toLocaleDateString()}):
-${booksText}
-
-Продолжайте собирать моменты вдохновения! 📖`;
+    return `📈 *Ваш персональный разбор месяца*\n\n🎉 Поздравляю! Вы с «Читателем» уже месяц!\n\n${statsText}\n\n🧠 *Психологический анализ:*\n${this.analysis.psychologicalProfile}\n\n📈 *Ваш личностный рост:*\n${this.analysis.personalGrowth}\n\n💡 *Персональные рекомендации:*\n${this.analysis.recommendations}\n\n📚 *Специально для вас* (скидка ${this.specialOffer.discount}% до ${this.specialOffer.validUntil.toLocaleDateString()}):\n${booksText}\n\nПродолжайте собирать моменты вдохновения! 📖`;
   },
 
   /**
