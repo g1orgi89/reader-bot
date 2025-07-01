@@ -11,7 +11,7 @@ const logger = require('./server/utils/simpleLogger');
 // Import Reader bot services
 const { initializeModels } = require('./server/models');
 const ReaderTelegramBot = require('./telegram');
-const CronService = require('./server/services/cronService');
+const { CronService } = require('./server/services/cronService'); // ✅ FIX: Деструктуризация
 const { WeeklyReportHandler } = require('./telegram/handlers/weeklyReportHandler'); // ✅ FIX: Деструктуризация
 
 /**
@@ -89,9 +89,10 @@ async function initializeCronService(telegramBot) {
     const weeklyReportHandler = new WeeklyReportHandler(telegramBot);
     logger.info('📖 WeeklyReportHandler initialized');
     
-    // Initialize CronService with report handler
-    const cronService = new CronService(weeklyReportHandler);
-    await cronService.start();
+    // ✅ FIX: Updated constructor call to match new CronService API
+    const cronService = new CronService();
+    cronService.initialize(telegramBot, weeklyReportHandler);
+    cronService.start();
     
     logger.info('📖 CronService initialized and started');
     logger.info('📖 Weekly reports scheduled for Sundays at 11:00 MSK');
