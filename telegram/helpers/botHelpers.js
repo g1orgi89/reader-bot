@@ -1,453 +1,486 @@
 /**
- * @fileoverview Вспомогательные функции для бота "Читатель"
+ * @fileoverview Вспомогательные функции для Telegram бота "Читатель"
  * @author g1orgi89
  */
 
 const logger = require('../../server/utils/logger');
 const { UserProfile, Quote } = require('../../server/models');
+const claudeService = require('../../server/services/claude');
 
 /**
- * Класс с вспомогательными функциями для Telegram бота "Читатель"
+ * @typedef {import('../../server/types/reader').UserProfile} UserProfile
+ * @typedef {import('../../server/types/reader').Quote} Quote
+ * @typedef {import('../../server/types/reader').Achievement} Achievement
+ */
+
+/**
+ * Вспомогательные функции для бота "Читатель"
  */
 class BotHelpers {
+  
   /**
-   * Обновить статистику пользователя
-   * @param {string} userId - ID пользователя
-   * @param {string|null} author - Автор цитаты
-   * @returns {Promise<void>}
+   * Проверка, является ли сообщение сложным вопросом
+   * @param {string} message - Текст сообщения
+   * @returns {boolean} true если требует внимания Анны
    */
-  static async updateUserStatistics(userId, author = null) {
-    try {
-      const userProfile = await UserProfile.findOne({ userId });
-      if (!userProfile) return;
-
-      await userProfile.updateQuoteStats(author);
-      logger.info(`📖 Updated statistics for user ${userId}`);
-      
-    } catch (error) {
-      logger.error(`📖 Error updating user statistics: ${error.message}`);
-    }
+  static isComplexQuestion(message) {
+    const { ComplexQuestionHandler } = require('../handlers/complexQuestionHandler');
+    const handler = new ComplexQuestionHandler();
+    return handler.isComplexQuestion(message);
   }
 
   /**
-   * Проверить достижения пользователя
-   * @param {string} userId - ID пользователя
-   * @returns {Promise<Array>} Новые достижения
-   */
-  static async checkAchievements(userId) {
-    try {
-      const userProfile = await UserProfile.findOne({ userId });
-      if (!userProfile) return [];
-
-      const newAchievements = [];
-      const totalQuotes = userProfile.statistics.totalQuotes;
-      const currentStreak = userProfile.statistics.currentStreak;
-
-      // Достижения для проверки
-      const achievements = [
-        {
-          id: 'first_quote',
-          name: 'Первые шаги',
-          description: 'Сохранили первую цитату',
-          icon: '🌱',
-          targetValue: 1,
-          type: 'quotes_count'
-        },
-        {
-          id: 'wisdom_collector',
-          name: 'Коллекционер мудрости', 
-          description: 'Собрали 25 цитат',
-          icon: '📚',
-          targetValue: 25,
-          type: 'quotes_count'
-        },
-        {
-          id: 'week_philosopher',
-          name: 'Философ недели',
-          description: '7 дней подряд с цитатами',
-          icon: '🔥',
-          targetValue: 7,
-          type: 'streak_days'
-        },
-        {
-          id: 'month_sage',
-          name: 'Мудрец месяца',
-          description: '30 дней подряд с цитатами',
-          icon: '🌟',
-          targetValue: 30,
-          type: 'streak_days'
-        },
-        {
-          id: 'classics_lover',
-          name: 'Любитель классики',
-          description: '10 цитат классиков',
-          icon: '📖',
-          targetValue: 10,
-          type: 'classics_count'
-        },
-        {
-          id: 'century_collector',
-          name: 'Коллекционер века',
-          description: '100 цитат в коллекции',
-          icon: '💎',
-          targetValue: 100,
-          type: 'quotes_count'
-        }
-      ];
-
-      for (const achievement of achievements) {
-        // Проверяем, есть ли уже это достижение
-        if (userProfile.achievements.some(a => a.achievementId === achievement.id)) {
-          continue;
-        }
-
-        let unlocked = false;
-
-        switch (achievement.type) {
-          case 'quotes_count':
-            unlocked = totalQuotes >= achievement.targetValue;
-            break;
-          case 'streak_days':
-            unlocked = currentStreak >= achievement.targetValue;
-            break;
-          case 'classics_count':
-            const classicsCount = await Quote.countDocuments({
-              userId,
-              author: { $in: ['Толстой', 'Достоевский', 'Пушкин', 'Чехов', 'Тургенев', 'Лермонтов', 'Гоголь'] }
-            });
-            unlocked = classicsCount >= achievement.targetValue;
-            break;
-        }
-
-        if (unlocked) {
-          await userProfile.addAchievement(achievement.id);
-          newAchievements.push(achievement);
-        }
-      }
-
-      return newAchievements;
-      
-    } catch (error) {
-      logger.error(`📖 Error checking achievements: ${error.message}`);
-      return [];
-    }
-  }
-
-  /**
-   * Уведомить о достижениях
+   * Обработка сложного вопроса
    * @param {Object} ctx - Telegram context
-   * @param {Array} achievements - Массив достижений
+   * @param {string} message - Текст сообщения
+   * @param {UserProfile} userProfile - Профиль пользователя
    * @returns {Promise<void>}
    */
-  static async notifyAchievements(ctx, achievements) {
-    try {
-      for (const achievement of achievements) {
-        const message = `🎉 *Поздравляю!*
-
-Вы получили достижение:
-${achievement.icon} *${achievement.name}*
-${achievement.description}
-
-Продолжайте собирать моменты вдохновения!`;
-
-        await ctx.replyWithMarkdown(message);
-        
-        // Небольшая задержка между уведомлениями
-        if (achievements.length > 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-    } catch (error) {
-      logger.error(`📖 Error notifying achievements: ${error.message}`);
-    }
+  static async handleComplexQuestion(ctx, message, userProfile) {
+    const { ComplexQuestionHandler } = require('../handlers/complexQuestionHandler');
+    const handler = new ComplexQuestionHandler();
+    await handler.handleComplexQuestion(ctx, message, userProfile);
   }
 
   /**
-   * Проверить, является ли сообщение сложным вопросом
-   * @param {string} messageText - Текст сообщения
-   * @returns {Promise<boolean>}
-   */
-  static async isComplexQuestion(messageText) {
-    const complexQuestionPatterns = [
-      /помогите/i,
-      /не понимаю/i,
-      /проблема/i,
-      /консультация/i,
-      /не работает/i,
-      /ошибка/i,
-      /депрессия/i,
-      /не знаю что делать/i,
-      /можете посоветовать/i,
-      /помогите разобраться/i,
-      /у меня вопрос/i,
-      /как мне быть/i,
-      /что делать если/i
-    ];
-
-    // Проверяем длину сообщения
-    if (messageText.length > 500) return true;
-    
-    // Проверяем паттерны
-    return complexQuestionPatterns.some(pattern => pattern.test(messageText));
-  }
-
-  /**
-   * Обработать сложный вопрос
+   * Обработка общего сообщения через AI Анны Бусел
    * @param {Object} ctx - Telegram context
-   * @param {string} messageText - Текст сообщения
-   * @param {Object} userProfile - Профиль пользователя
+   * @param {string} message - Текст сообщения
+   * @param {UserProfile} userProfile - Профиль пользователя
    * @returns {Promise<void>}
    */
-  static async handleComplexQuestion(ctx, messageText, userProfile) {
+  static async handleGeneralMessage(ctx, message, userProfile) {
     try {
-      // Создаем тикет для Анны (если есть тикетинг система)
-      const response = `Этот вопрос требует персонального внимания Анны. 
-Я передала ваше сообщение, и она свяжется с вами в ближайшее время.
-
-Ваш контакт для связи:
-📱 Telegram: @${userProfile.telegramUsername || 'не указан'}
-📧 Email: ${userProfile.email}
-
-💡 А пока продолжайте собирать цитаты - они помогают лучше понять себя!`;
-
-      await ctx.reply(response);
+      // Создаем контекст для AI ответа
+      const context = BotHelpers._buildAIContext(userProfile, message);
       
-      // Логируем для последующей обработки
-      logger.info(`📖 Complex question from user ${userProfile.userId}: "${messageText.substring(0, 100)}..."`);
+      const prompt = `Ты психолог Анна Бусел, основатель "Книжного клуба от психолога". Ответь пользователю в своем стиле:
+
+КОНТЕКСТ ПОЛЬЗОВАТЕЛЯ:
+${context}
+
+СООБЩЕНИЕ: "${message}"
+
+СТИЛЬ ОТВЕТА:
+- Обращайся на "Вы"
+- Тон сдержанный, профессиональный
+- Минимум эмодзи
+- Связывай ответ с книгами/чтением когда уместно
+- Используй фирменные фразы: "Хватит сидеть в телефоне - читайте книги!"
+- Можешь рекомендовать свои разборы книг если подходит к теме
+
+Дай короткий, полезный ответ (максимум 2-3 предложения).`;
+
+      const response = await claudeService.generateResponse(prompt, {
+        platform: 'telegram',
+        userId: userProfile.userId,
+        context: 'general_conversation'
+      });
+
+      await ctx.reply(response.message);
       
     } catch (error) {
-      logger.error(`📖 Error handling complex question: ${error.message}`);
-      await ctx.reply('📖 Я передам ваш вопрос Анне. Она свяжется с вами в ближайшее время.');
-    }
-  }
-
-  /**
-   * Обработать обычное сообщение
-   * @param {Object} ctx - Telegram context
-   * @param {string} messageText - Текст сообщения
-   * @param {Object} userProfile - Профиль пользователя
-   * @returns {Promise<void>}
-   */
-  static async handleGeneralMessage(ctx, messageText, userProfile) {
-    try {
-      const responses = [
-        "Интересная мысль! А что, если записать её как цитату? Даже собственные размышления заслуживают места в вашем дневнике мудрости.",
-        "📖 Похоже на глубокую мысль! Попробуйте оформить её как цитату - возможно, это станет важным моментом для размышления.",
-        "Мне нравится ваш ход мыслей. В «Читателе» лучше всего работает с цитатами - попробуйте отправить что-то, что вас вдохновило!",
-        "💭 Интересно! А знаете, что делает Анна в таких случаях? Ищет мудрую цитату, которая поможет взглянуть на ситуацию под новым углом."
+      logger.error(`📖 Error in general message handling: ${error.message}`);
+      
+      // Fallback ответ в стиле Анны
+      const fallbackResponses = [
+        "📖 Интересный вопрос! Над этим стоит поразмышлять.\n\n💡 Хватит сидеть в телефоне - читайте книги!",
+        "📖 Благодарю за сообщение. Каждая мысль важна для понимания себя.",
+        "📖 Это глубокий вопрос, который заслуживает размышления.\n\nПопробуйте найти ответы в хорошей книге!",
+        "📖 Понимаю ваш интерес к этой теме. Литература часто дает лучшие ответы, чем мы ожидаем."
       ];
       
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      
+      const randomResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
       await ctx.reply(randomResponse);
-      
-    } catch (error) {
-      logger.error(`📖 Error handling general message: ${error.message}`);
-      await ctx.reply('📖 Попробуйте отправить мне цитату - я лучше всего работаю с мудрыми словами!');
     }
   }
 
   /**
-   * Обработать другие callback запросы
+   * Построение контекста для AI
+   * @private
+   * @param {UserProfile} userProfile - Профиль пользователя
+   * @param {string} message - Сообщение пользователя
+   * @returns {string} Контекст
+   */
+  static _buildAIContext(userProfile, message) {
+    let context = `Имя: ${userProfile.name}\n`;
+    
+    // Основные предпочтения из теста
+    if (userProfile.testResults) {
+      context += `Образ жизни: ${userProfile.testResults.question2_lifestyle || 'не указано'}\n`;
+      context += `Приоритеты: ${userProfile.testResults.question4_priorities || 'не указано'}\n`;
+    }
+    
+    // Статистика активности
+    context += `Цитат собрано: ${userProfile.statistics.totalQuotes}\n`;
+    context += `Дней с ботом: ${Math.floor((new Date() - userProfile.registeredAt) / (1000 * 60 * 60 * 24))}\n`;
+    
+    // Интересы (если определены)
+    if (userProfile.preferences?.mainThemes) {
+      context += `Интересы: ${userProfile.preferences.mainThemes.join(', ')}\n`;
+    }
+
+    return context;
+  }
+
+  /**
+   * Обработка других callback'ов
    * @param {Object} ctx - Telegram context
-   * @param {string} callbackData - Данные callback
+   * @param {string} callbackData - Данные callback'а
    * @returns {Promise<void>}
    */
   static async handleOtherCallbacks(ctx, callbackData) {
     try {
+      // Проверяем callback'и настроек
+      const { CommandHandler } = require('../handlers/commandHandler');
+      const commandHandler = new CommandHandler();
+      
+      if (await commandHandler.handleSettingsCallback(ctx, callbackData)) {
+        return;
+      }
+
+      // Callback'и обратной связи (для будущих отчетов)
       if (callbackData.startsWith('feedback_')) {
-        await this._handleFeedbackCallback(ctx, callbackData);
+        await BotHelpers._handleFeedbackCallback(ctx, callbackData);
         return;
       }
 
-      if (callbackData.startsWith('book_')) {
-        await this._handleBookCallback(ctx, callbackData);
+      // Callback'и достижений
+      if (callbackData.startsWith('achievement_')) {
+        await BotHelpers._handleAchievementCallback(ctx, callbackData);
         return;
       }
 
-      // Если callback не распознан
-      await ctx.answerCbQuery("Функция пока не доступна");
+      // Неизвестный callback
+      await ctx.answerCbQuery("Функция временно недоступна.");
       
     } catch (error) {
       logger.error(`📖 Error handling callback: ${error.message}`);
-      await ctx.answerCbQuery("Произошла ошибка");
+      await ctx.answerCbQuery("Произошла ошибка. Попробуйте еще раз.");
     }
   }
 
   /**
-   * Обработать callback обратной связи
+   * Обработка feedback callback'ов
    * @private
    * @param {Object} ctx - Telegram context
-   * @param {string} callbackData - Данные callback
+   * @param {string} callbackData - Данные callback'а
    */
   static async _handleFeedbackCallback(ctx, callbackData) {
-    // Пример: feedback_excellent_reportId
-    const parts = callbackData.split('_');
-    if (parts.length !== 3) return;
+    await ctx.answerCbQuery("Спасибо за обратную связь!");
     
-    const rating = parts[1]; // excellent, good, bad
-    const reportId = parts[2];
-    
-    let responseMessage;
-    switch (rating) {
-      case 'excellent':
-        responseMessage = "🎉 Спасибо за отзыв! Рада, что отчет оказался полезным.";
-        break;
-      case 'good':
-        responseMessage = "👌 Спасибо! Продолжаем работать над улучшениями.";
-        break;
-      case 'bad':
-        responseMessage = "😔 Извините, что отчет не оправдал ожиданий. Мы учтем ваши пожелания.";
-        break;
-      default:
-        responseMessage = "Спасибо за обратную связь!";
-    }
-
-    await ctx.editMessageText(responseMessage);
-    
-    // Здесь можно сохранить обратную связь в базу данных
-    logger.info(`📖 Feedback received: ${rating} for report ${reportId}`);
+    // Здесь будет логика для еженедельных/месячных отчетов
+    // Пока что простой ответ
+    await ctx.editMessageText(
+      "💌 Благодарю за обратную связь! Ваше мнение поможет улучшить работу бота.",
+      { reply_markup: { inline_keyboard: [] } }
+    );
   }
 
   /**
-   * Обработать callback книжных рекомендаций
+   * Обработка achievement callback'ов
    * @private
    * @param {Object} ctx - Telegram context
-   * @param {string} callbackData - Данные callback
+   * @param {string} callbackData - Данные callback'а
    */
-  static async _handleBookCallback(ctx, callbackData) {
-    // Пример: book_details_bookId
-    const parts = callbackData.split('_');
-    if (parts.length !== 3) return;
+  static async _handleAchievementCallback(ctx, callbackData) {
+    await ctx.answerCbQuery("Поздравляем с достижением!");
     
-    const action = parts[1]; // details, buy
-    const bookId = parts[2];
-    
-    if (action === 'details') {
-      await ctx.answerCbQuery("Подробности книги скоро будут доступны!");
-    } else if (action === 'buy') {
-      await ctx.answerCbQuery("Перенаправляем на страницу покупки...");
-    }
+    // Здесь можно добавить логику показа детальной информации о достижении
+    await ctx.editMessageText(
+      "🏆 Продолжайте собирать достижения! Каждая цитата приближает вас к новым открытиям.",
+      { reply_markup: { inline_keyboard: [] } }
+    );
   }
 
   /**
-   * Получить номер недели ISO
-   * @param {Date} [date] - Дата (по умолчанию текущая)
-   * @returns {number}
-   */
-  static getWeekNumber(date = new Date()) {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-  }
-
-  /**
-   * Проверить достигнут ли дневной лимит цитат
+   * Обновление статистики пользователя (вызывается из QuoteHandler)
    * @param {string} userId - ID пользователя
-   * @param {number} limit - Лимит цитат
-   * @returns {Promise<boolean>}
+   * @param {string|null} author - Автор цитаты
+   * @returns {Promise<void>}
    */
-  static async isDailyLimitReached(userId, limit = 10) {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const todayQuotesCount = await Quote.countDocuments({
-        userId,
-        createdAt: {
-          $gte: today,
-          $lt: tomorrow
-        }
-      });
-
-      return todayQuotesCount >= limit;
-      
-    } catch (error) {
-      logger.error(`📖 Error checking daily limit: ${error.message}`);
-      return false;
-    }
+  static async updateUserStatistics(userId, author) {
+    const { QuoteHandler } = require('../handlers/quoteHandler');
+    const handler = new QuoteHandler();
+    await handler.updateUserStatistics(userId, author);
   }
 
   /**
-   * Получить случайную мотивирующую фразу от Анны
-   * @returns {string}
+   * Проверка достижений (вызывается из QuoteHandler)
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<Array<Achievement>>} Новые достижения
    */
-  static getRandomMotivationalQuote() {
-    const quotes = [
-      "💡 Хватит сидеть в телефоне - читайте книги!",
-      "📚 Хорошая жизнь строится, а не дается по умолчанию",
-      "🌟 Почитайте в клубе хотя бы несколько лет и ваша жизнь изменится до неузнаваемости",
-      "📖 Каждая цитата - это ключ к пониманию себя",
-      "✨ Мудрость приходит к тем, кто ее ищет",
-      "🔍 В каждой книге есть что-то для вашей души",
-      "💎 Собирайте моменты вдохновения каждый день"
+  static async checkAchievements(userId) {
+    const { QuoteHandler } = require('../handlers/quoteHandler');
+    const handler = new QuoteHandler();
+    return await handler.checkAchievements(userId);
+  }
+
+  /**
+   * Уведомление о достижениях (вызывается из QuoteHandler)
+   * @param {Object} ctx - Telegram context
+   * @param {Array<Achievement>} achievements - Достижения
+   * @returns {Promise<void>}
+   */
+  static async notifyAchievements(ctx, achievements) {
+    const { QuoteHandler } = require('../handlers/quoteHandler');
+    const handler = new QuoteHandler();
+    await handler.notifyAchievements(ctx, achievements);
+  }
+
+  /**
+   * Проверка, является ли сообщение цитатой
+   * @param {string} message - Текст сообщения
+   * @returns {boolean} true если похоже на цитату
+   */
+  static isQuoteMessage(message) {
+    // Простые эвристики для определения цитаты
+    const quotePattterns = [
+      /^".*"/,          // Начинается и заканчивается кавычками
+      /\([^)]+\)$/,     // Заканчивается автором в скобках
+      /^«.*»/,          // Русские кавычки
+      /—\s*[А-ЯA-Z]/,  // Тире с именем автора
     ];
 
-    return quotes[Math.floor(Math.random() * quotes.length)];
+    // Проверяем паттерны цитат
+    if (quotePattterns.some(pattern => pattern.test(message))) {
+      return true;
+    }
+
+    // Проверяем длину и содержание (цитаты обычно вдумчивые, не вопросы)
+    if (message.length > 20 && message.length < 500 && !message.includes('?')) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
-   * Форматировать время "назад"
+   * Обработка цитаты (вызывается из главного роутера)
+   * @param {Object} ctx - Telegram context
+   * @param {string} messageText - Текст цитаты
+   * @param {UserProfile} userProfile - Профиль пользователя
+   * @returns {Promise<void>}
+   */
+  static async handleQuote(ctx, messageText, userProfile) {
+    const { QuoteHandler } = require('../handlers/quoteHandler');
+    const handler = new QuoteHandler();
+    await handler.handleQuote(ctx, messageText, userProfile);
+  }
+
+  /**
+   * Форматирование числа цитат с правильным склонением
+   * @param {number} count - Количество цитат
+   * @returns {string} Склонение
+   */
+  static declensionQuotes(count) {
+    if (count % 10 === 1 && count % 100 !== 11) return 'цитату';
+    if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'цитаты';
+    return 'цитат';
+  }
+
+  /**
+   * Получение дружелюбного времени ("2 дня назад")
    * @param {Date} date - Дата
-   * @returns {string}
+   * @returns {string} Отформатированное время
    */
-  static formatTimeAgo(date) {
+  static getRelativeTime(date) {
     const now = new Date();
-    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'только что';
-    if (diffInMinutes < 60) return `${diffInMinutes} мин. назад`;
-    
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours} ч. назад`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} дн. назад`;
-    
-    const diffInWeeks = Math.floor(diffInDays / 7);
-    if (diffInWeeks < 4) return `${diffInWeeks} нед. назад`;
-    
-    const diffInMonths = Math.floor(diffInDays / 30);
-    return `${diffInMonths} мес. назад`;
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    if (diffMinutes < 5) return 'только что';
+    if (diffMinutes < 60) return `${diffMinutes} мин. назад`;
+    if (diffHours < 24) return `${diffHours} ч. назад`;
+    if (diffDays === 1) return 'вчера';
+    if (diffDays < 7) return `${diffDays} дня назад`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} нед. назад`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} мес. назад`;
+    return `${Math.floor(diffDays / 365)} года назад`;
   }
 
   /**
-   * Склонение слов
-   * @param {number} count - Количество
-   * @param {Array<string>} forms - Формы слова [1, 2-4, 5+]
-   * @returns {string}
+   * Получение мотивационного сообщения на основе статистики
+   * @param {UserProfile} userProfile - Профиль пользователя
+   * @returns {string} Мотивационное сообщение
    */
-  static declension(count, forms) {
-    if (count % 10 === 1 && count % 100 !== 11) return forms[0];
-    if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return forms[1];
-    return forms[2];
+  static getMotivationalMessage(userProfile) {
+    const totalQuotes = userProfile.statistics.totalQuotes;
+    const currentStreak = userProfile.statistics.currentStreak;
+    const daysSinceReg = Math.floor((new Date() - userProfile.registeredAt) / (1000 * 60 * 60 * 24));
+
+    if (totalQuotes === 0) {
+      return "🌱 Время отправить первую цитату! Начните свой дневник мудрости.";
+    }
+
+    if (currentStreak >= 7) {
+      return `🔥 Невероятно! ${currentStreak} дней подряд с цитатами. Вы на пути к мудрости!`;
+    }
+
+    if (totalQuotes >= 50) {
+      return "🌟 Вы собрали впечатляющую коллекцию мудрости! Каждая цитата - это шаг к пониманию себя.";
+    }
+
+    if (totalQuotes >= 25) {
+      return "✨ Четверть сотни цитат! Ваш внутренний мир обогащается с каждым днем.";
+    }
+
+    if (daysSinceReg >= 30) {
+      return "📚 Месяц с ботом! Время подвести итоги и поразмышлять о пройденном пути.";
+    }
+
+    if (daysSinceReg >= 7) {
+      return "📖 Неделя размышлений! Привычка к мудрости уже формируется.";
+    }
+
+    return "💡 Продолжайте собирать моменты вдохновения! Каждая цитата важна.";
   }
 
   /**
-   * Проверить является ли пользователь новичком
-   * @param {Object} userProfile - Профиль пользователя
-   * @returns {boolean}
+   * Получение рекомендации времени для напоминания
+   * @param {UserProfile} userProfile - Профиль пользователя
+   * @returns {Array<string>} Рекомендуемые времена
    */
-  static isNewUser(userProfile) {
-    const daysSinceRegistration = Math.floor((new Date() - userProfile.registeredAt) / (1000 * 60 * 60 * 24));
-    return daysSinceRegistration <= 7;
+  static getRecommendedReminderTimes(userProfile) {
+    // Анализируем время активности пользователя
+    const lifestyle = userProfile.testResults?.question2_lifestyle;
+    const timeForSelf = userProfile.testResults?.question3_time;
+
+    if (lifestyle?.includes('мама')) {
+      // Для мам - рано утром или поздно вечером
+      return ['06:30', '22:00'];
+    }
+
+    if (timeForSelf?.includes('утром')) {
+      return ['08:00', '20:00'];
+    }
+
+    if (timeForSelf?.includes('вечером')) {
+      return ['09:00', '21:00'];
+    }
+
+    // По умолчанию - утро и вечер
+    return ['09:00', '19:00'];
   }
 
   /**
-   * Получить приветственное сообщение в зависимости от времени дня
-   * @returns {string}
+   * Создание сводки активности пользователя
+   * @param {string} userId - ID пользователя
+   * @param {number} days - Количество дней для анализа
+   * @returns {Promise<Object>} Сводка активности
    */
-  static getTimeBasedGreeting() {
-    const hour = new Date().getHours();
-    
-    if (hour >= 6 && hour < 12) return 'Доброе утро';
-    if (hour >= 12 && hour < 17) return 'Добрый день';
-    if (hour >= 17 && hour < 22) return 'Добрый вечер';
-    return 'Доброй ночи';
+  static async getActivitySummary(userId, days = 7) {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const quotes = await Quote.find({
+        userId,
+        createdAt: { $gte: startDate }
+      }).sort({ createdAt: 1 });
+
+      const summary = {
+        totalQuotes: quotes.length,
+        dailyAverage: Math.round((quotes.length / days) * 10) / 10,
+        topCategories: {},
+        topAuthors: {},
+        sentimentDistribution: { positive: 0, neutral: 0, negative: 0 },
+        weekDays: Array(7).fill(0), // 0 = Sunday
+        timePattern: Array(24).fill(0)
+      };
+
+      quotes.forEach(quote => {
+        // Категории
+        summary.topCategories[quote.category] = (summary.topCategories[quote.category] || 0) + 1;
+        
+        // Авторы
+        if (quote.author) {
+          summary.topAuthors[quote.author] = (summary.topAuthors[quote.author] || 0) + 1;
+        }
+        
+        // Настроение
+        summary.sentimentDistribution[quote.sentiment] += 1;
+        
+        // Дни недели
+        const dayOfWeek = quote.createdAt.getDay();
+        summary.weekDays[dayOfWeek] += 1;
+        
+        // Часы
+        const hour = quote.createdAt.getHours();
+        summary.timePattern[hour] += 1;
+      });
+
+      return summary;
+      
+    } catch (error) {
+      logger.error(`📖 Error getting activity summary: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Проверка лимитов пользователя
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<Object>} Информация о лимитах
+   */
+  static async checkUserLimits(userId) {
+    try {
+      // Проверяем дневной лимит цитат
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayQuotes = await Quote.countDocuments({
+        userId,
+        createdAt: { $gte: today }
+      });
+
+      const dailyLimit = 10;
+      const remaining = Math.max(0, dailyLimit - todayQuotes);
+
+      return {
+        daily: {
+          used: todayQuotes,
+          limit: dailyLimit,
+          remaining: remaining,
+          canAddMore: remaining > 0
+        },
+        resetTime: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+      };
+      
+    } catch (error) {
+      logger.error(`📖 Error checking user limits: ${error.message}`);
+      return {
+        daily: { used: 0, limit: 10, remaining: 10, canAddMore: true },
+        resetTime: new Date()
+      };
+    }
+  }
+
+  /**
+   * Получение статистики всех helper'ов
+   * @returns {Object} Общая статистика
+   */
+  static getStats() {
+    return {
+      features: {
+        complexQuestionDetection: true,
+        generalAIConversation: true,
+        quoteProcessing: true,
+        achievementSystem: true,
+        statisticsTracking: true,
+        motivationalMessages: true,
+        activityAnalysis: true,
+        userLimitChecking: true
+      },
+      integrations: {
+        claudeAI: true,
+        ticketingService: true,
+        userProfiles: true,
+        quoteAnalysis: true
+      }
+    };
   }
 }
 
