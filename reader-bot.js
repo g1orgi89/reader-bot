@@ -12,7 +12,7 @@ const logger = require('./server/utils/simpleLogger');
 const { initializeModels } = require('./server/models');
 const ReaderTelegramBot = require('./telegram');
 const CronService = require('./server/services/cronService');
-const WeeklyReportHandler = require('./telegram/handlers/weeklyReportHandler');
+const { WeeklyReportHandler } = require('./telegram/handlers/weeklyReportHandler'); // ✅ FIX: Деструктуризация
 
 /**
  * Reader Bot configuration
