@@ -5,6 +5,7 @@
 
 const logger = require('../utils/simpleLogger');
 const { UserProfile, Quote, WeeklyReport } = require('../models');
+const claudeService = require('./claude'); // ✅ Используем существующий claudeService
 
 /**
  * @typedef {import('../types/reader').WeeklyReport} WeeklyReport
@@ -109,7 +110,7 @@ class WeeklyReportService {
         return await this.generateEmptyWeekReport(userId, user, weekNumber, year);
       }
 
-      // AI-анализ недели (БЕЗ ClaudeService!)
+      // ✅ AI-анализ недели через существующий claudeService
       const analysis = await this.analyzeWeeklyQuotes(weekQuotes, user);
       
       // Подбор рекомендаций книг
@@ -157,13 +158,76 @@ class WeeklyReportService {
   }
 
   /**
-   * AI-анализ цитат за неделю (простая версия без Claude)
+   * ✅ AI-анализ цитат за неделю через существующий claudeService
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
    * @returns {Promise<Object>} Анализ недели
    */
   async analyzeWeeklyQuotes(quotes, userProfile) {
-    // Простой анализ без AI для начала
+    const quotesText = quotes.map(q => `"${q.text}" ${q.author ? `(${q.author})` : ''}`).join('\n\n');
+    
+    const prompt = `Ты психолог Анна Бусел. Проанализируй цитаты пользователя за неделю и дай психологический анализ.
+
+Имя пользователя: ${userProfile.name}
+Результаты теста: ${JSON.stringify(userProfile.testResults)}
+
+Цитаты за неделю:
+${quotesText}
+
+Напиши анализ в стиле Анны Бусел:
+- Тон: теплый, профессиональный, обращение на "Вы"
+- Глубокий психологический анализ
+- Связь с результатами первоначального теста
+- Выводы о текущем состоянии и интересах
+- 2-3 абзаца
+
+Верни JSON:
+{
+  "summary": "Краткий анализ недели одним предложением",
+  "dominantThemes": ["тема1", "тема2"],
+  "emotionalTone": "позитивный/нейтральный/задумчивый/etc",
+  "insights": "Подробный психологический анализ от Анны",
+  "personalGrowth": "Наблюдения о личностном росте пользователя"
+}`;
+
+    try {
+      // ✅ Используем существующий claudeService точно так же, как в quoteHandler.js
+      const response = await claudeService.generateResponse(prompt, {
+        platform: 'telegram',
+        userId: userProfile.userId,
+        context: 'weekly_report_analysis'
+      });
+      
+      const analysis = JSON.parse(response.message);
+      
+      // Валидация результата
+      if (!analysis.summary || !analysis.insights) {
+        throw new Error('Invalid analysis structure');
+      }
+
+      return {
+        summary: analysis.summary,
+        dominantThemes: analysis.dominantThemes || [],
+        emotionalTone: analysis.emotionalTone || 'размышляющий',
+        insights: analysis.insights,
+        personalGrowth: analysis.personalGrowth || 'Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг.'
+      };
+      
+    } catch (error) {
+      logger.error(`📖 Error in AI weekly analysis: ${error.message}`);
+      
+      // ✅ Fallback анализ в случае ошибки AI
+      return this.getFallbackAnalysis(quotes, userProfile);
+    }
+  }
+
+  /**
+   * ✅ Fallback анализ без AI (резервный вариант)
+   * @param {Array<Quote>} quotes - Цитаты за неделю
+   * @param {UserProfile} userProfile - Профиль пользователя
+   * @returns {Object} Простой анализ
+   */
+  getFallbackAnalysis(quotes, userProfile) {
     const categoriesCount = {};
     quotes.forEach(q => {
       categoriesCount[q.category] = (categoriesCount[q.category] || 0) + 1;
@@ -174,16 +238,13 @@ class WeeklyReportService {
       .slice(0, 3)
       .map(([category]) => category);
 
-    // Простой анализ на основе категорий
-    const analysis = {
+    return {
       summary: "Ваши цитаты отражают глубокий внутренний поиск",
       dominantThemes: dominantCategories,
       emotionalTone: "размышляющий",
       insights: `Эта неделя показывает ваш интерес к темам: ${dominantCategories.join(', ')}. Вы ищете ответы и вдохновение в словах мудрых людей.`,
       personalGrowth: "Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг."
     };
-
-    return analysis;
   }
 
   /**
@@ -194,7 +255,7 @@ class WeeklyReportService {
    * @returns {Promise<Array<Object>>} Рекомендации книг
    */
   async getBookRecommendations(analysis, userProfile, quotes) {
-    // Простой подбор книг на основе доминирующих тем
+    // ✅ Можно также добавить AI для рекомендаций, но пока оставляем простой подбор
     const fallbackBooks = this.selectFallbackBooks(analysis.dominantThemes);
     
     return fallbackBooks.map(book => ({
@@ -339,11 +400,12 @@ class WeeklyReportService {
       bookCategories: [...new Set(this.annaBooks.flatMap(book => book.categories))],
       promoCodeOptions: ['READER20', 'WISDOM20', 'QUOTES20', 'BOOKS20', 'WEEK20'],
       features: {
-        aiAnalysis: false, // Временно отключили AI анализ
+        aiAnalysis: true, // ✅ Теперь включен AI анализ через claudeService
         bookRecommendations: true,
         promoCodeGeneration: true,
         utmTracking: true,
-        emptyWeekHandling: true
+        emptyWeekHandling: true,
+        fallbackAnalysis: true // ✅ С fallback в случае ошибки AI
       }
     };
   }
