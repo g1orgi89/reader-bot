@@ -86,6 +86,35 @@ class QuoteHandler {
   }
 
   /**
+   * Проверка, является ли сообщение цитатой (а не командой или обычным текстом)
+   * @param {string} text - Текст сообщения
+   * @returns {boolean} true если это цитата
+   */
+  isValidQuote(text) {
+    // Слишком короткие сообщения (меньше 10 символов) не являются цитатами
+    if (text.length < 10) {
+      return false;
+    }
+
+    // Исключаем команды
+    if (text.startsWith('/')) {
+      return false;
+    }
+
+    // Исключаем простые фразы без смысла
+    const trivialPhrases = [
+      'привет', 'hello', 'спасибо', 'thanks', 'хорошо', 'плохо',
+      'да', 'нет', 'может быть', 'не знаю', 'понятно', 'ясно'
+    ];
+    
+    if (trivialPhrases.includes(text.toLowerCase().trim())) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Обработка цитаты пользователя
    * @param {Object} ctx - Telegram context
    * @param {string} messageText - Текст цитаты
@@ -96,6 +125,12 @@ class QuoteHandler {
     const userId = ctx.from.id.toString();
     
     try {
+      // Проверяем, является ли текст валидной цитатой
+      if (!this.isValidQuote(messageText)) {
+        logger.info(`📖 Message too short or invalid, not treating as quote: "${messageText}"`);
+        return;
+      }
+
       // Проверка лимита (10 цитат в день)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -135,9 +170,11 @@ class QuoteHandler {
       });
 
       await quote.save();
+      logger.info(`📖 Quote saved for user ${userId}: "${text.substring(0, 30)}..."`);
 
       // Обновление статистики пользователя
       await this.updateUserStatistics(userId, author);
+      logger.info(`📖 Updated statistics for user ${userId}`);
 
       // Проверка достижений
       const newAchievements = await this.checkAchievements(userId);
@@ -152,10 +189,10 @@ class QuoteHandler {
         await this.notifyAchievements(ctx, newAchievements);
       }
 
-      logger.info(`📖 Quote processed for user ${userId}: "${text.substring(0, 30)}..."`);
+      logger.info(`📖 Quote processed successfully for user ${userId}`);
       
     } catch (error) {
-      logger.error(`📖 Error processing quote: ${error.message}`);
+      logger.error(`📖 Error processing quote: ${error.message}`, error);
       await ctx.reply('📖 Произошла ошибка при сохранении цитаты. Попробуйте еще раз.');
     }
   }
@@ -168,11 +205,11 @@ class QuoteHandler {
   parseQuote(messageText) {
     // Паттерны для парсинга различных форматов
     const patterns = [
-      /^"([^"]+)"\s*\(([^)]+)\)$/,     // "Цитата" (Автор)
+      /^\"([^\"]+)\"\s*\(([^)]+)\)$/,     // "Цитата" (Автор)
       /^([^(]+)\s*\(([^)]+)\)$/,       // Цитата (Автор)
       /^([^—]+)\s*—\s*(.+)$/,          // Цитата — Автор
       /^«([^»]+)»\s*\(([^)]+)\)$/,     // «Цитата» (Автор)
-      /^([^—]+)\s*—\s*([^,]+),\s*"([^"]+)"$/, // Цитата — Автор, "Источник"
+      /^([^—]+)\s*—\s*([^,]+),\s*\"([^\"]+)\"$/, // Цитата — Автор, "Источник"
       /^(.+)$/                         // Просто текст
     ];
 
@@ -181,13 +218,13 @@ class QuoteHandler {
       if (match) {
         if (match[2]) {
           return {
-            text: match[1].trim().replace(/^["«]|["»]$/g, ''), // Убираем кавычки
+            text: match[1].trim().replace(/^[\"«]|[\"»]$/g, ''), // Убираем кавычки
             author: match[2].trim(),
             source: match[3] ? match[3].trim() : null
           };
         } else {
           return {
-            text: match[1].trim().replace(/^["«]|["»]$/g, ''),
+            text: match[1].trim().replace(/^[\"«]|[\"»]$/g, ''),
             author: null,
             source: null
           };
@@ -196,7 +233,7 @@ class QuoteHandler {
     }
 
     return { 
-      text: messageText.trim().replace(/^["«]|["»]$/g, ''), 
+      text: messageText.trim().replace(/^[\"«]|[\"»]$/g, ''), 
       author: null, 
       source: null 
     };
