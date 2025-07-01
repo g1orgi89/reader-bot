@@ -105,6 +105,29 @@ async function initializeCronService(telegramBot) {
 }
 
 /**
+ * Start Telegram bot with timeout
+ */
+async function startTelegramBotWithTimeout(readerBot, timeoutMs = 30000) {
+  return new Promise(async (resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Telegram bot start timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    try {
+      logger.info('📖 Starting Telegram bot (with 30s timeout)...');
+      await readerBot.start();
+      clearTimeout(timeout);
+      logger.info('📖 Telegram bot started successfully!');
+      resolve();
+    } catch (error) {
+      clearTimeout(timeout);
+      logger.error(`❌ Telegram bot start failed: ${error.message}`);
+      reject(error);
+    }
+  });
+}
+
+/**
  * Main startup function
  */
 async function startReaderBot() {
@@ -122,10 +145,23 @@ async function startReaderBot() {
     logger.info('📖 Creating ReaderTelegramBot instance...');
     const readerBot = new ReaderTelegramBot(config.telegram);
     
-    // Start Telegram bot
-    logger.info('📖 Starting Telegram bot...');
-    await readerBot.start();
-    logger.info('📖 Telegram bot started successfully!');
+    // Start Telegram bot with timeout
+    try {
+      await startTelegramBotWithTimeout(readerBot, 30000);
+    } catch (error) {
+      if (error.message.includes('timeout')) {
+        logger.error('❌ Telegram bot startup timed out. This usually means:');
+        logger.error('   - Network connectivity issues');
+        logger.error('   - Telegram API is unreachable');
+        logger.error('   - Bot token issues');
+        logger.error('   - Firewall blocking connections');
+        
+        // Try to continue without Telegram bot for debugging
+        logger.warn('⚠️  Continuing without Telegram bot for debugging...');
+      } else {
+        throw error;
+      }
+    }
     
     // Initialize CronService for automated reports
     logger.info('📖 Initializing automated reporting system...');
