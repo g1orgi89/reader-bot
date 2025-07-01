@@ -5,6 +5,7 @@
 
 require('dotenv').config();
 
+// Use simpleLogger to avoid winston configuration issues
 const logger = require('./server/utils/simpleLogger');
 
 // Import Reader bot services
