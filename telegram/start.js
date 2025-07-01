@@ -2,12 +2,15 @@
  * Точка входа для запуска Telegram бота Reader
  * @file telegram/start.js
  * 📖 Инициализация и запуск бота с подключением к базе данных
+ * 📖 UPDATED: Интеграция с CronService и WeeklyReportHandler
  */
 
 require('dotenv').config();
 const mongoose = require('mongoose');
 const logger = require('../server/utils/logger');
 const ReaderTelegramBot = require('./index');
+const { WeeklyReportHandler } = require('./handlers/weeklyReportHandler');
+const { CronService } = require('../server/services/cronService');
 
 /**
  * Основная функция запуска бота
@@ -40,12 +43,27 @@ async function startTelegramBot() {
     // Запускаем бота
     await bot.start();
 
-    logger.info('📖 Reader Telegram Bot is running!');
+    // Создаем обработчик еженедельных отчетов
+    const weeklyReportHandler = new WeeklyReportHandler(bot.bot);
+
+    // Создаем и инициализируем CronService
+    const cronService = new CronService();
+    cronService.initialize(bot.bot, weeklyReportHandler);
+
+    // Запускаем cron задачи
+    cronService.start();
+
+    logger.info('📖 Reader Telegram Bot is running with scheduled tasks!');
     logger.info('📖 Bot info:', await bot.getStats());
+
+    // Добавляем методы для внешнего доступа
+    bot.weeklyReportHandler = weeklyReportHandler;
+    bot.cronService = cronService;
 
     // Обработка сигналов остановки
     process.on('SIGINT', async () => {
       logger.info('📖 Received SIGINT, shutting down gracefully...');
+      cronService.stop();
       await bot.stop('SIGINT');
       await mongoose.disconnect();
       process.exit(0);
@@ -53,10 +71,18 @@ async function startTelegramBot() {
 
     process.on('SIGTERM', async () => {
       logger.info('📖 Received SIGTERM, shutting down gracefully...');
+      cronService.stop();
       await bot.stop('SIGTERM');
       await mongoose.disconnect();
       process.exit(0);
     });
+
+    // Возвращаем экземпляр бота для использования в других модулях
+    return {
+      bot,
+      weeklyReportHandler,
+      cronService
+    };
 
   } catch (error) {
     logger.error(`📖 Failed to start Telegram bot: ${error.message}`);
