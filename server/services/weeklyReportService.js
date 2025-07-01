@@ -5,7 +5,6 @@
 
 const logger = require('../utils/simpleLogger');
 const { UserProfile, Quote, WeeklyReport } = require('../models');
-const ClaudeService = require('./claude');
 
 /**
  * @typedef {import('../types/reader').WeeklyReport} WeeklyReport
@@ -18,9 +17,6 @@ const ClaudeService = require('./claude');
  */
 class WeeklyReportService {
   constructor() {
-    // Инициализируем Claude сервис
-    this.claudeService = new ClaudeService();
-    
     /**
      * @type {Array<Object>} - Доступные книги Анны для рекомендаций
      */
@@ -113,7 +109,7 @@ class WeeklyReportService {
         return await this.generateEmptyWeekReport(userId, user, weekNumber, year);
       }
 
-      // AI-анализ недели через Claude
+      // AI-анализ недели (БЕЗ ClaudeService!)
       const analysis = await this.analyzeWeeklyQuotes(weekQuotes, user);
       
       // Подбор рекомендаций книг
@@ -161,16 +157,13 @@ class WeeklyReportService {
   }
 
   /**
-   * AI-анализ цитат за неделю
+   * AI-анализ цитат за неделю (простая версия без Claude)
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
    * @returns {Promise<Object>} Анализ недели
    */
   async analyzeWeeklyQuotes(quotes, userProfile) {
-    const quotesText = quotes.map(q => 
-      `"${q.text}" ${q.author ? `(${q.author})` : ''}`
-    ).join('\n\n');
-    
+    // Простой анализ без AI для начала
     const categoriesCount = {};
     quotes.forEach(q => {
       categoriesCount[q.category] = (categoriesCount[q.category] || 0) + 1;
@@ -181,63 +174,16 @@ class WeeklyReportService {
       .slice(0, 3)
       .map(([category]) => category);
 
-    const prompt = `Ты психолог Анна Бусел. Проанализируй цитаты пользователя за неделю и дай психологический анализ в своем стиле.
+    // Простой анализ на основе категорий
+    const analysis = {
+      summary: "Ваши цитаты отражают глубокий внутренний поиск",
+      dominantThemes: dominantCategories,
+      emotionalTone: "размышляющий",
+      insights: `Эта неделя показывает ваш интерес к темам: ${dominantCategories.join(', ')}. Вы ищете ответы и вдохновение в словах мудрых людей.`,
+      personalGrowth: "Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг."
+    };
 
-Информация о пользователе:
-Имя: ${userProfile.name}
-Результаты первоначального теста: ${JSON.stringify(userProfile.testResults, null, 2)}
-Предпочтения: ${userProfile.preferences?.mainThemes?.join(', ') || 'не определены'}
-
-Цитаты за неделю (${quotes.length} штук):
-${quotesText}
-
-Доминирующие категории: ${dominantCategories.join(', ')}
-
-Напиши анализ в стиле Анны Бусел:
-- Тон: теплый, профессиональный, обращение на "Вы"  
-- Глубокий психологический анализ
-- Связь с результатами первоначального теста
-- Выводы о текущем состоянии и интересах
-- 2-3 абзаца
-
-Верни JSON:
-{
-  "summary": "Краткий анализ недели одним предложением",
-  "dominantThemes": ["тема1", "тема2", "тема3"],
-  "emotionalTone": "позитивный/нейтральный/задумчивый/etc",
-  "insights": "Подробный психологический анализ от Анны (2-3 абзаца)",
-  "personalGrowth": "Наблюдения о личностном росте пользователя"
-}`;
-
-    try {
-      const response = await this.claudeService.generateResponse(prompt, {
-        platform: 'telegram',
-        userId: userProfile.userId,
-        context: 'weekly_report_analysis'
-      });
-      
-      const analysis = JSON.parse(response.message);
-      
-      // Валидация анализа
-      if (!analysis.summary) analysis.summary = "Ваши цитаты отражают глубокий внутренний поиск";
-      if (!analysis.dominantThemes) analysis.dominantThemes = dominantCategories;
-      if (!analysis.emotionalTone) analysis.emotionalTone = "размышляющий";
-      if (!analysis.insights) analysis.insights = "Эта неделя показывает ваш интерес к глубоким жизненным вопросам.";
-
-      return analysis;
-      
-    } catch (error) {
-      logger.error(`📖 Error in weekly AI analysis: ${error.message}`);
-      
-      // Fallback анализ
-      return {
-        summary: "Ваши цитаты отражают глубокий внутренний поиск",
-        dominantThemes: dominantCategories,
-        emotionalTone: "размышляющий",
-        insights: `Эта неделя показывает ваш интерес к темам: ${dominantCategories.join(', ')}. Вы ищете ответы и вдохновение в словах мудрых людей. Особенно привлекают вас размышления о ${dominantCategories[0]?.toLowerCase()}.`,
-        personalGrowth: "Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг."
-      };
-    }
+    return analysis;
   }
 
   /**
@@ -248,63 +194,17 @@ ${quotesText}
    * @returns {Promise<Array<Object>>} Рекомендации книг
    */
   async getBookRecommendations(analysis, userProfile, quotes) {
-    const prompt = `Ты психолог Анна Бусел. На основе анализа недели пользователя, подбери 2-3 рекомендации из твоих разборов книг.
-
-Пользователь: ${userProfile.name}
-Анализ недели: ${analysis.insights}
-Доминирующие темы: ${analysis.dominantThemes.join(', ')}
-Количество цитат: ${quotes.length}
-
-Доступные разборы книг Анны Бусел:
-${this.annaBooks.map(book => 
-  `- "${book.title}" ${book.author !== 'Курс Анны Бусел' ? `${book.author} ` : ''}(${book.price}) - ${book.description}`
-).join('\n')}
-
-Подбери 2-3 самые подходящие рекомендации и верни JSON массив:
-[
-  {
-    "title": "Название книги/курса",
-    "price": "$X",
-    "description": "Краткое описание почему подходит",
-    "reasoning": "Почему именно эта книга подойдет пользователю на основе анализа"
-  }
-]
-
-Учитывай личность пользователя и его текущие интересы.`;
-
-    try {
-      const response = await this.claudeService.generateResponse(prompt, {
-        platform: 'telegram',
-        userId: userProfile.userId,
-        context: 'book_recommendations'
-      });
-      
-      const recommendations = JSON.parse(response.message);
-      
-      // Добавляем UTM ссылки к рекомендациям
-      return recommendations.map(rec => {
-        const book = this.annaBooks.find(b => b.title === rec.title);
-        return {
-          ...rec,
-          link: this.generateUTMLink(book?.utmCampaign || 'general', userProfile.userId),
-          utmCampaign: book?.utmCampaign || 'general'
-        };
-      });
-      
-    } catch (error) {
-      logger.error(`📖 Error getting book recommendations: ${error.message}`);
-      
-      // Fallback рекомендации
-      const fallbackBooks = this.selectFallbackBooks(analysis.dominantThemes);
-      return fallbackBooks.map(book => ({
-        title: book.title,
-        price: book.price,
-        description: book.description,
-        reasoning: `Подходит для изучения темы ${analysis.dominantThemes[0]}`,
-        link: this.generateUTMLink(book.utmCampaign, userProfile.userId),
-        utmCampaign: book.utmCampaign
-      }));
-    }
+    // Простой подбор книг на основе доминирующих тем
+    const fallbackBooks = this.selectFallbackBooks(analysis.dominantThemes);
+    
+    return fallbackBooks.map(book => ({
+      title: book.title,
+      price: book.price,
+      description: book.description,
+      reasoning: `Подходит для изучения темы ${analysis.dominantThemes[0] || 'саморазвитие'}`,
+      link: this.generateUTMLink(book.utmCampaign, userProfile.userId),
+      utmCampaign: book.utmCampaign
+    }));
   }
 
   /**
@@ -439,7 +339,7 @@ ${this.annaBooks.map(book =>
       bookCategories: [...new Set(this.annaBooks.flatMap(book => book.categories))],
       promoCodeOptions: ['READER20', 'WISDOM20', 'QUOTES20', 'BOOKS20', 'WEEK20'],
       features: {
-        aiAnalysis: true,
+        aiAnalysis: false, // Временно отключили AI анализ
         bookRecommendations: true,
         promoCodeGeneration: true,
         utmTracking: true,
