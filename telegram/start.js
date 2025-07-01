@@ -46,6 +46,9 @@ async function startTelegramBot() {
     // Создаем обработчик еженедельных отчетов
     const weeklyReportHandler = new WeeklyReportHandler(bot.bot);
 
+    // Интегрируем WeeklyReportHandler в основной бот
+    bot.setWeeklyReportHandler(weeklyReportHandler);
+
     // Создаем и инициализируем CronService
     const cronService = new CronService();
     cronService.initialize(bot.bot, weeklyReportHandler);
