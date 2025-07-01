@@ -26,6 +26,7 @@ const ticketRoutes = require('./api/tickets');
 const adminRoutes = require('./api/admin');
 const knowledgeRoutes = require('./api/knowledge');
 const promptRoutes = require('./api/prompts');
+const reportRoutes = require('./api/reports'); // 📖 НОВОЕ: Маршруты отчетов
 
 // Services
 const dbService = require('./services/database');
@@ -37,7 +38,7 @@ const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
 const ticketService = require('./services/ticketing');
 const ticketEmailService = require('./services/ticketEmail');
-const cronService = require('./services/cronService'); // 📖 НОВОЕ: Cron сервис
+const cronService = require('./services/cronService');
 
 /**
  * @typedef {import('./types').ShroomsError} ShroomsError
@@ -138,6 +139,7 @@ app.use(`${config.app.apiPrefix}/tickets`, ticketRoutes);
 app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
 app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
 app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
+app.use(`${config.app.apiPrefix}/reports`, reportRoutes); // 📖 НОВОЕ: Маршруты отчетов
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
@@ -786,6 +788,7 @@ async function startServer() {
       logger.info(`🎫 Email collection workflow: ACTIVE`);
       logger.info(`🌍 Language detection: SIMPLIFIED (no complex analysis)`);
       logger.info(`📖 Weekly reports automation: ENABLED`); // 📖 НОВОЕ
+      logger.info(`📊 Reports API: ${config.app.apiPrefix}/reports`); // 📖 НОВОЕ
       
       // Логируем URL для разных режимов
       if (config.app.isDevelopment) {
