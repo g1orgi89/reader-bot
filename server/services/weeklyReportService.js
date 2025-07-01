@@ -3,14 +3,14 @@
  * @author g1orgi89
  */
 
-const logger = require('../../utils/logger');
-const { UserProfile, Quote, WeeklyReport } = require('../../models');
-const claudeService = require('../claude');
+const logger = require('../utils/simpleLogger');
+const { UserProfile, Quote, WeeklyReport } = require('../models');
+const ClaudeService = require('../services/claudeService');
 
 /**
- * @typedef {import('../../types/reader').WeeklyReport} WeeklyReport
- * @typedef {import('../../types/reader').UserProfile} UserProfile  
- * @typedef {import('../../types/reader').Quote} Quote
+ * @typedef {import('../types/reader').WeeklyReport} WeeklyReport
+ * @typedef {import('../types/reader').UserProfile} UserProfile  
+ * @typedef {import('../types/reader').Quote} Quote
  */
 
 /**
@@ -18,6 +18,9 @@ const claudeService = require('../claude');
  */
 class WeeklyReportService {
   constructor() {
+    // Инициализируем Claude сервис
+    this.claudeService = new ClaudeService();
+    
     /**
      * @type {Array<Object>} - Доступные книги Анны для рекомендаций
      */
@@ -207,7 +210,7 @@ ${quotesText}
 }`;
 
     try {
-      const response = await claudeService.generateResponse(prompt, {
+      const response = await this.claudeService.generateResponse(prompt, {
         platform: 'telegram',
         userId: userProfile.userId,
         context: 'weekly_report_analysis'
@@ -270,7 +273,7 @@ ${this.annaBooks.map(book =>
 Учитывай личность пользователя и его текущие интересы.`;
 
     try {
-      const response = await claudeService.generateResponse(prompt, {
+      const response = await this.claudeService.generateResponse(prompt, {
         platform: 'telegram',
         userId: userProfile.userId,
         context: 'book_recommendations'
