@@ -1,5 +1,5 @@
 /**
- * Основной файл сервера для Shrooms AI Support Bot
+ * Основной файл сервера для Reader Bot
  * @file server/index.js
  */
 
@@ -25,18 +25,19 @@ const chatRoutes = require('./api/chat');
 const ticketRoutes = require('./api/tickets');
 const adminRoutes = require('./api/admin');
 const knowledgeRoutes = require('./api/knowledge');
-const promptRoutes = require('./api/prompts'); // ДОБАВЛЕНО: импорт роута промптов
+const promptRoutes = require('./api/prompts');
 
 // Services
 const dbService = require('./services/database');
 const vectorStoreService = require('./services/vectorStore');
-const claude = require('./services/claude'); // ИЗМЕНЕНО: claude вместо aiService  
-const promptService = require('./services/promptService'); // 🍄 ДОБАВЛЕНО: PromptService
-const simpleLanguageService = require('./services/simpleLanguage'); // 🍄 ИЗМЕНЕНО: Простой сервис языков
+const claude = require('./services/claude');
+const promptService = require('./services/promptService');
+const simpleLanguageService = require('./services/simpleLanguage');
 const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
 const ticketService = require('./services/ticketing');
-const ticketEmailService = require('./services/ticketEmail'); // 🎫 НОВЫЙ СЕРВИС
+const ticketEmailService = require('./services/ticketEmail');
+const cronService = require('./services/cronService'); // 📖 НОВОЕ: Cron сервис
 
 /**
  * @typedef {import('./types').ShroomsError} ShroomsError
@@ -136,7 +137,7 @@ app.use(`${config.app.apiPrefix}/chat`, chatRoutes);
 app.use(`${config.app.apiPrefix}/tickets`, ticketRoutes);
 app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
 app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
-app.use(`${config.app.apiPrefix}/prompts`, promptRoutes); // ДОБАВЛЕНО: регистрация роута промптов
+app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
@@ -146,14 +147,12 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       ? await vectorStoreService.healthCheck() 
       : { status: 'disabled' };
 
-    // ИСПРАВЛЕНО: проверяем claude вместо aiService
     const aiProviderInfo = claude.getProviderInfo();
-    
-    // 🍄 ДОБАВЛЕНО: проверка здоровья PromptService
     const promptHealth = await promptService.diagnose();
-    
-    // 🎫 НОВОЕ: статистика по ожидающим тикетам
     const pendingTicketsStats = ticketEmailService.getPendingTicketsStats();
+    
+    // 📖 НОВОЕ: Статус cron задач
+    const cronStatus = cronService.getJobsStatus();
 
     const health = {
       status: 'ok',
@@ -164,24 +163,30 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         database: dbHealth,
         vectorStore: vectorHealth,
         ai: claude ? 'ok' : 'error',
-        prompts: promptHealth, // 🍄 ДОБАВЛЕНО: статус промпт-сервиса
-        ticketEmail: 'ok', // 🎫 НОВОЕ: статус сервиса email
-        language: simpleLanguageService.healthCheck() // 🍄 НОВОЕ: простой языковой сервис
+        prompts: promptHealth,
+        ticketEmail: 'ok',
+        language: simpleLanguageService.healthCheck(),
+        cron: cronStatus.isStarted ? 'ok' : 'stopped' // 📖 НОВОЕ
       },
       aiProvider: aiProviderInfo,
       promptService: {
         status: promptHealth.status,
         cacheStats: promptHealth.cacheStats,
         databaseConnection: promptHealth.databaseConnection
-      }, // 🍄 ДОБАВЛЕНО: детали PromptService
-      ticketEmailService: pendingTicketsStats, // 🎫 НОВОЕ: статистика ожидающих тикетов
-      languageService: simpleLanguageService.getStats(), // 🍄 НОВОЕ: статистика языков
+      },
+      ticketEmailService: pendingTicketsStats,
+      languageService: simpleLanguageService.getStats(),
+      // 📖 НОВОЕ: Информация о cron задачах
+      cronService: {
+        ...cronStatus,
+        schedule: cronService.getSchedule()
+      },
       features: config.features,
       // ДОБАВЛЕНО: информация о Socket.IO подключениях
       socketConnections: {
         total: io.engine.clientsCount,
         active: io.sockets.sockets.size,
-        byIP: getConnectionsByIP() // ДОБАВЛЕНО: статистика по IP
+        byIP: getConnectionsByIP()
       }
     };
 
@@ -214,7 +219,8 @@ if (config.features.enableMetrics) {
         active: io.sockets.sockets.size,
         byIP: getConnectionsByIP()
       },
-      pendingTickets: ticketEmailService.getPendingTicketsStats() // 🎫 НОВОЕ
+      pendingTickets: ticketEmailService.getPendingTicketsStats(),
+      cronJobs: cronService.getJobsStatus() // 📖 НОВОЕ
     });
   });
 }
@@ -321,7 +327,7 @@ io.on('connection', (socket) => {
   
   // Отправляем приветственное сообщение
   socket.emit('system', {
-    message: 'Connected to Shrooms Support Bot! 🍄',
+    message: 'Connected to Reader Bot! 📖',
     timestamp: new Date().toISOString()
   });
   
@@ -694,7 +700,7 @@ app.use((req, res) => {
 async function startServer() {
   try {
     // Логируем информацию о запуске
-    logger.info('🚀 Starting Shrooms Support Bot Server...');
+    logger.info('🚀 Starting Reader Bot Server...');
     logger.info(`Environment: ${config.app.environment}`);
     logger.info(`Version: ${config.app.version}`);
     logger.info(`Features: ${JSON.stringify(config.features, null, 2)}`);
@@ -735,6 +741,25 @@ async function startServer() {
     logger.info('🎫 Initializing Ticket Email Service...');
     logger.info(`✅ Ticket Email Service ready (Email timeout: ${ticketEmailService.EMAIL_TIMEOUT / 1000}s)`);
     
+    // 📖 НОВОЕ: Инициализация и запуск CronService
+    logger.info('📖 Initializing Cron Service...');
+    try {
+      const cronStarted = cronService.start();
+      if (cronStarted) {
+        const cronStatus = cronService.getJobsStatus();
+        logger.info(`✅ Cron Service started with ${cronStatus.totalJobs} scheduled tasks`);
+        logger.info(`📖 Weekly reports: Sundays at 11:00 MSK`);
+        logger.info(`📖 Daily reminders: 9:00 and 19:00 MSK`);
+        logger.info(`📖 Monthly reports: 1st day of month at 12:00 MSK`);
+        logger.info(`📖 Daily cleanup: 3:00 MSK`);
+      } else {
+        logger.warn('⚠️ CronService failed to start');
+      }
+    } catch (error) {
+      logger.error(`❌ CronService initialization failed: ${error.message}`);
+      // Не прерываем запуск сервера
+    }
+    
     // Инициализация векторной базы (если включена)
     if (config.features.enableRAG) {
       logger.info('📡 Initializing vector store...');
@@ -754,12 +779,13 @@ async function startServer() {
     // Запуск сервера
     const PORT = config.app.port;
     server.listen(PORT, () => {
-      logger.info(`🚀 Server running on port ${PORT}`);
+      logger.info(`🚀 Reader Bot Server running on port ${PORT}`);
       logger.info(`🌐 API available at: http://localhost:${PORT}${config.app.apiPrefix}`);
       logger.info(`🏠 Client available at: http://localhost:${PORT}`);
       logger.info(`🔌 Socket.IO available at: http://localhost:${PORT}/socket.io/`);
-      logger.info(`🎫 Email collection workflow: ACTIVE`); // 🎫 НОВОЕ
-      logger.info(`🌍 Language detection: SIMPLIFIED (no complex analysis)`); // 🍄 НОВОЕ
+      logger.info(`🎫 Email collection workflow: ACTIVE`);
+      logger.info(`🌍 Language detection: SIMPLIFIED (no complex analysis)`);
+      logger.info(`📖 Weekly reports automation: ENABLED`); // 📖 НОВОЕ
       
       // Логируем URL для разных режимов
       if (config.app.isDevelopment) {
@@ -799,6 +825,14 @@ async function gracefulShutdown(signal) {
   // 🍄 НОВОЕ: Логируем статистику языков
   const languageStats = simpleLanguageService.getStats();
   logger.info(`🌍 Language usage stats: ${JSON.stringify(languageStats.usage)}`);
+  
+  // 📖 НОВОЕ: Остановка CronService
+  try {
+    cronService.stop();
+    logger.info('📖 CronService stopped');
+  } catch (error) {
+    logger.error(`📖 Error stopping CronService: ${error.message}`);
+  }
   
   // Закрываем Socket.IO соединения
   logger.info('🔌 Closing Socket.IO connections...');
