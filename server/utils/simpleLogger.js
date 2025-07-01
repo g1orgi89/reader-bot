@@ -26,7 +26,29 @@ const logger = winston.createLogger({
     })
   ],
   // Disable exitOnError to prevent process exit
-  exitOnError: false
+  exitOnError: false,
+  // Add exception and rejection handlers to prevent winston warnings
+  exceptionHandlers: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        consoleFormat
+      )
+    })
+  ],
+  rejectionHandlers: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        consoleFormat
+      )
+    })
+  ]
+});
+
+// Suppress winston warnings by handling them properly
+logger.on('error', (error) => {
+  console.error('Logger error:', error);
 });
 
 module.exports = logger;
