@@ -10,6 +10,8 @@ const logger = require('./server/utils/simpleLogger');
 // Import Reader bot services
 const { initializeModels } = require('./server/models');
 const ReaderTelegramBot = require('./telegram');
+const CronService = require('./server/services/cronService');
+const WeeklyReportHandler = require('./telegram/handlers/weeklyReportHandler');
 
 /**
  * Reader Bot configuration
@@ -76,6 +78,32 @@ async function initializeDatabase() {
 }
 
 /**
+ * Initialize Cron Service with Weekly Reports
+ */
+async function initializeCronService(telegramBot) {
+  try {
+    logger.info('📖 Initializing CronService...');
+    
+    // Initialize WeeklyReportHandler
+    const weeklyReportHandler = new WeeklyReportHandler(telegramBot);
+    logger.info('📖 WeeklyReportHandler initialized');
+    
+    // Initialize CronService with report handler
+    const cronService = new CronService(weeklyReportHandler);
+    await cronService.start();
+    
+    logger.info('📖 CronService initialized and started');
+    logger.info('📖 Weekly reports scheduled for Sundays at 11:00 MSK');
+    
+    return cronService;
+    
+  } catch (error) {
+    logger.error(`❌ Failed to initialize CronService: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
  * Main startup function
  */
 async function startReaderBot() {
@@ -93,15 +121,26 @@ async function startReaderBot() {
     const readerBot = new ReaderTelegramBot(config.telegram);
     await readerBot.start();
     
+    // Initialize CronService for automated reports
+    const cronService = await initializeCronService(readerBot);
+    
     logger.info('🎉 Reader Bot started successfully!');
     logger.info('📖 Users can now start conversations with /start');
+    logger.info('📊 Automated weekly reports enabled');
     
     // Log helpful information for development
     if (config.telegram.environment === 'development') {
       logger.info('🔧 Development mode active');
       logger.info('📝 Send /start to your bot to begin onboarding');
       logger.info('💡 Use /help to see available commands');
+      logger.info('📊 Test reports with: npm run test:reports');
     }
+    
+    // Store services for graceful shutdown
+    global.readerBotServices = {
+      telegramBot: readerBot,
+      cronService: cronService
+    };
     
   } catch (error) {
     logger.error(`❌ Failed to start Reader Bot: ${error.message}`);
@@ -117,6 +156,18 @@ async function gracefulShutdown(signal) {
   logger.info(`📖 Received ${signal}, shutting down Reader Bot...`);
   
   try {
+    // Stop cron service if available
+    if (global.readerBotServices?.cronService) {
+      await global.readerBotServices.cronService.stop();
+      logger.info('✅ CronService stopped');
+    }
+    
+    // Stop Telegram bot if available
+    if (global.readerBotServices?.telegramBot) {
+      await global.readerBotServices.telegramBot.stop();
+      logger.info('✅ Telegram bot stopped');
+    }
+    
     // Close database connection
     const mongoose = require('mongoose');
     await mongoose.disconnect();
