@@ -118,11 +118,17 @@ async function startReaderBot() {
     // Initialize database
     await initializeDatabase();
     
-    // Create and start Telegram bot
+    // Create Telegram bot
+    logger.info('📖 Creating ReaderTelegramBot instance...');
     const readerBot = new ReaderTelegramBot(config.telegram);
+    
+    // Start Telegram bot
+    logger.info('📖 Starting Telegram bot...');
     await readerBot.start();
+    logger.info('📖 Telegram bot started successfully!');
     
     // Initialize CronService for automated reports
+    logger.info('📖 Initializing automated reporting system...');
     const cronService = await initializeCronService(readerBot);
     
     logger.info('🎉 Reader Bot started successfully!');
