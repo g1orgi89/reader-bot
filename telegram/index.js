@@ -2,9 +2,8 @@
  * Main Telegram bot for Reader project - Personal quotes diary with AI analysis
  * @file telegram/index.js
  * 📖 READER BOT: Transformed from Shrooms for Anna Busel's book club
- * 📖 ADDED: Onboarding with 7-question test + email collection + traffic source
- * 📖 ADDED: State management for Reader-specific flows
- * 📖 ADAPTED: From mushroom expert to book psychology expert Anna Busel
+ * 📖 UPDATED: Complete integration with all handlers (Quote, Command, ComplexQuestion)
+ * 📖 ADDED: Full Day 13-14 functionality with AI analysis and achievements
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -13,14 +12,15 @@ const logger = require('../server/utils/logger');
 // Import Reader bot services
 const claudeService = require('../server/services/claude');
 const ticketingService = require('../server/services/ticketing');
-const conversationService = require('../server/services/conversation');
-const messageService = require('../server/services/message');
 
 // Import Reader bot models
 const { UserProfile, Quote } = require('../server/models');
 
 // Import Reader bot handlers and helpers
 const { OnboardingHandler } = require('./handlers/onboardingHandler');
+const { QuoteHandler } = require('./handlers/quoteHandler');
+const { CommandHandler } = require('./handlers/commandHandler');
+const { ComplexQuestionHandler } = require('./handlers/complexQuestionHandler');
 const BotHelpers = require('./helpers/botHelpers');
 
 /**
@@ -54,8 +54,11 @@ class ReaderTelegramBot {
     
     // Initialize Reader bot handlers
     this.onboardingHandler = new OnboardingHandler();
+    this.quoteHandler = new QuoteHandler();
+    this.commandHandler = new CommandHandler();
+    this.complexQuestionHandler = new ComplexQuestionHandler();
     
-    logger.info('📖 ReaderTelegramBot constructor initialized');
+    logger.info('📖 ReaderTelegramBot constructor initialized with all handlers');
   }
 
   /**
@@ -80,7 +83,7 @@ class ReaderTelegramBot {
       this._setupErrorHandling();
       
       this.isInitialized = true;
-      logger.info('📖 Reader Telegram bot initialized successfully');
+      logger.info('📖 Reader Telegram bot initialized successfully with all Day 13-14 features');
     } catch (error) {
       logger.error(`📖 Failed to initialize Reader Telegram bot: ${error.message}`);
       throw error;
@@ -141,26 +144,7 @@ class ReaderTelegramBot {
     // /help command
     this.bot.help(async (ctx) => {
       try {
-        const helpText = `📖 *Помощь по боту «Читатель»*
-
-*Основные команды:*
-/start - начать работу с ботом
-/help - эта справка
-/stats - ваша статистика чтения
-/search - поиск по вашим цитатам
-
-*Как пользоваться:*
-• Просто отправляйте цитаты текстом
-• Указывайте автора в скобках: (Толстой)
-• Лимит: ${this.config.maxQuotesPerDay} цитат в день
-
-*Отчеты:* каждое воскресенье в 11:00
-*Вопросы:* пишите прямо в чат, я передам Анне
-
-💡 Хватит сидеть в телефоне - читайте книги!`;
-
-        await ctx.replyWithMarkdown(helpText);
-        
+        await this.commandHandler.handleHelp(ctx);
       } catch (error) {
         logger.error(`📖 Error in /help command: ${error.message}`);
         await ctx.reply('📖 Я могу помочь вам с сохранением цитат и рекомендациями книг! Просто отправьте мне цитату.');
@@ -170,7 +154,12 @@ class ReaderTelegramBot {
     // /stats command - Show user statistics
     this.bot.command('stats', async (ctx) => {
       try {
-        await this._handleStatsCommand(ctx);
+        const userId = ctx.from.id.toString();
+        if (await this.commandHandler.hasAccess('stats', userId)) {
+          await this.commandHandler.handleStats(ctx);
+        } else {
+          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
+        }
       } catch (error) {
         logger.error(`📖 Error in /stats command: ${error.message}`);
         await ctx.reply('📖 Произошла ошибка при получении статистики. Попробуйте позже.');
@@ -180,10 +169,38 @@ class ReaderTelegramBot {
     // /search command - Search user's quotes
     this.bot.command('search', async (ctx) => {
       try {
-        await this._handleSearchCommand(ctx);
+        const userId = ctx.from.id.toString();
+        if (await this.commandHandler.hasAccess('search', userId)) {
+          // Check if there's a search query
+          const commandText = ctx.message.text;
+          const searchQuery = commandText.replace('/search', '').trim();
+          
+          if (searchQuery) {
+            await this.commandHandler.handleSearchWithQuery(ctx, searchQuery);
+          } else {
+            await this.commandHandler.handleSearch(ctx);
+          }
+        } else {
+          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
+        }
       } catch (error) {
         logger.error(`📖 Error in /search command: ${error.message}`);
         await ctx.reply('📖 Произошла ошибка при поиске цитат. Попробуйте позже.');
+      }
+    });
+
+    // /settings command - User settings
+    this.bot.command('settings', async (ctx) => {
+      try {
+        const userId = ctx.from.id.toString();
+        if (await this.commandHandler.hasAccess('settings', userId)) {
+          await this.commandHandler.handleSettings(ctx);
+        } else {
+          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
+        }
+      } catch (error) {
+        logger.error(`📖 Error in /settings command: ${error.message}`);
+        await ctx.reply('📖 Произошла ошибка при загрузке настроек. Попробуйте позже.');
       }
     });
   }
@@ -206,11 +223,24 @@ class ReaderTelegramBot {
             callbackData.startsWith('test_') || 
             callbackData.startsWith('source_')) {
           
-          await this.onboardingHandler.handleCallback(ctx);
-          return;
+          if (await this.onboardingHandler.handleCallback(ctx)) {
+            return;
+          }
         }
 
-        // Handle other callbacks here (like feedback, recommendations, etc.)
+        // Handle settings callbacks
+        if (callbackData.startsWith('toggle_') || 
+            callbackData.startsWith('set_time_') ||
+            callbackData.startsWith('change_') ||
+            callbackData === 'export_quotes' ||
+            callbackData === 'close_settings') {
+          
+          if (await this.commandHandler.handleSettingsCallback(ctx, callbackData)) {
+            return;
+          }
+        }
+
+        // Handle other callbacks through BotHelpers
         await BotHelpers.handleOtherCallbacks(ctx, callbackData);
 
       } catch (error) {
@@ -244,15 +274,15 @@ class ReaderTelegramBot {
           return;
         }
 
-        // Check if message looks like a quote
-        if (await this._isQuoteMessage(messageText)) {
-          await this._handleQuoteMessage(ctx, messageText, userProfile);
+        // Check if it's a complex question that needs Anna's attention
+        if (this.complexQuestionHandler.isComplexQuestion(messageText)) {
+          await this.complexQuestionHandler.handleComplexQuestion(ctx, messageText, userProfile);
           return;
         }
 
-        // Check if it's a complex question that needs Anna's attention
-        if (await BotHelpers.isComplexQuestion(messageText)) {
-          await BotHelpers.handleComplexQuestion(ctx, messageText, userProfile);
+        // Check if message looks like a quote
+        if (BotHelpers.isQuoteMessage(messageText)) {
+          await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
           return;
         }
 
@@ -264,257 +294,81 @@ class ReaderTelegramBot {
         await this._sendErrorMessage(ctx, error);
       }
     });
-  }
 
-  /**
-   * Handle stats command
-   * @private
-   * @param {Object} ctx - Telegram context
-   */
-  async _handleStatsCommand(ctx) {
-    const userId = ctx.from.id.toString();
-    
-    const userProfile = await UserProfile.findOne({ userId });
-    if (!userProfile) {
-      await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
-      return;
-    }
-
-    const totalQuotes = await Quote.countDocuments({ userId });
-    const todayQuotes = await Quote.countDocuments({
-      userId,
-      createdAt: { $gte: new Date().setHours(0, 0, 0, 0) }
-    });
-
-    const statsText = `📊 *Ваша статистика в «Читателе»:*
-
-📖 Цитат собрано: ${totalQuotes}
-📅 Сегодня: ${todayQuotes}/${this.config.maxQuotesPerDay}
-🔥 Текущая серия: ${userProfile.statistics.currentStreak} дней
-⭐ Рекорд серии: ${userProfile.statistics.longestStreak} дней
-📚 С ботом: ${this._getDaysWithBot(userProfile.registeredAt)} дней
-
-*Любимые авторы:*
-${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1}. ${author}`).join('\n') || 'Пока нет'}
-
-*Достижения:* ${userProfile.achievements.length}
-
-💡 Продолжайте собирать моменты вдохновения!`;
-
-    await ctx.replyWithMarkdown(statsText);
-  }
-
-  /**
-   * Handle search command
-   * @private
-   * @param {Object} ctx - Telegram context
-   */
-  async _handleSearchCommand(ctx) {
-    const userId = ctx.from.id.toString();
-    
-    const quotes = await Quote.find({ userId })
-      .sort({ createdAt: -1 })
-      .limit(10);
-    
-    if (quotes.length === 0) {
-      await ctx.reply("📖 У вас пока нет сохраненных цитат. Отправьте первую!");
-      return;
-    }
-
-    let searchText = "🔍 *Ваши последние цитаты:*\n\n";
-    quotes.forEach((quote, index) => {
-      const author = quote.author ? ` (${quote.author})` : '';
-      const truncated = quote.text.length > 80 ? quote.text.substring(0, 80) + '...' : quote.text;
-      searchText += `${index + 1}. "${truncated}"${author}\n\n`;
-    });
-
-    await ctx.replyWithMarkdown(searchText);
-  }
-
-  /**
-   * Check if message is a quote
-   * @private
-   * @param {string} message - Message text
-   * @returns {Promise<boolean>}
-   */
-  async _isQuoteMessage(message) {
-    // Simple heuristics for quote detection
-    const quotePattterns = [
-      /^".*"/, // Starts and ends with quotes
-      /\([^)]+\)$/, // Ends with author in parentheses
-      /^«.*»/, // Russian quotes
-      /—\s*[А-ЯA-Z]/, // Dash followed by author name
-    ];
-
-    // Check if message matches quote patterns
-    if (quotePattterns.some(pattern => pattern.test(message))) {
-      return true;
-    }
-
-    // Check message length and content (quotes are usually thoughtful, not questions)
-    if (message.length > 20 && message.length < 500 && !message.includes('?')) {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * Handle quote message
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} messageText - Quote text
-   * @param {Object} userProfile - User profile
-   */
-  async _handleQuoteMessage(ctx, messageText, userProfile) {
-    const userId = ctx.from.id.toString();
-
-    // Check daily quote limit
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const todayQuotesCount = await Quote.countDocuments({
-      userId,
-      createdAt: { $gte: today }
-    });
-
-    if (todayQuotesCount >= this.config.maxQuotesPerDay) {
-      await ctx.reply(`📖 Вы уже отправили ${this.config.maxQuotesPerDay} цитат сегодня. Возвращайтесь завтра за новыми открытиями!\n\n💡 Хватит сидеть в телефоне - читайте книги!`);
-      return;
-    }
-
-    // Parse quote (extract author, source)
-    const { text, author, source } = this._parseQuote(messageText);
-    
-    // Save quote to database
-    const quote = new Quote({
-      userId,
-      text,
-      author,
-      source,
-      weekNumber: this._getWeekNumber(),
-      monthNumber: new Date().getMonth() + 1,
-      yearNumber: new Date().getFullYear()
-    });
-
-    await quote.save();
-
-    // Update user statistics
-    await BotHelpers.updateUserStatistics(userId, author);
-
-    // Check for achievements
-    const achievements = await BotHelpers.checkAchievements(userId);
-    if (achievements.length > 0) {
-      await BotHelpers.notifyAchievements(ctx, achievements);
-    }
-
-    // Generate Anna's response
-    const response = await this._generateAnnaResponse(text, author, todayQuotesCount + 1);
-    
-    await ctx.reply(response);
-
-    logger.info(`📖 Quote saved for user ${userId}: "${text.substring(0, 30)}..."`);
-  }
-
-  /**
-   * Parse quote text to extract author and source
-   * @private
-   * @param {string} messageText - Raw message text
-   * @returns {Object} Parsed quote data
-   */
-  _parseQuote(messageText) {
-    const patterns = [
-      /^"([^"]+)"\s*\(([^)]+)\)$/, // "Quote" (Author)
-      /^([^(]+)\s*\(([^)]+)\)$/, // Quote (Author)  
-      /^([^—]+)\s*—\s*(.+)$/, // Quote — Author
-      /^«([^»]+)»\s*\(([^)]+)\)$/, // «Quote» (Author)
-      /^(.+)$/ // Just text
-    ];
-
-    for (const pattern of patterns) {
-      const match = messageText.trim().match(pattern);
-      if (match) {
-        if (match[2]) {
-          return {
-            text: match[1].trim(),
-            author: match[2].trim(),
-            source: null
-          };
-        } else {
-          return {
-            text: match[1].trim(),
-            author: null,
-            source: null
-          };
+    // Handle non-text messages (photos, documents, etc.)
+    this.bot.on(['photo', 'document', 'voice', 'video', 'sticker'], async (ctx) => {
+      try {
+        const userId = ctx.from.id.toString();
+        const userProfile = await UserProfile.findOne({ userId });
+        
+        if (!userProfile || !userProfile.isOnboardingComplete) {
+          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
+          return;
         }
-      }
-    }
 
-    return { text: messageText.trim(), author: null, source: null };
+        const messageType = ctx.message.photo ? 'фото' : 
+                           ctx.message.document ? 'документ' :
+                           ctx.message.voice ? 'голосовое сообщение' :
+                           ctx.message.video ? 'видео' : 'файл';
+
+        await ctx.reply(
+          `📖 Спасибо за ${messageType}! Но я принимаю только текстовые цитаты.\n\n` +
+          `💡 Если у вас есть интересная цитата из изображения или документа, ` +
+          `пожалуйста, перепечатайте ее текстом.\n\n` +
+          `Например: "В каждом слове — целая жизнь" (Марина Цветаева)`
+        );
+
+      } catch (error) {
+        logger.error(`📖 Error processing non-text message: ${error.message}`);
+        await ctx.reply('📖 Произошла ошибка. Попробуйте отправить цитату текстом.');
+      }
+    });
   }
 
   /**
-   * Generate Anna Busel's response to a quote
+   * Setup error handling
    * @private
-   * @param {string} text - Quote text
-   * @param {string|null} author - Quote author
-   * @param {number} todayCount - Number of quotes today
-   * @returns {string}
    */
-  async _generateAnnaResponse(text, author, todayCount) {
-    const templates = [
-      `✨ Прекрасная цитата! ${author ? `${author} умеет находить глубину в простых словах.` : 'Мудрые слова для размышления.'}`,
-      `📖 Замечательный выбор! Эта мысль достойна размышления.`,
-      `💭 Очень глубоко! ${author ? `${author} - один из моих любимых авторов.` : 'Прекрасная собственная мысль!'}`,
-      `🌟 Сохранила в ваш личный дневник. ${author ? `${author} всегда вдохновляет.` : 'Отличная мысль!'}`
-    ];
-
-    const baseResponse = templates[Math.floor(Math.random() * templates.length)];
-    
-    let fullResponse = `${baseResponse}\n\nСохранил в ваш личный дневник 📖\nЦитат сегодня: ${todayCount}/${this.config.maxQuotesPerDay}`;
-
-    // Add encouragement or book recommendation sometimes
-    if (Math.random() < 0.3) {
-      if (todayCount >= 3) {
-        fullResponse += `\n\n💡 Вы сегодня особенно вдумчивы! Продолжайте собирать моменты мудрости.`;
-      } else if (author && ['Толстой', 'Достоевский', 'Пушкин', 'Чехов'].includes(author)) {
-        fullResponse += `\n\n📚 Кстати, у Анны есть разборы классической литературы, которые могут вас заинтересовать.`;
-      }
-    }
-
-    return fullResponse;
-  }
-
-  /**
-   * Helper methods
-   */
-  _getWeekNumber() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now - start;
-    const oneWeek = 1000 * 60 * 60 * 24 * 7;
-    return Math.floor(diff / oneWeek) + 1;
-  }
-
-  _getDaysWithBot(registrationDate) {
-    const now = new Date();
-    const diff = now - registrationDate;
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
-  }
-
   _setupErrorHandling() {
     this.bot.catch((err, ctx) => {
       logger.error(`📖 Telegram bot error: ${err.message}`);
-      ctx.reply('📖 Упс! Что-то пошло не так. Попробуйте еще раз.')
+      
+      // Определяем подходящий ответ на основе типа ошибки
+      let errorMessage = '📖 Упс! Что-то пошло не так. Попробуйте еще раз.';
+      
+      if (err.code === 429) {
+        errorMessage = '📖 Слишком много запросов. Пожалуйста, подождите немного.';
+      } else if (err.code === 403) {
+        errorMessage = '📖 Нет доступа. Проверьте, не заблокировали ли вы бота.';
+      } else if (err.message.includes('message is too long')) {
+        errorMessage = '📖 Сообщение слишком длинное. Попробуйте разделить его на части.';
+      }
+
+      ctx.reply(errorMessage)
         .catch(sendError => {
           logger.error(`📖 Failed to send error message: ${sendError.message}`);
         });
     });
   }
 
+  /**
+   * Send error message to user
+   * @private
+   * @param {Object} ctx - Telegram context
+   * @param {Error} error - Error object
+   */
   async _sendErrorMessage(ctx, error) {
     try {
-      await ctx.reply('📖 Произошла ошибка. Попробуйте еще раз через минуту.');
+      let message = '📖 Произошла ошибка. Попробуйте еще раз через минуту.';
+      
+      // Специальные сообщения для определенных ошибок
+      if (error.message.includes('daily limit')) {
+        message = '📖 Вы достигли дневного лимита цитат (10 штук). Возвращайтесь завтра!';
+      } else if (error.message.includes('quote too long')) {
+        message = '📖 Цитата слишком длинная. Максимум 1000 символов.';
+      }
+
+      await ctx.reply(message);
     } catch (sendError) {
       logger.error(`📖 Failed to send error message: ${sendError.message}`);
     }
@@ -531,7 +385,7 @@ ${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1
 
     try {
       await this.bot.launch();
-      logger.info('📖 Reader Telegram bot started successfully');
+      logger.info('📖 Reader Telegram bot started successfully with all Day 13-14 features');
       
       // Graceful stop
       process.once('SIGINT', () => this.stop('SIGINT'));
@@ -559,6 +413,28 @@ ${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1
   }
 
   /**
+   * Send message to user (external API)
+   * @param {string} userId - User ID
+   * @param {string} message - Message text
+   * @param {Object} [options] - Additional options
+   * @returns {Promise<void>}
+   */
+  async sendMessageToUser(userId, message, options = {}) {
+    try {
+      await this.bot.telegram.sendMessage(userId, message, {
+        parse_mode: options.parseMode || 'Markdown',
+        reply_markup: options.replyMarkup,
+        disable_web_page_preview: options.disablePreview !== false
+      });
+      
+      logger.info(`📖 Message sent to user ${userId}`);
+    } catch (error) {
+      logger.error(`📖 Failed to send message to user ${userId}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Get bot statistics
    * @returns {Promise<Object>}
    */
@@ -571,6 +447,12 @@ ${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1
       const totalQuotes = await Quote.countDocuments();
       const onboardingUsers = this.onboardingHandler.userStates.size;
       
+      // Today's activity
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayQuotes = await Quote.countDocuments({ createdAt: { $gte: today } });
+      const todayUsers = await Quote.distinct('userId', { createdAt: { $gte: today } });
+
       return {
         botInfo: {
           id: me.id,
@@ -591,14 +473,28 @@ ${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1
           totalUsers,
           totalQuotes,
           onboardingUsers,
-          averageQuotesPerUser: totalUsers > 0 ? Math.round(totalQuotes / totalUsers * 10) / 10 : 0
+          averageQuotesPerUser: totalUsers > 0 ? Math.round(totalQuotes / totalUsers * 10) / 10 : 0,
+          todayQuotes,
+          activeUsersToday: todayUsers.length
+        },
+        handlers: {
+          onboarding: this.onboardingHandler.getStats(),
+          quotes: this.quoteHandler.getStats(),
+          commands: this.commandHandler.getStats(),
+          complexQuestions: this.complexQuestionHandler.getStats(),
+          helpers: BotHelpers.getStats()
         },
         features: {
           onboardingFlow: true,
           quoteCollection: true,
+          aiAnalysis: true,
           achievementSystem: true,
           complexQuestionHandling: true,
-          annaPersona: true
+          annaPersona: true,
+          userCommands: true,
+          settingsManagement: true,
+          quoteExport: true,
+          ticketingSystem: true
         }
       };
     } catch (error) {
@@ -606,6 +502,60 @@ ${userProfile.statistics.favoriteAuthors.slice(0, 3).map((author, i) => `${i + 1
       return {
         status: 'error',
         error: error.message
+      };
+    }
+  }
+
+  /**
+   * Clean up resources
+   * @returns {Promise<void>}
+   */
+  async cleanup() {
+    try {
+      // Clean up onboarding states
+      this.onboardingHandler.cleanupStaleStates();
+      
+      logger.info('📖 Reader bot cleanup completed');
+    } catch (error) {
+      logger.error(`📖 Error during cleanup: ${error.message}`);
+    }
+  }
+
+  /**
+   * Health check for the bot
+   * @returns {Promise<Object>}
+   */
+  async healthCheck() {
+    try {
+      // Check if bot can communicate with Telegram
+      const me = await this.bot.telegram.getMe();
+      
+      // Check database connectivity
+      const userCount = await UserProfile.countDocuments();
+      
+      return {
+        status: 'healthy',
+        bot: {
+          id: me.id,
+          username: me.username,
+          canReceiveMessages: true
+        },
+        database: {
+          connected: true,
+          userCount
+        },
+        handlers: {
+          initialized: this.isInitialized,
+          onboardingActive: this.onboardingHandler.userStates.size
+        },
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      logger.error(`📖 Health check failed: ${error.message}`);
+      return {
+        status: 'unhealthy',
+        error: error.message,
+        timestamp: new Date().toISOString()
       };
     }
   }
