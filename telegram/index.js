@@ -4,6 +4,7 @@
  * 📖 READER BOT: Transformed from Shrooms for Anna Busel's book club
  * 📖 UPDATED: Complete integration with all handlers (Quote, Command, ComplexQuestion)
  * 📖 ADDED: Full Day 13-14 functionality with AI analysis and achievements
+ * 📖 ADDED: WeeklyReportHandler integration and feedback support
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -58,7 +59,19 @@ class ReaderTelegramBot {
     this.commandHandler = new CommandHandler();
     this.complexQuestionHandler = new ComplexQuestionHandler();
     
+    // WeeklyReportHandler will be set externally
+    this.weeklyReportHandler = null;
+    
     logger.info('📖 ReaderTelegramBot constructor initialized with all handlers');
+  }
+
+  /**
+   * Set weekly report handler (called from start.js)
+   * @param {Object} weeklyReportHandler - WeeklyReportHandler instance
+   */
+  setWeeklyReportHandler(weeklyReportHandler) {
+    this.weeklyReportHandler = weeklyReportHandler;
+    logger.info('📖 WeeklyReportHandler integrated into main bot');
   }
 
   /**
@@ -228,12 +241,38 @@ class ReaderTelegramBot {
           }
         }
 
+        // Handle weekly report feedback callbacks
+        if (callbackData.startsWith('feedback_') && this.weeklyReportHandler) {
+          const parts = callbackData.split('_');
+          if (parts.length >= 3) {
+            const rating = parts[1]; // excellent/good/bad
+            const reportId = parts.slice(2).join('_'); // handle IDs with underscores
+            
+            await this.weeklyReportHandler.handleWeeklyFeedback(ctx, rating, reportId);
+            return;
+          }
+        }
+
+        // Handle user stats callback
+        if (callbackData === 'show_user_stats') {
+          await this.commandHandler.handleStats(ctx);
+          await ctx.answerCbQuery();
+          return;
+        }
+
         // Handle settings callbacks
         if (callbackData.startsWith('toggle_') || 
             callbackData.startsWith('set_time_') ||
             callbackData.startsWith('change_') ||
+            callbackData === 'show_settings' ||
             callbackData === 'export_quotes' ||
             callbackData === 'close_settings') {
+          
+          if (callbackData === 'show_settings') {
+            await this.commandHandler.handleSettings(ctx);
+            await ctx.answerCbQuery();
+            return;
+          }
           
           if (await this.commandHandler.handleSettingsCallback(ctx, callbackData)) {
             return;
@@ -482,7 +521,8 @@ class ReaderTelegramBot {
           quotes: this.quoteHandler.getStats(),
           commands: this.commandHandler.getStats(),
           complexQuestions: this.complexQuestionHandler.getStats(),
-          helpers: BotHelpers.getStats()
+          helpers: BotHelpers.getStats(),
+          weeklyReports: this.weeklyReportHandler ? true : false
         },
         features: {
           onboardingFlow: true,
@@ -494,7 +534,9 @@ class ReaderTelegramBot {
           userCommands: true,
           settingsManagement: true,
           quoteExport: true,
-          ticketingSystem: true
+          ticketingSystem: true,
+          weeklyReports: !!this.weeklyReportHandler,
+          scheduledTasks: true
         }
       };
     } catch (error) {
@@ -546,7 +588,8 @@ class ReaderTelegramBot {
         },
         handlers: {
           initialized: this.isInitialized,
-          onboardingActive: this.onboardingHandler.userStates.size
+          onboardingActive: this.onboardingHandler.userStates.size,
+          weeklyReportsEnabled: !!this.weeklyReportHandler
         },
         timestamp: new Date().toISOString()
       };
