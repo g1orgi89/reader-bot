@@ -5,7 +5,7 @@
 
 const logger = require('../utils/simpleLogger');
 const { UserProfile, Quote, WeeklyReport } = require('../models');
-const ClaudeService = require('../services/claudeService');
+const ClaudeService = require('./claude');
 
 /**
  * @typedef {import('../types/reader').WeeklyReport} WeeklyReport
