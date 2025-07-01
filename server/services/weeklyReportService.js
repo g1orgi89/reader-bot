@@ -3,131 +3,195 @@
  * @author g1orgi89
  */
 
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
-const claudeService = require('./claude');
+const logger = require('../../utils/logger');
+const { UserProfile, Quote, WeeklyReport } = require('../../models');
+const claudeService = require('../claude');
 
 /**
- * @typedef {import('../types/reader').WeeklyReport} WeeklyReport
- * @typedef {import('../types/reader').WeeklyAnalysis} WeeklyAnalysis
- * @typedef {import('../types/reader').BookRecommendation} BookRecommendation
- * @typedef {import('../types/reader').PromoCodeData} PromoCodeData
+ * @typedef {import('../../types/reader').WeeklyReport} WeeklyReport
+ * @typedef {import('../../types/reader').UserProfile} UserProfile  
+ * @typedef {import('../../types/reader').Quote} Quote
  */
 
 /**
- * @class WeeklyReportService
- * @description Сервис для генерации еженедельных отчетов с AI-анализом
+ * Сервис генерации еженедельных отчетов
  */
 class WeeklyReportService {
   constructor() {
-    this.WeeklyReport = null;
-    this.Quote = null;
-    this.UserProfile = null;
-    
-    // Инициализация моделей
-    this._initializeModels();
-  }
+    /**
+     * @type {Array<Object>} - Доступные книги Анны для рекомендаций
+     */
+    this.annaBooks = [
+      {
+        title: 'Искусство любить',
+        author: 'Эрих Фромм',
+        price: '$8',
+        description: 'О построении здоровых отношений с собой и миром',
+        categories: ['Любовь', 'Отношения', 'Саморазвитие'],
+        utmCampaign: 'art_of_loving'
+      },
+      {
+        title: 'Письма к молодому поэту',
+        author: 'Райнер Мария Рильке',
+        price: '$8',
+        description: 'О творчестве, одиночестве и поиске себя',
+        categories: ['Творчество', 'Философия', 'Саморазвитие'],
+        utmCampaign: 'letters_young_poet'
+      },
+      {
+        title: 'Быть собой',
+        author: 'Курс Анны Бусел',
+        price: '$12',
+        description: 'О самопринятии и аутентичности',
+        categories: ['Саморазвитие', 'Мудрость', 'Материнство'],
+        utmCampaign: 'be_yourself_course'
+      },
+      {
+        title: 'Женщина, которая читает, опасна',
+        author: 'Стефан Боллманн',
+        price: '$10',
+        description: 'О женственности и силе через литературу',
+        categories: ['Саморазвитие', 'Творчество', 'Мудрость'],
+        utmCampaign: 'dangerous_woman_reader'
+      },
+      {
+        title: 'Алхимик',
+        author: 'Пауло Коэльо',
+        price: '$8',
+        description: 'О поиске смысла жизни и следовании мечте',
+        categories: ['Философия', 'Мотивация', 'Мудрость'],
+        utmCampaign: 'alchemist_analysis'
+      },
+      {
+        title: 'Маленький принц',
+        author: 'Антуан де Сент-Экзюпери',
+        price: '$6',
+        description: 'О простых истинах жизни глазами ребенка',
+        categories: ['Философия', 'Мудрость', 'Материнство'],
+        utmCampaign: 'little_prince_analysis'
+      }
+    ];
 
-  /**
-   * Инициализация моделей MongoDB
-   * @private
-   */
-  _initializeModels() {
-    try {
-      this.WeeklyReport = require('../models/weeklyReport');
-      this.Quote = require('../models/quote');
-      this.UserProfile = require('../models/userProfile');
-      logger.info('📖 WeeklyReportService models initialized');
-    } catch (error) {
-      logger.error(`📖 Failed to initialize models: ${error.message}`);
-    }
+    logger.info('📖 WeeklyReportService initialized');
   }
 
   /**
    * Генерация еженедельного отчета для пользователя
-   * @param {string} userId - ID пользователя Telegram
+   * @param {string} userId - ID пользователя
    * @returns {Promise<WeeklyReport|null>} Созданный отчет или null
    */
   async generateWeeklyReport(userId) {
     try {
-      const user = await this.UserProfile.findOne({ userId });
-      if (!user || !user.isOnboardingComplete) {
-        logger.warn(`📖 User ${userId} not found or onboarding incomplete`);
+      const user = await UserProfile.findOne({ userId });
+      if (!user) {
+        logger.warn(`📖 User not found for weekly report: ${userId}`);
         return null;
       }
 
-      const { weekNumber, year } = this._getCurrentWeek();
-      
-      // Проверяем, не отправляли ли уже отчет
-      const existingReport = await this.WeeklyReport.findByUserWeek(userId, weekNumber, year);
+      const weekNumber = this.getCurrentWeekNumber();
+      const year = new Date().getFullYear();
+
+      // Проверяем, не создан ли уже отчет за эту неделю
+      const existingReport = await WeeklyReport.findOne({
+        userId,
+        weekNumber,
+        year
+      });
+
       if (existingReport) {
-        logger.info(`📖 Weekly report for user ${userId} week ${weekNumber}/${year} already exists`);
+        logger.info(`📖 Weekly report already exists for user ${userId}, week ${weekNumber}`);
         return existingReport;
       }
 
       // Получаем цитаты за неделю
-      const weekQuotes = await this.Quote.getWeeklyQuotes(userId, weekNumber, year);
-      
+      const weekQuotes = await this.getWeekQuotes(userId, weekNumber, year);
+
       if (weekQuotes.length === 0) {
-        logger.info(`📖 No quotes for user ${userId} week ${weekNumber}/${year}, sending encouragement`);
-        return await this._generateEmptyWeekReport(userId, user);
+        return await this.generateEmptyWeekReport(userId, user, weekNumber, year);
       }
 
-      logger.info(`📖 Generating weekly report for user ${userId} with ${weekQuotes.length} quotes`);
-
       // AI-анализ недели через Claude
-      const analysis = await this._analyzeWeeklyQuotes(weekQuotes, user);
+      const analysis = await this.analyzeWeeklyQuotes(weekQuotes, user);
       
       // Подбор рекомендаций книг
-      const recommendations = await this._getBookRecommendations(analysis, user);
+      const recommendations = await this.getBookRecommendations(analysis, user, weekQuotes);
       
       // Генерация промокода
-      const promoCode = this._generatePromoCode();
+      const promoCode = this.generatePromoCode();
 
       // Создание отчета
-      const report = new this.WeeklyReport({
+      const report = new WeeklyReport({
         userId,
         weekNumber,
         year,
         quotes: weekQuotes.map(q => q._id),
         analysis,
         recommendations,
-        promoCode
+        promoCode,
+        sentAt: new Date()
       });
 
       await report.save();
-      logger.info(`📖 Weekly report created for user ${userId}: ${report._id}`);
 
+      logger.info(`📖 Weekly report generated for user ${userId}, week ${weekNumber}`);
       return report;
+
     } catch (error) {
-      logger.error(`📖 Error generating weekly report for user ${userId}: ${error.message}`);
-      throw error;
+      logger.error(`📖 Error generating weekly report for user ${userId}: ${error.message}`, error);
+      return null;
     }
   }
 
   /**
-   * AI-анализ цитат за неделю через Claude
-   * @private
-   * @param {Array} quotes - Цитаты за неделю
-   * @param {Object} userProfile - Профиль пользователя
-   * @returns {Promise<WeeklyAnalysis>} Анализ недели
+   * Получение цитат за указанную неделю
+   * @param {string} userId - ID пользователя
+   * @param {number} weekNumber - Номер недели
+   * @param {number} year - Год
+   * @returns {Promise<Array<Quote>>} Цитаты за неделю
    */
-  async _analyzeWeeklyQuotes(quotes, userProfile) {
-    try {
-      const quotesText = quotes.map(q => 
-        `"${q.text}" ${q.author ? `(${q.author})` : ''}`
-      ).join('\n\n');
-      
-      const prompt = `Ты психолог Анна Бусел. Проанализируй цитаты пользователя за неделю и дай психологический анализ.
+  async getWeekQuotes(userId, weekNumber, year) {
+    return await Quote.find({
+      userId,
+      weekNumber,
+      yearNumber: year
+    }).sort({ createdAt: 1 });
+  }
 
-Имя пользователя: ${userProfile.name}
-Результаты теста: ${JSON.stringify(userProfile.testResults)}
+  /**
+   * AI-анализ цитат за неделю
+   * @param {Array<Quote>} quotes - Цитаты за неделю
+   * @param {UserProfile} userProfile - Профиль пользователя
+   * @returns {Promise<Object>} Анализ недели
+   */
+  async analyzeWeeklyQuotes(quotes, userProfile) {
+    const quotesText = quotes.map(q => 
+      `"${q.text}" ${q.author ? `(${q.author})` : ''}`
+    ).join('\n\n');
+    
+    const categoriesCount = {};
+    quotes.forEach(q => {
+      categoriesCount[q.category] = (categoriesCount[q.category] || 0) + 1;
+    });
 
-Цитаты за неделю:
+    const dominantCategories = Object.entries(categoriesCount)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3)
+      .map(([category]) => category);
+
+    const prompt = `Ты психолог Анна Бусел. Проанализируй цитаты пользователя за неделю и дай психологический анализ в своем стиле.
+
+Информация о пользователе:
+Имя: ${userProfile.name}
+Результаты первоначального теста: ${JSON.stringify(userProfile.testResults, null, 2)}
+Предпочтения: ${userProfile.preferences?.mainThemes?.join(', ') || 'не определены'}
+
+Цитаты за неделю (${quotes.length} штук):
 ${quotesText}
 
+Доминирующие категории: ${dominantCategories.join(', ')}
+
 Напиши анализ в стиле Анны Бусел:
-- Тон: теплый, профессиональный, обращение на "Вы"
+- Тон: теплый, профессиональный, обращение на "Вы"  
 - Глубокий психологический анализ
 - Связь с результатами первоначального теста
 - Выводы о текущем состоянии и интересах
@@ -136,108 +200,148 @@ ${quotesText}
 Верни JSON:
 {
   "summary": "Краткий анализ недели одним предложением",
-  "dominantThemes": ["тема1", "тема2"],
-  "emotionalTone": "позитивный/нейтральный/задумчивый/вдохновляющий/меланхоличный/энергичный",
-  "insights": "Подробный психологический анализ от Анны"
+  "dominantThemes": ["тема1", "тема2", "тема3"],
+  "emotionalTone": "позитивный/нейтральный/задумчивый/etc",
+  "insights": "Подробный психологический анализ от Анны (2-3 абзаца)",
+  "personalGrowth": "Наблюдения о личностном росте пользователя"
 }`;
 
+    try {
       const response = await claudeService.generateResponse(prompt, {
         platform: 'telegram',
-        userId: 'weekly_report_analysis'
+        userId: userProfile.userId,
+        context: 'weekly_report_analysis'
       });
       
-      try {
-        const analysis = JSON.parse(response.message);
-        
-        // Валидация структуры
-        if (!analysis.summary || !analysis.insights || !analysis.emotionalTone) {
-          throw new Error('Invalid analysis structure');
-        }
-        
-        return {
-          summary: analysis.summary.substring(0, 500),
-          dominantThemes: analysis.dominantThemes || ['саморазвитие'],
-          emotionalTone: analysis.emotionalTone || 'позитивный',
-          insights: analysis.insights.substring(0, 2000)
-        };
-      } catch (parseError) {
-        logger.error(`📖 Failed to parse AI analysis: ${parseError.message}`);
-        return this._getFallbackAnalysis(quotes, userProfile);
-      }
+      const analysis = JSON.parse(response.message);
+      
+      // Валидация анализа
+      if (!analysis.summary) analysis.summary = "Ваши цитаты отражают глубокий внутренний поиск";
+      if (!analysis.dominantThemes) analysis.dominantThemes = dominantCategories;
+      if (!analysis.emotionalTone) analysis.emotionalTone = "размышляющий";
+      if (!analysis.insights) analysis.insights = "Эта неделя показывает ваш интерес к глубоким жизненным вопросам.";
+
+      return analysis;
+      
     } catch (error) {
-      logger.error(`📖 Error in AI analysis: ${error.message}`);
-      return this._getFallbackAnalysis(quotes, userProfile);
+      logger.error(`📖 Error in weekly AI analysis: ${error.message}`);
+      
+      // Fallback анализ
+      return {
+        summary: "Ваши цитаты отражают глубокий внутренний поиск",
+        dominantThemes: dominantCategories,
+        emotionalTone: "размышляющий",
+        insights: `Эта неделя показывает ваш интерес к темам: ${dominantCategories.join(', ')}. Вы ищете ответы и вдохновение в словах мудрых людей. Особенно привлекают вас размышления о ${dominantCategories[0]?.toLowerCase()}.`,
+        personalGrowth: "Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг."
+      };
     }
   }
 
   /**
    * Подбор рекомендаций книг на основе анализа
-   * @private
-   * @param {WeeklyAnalysis} analysis - Анализ недели
-   * @param {Object} userProfile - Профиль пользователя
-   * @returns {Promise<BookRecommendation[]>} Рекомендации книг
+   * @param {Object} analysis - Анализ недели
+   * @param {UserProfile} userProfile - Профиль пользователя
+   * @param {Array<Quote>} quotes - Цитаты за неделю
+   * @returns {Promise<Array<Object>>} Рекомендации книг
    */
-  async _getBookRecommendations(analysis, userProfile) {
-    try {
-      const prompt = `Ты психолог Анна Бусел. На основе анализа недели пользователя, подбери 2-3 рекомендации из твоих разборов книг.
+  async getBookRecommendations(analysis, userProfile, quotes) {
+    const prompt = `Ты психолог Анна Бусел. На основе анализа недели пользователя, подбери 2-3 рекомендации из твоих разборов книг.
 
-Имя: ${userProfile.name}
+Пользователь: ${userProfile.name}
 Анализ недели: ${analysis.insights}
 Доминирующие темы: ${analysis.dominantThemes.join(', ')}
+Количество цитат: ${quotes.length}
 
 Доступные разборы книг Анны Бусел:
-- "Искусство любить" Эриха Фромма ($8) - о построении здоровых отношений
-- "Письма к молодому поэту" Рильке ($8) - о творчестве и самопознании
-- "Быть собой" курс ($12) - о самопринятии и аутентичности
-- "Женщина, которая читает, опасна" ($10) - о женственности и силе
-- "Алхимик" Пауло Коэльо ($8) - о поиске смысла жизни
-- "Маленький принц" ($6) - о простых истинах жизни
+${this.annaBooks.map(book => 
+  `- "${book.title}" ${book.author !== 'Курс Анны Бусел' ? `${book.author} ` : ''}(${book.price}) - ${book.description}`
+).join('\n')}
 
-Верни JSON массив рекомендаций:
+Подбери 2-3 самые подходящие рекомендации и верни JSON массив:
 [
   {
     "title": "Название книги/курса",
-    "price": "$8",
+    "price": "$X",
     "description": "Краткое описание почему подходит",
     "reasoning": "Почему именно эта книга подойдет пользователю на основе анализа"
   }
 ]
 
-Максимум 3 рекомендации, самые подходящие.`;
+Учитывай личность пользователя и его текущие интересы.`;
 
+    try {
       const response = await claudeService.generateResponse(prompt, {
         platform: 'telegram',
-        userId: 'book_recommendations'
+        userId: userProfile.userId,
+        context: 'book_recommendations'
       });
       
-      try {
-        const recommendations = JSON.parse(response.message);
-        
-        // Добавляем UTM ссылки
-        return recommendations.map(rec => ({
-          title: rec.title,
-          description: rec.description.substring(0, 500),
-          price: rec.price,
-          reasoning: rec.reasoning.substring(0, 300),
-          link: this._generateUTMLink(rec.title, userProfile.userId)
-        }));
-      } catch (parseError) {
-        logger.error(`📖 Failed to parse book recommendations: ${parseError.message}`);
-        return this._getFallbackRecommendations(userProfile.userId);
-      }
+      const recommendations = JSON.parse(response.message);
+      
+      // Добавляем UTM ссылки к рекомендациям
+      return recommendations.map(rec => {
+        const book = this.annaBooks.find(b => b.title === rec.title);
+        return {
+          ...rec,
+          link: this.generateUTMLink(book?.utmCampaign || 'general', userProfile.userId),
+          utmCampaign: book?.utmCampaign || 'general'
+        };
+      });
+      
     } catch (error) {
       logger.error(`📖 Error getting book recommendations: ${error.message}`);
-      return this._getFallbackRecommendations(userProfile.userId);
+      
+      // Fallback рекомендации
+      const fallbackBooks = this.selectFallbackBooks(analysis.dominantThemes);
+      return fallbackBooks.map(book => ({
+        title: book.title,
+        price: book.price,
+        description: book.description,
+        reasoning: `Подходит для изучения темы ${analysis.dominantThemes[0]}`,
+        link: this.generateUTMLink(book.utmCampaign, userProfile.userId),
+        utmCampaign: book.utmCampaign
+      }));
     }
   }
 
   /**
-   * Генерация промокода
-   * @private
-   * @returns {PromoCodeData} Данные промокода
+   * Выбор резервных книг на основе тем
+   * @param {Array<string>} themes - Доминирующие темы
+   * @returns {Array<Object>} Подходящие книги
    */
-  _generatePromoCode() {
-    const codes = ['READER20', 'WISDOM20', 'QUOTES20', 'BOOKS20'];
+  selectFallbackBooks(themes) {
+    const selectedBooks = [];
+    
+    for (const theme of themes) {
+      const suitableBooks = this.annaBooks.filter(book => 
+        book.categories.includes(theme)
+      );
+      
+      if (suitableBooks.length > 0 && selectedBooks.length < 3) {
+        const randomBook = suitableBooks[Math.floor(Math.random() * suitableBooks.length)];
+        if (!selectedBooks.find(b => b.title === randomBook.title)) {
+          selectedBooks.push(randomBook);
+        }
+      }
+    }
+
+    // Если не нашли по темам, добавляем популярные
+    if (selectedBooks.length === 0) {
+      selectedBooks.push(this.annaBooks[0]); // Искусство любить
+    }
+    if (selectedBooks.length === 1) {
+      selectedBooks.push(this.annaBooks[2]); // Быть собой
+    }
+
+    return selectedBooks.slice(0, 3);
+  }
+
+  /**
+   * Генерация промокода для недели
+   * @returns {Object} Промокод
+   */
+  generatePromoCode() {
+    const codes = ['READER20', 'WISDOM20', 'QUOTES20', 'BOOKS20', 'WEEK20'];
     const selectedCode = codes[Math.floor(Math.random() * codes.length)];
     
     return {
@@ -249,18 +353,17 @@ ${quotesText}
 
   /**
    * Генерация UTM ссылки
-   * @private
-   * @param {string} bookTitle - Название книги
+   * @param {string} campaign - Название кампании
    * @param {string} userId - ID пользователя
    * @returns {string} UTM ссылка
    */
-  _generateUTMLink(bookTitle, userId) {
+  generateUTMLink(campaign, userId) {
     const baseUrl = "https://anna-busel.com/books";
     const utmParams = new URLSearchParams({
       utm_source: 'telegram_bot',
       utm_medium: 'weekly_report',
-      utm_campaign: 'reader_recommendations',
-      utm_content: bookTitle.toLowerCase().replace(/\s+/g, '_'),
+      utm_campaign: campaign,
+      utm_content: 'reader_recommendations',
       user_id: userId
     });
     
@@ -268,96 +371,44 @@ ${quotesText}
   }
 
   /**
-   * Генерация отчета для пустой недели
-   * @private
+   * Генерация отчета для недели без цитат
    * @param {string} userId - ID пользователя
-   * @param {Object} user - Профиль пользователя
-   * @returns {Promise<null>} null - отчет не создается
+   * @param {UserProfile} user - Профиль пользователя
+   * @param {number} weekNumber - Номер недели
+   * @param {number} year - Год
+   * @returns {Promise<WeeklyReport>} Отчет
    */
-  async _generateEmptyWeekReport(userId, user) {
-    // Для пустых недель отчет не создается в БД, только отправляется сообщение
-    logger.info(`📖 Generated empty week encouragement for user ${userId}`);
-    return null;
-  }
-
-  /**
-   * Резервный анализ при ошибке AI
-   * @private
-   * @param {Array} quotes - Цитаты
-   * @param {Object} userProfile - Профиль пользователя
-   * @returns {WeeklyAnalysis} Резервный анализ
-   */
-  _getFallbackAnalysis(quotes, userProfile) {
-    const themes = this._extractThemesFromQuotes(quotes);
-    
-    return {
-      summary: "Ваши цитаты отражают глубокий внутренний поиск и стремление к мудрости",
-      dominantThemes: themes,
-      emotionalTone: "позитивный",
-      insights: `${userProfile.name}, эта неделя показывает ваш интерес к глубоким жизненным вопросам. Вы ищете ответы и вдохновение в словах мудрых людей. Ваши цитаты говорят о стремлении к росту и пониманию себя.`
-    };
-  }
-
-  /**
-   * Извлечение тем из цитат (резервный метод)
-   * @private
-   * @param {Array} quotes - Цитаты
-   * @returns {string[]} Темы
-   */
-  _extractThemesFromQuotes(quotes) {
-    const themes = new Set();
-    
-    quotes.forEach(quote => {
-      if (quote.category && quote.category !== 'Другое') {
-        themes.add(quote.category.toLowerCase());
-      }
-      if (quote.themes && quote.themes.length > 0) {
-        quote.themes.forEach(theme => themes.add(theme.toLowerCase()));
-      }
+  async generateEmptyWeekReport(userId, user, weekNumber, year) {
+    const report = new WeeklyReport({
+      userId,
+      weekNumber,
+      year,
+      quotes: [],
+      analysis: {
+        summary: "Неделя без новых цитат",
+        dominantThemes: [],
+        emotionalTone: "паузы",
+        insights: `${user.name}, на этой неделе вы не сохранили ни одной цитаты. Иногда паузы тоже важны - они дают время осмыслить уже накопленную мудрость.`,
+        personalGrowth: "Время для внутреннего созерцания"
+      },
+      recommendations: [],
+      promoCode: null,
+      sentAt: new Date()
     });
+
+    await report.save();
     
-    return Array.from(themes).slice(0, 3);
+    logger.info(`📖 Empty weekly report generated for user ${userId}, week ${weekNumber}`);
+    return report;
   }
 
   /**
-   * Резервные рекомендации
-   * @private
-   * @param {string} userId - ID пользователя
-   * @returns {BookRecommendation[]} Резервные рекомендации
-   */
-  _getFallbackRecommendations(userId) {
-    return [
-      {
-        title: "Искусство любить",
-        price: "$8",
-        description: "О построении здоровых отношений с собой и миром",
-        reasoning: "Подходит для глубокого самопознания",
-        link: this._generateUTMLink("Искусство любить", userId)
-      }
-    ];
-  }
-
-  /**
-   * Получение текущей недели
-   * @private
-   * @returns {Object} Номер недели и год
-   */
-  _getCurrentWeek() {
-    const now = new Date();
-    const weekNumber = this._getWeekNumber(now);
-    const year = now.getFullYear();
-    
-    return { weekNumber, year };
-  }
-
-  /**
-   * Получение номера недели ISO 8601
-   * @private
-   * @param {Date} date - Дата
+   * Получить номер текущей недели
    * @returns {number} Номер недели
    */
-  _getWeekNumber(date) {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  getCurrentWeekNumber() {
+    const now = new Date();
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
     const dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -366,171 +417,33 @@ ${quotesText}
 
   /**
    * Склонение слова "цитата"
-   * @private
    * @param {number} count - Количество
-   * @returns {string} Правильное склонение
+   * @returns {string} Склоненное слово
    */
-  _declensionQuotes(count) {
+  declensionQuotes(count) {
     if (count % 10 === 1 && count % 100 !== 11) return 'цитату';
     if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'цитаты';
     return 'цитат';
   }
 
   /**
-   * Генерация отчетов для всех активных пользователей
-   * @param {number} [weekNumber] - Номер недели (по умолчанию текущая)
-   * @param {number} [year] - Год (по умолчанию текущий)
-   * @returns {Promise<Object>} Статистика генерации
+   * Получение статистики сервиса
+   * @returns {Object} Статистика
    */
-  async generateWeeklyReportsForAllUsers(weekNumber = null, year = null) {
-    try {
-      const { weekNumber: currentWeek, year: currentYear } = this._getCurrentWeek();
-      const targetWeek = weekNumber || currentWeek;
-      const targetYear = year || currentYear;
-
-      logger.info(`📖 Starting bulk weekly report generation for week ${targetWeek}/${targetYear}`);
-
-      // Получаем пользователей, которым нужны отчеты
-      const usersNeedingReports = await this.WeeklyReport.getUsersNeedingReports(targetWeek, targetYear);
-      
-      let generated = 0;
-      let skipped = 0;
-      let errors = 0;
-
-      for (const user of usersNeedingReports) {
-        try {
-          const report = await this.generateWeeklyReport(user.userId);
-          if (report) {
-            generated++;
-            logger.info(`📖 Generated report for user ${user.userId}`);
-          } else {
-            skipped++;
-            logger.info(`📖 Skipped report for user ${user.userId} (no quotes)`);
-          }
-        } catch (error) {
-          errors++;
-          logger.error(`📖 Failed to generate report for user ${user.userId}: ${error.message}`);
-        }
+  getStats() {
+    return {
+      availableBooks: this.annaBooks.length,
+      bookCategories: [...new Set(this.annaBooks.flatMap(book => book.categories))],
+      promoCodeOptions: ['READER20', 'WISDOM20', 'QUOTES20', 'BOOKS20', 'WEEK20'],
+      features: {
+        aiAnalysis: true,
+        bookRecommendations: true,
+        promoCodeGeneration: true,
+        utmTracking: true,
+        emptyWeekHandling: true
       }
-
-      const stats = {
-        week: `${targetWeek}/${targetYear}`,
-        totalUsers: usersNeedingReports.length,
-        generated,
-        skipped,
-        errors,
-        timestamp: new Date()
-      };
-
-      logger.info(`📖 Bulk report generation completed: ${JSON.stringify(stats)}`);
-      return stats;
-    } catch (error) {
-      logger.error(`📖 Error in bulk report generation: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Получение статистики отчетов
-   * @param {number} [days=30] - Количество дней для анализа
-   * @returns {Promise<Object>} Статистика
-   */
-  async getReportsStatistics(days = 30) {
-    try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
-      const [
-        totalReports,
-        reportsWithFeedback,
-        avgRating,
-        topThemes,
-        feedbackDistribution
-      ] = await Promise.all([
-        this.WeeklyReport.countDocuments({ sentAt: { $gte: startDate } }),
-        this.WeeklyReport.countDocuments({ 
-          sentAt: { $gte: startDate },
-          'feedback.rating': { $exists: true }
-        }),
-        this.WeeklyReport.aggregate([
-          { $match: { sentAt: { $gte: startDate }, 'feedback.rating': { $exists: true } } },
-          { $group: { _id: null, avgRating: { $avg: '$feedback.rating' } } }
-        ]),
-        this.WeeklyReport.getPopularThemes(startDate),
-        this.WeeklyReport.getFeedbackDistribution(startDate)
-      ]);
-
-      return {
-        period: `${days} days`,
-        totalReports,
-        reportsWithFeedback,
-        feedbackRate: totalReports > 0 ? Math.round((reportsWithFeedback / totalReports) * 100) : 0,
-        averageRating: avgRating.length > 0 ? Number(avgRating[0].avgRating.toFixed(2)) : null,
-        topThemes: topThemes.slice(0, 5),
-        feedbackDistribution,
-        generatedAt: new Date()
-      };
-    } catch (error) {
-      logger.error(`📖 Error getting reports statistics: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Получение отчетов пользователя
-   * @param {string} userId - ID пользователя
-   * @param {number} [limit=10] - Лимит отчетов
-   * @returns {Promise<Array>} Отчеты пользователя
-   */
-  async getUserReports(userId, limit = 10) {
-    try {
-      return await this.WeeklyReport.getUserRecentReports(userId, limit);
-    } catch (error) {
-      logger.error(`📖 Error getting user reports for ${userId}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Отметить отчет как прочитанный
-   * @param {string} reportId - ID отчета
-   * @returns {Promise<WeeklyReport>} Обновленный отчет
-   */
-  async markReportAsRead(reportId) {
-    try {
-      const report = await this.WeeklyReport.findById(reportId);
-      if (!report) {
-        throw new Error('Report not found');
-      }
-      
-      return await report.markAsRead();
-    } catch (error) {
-      logger.error(`📖 Error marking report as read ${reportId}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Добавить обратную связь к отчету
-   * @param {string} reportId - ID отчета
-   * @param {number} rating - Оценка 1-5
-   * @param {string} [comment] - Комментарий
-   * @returns {Promise<WeeklyReport>} Обновленный отчет
-   */
-  async addReportFeedback(reportId, rating, comment = null) {
-    try {
-      const report = await this.WeeklyReport.findById(reportId);
-      if (!report) {
-        throw new Error('Report not found');
-      }
-      
-      return await report.addFeedback(rating, comment);
-    } catch (error) {
-      logger.error(`📖 Error adding feedback to report ${reportId}: ${error.message}`);
-      throw error;
-    }
+    };
   }
 }
 
-// Экспортируем единственный экземпляр
-module.exports = new WeeklyReportService();
+module.exports = { WeeklyReportService };
