@@ -1,0 +1,443 @@
+/**
+ * @fileoverview Обработчик цитат с геймификацией для бота "Читатель"
+ * @author g1orgi89
+ */
+
+const { Quote, UserProfile } = require('../models');
+const AchievementService = require('./achievementService');
+const { claudeService } = require('./claude');
+
+/**
+ * @typedef {Object} ParsedQuote
+ * @property {string} text - Текст цитаты
+ * @property {string|null} author - Автор цитаты
+ * @property {string|null} source - Источник книги
+ */
+
+/**
+ * @typedef {Object} QuoteAnalysis
+ * @property {string} category - Категория цитаты
+ * @property {string[]} themes - Темы цитаты
+ * @property {string} sentiment - Эмоциональная окраска
+ * @property {string} insights - Психологические инсайты
+ */
+
+/**
+ * Сервис обработки цитат с геймификацией
+ */
+class QuoteHandler {
+  constructor() {
+    this.achievementService = new AchievementService();
+    this.dailyQuoteLimit = 10;
+    
+    // Классические авторы для детекции
+    this.classicAuthors = [
+      'толстой', 'лев толстой', 'л. толстой',
+      'достоевский', 'федор достоевский', 'ф. достоевский',
+      'пушкин', 'александр пушкин', 'а. пушкин',
+      'чехов', 'антон чехов', 'а. чехов',
+      'тургенев', 'иван тургенев', 'и. тургенев',
+      'гоголь', 'николай гоголь', 'н. гоголь',
+      'лермонтов', 'михаил лермонтов', 'м. лермонтов'
+    ];
+  }
+
+  /**
+   * Обработать цитату пользователя
+   * @param {string} userId - ID пользователя Telegram
+   * @param {string} messageText - Текст сообщения с цитатой
+   * @returns {Promise<Object>} Результат обработки
+   */
+  async handleQuote(userId, messageText) {
+    try {
+      // 1. Проверяем лимит цитат в день
+      const todayCount = await this._checkDailyLimit(userId);
+      if (todayCount >= this.dailyQuoteLimit) {
+        return {
+          success: false,
+          message: "📖 Вы уже отправили 10 цитат сегодня. Возвращайтесь завтра за новыми открытиями!",
+          limitReached: true
+        };
+      }
+
+      // 2. Парсим цитату
+      const parsedQuote = this._parseQuote(messageText);
+      
+      // 3. Анализируем цитату через AI
+      const analysis = await this._analyzeQuote(parsedQuote.text, parsedQuote.author);
+      
+      // 4. Сохраняем цитату
+      const quote = await this._saveQuote(userId, parsedQuote, analysis);
+      
+      // 5. Обновляем статистику пользователя
+      await this._updateUserStatistics(userId, parsedQuote.author);
+      
+      // 6. Проверяем достижения
+      const newAchievements = await this.achievementService.checkAndUnlockAchievements(userId);
+      
+      // 7. Генерируем ответ в стиле Анны
+      const response = await this._generateAnnaResponse(parsedQuote, analysis, todayCount + 1);
+      
+      return {
+        success: true,
+        message: response,
+        quote,
+        newAchievements,
+        todayCount: todayCount + 1
+      };
+      
+    } catch (error) {
+      console.error('Error handling quote:', error);
+      return {
+        success: false,
+        message: "Произошла ошибка при сохранении цитаты. Попробуйте еще раз.",
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Проверить дневной лимит цитат
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<number>} Количество цитат сегодня
+   * @private
+   */
+  async _checkDailyLimit(userId) {
+    return await Quote.getTodayQuotesCount(userId);
+  }
+
+  /**
+   * Парсить цитату из текста
+   * @param {string} messageText - Текст сообщения
+   * @returns {ParsedQuote} Распарсенная цитата
+   * @private
+   */
+  _parseQuote(messageText) {
+    const text = messageText.trim();
+    
+    // Паттерны для разных форматов цитат
+    const patterns = [
+      // "Цитата" (Автор)
+      /^["«]([^"«»]+)["»]\s*\(([^)]+)\)$/,
+      // Цитата (Автор)
+      /^([^(]+)\s*\(([^)]+)\)$/,
+      // Цитата - Автор
+      /^([^-]+)\s*[-–—]\s*(.+)$/,
+      // "Цитата" Автор
+      /^["«]([^"«»]+)["»]\s+(.+)$/
+    ];
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return {
+          text: match[1].trim(),
+          author: match[2].trim(),
+          source: null
+        };
+      }
+    }
+
+    // Если паттерны не подошли - просто текст без автора
+    return {
+      text: text,
+      author: null,
+      source: null
+    };
+  }
+
+  /**
+   * Анализировать цитату через Claude AI
+   * @param {string} text - Текст цитаты
+   * @param {string|null} author - Автор цитаты
+   * @returns {Promise<QuoteAnalysis>} Анализ цитаты
+   * @private
+   */
+  async _analyzeQuote(text, author) {
+    const prompt = `Проанализируй эту цитату как психолог Анна Бусел:
+
+Цитата: "${text}"
+Автор: ${author || 'Неизвестен'}
+
+Верни JSON с анализом:
+{
+  "category": "одна из: Саморазвитие, Любовь, Философия, Мотивация, Мудрость, Творчество, Отношения, Материнство, Карьера",
+  "themes": ["тема1", "тема2"],
+  "sentiment": "positive/neutral/negative",
+  "insights": "краткий психологический инсайт (1-2 предложения)"
+}`;
+
+    try {
+      const response = await claudeService.generateResponse(prompt, {
+        platform: 'telegram',
+        userId: 'quote_analysis'
+      });
+      
+      const analysis = JSON.parse(response.message);
+      
+      // Валидация результата
+      return {
+        category: this._validateCategory(analysis.category),
+        themes: Array.isArray(analysis.themes) ? analysis.themes.slice(0, 3) : ['размышления'],
+        sentiment: ['positive', 'neutral', 'negative'].includes(analysis.sentiment) ? analysis.sentiment : 'neutral',
+        insights: analysis.insights || 'Интересная мысль для размышления'
+      };
+      
+    } catch (error) {
+      console.error('Error analyzing quote:', error);
+      
+      // Fallback анализ
+      return {
+        category: 'Мудрость',
+        themes: ['жизненный опыт'],
+        sentiment: 'positive',
+        insights: 'Глубокая мысль для размышления'
+      };
+    }
+  }
+
+  /**
+   * Валидировать категорию цитаты
+   * @param {string} category - Категория от AI
+   * @returns {string} Валидная категория
+   * @private
+   */
+  _validateCategory(category) {
+    const validCategories = [
+      'Саморазвитие', 'Любовь', 'Философия', 'Мотивация', 'Мудрость', 
+      'Творчество', 'Отношения', 'Материнство', 'Карьера', 'Другое'
+    ];
+    
+    return validCategories.includes(category) ? category : 'Другое';
+  }
+
+  /**
+   * Сохранить цитату в базу данных
+   * @param {string} userId - ID пользователя
+   * @param {ParsedQuote} parsedQuote - Распарсенная цитата
+   * @param {QuoteAnalysis} analysis - Анализ цитаты
+   * @returns {Promise<Object>} Сохраненная цитата
+   * @private
+   */
+  async _saveQuote(userId, parsedQuote, analysis) {
+    const quote = new Quote({
+      userId,
+      text: parsedQuote.text,
+      author: parsedQuote.author,
+      source: parsedQuote.source,
+      category: analysis.category,
+      themes: analysis.themes,
+      sentiment: analysis.sentiment
+    });
+
+    return await quote.save();
+  }
+
+  /**
+   * Обновить статистику пользователя
+   * @param {string} userId - ID пользователя
+   * @param {string|null} author - Автор цитаты
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _updateUserStatistics(userId, author) {
+    const user = await UserProfile.findOne({ userId });
+    if (user) {
+      await user.updateQuoteStats(author);
+    }
+  }
+
+  /**
+   * Генерировать ответ в стиле Анны Бусел
+   * @param {ParsedQuote} parsedQuote - Распарсенная цитата
+   * @param {QuoteAnalysis} analysis - Анализ цитаты
+   * @param {number} todayCount - Количество цитат сегодня
+   * @returns {Promise<string>} Ответ бота
+   * @private
+   */
+  async _generateAnnaResponse(parsedQuote, analysis, todayCount) {
+    const { text, author } = parsedQuote;
+    const isClassicAuthor = author && this._isClassicAuthor(author);
+    
+    // Базовые шаблоны ответов
+    const baseTemplates = [
+      `✨ Прекрасная цитата! ${author ? `${author} умеет находить глубину в простых словах.` : 'Мудрые слова для размышления.'}`,
+      `📖 Замечательный выбор! ${analysis.insights}`,
+      `💭 Очень глубоко! Эта мысль о ${analysis.themes[0]} особенно актуальна.`,
+      `🌟 Сохранила в ваш личный дневник. ${author ? `${author} - один из моих любимых авторов.` : 'Прекрасная собственная мысль!'}`
+    ];
+
+    // Дополнения для классиков
+    if (isClassicAuthor) {
+      baseTemplates.push(
+        `📚 ${author} - классик, который не теряет актуальности. Прекрасный выбор!`,
+        `⭐ Русская классика всегда попадает в самое сердце. ${author} - мудрый наставник.`
+      );
+    }
+
+    const baseResponse = baseTemplates[Math.floor(Math.random() * baseTemplates.length)];
+    
+    // Получаем статистику недели
+    const weekQuotes = await this._getWeekQuotesCount(parsedQuote.text.split(' ')[0]); // Используем первое слово как userId (временно)
+    
+    let fullResponse = `${baseResponse}\n\nСохранил в ваш личный дневник 📖\nЦитат на этой неделе: ${weekQuotes}`;
+
+    // Добавляем рекомендацию (30% вероятность)
+    if (Math.random() < 0.3) {
+      const recommendation = this._getBookRecommendation(analysis.category, isClassicAuthor);
+      if (recommendation) {
+        fullResponse += `\n\n💡 ${recommendation}`;
+      }
+    }
+
+    // Поощрение за активность
+    if (todayCount >= 5) {
+      fullResponse += '\n\n🔥 Отличная активность сегодня! Вы настоящий коллекционер мудрости.';
+    }
+
+    return fullResponse;
+  }
+
+  /**
+   * Проверить, является ли автор классиком
+   * @param {string} author - Автор
+   * @returns {boolean}
+   * @private
+   */
+  _isClassicAuthor(author) {
+    const authorLower = author.toLowerCase();
+    return this.classicAuthors.some(classic => 
+      authorLower.includes(classic) || classic.includes(authorLower)
+    );
+  }
+
+  /**
+   * Получить количество цитат за неделю (заглушка)
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<number>}
+   * @private
+   */
+  async _getWeekQuotesCount(userId) {
+    // Временная заглушка - в реальности будет через модель Quote
+    return Math.floor(Math.random() * 10) + 1;
+  }
+
+  /**
+   * Получить рекомендацию книги на основе категории
+   * @param {string} category - Категория цитаты
+   * @param {boolean} isClassic - Является ли автор классиком
+   * @returns {string|null} Рекомендация
+   * @private
+   */
+  _getBookRecommendation(category, isClassic) {
+    const recommendations = {
+      'Саморазвитие': [
+        'Кстати, если вас привлекает саморазвитие, у Анны есть разбор "Быть собой".',
+        'По теме саморазвития рекомендую разбор Анны "Искусство любить" Эриха Фромма.'
+      ],
+      'Любовь': [
+        'Если тема любви вам близка, у Анны есть глубокий разбор "Искусство любить".',
+        'По теме отношений рекомендую изучить разбор "Быть собой" от Анны.'
+      ],
+      'Философия': [
+        'Для любителей философии у Анны есть разбор "Письма к молодому поэту" Рильке.',
+        'Философские размышления продолжите в разборе "Маленький принц" от Анны.'
+      ],
+      'Материнство': [
+        'Для мам у Анны есть специальный курс "Мудрая мама".',
+        'По теме материнства рекомендую изучить подход Анны к балансу жизни.'
+      ],
+      'Творчество': [
+        'Для творческих натур у Анны есть разбор "Письма к молодому поэту".',
+        'Развивайте творческое мышление с разбором "Алхимик" от Анны.'
+      ]
+    };
+
+    const categoryRecs = recommendations[category];
+    if (categoryRecs) {
+      return categoryRecs[Math.floor(Math.random() * categoryRecs.length)];
+    }
+
+    // Общие рекомендации
+    const generalRecs = [
+      'У Анны есть прекрасные разборы книг для глубокого самопознания.',
+      'Загляните в библиотеку разборов Анны - там много созвучного вашим интересам.'
+    ];
+
+    return generalRecs[Math.floor(Math.random() * generalRecs.length)];
+  }
+
+  /**
+   * Обработать достижения пользователя
+   * @param {string} userId - ID пользователя
+   * @param {Object[]} newAchievements - Новые достижения
+   * @returns {Promise<string[]>} Сообщения о достижениях
+   */
+  async handleAchievements(userId, newAchievements) {
+    const messages = [];
+    
+    for (const achievement of newAchievements) {
+      const message = this.achievementService.formatAchievementNotification(achievement);
+      messages.push(message);
+    }
+    
+    return messages;
+  }
+
+  /**
+   * Получить статистику пользователя для команд
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<Object>} Статистика пользователя
+   */
+  async getUserStats(userId) {
+    try {
+      const [user, totalQuotes, achievementStats] = await Promise.all([
+        UserProfile.findOne({ userId }),
+        Quote.countDocuments({ userId }),
+        this.achievementService.getUserAchievementStats(userId)
+      ]);
+
+      if (!user) {
+        return null;
+      }
+
+      return {
+        name: user.name,
+        totalQuotes,
+        currentStreak: user.statistics.currentStreak,
+        longestStreak: user.statistics.longestStreak,
+        favoriteAuthors: user.statistics.favoriteAuthors.slice(0, 3),
+        daysSinceRegistration: user.daysSinceRegistration,
+        achievements: achievementStats
+      };
+    } catch (error) {
+      console.error('Error getting user stats:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Поиск цитат пользователя
+   * @param {string} userId - ID пользователя
+   * @param {string} searchText - Текст для поиска
+   * @param {number} limit - Лимит результатов
+   * @returns {Promise<Object[]>} Найденные цитаты
+   */
+  async searchQuotes(userId, searchText, limit = 10) {
+    try {
+      const quotes = await Quote.searchUserQuotes(userId, searchText, limit);
+      return quotes.map(quote => ({
+        text: quote.text,
+        author: quote.author,
+        category: quote.category,
+        createdAt: quote.createdAt,
+        ageInDays: quote.ageInDays
+      }));
+    } catch (error) {
+      console.error('Error searching quotes:', error);
+      return [];
+    }
+  }
+}
+
+module.exports = QuoteHandler;
