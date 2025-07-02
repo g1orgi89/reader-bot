@@ -1,5 +1,5 @@
 /**
- * @fileoverview Обработчик команд Telegram бота "Читатель" (ОБНОВЛЕННАЯ ВЕРСИЯ)
+ * @fileoverview Обработчик команд Telegram бота "Читатель" (ФИНАЛЬНАЯ ВЕРСИЯ)
  * @author g1orgi89
  */
 
@@ -27,8 +27,7 @@ class CommandHandler {
 /start - начать работу с ботом
 /help - эта справка  
 /search - поиск по вашим цитатам
-/stats - ваша статистика чтения
-/achievements - все достижения
+/stats - статистика и достижения
 /settings - настройки напоминаний
 
 *Как пользоваться:*
@@ -47,22 +46,6 @@ class CommandHandler {
 📚 "Хватит сидеть в телефоне - читайте книги!"`;
     
     await ctx.reply(helpText, { parse_mode: 'Markdown' });
-  }
-
-  /**
-   * Обработать команду /achievements
-   * @param {Object} ctx - Контекст Telegram бота
-   * @returns {Promise<void>}
-   */
-  async handleAchievements(ctx) {
-    try {
-      const userId = ctx.from.id.toString();
-      await this.showAchievements(ctx, userId);
-      
-    } catch (error) {
-      console.error('Error in handleAchievements:', error);
-      await ctx.reply('Произошла ошибка при загрузке достижений. Попробуйте позже.');
-    }
   }
 
   /**
@@ -131,7 +114,7 @@ class CommandHandler {
   }
 
   /**
-   * Обработать команду /stats
+   * Обработать команду /stats - НОВЫЙ РАСШИРЕННЫЙ ФОРМАТ
    * @param {Object} ctx - Контекст Telegram бота
    * @returns {Promise<void>}
    */
@@ -145,42 +128,26 @@ class CommandHandler {
         return;
       }
 
-      // Получаем недавние достижения
-      const recentAchievements = stats.achievements.recentAchievements;
+      // Получаем детальный прогресс по достижениям
+      const achievementProgress = await this.achievementService.getUserAchievementProgress(userId);
       
+      // Формируем основную статистику
       const statsText = `📊 *Статистика ${stats.name}:*
 
-📖 *Цитаты:*
-└ Всего собрано: ${stats.totalQuotes}
-└ Текущая серия: ${stats.currentStreak} ${this._getDaysWord(stats.currentStreak)}
-└ Рекорд серии: ${stats.longestStreak} ${this._getDaysWord(stats.longestStreak)}
+📖 Цитаты: ${stats.totalQuotes} | Серия: ${stats.currentStreak} ${this._getDaysWord(stats.currentStreak)} | Рекорд: ${stats.longestStreak} ${this._getDaysWord(stats.longestStreak)}
+🕐 С ботом: ${stats.daysSinceRegistration} ${this._getDaysWord(stats.daysSinceRegistration)}
 
-🕐 *Время с ботом:*
-└ ${stats.daysSinceRegistration} ${this._getDaysWord(stats.daysSinceRegistration)}
+👤 *Любимые авторы:* ${stats.favoriteAuthors.length > 0 ? stats.favoriteAuthors.slice(0, 3).join(', ') : 'Пока не определились'}
 
-👤 *Любимые авторы:*
-${stats.favoriteAuthors.length > 0 ? 
-  stats.favoriteAuthors.map((author, i) => `${i + 1}. ${author}`).join('\n') :
-  'Пока не определились'
-}
-
-🏆 *Достижения:*
-└ Получено: ${stats.achievements.unlockedAchievements}/${stats.achievements.totalAchievements}
-└ Прогресс: ${stats.achievements.completionRate}%
-
-${recentAchievements.length > 0 ? 
-  `*Последние достижения:*\n${recentAchievements.map(a => `${a.icon} ${a.name}`).join('\n')}` : 
-  '*Новых достижений пока нет*'
-}
+${this._formatAchievementsInStats(achievementProgress)}
 
 💡 Продолжайте собирать моменты вдохновения!`;
 
       // Кнопки для дополнительных действий
       const keyboard = {
         inline_keyboard: [
-          [{ text: "🏆 Все достижения", callback_data: "show_achievements" }],
-          [{ text: "📈 Прогресс по месяцам", callback_data: "show_monthly_stats" }],
-          [{ text: "🔍 Найти цитаты", callback_data: "quick_search" }]
+          [{ text: "🔍 Поиск цитат", callback_data: "quick_search" }],
+          [{ text: "⚙️ Настройки", callback_data: "open_settings" }]
         ]
       };
 
@@ -193,6 +160,44 @@ ${recentAchievements.length > 0 ?
       console.error('Error in handleStats:', error);
       await ctx.reply('Произошла ошибка при получении статистики. Попробуйте позже.');
     }
+  }
+
+  /**
+   * Форматировать достижения для отображения в статистике
+   * @param {Array} achievementProgress - Прогресс по достижениям
+   * @returns {string} Отформатированный текст достижений
+   * @private
+   */
+  _formatAchievementsInStats(achievementProgress) {
+    if (!achievementProgress || achievementProgress.length === 0) {
+      return '🏆 *Достижения:* загружаются...';
+    }
+
+    const unlocked = achievementProgress.filter(a => a.isUnlocked);
+    const locked = achievementProgress.filter(a => !a.isUnlocked);
+    
+    let achievementsText = `🏆 *Достижения (${unlocked.length}/${achievementProgress.length}):*\n`;
+
+    // Показываем полученные достижения
+    unlocked.forEach(achievement => {
+      achievementsText += `✅ ${achievement.icon} ${achievement.name}\n`;
+    });
+
+    // Показываем заблокированные с прогрессом
+    locked.forEach(achievement => {
+      const progressBar = this._createProgressBar(achievement.progress);
+      const progressText = `${achievement.currentValue}/${achievement.targetValue}`;
+      achievementsText += `🔒 ${achievement.icon} ${achievement.name} ${progressBar} ${progressText}\n`;
+    });
+
+    // Добавляем совет для ближайшего достижения
+    const nextAchievement = locked.find(a => a.progress > 0) || locked[0];
+    if (nextAchievement) {
+      const hint = this._getAchievementHint(nextAchievement);
+      achievementsText += `\n💭 *Совет:* ${hint}`;
+    }
+
+    return achievementsText;
   }
 
   /**
@@ -250,88 +255,6 @@ ${recentAchievements.length > 0 ?
     } catch (error) {
       console.error('Error in handleSettings:', error);
       await ctx.reply('Произошла ошибка при загрузке настроек. Попробуйте позже.');
-    }
-  }
-
-  /**
-   * Показать все достижения пользователя с подробностями
-   * @param {Object} ctx - Контекст Telegram бота
-   * @param {string} userId - ID пользователя (опционально)
-   * @returns {Promise<void>}
-   */
-  async showAchievements(ctx, userId = null) {
-    try {
-      const actualUserId = userId || ctx.from.id.toString();
-      const progress = await this.achievementService.getUserAchievementProgress(actualUserId);
-      
-      if (progress.length === 0) {
-        await ctx.reply('Ошибка загрузки достижений. Попробуйте позже.');
-        return;
-      }
-
-      // Группируем достижения по статусу
-      const unlocked = progress.filter(p => p.isUnlocked);
-      const locked = progress.filter(p => !p.isUnlocked);
-
-      let achievementsText = `🏆 *Ваши достижения:*\n\n`;
-
-      // Полученные достижения
-      if (unlocked.length > 0) {
-        achievementsText += `✅ *Получено (${unlocked.length}):*\n`;
-        unlocked.forEach(achievement => {
-          const date = achievement.unlockedAt.toLocaleDateString('ru-RU');
-          achievementsText += `${achievement.icon} *${achievement.name}*\n`;
-          achievementsText += `   ${achievement.description}\n`;
-          achievementsText += `   📅 Получено: ${date}\n\n`;
-        });
-      }
-
-      // Заблокированные достижения с прогрессом
-      if (locked.length > 0) {
-        achievementsText += `🔒 *В процессе (${locked.length}):*\n`;
-        locked.forEach(achievement => {
-          const progressBar = this._createProgressBar(achievement.progress);
-          const progressText = achievement.progress >= 100 ? 
-            `${achievement.currentValue}/${achievement.targetValue} (готово!)` :
-            `${achievement.currentValue}/${achievement.targetValue}`;
-            
-          achievementsText += `${achievement.icon} *${achievement.name}*\n`;
-          achievementsText += `   ${progressBar} ${progressText}\n`;
-          achievementsText += `   ${achievement.description}\n\n`;
-        });
-      }
-
-      const completionRate = Math.round((unlocked.length / progress.length) * 100);
-      achievementsText += `📊 *Общий прогресс:* ${completionRate}% (${unlocked.length}/${progress.length})`;
-
-      // Советы по получению достижений
-      if (locked.length > 0) {
-        const nextAchievement = locked.find(a => a.progress > 0) || locked[0];
-        achievementsText += `\n\n💡 *Ближайшее достижение:*\n${nextAchievement.icon} ${nextAchievement.name}\n`;
-        
-        // Добавляем подсказку как получить
-        const hint = this._getAchievementHint(nextAchievement);
-        if (hint) {
-          achievementsText += `💭 ${hint}`;
-        }
-      }
-
-      const keyboard = {
-        inline_keyboard: [
-          [{ text: "📊 Статистика", callback_data: "show_stats" }],
-          [{ text: "🔍 Найти цитаты", callback_data: "quick_search" }],
-          [{ text: "📖 Справка по достижениям", callback_data: "achievements_guide" }]
-        ]
-      };
-
-      await ctx.reply(achievementsText, {
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-      });
-
-    } catch (error) {
-      console.error('Error in showAchievements:', error);
-      await ctx.reply('Произошла ошибка при загрузке достижений. Попробуйте позже.');
     }
   }
 
@@ -467,8 +390,8 @@ ${newStatus ?
    * @private
    */
   _createProgressBar(progress) {
-    const filledBlocks = Math.round(progress / 10);
-    const emptyBlocks = 10 - filledBlocks;
+    const filledBlocks = Math.round(progress / 14.3); // 7 блоков вместо 10 для компактности
+    const emptyBlocks = 7 - filledBlocks;
     return '▓'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
   }
 
@@ -506,16 +429,12 @@ ${newStatus ?
 
     try {
       switch (data) {
-        case 'show_achievements':
-          await this.showAchievements(ctx);
-          break;
-        
-        case 'show_stats':
-          await this.handleStats(ctx);
-          break;
-        
         case 'quick_search':
           await this.handleSearch(ctx);
+          break;
+        
+        case 'open_settings':
+          await this.handleSettings(ctx);
           break;
         
         case 'toggle_reminders':
@@ -539,7 +458,6 @@ ${newStatus ?
           break;
         
         case 'close_settings':
-        case 'close_achievements':
           await ctx.deleteMessage();
           break;
         
