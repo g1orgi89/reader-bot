@@ -3,6 +3,7 @@
  * @file server/services/claude.js
  * 📖 ОБНОВЛЕНО: Упрощена языковая логика - универсальные промпты
  * 📖 ИСПРАВЛЕНО: Убрана проверка "Привет" как тестового сообщения
+ * 🔧 FIX: Предотвращена загрузка векторной базы когда useRag=false
  */
 
 const { Anthropic } = require('@anthropic-ai/sdk');
@@ -253,6 +254,7 @@ class ClaudeService {
    * Генерирует ответ на основе сообщения и контекста
    * 📖 УПРОЩЕНО: Убрана сложная языковая логика
    * 📖 ИСПРАВЛЕНО: Убрана обработка "Привет" как тестового сообщения
+   * 🔧 FIX: Предотвращена загрузка векторной базы когда useRag=false
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
    * @returns {Promise<AIResponse>} Ответ от AI
@@ -274,7 +276,7 @@ class ClaudeService {
         logger.info(`📖 Provider normalized from 'anthropic' to 'claude' for message: ${message.substring(0, 20)}...`);
       }
       
-      logger.info(`📖 Generating response for platform: ${platform}`);
+      logger.info(`📖 Generating response for platform: ${platform}, useRag: ${useRag}`);
       
       // 📖 ИСПРАВЛЕНО: Убрана проверка на тестовые сообщения для реальных пользовательских запросов
       // Теперь только технические тесты считаются "тестовыми", а обычные приветствия идут через AI
@@ -282,8 +284,10 @@ class ClaudeService {
         return this._handleTestMessage(message, platform);
       }
       
+      // 🔧 FIX: Только инициализируем векторную базу если реально нужен RAG
       if (useRag && this.enableRag) {
         try {
+          logger.info(`📖 RAG requested - initializing vector store for message: "${message.substring(0, 30)}..."`);
           const contextResults = await this._getRelevantContext(message, ragLimit);
           
           if (contextResults && contextResults.length > 0) {
@@ -299,6 +303,8 @@ class ClaudeService {
         } catch (ragError) {
           logger.error(`📖 Error fetching context from vector store: ${ragError.message}`);
         }
+      } else {
+        logger.info(`📖 RAG skipped (useRag: ${useRag}, enableRag: ${this.enableRag}) for message: "${message.substring(0, 30)}..."`);
       }
       
       let response;
@@ -327,6 +333,7 @@ class ClaudeService {
   /**
    * Получает релевантный контекст из векторной базы знаний
    * 📖 УПРОЩЕНО: Убран языковой фильтр
+   * 🔧 FIX: Добавлена проверка на необходимость инициализации
    * @private
    * @param {string} query - Запрос пользователя
    * @param {number} [limit=3] - Количество документов для поиска
@@ -334,6 +341,13 @@ class ClaudeService {
    */
   async _getRelevantContext(query, limit = 3) {
     try {
+      // 🔧 FIX: Проверяем, что векторная база действительно нужна
+      if (!this.enableRag) {
+        logger.info('📖 RAG disabled globally, skipping vector store initialization');
+        return [];
+      }
+      
+      logger.info('📖 Initializing vector store for RAG context retrieval...');
       const vectorStoreReady = await vectorStoreService.initialize();
       
       if (!vectorStoreReady) {
