@@ -4,7 +4,7 @@
  */
 
 const { MonthlyReport, UserProfile, Quote, WeeklyReport } = require('../models');
-const claudeService = require('./claudeService');
+const claudeService = require('./claude'); // 🔧 FIX: Исправлен импорт
 
 /**
  * @typedef {Object} MonthlyAnalysis
@@ -46,12 +46,11 @@ class MonthlyReportService {
   }
 
   /**
-   * Initialize service with dependencies
-   * @param {Object} dependencies - Required dependencies
-   * @param {Object} dependencies.bot - Telegram bot instance
+   * 📖 FIX: Updated initialization to match CronService expectations
+   * @param {Object} bot - Telegram bot instance  
    */
-  initialize(dependencies) {
-    this.bot = dependencies.bot;
+  initialize(bot) {
+    this.bot = bot;
     console.log('📈 MonthlyReportService initialized');
   }
 
@@ -518,4 +517,4 @@ ${report.analysis.bookSuggestions.map((book, i) => `${i + 1}. ${book}`).join('\n
   }
 }
 
-module.exports = { MonthlyReportService };
+module.exports = MonthlyReportService; // 🔧 FIX: Экспорт без деструктуризации
