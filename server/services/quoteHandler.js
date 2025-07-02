@@ -1,5 +1,5 @@
 /**
- * @fileoverview Обработчик цитат с геймификацией для бота "Читатель"
+ * @fileoverview Обработчик цитат с геймификацией для бота "Читатель" (ИСПРАВЛЕННАЯ ВЕРСИЯ)
  * @author g1orgi89
  */
 
@@ -76,7 +76,7 @@ class QuoteHandler {
       const newAchievements = await this.achievementService.checkAndUnlockAchievements(userId);
       
       // 7. Генерируем ответ в стиле Анны
-      const response = await this._generateAnnaResponse(parsedQuote, analysis, todayCount + 1);
+      const response = await this._generateAnnaResponse(parsedQuote, analysis, todayCount + 1, userId);
       
       return {
         success: true,
@@ -252,10 +252,11 @@ class QuoteHandler {
    * @param {ParsedQuote} parsedQuote - Распарсенная цитата
    * @param {QuoteAnalysis} analysis - Анализ цитаты
    * @param {number} todayCount - Количество цитат сегодня
+   * @param {string} userId - ID пользователя
    * @returns {Promise<string>} Ответ бота
    * @private
    */
-  async _generateAnnaResponse(parsedQuote, analysis, todayCount) {
+  async _generateAnnaResponse(parsedQuote, analysis, todayCount, userId) {
     const { text, author } = parsedQuote;
     const isClassicAuthor = author && this._isClassicAuthor(author);
     
@@ -277,8 +278,8 @@ class QuoteHandler {
 
     const baseResponse = baseTemplates[Math.floor(Math.random() * baseTemplates.length)];
     
-    // Получаем статистику недели
-    const weekQuotes = await this._getWeekQuotesCount(parsedQuote.text.split(' ')[0]); // Используем первое слово как userId (временно)
+    // ИСПРАВЛЕНО: Получаем статистику недели с правильным userId
+    const weekQuotes = await this._getWeekQuotesCount(userId);
     
     let fullResponse = `${baseResponse}\n\nСохранил в ваш личный дневник 📖\nЦитат на этой неделе: ${weekQuotes}`;
 
@@ -312,14 +313,38 @@ class QuoteHandler {
   }
 
   /**
-   * Получить количество цитат за неделю (заглушка)
+   * Получить количество цитат за неделю
    * @param {string} userId - ID пользователя
    * @returns {Promise<number>}
    * @private
    */
   async _getWeekQuotesCount(userId) {
-    // Временная заглушка - в реальности будет через модель Quote
-    return Math.floor(Math.random() * 10) + 1;
+    try {
+      // Получаем начало и конец текущей недели
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Понедельник как начало недели
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() + diff);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
+      
+      // Подсчитываем цитаты за текущую неделю
+      const count = await Quote.countDocuments({
+        userId,
+        createdAt: {
+          $gte: weekStart,
+          $lt: weekEnd
+        }
+      });
+      
+      return count;
+    } catch (error) {
+      console.error('Error getting week quotes count:', error);
+      return 0;
+    }
   }
 
   /**
