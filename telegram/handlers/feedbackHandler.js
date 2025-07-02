@@ -3,8 +3,7 @@
  * Обрабатывает обратную связь от пользователей на отчеты
  */
 
-const { WeeklyReport, MonthlyReport, UserProfile } = require('../models');
-const { bot } = require('../../telegram');
+const { WeeklyReport, MonthlyReport, UserProfile } = require('../../server/models');
 
 /**
  * @typedef {Object} FeedbackData
@@ -25,6 +24,19 @@ class FeedbackHandler {
       '2': 2,
       '1': 1
     };
+
+    this.bot = null; // Will be set during initialization
+  }
+
+  /**
+   * Initialize handler with dependencies
+   * @param {Object} dependencies - Required dependencies
+   * @param {Object} dependencies.bot - Telegram bot instance
+   * @param {Object} dependencies.models - Database models
+   */
+  initialize(dependencies) {
+    this.bot = dependencies.bot;
+    console.log('📝 FeedbackHandler initialized');
   }
 
   /**
@@ -208,8 +220,8 @@ ${feedback}
 *Дата:* ${new Date().toLocaleDateString()}
       `;
 
-      if (process.env.ADMIN_TELEGRAM_ID) {
-        await bot.telegram.sendMessage(
+      if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
+        await this.bot.telegram.sendMessage(
           process.env.ADMIN_TELEGRAM_ID,
           adminMessage,
           { parse_mode: 'Markdown' }
@@ -250,6 +262,21 @@ ${feedback}
     } catch (error) {
       console.error(`❌ Failed to handle feedback callback:`, error);
       await ctx.answerCbQuery("Произошла ошибка при обработке отзыва");
+    }
+  }
+
+  /**
+   * Получает состояние пользователя для проверки ожидания feedback
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<string|null>} Текущее состояние или null
+   */
+  async getUserState(userId) {
+    try {
+      const user = await UserProfile.findOne({ userId });
+      return user?.botState?.current || null;
+    } catch (error) {
+      console.error(`❌ Failed to get user state:`, error);
+      return null;
     }
   }
 
@@ -325,10 +352,13 @@ ${feedback}
    */
   async getFeedbackStats(startDate, endDate) {
     try {
+      const defaultStartDate = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const defaultEndDate = endDate || new Date();
+
       const weeklyStats = await WeeklyReport.aggregate([
         {
           $match: {
-            sentAt: { $gte: startDate, $lte: endDate },
+            sentAt: { $gte: defaultStartDate, $lte: defaultEndDate },
             'feedback.rating': { $exists: true }
           }
         },
@@ -344,7 +374,7 @@ ${feedback}
       const monthlyStats = await MonthlyReport.aggregate([
         {
           $match: {
-            sentAt: { $gte: startDate, $lte: endDate },
+            sentAt: { $gte: defaultStartDate, $lte: defaultEndDate },
             'feedback.rating': { $exists: true }
           }
         },
@@ -358,7 +388,7 @@ ${feedback}
       ]);
 
       const negativeComments = await WeeklyReport.find({
-        sentAt: { $gte: startDate, $lte: endDate },
+        sentAt: { $gte: defaultStartDate, $lte: defaultEndDate },
         'feedback.rating': { $lte: 3 },
         'feedback.comment': { $exists: true }
       }).populate('userId', 'name email');
@@ -374,6 +404,26 @@ ${feedback}
       console.error(`❌ Failed to get feedback stats:`, error);
       return { weekly: [], monthly: [], negativeComments: 0, totalResponses: 0 };
     }
+  }
+
+  /**
+   * Проверяет готовность сервиса
+   * @returns {boolean}
+   */
+  isReady() {
+    return !!this.bot;
+  }
+
+  /**
+   * Получает диагностическую информацию
+   * @returns {Object}
+   */
+  getDiagnostics() {
+    return {
+      initialized: !!this.bot,
+      ratingOptions: Object.keys(this.ratingTexts),
+      status: this.isReady() ? 'ready' : 'not_initialized'
+    };
   }
 }
 
