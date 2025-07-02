@@ -38,7 +38,8 @@ const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
 const ticketService = require('./services/ticketing');
 const ticketEmailService = require('./services/ticketEmail');
-const cronService = require('./services/cronService');
+const { CronService } = require('./services/cronService'); // 🔧 FIX: Импорт класса
+const telegramReportService = require('./services/telegramReportService'); // 📖 НОВОЕ
 
 /**
  * @typedef {import('./types').ShroomsError} ShroomsError
@@ -68,6 +69,9 @@ const io = socketIo(server, {
     maxDisconnectionDuration: 60000
   }
 });
+
+// 🔧 FIX: Создание экземпляра CronService
+const cronService = new CronService();
 
 // ИСПРАВЛЕНО: Убираем проблемное req.setEncoding()
 app.use((req, res, next) => {
@@ -168,7 +172,7 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         prompts: promptHealth,
         ticketEmail: 'ok',
         language: simpleLanguageService.healthCheck(),
-        cron: cronStatus.isStarted ? 'ok' : 'stopped' // 📖 НОВОЕ
+        cron: cronStatus.totalJobs > 0 ? 'ok' : 'stopped' // 📖 НОВОЕ: исправлено
       },
       aiProvider: aiProviderInfo,
       promptService: {
@@ -181,7 +185,12 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       // 📖 НОВОЕ: Информация о cron задачах
       cronService: {
         ...cronStatus,
-        schedule: cronService.getSchedule()
+        nextRuns: {
+          weeklyReports: cronService.getNextRunTime('weekly_reports'),
+          dailyReminders: cronService.getNextRunTime('daily_reminders'),
+          monthlyReports: cronService.getNextRunTime('monthly_reports'),
+          dailyCleanup: cronService.getNextRunTime('daily_cleanup')
+        }
       },
       features: config.features,
       // ДОБАВЛЕНО: информация о Socket.IO подключениях
@@ -746,17 +755,17 @@ async function startServer() {
     // 📖 НОВОЕ: Инициализация и запуск CronService
     logger.info('📖 Initializing Cron Service...');
     try {
-      const cronStarted = cronService.start();
-      if (cronStarted) {
-        const cronStatus = cronService.getJobsStatus();
-        logger.info(`✅ Cron Service started with ${cronStatus.totalJobs} scheduled tasks`);
-        logger.info(`📖 Weekly reports: Sundays at 11:00 MSK`);
-        logger.info(`📖 Daily reminders: 9:00 and 19:00 MSK`);
-        logger.info(`📖 Monthly reports: 1st day of month at 12:00 MSK`);
-        logger.info(`📖 Daily cleanup: 3:00 MSK`);
-      } else {
-        logger.warn('⚠️ CronService failed to start');
-      }
+      // 🔧 FIX: Инициализируем CronService с зависимостями
+      cronService.initialize(null, telegramReportService, null);
+      cronService.start();
+      
+      const cronStatus = cronService.getJobsStatus();
+      logger.info(`✅ Cron Service started with ${cronStatus.totalJobs} scheduled tasks`);
+      logger.info(`📖 Weekly reports: Sundays at 11:00 MSK`);
+      logger.info(`📖 Daily reminders: 9:00 and 19:00 MSK`);
+      logger.info(`📖 Monthly reports: 1st day of month at 12:00 MSK`);
+      logger.info(`📖 Daily cleanup: 3:00 MSK`);
+      
     } catch (error) {
       logger.error(`❌ CronService initialization failed: ${error.message}`);
       // Не прерываем запуск сервера
