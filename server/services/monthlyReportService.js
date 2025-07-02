@@ -80,6 +80,56 @@ class MonthlyReportService {
   }
 
   /**
+   * Генерирует месячные отчеты для всех подходящих пользователей
+   * @returns {Promise<Object>} Статистика генерации
+   */
+  async generateMonthlyReportsForAllUsers() {
+    const stats = {
+      total: 0,
+      generated: 0,
+      failed: 0,
+      errors: []
+    };
+
+    try {
+      // Получаем пользователей, зарегистрированных больше месяца назад
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+      const eligibleUsers = await UserProfile.find({
+        isOnboardingComplete: true,
+        registeredAt: { $lte: oneMonthAgo }
+      });
+
+      stats.total = eligibleUsers.length;
+      console.log(`📈 Found ${stats.total} eligible users for monthly reports`);
+
+      for (const user of eligibleUsers) {
+        try {
+          const report = await this.generateMonthlyReport(user.userId);
+          if (report) {
+            stats.generated++;
+          }
+        } catch (error) {
+          stats.failed++;
+          stats.errors.push({
+            userId: user.userId,
+            error: error.message
+          });
+          console.error(`❌ Failed to generate monthly report for user ${user.userId}: ${error.message}`);
+        }
+      }
+
+      console.log(`📈 Monthly reports generation completed: ${stats.generated} generated, ${stats.failed} failed`);
+      return stats;
+
+    } catch (error) {
+      console.error(`❌ Error in generateMonthlyReportsForAllUsers: ${error.message}`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Отправляет дополнительный опрос пользователю
    * @param {string} userId - ID пользователя
    * @param {Object} user - Профиль пользователя
@@ -389,6 +439,55 @@ ${report.analysis.bookSuggestions.map((book, i) => `${i + 1}. ${book}`).join('\n
     } catch (error) {
       console.error(`❌ Failed to clear user state for ${userId}:`, error);
     }
+  }
+
+  /**
+   * Получает статистику месячных отчетов
+   * @param {number} days - Период в днях
+   * @returns {Promise<Object>}
+   */
+  async getMonthlyReportStats(days = 30) {
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+
+      const [total, withFeedback, avgRating] = await Promise.all([
+        MonthlyReport.countDocuments({ sentAt: { $gte: since } }),
+        MonthlyReport.countDocuments({ 
+          sentAt: { $gte: since },
+          'feedback.rating': { $exists: true }
+        }),
+        MonthlyReport.aggregate([
+          { $match: { sentAt: { $gte: since }, 'feedback.rating': { $exists: true } } },
+          { $group: { _id: null, avgRating: { $avg: '$feedback.rating' } } }
+        ])
+      ]);
+
+      return {
+        total,
+        withFeedback,
+        responseRate: total > 0 ? Math.round((withFeedback / total) * 100) : 0,
+        averageRating: avgRating.length > 0 ? Math.round(avgRating[0].avgRating * 10) / 10 : null,
+        period: `${days} days`
+      };
+
+    } catch (error) {
+      console.error(`❌ Error getting monthly report stats: ${error.message}`);
+      return { total: 0, withFeedback: 0, responseRate: 0, averageRating: null };
+    }
+  }
+
+  /**
+   * Получает диагностическую информацию
+   * @returns {Object}
+   */
+  getDiagnostics() {
+    return {
+      initialized: true,
+      themesAvailable: this.monthlyThemes.length,
+      themes: this.monthlyThemes.map(t => t.key),
+      status: 'ready'
+    };
   }
 }
 
