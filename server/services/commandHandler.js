@@ -1,5 +1,5 @@
 /**
- * @fileoverview Обработчик команд Telegram бота "Читатель"
+ * @fileoverview Обработчик команд Telegram бота "Читатель" (ОБНОВЛЕННАЯ ВЕРСИЯ)
  * @author g1orgi89
  */
 
@@ -28,6 +28,7 @@ class CommandHandler {
 /help - эта справка  
 /search - поиск по вашим цитатам
 /stats - ваша статистика чтения
+/achievements - все достижения
 /settings - настройки напоминаний
 
 *Как пользоваться:*
@@ -46,6 +47,22 @@ class CommandHandler {
 📚 "Хватит сидеть в телефоне - читайте книги!"`;
     
     await ctx.reply(helpText, { parse_mode: 'Markdown' });
+  }
+
+  /**
+   * Обработать команду /achievements
+   * @param {Object} ctx - Контекст Telegram бота
+   * @returns {Promise<void>}
+   */
+  async handleAchievements(ctx) {
+    try {
+      const userId = ctx.from.id.toString();
+      await this.showAchievements(ctx, userId);
+      
+    } catch (error) {
+      console.error('Error in handleAchievements:', error);
+      await ctx.reply('Произошла ошибка при загрузке достижений. Попробуйте позже.');
+    }
   }
 
   /**
@@ -237,14 +254,15 @@ ${recentAchievements.length > 0 ?
   }
 
   /**
-   * Показать все достижения пользователя
+   * Показать все достижения пользователя с подробностями
    * @param {Object} ctx - Контекст Telegram бота
+   * @param {string} userId - ID пользователя (опционально)
    * @returns {Promise<void>}
    */
-  async showAchievements(ctx) {
+  async showAchievements(ctx, userId = null) {
     try {
-      const userId = ctx.from.id.toString();
-      const progress = await this.achievementService.getUserAchievementProgress(userId);
+      const actualUserId = userId || ctx.from.id.toString();
+      const progress = await this.achievementService.getUserAchievementProgress(actualUserId);
       
       if (progress.length === 0) {
         await ctx.reply('Ошибка загрузки достижений. Попробуйте позже.');
@@ -262,7 +280,7 @@ ${recentAchievements.length > 0 ?
         achievementsText += `✅ *Получено (${unlocked.length}):*\n`;
         unlocked.forEach(achievement => {
           const date = achievement.unlockedAt.toLocaleDateString('ru-RU');
-          achievementsText += `${achievement.icon} ${achievement.name}\n`;
+          achievementsText += `${achievement.icon} *${achievement.name}*\n`;
           achievementsText += `   ${achievement.description}\n`;
           achievementsText += `   📅 Получено: ${date}\n\n`;
         });
@@ -270,23 +288,39 @@ ${recentAchievements.length > 0 ?
 
       // Заблокированные достижения с прогрессом
       if (locked.length > 0) {
-        achievementsText += `🔒 *В процессе (${locked.length}):`\n`;
+        achievementsText += `🔒 *В процессе (${locked.length}):*\n`;
         locked.forEach(achievement => {
           const progressBar = this._createProgressBar(achievement.progress);
-          achievementsText += `${achievement.icon} ${achievement.name}\n`;
-          achievementsText += `   ${progressBar} ${achievement.currentValue}/${achievement.targetValue}\n`;
+          const progressText = achievement.progress >= 100 ? 
+            `${achievement.currentValue}/${achievement.targetValue} (готово!)` :
+            `${achievement.currentValue}/${achievement.targetValue}`;
+            
+          achievementsText += `${achievement.icon} *${achievement.name}*\n`;
+          achievementsText += `   ${progressBar} ${progressText}\n`;
           achievementsText += `   ${achievement.description}\n\n`;
         });
       }
 
       const completionRate = Math.round((unlocked.length / progress.length) * 100);
-      achievementsText += `📊 Прогресс: ${completionRate}% (${unlocked.length}/${progress.length})`;
+      achievementsText += `📊 *Общий прогресс:* ${completionRate}% (${unlocked.length}/${progress.length})`;
+
+      // Советы по получению достижений
+      if (locked.length > 0) {
+        const nextAchievement = locked.find(a => a.progress > 0) || locked[0];
+        achievementsText += `\n\n💡 *Ближайшее достижение:*\n${nextAchievement.icon} ${nextAchievement.name}\n`;
+        
+        // Добавляем подсказку как получить
+        const hint = this._getAchievementHint(nextAchievement);
+        if (hint) {
+          achievementsText += `💭 ${hint}`;
+        }
+      }
 
       const keyboard = {
         inline_keyboard: [
           [{ text: "📊 Статистика", callback_data: "show_stats" }],
           [{ text: "🔍 Найти цитаты", callback_data: "quick_search" }],
-          [{ text: "🔙 Назад", callback_data: "close_achievements" }]
+          [{ text: "📖 Справка по достижениям", callback_data: "achievements_guide" }]
         ]
       };
 
@@ -299,6 +333,57 @@ ${recentAchievements.length > 0 ?
       console.error('Error in showAchievements:', error);
       await ctx.reply('Произошла ошибка при загрузке достижений. Попробуйте позже.');
     }
+  }
+
+  /**
+   * Показать справку по достижениям
+   * @param {Object} ctx - Контекст Telegram бота
+   * @returns {Promise<void>}
+   */
+  async showAchievementsGuide(ctx) {
+    const guideText = `📚 *Справка по достижениям:*
+
+🎯 *Как получать достижения:*
+
+🌱 *Первые шаги* - отправьте первую цитату
+📚 *Коллекционер мудрости* - соберите 25 цитат
+🔥 *Философ недели* - отправляйте цитаты 7 дней подряд
+📖 *Любитель классики* - 10 цитат от классиков
+💭 *Мыслитель* - 10 собственных мыслей (без автора)
+🏃‍♀️ *Марафонец чтения* - соберите 50 цитат
+🌈 *Разносторонний читатель* - цитаты из 5 категорий
+⭐ *Постоянство* - месяц активного использования
+
+💡 *Советы:*
+• Отправляйте цитаты каждый день для серий
+• Указывайте авторов в скобках: (Толстой)
+• Пробуйте разные темы и категории
+• Добавляйте собственные мысли
+
+📖 "Каждая цитата - это ступенька к мудрости!"`;
+
+    await ctx.reply(guideText, { parse_mode: 'Markdown' });
+  }
+
+  /**
+   * Получить подсказку как получить достижение
+   * @param {Object} achievement - Достижение
+   * @returns {string} Подсказка
+   * @private
+   */
+  _getAchievementHint(achievement) {
+    const hints = {
+      'first_quote': 'Отправьте любую цитату боту',
+      'wisdom_collector': 'Отправляйте по цитате каждый день',
+      'week_philosopher': 'Отправляйте цитаты 7 дней подряд',
+      'classics_lover': 'Добавляйте цитаты Толстого, Достоевского, Пушкина',
+      'thinker': 'Отправляйте собственные мысли без указания автора',
+      'marathon_reader': 'Продолжайте собирать цитаты каждый день',
+      'diverse_reader': 'Попробуйте разные темы: любовь, мотивация, философия',
+      'monthly_consistent': 'Используйте бот активно в течение месяца'
+    };
+    
+    return hints[achievement.id] || 'Продолжайте отправлять цитаты!';
   }
 
   /**
@@ -437,14 +522,16 @@ ${newStatus ?
           await this.toggleReminders(ctx);
           break;
         
+        case 'achievements_guide':
+          await this.showAchievementsGuide(ctx);
+          break;
+        
         case 'search_text':
           await ctx.reply('🔍 Напишите слово или фразу для поиска в ваших цитатах:');
-          // Здесь нужно установить состояние ожидания ввода
           break;
         
         case 'search_author':
           await ctx.reply('👤 Напишите имя автора для поиска:');
-          // Здесь нужно установить состояние ожидания ввода
           break;
         
         case 'search_category':
