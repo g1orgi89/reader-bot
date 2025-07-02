@@ -10,7 +10,11 @@ const mongoose = require('mongoose');
 const logger = require('../server/utils/logger');
 const ReaderTelegramBot = require('./index');
 const { WeeklyReportHandler } = require('./handlers/weeklyReportHandler');
-const { CronService } = require('../server/services/cronService');
+const { CronService } = require('../server/services/cronService'); // 🔧 FIX: импорт класса
+const telegramReportService = require('../server/services/telegramReportService'); // 📖 НОВОЕ
+
+// Глобальная переменная для доступа к боту из других модулей
+let botInstance = null;
 
 /**
  * Основная функция запуска бота
@@ -49,19 +53,26 @@ async function startTelegramBot() {
     // Интегрируем WeeklyReportHandler в основной бот
     bot.setWeeklyReportHandler(weeklyReportHandler);
 
-    // Создаем и инициализируем CronService
+    // 🔧 FIX: Создаем экземпляр CronService и правильно инициализируем
     const cronService = new CronService();
-    cronService.initialize(bot.bot, weeklyReportHandler);
+    cronService.initialize(bot.bot, telegramReportService, null); // telegramReportService уже имеет метод sendReportsToAllUsers()
 
     // Запускаем cron задачи
     cronService.start();
 
     logger.info('📖 Reader Telegram Bot is running with scheduled tasks!');
-    logger.info('📖 Bot info:', await bot.getStats());
+    
+    // Логируем статистику бота
+    const botStats = await bot.getStats();
+    logger.info('📖 Bot initialized with features:', Object.keys(botStats.features).filter(key => botStats.features[key]));
 
-    // Добавляем методы для внешнего доступа
-    bot.weeklyReportHandler = weeklyReportHandler;
-    bot.cronService = cronService;
+    // Сохраняем экземпляр для внешнего доступа
+    botInstance = {
+      bot: bot.bot, // Экспортируем Telegraf instance
+      readerBot: bot, // Экспортируем наш Reader wrapper
+      weeklyReportHandler,
+      cronService
+    };
 
     // Обработка сигналов остановки
     process.on('SIGINT', async () => {
@@ -81,17 +92,29 @@ async function startTelegramBot() {
     });
 
     // Возвращаем экземпляр бота для использования в других модулях
-    return {
-      bot,
-      weeklyReportHandler,
-      cronService
-    };
+    return botInstance;
 
   } catch (error) {
     logger.error(`📖 Failed to start Telegram bot: ${error.message}`);
     console.error('Error details:', error);
     process.exit(1);
   }
+}
+
+/**
+ * Получить экземпляр бота (для использования в других модулях)
+ * @returns {Object|null} Экземпляр бота или null если не инициализирован
+ */
+function getBotInstance() {
+  return botInstance;
+}
+
+/**
+ * Проверить, инициализирован ли бот
+ * @returns {boolean} true если бот инициализирован
+ */
+function isBotInitialized() {
+  return botInstance !== null;
 }
 
 // Обработка необработанных ошибок
@@ -110,4 +133,12 @@ if (require.main === module) {
   startTelegramBot();
 }
 
-module.exports = startTelegramBot;
+module.exports = {
+  startTelegramBot,
+  getBotInstance,
+  isBotInitialized,
+  // Для совместимости экспортируем bot как свойство
+  get bot() {
+    return botInstance ? botInstance.bot : null;
+  }
+};
