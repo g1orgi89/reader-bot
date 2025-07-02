@@ -1,7 +1,7 @@
 /**
  * Main entry point for Reader Bot - Telegram bot for Anna Busel's book club
  * @file reader-bot.js
- * 🔧 FIX: Исправлен импорт WeeklyReportHandler
+ * 🔧 FIX: Added MonthlyReportService integration
  */
 
 require('dotenv').config();
@@ -12,8 +12,9 @@ const logger = require('./server/utils/simpleLogger');
 // Import Reader bot services
 const { initializeModels } = require('./server/models');
 const ReaderTelegramBot = require('./telegram');
-const { CronService } = require('./server/services/cronService'); // ✅ FIX: Деструктуризация
-const WeeklyReportService = require('./server/services/weeklyReportService'); // 🔧 FIX: Используем WeeklyReportService
+const { CronService } = require('./server/services/cronService');
+const WeeklyReportService = require('./server/services/weeklyReportService');
+const MonthlyReportService = require('./server/services/monthlyReportService'); // 📖 NEW: Added monthly reports
 
 /**
  * Reader Bot configuration
@@ -80,24 +81,39 @@ async function initializeDatabase() {
 }
 
 /**
- * Initialize Cron Service with Weekly Reports
- * 🔧 FIX: Исправлен для работы с WeeklyReportService
+ * 📖 UPDATED: Initialize Cron Service with both Weekly and Monthly Reports
  */
 async function initializeCronService(telegramBot) {
   try {
-    logger.info('📖 Initializing CronService...');
+    logger.info('📖 Initializing CronService with report services...');
     
-    // 🔧 FIX: Создаем экземпляр WeeklyReportService вместо WeeklyReportHandler
+    // Initialize Weekly Report Service
     const weeklyReportService = new WeeklyReportService();
     logger.info('📖 WeeklyReportService initialized');
     
-    // ✅ FIX: Updated constructor call to match new CronService API
-    const cronService = new CronService();
-    cronService.initialize(telegramBot, weeklyReportService);
-    cronService.start();
+    // 📖 NEW: Initialize Monthly Report Service
+    const monthlyReportService = new MonthlyReportService();
+    await monthlyReportService.initialize(telegramBot);
+    logger.info('📖 MonthlyReportService initialized');
     
-    logger.info('📖 CronService initialized and started');
-    logger.info('📖 Weekly reports scheduled for Sundays at 11:00 MSK');
+    // Initialize CronService with both services
+    const cronService = new CronService();
+    cronService.initialize({
+      bot: telegramBot,
+      weeklyReportHandler: weeklyReportService, // For weekly reports
+      monthlyReportService: monthlyReportService, // For monthly reports
+      reminderService: null // TODO: Add ReminderService when implemented
+    });
+    
+    const started = cronService.start();
+    
+    if (started) {
+      logger.info('📖 CronService initialized and started');
+      logger.info('📖 Weekly reports scheduled for Sundays at 11:00 MSK');
+      logger.info('📖 Monthly reports scheduled for 1st day of month at 12:00 MSK');
+    } else {
+      logger.error('❌ Failed to start CronService');
+    }
     
     return cronService;
     
@@ -173,6 +189,7 @@ async function startReaderBot() {
     logger.info('🎉 Reader Bot started successfully!');
     logger.info('📖 Users can now start conversations with /start');
     logger.info('📊 Automated weekly reports enabled');
+    logger.info('📈 Automated monthly reports enabled'); // 📖 NEW
     
     // Log helpful information for development
     if (config.telegram.environment === 'development') {
