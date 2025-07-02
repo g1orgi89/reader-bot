@@ -31,6 +31,9 @@
     "test:reports:help": "node telegram/test-weekly-reports.js --help",
     "test:weekly": "node test-weekly-service.js",
     "test:monthly": "node test-monthly-service.js",
+    "test:reminders": "node test-reminder-announcement-services.js",
+    "test:announcements": "node test-reminder-announcement-services.js",
+    "test:all-services": "node reader-bot.js test",
     "diagnose": "node diagnose-mongodb.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -49,7 +52,10 @@
     "logs:error": "tail -f logs/reader/error.log",
     "reports:generate": "curl -X POST http://localhost:3002/api/reader/reports/weekly/generate -H Content-Type: application/json",
     "reports:status": "curl http://localhost:3002/api/reader/reports/cron/status",
-    "reports:stats": "curl http://localhost:3002/api/reader/reports/stats"
+    "reports:stats": "curl http://localhost:3002/api/reader/reports/stats",
+    "reminders:trigger": "curl -X POST http://localhost:3002/api/reader/cron/trigger-reminders -H Content-Type: application/json",
+    "announcements:trigger": "curl -X POST http://localhost:3002/api/reader/cron/trigger-announcements -H Content-Type: application/json",
+    "cron:status": "curl http://localhost:3002/api/reader/cron/status"
   },
   "keywords": [
     "ai",
@@ -66,7 +72,11 @@
     "book-club",
     "weekly-reports",
     "monthly-reports",
-    "cron-jobs"
+    "reminders",
+    "announcements",
+    "cron-jobs",
+    "personalization",
+    "utm-tracking"
   ],
   "author": "Anna Busel Book Club Team",
   "license": "MIT",
