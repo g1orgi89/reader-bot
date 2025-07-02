@@ -39,7 +39,7 @@ class CronService {
   start() {
     if (!this.weeklyReportHandler) {
       logger.error('📖 Cannot start CronService: weeklyReportHandler not initialized');
-      return;
+      return false;
     }
 
     try {
@@ -96,9 +96,11 @@ class CronService {
       });
 
       logger.info(`📖 CronService started with ${this.jobs.size} jobs`);
+      return true;
 
     } catch (error) {
       logger.error(`📖 Error starting CronService: ${error.message}`, error);
+      return false;
     }
   }
 
@@ -116,29 +118,28 @@ class CronService {
   }
 
   /**
-   * Генерация еженедельных отчетов для всех пользователей
+   * 📖 ИСПРАВЛЕНО: Генерация еженедельных отчетов для всех пользователей
    * @returns {Promise<void>}
    */
   async generateWeeklyReportsForAllUsers() {
     try {
       const startTime = Date.now();
       
+      // 🔧 FIX: Используем метод sendReportsToAllUsers вместо несуществующего метода
+      if (!this.weeklyReportHandler || !this.weeklyReportHandler.sendReportsToAllUsers) {
+        logger.error('📖 WeeklyReportHandler not properly initialized or missing sendReportsToAllUsers method');
+        return;
+      }
+
       const stats = await this.weeklyReportHandler.sendReportsToAllUsers();
       
       const duration = Date.now() - startTime;
       
-      logger.info(`📖 Weekly reports completed in ${duration}ms: ${stats.sent} sent, ${stats.failed} failed`);
+      logger.info(`📖 Weekly reports completed in ${duration}ms: ${stats.sent} sent, ${stats.failed} failed, ${stats.skipped} skipped`);
 
       // Отправляем статистику администратору
       if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
-        const adminMessage = `📊 *Еженедельные отчеты отправлены*
-
-✅ Успешно: ${stats.sent}
-❌ Ошибки: ${stats.failed}
-📊 Всего пользователей: ${stats.total}
-⏱ Время выполнения: ${Math.round(duration / 1000)}с
-
-${stats.errors.length > 0 ? `\n*Ошибки:*\n${stats.errors.slice(0, 5).map(e => `• ${e.userId}: ${e.error}`).join('\n')}` : ''}`;
+        const adminMessage = `📊 *Еженедельные отчеты отправлены*\n\n✅ Успешно: ${stats.sent}\n❌ Ошибки: ${stats.failed}\n⏭ Пропущено (пустые недели): ${stats.skipped}\n📊 Всего пользователей: ${stats.total}\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\n\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 5).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
 
         try {
           await this.bot.telegram.sendMessage(
@@ -182,6 +183,7 @@ ${stats.errors.length > 0 ? `\n*Ошибки:*\n${stats.errors.slice(0, 5).map(e
       for (const user of activeUsers) {
         try {
           // Здесь будет логика генерации месячного отчета
+          // TODO: Реализовать MonthlyReportService когда будет готов
           // await this.generateMonthlyReport(user.userId);
           generated++;
           
@@ -236,7 +238,11 @@ ${stats.errors.length > 0 ? `\n*Ошибки:*\n${stats.errors.slice(0, 5).map(e
     await this.generateWeeklyReportsForAllUsers();
     
     // Возвращаем статистику
-    return await this.weeklyReportHandler.getReportStats(7);
+    if (this.weeklyReportHandler && this.weeklyReportHandler.getReportStats) {
+      return await this.weeklyReportHandler.getReportStats(7);
+    }
+    
+    return { message: 'Weekly reports triggered, but stats not available' };
   }
 
   /**
@@ -312,6 +318,48 @@ ${stats.errors.length > 0 ? `\n*Ошибки:*\n${stats.errors.slice(0, 5).map(e
   getNextRunTime(jobName) {
     const job = this.jobs.get(jobName);
     return job ? job.nextDate : null;
+  }
+
+  /**
+   * 📖 НОВОЕ: Получение расписания задач для health check
+   * @returns {Object} Расписание задач
+   */
+  getSchedule() {
+    return {
+      weekly_reports: 'Sundays at 11:00 MSK',
+      daily_reminders: '9:00 and 19:00 MSK daily (if enabled)',
+      monthly_reports: '1st day of month at 12:00 MSK',
+      daily_cleanup: '3:00 MSK daily'
+    };
+  }
+
+  /**
+   * 📖 НОВОЕ: Проверка готовности сервиса
+   * @returns {boolean} Готовность к работе
+   */
+  isReady() {
+    return !!this.weeklyReportHandler;
+  }
+
+  /**
+   * 📖 НОВОЕ: Получение подробной диагностики
+   * @returns {Object} Диагностическая информация
+   */
+  getDiagnostics() {
+    return {
+      initialized: !!this.weeklyReportHandler,
+      hasReminderService: !!this.reminderService,
+      hasBot: !!this.bot,
+      jobsCount: this.jobs.size,
+      activeJobs: Array.from(this.jobs.keys()),
+      nextRuns: {
+        weekly_reports: this.getNextRunTime('weekly_reports'),
+        daily_reminders: this.getNextRunTime('daily_reminders'),
+        monthly_reports: this.getNextRunTime('monthly_reports'),
+        daily_cleanup: this.getNextRunTime('daily_cleanup')
+      },
+      timezone: 'Europe/Moscow'
+    };
   }
 }
 
