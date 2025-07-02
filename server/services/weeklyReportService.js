@@ -1,7 +1,9 @@
 /**
  * Сервис для генерации еженедельных отчетов для проекта "Читатель"
  * @file server/services/weeklyReportService.js
- * 🔧 FIX: Добавлен правильный импорт claudeService без инициализации RAG
+ * 🔧 FIX: Исправлена ошибка парсинга JSON в AI анализе
+ * 🔧 FIX: Улучшен промпт для гарантированного получения JSON
+ * 🔧 FIX: Добавлена валидация и очистка JSON ответов
  */
 
 const logger = require('../utils/logger');
@@ -44,7 +46,7 @@ class WeeklyReportService {
   }
 
   /**
-   * ✅ AI-анализ цитат за неделю через существующий claudeService
+   * 🔧 FIX: Улучшенный AI-анализ с правильным JSON форматированием
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
    * @returns {Promise<WeeklyAnalysis>} Анализ недели
@@ -52,32 +54,33 @@ class WeeklyReportService {
   async analyzeWeeklyQuotes(quotes, userProfile) {
     const quotesText = quotes.map(q => `"${q.text}" ${q.author ? `(${q.author})` : ''}`).join('\n\n');
     
-    const prompt = `Ты психолог Анна Бусел. Проанализируй цитаты пользователя за неделю и дай психологический анализ.
+    // 🔧 FIX: Улучшенный промпт с четкими инструкциями по JSON формату
+    const prompt = `Ты - AI ассистент психолога Анны Бусел. Проанализируй цитаты пользователя за неделю.
 
-Имя пользователя: ${userProfile.name}
+ВАЖНО: Верни ТОЛЬКО валидный JSON объект, без дополнительного текста до или после.
+
+Данные пользователя:
+Имя: ${userProfile.name}
 Результаты теста: ${JSON.stringify(userProfile.testResults)}
 
 Цитаты за неделю:
 ${quotesText}
 
-Напиши анализ в стиле Анны Бусел:
-- Тон: теплый, профессиональный, обращение на "Вы"
-- Глубокий психологический анализ
-- Связь с результатами первоначального теста
-- Выводы о текущем состоянии и интересах
-- 2-3 абзаца
+Создай психологический анализ в стиле Анны Бусел (теплый, профессиональный тон).
 
-Верни JSON:
+Верни ТОЛЬКО этот JSON (без markdown кодблоков):
 {
   "summary": "Краткий анализ недели одним предложением",
   "dominantThemes": ["тема1", "тема2"],
   "emotionalTone": "позитивный/нейтральный/задумчивый/etc",
-  "insights": "Подробный психологический анализ от Анны",
+  "insights": "Подробный психологический анализ от Анны (2-3 предложения)",
   "personalGrowth": "Наблюдения о личностном росте пользователя"
 }`;
 
     try {
-      // ✅ ИСПРАВЛЕНИЕ: Отключаем RAG для анализа цитат - нам не нужна база знаний
+      logger.info(`📖 Analyzing ${quotes.length} quotes for user ${userProfile.userId}`);
+      
+      // Отключаем RAG для анализа цитат - нам не нужна база знаний
       const response = await claudeService.generateResponse(prompt, {
         platform: 'telegram',
         userId: userProfile.userId,
@@ -85,13 +88,16 @@ ${quotesText}
         useRag: false // 🔧 FIX: Отключаем RAG - анализируем только цитаты пользователя
       });
       
-      const analysis = JSON.parse(response.message);
+      // 🔧 FIX: Улучшенный парсинг JSON с очисткой
+      const analysis = this._parseAIResponse(response.message);
       
       // Валидация результата
       if (!analysis.summary || !analysis.insights) {
-        throw new Error('Invalid analysis structure');
+        logger.warn(`📖 Invalid analysis structure, using fallback for user ${userProfile.userId}`);
+        return this.getFallbackAnalysis(quotes, userProfile);
       }
 
+      logger.info(`📖 AI analysis completed successfully for user ${userProfile.userId}`);
       return {
         summary: analysis.summary,
         dominantThemes: analysis.dominantThemes || [],
@@ -109,12 +115,93 @@ ${quotesText}
   }
 
   /**
+   * 🔧 FIX: Парсит ответ AI с очисткой и валидацией
+   * @private
+   * @param {string} aiResponse - Ответ от AI
+   * @returns {Object} Распарсенный JSON объект
+   * @throws {Error} Если парсинг невозможен
+   */
+  _parseAIResponse(aiResponse) {
+    try {
+      // Очищаем ответ от markdown кодблоков и лишнего текста
+      let cleanResponse = aiResponse.trim();
+      
+      // Удаляем markdown кодблоки если есть
+      cleanResponse = cleanResponse.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+      
+      // Ищем JSON объект в ответе
+      const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanResponse = jsonMatch[0];
+      }
+      
+      // Удаляем возможные объяснения до JSON
+      const lines = cleanResponse.split('\n');
+      let jsonStartIndex = -1;
+      
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim().startsWith('{')) {
+          jsonStartIndex = i;
+          break;
+        }
+      }
+      
+      if (jsonStartIndex > 0) {
+        cleanResponse = lines.slice(jsonStartIndex).join('\n');
+      }
+      
+      // Попытка парсинга JSON
+      const parsed = JSON.parse(cleanResponse);
+      
+      logger.info(`📖 Successfully parsed AI response JSON`);
+      return parsed;
+      
+    } catch (parseError) {
+      logger.error(`📖 JSON parsing failed: ${parseError.message}`);
+      logger.error(`📖 Original AI response: ${aiResponse.substring(0, 200)}...`);
+      
+      // Пытаемся извлечь данные регулярными выражениями как последнее средство
+      return this._extractDataWithRegex(aiResponse);
+    }
+  }
+
+  /**
+   * 🔧 FIX: Извлекает данные из ответа AI с помощью регулярных выражений
+   * @private
+   * @param {string} aiResponse - Ответ от AI
+   * @returns {Object} Извлеченные данные
+   */
+  _extractDataWithRegex(aiResponse) {
+    logger.info(`📖 Attempting regex extraction from AI response`);
+    
+    try {
+      // Пытаемся найти ключевые поля в тексте
+      const summaryMatch = aiResponse.match(/(?:summary|анализ|итог)[\s"':]*([^"\n]+)/i);
+      const insightsMatch = aiResponse.match(/(?:insights|инсайт|вывод)[\s"':]*([^"\n,}]+)/i);
+      const toneMatch = aiResponse.match(/(?:tone|тон|настрое)[\s"':]*([^"\n,}]+)/i);
+      
+      return {
+        summary: summaryMatch ? summaryMatch[1].trim() : `За эту неделю пользователь собрал цитаты, отражающие внутренние размышления.`,
+        dominantThemes: ['Саморазвитие', 'Мудрость'],
+        emotionalTone: toneMatch ? toneMatch[1].trim() : 'размышляющий',
+        insights: insightsMatch ? insightsMatch[1].trim() : `Ваши цитаты показывают стремление к пониманию жизни и себя.`,
+        personalGrowth: 'Продолжайте собирать моменты вдохновения для личностного роста.'
+      };
+    } catch (regexError) {
+      logger.error(`📖 Regex extraction failed: ${regexError.message}`);
+      throw new Error(`Failed to parse AI response: ${regexError.message}`);
+    }
+  }
+
+  /**
    * Fallback анализ для случаев ошибки AI
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
    * @returns {WeeklyAnalysis} Базовый анализ
    */
   getFallbackAnalysis(quotes, userProfile) {
+    logger.info(`📖 Using fallback analysis for user ${userProfile.userId}`);
+    
     const themes = this.extractBasicThemes(quotes);
     
     return {
@@ -152,9 +239,16 @@ ${quotesText}
       if (text.includes('цел') || text.includes('мечт') || text.includes('стремлен')) {
         themes.add('Цели и мечты');
       }
+      if (text.includes('работ') || text.includes('дел') || text.includes('карьер')) {
+        themes.add('Карьера');
+      }
+      if (text.includes('семь') || text.includes('дом') || text.includes('родител')) {
+        themes.add('Семья');
+      }
     });
 
-    return Array.from(themes).slice(0, 3);
+    const themesArray = Array.from(themes);
+    return themesArray.length > 0 ? themesArray.slice(0, 3) : ['Саморазвитие'];
   }
 
   /**
@@ -215,7 +309,7 @@ ${quotesText}
       });
     }
     
-    if (analysis.dominantThemes.includes('Мудрость')) {
+    if (analysis.dominantThemes.includes('Мудрость') || analysis.dominantThemes.includes('Жизненная философия')) {
       recommendations.push({
         title: '"Письма к молодому поэту" Рильке',
         price: '$8',
@@ -224,12 +318,21 @@ ${quotesText}
       });
     }
     
-    if (analysis.dominantThemes.includes('Жизненная философия')) {
+    if (analysis.dominantThemes.includes('Саморазвитие')) {
       recommendations.push({
         title: 'Курс "Быть собой"',
         price: '$12',
         description: 'О самопринятии и аутентичности',
         link: this.generateUTMLink('be_yourself_course')
+      });
+    }
+
+    if (analysis.dominantThemes.includes('Семья')) {
+      recommendations.push({
+        title: 'Курс "Мудрая мама"',
+        price: '$20',
+        description: 'Как сохранить себя в материнстве и воспитать счастливых детей',
+        link: this.generateUTMLink('wise_mother_course')
       });
     }
 
