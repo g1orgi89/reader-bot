@@ -30,6 +30,7 @@
     "test:reports:create-user": "node telegram/test-weekly-reports.js --create-test-user",
     "test:reports:help": "node telegram/test-weekly-reports.js --help",
     "test:weekly": "node test-weekly-service.js",
+    "test:monthly": "node test-monthly-service.js",
     "diagnose": "node diagnose-mongodb.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -64,6 +65,7 @@
     "anna-busel",
     "book-club",
     "weekly-reports",
+    "monthly-reports",
     "cron-jobs"
   ],
   "author": "Anna Busel Book Club Team",
