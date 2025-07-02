@@ -1,5 +1,5 @@
 /**
- * @fileoverview Интеграция геймификации с существующим Reader Bot
+ * @fileoverview Интеграция геймификации с существующим Reader Bot (ОБНОВЛЕННАЯ ВЕРСИЯ)
  * @author g1orgi89
  */
 
@@ -96,7 +96,7 @@ class GameificationIntegration {
 
   /**
    * Обработка команд бота
-   * @param {string} command - Команда (/help, /stats, /search, /settings)
+   * @param {string} command - Команда (/help, /stats, /search, /settings, /achievements)
    * @param {Object} ctx - Контекст Telegram бота
    * @returns {Promise<void>}
    */
@@ -123,6 +123,10 @@ class GameificationIntegration {
           await this.commandHandler.handleSettings(ctx);
           break;
         
+        case '/achievements':
+          await this.commandHandler.handleAchievements(ctx);
+          break;
+        
         default:
           await ctx.reply(`Неизвестная команда: ${command}
 
@@ -130,6 +134,7 @@ class GameificationIntegration {
 /help - справка
 /stats - статистика
 /search - поиск цитат
+/achievements - все достижения
 /settings - настройки`);
           break;
       }
@@ -332,7 +337,15 @@ class GameificationIntegration {
         'user_statistics',
         'command_handling',
         'search_functionality',
-        'settings_management'
+        'settings_management',
+        'achievements_command' // НОВОЕ
+      ],
+      commands: [
+        '/help - справка по боту',
+        '/stats - статистика пользователя',
+        '/search - поиск по цитатам',
+        '/achievements - все достижения', // НОВОЕ
+        '/settings - настройки'
       ],
       achievements: {
         total: achievements.length,
@@ -375,6 +388,13 @@ class GameificationIntegration {
         database: {
           userProfileModel: typeof userCount === 'number',
           quoteModel: typeof quoteCount === 'number'
+        },
+        commands: {
+          help: true,
+          stats: true,
+          search: true,
+          achievements: true, // НОВОЕ
+          settings: true
         },
         timestamp: new Date()
       };
