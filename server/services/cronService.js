@@ -12,6 +12,7 @@ const logger = require('../utils/logger');
 class CronService {
   constructor() {
     this.weeklyReportHandler = null;
+    this.monthlyReportService = null;
     this.reminderService = null;
     this.bot = null;
     this.jobs = new Map();
@@ -21,14 +22,17 @@ class CronService {
 
   /**
    * Инициализация сервиса с зависимостями
-   * @param {Object} bot - Telegram bot instance
-   * @param {Object} weeklyReportHandler - Handler для еженедельных отчетов
-   * @param {Object} reminderService - Сервис напоминаний
+   * @param {Object} dependencies - Зависимости
+   * @param {Object} dependencies.bot - Telegram bot instance
+   * @param {Object} dependencies.weeklyReportHandler - Handler для еженедельных отчетов
+   * @param {Object} dependencies.monthlyReportService - Сервис месячных отчетов
+   * @param {Object} dependencies.reminderService - Сервис напоминаний
    */
-  initialize(bot, weeklyReportHandler, reminderService = null) {
-    this.bot = bot;
-    this.weeklyReportHandler = weeklyReportHandler;
-    this.reminderService = reminderService;
+  initialize(dependencies) {
+    this.bot = dependencies.bot;
+    this.weeklyReportHandler = dependencies.weeklyReportHandler;
+    this.monthlyReportService = dependencies.monthlyReportService;
+    this.reminderService = dependencies.reminderService;
     
     logger.info('📖 CronService dependencies initialized');
   }
@@ -118,14 +122,13 @@ class CronService {
   }
 
   /**
-   * 📖 ИСПРАВЛЕНО: Генерация еженедельных отчетов для всех пользователей
+   * Генерация еженедельных отчетов для всех пользователей
    * @returns {Promise<void>}
    */
   async generateWeeklyReportsForAllUsers() {
     try {
       const startTime = Date.now();
       
-      // 🔧 FIX: Используем метод sendReportsToAllUsers вместо несуществующего метода
       if (!this.weeklyReportHandler || !this.weeklyReportHandler.sendReportsToAllUsers) {
         logger.error('📖 WeeklyReportHandler not properly initialized or missing sendReportsToAllUsers method');
         return;
@@ -139,7 +142,7 @@ class CronService {
 
       // Отправляем статистику администратору
       if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
-        const adminMessage = `📊 *Еженедельные отчеты отправлены*\n\n✅ Успешно: ${stats.sent}\n❌ Ошибки: ${stats.failed}\n⏭ Пропущено (пустые недели): ${stats.skipped}\n📊 Всего пользователей: ${stats.total}\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\n\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 5).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
+        const adminMessage = `📊 *Еженедельные отчеты отправлены*\n\n✅ Успешно: ${stats.sent}\n❌ Ошибки: ${stats.failed}\n⏭ Пропущено (пустые недели): ${stats.skipped}\n📊 Всего пользователей: ${stats.total}\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\n\n${stats.errors.length > 0 ? `\n*Ошибки:*\n${stats.errors.slice(0, 5).map(e => `• ${e.userId}: ${e.error}`).join('\n')}` : ''}`;
 
         try {
           await this.bot.telegram.sendMessage(
@@ -158,45 +161,39 @@ class CronService {
   }
 
   /**
-   * Генерация месячных отчетов для активных пользователей
+   * 📖 ОБНОВЛЕНО: Генерация месячных отчетов для активных пользователей
    * @returns {Promise<void>}
    */
   async generateMonthlyReportsForActiveUsers() {
     try {
-      const { UserProfile } = require('../models');
-      
-      // Получаем пользователей, которые активны больше месяца
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const startTime = Date.now();
 
-      const activeUsers = await UserProfile.find({
-        isOnboardingComplete: true,
-        registeredAt: { $lte: oneMonthAgo },
-        'statistics.totalQuotes': { $gte: 5 } // Минимум 5 цитат за все время
-      });
-
-      let generated = 0;
-      let failed = 0;
-
-      logger.info(`📖 Starting monthly reports for ${activeUsers.length} users`);
-
-      for (const user of activeUsers) {
-        try {
-          // Здесь будет логика генерации месячного отчета
-          // TODO: Реализовать MonthlyReportService когда будет готов
-          // await this.generateMonthlyReport(user.userId);
-          generated++;
-          
-          // Небольшая задержка
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-        } catch (error) {
-          failed++;
-          logger.error(`📖 Failed to generate monthly report for user ${user.userId}: ${error.message}`);
-        }
+      if (!this.monthlyReportService) {
+        logger.warn('📖 MonthlyReportService not initialized, skipping monthly reports');
+        return;
       }
 
-      logger.info(`📖 Monthly reports completed: ${generated} generated, ${failed} failed`);
+      // Используем метод из MonthlyReportService
+      const stats = await this.monthlyReportService.generateMonthlyReportsForAllUsers();
+      
+      const duration = Date.now() - startTime;
+      
+      logger.info(`📖 Monthly reports completed in ${duration}ms: ${stats.generated} generated, ${stats.failed} failed`);
+
+      // Отправляем статистику администратору
+      if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
+        const adminMessage = `📈 *Месячные отчеты отправлены*\n\n✅ Успешно: ${stats.generated}\n❌ Ошибки: ${stats.failed}\n📊 Всего пользователей: ${stats.total}\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\n\n${stats.errors.length > 0 ? `\n*Ошибки:*\n${stats.errors.slice(0, 3).map(e => `• ${e.userId}: ${e.error}`).join('\n')}` : ''}`;
+
+        try {
+          await this.bot.telegram.sendMessage(
+            process.env.ADMIN_TELEGRAM_ID,
+            adminMessage,
+            { parse_mode: 'Markdown' }
+          );
+        } catch (error) {
+          logger.error(`📖 Failed to send admin notification: ${error.message}`);
+        }
+      }
 
     } catch (error) {
       logger.error(`📖 Error in generateMonthlyReportsForActiveUsers: ${error.message}`, error);
@@ -209,20 +206,25 @@ class CronService {
    */
   async performDailyCleanup() {
     try {
-      const { WeeklyReport, Quote } = require('../models');
+      const { WeeklyReport, MonthlyReport } = require('../models');
       
       // Удаляем старые еженедельные отчеты (старше 6 месяцев)
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-      const deletedReports = await WeeklyReport.deleteMany({
+      const deletedWeeklyReports = await WeeklyReport.deleteMany({
         sentAt: { $lt: sixMonthsAgo }
       });
 
-      // Можно добавить другие задачи очистки
-      // Например, удаление старых логов, временных файлов и т.д.
+      // Удаляем старые месячные отчеты (старше 1 года)
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-      logger.info(`📖 Daily cleanup completed: ${deletedReports.deletedCount} old reports deleted`);
+      const deletedMonthlyReports = await MonthlyReport.deleteMany({
+        sentAt: { $lt: oneYearAgo }
+      });
+
+      logger.info(`📖 Daily cleanup completed: ${deletedWeeklyReports.deletedCount} weekly reports and ${deletedMonthlyReports.deletedCount} monthly reports deleted`);
 
     } catch (error) {
       logger.error(`📖 Error in performDailyCleanup: ${error.message}`, error);
@@ -243,6 +245,26 @@ class CronService {
     }
     
     return { message: 'Weekly reports triggered, but stats not available' };
+  }
+
+  /**
+   * 📖 НОВОЕ: Ручной запуск месячных отчетов (для тестирования)
+   * @returns {Promise<Object>} Статистика отправки
+   */
+  async triggerMonthlyReports() {
+    logger.info('📖 Manual trigger of monthly reports');
+    
+    if (!this.monthlyReportService) {
+      logger.warn('📖 MonthlyReportService not initialized');
+      return { message: 'MonthlyReportService not available' };
+    }
+
+    const stats = await this.monthlyReportService.generateMonthlyReportsForAllUsers();
+    
+    return {
+      message: 'Monthly reports triggered',
+      ...stats
+    };
   }
 
   /**
@@ -276,7 +298,8 @@ class CronService {
     return {
       totalJobs: this.jobs.size,
       jobs: status,
-      initialized: !!this.weeklyReportHandler
+      initialized: !!this.weeklyReportHandler,
+      hasMonthlyService: !!this.monthlyReportService
     };
   }
 
@@ -321,7 +344,7 @@ class CronService {
   }
 
   /**
-   * 📖 НОВОЕ: Получение расписания задач для health check
+   * Получение расписания задач для health check
    * @returns {Object} Расписание задач
    */
   getSchedule() {
@@ -334,7 +357,7 @@ class CronService {
   }
 
   /**
-   * 📖 НОВОЕ: Проверка готовности сервиса
+   * Проверка готовности сервиса
    * @returns {boolean} Готовность к работе
    */
   isReady() {
@@ -342,12 +365,13 @@ class CronService {
   }
 
   /**
-   * 📖 НОВОЕ: Получение подробной диагностики
+   * Получение подробной диагностики
    * @returns {Object} Диагностическая информация
    */
   getDiagnostics() {
     return {
       initialized: !!this.weeklyReportHandler,
+      hasMonthlyReportService: !!this.monthlyReportService,
       hasReminderService: !!this.reminderService,
       hasBot: !!this.bot,
       jobsCount: this.jobs.size,
