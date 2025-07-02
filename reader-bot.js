@@ -1,7 +1,7 @@
 /**
  * Main entry point for Reader Bot - Telegram bot for Anna Busel's book club
  * @file reader-bot.js
- * 🔧 FIX: Added MonthlyReportService integration with proper logging
+ * 🔧 UPDATED: Added ReminderService and AnnouncementService integration
  */
 
 require('dotenv').config();
@@ -15,6 +15,9 @@ const ReaderTelegramBot = require('./telegram');
 const { CronService } = require('./server/services/cronService');
 const WeeklyReportService = require('./server/services/weeklyReportService');
 const MonthlyReportService = require('./server/services/monthlyReportService');
+const { ReminderService } = require('./server/services/reminderService');
+const { AnnouncementService } = require('./server/services/announcementService');
+const CommandHandler = require('./server/services/commandHandler');
 
 /**
  * Reader Bot configuration
@@ -30,6 +33,10 @@ const config = {
   },
   claude: {
     apiKey: process.env.ANTHROPIC_API_KEY
+  },
+  anna: {
+    websiteUrl: process.env.ANNA_WEBSITE_URL || 'https://anna-busel.com',
+    adminTelegramId: process.env.ADMIN_TELEGRAM_ID
   }
 };
 
@@ -49,6 +56,17 @@ function validateConfig() {
     logger.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
     logger.error(`📝 Please create a .env file with these variables.`);
     process.exit(1);
+  }
+
+  // Warn about optional but recommended variables
+  const recommended = [
+    'ANNA_WEBSITE_URL',
+    'ADMIN_TELEGRAM_ID'
+  ];
+
+  const missingRecommended = recommended.filter(key => !process.env[key]);
+  if (missingRecommended.length > 0) {
+    logger.warn(`⚠️  Missing recommended environment variables: ${missingRecommended.join(', ')}`);
   }
 
   logger.info('✅ Environment configuration validated');
@@ -81,48 +99,104 @@ async function initializeDatabase() {
 }
 
 /**
- * 📈 UPDATED: Initialize Cron Service with both Weekly and Monthly Reports + proper logging
+ * 📖 UPDATED: Initialize all services including ReminderService and AnnouncementService
  */
-async function initializeCronService(telegramBot) {
+async function initializeServices(telegramBot) {
   try {
-    logger.info('📖 Initializing CronService with report services...');
+    logger.info('📖 Initializing all Reader Bot services...');
     
     // Initialize Weekly Report Service
     const weeklyReportService = new WeeklyReportService();
     logger.info('📖 WeeklyReportService initialized');
     
-    // 📈 Initialize Monthly Report Service with detailed logging
+    // Initialize Monthly Report Service
     logger.info('📈 Initializing MonthlyReportService...');
     const monthlyReportService = new MonthlyReportService();
     await monthlyReportService.initialize(telegramBot);
     logger.info('📈 MonthlyReportService initialized and ready');
     
-    // Log diagnostics
-    const monthlyDiagnostics = monthlyReportService.getDiagnostics();
-    logger.info(`📈 Monthly service status: ${monthlyDiagnostics.status}`);
-    logger.info(`📈 Available themes: ${monthlyDiagnostics.themesAvailable}`);
+    // 📖 NEW: Initialize ReminderService
+    logger.info('🔔 Initializing ReminderService...');
+    const reminderService = new ReminderService();
+    reminderService.initialize({ bot: telegramBot });
+    logger.info('🔔 ReminderService initialized');
     
-    // Initialize CronService with both services
+    // 📖 NEW: Initialize AnnouncementService  
+    logger.info('📢 Initializing AnnouncementService...');
+    const announcementService = new AnnouncementService();
+    announcementService.initialize({ bot: telegramBot });
+    logger.info('📢 AnnouncementService initialized');
+    
+    // 📖 NEW: Initialize CommandHandler with reminder service
+    logger.info('⚙️ Initializing CommandHandler...');
+    const commandHandler = new CommandHandler();
+    commandHandler.initialize({ reminderService });
+    logger.info('⚙️ CommandHandler initialized');
+    
+    // Update Telegram bot with enhanced command handler
+    if (telegramBot && telegramBot.updateCommandHandler) {
+      telegramBot.updateCommandHandler(commandHandler);
+      logger.info('🤖 Telegram bot updated with enhanced command handler');
+    }
+    
+    return {
+      weeklyReportService,
+      monthlyReportService,
+      reminderService,
+      announcementService,
+      commandHandler
+    };
+    
+  } catch (error) {
+    logger.error(`❌ Failed to initialize services: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * 📖 UPDATED: Initialize Cron Service with all services
+ */
+async function initializeCronService(telegramBot, services) {
+  try {
+    logger.info('📖 Initializing CronService with all services...');
+    
+    // Log service diagnostics
+    const reminderDiagnostics = services.reminderService.getDiagnostics();
+    const announcementDiagnostics = services.announcementService.getDiagnostics();
+    const monthlyDiagnostics = services.monthlyReportService.getDiagnostics();
+    
+    logger.info(`🔔 ReminderService ready: ${reminderDiagnostics.initialized}`);
+    logger.info(`📢 AnnouncementService ready: ${announcementDiagnostics.initialized}`);
+    logger.info(`📈 MonthlyReportService ready: ${monthlyDiagnostics.status === 'ready'}`);
+    
+    // Initialize CronService with all services
     const cronService = new CronService();
     cronService.initialize({
       bot: telegramBot,
-      weeklyReportHandler: weeklyReportService, // For weekly reports
-      monthlyReportService: monthlyReportService, // For monthly reports
-      reminderService: null // TODO: Add ReminderService when implemented
+      weeklyReportHandler: services.weeklyReportService,
+      monthlyReportService: services.monthlyReportService,
+      reminderService: services.reminderService,
+      announcementService: services.announcementService
     });
     
     const started = cronService.start();
     
     if (started) {
       logger.info('📖 CronService initialized and started');
-      logger.info('📖 Weekly reports scheduled for Sundays at 11:00 MSK');
-      logger.info('📈 Monthly reports scheduled for 1st day of month at 12:00 MSK');
+      
+      // Log schedule
+      const schedule = cronService.getSchedule();
+      Object.entries(schedule).forEach(([job, time]) => {
+        logger.info(`⏰ ${job}: ${time}`);
+      });
       
       // Log next run times
       const diagnostics = cronService.getDiagnostics();
-      if (diagnostics.nextRuns.monthly_reports) {
-        logger.info(`📈 Next monthly report: ${diagnostics.nextRuns.monthly_reports}`);
-      }
+      logger.info('🔍 Service statuses:');
+      Object.entries(diagnostics.serviceStatuses).forEach(([service, status]) => {
+        logger.info(`  ${service}: ${status ? '✅' : '❌'}`);
+      });
+      
     } else {
       logger.error('❌ Failed to start CronService');
     }
@@ -194,88 +268,92 @@ async function startReaderBot() {
       }
     }
     
-    // Initialize CronService for automated reports
-    logger.info('📖 Initializing automated reporting system...');
-    const cronService = await initializeCronService(readerBot);
+    // Initialize all services
+    logger.info('📖 Initializing Reader Bot services...');
+    const services = await initializeServices(readerBot);
+    
+    // Initialize CronService for automated reports and reminders
+    logger.info('📖 Initializing automated systems...');
+    const cronService = await initializeCronService(readerBot, services);
     
     logger.info('🎉 Reader Bot started successfully!');
     logger.info('📖 Users can now start conversations with /start');
     logger.info('📊 Automated weekly reports enabled');
-    logger.info('📈 Automated monthly reports enabled'); // 📈 NEW
+    logger.info('📈 Automated monthly reports enabled');
+    logger.info('🔔 Smart reminder system enabled');
+    logger.info('📢 Monthly announcements enabled (25th of each month)');
     
-    // 📈 Log monthly reports functionality
-    if (cronService) {
-      const diagnostics = cronService.getDiagnostics();
-      logger.info(`📈 Monthly report service: ${diagnostics.hasMonthlyReportService ? 'Ready' : 'Not available'}`);
-    }
+    // Store services for graceful shutdown
+    global.readerBotServices = {
+      telegramBot: readerBot,
+      cronService: cronService,
+      ...services
+    };
     
     // Log helpful information for development
     if (config.telegram.environment === 'development') {
       logger.info('🔧 Development mode active');
       logger.info('📝 Send /start to your bot to begin onboarding');
       logger.info('💡 Use /help to see available commands');
+      logger.info('⚙️ Use /settings to configure reminders');
       logger.info('📊 Test reports with: npm run test:reports');
-      logger.info('📈 Test monthly reports with: npm run test:monthly'); // 📈 NEW
+      logger.info('🔔 Test reminders with: npm run test:reminders');
+      logger.info('📢 Test announcements with: npm run test:announcements');
     }
     
-    // Store services for graceful shutdown
-    global.readerBotServices = {
-      telegramBot: readerBot,
-      cronService: cronService
-    };
-    
-    // 🧪 ВРЕМЕННЫЙ ТЕСТ RAG + Monthly Service (удалите после проверки)
+    // 🧪 UPDATED TEST: Test all new services
     setTimeout(async () => {
-      logger.info('🧪 Testing RAG behavior...');
+      logger.info('🧪 Testing all services...');
       try {
-        const claudeService = require('./server/services/claude');
+        // Test ReminderService
+        logger.info('🔔 Testing ReminderService...');
+        const reminderStats = await services.reminderService.getReminderStats();
+        logger.info(`✅ ReminderService test completed. Users with reminders: ${reminderStats?.enabledUsers || 0}`);
         
-        // Тест без RAG
-        logger.info('📖 Test 1: useRag=false');
-        const response1 = await claudeService.generateResponse('Привет!', { 
-          useRag: false,
-          platform: 'telegram',
-          userId: 'test_user'
-        });
-        logger.info('✅ Test 1 (useRag=false) completed');
+        // Test AnnouncementService
+        logger.info('📢 Testing AnnouncementService...');
+        const announcementStats = await services.announcementService.getAnnouncementStats();
+        logger.info(`✅ AnnouncementService test completed. Eligible users: ${announcementStats?.eligibleUsers || 0}`);
         
-        // Тест с RAG  
-        logger.info('📖 Test 2: useRag=true');
-        const response2 = await claudeService.generateResponse('Привет!', { 
-          useRag: true,
-          platform: 'telegram', 
-          userId: 'test_user'
-        });
-        logger.info('✅ Test 2 (useRag=true) completed');
+        // Test Monthly Service
+        logger.info('📈 Testing MonthlyReportService...');
+        const monthlyDiagnostics = services.monthlyReportService.getDiagnostics();
+        logger.info(`✅ MonthlyReportService test completed. Status: ${monthlyDiagnostics.status}`);
         
-        // Тест WeeklyReportService
-        logger.info('📖 Test 3: WeeklyReportService');
-        const weeklyService = new WeeklyReportService();
-        const mockQuotes = [{ text: "Тест", author: "Автор", createdAt: new Date() }];
-        const mockUser = { userId: 'test', name: 'Тест', testResults: {} };
+        // Test CronService integration
+        if (cronService) {
+          logger.info('⏰ Testing CronService integration...');
+          const allStats = await cronService.getAllServicesStats();
+          logger.info(`✅ CronService integration test completed. Active jobs: ${allStats.cron.totalJobs}`);
+        }
         
-        const analysis = await weeklyService.analyzeWeeklyQuotes(mockQuotes, mockUser);
-        logger.info('✅ Test 3 (WeeklyReportService) completed');
-        logger.info(`📊 Analysis summary: ${analysis.summary}`);
-        
-        // 📈 NEW: Тест MonthlyReportService
-        logger.info('📈 Test 4: MonthlyReportService');
-        const monthlyService = new MonthlyReportService();
-        monthlyService.initialize(readerBot);
-        const monthlyDiagnostics = monthlyService.getDiagnostics();
-        logger.info('✅ Test 4 (MonthlyReportService) completed');
-        logger.info(`📈 Monthly service ready: ${monthlyDiagnostics.status === 'ready'}`);
-        logger.info(`📈 Available themes: ${monthlyDiagnostics.themesAvailable}`);
+        logger.info('🎉 All service tests completed successfully!');
         
       } catch (error) {
-        logger.error(`❌ RAG test failed: ${error.message}`);
+        logger.error(`❌ Service tests failed: ${error.message}`);
       }
-    }, 3000);
+    }, 5000);
     
   } catch (error) {
     logger.error(`❌ Failed to start Reader Bot: ${error.message}`);
     logger.error(error.stack);
     process.exit(1);
+  }
+}
+
+/**
+ * 📖 NEW: Test individual services manually
+ */
+async function testServices() {
+  logger.info('🧪 Manual service testing...');
+  
+  try {
+    // Test the new test file
+    const testRunner = require('./test-reminder-announcement-services');
+    await testRunner.runAllTests();
+    
+  } catch (error) {
+    logger.error(`❌ Manual tests failed: ${error.message}`);
   }
 }
 
@@ -328,12 +406,23 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-// Start the bot if this file is run directly
+// CLI commands
 if (require.main === module) {
-  startReaderBot();
+  const command = process.argv[2];
+  
+  switch (command) {
+    case 'test':
+      testServices();
+      break;
+    case 'start':
+    default:
+      startReaderBot();
+      break;
+  }
 }
 
 module.exports = {
   startReaderBot,
+  testServices,
   config
 };
