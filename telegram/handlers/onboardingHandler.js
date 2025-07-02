@@ -116,7 +116,7 @@ class OnboardingHandler {
       await this._startOnboarding(ctx);
       
     } catch (error) {
-      logger.error(`📖 Error in handleStart: ${error.message}`);
+      logger.error(`📖 Error in handleStart: ${error.message}`);;
       await ctx.reply('📖 Произошла ошибка. Попробуйте еще раз через минуту.');
     }
   }
