@@ -4,8 +4,7 @@
  */
 
 const { MonthlyReport, UserProfile, Quote, WeeklyReport } = require('../models');
-const { claudeService } = require('./claudeService');
-const { bot } = require('../../telegram');
+const claudeService = require('./claudeService');
 
 /**
  * @typedef {Object} MonthlyAnalysis
@@ -42,6 +41,18 @@ class MonthlyReportService {
       { id: 'growth', text: '✨ Вдохновение и рост', key: 'вдохновение и рост' },
       { id: 'family', text: '👶 Материнство и семья', key: 'материнство и семья' }
     ];
+
+    this.bot = null; // Will be injected during initialization
+  }
+
+  /**
+   * Initialize service with dependencies
+   * @param {Object} dependencies - Required dependencies
+   * @param {Object} dependencies.bot - Telegram bot instance
+   */
+  initialize(dependencies) {
+    this.bot = dependencies.bot;
+    console.log('📈 MonthlyReportService initialized');
   }
 
   /**
@@ -135,6 +146,10 @@ class MonthlyReportService {
    * @param {Object} user - Профиль пользователя
    */
   async sendAdditionalSurvey(userId, user) {
+    if (!this.bot) {
+      throw new Error('Bot instance not available for sending surveys');
+    }
+
     const surveyMessage = `
 📝 *Дополнительный опрос для точности разбора*
 
@@ -150,7 +165,7 @@ class MonthlyReportService {
     ]);
 
     try {
-      await bot.telegram.sendMessage(userId, surveyMessage, {
+      await this.bot.telegram.sendMessage(userId, surveyMessage, {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: keyboard
@@ -319,6 +334,10 @@ ${weeklyInsights}
    * @param {number} quotesCount - Количество цитат за месяц
    */
   async sendMonthlyReport(userId, report, quotesCount) {
+    if (!this.bot) {
+      throw new Error('Bot instance not available for sending reports');
+    }
+
     const reportMessage = `
 📈 *Ваш персональный разбор месяца*
 
@@ -353,7 +372,7 @@ ${report.analysis.bookSuggestions.map((book, i) => `${i + 1}. ${book}`).join('\n
     ];
 
     try {
-      await bot.telegram.sendMessage(userId, reportMessage, {
+      await this.bot.telegram.sendMessage(userId, reportMessage, {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: ratingKeyboard
@@ -483,11 +502,19 @@ ${report.analysis.bookSuggestions.map((book, i) => `${i + 1}. ${book}`).join('\n
    */
   getDiagnostics() {
     return {
-      initialized: true,
+      initialized: !!this.bot,
       themesAvailable: this.monthlyThemes.length,
       themes: this.monthlyThemes.map(t => t.key),
-      status: 'ready'
+      status: this.isReady() ? 'ready' : 'not_initialized'
     };
+  }
+
+  /**
+   * Проверяет готовность сервиса
+   * @returns {boolean}
+   */
+  isReady() {
+    return !!this.bot;
   }
 }
 
