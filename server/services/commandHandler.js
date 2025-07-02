@@ -1,5 +1,5 @@
 /**
- * @fileoverview Обработчик команд Telegram бота "Читатель" (ФИНАЛЬНАЯ ВЕРСИЯ)
+ * @fileoverview Обработчик команд Telegram бота "Читатель" с расширенными настройками напоминаний
  * @author g1orgi89
  */
 
@@ -14,6 +14,16 @@ class CommandHandler {
   constructor() {
     this.quoteHandler = new QuoteHandler();
     this.achievementService = new AchievementService();
+    this.reminderService = null; // Будет инициализирован позже
+  }
+
+  /**
+   * Инициализация с зависимостями
+   * @param {Object} dependencies - Зависимости
+   * @param {Object} dependencies.reminderService - Сервис напоминаний
+   */
+  initialize(dependencies) {
+    this.reminderService = dependencies.reminderService;
   }
 
   /**
@@ -41,6 +51,7 @@ class CommandHandler {
 \`Мудрость приходит с опытом\`
 
 *Отчеты:* каждое воскресенье в 11:00
+*Анонсы:* 25 числа каждого месяца
 *Вопросы:* пишите прямо в чат, я передам Анне
 
 📚 "Хватит сидеть в телефоне - читайте книги!"`;
@@ -163,6 +174,278 @@ ${this._formatAchievementsInStats(achievementProgress)}
   }
 
   /**
+   * 📖 ОБНОВЛЕНО: Обработать команду /settings с расширенными настройками напоминаний
+   * @param {Object} ctx - Контекст Telegram бота
+   * @returns {Promise<void>}
+   */
+  async handleSettings(ctx) {
+    try {
+      const userId = ctx.from.id.toString();
+      const user = await UserProfile.findOne({ userId });
+      
+      if (!user) {
+        await ctx.reply('Профиль не найден. Попробуйте команду /start');
+        return;
+      }
+
+      // Получаем информацию о текущем расписании напоминаний
+      const reminderInfo = this.reminderService ? 
+        this._getReminderScheduleInfo(user) : 
+        'сервис недоступен';
+
+      const reminderStatus = user.settings.reminderEnabled ? "✅ включены" : "❌ выключены";
+      const reminderTimes = user.settings.reminderTimes.length > 0 ? 
+        user.settings.reminderTimes.join(', ') : 'не установлено';
+
+      const settingsText = `⚙️ *Настройки профиля:*
+
+👤 *Профиль:*
+└ Имя: ${user.name}
+└ Email: ${user.email}
+└ Источник: ${user.source}
+
+🔔 *Напоминания:*
+└ Статус: ${reminderStatus}
+└ Время: ${reminderTimes}
+└ Расписание: ${reminderInfo}
+
+📊 *Статистика:*
+└ Зарегистрирован: ${user.registeredAt.toLocaleDateString('ru-RU')}
+└ Онбординг: ${user.isOnboardingComplete ? 'завершен' : 'не завершен'}
+└ Язык: ${user.settings.language}`;
+
+      const keyboard = {
+        inline_keyboard: [
+          [{
+            text: user.settings.reminderEnabled ? "🔕 Отключить напоминания" : "🔔 Включить напоминания",
+            callback_data: "toggle_reminders"
+          }],
+          [{ text: "⏰ Изменить время", callback_data: "change_reminder_time" }],
+          [{ text: "📊 Частота напоминаний", callback_data: "reminder_frequency_info" }],
+          [{ text: "📧 Изменить email", callback_data: "change_email" }],
+          [{ text: "🔙 Назад", callback_data: "close_settings" }]
+        ]
+      };
+
+      await ctx.reply(settingsText, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+      });
+
+    } catch (error) {
+      console.error('Error in handleSettings:', error);
+      await ctx.reply('Произошла ошибка при загрузке настроек. Попробуйте позже.');
+    }
+  }
+
+  /**
+   * 📖 НОВОЕ: Получить информацию о расписании напоминаний для пользователя
+   * @param {Object} user - Пользователь
+   * @returns {string} Информация о расписании
+   * @private
+   */
+  _getReminderScheduleInfo(user) {
+    if (!this.reminderService) {
+      return 'сервис недоступен';
+    }
+
+    const config = this.reminderService.getReminderConfigForUser(user);
+    const registrationDate = new Date(user.registeredAt);
+    const now = new Date();
+    const weeksSinceRegistration = Math.floor((now - registrationDate) / (1000 * 60 * 60 * 24 * 7));
+
+    const scheduleInfo = {
+      'every_other_day': 'через день',
+      'twice_weekly': '2 раза в неделю (пн, чт)',
+      'weekly': '1 раз в неделю (пн)'
+    };
+
+    const stage = weeksSinceRegistration === 0 ? 'новичок' :
+                  weeksSinceRegistration <= 3 ? 'активный' : 'опытный';
+
+    return `${scheduleInfo[config.frequency] || config.frequency} (${stage})`;
+  }
+
+  /**
+   * 📖 НОВОЕ: Показать подробную информацию о частоте напоминаний
+   * @param {Object} ctx - Контекст Telegram бота
+   * @returns {Promise<void>}
+   */
+  async showReminderFrequencyInfo(ctx) {
+    const frequencyText = `🔔 *Как работают напоминания:*
+
+Частота напоминаний меняется по мере вашего знакомства с ботом:
+
+*📖 Первая неделя (новичок):*
+└ Через день в 19:00
+└ Помогаем привыкнуть к боту
+
+*🎯 2-4 недели (активный):*
+└ 2 раза в неделю (пн, чт) в 19:00
+└ Поддерживаем интерес
+
+*⭐ Месяц+ (опытный):*
+└ 1 раз в неделю (пн) в 19:00
+└ Ненавязчивые напоминания
+
+*💡 Умная логика:*
+• Пропускаем если вы уже были активны сегодня
+• Отключаем автоматически если заблокировали бота
+• Учитываем ваши настройки времени
+
+*⚙️ Персонализация:*
+• Можете выбрать удобное время
+• Можете полностью отключить
+• Анонсы продуктов (25 числа) отдельно`;
+
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: "⏰ Изменить время", callback_data: "change_reminder_time" }],
+        [{ text: "🔙 К настройкам", callback_data: "open_settings" }]
+      ]
+    };
+
+    await ctx.reply(frequencyText, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    });
+  }
+
+  /**
+   * 📖 ОБНОВЛЕНО: Переключить напоминания с улучшенной обратной связью
+   * @param {Object} ctx - Контекст Telegram бота
+   * @returns {Promise<void>}
+   */
+  async toggleReminders(ctx) {
+    try {
+      const userId = ctx.from.id.toString();
+      const user = await UserProfile.findOne({ userId });
+      
+      if (!user) {
+        await ctx.reply('Профиль не найден.');
+        return;
+      }
+
+      const newStatus = !user.settings.reminderEnabled;
+      user.settings.reminderEnabled = newStatus;
+      await user.save();
+
+      const statusText = newStatus ? "включены" : "отключены";
+      const emoji = newStatus ? "🔔" : "🔕";
+      
+      let responseText = `${emoji} Напоминания ${statusText}.
+
+`;
+
+      if (newStatus) {
+        const scheduleInfo = this._getReminderScheduleInfo(user);
+        responseText += `Теперь я буду напоминать вам о цитатах.
+
+*Ваше расписание:* ${scheduleInfo}
+*Время:* ${user.settings.reminderTimes.join(', ')}
+
+💡 Частота напоминаний умная - она адаптируется под ваш опыт использования бота.`;
+      } else {
+        responseText += `Вы больше не будете получать напоминания о цитатах.
+
+📢 *Важно:* анонсы продуктов от Анны (25 числа каждого месяца) продолжат приходить. Чтобы отключить и их, заблокируйте бота полностью.`;
+      }
+
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: "⚙️ Другие настройки", callback_data: "open_settings" }],
+          [{ text: "📊 Моя статистика", callback_data: "quick_stats" }]
+        ]
+      };
+
+      await ctx.reply(responseText, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+      });
+
+    } catch (error) {
+      console.error('Error in toggleReminders:', error);
+      await ctx.reply('Произошла ошибка при изменении настроек.');
+    }
+  }
+
+  /**
+   * 📖 НОВОЕ: Изменить время напоминаний
+   * @param {Object} ctx - Контекст Telegram бота
+   * @returns {Promise<void>}
+   */
+  async changeReminderTime(ctx) {
+    const timeText = `⏰ *Выберите удобное время для напоминаний:*
+
+Когда вам удобнее получать напоминания о цитатах?`;
+
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: "🌅 Утром (9:00)", callback_data: "set_time_09:00" }],
+        [{ text: "🌆 Вечером (19:00)", callback_data: "set_time_19:00" }],
+        [{ text: "🌙 Поздно вечером (21:00)", callback_data: "set_time_21:00" }],
+        [{ text: "⏰ Другое время", callback_data: "set_custom_time" }],
+        [{ text: "🔙 Назад", callback_data: "open_settings" }]
+      ]
+    };
+
+    await ctx.reply(timeText, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    });
+  }
+
+  /**
+   * 📖 НОВОЕ: Установить время напоминаний
+   * @param {Object} ctx - Контекст Telegram бота
+   * @param {string} time - Время в формате HH:MM
+   * @returns {Promise<void>}
+   */
+  async setReminderTime(ctx, time) {
+    try {
+      const userId = ctx.from.id.toString();
+      const user = await UserProfile.findOne({ userId });
+      
+      if (!user) {
+        await ctx.reply('Профиль не найден.');
+        return;
+      }
+
+      // Обновляем настройки напоминаний через ReminderService
+      if (this.reminderService) {
+        await this.reminderService.updateReminderSettings(userId, {
+          enabled: user.settings.reminderEnabled,
+          times: [time]
+        });
+      } else {
+        // Fallback если сервис недоступен
+        user.settings.reminderTimes = [time];
+        await user.save();
+      }
+
+      const scheduleInfo = this._getReminderScheduleInfo(user);
+      
+      await ctx.reply(`✅ Время напоминаний изменено на ${time}
+
+*Ваше новое расписание:*
+└ Время: ${time}
+└ Частота: ${scheduleInfo}
+└ Статус: ${user.settings.reminderEnabled ? 'включены' : 'отключены'}
+
+${user.settings.reminderEnabled ? 
+  '🎯 Следующее напоминание придет согласно вашему расписанию.' : 
+  '💡 Не забудьте включить напоминания в настройках.'
+}`, {
+        parse_mode: 'Markdown'
+      });
+
+    } catch (error) {
+      console.error('Error in setReminderTime:', error);
+      await ctx.reply('Произошла ошибка при изменении времени напоминаний.');
+    }
+  }
+
+  /**
    * Форматировать достижения для отображения в статистике
    * @param {Array} achievementProgress - Прогресс по достижениям
    * @returns {string} Отформатированный текст достижений
@@ -198,64 +481,6 @@ ${this._formatAchievementsInStats(achievementProgress)}
     }
 
     return achievementsText;
-  }
-
-  /**
-   * Обработать команду /settings
-   * @param {Object} ctx - Контекст Telegram бота
-   * @returns {Promise<void>}
-   */
-  async handleSettings(ctx) {
-    try {
-      const userId = ctx.from.id.toString();
-      const user = await UserProfile.findOne({ userId });
-      
-      if (!user) {
-        await ctx.reply('Профиль не найден. Попробуйте команду /start');
-        return;
-      }
-
-      const reminderStatus = user.settings.reminderEnabled ? "✅ включены" : "❌ выключены";
-      const reminderTimes = user.settings.reminderTimes.length > 0 ? 
-        user.settings.reminderTimes.join(', ') : 'не установлено';
-
-      const settingsText = `⚙️ *Настройки профиля:*
-
-👤 *Профиль:*
-└ Имя: ${user.name}
-└ Email: ${user.email}
-└ Источник: ${user.source}
-
-🔔 *Напоминания:*
-└ Статус: ${reminderStatus}
-└ Время: ${reminderTimes}
-
-📊 *Статистика:*
-└ Зарегистрирован: ${user.registeredAt.toLocaleDateString('ru-RU')}
-└ Онбординг: ${user.isOnboardingComplete ? 'завершен' : 'не завершен'}
-└ Язык: ${user.settings.language}`;
-
-      const keyboard = {
-        inline_keyboard: [
-          [{
-            text: user.settings.reminderEnabled ? "🔕 Отключить напоминания" : "🔔 Включить напоминания",
-            callback_data: "toggle_reminders"
-          }],
-          [{ text: "⏰ Изменить время", callback_data: "change_reminder_time" }],
-          [{ text: "📧 Изменить email", callback_data: "change_email" }],
-          [{ text: "🔙 Назад", callback_data: "close_settings" }]
-        ]
-      };
-
-      await ctx.reply(settingsText, {
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-      });
-
-    } catch (error) {
-      console.error('Error in handleSettings:', error);
-      await ctx.reply('Произошла ошибка при загрузке настроек. Попробуйте позже.');
-    }
   }
 
   /**
@@ -349,41 +574,6 @@ ${this._formatAchievementsInStats(achievementProgress)}
   }
 
   /**
-   * Переключить напоминания
-   * @param {Object} ctx - Контекст Telegram бота
-   * @returns {Promise<void>}
-   */
-  async toggleReminders(ctx) {
-    try {
-      const userId = ctx.from.id.toString();
-      const user = await UserProfile.findOne({ userId });
-      
-      if (!user) {
-        await ctx.reply('Профиль не найден.');
-        return;
-      }
-
-      const newStatus = !user.settings.reminderEnabled;
-      user.settings.reminderEnabled = newStatus;
-      await user.save();
-
-      const statusText = newStatus ? "включены" : "отключены";
-      const emoji = newStatus ? "🔔" : "🔕";
-      
-      await ctx.reply(`${emoji} Напоминания ${statusText}.
-
-${newStatus ? 
-  'Теперь я буду напоминать вам о цитатах в установленное время.' : 
-  'Вы больше не будете получать напоминания о цитатах.'
-}`);
-
-    } catch (error) {
-      console.error('Error in toggleReminders:', error);
-      await ctx.reply('Произошла ошибка при изменении настроек.');
-    }
-  }
-
-  /**
    * Создать прогресс-бар для достижений
    * @param {number} progress - Прогресс в процентах (0-100)
    * @returns {string} Прогресс-бар
@@ -420,7 +610,7 @@ ${newStatus ?
   }
 
   /**
-   * Обработать callback запросы
+   * 📖 ОБНОВЛЕНО: Обработать callback запросы с новыми функциями
    * @param {Object} ctx - Контекст Telegram бота
    * @returns {Promise<void>}
    */
@@ -433,12 +623,24 @@ ${newStatus ?
           await this.handleSearch(ctx);
           break;
         
+        case 'quick_stats':
+          await this.handleStats(ctx);
+          break;
+        
         case 'open_settings':
           await this.handleSettings(ctx);
           break;
         
         case 'toggle_reminders':
           await this.toggleReminders(ctx);
+          break;
+        
+        case 'change_reminder_time':
+          await this.changeReminderTime(ctx);
+          break;
+        
+        case 'reminder_frequency_info':
+          await this.showReminderFrequencyInfo(ctx);
           break;
         
         case 'achievements_guide':
@@ -461,9 +663,16 @@ ${newStatus ?
           await ctx.deleteMessage();
           break;
         
+        case 'set_custom_time':
+          await ctx.reply('⏰ Напишите время в формате ЧЧ:ММ (например, 10:30):');
+          break;
+        
         default:
           if (data.startsWith('category_')) {
             await this._handleCategorySearch(ctx, data.replace('category_', ''));
+          } else if (data.startsWith('set_time_')) {
+            const time = data.replace('set_time_', '');
+            await this.setReminderTime(ctx, time);
           }
           break;
       }
