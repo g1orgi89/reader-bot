@@ -14,6 +14,7 @@ class CronService {
     this.weeklyReportHandler = null;
     this.monthlyReportService = null;
     this.reminderService = null;
+    this.announcementService = null;
     this.bot = null;
     this.jobs = new Map();
     
@@ -27,12 +28,14 @@ class CronService {
    * @param {Object} dependencies.weeklyReportHandler - Handler для еженедельных отчетов
    * @param {Object} dependencies.monthlyReportService - Сервис месячных отчетов
    * @param {Object} dependencies.reminderService - Сервис напоминаний
+   * @param {Object} dependencies.announcementService - Сервис анонсов
    */
   initialize(dependencies) {
     this.bot = dependencies.bot;
     this.weeklyReportHandler = dependencies.weeklyReportHandler;
     this.monthlyReportService = dependencies.monthlyReportService;
     this.reminderService = dependencies.reminderService;
+    this.announcementService = dependencies.announcementService;
     
     logger.info('📖 CronService dependencies initialized');
   }
@@ -58,17 +61,30 @@ class CronService {
 
       this.jobs.set('weekly_reports', weeklyReportsJob);
 
-      // Ежедневные напоминания (если сервис доступен)
+      // 📖 ОБНОВЛЕНО: Оптимизированные напоминания
       if (this.reminderService) {
-        const dailyRemindersJob = cron.schedule('0 9,19 * * *', async () => {
-          logger.info('📖 Sending daily reminders...');
+        const optimizedRemindersJob = cron.schedule('0 19 * * *', async () => {
+          logger.info('📖 Sending optimized reminders...');
           await this.reminderService.sendDailyReminders();
         }, {
           timezone: "Europe/Moscow",
           scheduled: false
         });
 
-        this.jobs.set('daily_reminders', dailyRemindersJob);
+        this.jobs.set('optimized_reminders', optimizedRemindersJob);
+      }
+
+      // 📖 НОВОЕ: Анонсы продуктов (25 числа каждого месяца в 12:00 МСК)
+      if (this.announcementService) {
+        const announcementsJob = cron.schedule('0 12 25 * *', async () => {
+          logger.info('📖 Starting monthly product announcements...');
+          await this.sendMonthlyAnnouncements();
+        }, {
+          timezone: "Europe/Moscow",
+          scheduled: false
+        });
+
+        this.jobs.set('monthly_announcements', announcementsJob);
       }
 
       // Месячные отчеты: 1 числа каждого месяца в 12:00 МСК
@@ -142,7 +158,7 @@ class CronService {
 
       // Отправляем статистику администратору
       if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
-        const adminMessage = `📊 *Еженедельные отчеты отправлены*\n\n✅ Успешно: ${stats.sent}\n❌ Ошибки: ${stats.failed}\n⏭ Пропущено (пустые недели): ${stats.skipped}\n📊 Всего пользователей: ${stats.total}\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\n\n${stats.errors.length > 0 ? `\n*Ошибки:*\n${stats.errors.slice(0, 5).map(e => `• ${e.userId}: ${e.error}`).join('\n')}` : ''}`;
+        const adminMessage = `📊 *Еженедельные отчеты отправлены*\\n\\n✅ Успешно: ${stats.sent}\\n❌ Ошибки: ${stats.failed}\\n⏭ Пропущено (пустые недели): ${stats.skipped}\\n📊 Всего пользователей: ${stats.total}\\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\\n\\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 5).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
 
         try {
           await this.bot.telegram.sendMessage(
@@ -182,7 +198,7 @@ class CronService {
 
       // Отправляем статистику администратору
       if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
-        const adminMessage = `📈 *Месячные отчеты отправлены*\n\n✅ Успешно: ${stats.generated}\n❌ Ошибки: ${stats.failed}\n📊 Всего пользователей: ${stats.total}\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\n\n${stats.errors.length > 0 ? `\n*Ошибки:*\n${stats.errors.slice(0, 3).map(e => `• ${e.userId}: ${e.error}`).join('\n')}` : ''}`;
+        const adminMessage = `📈 *Месячные отчеты отправлены*\\n\\n✅ Успешно: ${stats.generated}\\n❌ Ошибки: ${stats.failed}\\n📊 Всего пользователей: ${stats.total}\\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\\n\\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 3).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
 
         try {
           await this.bot.telegram.sendMessage(
@@ -197,6 +213,45 @@ class CronService {
 
     } catch (error) {
       logger.error(`📖 Error in generateMonthlyReportsForActiveUsers: ${error.message}`, error);
+    }
+  }
+
+  /**
+   * 📖 НОВОЕ: Отправка месячных анонсов
+   * @returns {Promise<void>}
+   */
+  async sendMonthlyAnnouncements() {
+    try {
+      const startTime = Date.now();
+
+      if (!this.announcementService) {
+        logger.warn('📖 AnnouncementService not initialized, skipping announcements');
+        return;
+      }
+
+      const stats = await this.announcementService.sendMonthlyAnnouncements();
+      
+      const duration = Date.now() - startTime;
+      
+      logger.info(`📖 Monthly announcements completed in ${duration}ms: ${stats.sent} sent, ${stats.failed} failed`);
+
+      // Отправляем статистику администратору
+      if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
+        const adminMessage = `📢 *Месячные анонсы отправлены*\\n\\n✅ Успешно: ${stats.sent}\\n❌ Ошибки: ${stats.failed}\\n📊 Всего пользователей: ${stats.total}\\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\\n\\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 3).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
+
+        try {
+          await this.bot.telegram.sendMessage(
+            process.env.ADMIN_TELEGRAM_ID,
+            adminMessage,
+            { parse_mode: 'Markdown' }
+          );
+        } catch (error) {
+          logger.error(`📖 Failed to send admin notification: ${error.message}`);
+        }
+      }
+
+    } catch (error) {
+      logger.error(`📖 Error in sendMonthlyAnnouncements: ${error.message}`, error);
     }
   }
 
@@ -248,7 +303,7 @@ class CronService {
   }
 
   /**
-   * 📖 НОВОЕ: Ручной запуск месячных отчетов (для тестирования)
+   * 📖 ОБНОВЛЕНО: Ручной запуск месячных отчетов (для тестирования)
    * @returns {Promise<Object>} Статистика отправки
    */
   async triggerMonthlyReports() {
@@ -268,15 +323,38 @@ class CronService {
   }
 
   /**
-   * Ручной запуск напоминаний (для тестирования)
-   * @returns {Promise<void>}
+   * 📖 ОБНОВЛЕНО: Ручной запуск напоминаний (для тестирования)
+   * @returns {Promise<Object>} Статистика отправки
    */
   async triggerReminders() {
     if (this.reminderService) {
-      logger.info('📖 Manual trigger of reminders');
-      await this.reminderService.sendDailyReminders();
+      logger.info('📖 Manual trigger of optimized reminders');
+      const stats = await this.reminderService.sendDailyReminders();
+      return {
+        message: 'Optimized reminders triggered',
+        ...stats
+      };
     } else {
       logger.warn('📖 ReminderService not initialized, cannot trigger reminders');
+      return { message: 'ReminderService not available' };
+    }
+  }
+
+  /**
+   * 📖 НОВОЕ: Ручной запуск анонсов (для тестирования)
+   * @returns {Promise<Object>} Статистика отправки
+   */
+  async triggerAnnouncements() {
+    if (this.announcementService) {
+      logger.info('📖 Manual trigger of monthly announcements');
+      const stats = await this.announcementService.sendMonthlyAnnouncements();
+      return {
+        message: 'Monthly announcements triggered',
+        ...stats
+      };
+    } else {
+      logger.warn('📖 AnnouncementService not initialized, cannot trigger announcements');
+      return { message: 'AnnouncementService not available' };
     }
   }
 
@@ -299,7 +377,9 @@ class CronService {
       totalJobs: this.jobs.size,
       jobs: status,
       initialized: !!this.weeklyReportHandler,
-      hasMonthlyService: !!this.monthlyReportService
+      hasMonthlyService: !!this.monthlyReportService,
+      hasReminderService: !!this.reminderService,
+      hasAnnouncementService: !!this.announcementService
     };
   }
 
@@ -344,13 +424,14 @@ class CronService {
   }
 
   /**
-   * Получение расписания задач для health check
+   * 📖 ОБНОВЛЕНО: Получение расписания задач для health check
    * @returns {Object} Расписание задач
    */
   getSchedule() {
     return {
       weekly_reports: 'Sundays at 11:00 MSK',
-      daily_reminders: '9:00 and 19:00 MSK daily (if enabled)',
+      optimized_reminders: '19:00 MSK daily (smart frequency based on user stage)',
+      monthly_announcements: '25th day of month at 12:00 MSK',
       monthly_reports: '1st day of month at 12:00 MSK',
       daily_cleanup: '3:00 MSK daily'
     };
@@ -365,7 +446,7 @@ class CronService {
   }
 
   /**
-   * Получение подробной диагностики
+   * 📖 ОБНОВЛЕНО: Получение подробной диагностики
    * @returns {Object} Диагностическая информация
    */
   getDiagnostics() {
@@ -373,17 +454,59 @@ class CronService {
       initialized: !!this.weeklyReportHandler,
       hasMonthlyReportService: !!this.monthlyReportService,
       hasReminderService: !!this.reminderService,
+      hasAnnouncementService: !!this.announcementService,
       hasBot: !!this.bot,
       jobsCount: this.jobs.size,
       activeJobs: Array.from(this.jobs.keys()),
       nextRuns: {
         weekly_reports: this.getNextRunTime('weekly_reports'),
-        daily_reminders: this.getNextRunTime('daily_reminders'),
+        optimized_reminders: this.getNextRunTime('optimized_reminders'),
+        monthly_announcements: this.getNextRunTime('monthly_announcements'),
         monthly_reports: this.getNextRunTime('monthly_reports'),
         daily_cleanup: this.getNextRunTime('daily_cleanup')
       },
+      serviceStatuses: {
+        reminderService: this.reminderService?.isReady() || false,
+        announcementService: this.announcementService?.isReady() || false,
+        monthlyReportService: !!this.monthlyReportService
+      },
       timezone: 'Europe/Moscow'
     };
+  }
+
+  /**
+   * 📖 НОВОЕ: Получение статистики всех сервисов
+   * @returns {Promise<Object>} Общая статистика
+   */
+  async getAllServicesStats() {
+    const stats = {
+      timestamp: new Date().toISOString(),
+      cron: this.getJobsStatus()
+    };
+
+    try {
+      if (this.reminderService) {
+        stats.reminders = await this.reminderService.getReminderStats();
+      }
+
+      if (this.announcementService) {
+        stats.announcements = await this.announcementService.getAnnouncementStats();
+      }
+
+      if (this.weeklyReportHandler && this.weeklyReportHandler.getReportStats) {
+        stats.weeklyReports = await this.weeklyReportHandler.getReportStats(7);
+      }
+
+      if (this.monthlyReportService && this.monthlyReportService.getStats) {
+        stats.monthlyReports = await this.monthlyReportService.getStats();
+      }
+
+    } catch (error) {
+      logger.error(`📖 Error getting services stats: ${error.message}`, error);
+      stats.error = error.message;
+    }
+
+    return stats;
   }
 }
 
