@@ -1,7 +1,7 @@
 /**
  * Main entry point for Reader Bot - Telegram bot for Anna Busel's book club
  * @file reader-bot.js
- * 🔧 FIX: Added MonthlyReportService integration
+ * 🔧 FIX: Added MonthlyReportService integration with proper logging
  */
 
 require('dotenv').config();
@@ -14,7 +14,7 @@ const { initializeModels } = require('./server/models');
 const ReaderTelegramBot = require('./telegram');
 const { CronService } = require('./server/services/cronService');
 const WeeklyReportService = require('./server/services/weeklyReportService');
-const MonthlyReportService = require('./server/services/monthlyReportService'); // 📖 NEW: Added monthly reports
+const MonthlyReportService = require('./server/services/monthlyReportService');
 
 /**
  * Reader Bot configuration
@@ -81,7 +81,7 @@ async function initializeDatabase() {
 }
 
 /**
- * 📖 UPDATED: Initialize Cron Service with both Weekly and Monthly Reports
+ * 📈 UPDATED: Initialize Cron Service with both Weekly and Monthly Reports + proper logging
  */
 async function initializeCronService(telegramBot) {
   try {
@@ -91,10 +91,16 @@ async function initializeCronService(telegramBot) {
     const weeklyReportService = new WeeklyReportService();
     logger.info('📖 WeeklyReportService initialized');
     
-    // 📖 NEW: Initialize Monthly Report Service
+    // 📈 Initialize Monthly Report Service with detailed logging
+    logger.info('📈 Initializing MonthlyReportService...');
     const monthlyReportService = new MonthlyReportService();
     await monthlyReportService.initialize(telegramBot);
-    logger.info('📖 MonthlyReportService initialized');
+    logger.info('📈 MonthlyReportService initialized and ready');
+    
+    // Log diagnostics
+    const monthlyDiagnostics = monthlyReportService.getDiagnostics();
+    logger.info(`📈 Monthly service status: ${monthlyDiagnostics.status}`);
+    logger.info(`📈 Available themes: ${monthlyDiagnostics.themesAvailable}`);
     
     // Initialize CronService with both services
     const cronService = new CronService();
@@ -110,7 +116,13 @@ async function initializeCronService(telegramBot) {
     if (started) {
       logger.info('📖 CronService initialized and started');
       logger.info('📖 Weekly reports scheduled for Sundays at 11:00 MSK');
-      logger.info('📖 Monthly reports scheduled for 1st day of month at 12:00 MSK');
+      logger.info('📈 Monthly reports scheduled for 1st day of month at 12:00 MSK');
+      
+      // Log next run times
+      const diagnostics = cronService.getDiagnostics();
+      if (diagnostics.nextRuns.monthly_reports) {
+        logger.info(`📈 Next monthly report: ${diagnostics.nextRuns.monthly_reports}`);
+      }
     } else {
       logger.error('❌ Failed to start CronService');
     }
@@ -189,7 +201,13 @@ async function startReaderBot() {
     logger.info('🎉 Reader Bot started successfully!');
     logger.info('📖 Users can now start conversations with /start');
     logger.info('📊 Automated weekly reports enabled');
-    logger.info('📈 Automated monthly reports enabled'); // 📖 NEW
+    logger.info('📈 Automated monthly reports enabled'); // 📈 NEW
+    
+    // 📈 Log monthly reports functionality
+    if (cronService) {
+      const diagnostics = cronService.getDiagnostics();
+      logger.info(`📈 Monthly report service: ${diagnostics.hasMonthlyReportService ? 'Ready' : 'Not available'}`);
+    }
     
     // Log helpful information for development
     if (config.telegram.environment === 'development') {
@@ -197,6 +215,7 @@ async function startReaderBot() {
       logger.info('📝 Send /start to your bot to begin onboarding');
       logger.info('💡 Use /help to see available commands');
       logger.info('📊 Test reports with: npm run test:reports');
+      logger.info('📈 Test monthly reports with: npm run test:monthly'); // 📈 NEW
     }
     
     // Store services for graceful shutdown
@@ -205,7 +224,7 @@ async function startReaderBot() {
       cronService: cronService
     };
     
-    // 🧪 ВРЕМЕННЫЙ ТЕСТ RAG (удалите после проверки)
+    // 🧪 ВРЕМЕННЫЙ ТЕСТ RAG + Monthly Service (удалите после проверки)
     setTimeout(async () => {
       logger.info('🧪 Testing RAG behavior...');
       try {
@@ -238,6 +257,15 @@ async function startReaderBot() {
         const analysis = await weeklyService.analyzeWeeklyQuotes(mockQuotes, mockUser);
         logger.info('✅ Test 3 (WeeklyReportService) completed');
         logger.info(`📊 Analysis summary: ${analysis.summary}`);
+        
+        // 📈 NEW: Тест MonthlyReportService
+        logger.info('📈 Test 4: MonthlyReportService');
+        const monthlyService = new MonthlyReportService();
+        monthlyService.initialize(readerBot);
+        const monthlyDiagnostics = monthlyService.getDiagnostics();
+        logger.info('✅ Test 4 (MonthlyReportService) completed');
+        logger.info(`📈 Monthly service ready: ${monthlyDiagnostics.status === 'ready'}`);
+        logger.info(`📈 Available themes: ${monthlyDiagnostics.themesAvailable}`);
         
       } catch (error) {
         logger.error(`❌ RAG test failed: ${error.message}`);
