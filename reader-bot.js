@@ -1,6 +1,7 @@
 /**
  * Main entry point for Reader Bot - Telegram bot for Anna Busel's book club
  * @file reader-bot.js
+ * 🔧 FIX: Исправлен импорт WeeklyReportHandler
  */
 
 require('dotenv').config();
@@ -12,7 +13,7 @@ const logger = require('./server/utils/simpleLogger');
 const { initializeModels } = require('./server/models');
 const ReaderTelegramBot = require('./telegram');
 const { CronService } = require('./server/services/cronService'); // ✅ FIX: Деструктуризация
-const { WeeklyReportHandler } = require('./telegram/handlers/weeklyReportHandler'); // ✅ FIX: Деструктуризация
+const WeeklyReportService = require('./server/services/weeklyReportService'); // 🔧 FIX: Используем WeeklyReportService
 
 /**
  * Reader Bot configuration
@@ -80,18 +81,19 @@ async function initializeDatabase() {
 
 /**
  * Initialize Cron Service with Weekly Reports
+ * 🔧 FIX: Исправлен для работы с WeeklyReportService
  */
 async function initializeCronService(telegramBot) {
   try {
     logger.info('📖 Initializing CronService...');
     
-    // Initialize WeeklyReportHandler
-    const weeklyReportHandler = new WeeklyReportHandler(telegramBot);
-    logger.info('📖 WeeklyReportHandler initialized');
+    // 🔧 FIX: Создаем экземпляр WeeklyReportService вместо WeeklyReportHandler
+    const weeklyReportService = new WeeklyReportService();
+    logger.info('📖 WeeklyReportService initialized');
     
     // ✅ FIX: Updated constructor call to match new CronService API
     const cronService = new CronService();
-    cronService.initialize(telegramBot, weeklyReportHandler);
+    cronService.initialize(telegramBot, weeklyReportService);
     cronService.start();
     
     logger.info('📖 CronService initialized and started');
@@ -185,6 +187,45 @@ async function startReaderBot() {
       telegramBot: readerBot,
       cronService: cronService
     };
+    
+    // 🧪 ВРЕМЕННЫЙ ТЕСТ RAG (удалите после проверки)
+    setTimeout(async () => {
+      logger.info('🧪 Testing RAG behavior...');
+      try {
+        const claudeService = require('./server/services/claude');
+        
+        // Тест без RAG
+        logger.info('📖 Test 1: useRag=false');
+        const response1 = await claudeService.generateResponse('Привет!', { 
+          useRag: false,
+          platform: 'telegram',
+          userId: 'test_user'
+        });
+        logger.info('✅ Test 1 (useRag=false) completed');
+        
+        // Тест с RAG  
+        logger.info('📖 Test 2: useRag=true');
+        const response2 = await claudeService.generateResponse('Привет!', { 
+          useRag: true,
+          platform: 'telegram', 
+          userId: 'test_user'
+        });
+        logger.info('✅ Test 2 (useRag=true) completed');
+        
+        // Тест WeeklyReportService
+        logger.info('📖 Test 3: WeeklyReportService');
+        const weeklyService = new WeeklyReportService();
+        const mockQuotes = [{ text: "Тест", author: "Автор", createdAt: new Date() }];
+        const mockUser = { userId: 'test', name: 'Тест', testResults: {} };
+        
+        const analysis = await weeklyService.analyzeWeeklyQuotes(mockQuotes, mockUser);
+        logger.info('✅ Test 3 (WeeklyReportService) completed');
+        logger.info(`📊 Analysis summary: ${analysis.summary}`);
+        
+      } catch (error) {
+        logger.error(`❌ RAG test failed: ${error.message}`);
+      }
+    }, 3000);
     
   } catch (error) {
     logger.error(`❌ Failed to start Reader Bot: ${error.message}`);
