@@ -1,13 +1,12 @@
 /**
  * Сервис для генерации еженедельных отчетов для проекта "Читатель"
  * @file server/services/weeklyReportService.js
- * 🔧 FIX: Исправлена ошибка парсинга JSON в AI анализе
- * 🔧 FIX: Улучшен промпт для гарантированного получения JSON
+ * 🔧 FIX: Исправлена ошибка конфликта системных промптов
+ * 🔧 FIX: Используем прямой API вызов без системного промпта для JSON анализа
  * 🔧 FIX: Добавлена валидация и очистка JSON ответов
  */
 
 const logger = require('../utils/logger');
-const claudeService = require('./claude'); // ✅ Импорт ClaudeService (экземпляр класса)
 
 /**
  * @typedef {Object} Quote
@@ -43,10 +42,35 @@ const claudeService = require('./claude'); // ✅ Импорт ClaudeService (э
 class WeeklyReportService {
   constructor() {
     this.logger = logger;
+    // Получаем прямой доступ к Claude API для JSON анализа
+    this.anthropic = null;
+    this.initializeAnthropicClient();
   }
 
   /**
-   * 🔧 FIX: Улучшенный AI-анализ с правильным JSON форматированием
+   * 🔧 FIX: Инициализация прямого клиента Anthropic для JSON анализа
+   * @private
+   */
+  initializeAnthropicClient() {
+    try {
+      const { Anthropic } = require('@anthropic-ai/sdk');
+      const { getAIProviderConfig } = require('../config/aiProvider');
+      
+      const config = getAIProviderConfig();
+      this.anthropic = new Anthropic({
+        apiKey: config.claude.apiKey,
+      });
+      
+      this.claudeConfig = config.claude;
+      logger.info('📖 WeeklyReportService: Direct Anthropic client initialized');
+    } catch (error) {
+      logger.error('📖 WeeklyReportService: Failed to initialize Anthropic client:', error.message);
+      this.anthropic = null;
+    }
+  }
+
+  /**
+   * 🔧 FIX: Прямой AI-анализ без конфликтующих системных промптов
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
    * @returns {Promise<WeeklyAnalysis>} Анализ недели
@@ -54,21 +78,17 @@ class WeeklyReportService {
   async analyzeWeeklyQuotes(quotes, userProfile) {
     const quotesText = quotes.map(q => `"${q.text}" ${q.author ? `(${q.author})` : ''}`).join('\n\n');
     
-    // 🔧 FIX: Улучшенный промпт с четкими инструкциями по JSON формату
-    const prompt = `Ты - AI ассистент психолога Анны Бусел. Проанализируй цитаты пользователя за неделю.
+    // 🔧 FIX: Минимальный промпт только для JSON анализа
+    const analysisPrompt = `Проанализируй цитаты пользователя за неделю в стиле психолога Анны Бусел.
 
-ВАЖНО: Верни ТОЛЬКО валидный JSON объект, без дополнительного текста до или после.
-
-Данные пользователя:
-Имя: ${userProfile.name}
+Пользователь: ${userProfile.name}
 Результаты теста: ${JSON.stringify(userProfile.testResults)}
 
 Цитаты за неделю:
 ${quotesText}
 
-Создай психологический анализ в стиле Анны Бусел (теплый, профессиональный тон).
+Верни СТРОГО JSON объект без markdown, комментариев или дополнительного текста:
 
-Верни ТОЛЬКО этот JSON (без markdown кодблоков):
 {
   "summary": "Краткий анализ недели одним предложением",
   "dominantThemes": ["тема1", "тема2"],
@@ -78,36 +98,44 @@ ${quotesText}
 }`;
 
     try {
-      logger.info(`📖 Analyzing ${quotes.length} quotes for user ${userProfile.userId}`);
+      logger.info(`📖 Analyzing ${quotes.length} quotes for user ${userProfile.userId} (direct API)`);
       
-      // Отключаем RAG для анализа цитат - нам не нужна база знаний
-      const response = await claudeService.generateResponse(prompt, {
-        platform: 'telegram',
-        userId: userProfile.userId,
-        context: 'weekly_report_analysis',
-        useRag: false // 🔧 FIX: Отключаем RAG - анализируем только цитаты пользователя
-      });
-      
-      // 🔧 FIX: Улучшенный парсинг JSON с очисткой
-      const analysis = this._parseAIResponse(response.message);
-      
-      // Валидация результата
-      if (!analysis.summary || !analysis.insights) {
-        logger.warn(`📖 Invalid analysis structure, using fallback for user ${userProfile.userId}`);
+      // 🔧 FIX: Прямой вызов Claude API без системного промпта
+      if (this.anthropic) {
+        const response = await this.anthropic.messages.create({
+          model: this.claudeConfig.model,
+          max_tokens: 1000,
+          temperature: 0.3,
+          messages: [{
+            role: 'user',
+            content: analysisPrompt
+          }]
+        });
+        
+        const analysis = this._parseAIResponse(response.content[0].text);
+        
+        // Валидация результата
+        if (!analysis.summary || !analysis.insights) {
+          logger.warn(`📖 Invalid analysis structure, using fallback for user ${userProfile.userId}`);
+          return this.getFallbackAnalysis(quotes, userProfile);
+        }
+
+        logger.info(`📖 Direct AI analysis completed successfully for user ${userProfile.userId}`);
+        return {
+          summary: analysis.summary,
+          dominantThemes: analysis.dominantThemes || [],
+          emotionalTone: analysis.emotionalTone || 'размышляющий',
+          insights: analysis.insights,
+          personalGrowth: analysis.personalGrowth || 'Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг.'
+        };
+      } else {
+        // Fallback если Anthropic клиент не инициализирован
+        logger.warn('📖 Anthropic client not available, using fallback analysis');
         return this.getFallbackAnalysis(quotes, userProfile);
       }
-
-      logger.info(`📖 AI analysis completed successfully for user ${userProfile.userId}`);
-      return {
-        summary: analysis.summary,
-        dominantThemes: analysis.dominantThemes || [],
-        emotionalTone: analysis.emotionalTone || 'размышляющий',
-        insights: analysis.insights,
-        personalGrowth: analysis.personalGrowth || 'Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг.'
-      };
       
     } catch (error) {
-      logger.error(`📖 Error in AI weekly analysis: ${error.message}`);
+      logger.error(`📖 Error in direct AI weekly analysis: ${error.message}`);
       
       // ✅ Fallback анализ в случае ошибки AI
       return this.getFallbackAnalysis(quotes, userProfile);
@@ -153,7 +181,7 @@ ${quotesText}
       // Попытка парсинга JSON
       const parsed = JSON.parse(cleanResponse);
       
-      logger.info(`📖 Successfully parsed AI response JSON`);
+      logger.info(`📖 Successfully parsed direct AI response JSON`);
       return parsed;
       
     } catch (parseError) {
