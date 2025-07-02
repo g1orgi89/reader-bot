@@ -4,12 +4,14 @@
  * 📖 ОБНОВЛЕНО: Упрощена языковая логика - универсальные промпты
  * 📖 ИСПРАВЛЕНО: Убрана проверка "Привет" как тестового сообщения
  * 🔧 FIX: Предотвращена загрузка векторной базы когда useRag=false
+ * 🚨 URGENT FIX: RAG полностью отключен для Reader Bot
  */
 
 const { Anthropic } = require('@anthropic-ai/sdk');
 const logger = require('../utils/logger');
 const { getAIProviderConfig } = require('../config/aiProvider');
-const vectorStoreService = require('./vectorStore');
+// 🚨 ОТКЛЮЧАЕМ vectorStoreService для Reader Bot
+// const vectorStoreService = require('./vectorStore');
 const promptService = require('./promptService');
 
 /**
@@ -29,7 +31,7 @@ const promptService = require('./promptService');
  * @property {string} [language] - Язык общения (игнорируется - AI сам определяет)
  * @property {string} [platform] - Платформа (web, telegram)
  * @property {string} [userId] - ID пользователя для логирования
- * @property {boolean} [useRag=true] - Использовать ли RAG функциональность
+ * @property {boolean} [useRag=false] - Использовать ли RAG функциональность (ОТКЛЮЧЕНО в Reader Bot)
  * @property {number} [ragLimit=3] - Количество документов для RAG
  */
 
@@ -58,7 +60,8 @@ class ClaudeService {
     
     setInterval(this.clearExpiredCache.bind(this), 15 * 60 * 1000);
     
-    this.enableRag = process.env.ENABLE_RAG?.toLowerCase() === 'true';
+    // 🚨 URGENT FIX: RAG ПОЛНОСТЬЮ ОТКЛЮЧЕН для Reader Bot
+    this.enableRag = false;
     
     logger.info(`📖 ClaudeService initialized with provider: ${this.provider}, RAG enabled: ${this.enableRag}`);
   }
@@ -106,7 +109,7 @@ class ClaudeService {
   }
 
   /**
-   * 📖 УПРОЩЕНО: Получить универсальный RAG промпт
+   * 📖 УПРОЩЕНО: Получить универсальный RAG промпт (НЕ ИСПОЛЬЗУЕТСЯ в Reader Bot)
    * @private
    * @param {string} [platform='web'] - Платформа (web, telegram)
    * @returns {Promise<string>} RAG промпт
@@ -254,7 +257,7 @@ class ClaudeService {
    * Генерирует ответ на основе сообщения и контекста
    * 📖 УПРОЩЕНО: Убрана сложная языковая логика
    * 📖 ИСПРАВЛЕНО: Убрана обработка "Привет" как тестового сообщения
-   * 🔧 FIX: Предотвращена загрузка векторной базы когда useRag=false
+   * 🚨 URGENT FIX: RAG ПОЛНОСТЬЮ ОТКЛЮЧЕН для Reader Bot
    * @param {string} message - Сообщение пользователя
    * @param {MessageOptions} options - Опции сообщения
    * @returns {Promise<AIResponse>} Ответ от AI
@@ -267,7 +270,7 @@ class ClaudeService {
         language = 'auto', // Игнорируется - AI сам определяет
         platform = 'web',
         userId, 
-        useRag = this.enableRag,
+        useRag = false, // 🚨 ПРИНУДИТЕЛЬНО false для Reader Bot
         ragLimit = 3 
       } = options;
       
@@ -276,7 +279,7 @@ class ClaudeService {
         logger.info(`📖 Provider normalized from 'anthropic' to 'claude' for message: ${message.substring(0, 20)}...`);
       }
       
-      logger.info(`📖 Generating response for platform: ${platform}, useRag: ${useRag}`);
+      logger.info(`📖 Generating response for platform: ${platform}, useRag: ${useRag} (DISABLED in Reader Bot)`);
       
       // 📖 ИСПРАВЛЕНО: Убрана проверка на тестовые сообщения для реальных пользовательских запросов
       // Теперь только технические тесты считаются "тестовыми", а обычные приветствия идут через AI
@@ -284,28 +287,8 @@ class ClaudeService {
         return this._handleTestMessage(message, platform);
       }
       
-      // 🔧 FIX: Только инициализируем векторную базу если реально нужен RAG
-      if (useRag && this.enableRag) {
-        try {
-          logger.info(`📖 RAG requested - initializing vector store for message: "${message.substring(0, 30)}..."`);
-          const contextResults = await this._getRelevantContext(message, ragLimit);
-          
-          if (contextResults && contextResults.length > 0) {
-            logger.info(`📖 Found ${contextResults.length} relevant documents for message: "${message.substring(0, 30)}..."`);
-            
-            const contextTexts = contextResults.map(doc => doc.content);
-            context = [...contextTexts, ...context];
-            
-            options.fetchedContext = contextResults;
-          } else {
-            logger.info(`📖 No relevant documents found for message: "${message.substring(0, 30)}..."`);
-          }
-        } catch (ragError) {
-          logger.error(`📖 Error fetching context from vector store: ${ragError.message}`);
-        }
-      } else {
-        logger.info(`📖 RAG skipped (useRag: ${useRag}, enableRag: ${this.enableRag}) for message: "${message.substring(0, 30)}..."`);
-      }
+      // 🚨 URGENT FIX: RAG ПОЛНОСТЬЮ ОТКЛЮЧЕН для Reader Bot
+      logger.info(`📖 RAG disabled for Reader Bot - proceeding without vector store for message: "${message.substring(0, 30)}..."`);
       
       let response;
       
@@ -319,61 +302,10 @@ class ClaudeService {
         throw new Error(`Unsupported AI provider: ${this.provider}`);
       }
       
-      if (useRag && options.fetchedContext) {
-        response.context = options.fetchedContext;
-      }
-      
       return response;
     } catch (error) {
       logger.error(`📖 AI generation error: ${error.message}`);
       return this._getErrorResponse(error, options.platform);
-    }
-  }
-
-  /**
-   * Получает релевантный контекст из векторной базы знаний
-   * 📖 УПРОЩЕНО: Убран языковой фильтр
-   * 🔧 FIX: Добавлена проверка на необходимость инициализации
-   * @private
-   * @param {string} query - Запрос пользователя
-   * @param {number} [limit=3] - Количество документов для поиска
-   * @returns {Promise<Array<Object>>} Найденные документы
-   */
-  async _getRelevantContext(query, limit = 3) {
-    try {
-      // 🔧 FIX: Проверяем, что векторная база действительно нужна
-      if (!this.enableRag) {
-        logger.info('📖 RAG disabled globally, skipping vector store initialization');
-        return [];
-      }
-      
-      logger.info('📖 Initializing vector store for RAG context retrieval...');
-      const vectorStoreReady = await vectorStoreService.initialize();
-      
-      if (!vectorStoreReady) {
-        logger.warn('📖 Vector store not initialized, skipping context retrieval');
-        return [];
-      }
-      
-      const score_threshold = 0.7;
-      logger.info(`📖 Searching for relevant documents with threshold: ${score_threshold}`);
-      
-      const searchResults = await vectorStoreService.search(query, {
-        limit,
-        score_threshold: score_threshold
-        // Убрали language фильтр - ищем во всех документах
-      });
-      
-      if (searchResults.length > 0) {
-        logger.info(`📖 Found ${searchResults.length} documents with scores: ${searchResults.map(doc => doc.score.toFixed(3)).join(', ')}`);
-        return searchResults;
-      }
-      
-      logger.info(`📖 No documents found with threshold ${score_threshold}`);
-      return [];
-    } catch (error) {
-      logger.error(`📖 Error in _getRelevantContext: ${error.message}`);
-      return [];
     }
   }
 
@@ -390,16 +322,11 @@ class ClaudeService {
     
     let systemPrompt;
     try {
-      if (context && context.length > 0) {
-        systemPrompt = await this._getRagPrompt(platform);
-        // Заменяем {context} плейсхолдер в RAG промпте
-        systemPrompt = systemPrompt.replace('{context}', context.slice(0, 3).join('\n\n'));
-      } else {
-        systemPrompt = await this._getSystemPrompt(platform);
-      }
+      // Всегда используем базовый промпт, т.к. RAG отключен
+      systemPrompt = await this._getSystemPrompt(platform);
     } catch (error) {
       logger.error(`📖 Error getting prompt from PromptService: ${error.message}`);
-      systemPrompt = promptService.getDefaultPrompt(context && context.length > 0 ? 'rag' : 'basic');
+      systemPrompt = promptService.getDefaultPrompt('basic');
     }
 
     const messages = [];
@@ -461,16 +388,11 @@ class ClaudeService {
     
     let systemPrompt;
     try {
-      if (context && context.length > 0) {
-        systemPrompt = await this._getRagPrompt(platform);
-        // Заменяем {context} плейсхолдер в RAG промпте
-        systemPrompt = systemPrompt.replace('{context}', context.slice(0, 3).join('\n\n'));
-      } else {
-        systemPrompt = await this._getSystemPrompt(platform);
-      }
+      // Всегда используем базовый промпт, т.к. RAG отключен
+      systemPrompt = await this._getSystemPrompt(platform);
     } catch (error) {
       logger.error(`📖 Error getting prompt from PromptService: ${error.message}`);
-      systemPrompt = promptService.getDefaultPrompt(context && context.length > 0 ? 'rag' : 'basic');
+      systemPrompt = promptService.getDefaultPrompt('basic');
     }
     
     const messages = [
@@ -711,28 +633,17 @@ class ClaudeService {
    * @returns {Promise<Object>} Информация о RAG
    */
   async getRagInfo() {
-    try {
-      const vectorStoreHealth = await vectorStoreService.healthCheck();
-      
-      return {
-        enabled: this.enableRag,
-        vectorStore: vectorStoreHealth,
-        embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
-        defaultContextLimit: 3,
-        languageFilter: 'disabled'
-      };
-    } catch (error) {
-      return {
-        enabled: this.enableRag,
-        vectorStore: {
-          status: 'error',
-          message: error.message
-        },
-        embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
-        defaultContextLimit: 3,
-        languageFilter: 'disabled'
-      };
-    }
+    // 🚨 RAG ОТКЛЮЧЕН для Reader Bot
+    return {
+      enabled: false,
+      vectorStore: {
+        status: 'disabled',
+        message: 'RAG functionality disabled for Reader Bot'
+      },
+      embeddingModel: 'N/A',
+      defaultContextLimit: 0,
+      languageFilter: 'disabled'
+    };
   }
 
   /**
