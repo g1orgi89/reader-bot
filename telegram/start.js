@@ -60,6 +60,9 @@ class TelegramServiceManager {
 
       // 3. Initialize MonthlyReportService
       this.services.monthlyReportService = new MonthlyReportService();
+      this.services.monthlyReportService.initialize({
+        bot: this.services.bot.bot // Pass Telegraf instance
+      });
       
       // 4. Initialize ReminderService
       this.services.reminderService = new ReminderService();
@@ -270,6 +273,7 @@ class TelegramServiceManager {
         },
         monthlyReports: {
           initialized: !!this.services.monthlyReportService,
+          ready: this.services.monthlyReportService?.isReady() || false,
           status: this.services.monthlyReportService ? 'ready' : 'not_initialized'
         },
         reminders: {
@@ -324,7 +328,7 @@ class TelegramServiceManager {
         status: this.services.weeklyReportHandler ? 'ready' : 'not_initialized' 
       };
       health.services.monthlyReports = { 
-        status: this.services.monthlyReportService ? 'ready' : 'not_initialized' 
+        status: this.services.monthlyReportService?.isReady() ? 'ready' : 'not_initialized' 
       };
       health.services.reminders = { 
         status: this.services.reminderService ? 'ready' : 'not_initialized' 
@@ -399,7 +403,7 @@ class TelegramServiceManager {
            this.isStarted && 
            !!this.services.bot?.isInitialized &&
            !!this.services.weeklyReportHandler &&
-           !!this.services.monthlyReportService;
+           !!this.services.monthlyReportService?.isReady();
   }
 }
 
