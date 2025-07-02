@@ -26,6 +26,76 @@ class CommandHandler {
       settings: this.handleSettings.bind(this)
     };
 
+    /**
+     * @type {Array} - Список всех доступных достижений
+     */
+    this.availableAchievements = [
+      {
+        id: 'first_quote',
+        name: 'Первые шаги',
+        description: 'Сохранили первую цитату',
+        icon: '🌱',
+        targetValue: 1,
+        type: 'quotes_count'
+      },
+      {
+        id: 'wisdom_collector',
+        name: 'Коллекционер мудрости',
+        description: 'Собрали 25 цитат',
+        icon: '📚',
+        targetValue: 25,
+        type: 'quotes_count'
+      },
+      {
+        id: 'week_philosopher',
+        name: 'Философ недели',
+        description: '7 дней подряд с цитатами',
+        icon: '🔥',
+        targetValue: 7,
+        type: 'streak_days'
+      },
+      {
+        id: 'classics_lover',
+        name: 'Любитель классики',
+        description: '10 цитат классиков',
+        icon: '📖',
+        targetValue: 10,
+        type: 'classics_count'
+      },
+      {
+        id: 'thinker',
+        name: 'Мыслитель',
+        description: '10 собственных мыслей',
+        icon: '💭',
+        targetValue: 10,
+        type: 'own_thoughts'
+      },
+      {
+        id: 'reading_marathon',
+        name: 'Марафонец чтения',
+        description: 'Собрали 50 цитат',
+        icon: '🏃‍♀️',
+        targetValue: 50,
+        type: 'quotes_count'
+      },
+      {
+        id: 'diverse_reader',
+        name: 'Разносторонний читатель',
+        description: '5 разных категорий',
+        icon: '🌈',
+        targetValue: 5,
+        type: 'categories_count'
+      },
+      {
+        id: 'consistency',
+        name: 'Постоянство',
+        description: '30 дней с ботом',
+        icon: '⭐',
+        targetValue: 30,
+        type: 'days_with_bot'
+      }
+    ];
+
     logger.info('📖 CommandHandler initialized');
   }
 
@@ -36,25 +106,7 @@ class CommandHandler {
    */
   async handleHelp(ctx) {
     try {
-      const helpText = `📖 *Команды бота «Читатель»:*
-
-/start - начать работу с ботом
-/help - эта справка  
-/search - поиск по вашим цитатам
-/stats - ваша статистика чтения
-/settings - настройки напоминаний
-
-*Как пользоваться:*
-• Просто отправляйте цитаты текстом
-• Указывайте автора в скобках: (Толстой)
-• Лимит: 10 цитат в день
-
-*Отчеты:* каждое воскресенье в 11:00
-*Вопросы:* пишите прямо в чат, я передам Анне
-
-💡 Хватит сидеть в телефоне - читайте книги!
-
-_«Читатель» создан психологом Анной Бусел для превращения случайных цитат в персональный дневник роста._`;
+      const helpText = `📖 *Команды бота «Читатель»:*\n\n/start - начать работу с ботом\n/help - эта справка  \n/search - поиск по вашим цитатам\n/stats - ваша статистика чтения\n/settings - настройки напоминаний\n\n*Как пользоваться:*\n• Просто отправляйте цитаты текстом\n• Указывайте автора в скобках: (Толстой)\n• Лимит: 10 цитат в день\n\n*Отчеты:* каждое воскресенье в 11:00\n*Вопросы:* пишите прямо в чат, я передам Анне\n\n💡 Хватит сидеть в телефоне - читайте книги!\n\n_«Читатель» создан психологом Анной Бусел для превращения случайных цитат в персональный дневник роста._`;
       
       await ctx.reply(helpText, { parse_mode: 'Markdown' });
       
@@ -196,36 +248,76 @@ _«Читатель» создан психологом Анной Бусел д
         (new Date() - userProfile.registeredAt) / (1000 * 60 * 60 * 24)
       );
 
-      let statsText = `📊 *Ваша статистика в «Читателе»:*\n\n`;
-      statsText += `📖 Цитат собрано: *${totalQuotes}*\n`;
-      statsText += `📅 Сегодня: ${todayQuotes}/10\n`;
-      statsText += `📈 За неделю: ${weekQuotes}\n`;
-      statsText += `📆 За месяц: ${monthQuotes}\n\n`;
-      
-      statsText += `🔥 Текущая серия: *${userProfile.statistics.currentStreak}* дней\n`;
-      statsText += `⭐ Рекорд серии: *${userProfile.statistics.longestStreak}* дней\n`;
-      statsText += `📚 С ботом: ${daysSinceRegistration} дней\n\n`;
+      let statsText = `📊 *Статистика ${userProfile.name}:*\n\n`;
+      statsText += `📖 Цитаты: *${totalQuotes}* | Серия: *${userProfile.statistics.currentStreak}* дней | Рекорд: *${userProfile.statistics.longestStreak}* дней\n`;
+      statsText += `🕐 С ботом: ${daysSinceRegistration} дней\n\n`;
 
       // Любимые авторы
       if (userProfile.statistics.favoriteAuthors.length > 0) {
-        statsText += `*Любимые авторы:*\n`;
-        userProfile.statistics.favoriteAuthors.slice(0, 3).forEach((author, i) => {
-          statsText += `${i + 1}. ${author}\n`;
-        });
-        statsText += '\n';
+        statsText += `👤 *Любимые авторы:* ${userProfile.statistics.favoriteAuthors.slice(0, 3).join(', ')}\n\n`;
       }
 
-      // Топ категории
-      if (topCategories.length > 0) {
-        statsText += `*Популярные темы:*\n`;
-        topCategories.forEach((cat, i) => {
-          statsText += `${i + 1}. ${cat._id} (${cat.count})\n`;
+      // Достижения - показываем конкретные
+      if (userProfile.achievements.length > 0) {
+        statsText += `🏆 *Достижения (${userProfile.achievements.length}/${this.availableAchievements.length}):*\n`;
+        
+        // Получаем данные для проверки прогресса
+        const classicsCount = await Quote.countDocuments({
+          userId,
+          author: { $in: ['Толстой', 'Достоевский', 'Пушкин', 'Чехов', 'Тургенев', 'Лермонтов'] }
         });
-        statsText += '\n';
+        
+        const ownThoughtsCount = await Quote.countDocuments({
+          userId,
+          author: { $exists: false }
+        });
+
+        const categoriesCount = await Quote.distinct('category', { userId }).then(cats => cats.length);
+
+        // Показываем все достижения с прогрессом
+        for (const achievement of this.availableAchievements) {
+          const userAchievement = userProfile.achievements.find(a => a.achievementId === achievement.id);
+          
+          if (userAchievement) {
+            // Полученное достижение
+            const date = userAchievement.unlockedAt.toLocaleDateString('ru-RU');
+            statsText += `✅ ${achievement.icon} ${achievement.name} _(${date})_\n`;
+          } else {
+            // Не полученное - показываем прогресс
+            let currentValue = 0;
+            switch (achievement.type) {
+              case 'quotes_count':
+                currentValue = totalQuotes;
+                break;
+              case 'streak_days':
+                currentValue = userProfile.statistics.currentStreak;
+                break;
+              case 'classics_count':
+                currentValue = classicsCount;
+                break;
+              case 'own_thoughts':
+                currentValue = ownThoughtsCount;
+                break;
+              case 'categories_count':
+                currentValue = categoriesCount;
+                break;
+              case 'days_with_bot':
+                currentValue = daysSinceRegistration;
+                break;
+            }
+
+            const progress = Math.min(currentValue, achievement.targetValue);
+            const progressBar = this.generateProgressBar(progress, achievement.targetValue, 7);
+            
+            statsText += `🔒 ${achievement.icon} ${achievement.name} ${progressBar} ${progress}/${achievement.targetValue}\n`;
+          }
+        }
+      } else {
+        statsText += `🏆 *Достижения:* 0/${this.availableAchievements.length}\n`;
+        statsText += `🎯 *Ближайшее:* 🌱 Первые шаги (отправьте цитату)\n`;
       }
 
-      // Достижения
-      statsText += `🏆 *Достижения:* ${userProfile.achievements.length}\n\n`;
+      statsText += '\n';
 
       // Мотивационное сообщение
       if (totalQuotes === 0) {
@@ -246,6 +338,21 @@ _«Читатель» создан психологом Анной Бусел д
       logger.error(`📖 Error in /stats command: ${error.message}`);
       await ctx.reply('📖 Произошла ошибка при получении статистики. Попробуйте позже.');
     }
+  }
+
+  /**
+   * Генерирует прогресс-бар для достижений
+   * @param {number} current - Текущее значение
+   * @param {number} target - Целевое значение
+   * @param {number} length - Длина прогресс-бара
+   * @returns {string} Прогресс-бар
+   */
+  generateProgressBar(current, target, length = 7) {
+    const progress = Math.min(current / target, 1);
+    const filled = Math.floor(progress * length);
+    const empty = length - filled;
+    
+    return '▓'.repeat(filled) + '░'.repeat(empty);
   }
 
   /**
@@ -578,7 +685,8 @@ _«Читатель» создан психологом Анной Бусел д
         quoteSearch: true,
         reminderSettings: true,
         quoteExport: true,
-        helpSystem: true
+        helpSystem: true,
+        achievementSystem: true
       }
     };
   }
