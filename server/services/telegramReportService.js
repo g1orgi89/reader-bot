@@ -41,6 +41,200 @@ class TelegramReportService {
   }
 
   /**
+   * 📖 НОВОЕ: Отправка еженедельных отчетов всем активным пользователям
+   * @returns {Promise<Object>} Статистика отправки
+   */
+  async sendReportsToAllUsers() {
+    logger.info('📖 Starting weekly reports generation for all users...');
+    
+    try {
+      // Получаем все модели
+      const { UserProfile, Quote } = require('../models');
+      const WeeklyReportService = require('./weeklyReportService');
+      const weeklyReportService = new WeeklyReportService();
+      
+      // Получаем активных пользователей
+      const activeUsers = await UserProfile.find({
+        isOnboardingComplete: true,
+        'settings.reminderEnabled': { $ne: false } // Не отключили уведомления
+      });
+
+      let sent = 0;
+      let failed = 0;
+      let skipped = 0;
+      const errors = [];
+
+      const currentWeek = this._getCurrentWeekNumber();
+      const currentYear = new Date().getFullYear();
+
+      logger.info(`📖 Found ${activeUsers.length} active users for weekly reports`);
+
+      for (const user of activeUsers) {
+        try {
+          // Получаем цитаты пользователя за текущую неделю
+          const weekQuotes = await Quote.find({
+            userId: user.userId,
+            createdAt: {
+              $gte: this._getWeekStartDate(),
+              $lt: this._getWeekEndDate()
+            }
+          }).sort({ createdAt: 1 });
+
+          if (weekQuotes.length === 0) {
+            // Отправляем сообщение о пустой неделе
+            await this.sendEmptyWeekMessage(user.userId, user);
+            skipped++;
+            logger.info(`📖 Empty week message sent to user ${user.userId}`);
+          } else {
+            // Генерируем полный отчет
+            const report = await weeklyReportService.generateWeeklyReport(
+              user.userId, 
+              weekQuotes, 
+              user
+            );
+
+            // Добавляем количество цитат в отчет для форматирования
+            report.quotesCount = weekQuotes.length;
+            report.quotes = weekQuotes;
+
+            // Отправляем отчет
+            const success = await this.sendWeeklyReport(report);
+            if (success) {
+              sent++;
+            } else {
+              failed++;
+            }
+          }
+
+          // Небольшая задержка между отправками
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+        } catch (error) {
+          failed++;
+          errors.push({
+            userId: user.userId,
+            error: error.message
+          });
+          logger.error(`📖 Failed to send weekly report to user ${user.userId}: ${error.message}`);
+        }
+      }
+
+      const stats = {
+        total: activeUsers.length,
+        sent,
+        failed,
+        skipped,
+        errors,
+        timestamp: new Date()
+      };
+
+      logger.info(`📖 Weekly reports completed: ${JSON.stringify(stats)}`);
+      return stats;
+
+    } catch (error) {
+      logger.error(`📖 Error in sendReportsToAllUsers: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Получает начало текущей недели
+   * @private
+   * @returns {Date} Начало недели
+   */
+  _getWeekStartDate() {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Понедельник как начало недели
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() + diff);
+    weekStart.setHours(0, 0, 0, 0);
+    return weekStart;
+  }
+
+  /**
+   * Получает конец текущей недели
+   * @private
+   * @returns {Date} Конец недели
+   */
+  _getWeekEndDate() {
+    const weekStart = this._getWeekStartDate();
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    return weekEnd;
+  }
+
+  /**
+   * Получает номер текущей недели
+   * @private
+   * @returns {number} Номер недели
+   */
+  _getCurrentWeekNumber() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const days = Math.floor((now - start) / (24 * 60 * 60 * 1000));
+    return Math.ceil((days + start.getDay() + 1) / 7);
+  }
+
+  /**
+   * 📖 НОВОЕ: Получение статистики отчетов за период
+   * @param {number} days - Количество дней назад
+   * @returns {Promise<Object>} Статистика отчетов
+   */
+  async getReportStats(days = 7) {
+    try {
+      const { WeeklyReport } = require('../models');
+      
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - days);
+
+      const reports = await WeeklyReport.find({
+        sentAt: { $gte: sinceDate }
+      });
+
+      const stats = {
+        totalReports: reports.length,
+        period: `${days} days`,
+        byDay: {},
+        averageQuotes: 0,
+        feedbackStats: {
+          excellent: 0,
+          good: 0,
+          bad: 0,
+          noFeedback: 0
+        }
+      };
+
+      // Статистика по дням
+      reports.forEach(report => {
+        const day = report.sentAt.toDateString();
+        if (!stats.byDay[day]) {
+          stats.byDay[day] = 0;
+        }
+        stats.byDay[day]++;
+
+        // Статистика фидбека
+        if (report.feedback && report.feedback.rating) {
+          if (report.feedback.rating >= 5) stats.feedbackStats.excellent++;
+          else if (report.feedback.rating >= 4) stats.feedbackStats.good++;
+          else stats.feedbackStats.bad++;
+        } else {
+          stats.feedbackStats.noFeedback++;
+        }
+      });
+
+      return stats;
+    } catch (error) {
+      logger.error(`📖 Error getting report stats: ${error.message}`);
+      return {
+        totalReports: 0,
+        period: `${days} days`,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Отправка еженедельного отчета пользователю
    * @param {WeeklyReport} report - Отчет для отправки
    * @returns {Promise<boolean>} Успешность отправки
@@ -53,7 +247,7 @@ class TelegramReportService {
 
     try {
       const message = this._formatWeeklyReportMessage(report);
-      const replyMarkup = this._createFeedbackButtons(report._id);
+      const replyMarkup = this._createFeedbackButtons(report._id || 'temp_id');
 
       await this.bot.telegram.sendMessage(report.userId, message, {
         parse_mode: 'Markdown',
@@ -110,22 +304,7 @@ class TelegramReportService {
     const recommendationsText = this._formatRecommendationsText(report.recommendations);
     const promoText = this._formatPromoCodeText(report.promoCode);
 
-    return `📊 *Ваш отчет за неделю*
-
-За эту неделю вы сохранили ${report.quotesCount} ${this._declensionQuotes(report.quotesCount)}:
-
-${quotesText}
-
-🎯 *Анализ недели:*
-${report.analysis.insights}
-
-💎 *Рекомендации от Анны:*
-${recommendationsText}
-
-${promoText}
-
----
-💬 Как вам этот отчет?`;
+    return `📊 *Ваш отчет за неделю*\n\nЗа эту неделю вы сохранили ${report.quotesCount} ${this._declensionQuotes(report.quotesCount)}:\n\n${quotesText}\n\n🎯 *Анализ недели:*\n${report.analysis.insights}\n\n💎 *Рекомендации от Анны:*\n${recommendationsText}\n\n${promoText}\n\n---\n💬 Как вам этот отчет?`;
   }
 
   /**
@@ -139,9 +318,10 @@ ${promoText}
       return 'Цитаты не найдены';
     }
 
-    return quotes.map((quote, index) => {
+    return quotes.slice(0, 5).map((quote, index) => {
       const author = quote.author ? ` (${quote.author})` : '';
-      return `✅ "${quote.text}"${author}`;
+      const text = quote.text.length > 80 ? `${quote.text.substring(0, 80)}...` : quote.text;
+      return `✅ "${text}"${author}`;
     }).join('\n');
   }
 
@@ -183,17 +363,7 @@ ${promoText}
    * @returns {string} Отформатированное сообщение
    */
   _formatEmptyWeekMessage(user) {
-    return `📖 *Отчет за неделю*
-
-Здравствуйте, ${user.name}!
-
-На этой неделе вы не сохранили ни одной цитаты. 
-
-💭 Помните: "Хватит сидеть в телефоне - читайте книги!"
-
-Каждая цитата - это ступенька к лучшему пониманию себя. Начните с одной прямо сейчас!
-
-📚 Попробуйте найти что-то вдохновляющее в книге, которую читаете, или вспомните мудрые слова, которые когда-то вас тронули.`;
+    return `📖 *Отчет за неделю*\n\nЗдравствуйте, ${user.name}!\n\nНа этой неделе вы не сохранили ни одной цитаты. \n\n💭 Помните: \"Хватит сидеть в телефоне - читайте книги!\"\n\nКаждая цитата - это ступенька к лучшему пониманию себя. Начните с одной прямо сейчас!\n\n📚 Попробуйте найти что-то вдохновляющее в книге, которую читаете, или вспомните мудрые слова, которые когда-то вас тронули.`;
   }
 
   /**
@@ -231,7 +401,7 @@ ${promoText}
   async _updateReportSentStatus(report) {
     try {
       // Обновляем время отправки, если не установлено
-      if (!report.sentAt) {
+      if (!report.sentAt && report.save) {
         report.sentAt = new Date();
         await report.save();
       }
@@ -272,9 +442,9 @@ ${promoText}
       // Конвертируем рейтинг в числовое значение
       const numericRating = this._convertRatingToNumber(rating);
 
-      // Обновляем отчет
-      const weeklyReportService = require('./weeklyReportService');
-      await weeklyReportService.addReportFeedback(reportId, numericRating);
+      // Обновляем отчет (добавим позже когда будет модель WeeklyReport)
+      // const weeklyReportService = require('./weeklyReportService');
+      // await weeklyReportService.addReportFeedback(reportId, numericRating);
 
       // Отвечаем пользователю
       const responseMessage = this._getFeedbackResponseMessage(rating);
