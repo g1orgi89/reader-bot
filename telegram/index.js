@@ -5,6 +5,7 @@
  * 📖 UPDATED: Complete integration with all handlers (Quote, Command, ComplexQuestion)
  * 📖 ADDED: Full Day 13-14 functionality with AI analysis and achievements
  * 📖 ADDED: WeeklyReportHandler integration and feedback support
+ * 📖 ADDED: MonthlyReportService and FeedbackHandler integration (Day 18-19)
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -22,6 +23,7 @@ const { OnboardingHandler } = require('./handlers/onboardingHandler');
 const { QuoteHandler } = require('./handlers/quoteHandler');
 const { CommandHandler } = require('./handlers/commandHandler');
 const { ComplexQuestionHandler } = require('./handlers/complexQuestionHandler');
+const { FeedbackHandler } = require('./handlers/feedbackHandler');
 const BotHelpers = require('./helpers/botHelpers');
 
 /**
@@ -58,20 +60,26 @@ class ReaderTelegramBot {
     this.quoteHandler = new QuoteHandler();
     this.commandHandler = new CommandHandler();
     this.complexQuestionHandler = new ComplexQuestionHandler();
+    this.feedbackHandler = new FeedbackHandler();
     
-    // WeeklyReportHandler will be set externally
+    // External services will be set externally
     this.weeklyReportHandler = null;
+    this.monthlyReportService = null;
     
-    logger.info('📖 ReaderTelegramBot constructor initialized with all handlers');
+    logger.info('📖 ReaderTelegramBot constructor initialized with all handlers including FeedbackHandler');
   }
 
   /**
-   * Set weekly report handler (called from start.js)
-   * @param {Object} weeklyReportHandler - WeeklyReportHandler instance
+   * Set external services (called from start.js)
+   * @param {Object} services - External services
+   * @param {Object} services.weeklyReportHandler - WeeklyReportHandler instance
+   * @param {Object} services.monthlyReportService - MonthlyReportService instance
    */
-  setWeeklyReportHandler(weeklyReportHandler) {
-    this.weeklyReportHandler = weeklyReportHandler;
-    logger.info('📖 WeeklyReportHandler integrated into main bot');
+  setExternalServices(services) {
+    this.weeklyReportHandler = services.weeklyReportHandler;
+    this.monthlyReportService = services.monthlyReportService;
+    
+    logger.info('📖 External services integrated into main bot');
   }
 
   /**
@@ -80,6 +88,9 @@ class ReaderTelegramBot {
    */
   async initialize() {
     try {
+      // Initialize all handlers with dependencies
+      await this._initializeHandlers();
+      
       // Setup middleware
       this._setupMiddleware();
       
@@ -96,11 +107,27 @@ class ReaderTelegramBot {
       this._setupErrorHandling();
       
       this.isInitialized = true;
-      logger.info('📖 Reader Telegram bot initialized successfully with all Day 13-14 features');
+      logger.info('📖 Reader Telegram bot initialized successfully with all Day 18-19 features');
     } catch (error) {
       logger.error(`📖 Failed to initialize Reader Telegram bot: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Initialize all handlers with dependencies
+   * @private
+   */
+  async _initializeHandlers() {
+    const models = require('../server/models');
+    
+    // Initialize FeedbackHandler
+    this.feedbackHandler.initialize({
+      bot: this.bot,
+      models
+    });
+    
+    logger.info('📖 All handlers initialized with dependencies');
   }
 
   /**
@@ -122,6 +149,22 @@ class ReaderTelegramBot {
       logger.info(`📖 Response sent to user ${userId} in ${duration}ms`);
     });
 
+    // User state handling middleware
+    this.bot.use(async (ctx, next) => {
+      // Check for user states and handle accordingly
+      if (ctx.message?.text && !ctx.message.text.startsWith('/')) {
+        const userId = ctx.from.id.toString();
+        const userState = await this.feedbackHandler.getUserState(userId);
+        
+        if (userState) {
+          await this._handleUserStateMessage(ctx, userState);
+          return;
+        }
+      }
+      
+      await next();
+    });
+
     // Typing indicator for text messages
     this.bot.use(async (ctx, next) => {
       if (ctx.message?.text && !ctx.message.text.startsWith('/')) {
@@ -133,6 +176,42 @@ class ReaderTelegramBot {
         await next();
       }
     });
+  }
+
+  /**
+   * Handle messages from users in specific states
+   * @private
+   * @param {Object} ctx - Telegram context
+   * @param {string} userState - Current user state
+   */
+  async _handleUserStateMessage(ctx, userState) {
+    const userId = ctx.from.id.toString();
+    const messageText = ctx.message.text;
+
+    try {
+      // Handle monthly survey responses
+      if (userState === 'awaiting_monthly_survey') {
+        await ctx.reply("📝 Пожалуйста, выберите тему из предложенных кнопок выше.");
+        return;
+      }
+
+      // Handle detailed feedback responses
+      if (userState.startsWith('awaiting_feedback_')) {
+        const parts = userState.split('_');
+        const type = parts[2]; // weekly/monthly
+        const reportId = parts.slice(3).join('_');
+        
+        await this.feedbackHandler.processDetailedFeedback(ctx, messageText, reportId, type);
+        return;
+      }
+
+      // Clear unknown states
+      await this.feedbackHandler.clearUserState(userId);
+      
+    } catch (error) {
+      logger.error(`📖 Error handling user state message: ${error.message}`, error);
+      await this.feedbackHandler.clearUserState(userId);
+    }
   }
 
   /**
@@ -241,14 +320,53 @@ class ReaderTelegramBot {
           }
         }
 
+        // Handle monthly survey callbacks
+        if (callbackData.startsWith('monthly_survey_')) {
+          const themeMapping = {
+            'monthly_survey_confidence': 'Поиск уверенности',
+            'monthly_survey_femininity': 'Женственность и нежность',
+            'monthly_survey_balance': 'Баланс между «дать» и «взять»',
+            'monthly_survey_love': 'Любовь и отношения',
+            'monthly_survey_growth': 'Вдохновение и рост',
+            'monthly_survey_family': 'Материнство и семья'
+          };
+
+          const selectedTheme = themeMapping[callbackData];
+          
+          if (selectedTheme && this.monthlyReportService) {
+            await ctx.editMessageText('📝 Спасибо за ответ! Анализирую ваш месяц и готовлю персональный отчет...');
+            await ctx.answerCbQuery('✅ Тема выбрана!');
+            
+            try {
+              await this.monthlyReportService.processSurveyResponse(userId, selectedTheme);
+            } catch (error) {
+              logger.error(`📖 Error processing monthly survey: ${error.message}`);
+              await ctx.reply('📖 Произошла ошибка при обработке опроса. Попробуйте позже.');
+            }
+          }
+          return;
+        }
+
+        // Handle monthly rating callbacks
+        if (callbackData.startsWith('monthly_rating_')) {
+          const parts = callbackData.split('_');
+          if (parts.length >= 4) {
+            const rating = parts[2]; // 1-5
+            const reportId = parts.slice(3).join('_');
+            
+            await this.feedbackHandler.handleMonthlyRating(ctx, rating, reportId);
+            return;
+          }
+        }
+
         // Handle weekly report feedback callbacks
-        if (callbackData.startsWith('feedback_') && this.weeklyReportHandler) {
+        if (callbackData.startsWith('feedback_')) {
           const parts = callbackData.split('_');
           if (parts.length >= 3) {
             const rating = parts[1]; // excellent/good/bad
-            const reportId = parts.slice(2).join('_'); // handle IDs with underscores
+            const reportId = parts.slice(2).join('_');
             
-            await this.weeklyReportHandler.handleWeeklyFeedback(ctx, rating, reportId);
+            await this.feedbackHandler.handleWeeklyFeedback(ctx, rating, reportId);
             return;
           }
         }
@@ -424,7 +542,7 @@ class ReaderTelegramBot {
 
     try {
       await this.bot.launch();
-      logger.info('📖 Reader Telegram bot started successfully with all Day 13-14 features');
+      logger.info('📖 Reader Telegram bot started successfully with all Day 18-19 features');
       
       // Graceful stop
       process.once('SIGINT', () => this.stop('SIGINT'));
@@ -492,6 +610,9 @@ class ReaderTelegramBot {
       const todayQuotes = await Quote.countDocuments({ createdAt: { $gte: today } });
       const todayUsers = await Quote.distinct('userId', { createdAt: { $gte: today } });
 
+      // Feedback statistics
+      const feedbackStats = await this.feedbackHandler.getFeedbackStats();
+
       return {
         botInfo: {
           id: me.id,
@@ -516,13 +637,16 @@ class ReaderTelegramBot {
           todayQuotes,
           activeUsersToday: todayUsers.length
         },
+        feedback: feedbackStats,
         handlers: {
           onboarding: this.onboardingHandler.getStats(),
           quotes: this.quoteHandler.getStats(),
           commands: this.commandHandler.getStats(),
           complexQuestions: this.complexQuestionHandler.getStats(),
+          feedback: this.feedbackHandler.getDiagnostics(),
           helpers: BotHelpers.getStats(),
-          weeklyReports: this.weeklyReportHandler ? true : false
+          weeklyReports: !!this.weeklyReportHandler,
+          monthlyReports: !!this.monthlyReportService
         },
         features: {
           onboardingFlow: true,
@@ -536,6 +660,8 @@ class ReaderTelegramBot {
           quoteExport: true,
           ticketingSystem: true,
           weeklyReports: !!this.weeklyReportHandler,
+          monthlyReports: !!this.monthlyReportService,
+          feedbackSystem: true,
           scheduledTasks: true
         }
       };
@@ -589,7 +715,9 @@ class ReaderTelegramBot {
         handlers: {
           initialized: this.isInitialized,
           onboardingActive: this.onboardingHandler.userStates.size,
-          weeklyReportsEnabled: !!this.weeklyReportHandler
+          weeklyReportsEnabled: !!this.weeklyReportHandler,
+          monthlyReportsEnabled: !!this.monthlyReportService,
+          feedbackSystemEnabled: this.feedbackHandler.isReady()
         },
         timestamp: new Date().toISOString()
       };
