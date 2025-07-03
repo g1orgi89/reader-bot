@@ -1,769 +1,550 @@
 /**
- * @fileoverview Скрипт для управления дашбордом админ-панели Shrooms AI Support Bot
- * @description Обработка статистики, графиков и управления доходностью фарминга
- * @author Shrooms Development Team
+ * JavaScript для дашборда админ-панели "Читатель"
+ * Аналитика цитат и пользователей
  */
 
 /**
- * @typedef {Object} DashboardStats
- * @property {number} activeConversations - Количество активных бесед
- * @property {number} openTickets - Количество открытых тикетов
- * @property {number} resolvedIssues - Количество решенных проблем
- * @property {string} avgResponseTime - Среднее время ответа
+ * Класс для управления дашбордом Reader
  */
+class ReaderDashboard {
+    constructor() {
+        this.currentPeriod = '7d';
+        this.charts = {};
+        this.init();
+    }
 
-/**
- * @typedef {Object} ChartData
- * @property {string[]} labels - Подписи для графика
- * @property {number[]} values - Значения для графика
- */
+    /**
+     * Инициализация дашборда
+     */
+    async init() {
+        console.log('📖 Инициализация дашборда Reader');
+        
+        try {
+            await this.loadDashboardData();
+            this.setupEventListeners();
+            this.startAutoRefresh();
+        } catch (error) {
+            console.error('📖 Ошибка инициализации дашборда:', error);
+            this.showError('Ошибка инициализации дашборда');
+        }
+    }
 
-/**
- * @typedef {Object} FarmingRateData
- * @property {number} rate - Текущая доходность в процентах
- * @property {string} lastUpdated - Время последнего обновления
- */
+    /**
+     * Загрузка данных дашборда
+     */
+    async loadDashboardData() {
+        console.log('📖 Загрузка данных дашборда');
+        
+        try {
+            const [dashboardStats, retentionData, topContent] = await Promise.all([
+                this.fetchDashboardStats(),
+                this.fetchRetentionData(),
+                this.fetchTopContent()
+            ]);
 
-/**
- * Главный класс управления дашбордом
- */
-class ShroomsDashboard {
-  /**
-   * @constructor
-   */
-  constructor() {
-    this.isInitialized = false;
-    this.statsRefreshInterval = null;
-    this.dateRange = 'week';
-    
-    // Кеш для данных
-    this.cachedStats = null;
-    this.cachedChartData = null;
-    
-    console.log('🍄 Инициализация ShroomsDashboard');
-  }
-  
-  /**
-   * Инициализация дашборда
-   * @returns {Promise<void>}
-   */
-  async init() {
-    try {
-      console.log('🍄 Запуск инициализации дашборда');
-      
-      // Настройка обработчиков событий
-      this.setupEventListeners();
-      
-      // Загрузка начальных данных
-      await this.loadInitialData();
-      
-      // Запуск периодического обновления
-      this.startPeriodicRefresh();
-      
-      // Инициализация грибной матрицы
-      this.initMushroomMatrix();
-      
-      this.isInitialized = true;
-      console.log('🍄 Дашборд успешно инициализирован');
-      
-    } catch (error) {
-      console.error('🍄 Ошибка инициализации дашборда:', error);
-      this.showNotification('error', '🍄 Не удалось инициализировать дашборд');
+            this.updateStatCards(dashboardStats.overview);
+            this.updateSourceChart(dashboardStats.sourceStats);
+            this.updateUTMChart(dashboardStats.utmStats);
+            this.updateRetentionChart(retentionData);
+            this.updateTopContent(topContent);
+
+        } catch (error) {
+            console.error('📖 Ошибка загрузки данных:', error);
+            this.showError('Ошибка загрузки данных дашборда');
+        }
     }
-  }
-  
-  /**
-   * Настройка обработчиков событий
-   */
-  setupEventListeners() {
-    // Обработчик изменения периода
-    const dateRangeSelect = document.getElementById('date-range');
-    if (dateRangeSelect) {
-      dateRangeSelect.addEventListener('change', (e) => {
-        this.dateRange = e.target.value;
-        this.loadStats();
-        this.loadChartData();
-      });
+
+    /**
+     * Получение статистики дашборда
+     */
+    async fetchDashboardStats() {
+        try {
+            const response = await fetch(`/api/analytics/dashboard?period=${this.currentPeriod}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('📖 Ошибка получения статистики:', error);
+            // Возвращаем заглушку для демонстрации
+            return this.getMockDashboardStats();
+        }
     }
-    
-    // Обработчик формы доходности фарминга
-    const farmingForm = document.getElementById('farming-rate-form');
-    if (farmingForm) {
-      farmingForm.addEventListener('submit', (e) => this.handleFarmingRateUpdate(e));
+
+    /**
+     * Получение данных retention
+     */
+    async fetchRetentionData() {
+        try {
+            const response = await fetch('/api/analytics/retention');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('📖 Ошибка получения retention:', error);
+            return this.getMockRetentionData();
+        }
     }
-    
-    // Обработчик кнопки обновления статистики
-    document.addEventListener('click', (e) => {
-      if (e.target.matches('[data-action="refresh-stats"]')) {
-        this.refreshAllData();
-      }
-    });
-    
-    console.log('🍄 Обработчики событий настроены');
-  }
-  
-  /**
-   * Загрузка начальных данных
-   * @returns {Promise<void>}
-   */
-  async loadInitialData() {
-    console.log('🍄 Загрузка начальных данных дашборда');
-    
-    // Параллельная загрузка данных
-    await Promise.allSettled([
-      this.loadStats(),
-      this.loadRecentTickets(),
-      this.loadFarmingRate(),
-      this.loadChartData()
-    ]);
-  }
-  
-  /**
-   * Загрузка статистики
-   * @returns {Promise<void>}
-   */
-  async loadStats() {
-    try {
-      console.log('🍄 Загрузка статистики для периода:', this.dateRange);
-      
-      if (!window.makeAuthenticatedRequest) {
-        console.warn('🍄 makeAuthenticatedRequest не найдена, используем заглушку');
-        this.loadStatsStub();
-        return;
-      }
-      
-      const response = await window.makeAuthenticatedRequest(`/api/admin/stats?period=${this.dateRange}`);
-      
-      if (response.success && response.data) {
-        this.updateStatsDisplay(response.data);
-        this.cachedStats = response.data;
-      } else {
-        console.warn('🍄 Не удалось загрузить статистику, используем заглушку');
-        this.loadStatsStub();
-      }
-      
-    } catch (error) {
-      console.error('🍄 Ошибка загрузки статистики:', error);
-      this.loadStatsStub();
+
+    /**
+     * Получение топ контента
+     */
+    async fetchTopContent() {
+        try {
+            const response = await fetch(`/api/analytics/top-content?period=${this.currentPeriod}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('📖 Ошибка получения топ контента:', error);
+            return this.getMockTopContent();
+        }
     }
-  }
-  
-  /**
-   * Заглушка для статистики
-   */
-  loadStatsStub() {
-    const stubData = {
-      activeConversations: 42,
-      openTickets: 7,
-      resolvedIssues: 156,
-      avgResponseTime: '2.3s',
-      conversationsTrend: 5,
-      ticketsTrend: 12,
-      resolvedTrend: 8,
-      responseTrend: -5
-    };
-    
-    this.updateStatsDisplay(stubData);
-  }
-  
-  /**
-   * Обновление отображения статистики
-   * @param {DashboardStats} data - Данные статистики
-   */
-  updateStatsDisplay(data) {
-    const updates = {
-      'active-conversations-count': data.activeConversations,
-      'open-tickets-count': data.openTickets,
-      'resolved-issues-count': data.resolvedIssues,
-      'avg-response-time': data.avgResponseTime
-    };
-    
-    Object.entries(updates).forEach(([id, value]) => {
-      const element = document.getElementById(id);
-      if (element) {
-        // Анимация изменения числа
-        this.animateCounterChange(element, value);
-      }
-    });
-    
-    console.log('🍄 Статистика обновлена');
-  }
-  
-  /**
-   * Анимация изменения счетчика
-   * @param {HTMLElement} element - Элемент счетчика
-   * @param {string|number} newValue - Новое значение
-   */
-  animateCounterChange(element, newValue) {
-    const currentValue = element.textContent;
-    
-    if (currentValue === '--' || currentValue === newValue.toString()) {
-      element.textContent = newValue;
-      return;
-    }
-    
-    // Простая анимация появления
-    element.style.opacity = '0.5';
-    element.style.transform = 'scale(0.9)';
-    
-    setTimeout(() => {
-      element.textContent = newValue;
-      element.style.opacity = '1';
-      element.style.transform = 'scale(1)';
-    }, 200);
-  }
-  
-  /**
-   * Загрузка последних тикетов
-   * @returns {Promise<void>}
-   */
-  async loadRecentTickets() {
-    try {
-      console.log('🍄 Загрузка последних тикетов');
-      
-      if (!window.makeAuthenticatedRequest) {
-        this.loadRecentTicketsStub();
-        return;
-      }
-      
-      const response = await window.makeAuthenticatedRequest('/api/admin/tickets?limit=5&sort=created_desc');
-      
-      if (response.success && response.data) {
-        this.updateRecentTicketsDisplay(response.data.tickets || []);
-      } else {
-        this.loadRecentTicketsStub();
-      }
-      
-    } catch (error) {
-      console.error('🍄 Ошибка загрузки тикетов:', error);
-      this.loadRecentTicketsStub();
-    }
-  }
-  
-  /**
-   * Заглушка для последних тикетов
-   */
-  loadRecentTicketsStub() {
-    const stubTickets = [
-      {
-        ticketId: '#001',
-        subject: 'Проблема подключения кошелька Xverse',
-        status: 'open',
-        priority: 'medium',
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 часа назад
-      },
-      {
-        ticketId: '#002',
-        subject: 'Вопрос о токеномике SHROOMS',
-        status: 'resolved',
-        priority: 'low',
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // 1 день назад
-      }
-    ];
-    
-    this.updateRecentTicketsDisplay(stubTickets);
-  }
-  
-  /**
-   * Обновление отображения последних тикетов
-   * @param {Array} tickets - Массив тикетов
-   */
-  updateRecentTicketsDisplay(tickets) {
-    const tbody = document.querySelector('#recent-tickets-table tbody');
-    if (!tbody) return;
-    
-    if (tickets.length === 0) {
-      tbody.innerHTML = '<tr class="table-loading"><td colspan="6">🍄 Нет новых тикетов в мицелии</td></tr>';
-      return;
-    }
-    
-    tbody.innerHTML = tickets.map(ticket => `
-      <tr>
-        <td>${ticket.ticketId}</td>
-        <td>${this.truncateText(ticket.subject, 50)}</td>
-        <td><span class="status-badge status-${ticket.status}">${this.getStatusText(ticket.status)}</span></td>
-        <td><span class="priority-badge priority-${ticket.priority}">${this.getPriorityText(ticket.priority)}</span></td>
-        <td>${this.formatRelativeTime(ticket.createdAt)}</td>
-        <td>
-          <button class="btn btn-sm" onclick="window.location.href='tickets.html?id=${ticket.ticketId.replace('#', '')}'">
-            Просмотр
-          </button>
-        </td>
-      </tr>
-    `).join('');
-    
-    console.log('🍄 Последние тикеты обновлены');
-  }
-  
-  /**
-   * Загрузка текущей доходности фарминга
-   * @returns {Promise<void>}
-   */
-  async loadFarmingRate() {
-    try {
-      console.log('🍄 Загрузка доходности фарминга');
-      
-      if (!window.makeAuthenticatedRequest) {
-        this.loadFarmingRateStub();
-        return;
-      }
-      
-      const response = await window.makeAuthenticatedRequest('/api/admin/farming-rate');
-      
-      if (response.success && response.data) {
-        this.updateFarmingRateDisplay(response.data);
-      } else {
-        this.loadFarmingRateStub();
-      }
-      
-    } catch (error) {
-      console.error('🍄 Ошибка загрузки доходности фарминга:', error);
-      this.loadFarmingRateStub();
-    }
-  }
-  
-  /**
-   * Заглушка для доходности фарминга
-   */
-  loadFarmingRateStub() {
-    const stubData = {
-      rate: 12.5,
-      lastUpdated: new Date().toISOString()
-    };
-    
-    this.updateFarmingRateDisplay(stubData);
-  }
-  
-  /**
-   * Обновление отображения доходности фарминга
-   * @param {FarmingRateData} data - Данные доходности
-   */
-  updateFarmingRateDisplay(data) {
-    const rateInput = document.getElementById('farming-rate');
-    const lastUpdatedElement = document.getElementById('farming-last-updated');
-    
-    if (rateInput) {
-      rateInput.value = data.rate;
-    }
-    
-    if (lastUpdatedElement) {
-      lastUpdatedElement.textContent = this.formatRelativeTime(data.lastUpdated);
-    }
-    
-    console.log('🍄 Доходность фарминга обновлена:', data.rate + '%');
-  }
-  
-  /**
-   * Обработчик обновления доходности фарминга
-   * @param {Event} event - Событие формы
-   */
-  async handleFarmingRateUpdate(event) {
-    event.preventDefault();
-    
-    const rateInput = document.getElementById('farming-rate');
-    const rate = parseFloat(rateInput.value);
-    
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      this.showNotification('error', '🍄 Пожалуйста, введите корректную доходность от 0 до 100%');
-      return;
-    }
-    
-    try {
-      console.log('🍄 Обновление доходности фарминга до', rate + '%');
-      
-      // Блокируем кнопку на время обновления
-      const submitBtn = event.target.querySelector('button[type="submit"]');
-      const originalText = submitBtn.innerHTML;
-      submitBtn.innerHTML = '🍄 Обновляем...';
-      submitBtn.disabled = true;
-      
-      if (window.makeAuthenticatedRequest) {
-        const response = await window.makeAuthenticatedRequest('/api/admin/farming-rate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rate })
+
+    /**
+     * Обновление карточек статистики
+     */
+    updateStatCards(stats) {
+        const statElements = {
+            'total-users-count': stats.totalUsers || 0,
+            'new-users-count': stats.newUsers || 0,
+            'total-quotes-count': stats.totalQuotes || 0,
+            'avg-quotes-count': stats.avgQuotesPerUser || 0,
+            'active-users-count': stats.activeUsers || 0,
+            'promo-usage-count': stats.promoUsage || 0
+        };
+
+        Object.entries(statElements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = this.formatNumber(value);
+                element.classList.add('stat-updated');
+            }
         });
-        
-        if (response.success) {
-          // Обновляем время последнего изменения
-          const lastUpdated = document.getElementById('farming-last-updated');
-          if (lastUpdated) {
-            lastUpdated.textContent = 'только что';
-          }
-          
-          this.showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%`);
+
+        this.updateChangeIndicators(stats);
+    }
+
+    /**
+     * Обновление индикаторов изменений
+     */
+    updateChangeIndicators(stats) {
+        const changes = {
+            'users-change': stats.usersChange || 0,
+            'new-users-change': stats.newUsersChange || 0,
+            'quotes-change': stats.quotesChange || 0,
+            'avg-quotes-change': stats.avgQuotesChange || 0,
+            'active-users-change': stats.activeUsersChange || 0,
+            'promo-usage-change': stats.promoUsageChange || 0
+        };
+
+        Object.entries(changes).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                const sign = value >= 0 ? '+' : '';
+                element.textContent = `${sign}${value}% к прошлому периоду`;
+                element.className = `stat-change ${value >= 0 ? 'positive' : 'negative'}`;
+            }
+        });
+    }
+
+    /**
+     * Обновление диаграммы источников
+     */
+    updateSourceChart(sourceStats) {
+        const ctx = document.getElementById('sourceChart');
+        if (!ctx) return;
+
+        if (this.charts.source) {
+            this.charts.source.destroy();
+        }
+
+        this.charts.source = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: sourceStats.map(s => s._id || 'Неизвестно'),
+                datasets: [{
+                    data: sourceStats.map(s => s.count),
+                    backgroundColor: [
+                        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: false
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                family: 'Inter',
+                                size: 12
+                            },
+                            padding: 20
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Обновление диаграммы UTM кампаний
+     */
+    updateUTMChart(utmStats) {
+        const ctx = document.getElementById('utmChart');
+        if (!ctx || !utmStats.length) return;
+
+        if (this.charts.utm) {
+            this.charts.utm.destroy();
+        }
+
+        this.charts.utm = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: utmStats.map(u => u.campaign),
+                datasets: [
+                    {
+                        label: 'Клики',
+                        data: utmStats.map(u => u.clicks),
+                        backgroundColor: '#4ECDC4',
+                        borderColor: '#4ECDC4',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Уникальные пользователи',
+                        data: utmStats.map(u => u.uniqueUsers),
+                        backgroundColor: '#45B7D1',
+                        borderColor: '#45B7D1',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: false
+                    },
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                family: 'Inter',
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 11
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Обновление диаграммы retention
+     */
+    updateRetentionChart(retentionData) {
+        const ctx = document.getElementById('retentionChart');
+        if (!ctx || !retentionData.length) return;
+
+        if (this.charts.retention) {
+            this.charts.retention.destroy();
+        }
+
+        this.charts.retention = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
+                datasets: retentionData.slice(-6).map((cohort, index) => ({
+                    label: cohort.cohort,
+                    data: [cohort.week1, cohort.week2, cohort.week3, cohort.week4],
+                    borderColor: this.getRetentionColor(index),
+                    backgroundColor: this.getRetentionColor(index, 0.1),
+                    tension: 0.1,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: false
+                    },
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                family: 'Inter',
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            },
+                            font: {
+                                family: 'Inter',
+                                size: 11
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                family: 'Inter',
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Обновление топ контента
+     */
+    updateTopContent(topContent) {
+        // Топ авторы
+        const authorsContainer = document.getElementById('top-authors');
+        if (authorsContainer && topContent.topAuthors) {
+            authorsContainer.innerHTML = topContent.topAuthors.map((author, index) => `
+                <div class="top-item">
+                    <span class="rank">${index + 1}</span>
+                    <span class="name">${author._id}</span>
+                    <span class="count">${author.count} цитат</span>
+                </div>
+            `).join('');
+        }
+
+        // Топ категории
+        const categoriesContainer = document.getElementById('top-categories');
+        if (categoriesContainer && topContent.topCategories) {
+            categoriesContainer.innerHTML = topContent.topCategories.map((category, index) => `
+                <div class="top-item">
+                    <span class="rank">${index + 1}</span>
+                    <span class="name">${category._id}</span>
+                    <span class="count">${category.count} цитат</span>
+                </div>
+            `).join('');
+        }
+
+        // Популярные цитаты
+        const quotesContainer = document.getElementById('popular-quotes');
+        if (quotesContainer && topContent.popularQuotes) {
+            quotesContainer.innerHTML = topContent.popularQuotes.map((quote, index) => `
+                <div class="popular-quote">
+                    <div class="quote-text">"${quote._id.substring(0, 100)}..."</div>
+                    <div class="quote-meta">
+                        ${quote.author ? `— ${quote.author}` : ''} 
+                        <span class="usage-count">(${quote.count} раз)</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    /**
+     * Настройка обработчиков событий
+     */
+    setupEventListeners() {
+        // Переключение периода
+        const periodSelect = document.getElementById('date-range');
+        if (periodSelect) {
+            periodSelect.addEventListener('change', (e) => {
+                this.currentPeriod = e.target.value;
+                this.loadDashboardData();
+            });
+        }
+
+        // Экспорт данных
+        const exportBtn = document.getElementById('export-data');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.exportData());
+        }
+    }
+
+    /**
+     * Автоматическое обновление
+     */
+    startAutoRefresh() {
+        // Обновление каждые 5 минут
+        setInterval(() => {
+            this.loadDashboardData();
+        }, 5 * 60 * 1000);
+    }
+
+    /**
+     * Получение цвета для retention графика
+     */
+    getRetentionColor(index, alpha = 1) {
+        const colors = [
+            `rgba(255, 107, 107, ${alpha})`,
+            `rgba(78, 205, 196, ${alpha})`,
+            `rgba(69, 183, 209, ${alpha})`,
+            `rgba(150, 206, 180, ${alpha})`,
+            `rgba(255, 234, 167, ${alpha})`,
+            `rgba(221, 160, 221, ${alpha})`
+        ];
+        return colors[index % colors.length];
+    }
+
+    /**
+     * Форматирование чисел
+     */
+    formatNumber(num) {
+        if (num >= 1000000) {
+            return (num / 1000000).toFixed(1) + 'M';
+        } else if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'K';
+        }
+        return num.toString();
+    }
+
+    /**
+     * Показ ошибки
+     */
+    showError(message) {
+        if (typeof showNotification === 'function') {
+            showNotification('error', message);
         } else {
-          throw new Error(response.error?.message || 'Не удалось обновить доходность');
+            console.error('📖 Ошибка:', message);
         }
-      } else {
-        // Заглушка для демонстрации
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const lastUpdated = document.getElementById('farming-last-updated');
-        if (lastUpdated) {
-          lastUpdated.textContent = 'только что';
+    }
+
+    /**
+     * Экспорт данных
+     */
+    async exportData() {
+        try {
+            const data = await this.fetchDashboardStats();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reader-analytics-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            this.showError('Ошибка экспорта данных');
         }
-        
-        this.showNotification('success', `🍄 Доходность фарминга обновлена до ${rate}%`);
-      }
-      
-    } catch (error) {
-      console.error('🍄 Ошибка обновления доходности:', error);
-      this.showNotification('error', `🍄 Не удалось обновить доходность: ${error.message}`);
-    } finally {
-      // Восстанавливаем кнопку
-      const submitBtn = event.target.querySelector('button[type="submit"]');
-      submitBtn.innerHTML = originalText;
-      submitBtn.disabled = false;
     }
-  }
-  
-  /**
-   * Загрузка данных для графиков
-   * @returns {Promise<void>}
-   */
-  async loadChartData() {
-    try {
-      console.log('🍄 Загрузка данных для графиков');
-      
-      if (!window.makeAuthenticatedRequest) {
-        this.loadChartDataStub();
-        return;
-      }
-      
-      const response = await window.makeAuthenticatedRequest(`/api/admin/analytics/charts?period=${this.dateRange}`);
-      
-      if (response.success && response.data) {
-        this.updateChartsDisplay(response.data);
-        this.cachedChartData = response.data;
-      } else {
-        this.loadChartDataStub();
-      }
-      
-    } catch (error) {
-      console.error('🍄 Ошибка загрузки данных для графиков:', error);
-      this.loadChartDataStub();
+
+    /**
+     * Мок данные для демонстрации
+     */
+    getMockDashboardStats() {
+        return {
+            overview: {
+                totalUsers: 1247,
+                newUsers: 156,
+                totalQuotes: 8734,
+                avgQuotesPerUser: 7.2,
+                activeUsers: 423,
+                promoUsage: 89,
+                usersChange: 12,
+                newUsersChange: 8,
+                quotesChange: 15,
+                avgQuotesChange: 3,
+                activeUsersChange: 18,
+                promoUsageChange: 22
+            },
+            sourceStats: [
+                { _id: 'Instagram', count: 456 },
+                { _id: 'Telegram', count: 234 },
+                { _id: 'YouTube', count: 189 },
+                { _id: 'Threads', count: 167 },
+                { _id: 'Друзья', count: 134 },
+                { _id: 'Другое', count: 67 }
+            ],
+            utmStats: [
+                { campaign: 'weekly_report', clicks: 1234, uniqueUsers: 567 },
+                { campaign: 'monthly_analysis', clicks: 987, uniqueUsers: 456 },
+                { campaign: 'book_recommendations', clicks: 765, uniqueUsers: 234 }
+            ]
+        };
     }
-  }
-  
-  /**
-   * Заглушка для данных графиков
-   */
-  loadChartDataStub() {
-    const stubData = {
-      conversationsChart: {
-        labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
-        values: [12, 19, 23, 17, 25, 31, 42]
-      },
-      topicsChart: {
-        labels: ['Кошельки', 'Токены', 'Фарминг', 'Техническая поддержка', 'Общие вопросы'],
-        values: [35, 28, 20, 12, 5]
-      }
-    };
-    
-    this.updateChartsDisplay(stubData);
-  }
-  
-  /**
-   * Обновление отображения графиков
-   * @param {Object} data - Данные для графиков
-   */
-  updateChartsDisplay(data) {
-    // Простое текстовое представление вместо реальных графиков
-    // В будущем можно интегрировать Chart.js или другую библиотеку
-    
-    const conversationsChart = document.getElementById('conversations-chart');
-    const topicsChart = document.getElementById('topics-chart');
-    
-    if (conversationsChart && data.conversationsChart) {
-      conversationsChart.innerHTML = this.createSimpleBarChart(data.conversationsChart);
+
+    /**
+     * Мок данные retention
+     */
+    getMockRetentionData() {
+        return [
+            { cohort: '2024-12', size: 234, week1: 89, week2: 67, week3: 52, week4: 45 },
+            { cohort: '2025-01', size: 345, week1: 92, week2: 71, week3: 58, week4: 48 },
+            { cohort: '2025-02', size: 456, week1: 94, week2: 76, week3: 63, week4: 52 },
+            { cohort: '2025-03', size: 567, week1: 96, week2: 78, week3: 65, week4: 54 },
+            { cohort: '2025-04', size: 678, week1: 98, week2: 81, week3: 68, week4: 58 },
+            { cohort: '2025-05', size: 789, week1: 97, week2: 83, week3: 72, week4: 62 }
+        ];
     }
-    
-    if (topicsChart && data.topicsChart) {
-      topicsChart.innerHTML = this.createSimplePieChart(data.topicsChart);
+
+    /**
+     * Мок данные топ контента
+     */
+    getMockTopContent() {
+        return {
+            topAuthors: [
+                { _id: 'Лев Толстой', count: 234 },
+                { _id: 'Эрих Фромм', count: 189 },
+                { _id: 'Марина Цветаева', count: 156 },
+                { _id: 'Фёдор Достоевский', count: 134 },
+                { _id: 'Антон Чехов', count: 98 }
+            ],
+            topCategories: [
+                { _id: 'Саморазвитие', count: 1234 },
+                { _id: 'Любовь', count: 967 },
+                { _id: 'Мудрость', count: 723 },
+                { _id: 'Философия', count: 567 },
+                { _id: 'Творчество', count: 345 }
+            ],
+            popularQuotes: [
+                { _id: 'В каждом слове — целая жизнь', author: 'Марина Цветаева', count: 12 },
+                { _id: 'Любовь — это решение любить', author: 'Эрих Фромм', count: 8 },
+                { _id: 'Счастье внутри нас', author: 'Будда', count: 6 },
+                { _id: 'Жизнь — это путешествие', author: null, count: 4 }
+            ]
+        };
     }
-    
-    console.log('🍄 Графики обновлены');
-  }
-  
-  /**
-   * Создание простого гистограммы (текстовое представление)
-   * @param {ChartData} data - Данные для графика
-   * @returns {string} HTML для графика
-   */
-  createSimpleBarChart(data) {
-    const maxValue = Math.max(...data.values);
-    
-    return `
-      <div class="simple-chart">
-        ${data.labels.map((label, index) => {
-          const height = (data.values[index] / maxValue) * 100;
-          return `
-            <div class="chart-bar">
-              <div class="bar" style="height: ${height}%; background: linear-gradient(45deg, var(--neon-green), var(--cyber-blue))"></div>
-              <div class="bar-label">${label}</div>
-              <div class="bar-value">${data.values[index]}</div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <style>
-        .simple-chart { display: flex; gap: 1rem; align-items: end; height: 200px; padding: 1rem; }
-        .chart-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
-        .bar { width: 100%; border-radius: 4px; min-height: 20px; transition: height 0.5s ease; }
-        .bar-label { font-size: 0.8rem; color: var(--text-light); }
-        .bar-value { font-weight: bold; color: var(--neon-green); }
-      </style>
-    `;
-  }
-  
-  /**
-   * Создание простой круговой диаграммы (текстовое представление)
-   * @param {ChartData} data - Данные для графика
-   * @returns {string} HTML для графика
-   */
-  createSimplePieChart(data) {
-    const total = data.values.reduce((sum, value) => sum + value, 0);
-    
-    return `
-      <div class="simple-pie-chart">
-        ${data.labels.map((label, index) => {
-          const percentage = ((data.values[index] / total) * 100).toFixed(1);
-          return `
-            <div class="pie-item">
-              <div class="pie-indicator" style="background: hsl(${index * 70}, 70%, 60%)"></div>
-              <span class="pie-label">${label}</span>
-              <span class="pie-value">${percentage}%</span>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <style>
-        .simple-pie-chart { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; }
-        .pie-item { display: flex; align-items: center; gap: 1rem; }
-        .pie-indicator { width: 16px; height: 16px; border-radius: 50%; }
-        .pie-label { flex: 1; color: var(--text-light); }
-        .pie-value { font-weight: bold; color: var(--neon-green); }
-      </style>
-    `;
-  }
-  
-  /**
-   * Запуск периодического обновления данных
-   */
-  startPeriodicRefresh() {
-    // Обновляем статистику каждые 5 минут
-    this.statsRefreshInterval = setInterval(() => {
-      console.log('🍄 Периодическое обновление статистики');
-      this.loadStats();
-      this.loadRecentTickets();
-    }, 5 * 60 * 1000);
-    
-    console.log('🍄 Периодическое обновление запущено');
-  }
-  
-  /**
-   * Остановка периодического обновления
-   */
-  stopPeriodicRefresh() {
-    if (this.statsRefreshInterval) {
-      clearInterval(this.statsRefreshInterval);
-      this.statsRefreshInterval = null;
-      console.log('🍄 Периодическое обновление остановлено');
-    }
-  }
-  
-  /**
-   * Полное обновление всех данных
-   * @returns {Promise<void>}
-   */
-  async refreshAllData() {
-    console.log('🍄 Полное обновление всех данных дашборда');
-    
-    try {
-      // Показываем индикатор загрузки
-      this.showLoadingState(true);
-      
-      await this.loadInitialData();
-      
-      this.showNotification('success', '🍄 Все данные успешно обновлены');
-      
-    } catch (error) {
-      console.error('🍄 Ошибка при полном обновлении:', error);
-      this.showNotification('error', '🍄 Не удалось обновить все данные');
-    } finally {
-      this.showLoadingState(false);
-    }
-  }
-  
-  /**
-   * Показ/скрытие состояния загрузки
-   * @param {boolean} loading - Показать ли загрузку
-   */
-  showLoadingState(loading) {
-    const statsCards = document.querySelectorAll('.stat-card');
-    const charts = document.querySelectorAll('.chart-container');
-    
-    [...statsCards, ...charts].forEach(element => {
-      if (loading) {
-        element.classList.add('loading');
-      } else {
-        element.classList.remove('loading');
-      }
-    });
-  }
-  
-  /**
-   * Инициализация грибной матрицы (фоновая анимация)
-   */
-  initMushroomMatrix() {
-    if (typeof window.initMushroomMatrix === 'function') {
-      // Тонкая версия для дашборда
-      window.initMushroomMatrix(true);
-      console.log('🍄 Грибная матрица инициализирована в тонком режиме');
-    } else {
-      console.log('🍄 Функция initMushroomMatrix не найдена');
-    }
-  }
-  
-  /**
-   * Показ уведомления
-   * @param {string} type - Тип уведомления (success, error, warning, info)
-   * @param {string} message - Текст сообщения
-   */
-  showNotification(type, message) {
-    if (typeof window.showNotification === 'function') {
-      window.showNotification(type, message);
-    } else {
-      // Fallback
-      console.log(`🍄 ${type.toUpperCase()}: ${message}`);
-      alert(message);
-    }
-  }
-  
-  /**
-   * Утилита: обрезка текста
-   * @param {string} text - Исходный текст
-   * @param {number} maxLength - Максимальная длина
-   * @returns {string} Обрезанный текст
-   */
-  truncateText(text, maxLength) {
-    if (!text) return '';
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-  }
-  
-  /**
-   * Утилита: получение текста статуса
-   * @param {string} status - Код статуса
-   * @returns {string} Текст статуса
-   */
-  getStatusText(status) {
-    const statusMap = {
-      'open': 'Открыт',
-      'in_progress': 'В работе',
-      'resolved': 'Решен',
-      'closed': 'Закрыт'
-    };
-    return statusMap[status] || status;
-  }
-  
-  /**
-   * Утилита: получение текста приоритета
-   * @param {string} priority - Код приоритета
-   * @returns {string} Текст приоритета
-   */
-  getPriorityText(priority) {
-    const priorityMap = {
-      'low': 'Низкий',
-      'medium': 'Средний',
-      'high': 'Высокий',
-      'urgent': 'Срочный'
-    };
-    return priorityMap[priority] || priority;
-  }
-  
-  /**
-   * Утилита: форматирование относительного времени
-   * @param {string} dateString - Строка даты ISO
-   * @returns {string} Относительное время
-   */
-  formatRelativeTime(dateString) {
-    if (!dateString) return '--';
-    
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 60) {
-      return diffMins <= 1 ? 'только что' : `${diffMins} мин назад`;
-    } else if (diffHours < 24) {
-      return `${diffHours} ч назад`;
-    } else if (diffDays < 30) {
-      return `${diffDays} дн назад`;
-    } else {
-      return date.toLocaleDateString('ru-RU');
-    }
-  }
-  
-  /**
-   * Очистка ресурсов при уничтожении
-   */
-  destroy() {
-    this.stopPeriodicRefresh();
-    this.isInitialized = false;
-    console.log('🍄 Дашборд уничтожен');
-  }
 }
 
-// Глобальная переменная для доступа к дашборду
-let shroomsDashboard = null;
-
-/**
- * Инициализация дашборда (вызывается из HTML)
- * @returns {Promise<void>}
- */
-async function initDashboard() {
-  try {
-    console.log('🍄 Запуск инициализации дашборда из глобальной функции');
-    
-    if (shroomsDashboard) {
-      console.log('🍄 Дашборд уже инициализирован');
-      return;
-    }
-    
-    shroomsDashboard = new ShroomsDashboard();
-    await shroomsDashboard.init();
-    
-    // Делаем дашборд доступным глобально для отладки
-    window.shroomsDashboard = shroomsDashboard;
-    
-  } catch (error) {
-    console.error('🍄 Критическая ошибка инициализации дашборда:', error);
-  }
-}
-
-// Автоматическая инициализация при загрузке страницы (если еще не инициализирован)
-document.addEventListener('DOMContentLoaded', () => {
-  // Проверяем, что мы на странице дашборда
-  if (document.getElementById('recent-tickets-table') && !shroomsDashboard) {
-    console.log('🍄 Автоматическая инициализация дашборда');
-    
-    // Небольшая задержка для загрузки auth.js
-    setTimeout(initDashboard, 100);
-  }
-});
-
-// Очистка при выгрузке страницы
-window.addEventListener('beforeunload', () => {
-  if (shroomsDashboard) {
-    shroomsDashboard.destroy();
-  }
-});
-
-// Экспорт для использования в других модулях
+// Экспорт для использования в других файлах
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ShroomsDashboard, initDashboard };
+    module.exports = ReaderDashboard;
 }
