@@ -141,7 +141,7 @@
                 const password = passwordInput.value.trim();
                 
                 if (!username || !password) {
-                    showNotification('error', 'Пожалуйста, заполните все поля');
+                    displayNotification('error', 'Пожалуйста, заполните все поля');
                     return;
                 }
                 
@@ -153,18 +153,18 @@
                     const result = await authManager.login(username, password);
                     
                     if (result.success) {
-                        showNotification('success', `Добро пожаловать, ${result.user.displayName}!`);
+                        displayNotification('success', `Добро пожаловать, ${result.user.displayName}!`);
                         
                         // Пауза для показа успешного уведомления
                         setTimeout(() => {
                             window.location.href = 'index.html';
                         }, 1000);
                     } else {
-                        showNotification('error', result.error || 'Ошибка авторизации');
+                        displayNotification('error', result.error || 'Ошибка авторизации');
                     }
                 } catch (error) {
                     console.error('🔐 Ошибка входа:', error);
-                    showNotification('error', 'Произошла ошибка при попытке входа');
+                    displayNotification('error', 'Произошла ошибка при попытке входа');
                 } finally {
                     setLoginLoading(false);
                 }
@@ -203,7 +203,20 @@
             const buttonIcon = button.querySelector('.button-icon');
             
             if (!buttonText || !buttonIcon) {
-                console.error('🔐 Button text or icon not found', { buttonText, buttonIcon });
+                console.error('🔐 Button text or icon not found', { 
+                    button: button,
+                    innerHTML: button.innerHTML,
+                    buttonText: buttonText, 
+                    buttonIcon: buttonIcon 
+                });
+                // Fallback - изменяем текст кнопки напрямую
+                if (loading) {
+                    button.disabled = true;
+                    button.textContent = 'Вход...';
+                } else {
+                    button.disabled = false;
+                    button.innerHTML = '<span class="button-text">Войти</span><span class="button-icon">🔐</span>';
+                }
                 return;
             }
             
@@ -220,11 +233,73 @@
             }
         }
         
+        /**
+         * Показ уведомления (переименовано, чтобы избежать конфликта)
+         */
+        function displayNotification(type, message) {
+            console.log(`🔐 Notification: ${type} - ${message}`);
+            
+            // Пытаемся использовать глобальную функцию showNotification из main.js
+            if (typeof window.showNotification === 'function') {
+                try {
+                    window.showNotification(type, message);
+                    return;
+                } catch (error) {
+                    console.error('🔐 Error with global showNotification:', error);
+                }
+            }
+            
+            // Простой fallback - создаем временное уведомление
+            createSimpleNotification(type, message);
+        }
+        
+        /**
+         * Простое уведомление как fallback
+         */
+        function createSimpleNotification(type, message) {
+            // Удаляем старые уведомления
+            const existingNotifications = document.querySelectorAll('.simple-notification');
+            existingNotifications.forEach(n => n.remove());
+            
+            // Создаем новое уведомление
+            const notification = document.createElement('div');
+            notification.className = `simple-notification simple-notification-${type}`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                max-width: 300px;
+                animation: slideInRight 0.3s ease;
+            `;
+            
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>${type === 'success' ? '✅' : '❌'}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Автоматическое удаление через 3 секунды
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 3000);
+        }
+        
         // Обработчик нажатия Enter
         document.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 const form = document.getElementById('login-form');
-                if (form) {
+                if (form && document.activeElement && document.activeElement.form === form) {
                     // Предотвращаем двойную отправку
                     e.preventDefault();
                     const event = new Event('submit', { cancelable: true });
@@ -232,20 +307,6 @@
                 }
             }
         });
-        
-        /**
-         * Показ уведомления
-         */
-        function showNotification(type, message) {
-            // Если есть глобальная функция showNotification, используем её
-            if (typeof window.showNotification === 'function') {
-                window.showNotification(type, message);
-                return;
-            }
-            
-            // Иначе простой alert
-            alert(message);
-        }
     </script>
 </body>
 </html>
