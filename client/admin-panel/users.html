@@ -3,23 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>👥 Пользователи - Читатель</title>
+    <title>👥 Пользователи - Читатель Админ</title>
     <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/users.css">
     <meta name="description" content="Управление пользователями проекта 'Читатель'">
+    <!-- Подключение шрифтов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Тонкая книжная анимация -->
     <div class="reader-bg-animation reader-bg-subtle" id="reader-matrix"></div>
     
     <div class="admin-layout">
+        <!-- Header -->
         <header class="admin-header">
             <div class="logo-container">
                 <div class="logo-icon">📖</div>
                 <h1>Читатель</h1>
-                <span class="logo-subtitle">Админ-панель</span>
+                <span class="logo-subtitle">Пользователи</span>
             </div>
             
             <nav class="main-nav">
@@ -28,8 +31,9 @@
                     <li><a href="users.html" class="active">👥 Пользователи</a></li>
                     <li><a href="quotes.html">📝 Цитаты</a></li>
                     <li><a href="reports.html">📈 Отчеты</a></li>
+                    <li><a href="knowledge.html">📚 База знаний</a></li>
                     <li><a href="tickets.html">🎫 Обращения</a></li>
-                    <li><a href="settings.html">⚙️ Настройки</a></li>
+                    <li><a href="prompts.html">💭 Промпты</a></li>
                 </ul>
             </nav>
             
@@ -39,112 +43,480 @@
             </div>
         </header>
         
-        <main class="admin-content">
-            <div class="dashboard-header">
-                <h2>👥 Управление пользователями</h2>
-                <div class="actions-group">
-                    <button class="btn btn-primary" onclick="exportUsers()">📄 Экспорт</button>
+        <!-- Main content -->
+        <main class="admin-content users-content">
+            <div class="users-header">
+                <h2>👥 Управление Пользователями</h2>
+                <div class="users-actions">
+                    <div class="filter-group">
+                        <select id="status-filter" class="select-glow">
+                            <option value="all">Все пользователи</option>
+                            <option value="active">🟢 Активные</option>
+                            <option value="onboarding">🟡 Проходят онбординг</option>
+                            <option value="inactive">🔴 Неактивные</option>
+                            <option value="completed_month">🏆 Прошли месяц</option>
+                        </select>
+                        
+                        <select id="source-filter" class="select-glow">
+                            <option value="all">Все источники</option>
+                            <option value="Instagram">📷 Instagram</option>
+                            <option value="Telegram">💬 Telegram</option>
+                            <option value="YouTube">📺 YouTube</option>
+                            <option value="Threads">🧵 Threads</option>
+                            <option value="Друзья">👥 Друзья</option>
+                            <option value="Другое">❓ Другое</option>
+                        </select>
+                        
+                        <input type="text" id="search-users" placeholder="🔍 Поиск по имени, email, Telegram..." class="search-input">
+                    </div>
+                    
+                    <button id="export-users" class="btn btn-secondary btn-glow">
+                        <span class="btn-text">📊 Экспорт</span>
+                    </button>
                 </div>
             </div>
             
-            <!-- Фильтры и поиск -->
-            <div class="filters-container glow-card">
-                <div class="search-group">
-                    <input type="search" placeholder="Поиск по имени, email или @username" class="search-input">
-                    <button class="btn search-btn">🔍</button>
+            <!-- Stats cards -->
+            <div class="user-stats-cards">
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>👥 Всего пользователей</h3>
+                        <div class="stat-icon">📈</div>
+                    </div>
+                    <div class="stat-value" id="total-users-stat">1,247</div>
+                    <div class="stat-change positive">+15% к прошлому месяцу</div>
                 </div>
-                <div class="filter-group">
-                    <select class="select-glow">
-                        <option value="">source</option>
-                        <option value="instagram">Instagram</option>
-                        <option value="telegram">Telegram</option>
-                        <option value="youtube">YouTube</option>
-                        <option value="friends">Друзья</option>
-                    </select>
-                    <select class="select-glow">
-                        <option value="">Статус</option>
-                        <option value="active">Активные</option>
-                        <option value="inactive">Неактивные</option>
-                        <option value="new">Новые</option>
-                    </select>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>🎯 Активные (7 дней)</h3>
+                        <div class="stat-icon">🔥</div>
+                    </div>
+                    <div class="stat-value" id="active-users-stat">423</div>
+                    <div class="stat-change positive">+8% к прошлой неделе</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>🏆 Завершили месяц</h3>
+                        <div class="stat-icon">⭐</div>
+                    </div>
+                    <div class="stat-value" id="completed-users-stat">89</div>
+                    <div class="stat-change positive">+22% к прошлому месяцу</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>📖 Среднее цитат/юзер</h3>
+                        <div class="stat-icon">📚</div>
+                    </div>
+                    <div class="stat-value" id="avg-quotes-stat">7.2</div>
+                    <div class="stat-change negative">-3% к прошлому месяцу</div>
                 </div>
             </div>
             
-            <!-- Таблица пользователей -->
+            <!-- Users table -->
             <div class="users-container glow-card">
                 <div class="table-container">
                     <table class="data-table" id="users-table">
                         <thead>
                             <tr>
-                                <th>Пользователь</th>
-                                <th>Источник</th>
-                                <th>Цитат</th>
-                                <th>Последняя активность</th>
-                                <th>Статус</th>
-                                <th>Действия</th>
+                                <th class="col-id">ID</th>
+                                <th class="col-user">Пользователь</th>
+                                <th class="col-contact">Контакты</th>
+                                <th class="col-source">Источник</th>
+                                <th class="col-stats">Статистика</th>
+                                <th class="col-status">Статус</th>
+                                <th class="col-registered">Регистрация</th>
+                                <th class="col-actions">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>
-                                    <div class="user-info">
-                                        <div class="user-avatar">👩‍💼</div>
-                                        <div class="user-details">
-                                            <div class="user-name">Мария Ковалева</div>
-                                            <div class="user-contact">@maria_k • maria@example.com</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><span class="source-badge source-instagram">Instagram</span></td>
-                                <td>47</td>
-                                <td>2 часа назад</td>
-                                <td><span class="status-badge status-active">Активен</span></td>
-                                <td>
-                                    <button class="btn btn-sm" onclick="viewUser('maria_k')">Просмотр</button>
-                                </td>
+                            <tr class="table-loading">
+                                <td colspan="8">👥 Загрузка пользователей...</td>
                             </tr>
-                            <!-- Дополнительные пользователи -->
                         </tbody>
                     </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Показано <span id="pagination-range">0-0</span> из <span id="pagination-total">0</span> пользователей
+                    </div>
+                    <div class="pagination-controls">
+                        <button id="prev-page" class="btn btn-icon btn-secondary" disabled>
+                            ← Назад
+                        </button>
+                        <span id="pagination-current">Страница 1</span>
+                        <button id="next-page" class="btn btn-icon btn-secondary" disabled>
+                            Вперед →
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User details modal -->
+            <div class="user-details-overlay" id="user-details-overlay">
+                <div class="user-details-container glow-card">
+                    <div class="user-details-header">
+                        <h3 id="user-details-title">👤 Профиль Пользователя</h3>
+                        <button id="close-user-details" class="btn btn-icon btn-text">×</button>
+                    </div>
+                    
+                    <div class="user-details-content" id="user-details-content">
+                        <div class="loading">📖 Загрузка профиля...</div>
+                    </div>
                 </div>
             </div>
         </main>
         
+        <!-- Footer -->
         <footer class="admin-footer">
-            <p>📖 "Читатель" - Управление пользователями</p>
+            <p>👥 "Читатель" - Управление Пользователями и Аналитика</p>
             <p class="copyright">© 2025 Анна Бусел. Все права защищены.</p>
         </footer>
     </div>
     
+    <!-- Notification system -->
     <div class="notification-container" id="notification-container"></div>
     
+    <!-- Scripts -->
     <script src="js/auth.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/users.js"></script>
+    
     <script>
+        /**
+         * Инициализация страницы управления пользователями
+         */
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('👥 Инициализация управления пользователями');
+            
+            // Проверка аутентификации
             if (typeof checkAuthStatus === 'function') {
                 checkAuthStatus();
             }
             
-            if (typeof initReaderMatrix === 'function') {
-                initReaderMatrix(true);
+            // Инициализация страницы пользователей
+            if (typeof initUsersPage === 'function') {
+                initUsersPage();
+            } else {
+                console.log('👥 Функция initUsersPage не найдена, используем базовую инициализацию');
+                initBasicUsers();
             }
             
-            loadUsersData();
+            // Инициализация книжной анимации
+            if (typeof initReaderMatrix === 'function') {
+                initReaderMatrix(true); // subtle mode для рабочих страниц
+            }
         });
         
-        function loadUsersData() {
-            // Заглушка для данных пользователей
-            console.log('👥 Загрузка данных пользователей');
+        /**
+         * Базовая инициализация управления пользователями
+         */
+        function initBasicUsers() {
+            console.log('👥 Базовая инициализация пользователей');
+            
+            // Загрузка демо-данных
+            loadUsersDemo();
+            
+            // Обработчики фильтров
+            const statusFilter = document.getElementById('status-filter');
+            const sourceFilter = document.getElementById('source-filter');
+            const searchInput = document.getElementById('search-users');
+            
+            if (statusFilter) {
+                statusFilter.addEventListener('change', filterUsers);
+            }
+            if (sourceFilter) {
+                sourceFilter.addEventListener('change', filterUsers);
+            }
+            if (searchInput) {
+                searchInput.addEventListener('input', filterUsers);
+            }
+            
+            // Обработчик экспорта
+            const exportBtn = document.getElementById('export-users');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', exportUsers);
+            }
         }
         
+        /**
+         * Загрузка демо-данных пользователей
+         */
+        function loadUsersDemo() {
+            const tbody = document.querySelector('#users-table tbody');
+            if (!tbody) return;
+            
+            const demoUsers = [
+                {
+                    id: 'U001',
+                    name: 'Мария Петрова',
+                    telegram: '@maria_p',
+                    email: 'maria@gmail.com',
+                    source: '📷 Instagram',
+                    quotesCount: 23,
+                    streak: 5,
+                    status: 'active',
+                    registered: '15 дней назад'
+                },
+                {
+                    id: 'U002',
+                    name: 'Елена Сидорова',
+                    telegram: '@elena_s',
+                    email: 'elena@mail.ru',
+                    source: '💬 Telegram',
+                    quotesCount: 45,
+                    streak: 12,
+                    status: 'active',
+                    registered: '1 месяц назад'
+                },
+                {
+                    id: 'U003',
+                    name: 'Анна Михайлова',
+                    telegram: '@anna_m',
+                    email: 'anna@yandex.ru',
+                    source: '📺 YouTube',
+                    quotesCount: 8,
+                    streak: 2,
+                    status: 'onboarding',
+                    registered: '3 дня назад'
+                },
+                {
+                    id: 'U004',
+                    name: 'Наталья Козлова',
+                    telegram: '@natasha_k',
+                    email: 'natasha@outlook.com',
+                    source: '👥 Друзья',
+                    quotesCount: 67,
+                    streak: 18,
+                    status: 'completed_month',
+                    registered: '2 месяца назад'
+                },
+                {
+                    id: 'U005',
+                    name: 'Ольга Романова',
+                    telegram: '@olga_r',
+                    email: 'olga@gmail.com',
+                    source: '🧵 Threads',
+                    quotesCount: 3,
+                    streak: 0,
+                    status: 'inactive',
+                    registered: '1 неделя назад'
+                }
+            ];
+            
+            tbody.innerHTML = demoUsers.map(user => {
+                const statusBadge = getStatusBadge(user.status);
+                const streakIcon = user.streak > 0 ? '🔥' : '💤';
+                
+                return `
+                    <tr onclick="viewUser('${user.id}')">
+                        <td>${user.id}</td>
+                        <td>
+                            <div class="user-info">
+                                <strong>${user.name}</strong>
+                                <small>${user.telegram}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="contact-info">
+                                <div>${user.email}</div>
+                                <div class="telegram">${user.telegram}</div>
+                            </div>
+                        </td>
+                        <td><span class="source-badge">${user.source}</span></td>
+                        <td>
+                            <div class="user-stats">
+                                <div>📚 ${user.quotesCount} цитат</div>
+                                <div>${streakIcon} ${user.streak} дней</div>
+                            </div>
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td>${user.registered}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); viewUser('${user.id}')">👁️</button>
+                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); editUser('${user.id}')">✏️</button>
+                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); sendMessage('${user.id}')">💬</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Обновляем пагинацию
+            document.getElementById('pagination-range').textContent = `1-${demoUsers.length}`;
+            document.getElementById('pagination-total').textContent = demoUsers.length;
+        }
+        
+        /**
+         * Получение значка статуса
+         */
+        function getStatusBadge(status) {
+            const statusMap = {
+                'active': '<span class="status-badge status-success">🟢 Активный</span>',
+                'onboarding': '<span class="status-badge status-warning">🟡 Онбординг</span>',
+                'inactive': '<span class="status-badge status-danger">🔴 Неактивный</span>',
+                'completed_month': '<span class="status-badge status-premium">🏆 Месяц пройден</span>'
+            };
+            return statusMap[status] || '<span class="status-badge status-neutral">❓ Неизвестно</span>';
+        }
+        
+        /**
+         * Фильтрация пользователей
+         */
+        function filterUsers() {
+            console.log('👥 Фильтрация пользователей');
+            showNotification('info', 'Фильтрация пользователей...');
+        }
+        
+        /**
+         * Экспорт пользователей
+         */
+        function exportUsers() {
+            console.log('👥 Экспорт пользователей');
+            showNotification('success', 'Экспорт пользователей начат');
+        }
+        
+        /**
+         * Просмотр профиля пользователя
+         */
         function viewUser(userId) {
             console.log('👥 Просмотр пользователя:', userId);
+            
+            const modal = document.getElementById('user-details-overlay');
+            const content = document.getElementById('user-details-content');
+            const title = document.getElementById('user-details-title');
+            
+            title.textContent = `👤 Профиль ${userId}`;
+            
+            // Имитация загрузки данных
+            content.innerHTML = '<div class="loading">📖 Загрузка профиля...</div>';
+            modal.style.display = 'flex';
+            
+            setTimeout(() => {
+                content.innerHTML = `
+                    <div class="user-profile">
+                        <div class="profile-section">
+                            <h4>📊 Основная информация</h4>
+                            <div class="profile-data">
+                                <div class="data-item">
+                                    <label>Имя:</label>
+                                    <span>Мария Петрова</span>
+                                </div>
+                                <div class="data-item">
+                                    <label>Email:</label>
+                                    <span>maria@gmail.com</span>
+                                </div>
+                                <div class="data-item">
+                                    <label>Telegram:</label>
+                                    <span>@maria_p</span>
+                                </div>
+                                <div class="data-item">
+                                    <label>Источник:</label>
+                                    <span>📷 Instagram</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-section">
+                            <h4>📈 Статистика</h4>
+                            <div class="profile-stats">
+                                <div class="stat-item">
+                                    <span class="stat-value">23</span>
+                                    <span class="stat-label">Цитат</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value">5</span>
+                                    <span class="stat-label">Дней подряд</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value">3</span>
+                                    <span class="stat-label">Недель с ботом</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-section">
+                            <h4>🎯 Результаты теста</h4>
+                            <div class="test-results">
+                                <div class="test-item">
+                                    <label>Образ жизни:</label>
+                                    <span>Замужем, балансирую дом/работу/себя</span>
+                                </div>
+                                <div class="test-item">
+                                    <label>Приоритеты:</label>
+                                    <span>Саморазвитие и гармония</span>
+                                </div>
+                                <div class="test-item">
+                                    <label>Время для чтения:</label>
+                                    <span>2-3 часа в неделю</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-actions">
+                            <button class="btn btn-primary" onclick="sendPersonalMessage('${userId}')">💬 Написать сообщение</button>
+                            <button class="btn btn-secondary" onclick="viewUserQuotes('${userId}')">📚 Посмотреть цитаты</button>
+                            <button class="btn btn-secondary" onclick="generateUserReport('${userId}')">📊 Сгенерировать отчет</button>
+                        </div>
+                    </div>
+                `;
+            }, 1000);
         }
         
-        function exportUsers() {
-            console.log('📄 Экспорт пользователей');
+        /**
+         * Редактирование пользователя
+         */
+        function editUser(userId) {
+            console.log('👥 Редактирование пользователя:', userId);
+            showNotification('info', `Редактирование ${userId}`);
         }
+        
+        /**
+         * Отправка сообщения пользователю
+         */
+        function sendMessage(userId) {
+            console.log('👥 Отправка сообщения пользователю:', userId);
+            showNotification('info', `Отправка сообщения ${userId}`);
+        }
+        
+        /**
+         * Показ уведомления
+         */
+        function showNotification(type, message) {
+            const container = document.getElementById('notification-container');
+            if (!container) {
+                alert(message);
+                return;
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : '👥'}</span>
+                    <span class="notification-message">${message}</span>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Автоматическое удаление через 5 секунд
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+        
+        // Закрытие модальных окон
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'close-user-details' || e.target.closest('#close-user-details')) {
+                document.getElementById('user-details-overlay').style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
