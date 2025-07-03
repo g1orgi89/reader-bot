@@ -1,73 +1,79 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shrooms AI Support Bot - Управление Базой Знаний</title>
+    <title>📚 База Знаний - Читатель Админ</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/knowledge.css">
-    <meta name="description" content="Управление базой знаний для Shrooms AI Support Bot">
-    <!-- Preconnect to font sources -->
+    <meta name="description" content="База знаний для проекта 'Читатель' - книги, разборы и психологические материалы">
+    <!-- Подключение шрифтов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Тонкая версия грибного цифрового дождя для рабочих страниц -->
-    <div class="mushroom-bg-animation mushroom-bg-subtle" id="mushroom-matrix"></div>
+    <!-- Тонкая книжная анимация для рабочих страниц -->
+    <div class="reader-bg-animation reader-bg-subtle" id="reader-matrix"></div>
     
     <div class="admin-layout">
         <!-- Header -->
         <header class="admin-header">
             <div class="logo-container">
-                <img src="img/logo.svg" alt="Shrooms AI Support Bot" class="logo">
-                <h1>🍄 Shrooms Admin</h1>
+                <div class="logo-icon">📖</div>
+                <h1>Читатель</h1>
+                <span class="logo-subtitle">База знаний</span>
             </div>
             
             <nav class="main-nav">
                 <ul>
-                    <li><a href="index.html">Dashboard</a></li>
-                    <li><a href="tickets.html">Tickets</a></li>
-                    <li><a href="knowledge.html" class="active">Knowledge Base</a></li>
-                    <li><a href="prompts.html">Prompts</a></li>
+                    <li><a href="index.html">📊 Дашборд</a></li>
+                    <li><a href="users.html">👥 Пользователи</a></li>
+                    <li><a href="quotes.html">📝 Цитаты</a></li>
+                    <li><a href="reports.html">📈 Отчеты</a></li>
+                    <li><a href="knowledge.html" class="active">📚 База знаний</a></li>
+                    <li><a href="tickets.html">🎫 Обращения</a></li>
+                    <li><a href="prompts.html">💭 Промпты</a></li>
                 </ul>
             </nav>
             
             <div class="user-menu">
-                <span id="admin-username"></span>
-                <button id="logout-btn" class="btn btn-text">Logout</button>
+                <span id="admin-username">Анна Бусел</span>
+                <button id="logout-btn" class="btn btn-text">Выход</button>
             </div>
         </header>
         
         <!-- Main content -->
         <main class="admin-content knowledge-content">
             <div class="knowledge-header">
-                <h2>🧠 Грибная База Знаний</h2>
+                <h2>📚 База Знаний "Читателя"</h2>
                 <div class="knowledge-actions">
                     <div class="filter-group">
                         <select id="category-filter" class="select-glow">
                             <option value="all">Все категории</option>
-                            <option value="general">Общие</option>
-                            <option value="user-guide">Руководство</option>
-                            <option value="tokenomics">Токеномика</option>
-                            <option value="technical">Техническое</option>
-                            <option value="troubleshooting">Решение проблем</option>
+                            <option value="book-analysis">Разборы книг</option>
+                            <option value="psychology">Психология</option>
+                            <option value="quotes-analysis">Анализ цитат</option>
+                            <option value="personal-growth">Личностный рост</option>
+                            <option value="relationships">Отношения</option>
+                            <option value="self-development">Саморазвитие</option>
+                            <option value="user-guides">Руководства</option>
+                            <option value="faq">Частые вопросы</option>
                         </select>
                         
                         <select id="language-filter" class="select-glow">
                             <option value="all">Все языки</option>
                             <option value="none">🤖 Универсальный</option>
-                            <option value="en">🇺🇸 English</option>
-                            <option value="es">🇪🇸 Español</option>
                             <option value="ru">🇷🇺 Русский</option>
+                            <option value="en">🇺🇸 English</option>
                         </select>
                         
                         <input type="text" id="search-knowledge" placeholder="🔍 Поиск в базе знаний..." class="search-input">
                     </div>
                     
                     <button id="add-document" class="btn btn-primary btn-glow">
-                        <span class="btn-text">📝 Добавить Документ</span>
-                        <span class="btn-icon">🍄</span>
+                        <span class="btn-text">📝 Добавить Материал</span>
+                        <span class="btn-icon">📚</span>
                     </button>
                 </div>
             </div>
@@ -89,7 +95,7 @@
                         </thead>
                         <tbody>
                             <tr class="table-loading">
-                                <td colspan="7">🍄 Прорастание документов...</td>
+                                <td colspan="7">📚 Загрузка библиотеки...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -98,7 +104,7 @@
                 <!-- Pagination -->
                 <div class="pagination-container">
                     <div class="pagination-info">
-                        Показано <span id="pagination-range">0-0</span> из <span id="pagination-total">0</span> документов
+                        Показано <span id="pagination-range">0-0</span> из <span id="pagination-total">0</span> материалов
                     </div>
                     <div class="pagination-controls">
                         <button id="prev-page" class="btn btn-icon btn-secondary" disabled>
@@ -112,11 +118,11 @@
                 </div>
             </div>
             
-            <!-- Document editor modal (hidden by default) -->
+            <!-- Document editor modal -->
             <div class="document-editor-overlay" id="document-editor-overlay">
                 <div class="document-editor-container glow-card">
                     <div class="document-editor-header">
-                        <h3 id="editor-title">📝 Добавить Документ</h3>
+                        <h3 id="editor-title">📝 Добавить Материал</h3>
                         <button id="close-document-editor" class="btn btn-icon btn-text">×</button>
                     </div>
                     
@@ -125,20 +131,23 @@
                             <input type="hidden" id="document-id" name="document-id" value="">
                             
                             <div class="form-group">
-                                <label for="document-title">Название документа:</label>
+                                <label for="document-title">Название материала:</label>
                                 <input type="text" id="document-title" name="document-title" required 
-                                       placeholder="Например: Подключение кошелька Xverse">
+                                       placeholder="Например: Разбор книги 'Искусство любить' Эриха Фромма">
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="document-category">Категория:</label>
                                     <select id="document-category" name="document-category" class="select-glow" required>
-                                        <option value="general">Общие</option>
-                                        <option value="user-guide">Руководство пользователя</option>
-                                        <option value="tokenomics">Токеномика</option>
-                                        <option value="technical">Техническое</option>
-                                        <option value="troubleshooting">Решение проблем</option>
+                                        <option value="book-analysis">📖 Разборы книг</option>
+                                        <option value="psychology">🧠 Психология</option>
+                                        <option value="quotes-analysis">💭 Анализ цитат</option>
+                                        <option value="personal-growth">🌱 Личностный рост</option>
+                                        <option value="relationships">💕 Отношения</option>
+                                        <option value="self-development">✨ Саморазвитие</option>
+                                        <option value="user-guides">📋 Руководства</option>
+                                        <option value="faq">❓ Частые вопросы</option>
                                     </select>
                                 </div>
                                 
@@ -146,9 +155,8 @@
                                     <label for="document-language">Язык:</label>
                                     <select id="document-language" name="document-language" class="select-glow" required>
                                         <option value="none" selected>🤖 Универсальный (AI определит)</option>
-                                        <option value="en">🇺🇸 English</option>
-                                        <option value="es">🇪🇸 Español</option>
                                         <option value="ru">🇷🇺 Русский</option>
+                                        <option value="en">🇺🇸 English</option>
                                     </select>
                                 </div>
                             </div>
@@ -156,26 +164,37 @@
                             <div class="form-group">
                                 <label for="document-tags">Теги (через запятую):</label>
                                 <input type="text" id="document-tags" name="document-tags" 
-                                       placeholder="кошелек, подключение, xverse, hiro">
+                                       placeholder="любовь, отношения, психология, фромм, книги">
                             </div>
                             
                             <div class="form-group">
                                 <label for="document-content">Содержимое (поддерживается Markdown):</label>
                                 <textarea id="document-content" name="document-content" rows="15" required
-                                          placeholder="# Заголовок
+                                          placeholder="# Разбор книги 'Искусство любить'
 
-Введите содержимое документа здесь. Вы можете использовать Markdown:
+## Основные идеи
 
-- **Жирный текст**
-- *Курсив*
-- [Ссылки](https://example.com)
-- `Код`
+Эрих Фромм в своей работе раскрывает природу любви как искусства, которому нужно учиться.
 
-## Подзаголовок
+**Ключевые тезисы:**
+- Любовь - это активность, а не пассивное чувство
+- Любовь требует знания, заботы, ответственности и уважения
+- Самая важная любовь - это любовь к себе
 
-Больше содержимого..."></textarea>
+## Практические выводы
+
+Для развития способности любить необходимо:
+1. Развивать самосознание
+2. Практиковать концентрацию
+3. Учиться терпению
+
+## Цитаты для анализа
+
+> 'Любовь - это единственный разумный и удовлетворительный ответ на проблему человеческого существования'
+
+Эта цитата помогает понять..."></textarea>
                                 <div class="editor-hints">
-                                    <span>💡 Поддерживается Markdown: **жирный**, *курсив*, [ссылки](url), # Заголовки, `код`</span>
+                                    <span>💡 Поддерживается Markdown: **жирный**, *курсив*, [ссылки](url), # Заголовки, `код`, > цитаты</span>
                                 </div>
                             </div>
                             
@@ -185,8 +204,8 @@
                                 </button>
                                 
                                 <button type="submit" class="btn btn-primary btn-glow">
-                                    <span class="btn-text" id="save-document-text">💾 Сохранить Документ</span>
-                                    <span class="btn-icon">🍄</span>
+                                    <span class="btn-text" id="save-document-text">💾 Сохранить Материал</span>
+                                    <span class="btn-icon">📚</span>
                                 </button>
                             </div>
                         </form>
@@ -194,11 +213,11 @@
                 </div>
             </div>
             
-            <!-- Document preview modal (hidden by default) -->
+            <!-- Document preview modal -->
             <div class="document-preview-overlay" id="document-preview-overlay">
                 <div class="document-preview-container glow-card">
                     <div class="document-preview-header">
-                        <h3>👁️ Предпросмотр Документа</h3>
+                        <h3>👁️ Предпросмотр Материала</h3>
                         <button id="close-document-preview" class="btn btn-icon btn-text">×</button>
                     </div>
                     
@@ -213,7 +232,7 @@
                         </div>
                         
                         <div class="document-preview-body" id="preview-content">
-                            🍄 Загрузка предпросмотра...
+                            📚 Загрузка предпросмотра...
                         </div>
                         
                         <div class="preview-actions">
@@ -225,16 +244,16 @@
                 </div>
             </div>
             
-            <!-- RAG Index controls - SOFTENED STYLES -->
+            <!-- RAG Index controls -->
             <div class="rag-index-container glow-card">
                 <div class="section-header">
-                    <h3>🔍 Управление RAG Индексом</h3>
+                    <h3>🔍 Управление AI Индексом</h3>
                     <div class="last-updated">Последняя индексация: <span id="rag-last-indexed">--</span></div>
                 </div>
                 
                 <div class="rag-stats">
                     <div class="rag-stat">
-                        <label>📚 Всего документов:</label>
+                        <label>📚 Всего материалов:</label>
                         <span id="rag-docs-count">--</span>
                     </div>
                     
@@ -256,7 +275,7 @@
                 
                 <div class="rag-actions">
                     <button id="sync-vector-store" class="btn btn-primary btn-subtle">
-                        <span class="btn-text">🔄 Синхронизировать с Qdrant</span>
+                        <span class="btn-text">🔄 Синхронизировать с Vector Store</span>
                     </button>
                     
                     <button id="rebuild-index" class="btn btn-warning btn-subtle">
@@ -264,7 +283,7 @@
                     </button>
                     
                     <button id="test-rag-search" class="btn btn-secondary btn-subtle">
-                        <span class="btn-text">🧪 Тестировать RAG Поиск</span>
+                        <span class="btn-text">🧪 Тестировать AI Поиск</span>
                     </button>
                     
                     <button id="diagnose-rag" class="btn btn-secondary btn-subtle">
@@ -273,22 +292,22 @@
                 </div>
                 
                 <div class="rag-info">
-                    <p>💡 <strong>Совет грибного архивариуса:</strong> Регулярно синхронизируйте документы с векторным хранилищем для лучшего качества ответов бота!</p>
+                    <p>💡 <strong>Совет от Анны:</strong> Регулярно синхронизируйте материалы с AI индексом для более точных рекомендаций книг и анализа цитат!</p>
                 </div>
             </div>
             
-            <!-- RAG Test modal (hidden by default) -->
+            <!-- RAG Test modal -->
             <div class="rag-test-overlay" id="rag-test-overlay">
                 <div class="rag-test-container glow-card">
                     <div class="rag-test-header">
-                        <h3>🧪 Тестирование RAG Поиска</h3>
+                        <h3>🧪 Тестирование AI Поиска</h3>
                         <button id="close-rag-test" class="btn btn-icon btn-text">×</button>
                     </div>
                     
                     <div class="rag-test-content">
                         <div class="test-input-group">
                             <label for="rag-test-query">Тестовый запрос:</label>
-                            <input type="text" id="rag-test-query" placeholder="Например: как подключить кошелек xverse?"
+                            <input type="text" id="rag-test-query" placeholder="Например: как анализировать цитаты о любви?"
                                    class="test-query-input">
                             <button id="run-rag-test" class="btn btn-primary">
                                 <span class="btn-text">🔍 Выполнить Поиск</span>
@@ -298,7 +317,7 @@
                         <div class="test-results">
                             <h4>📋 Результаты поиска:</h4>
                             <div id="rag-test-results" class="test-results-content">
-                                🍄 Введите запрос и нажмите "Выполнить Поиск"
+                                📚 Введите запрос и нажмите "Выполнить Поиск"
                             </div>
                         </div>
                     </div>
@@ -308,8 +327,8 @@
         
         <!-- Footer -->
         <footer class="admin-footer">
-            <p>🍄 Shrooms AI Support Bot - Панель Управления Знаниями</p>
-            <p class="copyright">© 2025 Shrooms Project. Все споры защищены.</p>
+            <p>📚 "Читатель" - База Знаний для Анализа Цитат и Рекомендаций</p>
+            <p class="copyright">© 2025 Анна Бусел. Все права защищены.</p>
         </footer>
     </div>
     
@@ -317,31 +336,232 @@
     <div class="notification-container" id="notification-container"></div>
     
     <!-- Scripts -->
-    <!-- Порядок важен: сначала auth, потом knowledge -->
     <script src="js/auth.js"></script>
     <script src="js/knowledge.js"></script>
     
     <script>
         /**
-         * Инициализация страницы управления базой знаний
-         * Упрощенная версия - используем knowledge.js для всей логики
+         * Инициализация страницы управления базой знаний Reader
          */
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🍄 Инициализация грибной базы знаний');
+            console.log('📚 Инициализация базы знаний "Читатель"');
             
-            // auth.js уже проверил аутентификацию и настроил все необходимое
-            // Если мы здесь - значит пользователь авторизован
+            // Проверка аутентификации
+            if (typeof checkAuthStatus === 'function') {
+                checkAuthStatus();
+            }
             
-            // Инициализируем страницу базы знаний из knowledge.js
+            // Инициализируем страницу базы знаний
             if (typeof initKnowledgePage === 'function') {
                 initKnowledgePage();
             } else {
-                console.error('🍄 Функция initKnowledgePage не найдена в knowledge.js');
+                console.log('📚 Функция initKnowledgePage не найдена, используем базовую инициализацию');
+                initBasicKnowledge();
             }
             
-            // Инициализируем тонкую версию грибной матрицы из auth.js
-            if (typeof initMushroomMatrix === 'function') {
-                initMushroomMatrix(true); // subtle mode для рабочих страниц
+            // Инициализируем книжную анимацию
+            if (typeof initReaderMatrix === 'function') {
+                initReaderMatrix(true); // subtle mode для рабочих страниц
+            }
+        });
+        
+        /**
+         * Базовая инициализация базы знаний
+         */
+        function initBasicKnowledge() {
+            console.log('📚 Базовая инициализация базы знаний');
+            
+            // Загрузка демо-данных
+            loadKnowledgeDemo();
+            
+            // Обработчики фильтров
+            const categoryFilter = document.getElementById('category-filter');
+            const languageFilter = document.getElementById('language-filter');
+            const searchInput = document.getElementById('search-knowledge');
+            
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', filterKnowledge);
+            }
+            if (languageFilter) {
+                languageFilter.addEventListener('change', filterKnowledge);
+            }
+            if (searchInput) {
+                searchInput.addEventListener('input', filterKnowledge);
+            }
+            
+            // Обработчик добавления документа
+            const addDocumentBtn = document.getElementById('add-document');
+            if (addDocumentBtn) {
+                addDocumentBtn.addEventListener('click', openDocumentEditor);
+            }
+        }
+        
+        /**
+         * Загрузка демо-данных базы знаний
+         */
+        function loadKnowledgeDemo() {
+            const tbody = document.querySelector('#knowledge-table tbody');
+            if (!tbody) return;
+            
+            const demoData = [
+                {
+                    id: 'KB001',
+                    title: 'Разбор "Искусство любить" Эриха Фромма',
+                    category: '📖 Разборы книг',
+                    language: '🇷🇺 Русский',
+                    tags: 'любовь, отношения, психология',
+                    updated: '2 дня назад'
+                },
+                {
+                    id: 'KB002', 
+                    title: 'Анализ цитат о саморазвитии',
+                    category: '💭 Анализ цитат',
+                    language: '🤖 Универсальный',
+                    tags: 'саморазвитие, рост, мотивация',
+                    updated: '5 дней назад'
+                },
+                {
+                    id: 'KB003',
+                    title: 'Письма к молодому поэту - ключевые идеи',
+                    category: '📖 Разборы книг', 
+                    language: '🇷🇺 Русский',
+                    tags: 'рильке, творчество, самопознание',
+                    updated: '1 неделя назад'
+                },
+                {
+                    id: 'KB004',
+                    title: 'Психология женственности и силы',
+                    category: '🧠 Психология',
+                    language: '🇷🇺 Русский',
+                    tags: 'женственность, сила, личность',
+                    updated: '2 недели назад'
+                },
+                {
+                    id: 'KB005',
+                    title: 'FAQ: Частые вопросы о еженедельных отчетах',
+                    category: '❓ Частые вопросы',
+                    language: '🇷🇺 Русский',
+                    tags: 'отчеты, вопросы, помощь',
+                    updated: '3 дня назад'
+                }
+            ];
+            
+            tbody.innerHTML = demoData.map(item => `
+                <tr>
+                    <td>${item.id}</td>
+                    <td><strong>${item.title}</strong></td>
+                    <td><span class="category-badge">${item.category}</span></td>
+                    <td>${item.language}</td>
+                    <td><span class="tags">${item.tags}</span></td>
+                    <td>${item.updated}</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="editDocument('${item.id}')">✏️</button>
+                        <button class="btn btn-sm btn-secondary" onclick="previewDocument('${item.id}')">👁️</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteDocument('${item.id}')">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Обновляем пагинацию
+            document.getElementById('pagination-range').textContent = `1-${demoData.length}`;
+            document.getElementById('pagination-total').textContent = demoData.length;
+        }
+        
+        /**
+         * Фильтрация базы знаний
+         */
+        function filterKnowledge() {
+            console.log('📚 Фильтрация базы знаний');
+            // В реальной версии здесь будет API запрос
+            showNotification('info', 'Фильтрация материалов...');
+        }
+        
+        /**
+         * Открытие редактора документов
+         */
+        function openDocumentEditor(documentId = null) {
+            const overlay = document.getElementById('document-editor-overlay');
+            const title = document.getElementById('editor-title');
+            
+            if (documentId) {
+                title.textContent = '✏️ Редактировать Материал';
+                // Загрузка данных документа для редактирования
+            } else {
+                title.textContent = '📝 Добавить Материал';
+                // Очистка формы
+                document.getElementById('document-form').reset();
+            }
+            
+            overlay.style.display = 'flex';
+        }
+        
+        /**
+         * Редактирование документа
+         */
+        function editDocument(documentId) {
+            console.log('📚 Редактирование документа:', documentId);
+            openDocumentEditor(documentId);
+        }
+        
+        /**
+         * Предпросмотр документа
+         */
+        function previewDocument(documentId) {
+            console.log('📚 Предпросмотр документа:', documentId);
+            showNotification('info', `Открытие предпросмотра ${documentId}`);
+        }
+        
+        /**
+         * Удаление документа
+         */
+        function deleteDocument(documentId) {
+            if (confirm(`Удалить материал ${documentId}?`)) {
+                console.log('📚 Удаление документа:', documentId);
+                showNotification('success', `Материал ${documentId} удален`);
+                loadKnowledgeDemo(); // Перезагрузка таблицы
+            }
+        }
+        
+        /**
+         * Показ уведомления
+         */
+        function showNotification(type, message) {
+            const container = document.getElementById('notification-container');
+            if (!container) {
+                alert(message);
+                return;
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : '📚'}</span>
+                    <span class="notification-message">${message}</span>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Автоматическое удаление через 5 секунд
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+        
+        // Закрытие модальных окон
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'close-document-editor' || e.target.closest('#close-document-editor')) {
+                document.getElementById('document-editor-overlay').style.display = 'none';
+            }
+            if (e.target.id === 'close-document-preview' || e.target.closest('#close-document-preview')) {
+                document.getElementById('document-preview-overlay').style.display = 'none';
+            }
+            if (e.target.id === 'close-rag-test' || e.target.closest('#close-rag-test')) {
+                document.getElementById('rag-test-overlay').style.display = 'none';
             }
         });
     </script>
