@@ -5,7 +5,7 @@
 
 /* === ОСНОВНЫЕ СТИЛИ СТРАНИЦЫ ВХОДА === */
 .login-page {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    background: linear-gradient(135deg, var(--dark-bg) 0%, #2a2a2a 100%);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -23,7 +23,7 @@
     width: 100%;
     height: 100%;
     background: 
-        radial-gradient(circle at 25% 25%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 25% 25%, var(--reader-gold-glow) 0%, transparent 50%),
         radial-gradient(circle at 75% 75%, rgba(139, 69, 19, 0.1) 0%, transparent 50%);
     z-index: 0;
 }
@@ -37,9 +37,10 @@
 }
 
 .login-card {
-    background: var(--color-card);
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--shadow-lg);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
     padding: 2.5rem;
     position: relative;
     overflow: hidden;
@@ -53,7 +54,7 @@
     left: 0;
     width: 100%;
     height: 4px;
-    background: linear-gradient(90deg, var(--color-accent), var(--color-secondary));
+    background: linear-gradient(90deg, var(--reader-gold), var(--reader-brown));
 }
 
 @keyframes loginCardAppear {
@@ -83,8 +84,9 @@
 
 .login-header .logo-icon {
     font-size: 3rem;
-    color: var(--color-accent);
+    color: var(--reader-gold);
     animation: logoFloat 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 10px var(--reader-gold-glow));
 }
 
 @keyframes logoFloat {
@@ -93,15 +95,16 @@
 }
 
 .login-header h1 {
-    font-family: var(--font-secondary);
+    font-family: var(--font-heading);
     font-size: 2rem;
     font-weight: 600;
-    color: var(--color-primary);
+    color: var(--reader-gold);
     margin: 0;
+    text-shadow: 0 0 10px var(--reader-gold-glow);
 }
 
 .login-subtitle {
-    color: var(--color-text-light);
+    color: var(--text-muted);
     font-size: 0.925rem;
     line-height: 1.5;
     margin: 0;
@@ -119,7 +122,7 @@
 .form-group label {
     display: block;
     font-weight: 500;
-    color: var(--color-text);
+    color: var(--text-white);
     margin-bottom: 0.5rem;
     font-size: 0.875rem;
 }
@@ -127,10 +130,10 @@
 .form-input {
     width: 100%;
     padding: 0.75rem 1rem;
-    border: 2px solid var(--color-border);
+    border: 2px solid var(--border-color);
     border-radius: var(--border-radius);
-    background: var(--color-card);
-    color: var(--color-text);
+    background: var(--card-bg);
+    color: var(--text-light);
     font-family: inherit;
     font-size: 1rem;
     transition: var(--transition-normal);
@@ -138,17 +141,17 @@
 }
 
 .form-input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+    border-color: var(--reader-gold);
+    box-shadow: 0 0 10px var(--reader-gold-glow);
     transform: translateY(-1px);
 }
 
 .form-input:invalid {
-    border-color: var(--color-error);
+    border-color: var(--error-color);
 }
 
 .form-input::placeholder {
-    color: var(--color-text-light);
+    color: var(--text-muted);
 }
 
 /* === ЧЕКБОКС === */
@@ -157,7 +160,7 @@
     align-items: center;
     cursor: pointer;
     font-size: 0.875rem;
-    color: var(--color-text-light);
+    color: var(--text-light);
     margin: 0;
 }
 
@@ -165,17 +168,18 @@
     appearance: none;
     width: 18px;
     height: 18px;
-    border: 2px solid var(--color-border);
+    border: 2px solid var(--border-color);
     border-radius: 4px;
     margin-right: 0.75rem;
     position: relative;
     cursor: pointer;
     transition: var(--transition-fast);
+    background: var(--card-bg);
 }
 
 .checkbox:checked {
-    background-color: var(--color-primary);
-    border-color: var(--color-primary);
+    background-color: var(--reader-gold);
+    border-color: var(--reader-gold);
 }
 
 .checkbox:checked::after {
@@ -184,13 +188,13 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
+    color: var(--dark-bg);
     font-size: 12px;
     font-weight: bold;
 }
 
 .checkbox:focus {
-    box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+    box-shadow: 0 0 0 3px var(--reader-gold-glow);
 }
 
 .checkbox-text {
@@ -205,8 +209,8 @@
     justify-content: center;
     gap: 0.75rem;
     padding: 1rem 1.5rem;
-    background: linear-gradient(135deg, var(--color-primary), #34495e);
-    color: white;
+    background: linear-gradient(135deg, var(--reader-gold), var(--reader-gold-light));
+    color: var(--dark-bg);
     border: none;
     border-radius: var(--border-radius);
     font-family: inherit;
@@ -231,7 +235,7 @@
 
 .login-button:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--box-shadow-glow);
 }
 
 .login-button:hover::before {
@@ -265,8 +269,8 @@
 
 /* === ДЕМО-ДАННЫЕ === */
 .demo-credentials {
-    background: var(--color-background);
-    border: 1px solid var(--color-border);
+    background: rgba(212, 175, 55, 0.05);
+    border: 1px solid var(--reader-gold);
     border-radius: var(--border-radius);
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -280,13 +284,13 @@
     left: 0;
     width: 100%;
     height: 3px;
-    background: linear-gradient(90deg, var(--color-info), var(--color-accent));
+    background: linear-gradient(90deg, var(--reader-gold), var(--reader-brown));
     border-radius: var(--border-radius) var(--border-radius) 0 0;
 }
 
 .demo-title {
     font-weight: 600;
-    color: var(--color-text);
+    color: var(--text-white);
     margin: 0 0 1rem 0;
     font-size: 0.875rem;
 }
@@ -302,54 +306,55 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem 0.75rem;
-    background: var(--color-card);
+    background: var(--hover-bg);
     border-radius: var(--border-radius);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--border-color);
     cursor: pointer;
     transition: var(--transition-fast);
     font-size: 0.875rem;
 }
 
 .demo-item:hover {
-    background: #f1f3f4;
-    border-color: var(--color-primary);
+    background: var(--hover-bg);
+    border-color: var(--reader-gold);
     transform: translateX(2px);
+    box-shadow: 0 0 10px var(--reader-gold-glow);
 }
 
 .demo-item strong {
-    color: var(--color-text);
+    color: var(--text-white);
     font-weight: 600;
 }
 
 /* === ФУТЕР ФОРМЫ === */
 .login-footer {
     text-align: center;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid var(--border-color);
     padding-top: 1.5rem;
 }
 
 .footer-text {
     font-size: 0.8125rem;
-    color: var(--color-text-light);
+    color: var(--text-muted);
     margin: 0 0 0.5rem 0;
 }
 
 .footer-description {
     font-size: 0.75rem;
-    color: var(--color-text-light);
+    color: var(--text-muted);
     margin: 0;
     opacity: 0.8;
 }
 
 /* === ОШИБКИ ПОЛЕЙ === */
 .form-input.error {
-    border-color: var(--color-error);
+    border-color: var(--error-color);
     background-color: rgba(231, 76, 60, 0.05);
 }
 
 .field-error {
     display: block;
-    color: var(--color-error);
+    color: var(--error-color);
     font-size: 0.8125rem;
     margin-top: 0.25rem;
     animation: fieldErrorAppear 0.3s ease;
@@ -370,8 +375,8 @@
 .spinner {
     width: 20px;
     height: 20px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top: 2px solid white;
+    border: 2px solid rgba(26, 26, 26, 0.3);
+    border-top: 2px solid var(--dark-bg);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -383,13 +388,7 @@
 
 /* === АНИМАЦИЯ КНИЖНОГО ФОНА === */
 .login-page .reader-bg-animation {
-    opacity: 0.5;
-}
-
-.login-page .matrix-book {
-    font-size: 1.5rem;
-    opacity: 0.1;
-    animation-duration: 25s;
+    opacity: 0.3;
 }
 
 /* === АДАПТИВНОСТЬ === */
@@ -443,7 +442,7 @@
 /* === АКЦЕНТЫ И АНИМАЦИИ === */
 .login-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 20px 40px rgba(44, 62, 80, 0.15);
+    box-shadow: var(--box-shadow-glow);
 }
 
 .form-group {
@@ -506,7 +505,7 @@
     right: 0;
     width: 100px;
     height: 100px;
-    background: radial-gradient(circle, var(--color-accent) 0%, transparent 70%);
+    background: radial-gradient(circle, var(--reader-gold) 0%, transparent 70%);
     opacity: 0.05;
     border-radius: 50%;
     transform: translate(50%, 50%);
@@ -516,7 +515,7 @@
 .form-input:focus,
 .checkbox:focus,
 .login-button:focus {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--reader-gold);
     outline-offset: 2px;
 }
 
@@ -531,7 +530,7 @@
 /* === ВЫСОКОКОНТРАСТНЫЙ РЕЖИМ === */
 @media (prefers-contrast: high) {
     .login-card {
-        border: 2px solid var(--color-text);
+        border: 2px solid var(--text-white);
     }
     
     .form-input {
@@ -539,6 +538,6 @@
     }
     
     .login-button {
-        border: 2px solid var(--color-primary);
+        border: 2px solid var(--reader-gold);
     }
 }
