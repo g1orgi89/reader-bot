@@ -1,80 +1,116 @@
 /**
- * dashboard.css - стили для дашборда админ-панели Shrooms AI Support Bot
+ * dashboard.css - стили для дашборда админ-панели "Читатель"
+ * Книжная тематика с золотыми акцентами
  */
 
-/* ---------- Заголовок дашборда ---------- */
+/* ========================================
+   ЗАГОЛОВОК ДАШБОРДА
+   ======================================== */
+
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  color: var(--reader-gold);
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  text-shadow: 0 0 10px var(--reader-gold-glow);
 }
 
 .date-range-picker {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 1rem;
 }
 
 .date-range-picker label {
   margin-bottom: 0;
-  color: var(--color-text-dim);
+  color: var(--text-light);
+  font-weight: 500;
 }
 
-/* ---------- Статистические карточки ---------- */
+/* ========================================
+   СТАТИСТИЧЕСКИЕ КАРТОЧКИ
+   ======================================== */
+
 .stats-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .stat-card {
-  padding: var(--spacing-lg);
-  background-color: var(--color-bg-card);
-  border-radius: var(--border-radius-lg);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 180px;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
   position: relative;
   overflow: hidden;
+  transition: all var(--transition-normal);
 }
 
-.stat-card h3 {
-  font-size: var(--font-size-md);
-  color: var(--color-text-light);
-  margin-bottom: var(--spacing-lg);
-  font-family: var(--font-body);
+.stat-card:hover {
+  border-color: var(--reader-gold);
+  box-shadow: var(--box-shadow-glow);
+  transform: translateY(-2px);
+}
+
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.stat-header h3 {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin: 0;
+  font-family: var(--font-primary);
   font-weight: 500;
+  line-height: 1.4;
+}
+
+.stat-icon {
+  font-size: 1.5rem;
+  opacity: 0.7;
+  color: var(--reader-gold);
 }
 
 .stat-value {
   font-family: var(--font-heading);
-  font-size: var(--font-size-xxl);
-  font-weight: 700;
-  margin-bottom: var(--spacing-md);
-  background: linear-gradient(90deg, var(--color-primary), var(--color-accent-alt));
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--reader-gold), var(--reader-gold-light));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  line-height: 1;
 }
 
 .stat-change {
-  font-size: var(--font-size-sm);
+  font-size: 0.8rem;
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 0.25rem;
+  font-weight: 500;
 }
 
 .stat-change.positive {
-  color: var(--color-success);
+  color: var(--success-color);
 }
 
 .stat-change.negative {
-  color: var(--color-danger);
+  color: var(--error-color);
 }
 
 .stat-change::before {
@@ -82,16 +118,16 @@
   display: inline-block;
   width: 0;
   height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
 }
 
 .stat-change.positive::before {
-  border-bottom: 5px solid var(--color-success);
+  border-bottom: 4px solid var(--success-color);
 }
 
 .stat-change.negative::before {
-  border-top: 5px solid var(--color-danger);
+  border-top: 4px solid var(--error-color);
 }
 
 /* Анимация для карточек статистики */
@@ -101,49 +137,69 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: linear-gradient(to right, transparent, var(--color-primary), var(--color-accent-alt), transparent);
-  box-shadow: 0 0 15px var(--color-primary);
-  animation: glowPulse 3s infinite alternate;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--reader-gold), var(--reader-brown), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
 }
 
-@keyframes glowPulse {
+.stat-card:hover::after {
+  opacity: 1;
+  animation: readerGlowPulse 2s infinite alternate;
+}
+
+@keyframes readerGlowPulse {
   0% {
-    opacity: 0.5;
-    box-shadow: 0 0 5px var(--color-primary);
+    box-shadow: 0 0 5px var(--reader-gold-glow);
   }
   100% {
-    opacity: 1;
-    box-shadow: 0 0 15px var(--color-primary), 0 0 30px var(--color-accent-alt);
+    box-shadow: 0 0 15px var(--reader-gold-glow), 0 0 25px var(--reader-gold-glow);
   }
 }
 
-/* ---------- Графики ---------- */
+/* ========================================
+   ГРАФИКИ И ДИАГРАММЫ
+   ======================================== */
+
 .dashboard-charts {
-  display: flex;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .chart-container {
-  flex: 1;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
   min-height: 350px;
-  padding: var(--spacing-lg);
+  transition: all var(--transition-normal);
+}
+
+.chart-container:hover {
+  border-color: var(--reader-gold);
+  box-shadow: var(--box-shadow-glow);
 }
 
 .chart-container h3 {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 1.5rem;
   text-align: center;
-  font-size: var(--font-size-md);
-  color: var(--color-text-light);
+  font-size: 1.1rem;
+  color: var(--text-white);
+  font-family: var(--font-heading);
+}
+
+.chart-full-width {
+  grid-column: 1 / -1;
 }
 
 .chart {
   width: 100%;
-  height: calc(100% - 50px);
+  height: calc(100% - 60px);
   min-height: 250px;
-  background-color: rgba(18, 18, 18, 0.5);
-  border-radius: var(--border-radius-md);
+  background: rgba(26, 26, 26, 0.5);
+  border-radius: var(--border-radius);
   overflow: hidden;
   position: relative;
 }
@@ -154,131 +210,211 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  color: var(--color-text-dim);
+  color: var(--text-muted);
   font-style: italic;
 }
 
-/* ---------- Недавние тикеты ---------- */
-.recent-tickets-container {
-  margin-bottom: var(--spacing-xl);
+/* ========================================
+   ТОП КОНТЕНТ
+   ======================================== */
+
+.top-content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
-.recent-tickets-container .section-header {
+.top-content-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  transition: all var(--transition-normal);
+}
+
+.top-content-card:hover {
+  border-color: var(--reader-gold);
+  box-shadow: var(--box-shadow-glow);
+}
+
+.top-content-card h3 {
+  margin-bottom: 1rem;
+  color: var(--text-white);
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.top-content-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.top-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: var(--hover-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.top-item:hover {
+  background: var(--hover-bg);
+  border-color: var(--reader-gold);
+  transform: translateX(2px);
+}
+
+.top-item .rank {
+  font-weight: bold;
+  color: var(--reader-gold);
+  font-size: 1.1rem;
+  margin-right: 1rem;
+  min-width: 30px;
+}
+
+.top-item .name {
+  flex: 1;
+  color: var(--text-white);
+  font-weight: 500;
+}
+
+.top-item .count {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.popular-quotes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.popular-quote {
+  padding: 1rem;
+  background: var(--hover-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.popular-quote:hover {
+  border-color: var(--reader-gold);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.quote-text {
+  color: var(--text-white);
+  font-style: italic;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-heading);
+  line-height: 1.4;
+}
+
+.quote-meta {
+  color: var(--text-muted);
+  font-size: 0.9rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-lg);
+}
+
+.usage-count {
+  color: var(--reader-gold);
+  font-weight: 500;
+}
+
+.loading {
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 2rem;
+}
+
+/* ========================================
+   ПОСЛЕДНИЕ ОБРАЩЕНИЯ
+   ======================================== */
+
+.recent-activity-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  transition: all var(--transition-normal);
+}
+
+.recent-activity-container:hover {
+  border-color: var(--reader-gold);
+  box-shadow: var(--box-shadow-glow);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section-header h3 {
+  margin: 0;
+  color: var(--text-white);
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
 }
 
 .view-all {
-  font-size: var(--font-size-sm);
-  color: var(--color-primary);
+  font-size: 0.9rem;
+  color: var(--reader-gold);
   display: inline-flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 0.5rem;
+  font-weight: 500;
+  transition: color var(--transition-fast);
 }
 
 .view-all:hover {
-  color: var(--color-accent);
+  color: var(--reader-gold-light);
+  text-shadow: 0 0 5px var(--reader-gold-glow);
 }
 
-/* Специфические стили для таблицы тикетов на дашборде */
-.recent-tickets-container .data-table .col-id {
-  width: 80px;
+/* Специфические стили для таблицы на дашборде */
+.recent-activity-container .data-table {
+  font-size: 0.9rem;
 }
 
-.recent-tickets-container .data-table .col-status {
-  width: 100px;
+.recent-activity-container .data-table th {
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--text-white);
+  font-weight: 600;
 }
 
-.recent-tickets-container .data-table .col-priority {
-  width: 100px;
+.recent-activity-container .data-table td {
+  padding: 0.75rem 1rem;
+  color: var(--text-light);
 }
 
-.recent-tickets-container .data-table .col-created {
-  width: 180px;
+.recent-activity-container .data-table tr:hover {
+  background: rgba(212, 175, 55, 0.05);
 }
 
-.recent-tickets-container .data-table .col-actions {
-  width: 100px;
-  text-align: right;
-}
+/* ========================================
+   АДАПТИВНОСТЬ
+   ======================================== */
 
-/* ---------- Управление доходностью фарминга ---------- */
-.farming-rate-container {
-  margin-bottom: var(--spacing-xl);
-}
-
-.farming-rate-container .section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-lg);
-}
-
-.last-updated {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-dim);
-}
-
-.farming-rate-form {
-  display: flex;
-  gap: var(--spacing-lg);
-  align-items: flex-end;
-}
-
-.farming-rate-form .form-group {
-  flex: 1;
-  margin-bottom: 0;
-}
-
-.farming-rate-form button {
-  min-width: 150px;
-}
-
-/* Стилизация поля ввода процента */
-input[type="number"] {
-  appearance: textfield;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  appearance: none;
-  margin: 0;
-}
-
-#farming-rate {
-  font-size: var(--font-size-lg);
-  text-align: center;
-  font-family: var(--font-heading);
-  color: var(--color-primary);
-  background-color: rgba(57, 255, 20, 0.05);
-  border: 1px solid rgba(57, 255, 20, 0.2);
-  box-shadow: inset 0 0 5px rgba(57, 255, 20, 0.1);
-}
-
-#farming-rate:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.2), inset 0 0 5px rgba(57, 255, 20, 0.1);
-}
-
-/* Адаптивные стили для dashboard */
 @media (max-width: 1200px) {
-  .stats-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
   .dashboard-charts {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
   
-  .farming-rate-form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .farming-rate-form .form-group {
-    margin-bottom: var(--spacing-md);
+  .stats-cards {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   }
 }
 
@@ -286,7 +422,7 @@ input[type="number"]::-webkit-outer-spin-button {
   .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-md);
+    gap: 1rem;
   }
   
   .date-range-picker {
@@ -294,21 +430,124 @@ input[type="number"]::-webkit-outer-spin-button {
     justify-content: space-between;
   }
   
-  .recent-tickets-container .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-sm);
+  .stats-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
   
-  .farming-rate-container .section-header {
+  .top-content-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .section-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-sm);
+    gap: 0.5rem;
+  }
+  
+  .chart-container {
+    padding: 1rem;
+    min-height: 300px;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+  }
+  
+  .stat-value {
+    font-size: 2rem;
+  }
+  
+  .dashboard-header h2 {
+    font-size: 1.5rem;
   }
 }
 
 @media (max-width: 480px) {
   .stats-cards {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
+  
+  .top-content-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .chart-container {
+    padding: 1rem;
+    min-height: 250px;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+    text-align: center;
+  }
+  
+  .stat-header {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .top-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .top-item .rank {
+    margin-right: 0;
+    align-self: flex-start;
+  }
+  
+  .quote-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+
+/* ========================================
+   ДОПОЛНИТЕЛЬНЫЕ ЭФФЕКТЫ
+   ======================================== */
+
+/* Анимация появления карточек */
+.stat-card,
+.chart-container,
+.top-content-card,
+.recent-activity-container {
+  animation: cardFadeIn 0.6s ease-out;
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Задержка анимации для карточек статистики */
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+.stat-card:nth-child(4) { animation-delay: 0.4s; }
+.stat-card:nth-child(5) { animation-delay: 0.5s; }
+.stat-card:nth-child(6) { animation-delay: 0.6s; }
+
+/* Книжные акценты */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23d4af37"><path d="M18 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>') no-repeat center;
+  background-size: contain;
+  opacity: 0.1;
 }
