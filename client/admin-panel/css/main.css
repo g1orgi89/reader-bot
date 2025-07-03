@@ -1,7 +1,7 @@
 /**
- * @fileoverview Основные стили для админ-панели Shrooms AI Support Bot
- * @description Общие стили, переменные, компоненты и грибная тематика
- * @author Shrooms Development Team
+ * @fileoverview Основные стили для админ-панели "Читатель"
+ * @description Общие стили, переменные, компоненты в книжной тематике
+ * @author Reader Development Team
  */
 
 /* ========================================
@@ -9,35 +9,39 @@
    ======================================== */
 
 :root {
-  /* Основная цветовая схема грибной тематики */
-  --neon-green: #39FF14;      /* Неоновый зеленый - основной акцент */
-  --neon-green-glow: rgba(57, 255, 20, 0.3);
-  --deep-purple: #8A2BE2;     /* Глубокий фиолетовый - вторичный */
-  --dark-bg: #121212;         /* Очень темный фон */
-  --card-bg: #1e1e1e;         /* Фон карточек */
-  --text-light: #E0E0E0;      /* Основной светлый текст */
-  --text-white: #FFFFFF;      /* Белый текст для заголовков */
-  --neon-pink: #FF6EC7;       /* Неоновый розовый для CTA */
-  --cyber-blue: #00FFF9;      /* Киберпанк голубой */
+  /* Основная цветовая схема книжной тематики */
+  --reader-gold: #d4af37;         /* Золотой - основной акцент */
+  --reader-gold-light: #f1c40f;   /* Светлое золото */
+  --reader-gold-glow: rgba(212, 175, 55, 0.3);
+  --reader-brown: #8b4513;        /* Коричневый - вторичный */
+  --reader-dark-brown: #654321;   /* Темно-коричневый */
+  --dark-bg: #1a1a1a;            /* Темный фон */
+  --card-bg: #2a2a2a;            /* Фон карточек */
+  --text-light: #e8e8e8;         /* Основной светлый текст */
+  --text-white: #ffffff;          /* Белый текст для заголовков */
+  --text-muted: #b8b8b8;         /* Приглушенный текст */
+  --reader-cream: #f5f5dc;       /* Кремовый для акцентов */
+  --reader-navy: #2c3e50;        /* Темно-синий для текста */
   
   /* Дополнительные цвета */
-  --border-color: #333333;
-  --hover-bg: #2a2a2a;
-  --success-color: #4CAF50;
-  --warning-color: #FF9800;
-  --error-color: #F44336;
-  --info-color: var(--cyber-blue);
+  --border-color: #404040;
+  --hover-bg: #3a3a3a;
+  --success-color: #27ae60;
+  --warning-color: #f39c12;
+  --error-color: #e74c3c;
+  --info-color: #3498db;
   
   /* Шрифты */
-  --font-primary: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: 'Orbitron', 'Courier New', monospace;
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Crimson Text', 'Georgia', serif;
+  --font-mono: 'Fira Code', 'Courier New', monospace;
   
   /* Размеры и отступы */
   --header-height: 70px;
   --sidebar-width: 250px;
   --border-radius: 8px;
-  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  --box-shadow-glow: 0 0 20px var(--neon-green-glow);
+  --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --box-shadow-glow: 0 0 20px var(--reader-gold-glow);
   
   /* Переходы */
   --transition-fast: 0.2s ease;
@@ -77,29 +81,39 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   color: var(--text-white);
   margin-bottom: 1rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-h1 { font-size: 2.5rem; }
-h2 { font-size: 2rem; }
-h3 { font-size: 1.5rem; }
+h1 { 
+  font-size: 2.5rem;
+  color: var(--reader-gold);
+}
+h2 { 
+  font-size: 2rem;
+  color: var(--reader-gold);
+}
+h3 { 
+  font-size: 1.5rem;
+  color: var(--text-white);
+}
 h4 { font-size: 1.25rem; }
 h5 { font-size: 1.1rem; }
 h6 { font-size: 1rem; }
 
 p {
   margin-bottom: 1rem;
+  color: var(--text-light);
 }
 
 a {
-  color: var(--neon-green);
+  color: var(--reader-gold);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: var(--cyber-blue);
-  text-shadow: 0 0 10px currentColor;
+  color: var(--reader-gold-light);
+  text-shadow: 0 0 5px var(--reader-gold-glow);
 }
 
 /* ========================================
@@ -115,9 +129,9 @@ a:hover {
 }
 
 .admin-header {
-  background: rgba(30, 30, 30, 0.95);
+  background: rgba(42, 42, 42, 0.95);
   backdrop-filter: blur(10px);
-  border-bottom: 2px solid var(--neon-green);
+  border-bottom: 2px solid var(--reader-gold);
   padding: 1rem 2rem;
   display: flex;
   align-items: center;
@@ -128,7 +142,7 @@ a:hover {
   left: 0;
   right: 0;
   z-index: 1000;
-  box-shadow: 0 2px 10px rgba(57, 255, 20, 0.2);
+  box-shadow: 0 2px 10px rgba(212, 175, 55, 0.2);
 }
 
 .admin-content {
@@ -145,6 +159,7 @@ a:hover {
   text-align: center;
   border-top: 1px solid var(--border-color);
   margin-top: auto;
+  color: var(--text-muted);
 }
 
 /* ========================================
@@ -157,17 +172,23 @@ a:hover {
   gap: 1rem;
 }
 
-.logo {
-  height: 40px;
-  width: auto;
-  filter: drop-shadow(0 0 10px var(--neon-green));
+.logo-icon {
+  font-size: 2rem;
+  filter: drop-shadow(0 0 10px var(--reader-gold));
 }
 
 .logo-container h1 {
   margin: 0;
-  font-size: 1.5rem;
-  color: var(--neon-green);
-  text-shadow: 0 0 10px var(--neon-green-glow);
+  font-size: 1.8rem;
+  color: var(--reader-gold);
+  text-shadow: 0 0 10px var(--reader-gold-glow);
+  font-family: var(--font-heading);
+}
+
+.logo-subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 400;
 }
 
 .main-nav ul {
@@ -189,9 +210,9 @@ a:hover {
 
 .main-nav a:hover,
 .main-nav a.active {
-  color: var(--neon-green);
-  background: rgba(57, 255, 20, 0.1);
-  box-shadow: 0 0 15px var(--neon-green-glow);
+  color: var(--reader-gold);
+  background: rgba(212, 175, 55, 0.1);
+  box-shadow: 0 0 15px var(--reader-gold-glow);
 }
 
 .user-menu {
@@ -227,14 +248,15 @@ a:hover {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--neon-green), var(--cyber-blue));
+  background: linear-gradient(135deg, var(--reader-gold), var(--reader-gold-light));
   color: var(--dark-bg);
+  font-weight: 600;
 }
 
 .btn-secondary {
-  background: var(--deep-purple);
+  background: var(--reader-brown);
   color: var(--text-white);
-  border: 1px solid var(--deep-purple);
+  border: 1px solid var(--reader-brown);
 }
 
 .btn-text {
@@ -263,13 +285,19 @@ a:hover {
   box-shadow: var(--box-shadow-glow);
 }
 
-.btn-glow {
-  animation: pulseGlow 2s infinite;
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 5px var(--neon-green-glow); }
-  50% { box-shadow: 0 0 20px var(--neon-green-glow), 0 0 30px var(--neon-green-glow); }
+.btn-glow {
+  animation: readerGlow 2s infinite;
+}
+
+@keyframes readerGlow {
+  0%, 100% { box-shadow: 0 0 5px var(--reader-gold-glow); }
+  50% { box-shadow: 0 0 20px var(--reader-gold-glow), 0 0 30px var(--reader-gold-glow); }
 }
 
 /* ========================================
@@ -287,7 +315,7 @@ a:hover {
 }
 
 .glow-card:hover {
-  border-color: var(--neon-green);
+  border-color: var(--reader-gold);
   box-shadow: var(--box-shadow-glow);
 }
 
@@ -298,7 +326,7 @@ a:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(45deg, transparent, rgba(57, 255, 20, 0.1), transparent);
+  background: linear-gradient(45deg, transparent, rgba(212, 175, 55, 0.1), transparent);
   border-radius: var(--border-radius);
   opacity: 0;
   transition: opacity var(--transition-normal);
@@ -325,6 +353,7 @@ a:hover {
 }
 
 .form-control,
+.form-input,
 .select-glow,
 textarea {
   width: 100%;
@@ -339,16 +368,39 @@ textarea {
 }
 
 .form-control:focus,
+.form-input:focus,
 .select-glow:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--neon-green);
-  box-shadow: 0 0 10px var(--neon-green-glow);
+  border-color: var(--reader-gold);
+  box-shadow: 0 0 10px var(--reader-gold-glow);
+}
+
+.form-control::placeholder,
+.form-input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
 }
 
 textarea {
   min-height: 120px;
   resize: vertical;
+}
+
+/* Чекбоксы */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: var(--text-light);
+  font-weight: 400;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--reader-gold);
 }
 
 /* ========================================
@@ -359,6 +411,7 @@ textarea {
   overflow-x: auto;
   border-radius: var(--border-radius);
   background: var(--card-bg);
+  border: 1px solid var(--border-color);
 }
 
 .data-table {
@@ -372,10 +425,11 @@ textarea {
   padding: 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
+  color: var(--text-light);
 }
 
 .data-table th {
-  background: rgba(57, 255, 20, 0.1);
+  background: rgba(212, 175, 55, 0.1);
   color: var(--text-white);
   font-weight: 600;
   position: sticky;
@@ -383,12 +437,12 @@ textarea {
 }
 
 .data-table tr:hover {
-  background: rgba(57, 255, 20, 0.05);
+  background: rgba(212, 175, 55, 0.05);
 }
 
 .table-loading td {
   text-align: center;
-  color: var(--text-light);
+  color: var(--text-muted);
   font-style: italic;
   padding: 2rem;
 }
@@ -407,13 +461,35 @@ textarea {
   text-transform: uppercase;
 }
 
-.status-open { background: var(--warning-color); color: var(--dark-bg); }
-.status-resolved { background: var(--success-color); color: var(--dark-bg); }
-.status-closed { background: var(--border-color); color: var(--text-light); }
+.status-open { 
+  background: var(--warning-color); 
+  color: var(--dark-bg); 
+}
+.status-in-progress { 
+  background: var(--info-color); 
+  color: var(--text-white); 
+}
+.status-resolved { 
+  background: var(--success-color); 
+  color: var(--dark-bg); 
+}
+.status-closed { 
+  background: var(--border-color); 
+  color: var(--text-light); 
+}
 
-.priority-low { background: var(--info-color); color: var(--dark-bg); }
-.priority-medium { background: var(--warning-color); color: var(--dark-bg); }
-.priority-high { background: var(--error-color); color: var(--text-white); }
+.priority-low { 
+  background: var(--info-color); 
+  color: var(--text-white); 
+}
+.priority-medium { 
+  background: var(--warning-color); 
+  color: var(--dark-bg); 
+}
+.priority-high { 
+  background: var(--error-color); 
+  color: var(--text-white); 
+}
 
 /* ========================================
    Уведомления
@@ -439,27 +515,51 @@ textarea {
   animation: slideInRight 0.3s ease-out;
   position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast);
+}
+
+.notification-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .notification-success {
   background: var(--success-color);
-  border: 1px solid rgba(76, 175, 80, 0.3);
+  border: 1px solid rgba(39, 174, 96, 0.3);
 }
 
 .notification-error {
   background: var(--error-color);
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  border: 1px solid rgba(231, 76, 60, 0.3);
 }
 
 .notification-warning {
   background: var(--warning-color);
-  border: 1px solid rgba(255, 152, 0, 0.3);
+  border: 1px solid rgba(243, 156, 18, 0.3);
+  color: var(--dark-bg);
 }
 
 .notification-info {
   background: var(--info-color);
-  border: 1px solid rgba(0, 255, 249, 0.3);
-  color: var(--dark-bg);
+  border: 1px solid rgba(52, 152, 219, 0.3);
 }
 
 @keyframes slideInRight {
@@ -474,10 +574,10 @@ textarea {
 }
 
 /* ========================================
-   Грибной цифровой дождь (фон)
+   Книжная анимация фона
    ======================================== */
 
-.mushroom-bg-animation {
+.reader-bg-animation {
   position: fixed;
   top: 0;
   left: 0;
@@ -485,16 +585,16 @@ textarea {
   height: 100%;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.4;
 }
 
-.mushroom-bg-subtle {
-  opacity: 0.3;
+.reader-bg-subtle {
+  opacity: 0.2;
 }
 
 /* Canvas для анимации будет управляться через JavaScript */
-#mushroom-matrix {
-  background: radial-gradient(ellipse at center, rgba(57, 255, 20, 0.1) 0%, transparent 70%);
+#reader-matrix {
+  background: radial-gradient(ellipse at center, rgba(212, 175, 55, 0.1) 0%, transparent 70%);
 }
 
 /* ========================================
@@ -525,7 +625,7 @@ textarea {
 
 .modal-content {
   background: var(--card-bg);
-  border: 2px solid var(--neon-green);
+  border: 2px solid var(--reader-gold);
   border-radius: var(--border-radius);
   padding: 2rem;
   max-width: 90vw;
@@ -567,6 +667,62 @@ textarea {
 }
 
 /* ========================================
+   Загрузка и скелетоны
+   ======================================== */
+
+.loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.loading::after {
+  content: '📖';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  animation: readerSpin 1s linear infinite;
+}
+
+@keyframes readerSpin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--card-bg) 25%, var(--hover-bg) 50%, var(--card-bg) 75%);
+  background-size: 200% 100%;
+  animation: skeletonLoading 1.5s infinite;
+  border-radius: var(--border-radius);
+  height: 1rem;
+}
+
+@keyframes skeletonLoading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ========================================
+   Спиннеры
+   ======================================== */
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ========================================
    Утилитарные классы
    ======================================== */
 
@@ -603,6 +759,8 @@ textarea {
 .text-warning { color: var(--warning-color); }
 .text-error { color: var(--error-color); }
 .text-info { color: var(--info-color); }
+.text-muted { color: var(--text-muted); }
+.text-gold { color: var(--reader-gold); }
 
 .bg-success { background-color: var(--success-color); }
 .bg-warning { background-color: var(--warning-color); }
@@ -642,20 +800,23 @@ textarea {
   }
   
   .admin-content {
-    margin-top: 120px; /* Увеличенный отступ для мобильного header */
+    margin-top: 140px;
     padding: 1rem;
   }
   
   .main-nav ul {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 0.5rem;
     width: 100%;
+    justify-content: center;
   }
   
   .main-nav a {
     display: block;
     text-align: center;
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
   }
   
   .user-menu {
@@ -664,7 +825,7 @@ textarea {
   }
   
   .logo-container h1 {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
   }
   
   .modal-content {
@@ -680,15 +841,13 @@ textarea {
   .notification-container {
     left: 20px;
     right: 20px;
-    top: 80px;
+    top: 120px;
   }
   
-  /* Скрытие сложных анимаций на мобильных устройствах */
-  .mushroom-bg-animation {
+  .reader-bg-animation {
     display: none;
   }
   
-  /* Упрощение эффектов свечения */
   .btn-glow {
     animation: none;
   }
@@ -705,7 +864,7 @@ textarea {
   }
   
   .admin-content {
-    margin-top: 140px;
+    margin-top: 160px;
     padding: 0.75rem;
   }
   
@@ -723,11 +882,20 @@ textarea {
     padding: 0.5rem;
     font-size: 0.8rem;
   }
+  
+  .main-nav a {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.6rem;
+  }
 }
 
-/* Темная тема для системных предпочтений */
-@media (prefers-color-scheme: dark) {
-  /* Основные цвета уже настроены для темной темы */
+/* Высокий контраст */
+@media (prefers-contrast: high) {
+  :root {
+    --reader-gold: #ffdd00;
+    --text-light: #ffffff;
+    --border-color: #666666;
+  }
 }
 
 /* Учет предпочтений по анимации */
@@ -740,55 +908,7 @@ textarea {
     transition-duration: 0.01ms !important;
   }
   
-  .mushroom-bg-animation {
+  .reader-bg-animation {
     display: none;
   }
-}
-
-/* Высокий контраст */
-@media (prefers-contrast: high) {
-  :root {
-    --neon-green: #00FF00;
-    --text-light: #FFFFFF;
-    --border-color: #666666;
-  }
-}
-
-/* ========================================
-   Состояния загрузки
-   ======================================== */
-
-.loading {
-  position: relative;
-  pointer-events: none;
-  opacity: 0.6;
-}
-
-.loading::after {
-  content: '🍄';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 2rem;
-  animation: mushroomSpin 1s linear infinite;
-}
-
-@keyframes mushroomSpin {
-  0% { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-/* Скелетон загрузки */
-.skeleton {
-  background: linear-gradient(90deg, var(--card-bg) 25%, var(--hover-bg) 50%, var(--card-bg) 75%);
-  background-size: 200% 100%;
-  animation: skeletonLoading 1.5s infinite;
-  border-radius: var(--border-radius);
-  height: 1rem;
-}
-
-@keyframes skeletonLoading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
 }
