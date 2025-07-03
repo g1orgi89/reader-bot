@@ -248,7 +248,6 @@
             // Загрузка демо-данных
             loadQuotesDemo();
             loadChartsDemo();
-            loadTopAuthorsDemo();
             
             // Обработчики фильтров
             const periodFilter = document.getElementById('period-filter');
@@ -256,10 +255,18 @@
             const authorFilter = document.getElementById('author-filter');
             const searchInput = document.getElementById('search-quotes');
             
-            if (periodFilter) periodFilter.addEventListener('change', filterQuotes);
-            if (categoryFilter) categoryFilter.addEventListener('change', filterQuotes);
-            if (authorFilter) authorFilter.addEventListener('change', filterQuotes);
-            if (searchInput) searchInput.addEventListener('input', filterQuotes);
+            if (periodFilter) {
+                periodFilter.addEventListener('change', filterQuotes);
+            }
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', filterQuotes);
+            }
+            if (authorFilter) {
+                authorFilter.addEventListener('change', filterQuotes);
+            }
+            if (searchInput) {
+                searchInput.addEventListener('input', filterQuotes);
+            }
             
             // Обработчик экспорта
             const exportBtn = document.getElementById('export-quotes');
@@ -280,7 +287,7 @@
                     id: 'Q001',
                     text: 'В каждом слове — целая жизнь',
                     author: 'Марина Цветаева',
-                    category: 'Мудрость',
+                    category: '🎨 Творчество',
                     user: 'Мария П.',
                     sentiment: 'positive',
                     date: '2 часа назад'
@@ -289,53 +296,44 @@
                     id: 'Q002',
                     text: 'Любовь — это решение любить',
                     author: 'Эрих Фромм',
-                    category: 'Любовь',
+                    category: '💕 Любовь',
                     user: 'Елена С.',
                     sentiment: 'positive',
                     date: '4 часа назад'
                 },
                 {
                     id: 'Q003',
-                    text: 'Счастье внутри нас',
+                    text: 'Счастье внутри нас, а не вовне',
                     author: 'Будда',
-                    category: 'Саморазвитие',
+                    category: '🧠 Мудрость',
                     user: 'Анна М.',
                     sentiment: 'positive',
                     date: '6 часов назад'
                 },
                 {
                     id: 'Q004',
-                    text: 'Время лечит раны',
+                    text: 'Жизнь — это постоянное обучение',
                     author: null,
-                    category: 'Мудрость',
+                    category: '🌱 Саморазвитие',
                     user: 'Наталья К.',
                     sentiment: 'neutral',
                     date: '1 день назад'
                 },
                 {
                     id: 'Q005',
-                    text: 'Жизнь — это путешествие',
-                    author: null,
-                    category: 'Философия',
+                    text: 'Время лечит раны, но оставляет шрамы',
+                    author: 'Народная мудрость',
+                    category: '🤔 Философия',
                     user: 'Ольга Р.',
-                    sentiment: 'positive',
+                    sentiment: 'neutral',
                     date: '1 день назад'
                 },
                 {
                     id: 'Q006',
-                    text: 'Не бойтесь совершенства — вам его никогда не достичь',
-                    author: 'Сальвадор Дали',
-                    category: 'Творчество',
-                    user: 'Мария П.',
-                    sentiment: 'neutral',
-                    date: '2 дня назад'
-                },
-                {
-                    id: 'Q007',
-                    text: 'Будь собой — все остальные уже заняты',
-                    author: 'Оскар Уайльд',
-                    category: 'Саморазвитие',
-                    user: 'Елена С.',
+                    text: 'Быть собой в мире, который постоянно пытается сделать вас кем-то другим — величайшее достижение',
+                    author: 'Ральф Эмерсон',
+                    category: '🌱 Саморазвитие',
+                    user: 'Татьяна В.',
                     sentiment: 'positive',
                     date: '2 дня назад'
                 }
@@ -343,27 +341,24 @@
             
             tbody.innerHTML = demoQuotes.map(quote => {
                 const sentimentBadge = getSentimentBadge(quote.sentiment);
-                const categoryBadge = getCategoryBadge(quote.category);
-                const authorDisplay = quote.author || '<em>Без автора</em>';
-                const truncatedText = quote.text.length > 60 ? quote.text.substring(0, 60) + '...' : quote.text;
+                const authorDisplay = quote.author || '<span class="no-author">Без автора</span>';
+                const shortText = quote.text.length > 60 ? quote.text.substring(0, 60) + '...' : quote.text;
                 
                 return `
                     <tr onclick="viewQuote('${quote.id}')">
                         <td>${quote.id}</td>
                         <td>
-                            <div class="quote-text">
-                                <strong>"${truncatedText}"</strong>
-                            </div>
+                            <div class="quote-text">"${shortText}"</div>
                         </td>
                         <td>${authorDisplay}</td>
-                        <td>${categoryBadge}</td>
+                        <td><span class="category-badge">${quote.category}</span></td>
                         <td>${quote.user}</td>
                         <td>${sentimentBadge}</td>
                         <td>${quote.date}</td>
                         <td>
                             <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); viewQuote('${quote.id}')">👁️</button>
-                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); analyzeQuote('${quote.id}')">🧠</button>
                             <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); editQuote('${quote.id}')">✏️</button>
+                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); analyzeQuote('${quote.id}')">🔍</button>
                         </td>
                     </tr>
                 `;
@@ -372,23 +367,26 @@
             // Обновляем пагинацию
             document.getElementById('pagination-range').textContent = `1-${demoQuotes.length}`;
             document.getElementById('pagination-total').textContent = demoQuotes.length;
+            
+            // Загрузка топ авторов
+            loadTopAuthors();
         }
         
         /**
          * Загрузка графиков (демо)
          */
         function loadChartsDemo() {
-            // График категорий
+            // График по категориям
             const categoriesCtx = document.getElementById('categoriesChart');
             if (categoriesCtx) {
                 new Chart(categoriesCtx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Саморазвитие', 'Любовь', 'Мудрость', 'Философия', 'Мотивация', 'Творчество'],
+                        labels: ['Саморазвитие', 'Любовь', 'Мудрость', 'Философия', 'Творчество', 'Мотивация'],
                         datasets: [{
                             data: [34, 22, 18, 12, 8, 6],
                             backgroundColor: [
-                                '#d4af37', '#8b4513', '#2c3e50', '#7f8c8d', '#e74c3c', '#9b59b6'
+                                '#d4af37', '#c97a7e', '#81b3d3', '#a8c686', '#deb887', '#cd853f'
                             ]
                         }]
                     },
@@ -412,10 +410,10 @@
                         labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
                         datasets: [{
                             label: 'Цитаты',
-                            data: [12, 19, 15, 22, 18, 25, 20],
+                            data: [12, 19, 15, 25, 22, 18, 24],
                             borderColor: '#d4af37',
                             backgroundColor: 'rgba(212, 175, 55, 0.1)',
-                            tension: 0.4
+                            tension: 0.1
                         }]
                     },
                     options: {
@@ -431,25 +429,25 @@
         }
         
         /**
-         * Загрузка топ авторов (демо)
+         * Загрузка топ авторов
          */
-        function loadTopAuthorsDemo() {
+        function loadTopAuthors() {
             const container = document.getElementById('top-authors-list');
             if (!container) return;
             
             const topAuthors = [
-                { name: 'Эрих Фромм', count: 89 },
-                { name: 'Лев Толстой', count: 67 },
-                { name: 'Марина Цветаева', count: 54 },
-                { name: 'Оскар Уайльд', count: 43 },
-                { name: 'Будда', count: 38 }
+                { name: 'Лев Толстой', count: 234 },
+                { name: 'Эрих Фромм', count: 189 },
+                { name: 'Марина Цветаева', count: 156 },
+                { name: 'Будда', count: 134 },
+                { name: 'Ральф Эмерсон', count: 98 }
             ];
             
             container.innerHTML = topAuthors.map((author, index) => `
                 <div class="top-author-item">
                     <span class="rank">${index + 1}</span>
                     <span class="name">${author.name}</span>
-                    <span class="count">${author.count} цитат</span>
+                    <span class="count">${author.count}</span>
                 </div>
             `).join('');
         }
@@ -461,25 +459,9 @@
             const sentimentMap = {
                 'positive': '<span class="sentiment-badge sentiment-positive">😊 Позитивный</span>',
                 'neutral': '<span class="sentiment-badge sentiment-neutral">😐 Нейтральный</span>',
-                'negative': '<span class="sentiment-badge sentiment-negative">😔 Грустный</span>'
+                'negative': '<span class="sentiment-badge sentiment-negative">😔 Негативный</span>'
             };
-            return sentimentMap[sentiment] || '<span class="sentiment-badge sentiment-neutral">❓ Неизвестно</span>';
-        }
-        
-        /**
-         * Получение значка категории
-         */
-        function getCategoryBadge(category) {
-            const categoryMap = {
-                'Саморазвитие': '<span class="category-badge category-growth">🌱 Саморазвитие</span>',
-                'Любовь': '<span class="category-badge category-love">💕 Любовь</span>',
-                'Мудрость': '<span class="category-badge category-wisdom">🧠 Мудрость</span>',
-                'Философия': '<span class="category-badge category-philosophy">🤔 Философия</span>',
-                'Мотивация': '<span class="category-badge category-motivation">⚡ Мотивация</span>',
-                'Творчество': '<span class="category-badge category-creativity">🎨 Творчество</span>',
-                'Отношения': '<span class="category-badge category-relationships">👥 Отношения</span>'
-            };
-            return categoryMap[category] || '<span class="category-badge category-other">❓ Другое</span>';
+            return sentimentMap[sentiment] || '<span class="sentiment-badge sentiment-neutral">❓ Неопределен</span>';
         }
         
         /**
@@ -499,7 +481,7 @@
         }
         
         /**
-         * Просмотр деталей цитаты
+         * Просмотр цитаты
          */
         function viewQuote(quoteId) {
             console.log('📝 Просмотр цитаты:', quoteId);
@@ -516,60 +498,69 @@
             
             setTimeout(() => {
                 content.innerHTML = `
-                    <div class="quote-details">
+                    <div class="quote-profile">
                         <div class="quote-main">
-                            <blockquote class="quote-text">
-                                "В каждом слове — целая жизнь"
-                            </blockquote>
-                            <div class="quote-attribution">
-                                — Марина Цветаева
+                            <div class="quote-text-full">
+                                "В каждом слове — целая жизнь. Каждое слово несет в себе историю, эмоцию, смысл, который может изменить восприятие мира."
                             </div>
+                            <div class="quote-author">— Марина Цветаева</div>
                         </div>
                         
-                        <div class="quote-metadata">
-                            <div class="metadata-row">
-                                <label>Категория:</label>
-                                <span class="category-badge category-wisdom">🧠 Мудрость</span>
+                        <div class="quote-meta">
+                            <div class="meta-section">
+                                <h4>📊 Анализ</h4>
+                                <div class="meta-data">
+                                    <div class="meta-item">
+                                        <label>Категория:</label>
+                                        <span class="category-badge">🎨 Творчество</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <label>Настроение:</label>
+                                        <span class="sentiment-badge sentiment-positive">😊 Позитивный</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <label>Темы:</label>
+                                        <span class="themes">поэзия, творчество, вдохновение</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="metadata-row">
-                                <label>Настроение:</label>
-                                <span class="sentiment-badge sentiment-positive">😊 Позитивный</span>
+                            
+                            <div class="meta-section">
+                                <h4>👤 Пользователь</h4>
+                                <div class="meta-data">
+                                    <div class="meta-item">
+                                        <label>Имя:</label>
+                                        <span>Мария Петрова</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <label>Telegram:</label>
+                                        <span>@maria_p</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <label>Дата отправки:</label>
+                                        <span>03.07.2025, 11:23</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="metadata-row">
-                                <label>Пользователь:</label>
-                                <span>Мария П. (@maria_p)</span>
-                            </div>
-                            <div class="metadata-row">
-                                <label>Дата:</label>
-                                <span>15 января 2025, 14:23</span>
-                            </div>
-                        </div>
-                        
-                        <div class="ai-analysis">
-                            <h4>🧠 AI Анализ</h4>
-                            <div class="analysis-content">
-                                <p><strong>Тематика:</strong> Цитата отражает глубокое понимание силы слова и его влияния на жизнь человека.</p>
-                                <p><strong>Эмоциональный тон:</strong> Философский, вдохновляющий, поэтический.</p>
-                                <p><strong>Рекомендации:</strong> Подходит для пользователей, интересующихся поэзией и философией языка.</p>
+                            
+                            <div class="meta-section">
+                                <h4>🤖 AI Анализ</h4>
+                                <div class="ai-analysis">
+                                    <p>Эта цитата отражает глубокое понимание силы слов и языка. Пользователь находится в поиске творческого самовыражения и понимания глубинного смысла литературы.</p>
+                                    
+                                    <p><strong>Рекомендация:</strong> Подходит разбор "Письма к молодому поэту" Рильке для развития творческого потенциала.</p>
+                                </div>
                             </div>
                         </div>
                         
                         <div class="quote-actions">
-                            <button class="btn btn-primary" onclick="analyzeQuote('${quoteId}')">🧠 Углубленный анализ</button>
-                            <button class="btn btn-secondary" onclick="findSimilarQuotes('${quoteId}')">🔍 Похожие цитаты</button>
-                            <button class="btn btn-secondary" onclick="addToKnowledge('${quoteId}')">📚 Добавить в базу знаний</button>
+                            <button class="btn btn-primary" onclick="addToKnowledgeBase('${quoteId}')">📚 Добавить в базу знаний</button>
+                            <button class="btn btn-secondary" onclick="similarQuotes('${quoteId}')">🔍 Похожие цитаты</button>
+                            <button class="btn btn-secondary" onclick="flagQuote('${quoteId}')">🚩 Отметить</button>
                         </div>
                     </div>
                 `;
             }, 1000);
-        }
-        
-        /**
-         * Анализ цитаты
-         */
-        function analyzeQuote(quoteId) {
-            console.log('📝 Анализ цитаты:', quoteId);
-            showNotification('info', `Запуск AI анализа для ${quoteId}`);
         }
         
         /**
@@ -578,6 +569,14 @@
         function editQuote(quoteId) {
             console.log('📝 Редактирование цитаты:', quoteId);
             showNotification('info', `Редактирование ${quoteId}`);
+        }
+        
+        /**
+         * Анализ цитаты
+         */
+        function analyzeQuote(quoteId) {
+            console.log('📝 Анализ цитаты:', quoteId);
+            showNotification('info', `AI анализ ${quoteId} запущен`);
         }
         
         /**
