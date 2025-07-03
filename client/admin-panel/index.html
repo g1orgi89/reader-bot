@@ -1,55 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reader AI Support Bot - Admin Dashboard</title>
+    <title>📖 Читатель - Админ Панель</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/dashboard.css">
-    <meta name="description" content="Admin dashboard for Reader AI Support Bot">
-    <!-- Preconnect to font sources -->
+    <meta name="description" content="Админ-панель для проекта 'Читатель' - анализ цитат и пользователей">
+    <!-- Подключение шрифтов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <!-- Книжная фоновая анимация - тонкая версия для дашборда -->
+    <!-- Тонкая книжная анимация для дашборда -->
     <div class="reader-bg-animation reader-bg-subtle" id="reader-matrix"></div>
     
     <div class="admin-layout">
         <!-- Header -->
         <header class="admin-header">
             <div class="logo-container">
-                <img src="img/logo.svg" alt="Reader AI Support Bot" class="logo">
-                <h1>📖 Reader Admin</h1>
+                <div class="logo-icon">📖</div>
+                <h1>Читатель</h1>
+                <span class="logo-subtitle">Админ-панель</span>
             </div>
             
             <nav class="main-nav">
                 <ul>
-                    <li><a href="index.html" class="active">Dashboard</a></li>
-                    <li><a href="tickets.html">Tickets</a></li>
-                    <li><a href="knowledge.html">Knowledge Base</a></li>
-                    <li><a href="prompts.html">Prompts</a></li>
+                    <li><a href="index.html" class="active">📊 Дашборд</a></li>
+                    <li><a href="users.html">👥 Пользователи</a></li>
+                    <li><a href="quotes.html">📝 Цитаты</a></li>
+                    <li><a href="reports.html">📈 Отчеты</a></li>
+                    <li><a href="tickets.html">🎫 Обращения</a></li>
+                    <li><a href="settings.html">⚙️ Настройки</a></li>
                 </ul>
             </nav>
             
             <div class="user-menu">
-                <span id="admin-username"></span>
-                <button id="logout-btn" class="btn btn-text">Logout</button>
+                <span id="admin-username">Анна Бусел</span>
+                <button id="logout-btn" class="btn btn-text">Выход</button>
             </div>
         </header>
         
         <!-- Main content -->
         <main class="admin-content">
             <div class="dashboard-header">
-                <h2>📖 Читательский Дашборд</h2>
+                <h2>📊 Аналитика "Читателя"</h2>
                 <div class="date-range-picker">
-                    <label for="date-range">Период мониторинга:</label>
+                    <label for="date-range">Период:</label>
                     <select id="date-range" class="select-glow">
-                        <option value="today">Сегодня</option>
-                        <option value="week" selected>Последние 7 дней</option>
-                        <option value="month">Последние 30 дней</option>
-                        <option value="quarter">Последние 90 дней</option>
+                        <option value="1d">Сегодня</option>
+                        <option value="7d" selected>7 дней</option>
+                        <option value="30d">30 дней</option>
+                        <option value="90d">90 дней</option>
                     </select>
                 </div>
             </div>
@@ -57,56 +62,107 @@
             <!-- Stats cards -->
             <div class="stats-cards">
                 <div class="stat-card glow-card">
-                    <h3>💬 Активные Беседы</h3>
-                    <div class="stat-value" id="active-conversations-count">--</div>
-                    <div class="stat-change positive">+5% к прошлому периоду</div>
+                    <div class="stat-header">
+                        <h3>👥 Всего пользователей</h3>
+                        <div class="stat-icon">📈</div>
+                    </div>
+                    <div class="stat-value" id="total-users-count">--</div>
+                    <div class="stat-change positive" id="users-change">+5% к прошлому периоду</div>
                 </div>
                 
                 <div class="stat-card glow-card">
-                    <h3>🎫 Открытые Тикеты</h3>
-                    <div class="stat-value" id="open-tickets-count">--</div>
-                    <div class="stat-change negative">+12% к прошлому периоду</div>
+                    <div class="stat-header">
+                        <h3>🆕 Новые пользователи</h3>
+                        <div class="stat-icon">✨</div>
+                    </div>
+                    <div class="stat-value" id="new-users-count">--</div>
+                    <div class="stat-change positive" id="new-users-change">+12% к прошлому периоду</div>
                 </div>
                 
                 <div class="stat-card glow-card">
-                    <h3>✅ Решенные Проблемы</h3>
-                    <div class="stat-value" id="resolved-issues-count">--</div>
-                    <div class="stat-change positive">+8% к прошлому периоду</div>
+                    <div class="stat-header">
+                        <h3>📚 Цитаты за период</h3>
+                        <div class="stat-icon">💫</div>
+                    </div>
+                    <div class="stat-value" id="total-quotes-count">--</div>
+                    <div class="stat-change positive" id="quotes-change">+8% к прошлому периоду</div>
                 </div>
                 
                 <div class="stat-card glow-card">
-                    <h3>⚡ Время Ответа</h3>
-                    <div class="stat-value" id="avg-response-time">--</div>
-                    <div class="stat-change positive">-5% к прошлому периоду</div>
+                    <div class="stat-header">
+                        <h3>⚡ Среднее цитат/юзер</h3>
+                        <div class="stat-icon">📊</div>
+                    </div>
+                    <div class="stat-value" id="avg-quotes-count">--</div>
+                    <div class="stat-change positive" id="avg-quotes-change">-5% к прошлому периоду</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>🎯 Активные пользователи</h3>
+                        <div class="stat-icon">🔥</div>
+                    </div>
+                    <div class="stat-value" id="active-users-count">--</div>
+                    <div class="stat-change positive" id="active-users-change">+15% к прошлому периоду</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>🎁 Использование промо</h3>
+                        <div class="stat-icon">💎</div>
+                    </div>
+                    <div class="stat-value" id="promo-usage-count">--</div>
+                    <div class="stat-change positive" id="promo-usage-change">+22% к прошлому периоду</div>
                 </div>
             </div>
             
             <!-- Charts -->
             <div class="dashboard-charts">
                 <div class="chart-container glow-card">
-                    <h3>📈 Рост Бесед во Времени</h3>
-                    <div class="chart" id="conversations-chart">
-                        <div class="chart-placeholder">
-                            📖 Загрузка графика активности пользователей...
-                        </div>
-                    </div>
+                    <h3>📊 Источники пользователей</h3>
+                    <canvas id="sourceChart" width="400" height="200"></canvas>
                 </div>
                 
                 <div class="chart-container glow-card">
-                    <h3>🔥 Популярные Темы</h3>
-                    <div class="chart" id="topics-chart">
-                        <div class="chart-placeholder">
-                            📖 Анализ популярности тем...
-                        </div>
+                    <h3>📈 UTM кампании</h3>
+                    <canvas id="utmChart" width="400" height="200"></canvas>
+                </div>
+                
+                <div class="chart-container glow-card chart-full-width">
+                    <h3>🔥 Retention по когортам</h3>
+                    <canvas id="retentionChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+            
+            <!-- Top content -->
+            <div class="top-content-grid">
+                <div class="top-content-card glow-card">
+                    <h3>📚 Топ авторы</h3>
+                    <div class="top-content-list" id="top-authors">
+                        <div class="loading">📖 Загрузка...</div>
+                    </div>
+                </div>
+                
+                <div class="top-content-card glow-card">
+                    <h3>🎯 Топ категории</h3>
+                    <div class="top-content-list" id="top-categories">
+                        <div class="loading">📖 Загрузка...</div>
+                    </div>
+                </div>
+                
+                <div class="top-content-card glow-card">
+                    <h3>💫 Популярные цитаты</h3>
+                    <div class="popular-quotes-list" id="popular-quotes">
+                        <div class="loading">📖 Загрузка...</div>
                     </div>
                 </div>
             </div>
             
-            <!-- Recent tickets -->
-            <div class="recent-tickets-container glow-card">
+            <!-- Recent activity -->
+            <div class="recent-activity-container glow-card">
                 <div class="section-header">
-                    <h3>🎫 Последние Тикеты</h3>
-                    <a href="tickets.html" class="view-all">Все тикеты →</a>
+                    <h3>🎫 Последние обращения</h3>
+                    <a href="tickets.html" class="view-all">Все обращения →</a>
                 </div>
                 
                 <div class="table-container">
@@ -114,16 +170,16 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
+                                <th>Пользователь</th>
                                 <th>Тема</th>
                                 <th>Статус</th>
-                                <th>Приоритет</th>
                                 <th>Создан</th>
                                 <th>Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="table-loading">
-                                <td colspan="6">📖 Загрузка тикетов...</td>
+                                <td colspan="6">📖 Загрузка обращений...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -133,8 +189,8 @@
         
         <!-- Footer -->
         <footer class="admin-footer">
-            <p>📖 Reader AI Support Bot - Панель Управления</p>
-            <p class="copyright">© 2025 Reader Project. Все права защищены.</p>
+            <p>📖 "Читатель" - Админ-панель для анализа цитат и пользователей</p>
+            <p class="copyright">© 2025 Анна Бусел. Все права защищены.</p>
         </footer>
     </div>
     
@@ -142,83 +198,148 @@
     <div class="notification-container" id="notification-container"></div>
     
     <!-- Scripts -->
-    <!-- Порядок важен: сначала auth, потом остальные -->
     <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
     <script src="js/dashboard.js"></script>
     
     <script>
         /**
-         * Инициализация дашборда после загрузки DOM
-         * Упрощенная версия - auth.js уже проверил аутентификацию автоматически
+         * Инициализация дашборда Reader после загрузки DOM
          */
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('📖 Инициализация дашборда для читателей');
+            console.log('📖 Инициализация дашборда "Читатель"');
             
-            // auth.js уже проверил аутентификацию и настроил все необходимое
-            // Если мы здесь - значит пользователь авторизован
+            // Проверка аутентификации
+            if (typeof checkAuthStatus === 'function') {
+                checkAuthStatus();
+            }
             
-            // Инициализируем дашборд (если функция существует)
-            if (typeof initDashboard === 'function') {
-                initDashboard();
+            // Инициализация дашборда
+            if (typeof ReaderDashboard === 'function') {
+                new ReaderDashboard();
             } else {
-                console.log('📖 Функция initDashboard не найдена, используем базовую инициализацию');
+                console.log('📖 Класс ReaderDashboard не найден, используем базовую инициализацию');
                 initBasicDashboard();
             }
             
-            // Инициализируем тонкую версию книжной анимации для дашборда
+            // Инициализация книжной анимации
             if (typeof initReaderMatrix === 'function') {
-                initReaderMatrix(true); // subtle mode
+                initReaderMatrix(true); // subtle mode для дашборда
             }
         });
         
         /**
-         * Базовая инициализация дашборда на случай отсутствия dashboard.js
+         * Базовая инициализация дашборда
          */
         function initBasicDashboard() {
             console.log('📖 Базовая инициализация дашборда');
-            
-            // Базовая загрузка статистики
-            loadBasicStats();
             
             // Обработчик изменения периода
             const dateRange = document.getElementById('date-range');
             if (dateRange) {
                 dateRange.addEventListener('change', () => {
-                    console.log('📖 Изменен период мониторинга:', dateRange.value);
+                    console.log('📖 Изменен период:', dateRange.value);
                     loadBasicStats();
                 });
+            }
+            
+            // Загрузка базовой статистики
+            loadBasicStats();
+        }
+        
+        /**
+         * Загрузка базовой статистики (заглушка)
+         */
+        function loadBasicStats() {
+            console.log('📖 Загрузка статистики');
+            
+            // Имитация загрузки
+            setTimeout(() => {
+                const stats = {
+                    'total-users-count': '1,247',
+                    'new-users-count': '156',
+                    'total-quotes-count': '8,734',
+                    'avg-quotes-count': '7.2',
+                    'active-users-count': '423',
+                    'promo-usage-count': '89'
+                };
+                
+                Object.entries(stats).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                });
+                
+                loadTopContentStub();
+                loadRecentTicketsStub();
+            }, 1000);
+        }
+        
+        /**
+         * Загрузка топ контента (заглушка)
+         */
+        function loadTopContentStub() {
+            const topAuthors = document.getElementById('top-authors');
+            const topCategories = document.getElementById('top-categories');
+            const popularQuotes = document.getElementById('popular-quotes');
+            
+            if (topAuthors) {
+                topAuthors.innerHTML = `
+                    <div class="top-item">
+                        <span class="rank">1</span>
+                        <span class="name">Лев Толстой</span>
+                        <span class="count">234 цитаты</span>
+                    </div>
+                    <div class="top-item">
+                        <span class="rank">2</span>
+                        <span class="name">Эрих Фромм</span>
+                        <span class="count">189 цитат</span>
+                    </div>
+                    <div class="top-item">
+                        <span class="rank">3</span>
+                        <span class="name">Марина Цветаева</span>
+                        <span class="count">156 цитат</span>
+                    </div>
+                `;
+            }
+            
+            if (topCategories) {
+                topCategories.innerHTML = `
+                    <div class="top-item">
+                        <span class="rank">1</span>
+                        <span class="name">Саморазвитие</span>
+                        <span class="count">1,234 цитаты</span>
+                    </div>
+                    <div class="top-item">
+                        <span class="rank">2</span>
+                        <span class="name">Любовь</span>
+                        <span class="count">967 цитат</span>
+                    </div>
+                    <div class="top-item">
+                        <span class="rank">3</span>
+                        <span class="name">Мудрость</span>
+                        <span class="count">723 цитаты</span>
+                    </div>
+                `;
+            }
+            
+            if (popularQuotes) {
+                popularQuotes.innerHTML = `
+                    <div class="popular-quote">
+                        <div class="quote-text">"В каждом слове — целая жизнь"</div>
+                        <div class="quote-meta">— Марина Цветаева <span class="usage-count">(12 раз)</span></div>
+                    </div>
+                    <div class="popular-quote">
+                        <div class="quote-text">"Любовь — это решение любить"</div>
+                        <div class="quote-meta">— Эрих Фромм <span class="usage-count">(8 раз)</span></div>
+                    </div>
+                `;
             }
         }
         
         /**
-         * Базовая загрузка статистики (заглушка)
-         */
-        function loadBasicStats() {
-            console.log('📖 Загрузка базовой статистики');
-            
-            // Заглушки для статистики
-            const stats = {
-                'active-conversations-count': '42',
-                'open-tickets-count': '7',
-                'resolved-issues-count': '156',
-                'avg-response-time': '2.3s'
-            };
-            
-            // Обновляем значения на странице
-            Object.entries(stats).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.textContent = value;
-                }
-            });
-            
-            // Загрузка последних тикетов (заглушка)
-            loadRecentTicketsStub();
-        }
-        
-        /**
-         * Загрузка последних тикетов (заглушка)
+         * Загрузка последних обращений (заглушка)
          */
         function loadRecentTicketsStub() {
             const tbody = document.querySelector('#recent-tickets-table tbody');
@@ -226,26 +347,42 @@
             
             tbody.innerHTML = `
                 <tr>
-                    <td>#001</td>
-                    <td>Проблема с сохранением цитат</td>
-                    <td><span class="status-badge status-open">Открыт</span></td>
-                    <td><span class="priority-badge priority-medium">Средний</span></td>
+                    <td>#RDER001</td>
+                    <td>Мария К.</td>
+                    <td>Вопрос о еженедельных отчетах</td>
+                    <td><span class="status-badge status-open">Открыто</span></td>
                     <td>2 часа назад</td>
-                    <td><button class="btn btn-sm">Просмотр</button></td>
+                    <td><button class="btn btn-sm" onclick="viewTicket('RDER001')">Просмотр</button></td>
                 </tr>
                 <tr>
-                    <td>#002</td>
-                    <td>Вопрос о еженедельных отчетах</td>
-                    <td><span class="status-badge status-resolved">Решен</span></td>
-                    <td><span class="priority-badge priority-low">Низкий</span></td>
+                    <td>#RDER002</td>
+                    <td>Елена А.</td>
+                    <td>Помогите разобраться с мотивацией</td>
+                    <td><span class="status-badge status-in-progress">В работе</span></td>
+                    <td>5 часов назад</td>
+                    <td><button class="btn btn-sm" onclick="viewTicket('RDER002')">Просмотр</button></td>
+                </tr>
+                <tr>
+                    <td>#RDER003</td>
+                    <td>Анна М.</td>
+                    <td>Цитаты не сохраняются</td>
+                    <td><span class="status-badge status-resolved">Решено</span></td>
                     <td>1 день назад</td>
-                    <td><button class="btn btn-sm">Просмотр</button></td>
+                    <td><button class="btn btn-sm" onclick="viewTicket('RDER003')">Просмотр</button></td>
                 </tr>
             `;
         }
         
         /**
-         * Показ уведомления (базовая реализация)
+         * Просмотр тикета
+         */
+        function viewTicket(ticketId) {
+            console.log('📖 Просмотр тикета:', ticketId);
+            window.location.href = `tickets.html?id=${ticketId}`;
+        }
+        
+        /**
+         * Показ уведомления
          */
         function showNotification(type, message) {
             const container = document.getElementById('notification-container');
@@ -256,11 +393,17 @@
             
             const notification = document.createElement('div');
             notification.className = `notification notification-${type}`;
-            notification.textContent = message;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : '📖'}</span>
+                    <span class="notification-message">${message}</span>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+            `;
             
             container.appendChild(notification);
             
-            // Удаляем уведомление через 5 секунд
+            // Автоматическое удаление через 5 секунд
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
