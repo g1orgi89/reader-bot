@@ -27,6 +27,7 @@ const adminRoutes = require('./api/admin');
 const knowledgeRoutes = require('./api/knowledge');
 const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 НОВОЕ: Маршруты отчетов
+const analyticsRoutes = require('./routes/analytics'); // 📊 НОВОЕ: Маршруты аналитики
 
 // Services
 const dbService = require('./services/database');
@@ -40,6 +41,7 @@ const ticketService = require('./services/ticketing');
 const ticketEmailService = require('./services/ticketEmail');
 const { CronService } = require('./services/cronService'); // 🔧 FIX: Импорт класса
 const telegramReportService = require('./services/telegramReportService'); // 📖 НОВОЕ
+const analyticsService = require('./services/analyticsService'); // 📊 НОВОЕ
 
 /**
  * @typedef {import('./types').ShroomsError} ShroomsError
@@ -144,6 +146,7 @@ app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
 app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
 app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
 app.use(`${config.app.apiPrefix}/reports`, reportRoutes); // 📖 НОВОЕ: Маршруты отчетов
+app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes); // 📊 НОВОЕ: Маршруты аналитики
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
@@ -160,6 +163,16 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
     // 📖 НОВОЕ: Статус cron задач
     const cronStatus = cronService.getJobsStatus();
 
+    // 📊 НОВОЕ: Проверка сервиса аналитики
+    let analyticsHealth = { status: 'ok' };
+    try {
+      // Простая проверка доступности моделей аналитики
+      const { UTMClick } = require('./models/analytics');
+      await UTMClick.countDocuments().limit(1);
+    } catch (error) {
+      analyticsHealth = { status: 'error', error: error.message };
+    }
+
     const health = {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -172,7 +185,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         prompts: promptHealth,
         ticketEmail: 'ok',
         language: simpleLanguageService.healthCheck(),
-        cron: cronStatus.totalJobs > 0 ? 'ok' : 'stopped' // 📖 НОВОЕ: исправлено
+        cron: cronStatus.totalJobs > 0 ? 'ok' : 'stopped', // 📖 НОВОЕ: исправлено
+        analytics: analyticsHealth.status // 📊 НОВОЕ
       },
       aiProvider: aiProviderInfo,
       promptService: {
@@ -192,6 +206,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
           dailyCleanup: cronService.getNextRunTime('daily_cleanup')
         }
       },
+      // 📊 НОВОЕ: Информация о сервисе аналитики
+      analyticsService: analyticsHealth,
       features: config.features,
       // ДОБАВЛЕНО: информация о Socket.IO подключениях
       socketConnections: {
@@ -375,6 +391,17 @@ io.on('connection', (socket) => {
         userId: data.userId,
         messageCount: connection.messageCount
       });
+
+      // 📊 НОВОЕ: Трекинг действия пользователя
+      try {
+        await analyticsService.trackUserAction(data.userId, 'quote_added', {
+          messageLength: data.message.length,
+          source: 'socket'
+        });
+      } catch (analyticsError) {
+        logger.warn('📊 Failed to track user action:', analyticsError.message);
+        // Не прерываем обработку сообщения из-за ошибки аналитики
+      }
 
       // Валидация входных данных
       if (!data.message || !data.userId) {
@@ -752,6 +779,10 @@ async function startServer() {
     logger.info('🎫 Initializing Ticket Email Service...');
     logger.info(`✅ Ticket Email Service ready (Email timeout: ${ticketEmailService.EMAIL_TIMEOUT / 1000}s)`);
     
+    // 📊 НОВОЕ: Инициализация AnalyticsService
+    logger.info('📊 Initializing Analytics Service...');
+    logger.info('✅ Analytics Service ready for tracking UTM, promo codes, and user actions');
+    
     // 📖 НОВОЕ: Инициализация и запуск CronService
     logger.info('📖 Initializing Cron Service...');
     try {
@@ -798,6 +829,7 @@ async function startServer() {
       logger.info(`🌍 Language detection: SIMPLIFIED (no complex analysis)`);
       logger.info(`📖 Weekly reports automation: ENABLED`); // 📖 НОВОЕ
       logger.info(`📊 Reports API: ${config.app.apiPrefix}/reports`); // 📖 НОВОЕ
+      logger.info(`📊 Analytics API: ${config.app.apiPrefix}/analytics`); // 📊 НОВОЕ
       
       // Логируем URL для разных режимов
       if (config.app.isDevelopment) {
