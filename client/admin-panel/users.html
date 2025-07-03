@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👥 Пользователи - Читатель</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <meta name="description" content="Управление пользователями проекта 'Читатель'">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="reader-bg-animation reader-bg-subtle" id="reader-matrix"></div>
+    
+    <div class="admin-layout">
+        <header class="admin-header">
+            <div class="logo-container">
+                <div class="logo-icon">📖</div>
+                <h1>Читатель</h1>
+                <span class="logo-subtitle">Админ-панель</span>
+            </div>
+            
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html">📊 Дашборд</a></li>
+                    <li><a href="users.html" class="active">👥 Пользователи</a></li>
+                    <li><a href="quotes.html">📝 Цитаты</a></li>
+                    <li><a href="reports.html">📈 Отчеты</a></li>
+                    <li><a href="tickets.html">🎫 Обращения</a></li>
+                    <li><a href="settings.html">⚙️ Настройки</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-menu">
+                <span id="admin-username">Анна Бусел</span>
+                <button id="logout-btn" class="btn btn-text">Выход</button>
+            </div>
+        </header>
+        
+        <main class="admin-content">
+            <div class="dashboard-header">
+                <h2>👥 Управление пользователями</h2>
+                <div class="actions-group">
+                    <button class="btn btn-primary" onclick="exportUsers()">📄 Экспорт</button>
+                </div>
+            </div>
+            
+            <!-- Фильтры и поиск -->
+            <div class="filters-container glow-card">
+                <div class="search-group">
+                    <input type="search" placeholder="Поиск по имени, email или @username" class="search-input">
+                    <button class="btn search-btn">🔍</button>
+                </div>
+                <div class="filter-group">
+                    <select class="select-glow">
+                        <option value="">source</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="telegram">Telegram</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="friends">Друзья</option>
+                    </select>
+                    <select class="select-glow">
+                        <option value="">Статус</option>
+                        <option value="active">Активные</option>
+                        <option value="inactive">Неактивные</option>
+                        <option value="new">Новые</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Таблица пользователей -->
+            <div class="users-container glow-card">
+                <div class="table-container">
+                    <table class="data-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>Пользователь</th>
+                                <th>Источник</th>
+                                <th>Цитат</th>
+                                <th>Последняя активность</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="user-info">
+                                        <div class="user-avatar">👩‍💼</div>
+                                        <div class="user-details">
+                                            <div class="user-name">Мария Ковалева</div>
+                                            <div class="user-contact">@maria_k • maria@example.com</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="source-badge source-instagram">Instagram</span></td>
+                                <td>47</td>
+                                <td>2 часа назад</td>
+                                <td><span class="status-badge status-active">Активен</span></td>
+                                <td>
+                                    <button class="btn btn-sm" onclick="viewUser('maria_k')">Просмотр</button>
+                                </td>
+                            </tr>
+                            <!-- Дополнительные пользователи -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="admin-footer">
+            <p>📖 "Читатель" - Управление пользователями</p>
+            <p class="copyright">© 2025 Анна Бусел. Все права защищены.</p>
+        </footer>
+    </div>
+    
+    <div class="notification-container" id="notification-container"></div>
+    
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof checkAuthStatus === 'function') {
+                checkAuthStatus();
+            }
+            
+            if (typeof initReaderMatrix === 'function') {
+                initReaderMatrix(true);
+            }
+            
+            loadUsersData();
+        });
+        
+        function loadUsersData() {
+            // Заглушка для данных пользователей
+            console.log('👥 Загрузка данных пользователей');
+        }
+        
+        function viewUser(userId) {
+            console.log('👥 Просмотр пользователя:', userId);
+        }
+        
+        function exportUsers() {
+            console.log('📄 Экспорт пользователей');
+        }
+    </script>
+</body>
+</html>

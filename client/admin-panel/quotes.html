@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 Цитаты - Читатель</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <meta name="description" content="Модерация и управление цитатами проекта 'Читатель'">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="reader-bg-animation reader-bg-subtle" id="reader-matrix"></div>
+    
+    <div class="admin-layout">
+        <header class="admin-header">
+            <div class="logo-container">
+                <div class="logo-icon">📖</div>
+                <h1>Читатель</h1>
+                <span class="logo-subtitle">Админ-панель</span>
+            </div>
+            
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html">📊 Дашборд</a></li>
+                    <li><a href="users.html">👥 Пользователи</a></li>
+                    <li><a href="quotes.html" class="active">📝 Цитаты</a></li>
+                    <li><a href="reports.html">📈 Отчеты</a></li>
+                    <li><a href="tickets.html">🎫 Обращения</a></li>
+                    <li><a href="settings.html">⚙️ Настройки</a></li>
+                </ul>
+            </nav>
+            
+            <div class="user-menu">
+                <span id="admin-username">Анна Бусел</span>
+                <button id="logout-btn" class="btn btn-text">Выход</button>
+            </div>
+        </header>
+        
+        <main class="admin-content">
+            <div class="dashboard-header">
+                <h2>📝 Модерация цитат</h2>
+                <div class="actions-group">
+                    <button class="btn btn-primary" onclick="exportQuotes()">📄 Экспорт</button>
+                </div>
+            </div>
+            
+            <!-- Фильтры -->
+            <div class="filters-container glow-card">
+                <div class="search-group">
+                    <input type="search" placeholder="Поиск по тексту цитаты или автору" class="search-input">
+                    <button class="btn search-btn">🔍</button>
+                </div>
+                <div class="filter-group">
+                    <select class="select-glow">
+                        <option value="">Категория</option>
+                        <option value="self-development">Саморазвитие</option>
+                        <option value="love">Любовь</option>
+                        <option value="wisdom">Мудрость</option>
+                        <option value="philosophy">Философия</option>
+                    </select>
+                    <select class="select-glow">
+                        <option value="">Период</option>
+                        <option value="today">Сегодня</option>
+                        <option value="week">Неделя</option>
+                        <option value="month">Месяц</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Список цитат -->
+            <div class="quotes-container">
+                <div class="quote-card glow-card">
+                    <div class="quote-header">
+                        <div class="quote-meta">
+                            <span class="quote-category">Мудрость</span>
+                            <span class="quote-date">2 часа назад</span>
+                        </div>
+                        <div class="quote-actions">
+                            <button class="btn btn-sm" onclick="editQuote('q1')">Редактировать</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteQuote('q1')">Удалить</button>
+                        </div>
+                    </div>
+                    <div class="quote-content">
+                        <blockquote class="quote-text">
+                            "В каждом слове — целая жизнь"
+                        </blockquote>
+                        <cite class="quote-author">— Марина Цветаева</cite>
+                    </div>
+                    <div class="quote-footer">
+                        <div class="quote-user">
+                            <span class="user-avatar">👩‍💼</span>
+                            <span class="user-name">Мария К.</span>
+                        </div>
+                        <div class="quote-stats">
+                            <span class="stat-item">💖 12</span>
+                            <span class="stat-item">💬 3</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Дополнительные цитаты -->
+            </div>
+        </main>
+        
+        <footer class="admin-footer">
+            <p>📖 "Читатель" - Модерация цитат</p>
+            <p class="copyright">© 2025 Анна Бусел. Все права защищены.</p>
+        </footer>
+    </div>
+    
+    <div class="notification-container" id="notification-container"></div>
+    
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof checkAuthStatus === 'function') {
+                checkAuthStatus();
+            }
+            
+            if (typeof initReaderMatrix === 'function') {
+                initReaderMatrix(true);
+            }
+            
+            loadQuotesData();
+        });
+        
+        function loadQuotesData() {
+            console.log('📝 Загрузка данных цитат');
+        }
+        
+        function editQuote(quoteId) {
+            console.log('✏️ Редактирование цитаты:', quoteId);
+        }
+        
+        function deleteQuote(quoteId) {
+            console.log('🗑️ Удаление цитаты:', quoteId);
+        }
+        
+        function exportQuotes() {
+            console.log('📄 Экспорт цитат');
+        }
+    </script>
+    
+    <style>
+        .quotes-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .quote-card {
+            padding: 1.5rem;
+        }
+        
+        .quote-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .quote-meta {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .quote-category {
+            background: var(--color-accent);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .quote-date {
+            font-size: 0.875rem;
+            color: var(--color-text-light);
+        }
+        
+        .quote-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .quote-content {
+            margin-bottom: 1rem;
+        }
+        
+        .quote-text {
+            font-family: var(--font-secondary);
+            font-size: 1.125rem;
+            line-height: 1.6;
+            font-style: italic;
+            margin: 0 0 0.5rem 0;
+            color: var(--color-text);
+        }
+        
+        .quote-author {
+            font-size: 0.875rem;
+            color: var(--color-text-light);
+            font-weight: 500;
+        }
+        
+        .quote-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid var(--color-border);
+        }
+        
+        .quote-user {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .quote-stats {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .stat-item {
+            font-size: 0.875rem;
+            color: var(--color-text-light);
+        }
+        
+        .btn-danger {
+            background-color: var(--color-error);
+            border-color: var(--color-error);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+            border-color: #c0392b;
+        }
+    </style>
+</body>
+</html>
