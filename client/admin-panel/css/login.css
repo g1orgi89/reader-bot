@@ -1,177 +1,544 @@
 /**
- * login.css - стили для страницы авторизации админ-панели Shrooms AI Support Bot
+ * Стили для страницы входа в админ-панель "Читатель"
+ * Книжная тематика с элегантным дизайном
  */
 
-/* Основные стили страницы логина */
+/* === ОСНОВНЫЕ СТИЛИ СТРАНИЦЫ ВХОДА === */
 .login-page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: var(--color-bg-dark);
-  position: relative;
-  overflow: hidden;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    position: relative;
+    overflow: hidden;
 }
 
-/* Контейнер формы логина */
+.login-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 25% 25%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(139, 69, 19, 0.1) 0%, transparent 50%);
+    z-index: 0;
+}
+
+/* === КОНТЕЙНЕР ВХОДА === */
 .login-container {
-  background-color: var(--color-bg-card);
-  border-radius: var(--border-radius-lg);
-  box-shadow: 0 0 30px rgba(57, 255, 20, 0.15);
-  width: 100%;
-  max-width: 450px;
-  padding: var(--spacing-xl);
-  position: relative;
-  animation: glow 5s infinite alternate;
-  z-index: 1;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
 }
 
-/* Анимация свечения для контейнера логина */
-@keyframes glow {
-  0% {
-    box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(57, 255, 20, 0.2), 0 0 40px rgba(138, 43, 226, 0.1);
-  }
-  100% {
-    box-shadow: 0 0 20px rgba(138, 43, 226, 0.2);
-  }
+.login-card {
+    background: var(--color-card);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 2.5rem;
+    position: relative;
+    overflow: hidden;
+    animation: loginCardAppear 0.6s ease;
 }
 
-/* Стили для логотипа */
-.login-logo {
-  text-align: center;
-  margin-bottom: var(--spacing-xl);
+.login-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-accent), var(--color-secondary));
 }
 
-.login-logo img {
-  width: 80px;
-  height: auto;
-  margin-bottom: var(--spacing-md);
-  filter: drop-shadow(0 0 10px rgba(57, 255, 20, 0.5));
-  animation: logoGlow 3s infinite alternate;
+@keyframes loginCardAppear {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
-/* Анимация свечения для логотипа */
-@keyframes logoGlow {
-  0% {
-    filter: drop-shadow(0 0 5px rgba(57, 255, 20, 0.3));
-  }
-  50% {
-    filter: drop-shadow(0 0 15px rgba(57, 255, 20, 0.6));
-  }
-  100% {
-    filter: drop-shadow(0 0 8px rgba(138, 43, 226, 0.5));
-  }
+/* === ЗАГОЛОВОК ФОРМЫ === */
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
 }
 
-.login-logo h1 {
-  font-family: var(--font-heading);
-  font-size: var(--font-size-xl);
-  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  margin-bottom: 0;
+.login-header .logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
-/* Стили для формы логина */
-.login-form-container {
-  margin-bottom: var(--spacing-xl);
+.login-header .logo-icon {
+    font-size: 3rem;
+    color: var(--color-accent);
+    animation: logoFloat 3s ease-in-out infinite;
 }
 
+@keyframes logoFloat {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-5px) rotate(1deg); }
+}
+
+.login-header h1 {
+    font-family: var(--font-secondary);
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin: 0;
+}
+
+.login-subtitle {
+    color: var(--color-text-light);
+    font-size: 0.925rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* === ФОРМА ВХОДА === */
 .login-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
+    margin-bottom: 2rem;
 }
 
-.login-form .form-group {
-  margin-bottom: var(--spacing-md);
+.form-group {
+    margin-bottom: 1.5rem;
 }
 
-/* Специальные стили для полей ввода на странице логина */
-.login-form input[type="text"],
-.login-form input[type="password"] {
-  background-color: rgba(30, 30, 30, 0.8);
-  border: 1px solid rgba(57, 255, 20, 0.2);
-  transition: all var(--animation-fast) ease-in-out;
+.form-group label {
+    display: block;
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
 }
 
-.login-form input[type="text"]:focus,
-.login-form input[type="password"]:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.2);
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background: var(--color-card);
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 1rem;
+    transition: var(--transition-normal);
+    outline: none;
 }
 
-/* Стили для кнопки логина */
-.login-form .btn {
-  margin-top: var(--spacing-md);
-  width: 100%;
-  font-size: var(--font-size-md);
-  padding: var(--spacing-md) var(--spacing-lg);
+.form-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+    transform: translateY(-1px);
 }
 
-/* Контейнер для сообщений об ошибках */
-.form-error {
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
-  text-align: center;
-  min-height: 20px;
-  margin-bottom: var(--spacing-sm);
+.form-input:invalid {
+    border-color: var(--color-error);
 }
 
-/* Стили для футера страницы логина */
+.form-input::placeholder {
+    color: var(--color-text-light);
+}
+
+/* === ЧЕКБОКС === */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--color-text-light);
+    margin: 0;
+}
+
+.checkbox {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--color-border);
+    border-radius: 4px;
+    margin-right: 0.75rem;
+    position: relative;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.checkbox:checked {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.checkbox:focus {
+    box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+}
+
+.checkbox-text {
+    user-select: none;
+}
+
+/* === КНОПКА ВХОДА === */
+.login-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--color-primary), #34495e);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.login-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.login-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.login-button:hover::before {
+    left: 100%;
+}
+
+.login-button:active {
+    transform: translateY(0);
+}
+
+.login-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.login-button.loading {
+    pointer-events: none;
+}
+
+.button-text {
+    font-weight: 600;
+}
+
+.button-icon {
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* === ДЕМО-ДАННЫЕ === */
+.demo-credentials {
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.demo-credentials::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-info), var(--color-accent));
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.demo-title {
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 1rem 0;
+    font-size: 0.875rem;
+}
+
+.demo-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.demo-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-card);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-size: 0.875rem;
+}
+
+.demo-item:hover {
+    background: #f1f3f4;
+    border-color: var(--color-primary);
+    transform: translateX(2px);
+}
+
+.demo-item strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+/* === ФУТЕР ФОРМЫ === */
 .login-footer {
-  text-align: center;
-  color: var(--color-text-dim);
-  font-size: var(--font-size-sm);
+    text-align: center;
+    border-top: 1px solid var(--color-border);
+    padding-top: 1.5rem;
 }
 
-.login-footer p {
-  margin-bottom: var(--spacing-sm);
+.footer-text {
+    font-size: 0.8125rem;
+    color: var(--color-text-light);
+    margin: 0 0 0.5rem 0;
 }
 
-.copyright {
-  font-size: var(--font-size-xs);
+.footer-description {
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+    margin: 0;
+    opacity: 0.8;
 }
 
-/* Анимированный фон "цифрового грибного дождя" */
-.mushroom-bg-animation {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  background-color: var(--color-bg-dark);
-  opacity: 0.7;
+/* === ОШИБКИ ПОЛЕЙ === */
+.form-input.error {
+    border-color: var(--color-error);
+    background-color: rgba(231, 76, 60, 0.05);
 }
 
-/* Модификаторы для активной и наведенной кнопок */
-.login-form .btn-primary {
-  background: linear-gradient(45deg, var(--color-primary-dim), var(--color-secondary));
-  position: relative;
-  overflow: hidden;
+.field-error {
+    display: block;
+    color: var(--color-error);
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
+    animation: fieldErrorAppear 0.3s ease;
 }
 
-.login-form .btn-primary:hover {
-  background: linear-gradient(45deg, var(--color-primary), var(--color-secondary));
+@keyframes fieldErrorAppear {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* Адаптивные стили */
-@media (max-width: 576px) {
-  .login-container {
-    max-width: 90%;
-    padding: var(--spacing-lg);
-  }
-  
-  .login-logo h1 {
-    font-size: var(--font-size-lg);
-  }
-  
-  .login-logo img {
-    width: 60px;
-  }
+/* === СПИННЕР === */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* === АНИМАЦИЯ КНИЖНОГО ФОНА === */
+.login-page .reader-bg-animation {
+    opacity: 0.5;
+}
+
+.login-page .matrix-book {
+    font-size: 1.5rem;
+    opacity: 0.1;
+    animation-duration: 25s;
+}
+
+/* === АДАПТИВНОСТЬ === */
+@media (max-width: 480px) {
+    .login-page {
+        padding: 1rem 0.5rem;
+    }
+    
+    .login-card {
+        padding: 2rem 1.5rem;
+    }
+    
+    .login-header h1 {
+        font-size: 1.75rem;
+    }
+    
+    .login-header .logo-icon {
+        font-size: 2.5rem;
+    }
+    
+    .demo-info {
+        gap: 0.5rem;
+    }
+    
+    .demo-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+
+@media (max-width: 320px) {
+    .login-card {
+        padding: 1.5rem 1rem;
+        margin: 0.5rem;
+    }
+    
+    .login-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .form-input {
+        padding: 0.625rem 0.875rem;
+    }
+    
+    .login-button {
+        padding: 0.875rem 1.25rem;
+    }
+}
+
+/* === АКЦЕНТЫ И АНИМАЦИИ === */
+.login-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 40px rgba(44, 62, 80, 0.15);
+}
+
+.form-group {
+    animation: formGroupAppear 0.6s ease;
+    animation-fill-mode: both;
+}
+
+.form-group:nth-child(1) { animation-delay: 0.1s; }
+.form-group:nth-child(2) { animation-delay: 0.2s; }
+.form-group:nth-child(3) { animation-delay: 0.3s; }
+
+.login-button {
+    animation: formGroupAppear 0.6s ease;
+    animation-delay: 0.4s;
+    animation-fill-mode: both;
+}
+
+.demo-credentials {
+    animation: formGroupAppear 0.6s ease;
+    animation-delay: 0.5s;
+    animation-fill-mode: both;
+}
+
+@keyframes formGroupAppear {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* === ТЕМАТИЧЕСКИЕ АКЦЕНТЫ === */
+.book-themed-accent {
+    position: relative;
+}
+
+.book-themed-accent::after {
+    content: '📖';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 1.25rem;
+    opacity: 0.2;
+    animation: bookAccentFloat 4s ease-in-out infinite;
+}
+
+@keyframes bookAccentFloat {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(5deg) scale(1.1); }
+}
+
+/* === ДОПОЛНИТЕЛЬНЫЕ ЭФФЕКТЫ === */
+.login-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, var(--color-accent) 0%, transparent 70%);
+    opacity: 0.05;
+    border-radius: 50%;
+    transform: translate(50%, 50%);
+}
+
+/* === ФОКУС И ДОСТУПНОСТЬ === */
+.form-input:focus,
+.checkbox:focus,
+.login-button:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* === ВЫСОКОКОНТРАСТНЫЙ РЕЖИМ === */
+@media (prefers-contrast: high) {
+    .login-card {
+        border: 2px solid var(--color-text);
+    }
+    
+    .form-input {
+        border-width: 2px;
+    }
+    
+    .login-button {
+        border: 2px solid var(--color-primary);
+    }
 }

@@ -1,61 +1,223 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reader AI Support Bot - Admin Login</title>
+    <title>🔐 Вход в админ-панель Читатель</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/login.css">
-    <meta name="description" content="Admin login for Reader AI Support Bot">
-    <!-- Preconnect to font sources -->
+    <meta name="description" content="Вход в админ-панель проекта 'Читатель' - управление цитатами и пользователями">
+    <!-- Подключение шрифтов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body class="login-page">
+    <!-- Книжная фоновая анимация -->
     <div class="reader-bg-animation" id="reader-matrix"></div>
     
     <div class="login-container">
-        <div class="login-logo">
-            <img src="img/logo.svg" alt="Reader AI Support Bot" id="login-logo">
-            <h1>Reader Admin</h1>
-        </div>
-        
-        <div class="login-form-container">
-            <form id="login-form" class="login-form">
+        <div class="login-card">
+            <!-- Логотип и заголовок -->
+            <div class="login-header">
+                <div class="logo-container">
+                    <div class="logo-icon">📖</div>
+                    <h1>Читатель</h1>
+                </div>
+                <p class="login-subtitle">Админ-панель для управления цитатами и аналитикой</p>
+            </div>
+            
+            <!-- Форма входа -->
+            <form class="login-form" id="login-form">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required autocomplete="username">
+                    <label for="username">Имя пользователя:</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required 
+                        placeholder="Введите имя пользователя"
+                        autocomplete="username"
+                        class="form-input"
+                    >
                 </div>
                 
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                    <label for="password">Пароль:</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        placeholder="Введите пароль"
+                        autocomplete="current-password"
+                        class="form-input"
+                    >
                 </div>
                 
-                <div class="form-error" id="login-error"></div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="remember" name="remember" class="checkbox">
+                        <span class="checkbox-text">Запомнить меня</span>
+                    </label>
+                </div>
                 
-                <button type="submit" class="btn btn-primary btn-glow">
-                    <span class="btn-text">Login</span>
-                    <span class="btn-icon">📖</span>
+                <button type="submit" class="login-button" id="login-button">
+                    <span class="button-text">Войти</span>
+                    <span class="button-icon">🔐</span>
                 </button>
             </form>
-        </div>
-        
-        <div class="login-footer">
-            <p>Reader AI Support Bot Admin Panel</p>
-            <p class="copyright">© 2025 Reader Project</p>
+            
+            <!-- Демо-учетные данные -->
+            <div class="demo-credentials">
+                <p class="demo-title">📝 Демо-доступ:</p>
+                <div class="demo-info">
+                    <div class="demo-item">
+                        <strong>Пользователь:</strong> anna
+                    </div>
+                    <div class="demo-item">
+                        <strong>Пароль:</strong> reader2025
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Дополнительная информация -->
+            <div class="login-footer">
+                <p class="footer-text">© 2025 Анна Бусел. Все права защищены.</p>
+                <p class="footer-description">Проект "Читатель" - персональный дневник цитат с AI-анализом</p>
+            </div>
         </div>
     </div>
-
+    
+    <!-- Notification system -->
+    <div class="notification-container" id="notification-container"></div>
+    
+    <!-- Scripts -->
+    <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
+    
     <script>
-        // Initialize login page functionality when DOM is loaded
+        /**
+         * Инициализация страницы входа
+         */
         document.addEventListener('DOMContentLoaded', () => {
-            initLoginPage();
+            console.log('🔐 Инициализация страницы входа');
             
-            // Initialize reader matrix background
-            initReaderMatrix();
+            // Проверяем, не авторизован ли пользователь уже
+            if (typeof authManager !== 'undefined' && authManager.isAuthenticated()) {
+                console.log('📖 Пользователь уже авторизован, перенаправляем на главную');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Инициализируем форму входа
+            initLoginForm();
+            
+            // Инициализируем книжную анимацию
+            if (typeof initReaderMatrix === 'function') {
+                initReaderMatrix();
+            }
+        });
+        
+        /**
+         * Инициализация формы входа
+         */
+        function initLoginForm() {
+            const form = document.getElementById('login-form');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const loginButton = document.getElementById('login-button');
+            
+            if (!form || !usernameInput || !passwordInput || !loginButton) {
+                console.error('🔐 Не найдены элементы формы входа');
+                return;
+            }
+            
+            // Обработчик отправки формы
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value.trim();
+                
+                if (!username || !password) {
+                    showNotification('error', 'Пожалуйста, заполните все поля');
+                    return;
+                }
+                
+                // Показываем индикатор загрузки
+                setLoginLoading(true);
+                
+                try {
+                    // Попытка авторизации
+                    const result = await authManager.login(username, password);
+                    
+                    if (result.success) {
+                        showNotification('success', `Добро пожаловать, ${result.user.displayName}!`);
+                        
+                        // Пауза для показа успешного уведомления
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 1000);
+                    } else {
+                        showNotification('error', result.error || 'Ошибка авторизации');
+                    }
+                } catch (error) {
+                    console.error('🔐 Ошибка входа:', error);
+                    showNotification('error', 'Произошла ошибка при попытке входа');
+                } finally {
+                    setLoginLoading(false);
+                }
+            });
+            
+            // Автозаполнение демо-данных (только для демонстрации)
+            const demoItems = document.querySelectorAll('.demo-item');
+            demoItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const text = item.textContent;
+                    if (text.includes('anna')) {
+                        usernameInput.value = 'anna';
+                        usernameInput.focus();
+                    } else if (text.includes('reader2025')) {
+                        passwordInput.value = 'reader2025';
+                        passwordInput.focus();
+                    }
+                });
+            });
+            
+            // Фокус на первом поле
+            usernameInput.focus();
+        }
+        
+        /**
+         * Управление состоянием загрузки
+         */
+        function setLoginLoading(loading) {
+            const button = document.getElementById('login-button');
+            const buttonText = button.querySelector('.button-text');
+            const buttonIcon = button.querySelector('.button-icon');
+            
+            if (loading) {
+                button.disabled = true;
+                button.classList.add('loading');
+                buttonText.textContent = 'Вход...';
+                buttonIcon.innerHTML = '<div class="spinner"></div>';
+            } else {
+                button.disabled = false;
+                button.classList.remove('loading');
+                buttonText.textContent = 'Войти';
+                buttonIcon.textContent = '🔐';
+            }
+        }
+        
+        // Обработчик нажатия Enter
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const form = document.getElementById('login-form');
+                if (form) {
+                    form.dispatchEvent(new Event('submit'));
+                }
+            }
         });
     </script>
 </body>
