@@ -194,8 +194,18 @@
          */
         function setLoginLoading(loading) {
             const button = document.getElementById('login-button');
+            if (!button) {
+                console.error('🔐 Login button not found');
+                return;
+            }
+            
             const buttonText = button.querySelector('.button-text');
             const buttonIcon = button.querySelector('.button-icon');
+            
+            if (!buttonText || !buttonIcon) {
+                console.error('🔐 Button text or icon not found', { buttonText, buttonIcon });
+                return;
+            }
             
             if (loading) {
                 button.disabled = true;
@@ -215,10 +225,27 @@
             if (e.key === 'Enter') {
                 const form = document.getElementById('login-form');
                 if (form) {
-                    form.dispatchEvent(new Event('submit'));
+                    // Предотвращаем двойную отправку
+                    e.preventDefault();
+                    const event = new Event('submit', { cancelable: true });
+                    form.dispatchEvent(event);
                 }
             }
         });
+        
+        /**
+         * Показ уведомления
+         */
+        function showNotification(type, message) {
+            // Если есть глобальная функция showNotification, используем её
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(type, message);
+                return;
+            }
+            
+            // Иначе простой alert
+            alert(message);
+        }
     </script>
 </body>
 </html>
