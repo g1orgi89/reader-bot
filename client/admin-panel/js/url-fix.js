@@ -1,6 +1,6 @@
 /**
  * URL Fix for Reader Bot API
- * This script fixes API URLs and authentication headers to work with /api/reader prefix
+ * This script fixes API URLs, authentication headers, and response format compatibility
  */
 
 (function() {
@@ -45,9 +45,36 @@
             }
         }
         
-        return originalFetch.call(this, url, options);
+        // Wrap the response to fix data structure
+        return originalFetch.call(this, url, options).then(async response => {
+            if (response.ok && url.includes('/api/reader/users')) {
+                const originalJson = response.json.bind(response);
+                response.json = async function() {
+                    const data = await originalJson();
+                    console.log('🔧 Original response:', data);
+                    
+                    // Fix stats endpoint response format
+                    if (url.includes('/stats') && data.success && data.stats) {
+                        console.log('🔧 Fixing stats response format');
+                        return data.stats;  // Return stats directly
+                    }
+                    
+                    // Fix users list endpoint response format  
+                    if (url.includes('/users') && !url.includes('/stats') && data.success && data.data) {
+                        console.log('🔧 Fixing users response format');
+                        return {
+                            users: data.data.users,
+                            pagination: data.data.pagination
+                        };
+                    }
+                    
+                    return data;
+                };
+            }
+            return response;
+        });
     };
     
-    console.log('✅ API URL and Auth fix applied successfully');
+    console.log('✅ API URL, Auth, and Response format fix applied successfully');
     console.log('🔑 Using credentials:', ADMIN_CREDENTIALS.username);
 })();
