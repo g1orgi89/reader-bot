@@ -1,32 +1,10 @@
 /**
- * @fileoverview Сервис аналитики Reader Bot - ТОЛЬКО РЕАЛЬНЫЕ ДАННЫЕ
- * @description Показывает исключительно данные из MongoDB, НЕТ fallback данных
- * @version 3.1.1 - EMERGENCY FIX
+ * @fileoverview Сервис аналитики Reader Bot - ИСПРАВЛЕНИЕ ИМПОРТА МОДЕЛЕЙ
+ * @description Показывает исключительно данные из MongoDB с ленивой загрузкой моделей
+ * @version 3.2.0 - FIXED MODELS IMPORT
  */
 
 const logger = require('../utils/logger');
-
-// Безопасный импорт моделей с обработкой ошибок
-let UserProfile, Quote, UTMClick, PromoCodeUsage, UserAction;
-
-try {
-  const models = require('../models');
-  UserProfile = models.UserProfile;
-  Quote = models.Quote;
-  UTMClick = models.UTMClick;
-  PromoCodeUsage = models.PromoCodeUsage;
-  UserAction = models.UserAction;
-  
-  logger.info('📊 AnalyticsService: Модели загружены успешно');
-} catch (error) {
-  logger.error('📊 AnalyticsService: Ошибка загрузки моделей:', error.message);
-  // Устанавливаем в null, чтобы проверки работали
-  UserProfile = null;
-  Quote = null;
-  UTMClick = null;
-  PromoCodeUsage = null;
-  UserAction = null;
-}
 
 /**
  * @typedef {import('../types/reader').DashboardStats} DashboardStats
@@ -38,28 +16,68 @@ try {
 class AnalyticsService {
   constructor() {
     this.name = 'AnalyticsService';
-    this.isReady = !!(UserProfile && Quote);
+    this._models = null;
     
-    if (this.isReady) {
-      logger.info('📊 AnalyticsService инициализирован успешно (только реальные данные)');
-    } else {
-      logger.warn('📊 AnalyticsService инициализирован с ограниченной функциональностью (модели недоступны)');
+    logger.info('📊 AnalyticsService инициализирован с ленивой загрузкой моделей');
+  }
+
+  /**
+   * Ленивая загрузка моделей
+   * @returns {Object|null} Объект с моделями или null если не удалось загрузить
+   */
+  getModels() {
+    if (this._models) {
+      return this._models;
+    }
+
+    try {
+      const models = require('../models');
+      
+      this._models = {
+        UserProfile: models.UserProfile,
+        Quote: models.Quote,
+        UTMClick: models.UTMClick,
+        PromoCodeUsage: models.PromoCodeUsage,
+        UserAction: models.UserAction,
+        WeeklyReport: models.WeeklyReport,
+        MonthlyReport: models.MonthlyReport
+      };
+      
+      // Проверяем, что все нужные модели доступны
+      const requiredModels = ['UserProfile', 'Quote'];
+      const missingModels = requiredModels.filter(model => !this._models[model]);
+      
+      if (missingModels.length > 0) {
+        logger.error(`📊 Отсутствуют критические модели: ${missingModels.join(', ')}`);
+        this._models = null;
+        return null;
+      }
+      
+      logger.info('📊 Модели успешно загружены в AnalyticsService');
+      return this._models;
+      
+    } catch (error) {
+      logger.error('📊 Ошибка загрузки моделей в AnalyticsService:', error.message);
+      this._models = null;
+      return null;
     }
   }
 
   /**
    * Проверка готовности сервиса
-   * @returns {boolean}
+   * @returns {Object}
    */
   healthCheck() {
+    const models = this.getModels();
+    
     return {
-      status: this.isReady ? 'ok' : 'limited',
+      status: models ? 'ok' : 'limited',
       modelsAvailable: {
-        UserProfile: !!UserProfile,
-        Quote: !!Quote,
-        UTMClick: !!UTMClick,
-        PromoCodeUsage: !!PromoCodeUsage,
-        UserAction: !!UserAction
+        UserProfile: !!(models && models.UserProfile),
+        Quote: !!(models && models.Quote),
+        UTMClick: !!(models && models.UTMClick),
+        PromoCodeUsage: !!(models && models.PromoCodeUsage),
+        UserAction: !!(models && models.UserAction)
       }
     };
   }
@@ -71,8 +89,10 @@ class AnalyticsService {
    */
   async getDashboardStats(dateRange = '7d') {
     try {
-      if (!this.isReady) {
-        logger.warn('📊 AnalyticsService не готов, возвращаем пустые данные');
+      const models = this.getModels();
+      
+      if (!models) {
+        logger.warn('📊 Модели недоступны, возвращаем пустые данные');
         return this.getEmptyStats(dateRange);
       }
 
@@ -142,14 +162,16 @@ class AnalyticsService {
    */
   async getUserRetentionStats() {
     try {
-      if (!UserProfile || !Quote) {
+      const models = this.getModels();
+      
+      if (!models || !models.UserProfile || !models.Quote) {
         logger.warn('📊 Модели недоступны для retention анализа');
         return [];
       }
 
       logger.info('📊 Получение РЕАЛЬНОЙ статистики retention');
       
-      const cohorts = await UserProfile.aggregate([
+      const cohorts = await models.UserProfile.aggregate([
         {
           $match: {
             isOnboardingComplete: true
@@ -194,7 +216,7 @@ class AnalyticsService {
           const weekEnd = new Date(weekStart);
           weekEnd.setDate(weekEnd.getDate() + 7);
 
-          const activeInWeek = await Quote.distinct('userId', {
+          const activeInWeek = await models.Quote.distinct('userId', {
             userId: { $in: cohortUsers },
             createdAt: { $gte: weekStart, $lt: weekEnd }
           });
@@ -222,7 +244,9 @@ class AnalyticsService {
    */
   async getTopQuotesAndAuthors(dateRange = '30d') {
     try {
-      if (!Quote) {
+      const models = this.getModels();
+      
+      if (!models || !models.Quote) {
         logger.warn('📊 Модель Quote недоступна для топ контента');
         return {
           topAuthors: [],
@@ -237,7 +261,7 @@ class AnalyticsService {
       const startDate = this.getStartDate(dateRange);
 
       // Топ авторы
-      const topAuthors = await Quote.aggregate([
+      const topAuthors = await models.Quote.aggregate([
         { 
           $match: { 
             createdAt: { $gte: startDate }, 
@@ -250,7 +274,7 @@ class AnalyticsService {
       ]);
 
       // Топ категории
-      const topCategories = await Quote.aggregate([
+      const topCategories = await models.Quote.aggregate([
         { $match: { createdAt: { $gte: startDate } } },
         { $group: { _id: '$category', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
@@ -258,7 +282,7 @@ class AnalyticsService {
       ]);
 
       // Популярные цитаты (повторяющиеся)
-      const popularQuotes = await Quote.aggregate([
+      const popularQuotes = await models.Quote.aggregate([
         { $match: { createdAt: { $gte: startDate } } },
         { 
           $group: { 
@@ -307,13 +331,14 @@ class AnalyticsService {
    */
   async trackUTMClick(utmParams, userId) {
     try {
-      // Проверяем доступность модели UTMClick
-      if (!UTMClick) {
+      const models = this.getModels();
+      
+      if (!models || !models.UTMClick) {
         logger.warn('📊 Модель UTMClick недоступна');
         return;
       }
       
-      const click = new UTMClick({
+      const click = new models.UTMClick({
         userId,
         source: utmParams.utm_source,
         medium: utmParams.utm_medium,
@@ -344,13 +369,14 @@ class AnalyticsService {
    */
   async trackPromoCodeUsage(promoCode, userId, orderValue, metadata = {}) {
     try {
-      // Проверяем доступность модели PromoCodeUsage
-      if (!PromoCodeUsage) {
+      const models = this.getModels();
+      
+      if (!models || !models.PromoCodeUsage) {
         logger.warn('📊 Модель PromoCodeUsage недоступна');
         return;
       }
       
-      const usage = new PromoCodeUsage({
+      const usage = new models.PromoCodeUsage({
         promoCode,
         userId,
         orderValue,
@@ -377,13 +403,14 @@ class AnalyticsService {
    */
   async trackUserAction(userId, action, metadata = {}) {
     try {
-      // Проверяем доступность модели UserAction
-      if (!UserAction) {
+      const models = this.getModels();
+      
+      if (!models || !models.UserAction) {
         logger.warn('📊 Модель UserAction недоступна');
         return;
       }
       
-      const userAction = new UserAction({
+      const userAction = new models.UserAction({
         userId,
         action,
         metadata,
@@ -404,11 +431,14 @@ class AnalyticsService {
 
   async getTotalUsers() {
     try {
-      if (!UserProfile) {
+      const models = this.getModels();
+      
+      if (!models || !models.UserProfile) {
         logger.warn('📊 UserProfile модель недоступна');
         return 0;
       }
-      const count = await UserProfile.countDocuments({ isOnboardingComplete: true });
+      
+      const count = await models.UserProfile.countDocuments({ isOnboardingComplete: true });
       logger.info(`📊 Общее количество пользователей: ${count}`);
       return count;
     } catch (error) {
@@ -419,11 +449,14 @@ class AnalyticsService {
 
   async getNewUsers(startDate) {
     try {
-      if (!UserProfile) {
+      const models = this.getModels();
+      
+      if (!models || !models.UserProfile) {
         logger.warn('📊 UserProfile модель недоступна');
         return 0;
       }
-      const count = await UserProfile.countDocuments({
+      
+      const count = await models.UserProfile.countDocuments({
         isOnboardingComplete: true,
         registeredAt: { $gte: startDate }
       });
@@ -437,11 +470,14 @@ class AnalyticsService {
 
   async getTotalQuotes(startDate) {
     try {
-      if (!Quote) {
+      const models = this.getModels();
+      
+      if (!models || !models.Quote) {
         logger.warn('📊 Quote модель недоступна');
         return 0;
       }
-      const count = await Quote.countDocuments({ createdAt: { $gte: startDate } });
+      
+      const count = await models.Quote.countDocuments({ createdAt: { $gte: startDate } });
       logger.info(`📊 Цитат с ${startDate.toISOString()}: ${count}`);
       return count;
     } catch (error) {
@@ -452,11 +488,14 @@ class AnalyticsService {
 
   async getActiveUsers(startDate) {
     try {
-      if (!Quote) {
+      const models = this.getModels();
+      
+      if (!models || !models.Quote) {
         logger.warn('📊 Quote модель недоступна');
         return 0;
       }
-      const activeUsers = await Quote.distinct('userId', { 
+      
+      const activeUsers = await models.Quote.distinct('userId', { 
         createdAt: { $gte: startDate } 
       });
       logger.info(`📊 Активные пользователи с ${startDate.toISOString()}: ${activeUsers.length}`);
@@ -469,11 +508,14 @@ class AnalyticsService {
 
   async getPromoUsage(startDate) {
     try {
-      if (!PromoCodeUsage) {
+      const models = this.getModels();
+      
+      if (!models || !models.PromoCodeUsage) {
         logger.warn('📊 Модель PromoCodeUsage недоступна');
         return 0;
       }
-      const count = await PromoCodeUsage.countDocuments({
+      
+      const count = await models.PromoCodeUsage.countDocuments({
         timestamp: { $gte: startDate }
       });
       logger.info(`📊 Использование промокодов с ${startDate.toISOString()}: ${count}`);
@@ -486,11 +528,14 @@ class AnalyticsService {
 
   async getSourceStats(startDate) {
     try {
-      if (!UserProfile) {
+      const models = this.getModels();
+      
+      if (!models || !models.UserProfile) {
         logger.warn('📊 UserProfile модель недоступна');
         return [];
       }
-      const stats = await UserProfile.aggregate([
+      
+      const stats = await models.UserProfile.aggregate([
         { 
           $match: { 
             registeredAt: { $gte: startDate },
@@ -510,11 +555,14 @@ class AnalyticsService {
 
   async getUTMStats(startDate) {
     try {
-      if (!UTMClick) {
+      const models = this.getModels();
+      
+      if (!models || !models.UTMClick) {
         logger.warn('📊 Модель UTMClick недоступна');
         return [];
       }
-      const stats = await UTMClick.aggregate([
+      
+      const stats = await models.UTMClick.aggregate([
         { $match: { timestamp: { $gte: startDate } } },
         { 
           $group: { 
