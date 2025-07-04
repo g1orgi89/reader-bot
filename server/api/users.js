@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 
 // Middleware
-const { requireAdmin } = require('../middleware/auth');
+const { basicAdminAuth, requireAdmin } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 // Models - импортируем напрямую, избегая конфликтов
@@ -32,7 +32,7 @@ const MonthlyReport = require('../models/monthlyReport');
  * @route GET /api/users/stats
  * @access Private (Admin only)
  */
-router.get('/stats', requireAdmin, async (req, res) => {
+router.get('/stats', basicAdminAuth, requireAdmin, async (req, res) => {
   try {
     logger.info('📊 Fetching user statistics...');
 
@@ -103,7 +103,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
  * @query {string} sortBy - Sort field (registeredAt, name, totalQuotes)
  * @query {string} sortOrder - Sort order (asc, desc)
  */
-router.get('/', requireAdmin, async (req, res) => {
+router.get('/', basicAdminAuth, requireAdmin, async (req, res) => {
   try {
     const {
       page = 1,
@@ -192,7 +192,7 @@ router.get('/', requireAdmin, async (req, res) => {
  * @route GET /api/users/:userId
  * @access Private (Admin only)
  */
-router.get('/:userId', requireAdmin, async (req, res) => {
+router.get('/:userId', basicAdminAuth, requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     logger.info(`📋 Fetching user details for: ${userId}`);
@@ -269,7 +269,7 @@ router.get('/:userId', requireAdmin, async (req, res) => {
  * @query {string} q - Search query
  * @query {string} type - Search type (name, email, telegram, quotes)
  */
-router.get('/search', requireAdmin, async (req, res) => {
+router.get('/search', basicAdminAuth, requireAdmin, async (req, res) => {
   try {
     const { q, type = 'all' } = req.query;
 
@@ -345,7 +345,7 @@ router.get('/search', requireAdmin, async (req, res) => {
  * @route GET /api/users/sources
  * @access Private (Admin only)
  */
-router.get('/sources', requireAdmin, async (req, res) => {
+router.get('/sources', basicAdminAuth, requireAdmin, async (req, res) => {
   try {
     logger.info('📊 Fetching traffic sources statistics...');
 
