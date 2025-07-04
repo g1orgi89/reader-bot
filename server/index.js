@@ -28,6 +28,7 @@ const knowledgeRoutes = require('./api/knowledge');
 const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 НОВОЕ: Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 ИСПРАВЛЕНО: Правильный путь
+const usersRoutes = require('./routes/users'); // 👥 НОВОЕ: Маршруты пользователей
 
 // Services
 const dbService = require('./services/database');
@@ -146,6 +147,7 @@ app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
 app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
 app.use(`${config.app.apiPrefix}/reports`, reportRoutes); // 📖 НОВОЕ: Маршруты отчетов
 app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes); // 📊 ИСПРАВЛЕНО: Маршруты аналитики
+app.use(`${config.app.apiPrefix}/users`, usersRoutes); // 👥 НОВОЕ: Маршруты пользователей
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
@@ -174,6 +176,17 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       analyticsHealth = { status: 'error', error: error.message, modelsAvailable: false };
     }
 
+    // 👥 НОВОЕ: Проверка пользовательских роутов
+    let usersHealth = { status: 'ok' };
+    try {
+      const { UserProfile, Quote } = require('./models');
+      await UserProfile.countDocuments().limit(1);
+      await Quote.countDocuments().limit(1);
+      usersHealth.modelsAvailable = true;
+    } catch (error) {
+      usersHealth = { status: 'error', error: error.message, modelsAvailable: false };
+    }
+
     const health = {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -187,7 +200,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         ticketEmail: 'ok',
         language: simpleLanguageService.healthCheck(),
         cron: cronStatus.totalJobs > 0 ? 'ok' : 'stopped', // 📖 НОВОЕ: исправлено
-        analytics: analyticsHealth.status // 📊 НОВОЕ
+        analytics: analyticsHealth.status, // 📊 НОВОЕ
+        users: usersHealth.status // 👥 НОВОЕ
       },
       aiProvider: aiProviderInfo,
       promptService: {
@@ -209,6 +223,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       },
       // 📊 НОВОЕ: Информация о сервисе аналитики
       analyticsService: analyticsHealth,
+      // 👥 НОВОЕ: Информация о пользовательском сервисе
+      usersService: usersHealth,
       features: config.features,
       // ДОБАВЛЕНО: информация о Socket.IO подключениях
       socketConnections: {
@@ -732,7 +748,9 @@ app.use((req, res) => {
     success: false,
     error: 'Not Found',
     code: ERROR_CODES.NOT_FOUND,
-    message: 'The requested resource was not found'
+    message: 'The requested resource was not found',
+    requestedPath: req.path,
+    method: req.method
   });
 });
 
@@ -787,6 +805,10 @@ async function startServer() {
     logger.info('📊 Initializing Analytics Service...');
     logger.info('✅ Analytics Service ready for tracking UTM, promo codes, and user actions');
     
+    // 👥 НОВОЕ: Инициализация Users Service
+    logger.info('👥 Initializing Users Service...');
+    logger.info('✅ Users Service ready with API endpoints /api/users/*');
+    
     // 📖 НОВОЕ: Инициализация и запуск CronService
     logger.info('📖 Initializing Cron Service...');
     try {
@@ -838,6 +860,7 @@ async function startServer() {
       logger.info(`📖 Weekly reports automation: ENABLED`); // 📖 НОВОЕ
       logger.info(`📊 Reports API: ${config.app.apiPrefix}/reports`); // 📖 НОВОЕ
       logger.info(`📊 Analytics API: ${config.app.apiPrefix}/analytics`); // 📊 НОВОЕ
+      logger.info(`👥 Users API: ${config.app.apiPrefix}/users`); // 👥 НОВОЕ
       
       // Логируем URL для разных режимов
       if (config.app.isDevelopment) {
