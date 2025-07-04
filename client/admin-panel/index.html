@@ -129,17 +129,23 @@
             <div class="dashboard-charts">
                 <div class="chart-container glow-card">
                     <h3>📊 Источники пользователей</h3>
-                    <canvas id="sourceChart" width="400" height="200"></canvas>
+                    <div class="chart-wrapper">
+                        <canvas id="sourceChart" width="400" height="200"></canvas>
+                    </div>
                 </div>
                 
                 <div class="chart-container glow-card">
                     <h3>📈 UTM кампании</h3>
-                    <canvas id="utmChart" width="400" height="200"></canvas>
+                    <div class="chart-wrapper">
+                        <canvas id="utmChart" width="400" height="200"></canvas>
+                    </div>
                 </div>
                 
                 <div class="chart-container glow-card chart-full-width">
                     <h3>🔥 Retention по когортам</h3>
-                    <canvas id="retentionChart" width="800" height="300"></canvas>
+                    <div class="chart-wrapper">
+                        <canvas id="retentionChart" width="800" height="300"></canvas>
+                    </div>
                 </div>
             </div>
             
@@ -211,247 +217,13 @@
     <script src="js/main.js"></script>
     <script src="js/dashboard.js"></script>
     
+    <!-- ИСПРАВЛЕНО: УБРАЛ ДВОЙНУЮ ИНИЦИАЛИЗАЦИЮ ДАШБОРДА -->
     <script>
-        /**
-         * Инициализация дашборда Reader после загрузки DOM
-         */
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('📖 Инициализация дашборда "Читатель"');
-            
-            // Проверка аутентификации
-            if (typeof checkAuthStatus === 'function') {
-                checkAuthStatus();
-            }
-            
-            // Инициализация дашборда
-            if (typeof ReaderDashboard === 'function') {
-                window.readerDashboardInstance = new ReaderDashboard();
-            } else {
-                console.log('📖 Класс ReaderDashboard не найден, используем базовую инициализацию');
-                initBasicDashboard();
-            }
-            
-            // Инициализация книжной анимации
-            if (typeof initReaderMatrix === 'function') {
-                initReaderMatrix(true); // subtle mode для дашборда
-            }
-        });
-        
-        /**
-         * Базовая инициализация дашборда (fallback)
-         */
-        function initBasicDashboard() {
-            console.log('📖 Базовая инициализация дашборда');
-            
-            // Обработчик изменения периода
-            const dateRange = document.getElementById('date-range');
-            if (dateRange) {
-                dateRange.addEventListener('change', () => {
-                    console.log('📖 Изменен период:', dateRange.value);
-                    loadBasicStats();
-                });
-            }
-            
-            // Кнопка обновления
-            const refreshBtn = document.getElementById('refresh-dashboard');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', () => {
-                    console.log('📖 Обновление данных');
-                    loadBasicStats();
-                });
-            }
-            
-            // Кнопка экспорта
-            const exportBtn = document.getElementById('export-data');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', () => {
-                    console.log('📖 Экспорт данных');
-                    exportBasicData();
-                });
-            }
-            
-            // Загрузка базовой статистики
-            loadBasicStats();
-        }
-        
-        /**
-         * Загрузка базовой статистики (заглушка)
-         */
-        function loadBasicStats() {
-            console.log('📖 Загрузка статистики');
-            
-            // Показываем состояние загрузки
-            document.querySelectorAll('.stat-value').forEach(el => {
-                el.classList.add('loading');
-            });
-            
-            // Имитация загрузки
-            setTimeout(() => {
-                const stats = {
-                    'total-users-count': '1,247',
-                    'new-users-count': '156',
-                    'total-quotes-count': '8,734',
-                    'avg-quotes-count': '7.2',
-                    'active-users-count': '423',
-                    'promo-usage-count': '89'
-                };
-                
-                Object.entries(stats).forEach(([id, value]) => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.textContent = value;
-                        element.classList.remove('loading');
-                        element.classList.add('updated');
-                        setTimeout(() => element.classList.remove('updated'), 1000);
-                    }
-                });
-                
-                loadTopContentStub();
-                loadRecentTicketsStub();
-                showNotification('success', 'Данные обновлены');
-            }, 1000);
-        }
-        
-        /**
-         * Загрузка топ контента (заглушка)
-         */
-        function loadTopContentStub() {
-            const topAuthors = document.getElementById('top-authors');
-            const topCategories = document.getElementById('top-categories');
-            const popularQuotes = document.getElementById('popular-quotes');
-            
-            if (topAuthors) {
-                topAuthors.innerHTML = `
-                    <div class="top-item">
-                        <span class="rank">1</span>
-                        <span class="name">Лев Толстой</span>
-                        <span class="count">234 цитаты</span>
-                    </div>
-                    <div class="top-item">
-                        <span class="rank">2</span>
-                        <span class="name">Эрих Фромм</span>
-                        <span class="count">189 цитат</span>
-                    </div>
-                    <div class="top-item">
-                        <span class="rank">3</span>
-                        <span class="name">Марина Цветаева</span>
-                        <span class="count">156 цитат</span>
-                    </div>
-                `;
-            }
-            
-            if (topCategories) {
-                topCategories.innerHTML = `
-                    <div class="top-item">
-                        <span class="rank">1</span>
-                        <span class="name">Саморазвитие</span>
-                        <span class="count">1,234 цитаты</span>
-                    </div>
-                    <div class="top-item">
-                        <span class="rank">2</span>
-                        <span class="name">Любовь</span>
-                        <span class="count">967 цитат</span>
-                    </div>
-                    <div class="top-item">
-                        <span class="rank">3</span>
-                        <span class="name">Мудрость</span>
-                        <span class="count">723 цитаты</span>
-                    </div>
-                `;
-            }
-            
-            if (popularQuotes) {
-                popularQuotes.innerHTML = `
-                    <div class="popular-quote">
-                        <div class="quote-text">"В каждом слове — целая жизнь"</div>
-                        <div class="quote-meta">— Марина Цветаева <span class="usage-count">(12 раз)</span></div>
-                    </div>
-                    <div class="popular-quote">
-                        <div class="quote-text">"Любовь — это решение любить"</div>
-                        <div class="quote-meta">— Эрих Фромм <span class="usage-count">(8 раз)</span></div>
-                    </div>
-                `;
-            }
-        }
-        
-        /**
-         * Загрузка последних обращений (заглушка)
-         */
-        function loadRecentTicketsStub() {
-            const tbody = document.querySelector('#recent-tickets-table tbody');
-            if (!tbody) return;
-            
-            tbody.innerHTML = `
-                <tr>
-                    <td>#RDER001</td>
-                    <td>Мария К.</td>
-                    <td>Вопрос о еженедельных отчетах</td>
-                    <td><span class="status-badge status-open">Открыто</span></td>
-                    <td>2 часа назад</td>
-                    <td><button class="btn btn-sm" onclick="viewTicket('RDER001')">Просмотр</button></td>
-                </tr>
-                <tr>
-                    <td>#RDER002</td>
-                    <td>Елена А.</td>
-                    <td>Помогите разобраться с мотивацией</td>
-                    <td><span class="status-badge status-in-progress">В работе</span></td>
-                    <td>5 часов назад</td>
-                    <td><button class="btn btn-sm" onclick="viewTicket('RDER002')">Просмотр</button></td>
-                </tr>
-                <tr>
-                    <td>#RDER003</td>
-                    <td>Анна М.</td>
-                    <td>Цитаты не сохраняются</td>
-                    <td><span class="status-badge status-resolved">Решено</span></td>
-                    <td>1 день назад</td>
-                    <td><button class="btn btn-sm" onclick="viewTicket('RDER003')">Просмотр</button></td>
-                </tr>
-            `;
-        }
-        
-        /**
-         * Экспорт базовых данных (заглушка)
-         */
-        function exportBasicData() {
-            const data = {
-                timestamp: new Date().toISOString(),
-                period: document.getElementById('date-range')?.value || '7d',
-                stats: {
-                    totalUsers: 1247,
-                    newUsers: 156,
-                    totalQuotes: 8734,
-                    avgQuotes: 7.2,
-                    activeUsers: 423,
-                    promoUsage: 89
-                }
-            };
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `reader-basic-stats-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            showNotification('success', 'Данные экспортированы');
-        }
-        
-        /**
-         * Просмотр тикета
-         */
-        function viewTicket(ticketId) {
-            console.log('📖 Просмотр тикета:', ticketId);
-            window.location.href = `tickets.html?id=${ticketId}`;
-        }
-        
-        /**
-         * Показ уведомления
-         */
+        // Базовые функции для совместимости
         function showNotification(type, message) {
             const container = document.getElementById('notification-container');
             if (!container) {
-                alert(message);
+                console.log(`[${type.toUpperCase()}] ${message}`);
                 return;
             }
             
@@ -473,6 +245,11 @@
                     notification.parentNode.removeChild(notification);
                 }
             }, 5000);
+        }
+        
+        function viewTicket(ticketId) {
+            console.log('📖 Просмотр тикета:', ticketId);
+            window.location.href = `tickets.html?id=${ticketId}`;
         }
     </script>
 </body>
