@@ -1,11 +1,32 @@
 /**
  * @fileoverview Сервис аналитики Reader Bot - ТОЛЬКО РЕАЛЬНЫЕ ДАННЫЕ
  * @description Показывает исключительно данные из MongoDB, НЕТ fallback данных
- * @version 3.1.0
+ * @version 3.1.1 - EMERGENCY FIX
  */
 
-// Правильный импорт моделей из index.js
-const { UserProfile, Quote, UTMClick, PromoCodeUsage, UserAction } = require('../models');
+const logger = require('../utils/logger');
+
+// Безопасный импорт моделей с обработкой ошибок
+let UserProfile, Quote, UTMClick, PromoCodeUsage, UserAction;
+
+try {
+  const models = require('../models');
+  UserProfile = models.UserProfile;
+  Quote = models.Quote;
+  UTMClick = models.UTMClick;
+  PromoCodeUsage = models.PromoCodeUsage;
+  UserAction = models.UserAction;
+  
+  logger.info('📊 AnalyticsService: Модели загружены успешно');
+} catch (error) {
+  logger.error('📊 AnalyticsService: Ошибка загрузки моделей:', error.message);
+  // Устанавливаем в null, чтобы проверки работали
+  UserProfile = null;
+  Quote = null;
+  UTMClick = null;
+  PromoCodeUsage = null;
+  UserAction = null;
+}
 
 /**
  * @typedef {import('../types/reader').DashboardStats} DashboardStats
@@ -17,7 +38,30 @@ const { UserProfile, Quote, UTMClick, PromoCodeUsage, UserAction } = require('..
 class AnalyticsService {
   constructor() {
     this.name = 'AnalyticsService';
-    console.log('📊 AnalyticsService инициализирован (только реальные данные)');
+    this.isReady = !!(UserProfile && Quote);
+    
+    if (this.isReady) {
+      logger.info('📊 AnalyticsService инициализирован успешно (только реальные данные)');
+    } else {
+      logger.warn('📊 AnalyticsService инициализирован с ограниченной функциональностью (модели недоступны)');
+    }
+  }
+
+  /**
+   * Проверка готовности сервиса
+   * @returns {boolean}
+   */
+  healthCheck() {
+    return {
+      status: this.isReady ? 'ok' : 'limited',
+      modelsAvailable: {
+        UserProfile: !!UserProfile,
+        Quote: !!Quote,
+        UTMClick: !!UTMClick,
+        PromoCodeUsage: !!PromoCodeUsage,
+        UserAction: !!UserAction
+      }
+    };
   }
 
   /**
@@ -27,7 +71,12 @@ class AnalyticsService {
    */
   async getDashboardStats(dateRange = '7d') {
     try {
-      console.log(`📊 Получение РЕАЛЬНОЙ статистики дашборда для периода: ${dateRange}`);
+      if (!this.isReady) {
+        logger.warn('📊 AnalyticsService не готов, возвращаем пустые данные');
+        return this.getEmptyStats(dateRange);
+      }
+
+      logger.info(`📊 Получение РЕАЛЬНОЙ статистики дашборда для периода: ${dateRange}`);
       
       const startDate = this.getStartDate(dateRange);
       
@@ -70,7 +119,7 @@ class AnalyticsService {
         dataSource: 'mongodb'
       };
 
-      console.log('📊 Реальные данные дашборда получены:', {
+      logger.info('📊 Реальные данные дашборда получены:', {
         totalUsers,
         newUsers,
         totalQuotes,
@@ -82,26 +131,8 @@ class AnalyticsService {
       return stats;
 
     } catch (error) {
-      console.error('📊 Ошибка получения данных дашборда:', error);
-      
-      // Возвращаем пустую структуру вместо fallback
-      return {
-        overview: {
-          totalUsers: 0,
-          newUsers: 0,
-          totalQuotes: 0,
-          avgQuotesPerUser: 0,
-          activeUsers: 0,
-          promoUsage: 0
-        },
-        sourceStats: [],
-        utmStats: [],
-        period: dateRange,
-        timestamp: new Date().toISOString(),
-        fallbackMode: false,
-        dataSource: 'error',
-        error: error.message
-      };
+      logger.error('📊 Ошибка получения данных дашборда:', error);
+      return this.getEmptyStats(dateRange, error.message);
     }
   }
 
@@ -111,7 +142,12 @@ class AnalyticsService {
    */
   async getUserRetentionStats() {
     try {
-      console.log('📊 Получение РЕАЛЬНОЙ статистики retention');
+      if (!UserProfile || !Quote) {
+        logger.warn('📊 Модели недоступны для retention анализа');
+        return [];
+      }
+
+      logger.info('📊 Получение РЕАЛЬНОЙ статистики retention');
       
       const cohorts = await UserProfile.aggregate([
         {
@@ -132,7 +168,7 @@ class AnalyticsService {
       ]);
 
       if (!cohorts || cohorts.length === 0) {
-        console.log('📊 Нет данных когорт для retention анализа');
+        logger.info('📊 Нет данных когорт для retention анализа');
         return [];
       }
 
@@ -170,11 +206,11 @@ class AnalyticsService {
         retentionData.push(retention);
       }
 
-      console.log(`📊 Реальные данные retention получены: ${retentionData.length} когорт`);
+      logger.info(`📊 Реальные данные retention получены: ${retentionData.length} когорт`);
       return retentionData;
 
     } catch (error) {
-      console.error('📊 Ошибка получения retention данных:', error);
+      logger.error('📊 Ошибка получения retention данных:', error);
       return []; // Возвращаем пустой массив вместо fallback
     }
   }
@@ -186,7 +222,17 @@ class AnalyticsService {
    */
   async getTopQuotesAndAuthors(dateRange = '30d') {
     try {
-      console.log(`📊 Получение РЕАЛЬНОГО топ контента для периода: ${dateRange}`);
+      if (!Quote) {
+        logger.warn('📊 Модель Quote недоступна для топ контента');
+        return {
+          topAuthors: [],
+          topCategories: [],
+          popularQuotes: [],
+          dataSource: 'unavailable'
+        };
+      }
+
+      logger.info(`📊 Получение РЕАЛЬНОГО топ контента для периода: ${dateRange}`);
       
       const startDate = this.getStartDate(dateRange);
 
@@ -234,7 +280,7 @@ class AnalyticsService {
         period: dateRange
       };
 
-      console.log('📊 Реальный топ контент получен:', {
+      logger.info('📊 Реальный топ контент получен:', {
         authors: topAuthors.length,
         categories: topCategories.length,
         popularQuotes: popularQuotes.length
@@ -243,7 +289,7 @@ class AnalyticsService {
       return topContent;
 
     } catch (error) {
-      console.error('📊 Ошибка получения топ контента:', error);
+      logger.error('📊 Ошибка получения топ контента:', error);
       return {
         topAuthors: [],
         topCategories: [],
@@ -263,7 +309,7 @@ class AnalyticsService {
     try {
       // Проверяем доступность модели UTMClick
       if (!UTMClick) {
-        console.warn('📊 Модель UTMClick недоступна');
+        logger.warn('📊 Модель UTMClick недоступна');
         return;
       }
       
@@ -281,10 +327,10 @@ class AnalyticsService {
       });
 
       await click.save();
-      console.log(`📊 UTM клик записан: ${utmParams.utm_campaign} от ${userId}`);
+      logger.info(`📊 UTM клик записан: ${utmParams.utm_campaign} от ${userId}`);
 
     } catch (error) {
-      console.error('📊 Ошибка записи UTM клика:', error);
+      logger.error('📊 Ошибка записи UTM клика:', error);
       // Не прерываем выполнение, просто логируем
     }
   }
@@ -300,7 +346,7 @@ class AnalyticsService {
     try {
       // Проверяем доступность модели PromoCodeUsage
       if (!PromoCodeUsage) {
-        console.warn('📊 Модель PromoCodeUsage недоступна');
+        logger.warn('📊 Модель PromoCodeUsage недоступна');
         return;
       }
       
@@ -316,10 +362,10 @@ class AnalyticsService {
       });
 
       await usage.save();
-      console.log(`📊 Промокод записан: ${promoCode} от ${userId}, сумма ${orderValue}`);
+      logger.info(`📊 Промокод записан: ${promoCode} от ${userId}, сумма ${orderValue}`);
 
     } catch (error) {
-      console.error('📊 Ошибка записи промокода:', error);
+      logger.error('📊 Ошибка записи промокода:', error);
     }
   }
 
@@ -333,7 +379,7 @@ class AnalyticsService {
     try {
       // Проверяем доступность модели UserAction
       if (!UserAction) {
-        console.warn('📊 Модель UserAction недоступна');
+        logger.warn('📊 Модель UserAction недоступна');
         return;
       }
       
@@ -345,10 +391,10 @@ class AnalyticsService {
       });
 
       await userAction.save();
-      console.log(`📊 Действие записано: ${action} от ${userId}`);
+      logger.info(`📊 Действие записано: ${action} от ${userId}`);
 
     } catch (error) {
-      console.error('📊 Ошибка записи действия пользователя:', error);
+      logger.error('📊 Ошибка записи действия пользователя:', error);
     }
   }
 
@@ -359,14 +405,14 @@ class AnalyticsService {
   async getTotalUsers() {
     try {
       if (!UserProfile) {
-        console.error('📊 UserProfile модель недоступна');
+        logger.warn('📊 UserProfile модель недоступна');
         return 0;
       }
       const count = await UserProfile.countDocuments({ isOnboardingComplete: true });
-      console.log(`📊 Общее количество пользователей: ${count}`);
+      logger.info(`📊 Общее количество пользователей: ${count}`);
       return count;
     } catch (error) {
-      console.error('📊 Ошибка получения общего количества пользователей:', error);
+      logger.error('📊 Ошибка получения общего количества пользователей:', error);
       return 0;
     }
   }
@@ -374,17 +420,17 @@ class AnalyticsService {
   async getNewUsers(startDate) {
     try {
       if (!UserProfile) {
-        console.error('📊 UserProfile модель недоступна');
+        logger.warn('📊 UserProfile модель недоступна');
         return 0;
       }
       const count = await UserProfile.countDocuments({
         isOnboardingComplete: true,
         registeredAt: { $gte: startDate }
       });
-      console.log(`📊 Новые пользователи с ${startDate.toISOString()}: ${count}`);
+      logger.info(`📊 Новые пользователи с ${startDate.toISOString()}: ${count}`);
       return count;
     } catch (error) {
-      console.error('📊 Ошибка получения новых пользователей:', error);
+      logger.error('📊 Ошибка получения новых пользователей:', error);
       return 0;
     }
   }
@@ -392,14 +438,14 @@ class AnalyticsService {
   async getTotalQuotes(startDate) {
     try {
       if (!Quote) {
-        console.error('📊 Quote модель недоступна');
+        logger.warn('📊 Quote модель недоступна');
         return 0;
       }
       const count = await Quote.countDocuments({ createdAt: { $gte: startDate } });
-      console.log(`📊 Цитат с ${startDate.toISOString()}: ${count}`);
+      logger.info(`📊 Цитат с ${startDate.toISOString()}: ${count}`);
       return count;
     } catch (error) {
-      console.error('📊 Ошибка получения количества цитат:', error);
+      logger.error('📊 Ошибка получения количества цитат:', error);
       return 0;
     }
   }
@@ -407,16 +453,16 @@ class AnalyticsService {
   async getActiveUsers(startDate) {
     try {
       if (!Quote) {
-        console.error('📊 Quote модель недоступна');
+        logger.warn('📊 Quote модель недоступна');
         return 0;
       }
       const activeUsers = await Quote.distinct('userId', { 
         createdAt: { $gte: startDate } 
       });
-      console.log(`📊 Активные пользователи с ${startDate.toISOString()}: ${activeUsers.length}`);
+      logger.info(`📊 Активные пользователи с ${startDate.toISOString()}: ${activeUsers.length}`);
       return activeUsers.length;
     } catch (error) {
-      console.error('📊 Ошибка получения активных пользователей:', error);
+      logger.error('📊 Ошибка получения активных пользователей:', error);
       return 0;
     }
   }
@@ -424,16 +470,16 @@ class AnalyticsService {
   async getPromoUsage(startDate) {
     try {
       if (!PromoCodeUsage) {
-        console.warn('📊 Модель PromoCodeUsage недоступна');
+        logger.warn('📊 Модель PromoCodeUsage недоступна');
         return 0;
       }
       const count = await PromoCodeUsage.countDocuments({
         timestamp: { $gte: startDate }
       });
-      console.log(`📊 Использование промокодов с ${startDate.toISOString()}: ${count}`);
+      logger.info(`📊 Использование промокодов с ${startDate.toISOString()}: ${count}`);
       return count;
     } catch (error) {
-      console.warn('📊 Модель промокодов недоступна или ошибка:', error.message);
+      logger.warn('📊 Модель промокодов недоступна или ошибка:', error.message);
       return 0;
     }
   }
@@ -441,7 +487,7 @@ class AnalyticsService {
   async getSourceStats(startDate) {
     try {
       if (!UserProfile) {
-        console.error('📊 UserProfile модель недоступна');
+        logger.warn('📊 UserProfile модель недоступна');
         return [];
       }
       const stats = await UserProfile.aggregate([
@@ -454,10 +500,10 @@ class AnalyticsService {
         { $group: { _id: '$source', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]);
-      console.log(`📊 Статистика источников: ${stats.length} источников`);
+      logger.info(`📊 Статистика источников: ${stats.length} источников`);
       return stats;
     } catch (error) {
-      console.error('📊 Ошибка получения статистики источников:', error);
+      logger.error('📊 Ошибка получения статистики источников:', error);
       return [];
     }
   }
@@ -465,7 +511,7 @@ class AnalyticsService {
   async getUTMStats(startDate) {
     try {
       if (!UTMClick) {
-        console.warn('📊 Модель UTMClick недоступна');
+        logger.warn('📊 Модель UTMClick недоступна');
         return [];
       }
       const stats = await UTMClick.aggregate([
@@ -486,10 +532,10 @@ class AnalyticsService {
         },
         { $sort: { clicks: -1 } }
       ]);
-      console.log(`📊 UTM статистика: ${stats.length} кампаний`);
+      logger.info(`📊 UTM статистика: ${stats.length} кампаний`);
       return stats;
     } catch (error) {
-      console.warn('📊 Модель UTM недоступна или ошибка:', error.message);
+      logger.warn('📊 Модель UTM недоступна или ошибка:', error.message);
       return [];
     }
   }
@@ -497,6 +543,29 @@ class AnalyticsService {
   // ========================================
   // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
   // ========================================
+
+  /**
+   * Возвращает пустую структуру данных
+   */
+  getEmptyStats(dateRange, errorMessage = null) {
+    return {
+      overview: {
+        totalUsers: 0,
+        newUsers: 0,
+        totalQuotes: 0,
+        avgQuotesPerUser: 0,
+        activeUsers: 0,
+        promoUsage: 0
+      },
+      sourceStats: [],
+      utmStats: [],
+      period: dateRange,
+      timestamp: new Date().toISOString(),
+      fallbackMode: false,
+      dataSource: errorMessage ? 'error' : 'unavailable',
+      error: errorMessage
+    };
+  }
 
   /**
    * Получение даты начала периода
