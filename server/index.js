@@ -118,6 +118,19 @@ app.use((error, req, res, next) => {
   next(error);
 });
 
+// 🐛 ДОБАВЛЕНО: Детальное логирование HTTP запросов
+app.use((req, res, next) => {
+  const start = Date.now();
+  logger.info(`🌐 HTTP ${req.method} ${req.path} - Query: ${JSON.stringify(req.query)} - Body: ${JSON.stringify(req.body)}`);
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.info(`🌐 HTTP ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+  });
+  
+  next();
+});
+
 // Логирование HTTP запросов (если включено)
 if (config.logging.enableHttpLogging) {
   app.use(logger.httpLogger);
@@ -139,15 +152,35 @@ app.use(express.static(path.join(__dirname, '../client'), {
   }
 }));
 
+// 🐛 ДОБАВЛЕНО: Логирование регистрации роутов
+logger.info('🔧 Registering API routes...');
+
 // API Routes с префиксом
+logger.info(`🔧 Mounting /api/chat routes`);
 app.use(`${config.app.apiPrefix}/chat`, chatRoutes);
+
+logger.info(`🔧 Mounting /api/tickets routes`);
 app.use(`${config.app.apiPrefix}/tickets`, ticketRoutes);
+
+logger.info(`🔧 Mounting /api/admin routes`);
 app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
+
+logger.info(`🔧 Mounting /api/knowledge routes`);
 app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
+
+logger.info(`🔧 Mounting /api/prompts routes`);
 app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
+
+logger.info(`🔧 Mounting /api/reports routes`);
 app.use(`${config.app.apiPrefix}/reports`, reportRoutes); // 📖 НОВОЕ: Маршруты отчетов
+
+logger.info(`🔧 Mounting /api/analytics routes`);
 app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes); // 📊 ИСПРАВЛЕНО: Маршруты аналитики
+
+logger.info(`🔧 Mounting /api/users routes`);
 app.use(`${config.app.apiPrefix}/users`, usersRoutes); // 👥 ИСПРАВЛЕНО: Маршруты пользователей
+
+logger.info('✅ All API routes registered successfully');
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
@@ -179,7 +212,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
     // 👥 НОВОЕ: Проверка пользовательских роутов
     let usersHealth = { status: 'ok' };
     try {
-      const { UserProfile, Quote } = require('./models');
+      const UserProfile = require('./models/userProfile');
+      const Quote = require('./models/quote');
       await UserProfile.countDocuments().limit(1);
       await Quote.countDocuments().limit(1);
       usersHealth.modelsAvailable = true;
@@ -742,8 +776,10 @@ io.on('connection', (socket) => {
 // Middleware для обработки ошибок
 app.use(errorHandler);
 
-// 404 handler
+// 🐛 ДОБАВЛЕНО: Детальный 404 handler с логированием
 app.use((req, res) => {
+  logger.warn(`❌ 404 Not Found: ${req.method} ${req.path} - Query: ${JSON.stringify(req.query)}`);
+  
   res.status(404).json({
     success: false,
     error: 'Not Found',
