@@ -32,6 +32,8 @@ class ReaderDashboard {
     this.isLoading = false;
     this.cache = new Map();
     this.baseURL = '/api/analytics';
+    this.retryCount = 0;
+    this.maxRetries = 3;
     
     this.init();
   }
@@ -57,11 +59,15 @@ class ReaderDashboard {
     this.showLoadingState();
 
     try {
+      console.log('📊 Загрузка данных дашборда...');
+      
       const [dashboardStats, retentionData, topContent] = await Promise.all([
         this.fetchDashboardStats(),
         this.fetchRetentionData(),
         this.fetchTopContent()
       ]);
+
+      console.log('📊 Данные получены:', { dashboardStats, retentionData, topContent });
 
       this.updateStatCards(dashboardStats.overview);
       this.updateSourceChart(dashboardStats.sourceStats);
@@ -71,12 +77,20 @@ class ReaderDashboard {
 
       this.hideLoadingState();
       this.showNotification('success', 'Данные дашборда обновлены');
+      this.retryCount = 0; // Сбрасываем счетчик ошибок
 
     } catch (error) {
       console.error('📖 Ошибка загрузки данных дашборда:', error);
       this.hideLoadingState();
-      this.showNotification('error', 'Ошибка загрузки данных: ' + error.message);
-      this.showFallbackData();
+      
+      this.retryCount++;
+      if (this.retryCount <= this.maxRetries) {
+        this.showNotification('warning', `Попытка загрузки ${this.retryCount}/${this.maxRetries}...`);
+        setTimeout(() => this.loadDashboardData(), 2000 * this.retryCount);
+      } else {
+        this.showNotification('error', 'Ошибка загрузки данных. Показаны демонстрационные данные.');
+        this.showFallbackData();
+      }
     } finally {
       this.isLoading = false;
     }
@@ -91,7 +105,14 @@ class ReaderDashboard {
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
-    const response = await fetch(`${this.baseURL}/dashboard?period=${this.currentPeriod}`);
+    const response = await fetch(`${this.baseURL}/dashboard?period=${this.currentPeriod}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -114,7 +135,14 @@ class ReaderDashboard {
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
-    const response = await fetch(`${this.baseURL}/retention`);
+    const response = await fetch(`${this.baseURL}/retention`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -137,7 +165,14 @@ class ReaderDashboard {
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
-    const response = await fetch(`${this.baseURL}/top-content?period=${this.currentPeriod}`);
+    const response = await fetch(`${this.baseURL}/top-content?period=${this.currentPeriod}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -156,13 +191,18 @@ class ReaderDashboard {
    * @param {Object} stats - Статистика
    */
   updateStatCards(stats) {
+    if (!stats) {
+      console.warn('📊 No stats data provided');
+      return;
+    }
+
     const cards = {
-      'total-users-count': this.formatNumber(stats.totalUsers),
-      'new-users-count': this.formatNumber(stats.newUsers),
-      'total-quotes-count': this.formatNumber(stats.totalQuotes),
-      'avg-quotes-count': this.formatDecimal(stats.avgQuotesPerUser),
-      'active-users-count': this.formatNumber(stats.activeUsers),
-      'promo-usage-count': this.formatNumber(stats.promoUsage)
+      'total-users-count': this.formatNumber(stats.totalUsers || 0),
+      'new-users-count': this.formatNumber(stats.newUsers || 0),
+      'total-quotes-count': this.formatNumber(stats.totalQuotes || 0),
+      'avg-quotes-count': this.formatDecimal(stats.avgQuotesPerUser || 0),
+      'active-users-count': this.formatNumber(stats.activeUsers || 0),
+      'promo-usage-count': this.formatNumber(stats.promoUsage || 0)
     };
 
     Object.entries(cards).forEach(([id, value]) => {
@@ -171,6 +211,8 @@ class ReaderDashboard {
         element.textContent = value;
         element.classList.add('updated');
         setTimeout(() => element.classList.remove('updated'), 1000);
+      } else {
+        console.warn(`📊 Element not found: ${id}`);
       }
     });
   }
@@ -192,12 +234,19 @@ class ReaderDashboard {
       return;
     }
 
+    // Проверяем доступность Chart.js
+    if (typeof Chart === 'undefined') {
+      console.error('📊 Chart.js не загружен');
+      this.showEmptyChart(ctx, 'График недоступен');
+      return;
+    }
+
     this.charts.source = new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels: sourceStats.map(s => s._id || 'Неизвестно'),
         datasets: [{
-          data: sourceStats.map(s => s.count),
+          data: sourceStats.map(s => s.count || 0),
           backgroundColor: [
             '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
             '#FFEAA7', '#DDA0DD', '#F7931E', '#FF7675'
@@ -226,7 +275,7 @@ class ReaderDashboard {
             callbacks: {
               label: function(context) {
                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                const percentage = Math.round((context.raw / total) * 100);
+                const percentage = total > 0 ? Math.round((context.raw / total) * 100) : 0;
                 return `${context.label}: ${context.raw} (${percentage}%)`;
               }
             }
@@ -253,6 +302,13 @@ class ReaderDashboard {
       return;
     }
 
+    // Проверяем доступность Chart.js
+    if (typeof Chart === 'undefined') {
+      console.error('📊 Chart.js не загружен');
+      this.showEmptyChart(ctx, 'График недоступен');
+      return;
+    }
+
     this.charts.utm = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -260,13 +316,13 @@ class ReaderDashboard {
         datasets: [
           {
             label: 'Клики',
-            data: utmStats.map(u => u.clicks),
+            data: utmStats.map(u => u.clicks || 0),
             backgroundColor: '#4ECDC4',
             borderRadius: 4
           },
           {
             label: 'Уникальные пользователи',
-            data: utmStats.map(u => u.uniqueUsers),
+            data: utmStats.map(u => u.uniqueUsers || 0),
             backgroundColor: '#45B7D1',
             borderRadius: 4
           }
@@ -319,6 +375,13 @@ class ReaderDashboard {
       return;
     }
 
+    // Проверяем доступность Chart.js
+    if (typeof Chart === 'undefined') {
+      console.error('📊 Chart.js не загружен');
+      this.showEmptyChart(ctx, 'График недоступен');
+      return;
+    }
+
     // Берем последние 6 когорт для читаемости
     const recentCohorts = retentionData.slice(-6);
 
@@ -328,7 +391,7 @@ class ReaderDashboard {
         labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
         datasets: recentCohorts.map((cohort, index) => ({
           label: `${cohort.cohort} (${cohort.size} польз.)`,
-          data: [cohort.week1, cohort.week2, cohort.week3, cohort.week4],
+          data: [cohort.week1 || 0, cohort.week2 || 0, cohort.week3 || 0, cohort.week4 || 0],
           borderColor: this.getRetentionColor(index),
           backgroundColor: this.getRetentionColor(index, 0.1),
           tension: 0.3,
@@ -385,6 +448,11 @@ class ReaderDashboard {
    * @param {Object} topContent - Топ контент
    */
   updateTopContent(topContent) {
+    if (!topContent) {
+      console.warn('📊 No top content data provided');
+      return;
+    }
+
     this.updateTopAuthors(topContent.topAuthors);
     this.updateTopCategories(topContent.topCategories);
     this.updatePopularQuotes(topContent.popularQuotes);
@@ -483,6 +551,7 @@ class ReaderDashboard {
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => {
         this.clearCache();
+        this.retryCount = 0;
         this.loadDashboardData();
       });
     }
@@ -552,6 +621,14 @@ class ReaderDashboard {
     document.querySelectorAll('.top-content-list, .popular-quotes-list').forEach(el => {
       el.innerHTML = '<div class="loading">📖 Загрузка...</div>';
     });
+
+    // Показываем spinner на графиках
+    document.querySelectorAll('canvas').forEach(canvas => {
+      const container = canvas.parentElement;
+      if (container) {
+        container.classList.add('loading');
+      }
+    });
   }
 
   /**
@@ -567,10 +644,40 @@ class ReaderDashboard {
    * Показ fallback данных при ошибке
    */
   showFallbackData() {
-    // Показываем заглушки из HTML
-    if (typeof loadBasicStats === 'function') {
-      loadBasicStats();
-    }
+    // Показываем демонстрационные данные
+    const fallbackStats = {
+      totalUsers: 3,
+      newUsers: 1,
+      totalQuotes: 4,
+      avgQuotesPerUser: 1.3,
+      activeUsers: 2,
+      promoUsage: 0
+    };
+
+    const fallbackSources = [
+      { _id: 'Instagram', count: 1 },
+      { _id: 'Telegram', count: 1 },
+      { _id: 'YouTube', count: 1 }
+    ];
+
+    const fallbackTopContent = {
+      topAuthors: [
+        { _id: 'Марина Цветаева', count: 1 },
+        { _id: 'Эрих Фромм', count: 1 },
+        { _id: 'Будда', count: 1 }
+      ],
+      topCategories: [
+        { _id: 'Поэзия', count: 1 },
+        { _id: 'Психология', count: 1 },
+        { _id: 'Философия', count: 1 }
+      ],
+      popularQuotes: []
+    };
+
+    this.updateStatCards(fallbackStats);
+    this.updateSourceChart(fallbackSources);
+    this.updateUTMChart([]);
+    this.updateTopContent(fallbackTopContent);
   }
 
   /**
@@ -612,6 +719,7 @@ class ReaderDashboard {
    * @returns {string}
    */
   formatNumber(num) {
+    if (typeof num !== 'number') return '0';
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
     }
@@ -627,6 +735,7 @@ class ReaderDashboard {
    * @returns {string}
    */
   formatDecimal(num) {
+    if (typeof num !== 'number') return '0.0';
     return parseFloat(num).toFixed(1);
   }
 
@@ -698,14 +807,23 @@ class ReaderDashboard {
 
   /**
    * Показ уведомления
-   * @param {string} type - Тип (success, error, info)
+   * @param {string} type - Тип (success, error, info, warning)
    * @param {string} message - Сообщение
    */
   showNotification(type, message) {
     if (typeof showNotification === 'function') {
       showNotification(type, message);
     } else {
+      // Fallback для случая, когда функция не определена
       console.log(`[${type.toUpperCase()}] ${message}`);
+      
+      // Простое уведомление через alert для критических ошибок
+      if (type === 'error') {
+        const shouldShow = confirm(`Ошибка: ${message}\n\nПоказать в консоли?`);
+        if (shouldShow) {
+          console.error('Dashboard Error:', message);
+        }
+      }
     }
   }
 
@@ -726,3 +844,12 @@ class ReaderDashboard {
 
 // Глобальная переменная для доступа к экземпляру
 window.ReaderDashboard = ReaderDashboard;
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.location.pathname.includes('index.html') || window.location.pathname.endsWith('/')) {
+    console.log('📖 Initializing Reader Dashboard...');
+    const dashboard = new ReaderDashboard();
+    window.readerDashboard = dashboard;
+  }
+});
