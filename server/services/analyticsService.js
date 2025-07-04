@@ -1,7 +1,7 @@
 /**
- * @fileoverview Сервис аналитики Reader Bot - ДИАГНОСТИКА ПРОБЛЕМЫ
- * @description Детальное логирование для выявления проблемы с моделями
- * @version 3.2.1 - DIAGNOSTIC VERSION
+ * @fileoverview Сервис аналитики Reader Bot - ИСПРАВЛЕНИЕ ПРЯМОЙ ИМПОРТ
+ * @description Пробуем импортировать модели напрямую без models/index.js
+ * @version 3.2.2 - DIRECT IMPORT APPROACH
  */
 
 const logger = require('../utils/logger');
@@ -11,11 +11,11 @@ class AnalyticsService {
     this.name = 'AnalyticsService';
     this._models = null;
     
-    logger.info('📊 AnalyticsService конструктор запущен');
+    logger.info('📊 AnalyticsService инициализирован с прямым импортом моделей');
   }
 
   /**
-   * Диагностическая загрузка моделей с детальным логированием
+   * Прямая загрузка моделей без models/index.js
    */
   getModels() {
     if (this._models) {
@@ -24,39 +24,51 @@ class AnalyticsService {
     }
 
     try {
-      logger.info('📊 Начинаем загрузку моделей...');
+      logger.info('📊 Начинаем ПРЯМУЮ загрузку моделей...');
       
-      // Проверяем путь к моделям
-      const modelsPath = '../models';
-      logger.info(`📊 Путь к моделям: ${modelsPath}`);
+      // Пробуем импортировать модели напрямую
+      const UserProfile = require('../models/userProfile');
+      const Quote = require('../models/quote');
       
-      const models = require(modelsPath);
-      logger.info(`📊 require('../models') выполнен, тип: ${typeof models}`);
-      logger.info(`📊 Ключи models: ${Object.keys(models)}`);
+      logger.info(`📊 UserProfile загружен: ${typeof UserProfile}`);
+      logger.info(`📊 Quote загружен: ${typeof Quote}`);
       
-      // Проверяем каждую модель отдельно
-      const modelNames = ['UserProfile', 'Quote', 'UTMClick', 'PromoCodeUsage', 'UserAction'];
-      const modelStatus = {};
+      // Пробуем analytics модели отдельно
+      let UTMClick, PromoCodeUsage, UserAction;
+      try {
+        const analytics = require('../models/analytics');
+        UTMClick = analytics.UTMClick;
+        PromoCodeUsage = analytics.PromoCodeUsage;
+        UserAction = analytics.UserAction;
+        
+        logger.info(`📊 Analytics модели загружены: UTMClick=${typeof UTMClick}, PromoCodeUsage=${typeof PromoCodeUsage}, UserAction=${typeof UserAction}`);
+      } catch (analyticsError) {
+        logger.warn('📊 Ошибка загрузки analytics моделей:', analyticsError.message);
+        UTMClick = null;
+        PromoCodeUsage = null;
+        UserAction = null;
+      }
       
-      for (const modelName of modelNames) {
-        const model = models[modelName];
-        modelStatus[modelName] = {
-          exists: !!model,
-          type: typeof model,
-          isFunction: typeof model === 'function',
-          hasSchema: !!(model && model.schema)
-        };
-        logger.info(`📊 Модель ${modelName}: exists=${!!model}, type=${typeof model}`);
+      // Пробуем другие модели
+      let WeeklyReport, MonthlyReport;
+      try {
+        WeeklyReport = require('../models/weeklyReport');
+        MonthlyReport = require('../models/monthlyReport');
+        logger.info(`📊 Report модели загружены: WeeklyReport=${typeof WeeklyReport}, MonthlyReport=${typeof MonthlyReport}`);
+      } catch (reportError) {
+        logger.warn('📊 Ошибка загрузки report моделей:', reportError.message);
+        WeeklyReport = null;
+        MonthlyReport = null;
       }
       
       this._models = {
-        UserProfile: models.UserProfile,
-        Quote: models.Quote,
-        UTMClick: models.UTMClick,
-        PromoCodeUsage: models.PromoCodeUsage,
-        UserAction: models.UserAction,
-        WeeklyReport: models.WeeklyReport,
-        MonthlyReport: models.MonthlyReport
+        UserProfile,
+        Quote,
+        UTMClick,
+        PromoCodeUsage,
+        UserAction,
+        WeeklyReport,
+        MonthlyReport
       };
       
       // Проверяем критические модели
@@ -65,43 +77,16 @@ class AnalyticsService {
       
       if (missingModels.length > 0) {
         logger.error(`📊 Отсутствуют критические модели: ${missingModels.join(', ')}`);
-        logger.error(`📊 Статус всех моделей: ${JSON.stringify(modelStatus, null, 2)}`);
         this._models = null;
         return null;
       }
       
-      logger.info('📊 ✅ Все модели успешно загружены');
+      logger.info('📊 ✅ Модели успешно загружены прямым импортом');
       return this._models;
       
     } catch (error) {
-      logger.error('📊 ❌ Ошибка загрузки моделей:', error.message);
+      logger.error('📊 ❌ Ошибка прямой загрузки моделей:', error.message);
       logger.error('📊 ❌ Stack trace:', error.stack);
-      
-      // Дополнительная диагностика
-      try {
-        const fs = require('fs');
-        const path = require('path');
-        const modelsDir = path.join(__dirname, '../models');
-        logger.info(`📊 Диагностика: проверяем директорию ${modelsDir}`);
-        
-        if (fs.existsSync(modelsDir)) {
-          const files = fs.readdirSync(modelsDir);
-          logger.info(`📊 Файлы в директории models: ${files.join(', ')}`);
-        } else {
-          logger.error(`📊 Директория ${modelsDir} не существует!`);
-        }
-        
-        // Пробуем загрузить index.js напрямую
-        const indexPath = path.join(modelsDir, 'index.js');
-        if (fs.existsSync(indexPath)) {
-          logger.info(`📊 Файл ${indexPath} существует`);
-        } else {
-          logger.error(`📊 Файл ${indexPath} не найден!`);
-        }
-      } catch (diagnosticError) {
-        logger.error('📊 Ошибка диагностики:', diagnosticError.message);
-      }
-      
       this._models = null;
       return null;
     }
@@ -172,6 +157,7 @@ class AnalyticsService {
       const totalQuotes = await this.getTotalQuotes(startDate);
       const newUsers = await this.getNewUsers(startDate);
       const activeUsers = await this.getActiveUsers(startDate);
+      const sourceStats = await this.getSourceStats(startDate);
       
       const stats = {
         overview: {
@@ -182,7 +168,7 @@ class AnalyticsService {
           activeUsers,
           promoUsage: 0
         },
-        sourceStats: [],
+        sourceStats: sourceStats || [],
         utmStats: [],
         period: dateRange,
         timestamp: new Date().toISOString(),
@@ -315,6 +301,33 @@ class AnalyticsService {
     } catch (error) {
       logger.error('📊 Ошибка в getActiveUsers:', error.message);
       return 0;
+    }
+  }
+
+  async getSourceStats(startDate) {
+    try {
+      const models = this.getModels();
+      
+      if (!models || !models.UserProfile) {
+        logger.warn('📊 UserProfile модель недоступна в getSourceStats');
+        return [];
+      }
+      
+      const stats = await models.UserProfile.aggregate([
+        { 
+          $match: { 
+            registeredAt: { $gte: startDate },
+            isOnboardingComplete: true
+          } 
+        },
+        { $group: { _id: '$source', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]);
+      logger.info(`📊 Статистика источников: ${stats.length} источников`);
+      return stats;
+    } catch (error) {
+      logger.error('📊 Ошибка в getSourceStats:', error.message);
+      return [];
     }
   }
 
