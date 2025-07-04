@@ -1,7 +1,7 @@
 /**
  * @fileoverview Исправленный дашборд аналитики для "Читатель"
  * @description Фиксит проблемы с Chart.js и добавляет fallback данные
- * @version 2.0.0
+ * @version 2.1.0 - ИСПРАВЛЕНЫ API URLS
  */
 
 class ReaderDashboard {
@@ -9,6 +9,10 @@ class ReaderDashboard {
     this.currentPeriod = '7d';
     this.charts = new Map(); // Используем Map для лучшего отслеживания
     this.isLoading = false;
+    
+    // ИСПРАВЛЕНО: Правильный API prefix
+    this.apiBase = '/api/reader/analytics'; // ДО ЭТОГО БЫЛО: /api/analytics
+    
     this.init();
   }
 
@@ -58,10 +62,13 @@ class ReaderDashboard {
   }
 
   /**
-   * Получение статистики дашборда
+   * ИСПРАВЛЕНО: Получение статистики дашборда с правильным URL
    */
   async fetchDashboardStats() {
-    const response = await fetch(`/api/analytics/dashboard?period=${this.currentPeriod}`);
+    const url = `${this.apiBase}/dashboard?period=${this.currentPeriod}`;
+    console.log('📊 Fetching dashboard from:', url);
+    
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -70,10 +77,13 @@ class ReaderDashboard {
   }
 
   /**
-   * Получение данных retention
+   * ИСПРАВЛЕНО: Получение данных retention с правильным URL
    */
   async fetchRetentionData() {
-    const response = await fetch('/api/analytics/retention');
+    const url = `${this.apiBase}/retention`;
+    console.log('📊 Fetching retention from:', url);
+    
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -82,10 +92,13 @@ class ReaderDashboard {
   }
 
   /**
-   * Получение топ контента
+   * ИСПРАВЛЕНО: Получение топ контента с правильным URL
    */
   async fetchTopContent() {
-    const response = await fetch(`/api/analytics/top-content?period=${this.currentPeriod}`);
+    const url = `${this.apiBase}/top-content?period=${this.currentPeriod}`;
+    console.log('📊 Fetching top content from:', url);
+    
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -550,7 +563,7 @@ class ReaderDashboard {
   }
 
   /**
-   * Экспорт данных
+   * ИСПРАВЛЕНО: Экспорт данных с правильным URL
    */
   async exportData() {
     try {
