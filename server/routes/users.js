@@ -408,13 +408,28 @@ router.get('/:userId', requireAdmin, async (req, res) => {
  */
 router.get('/export', requireAdmin, async (req, res) => {
   try {
-    const { format = 'json', includeQuotes = 'false' } = req.query;
-    console.log('📥 Экспорт пользователей:', { format, includeQuotes });
+    const { format = 'json', includeQuotes = 'false', userId = null } = req.query;
+    console.log('📥 Экспорт пользователей:', { format, includeQuotes, userId });
 
-    // Получаем всех пользователей
-    const users = await UserProfile.find({})
-      .select('-botState -telegramData')
-      .lean();
+    let users;
+    
+    // Если указан конкретный пользователь
+    if (userId) {
+      const user = await UserProfile.findOne({ userId })
+        .select('-botState -telegramData')
+        .lean();
+      
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+      
+      users = [user];
+    } else {
+      // Получаем всех пользователей
+      users = await UserProfile.find({})
+        .select('-botState -telegramData')
+        .lean();
+    }
 
     let exportData = users;
 
@@ -422,13 +437,23 @@ router.get('/export', requireAdmin, async (req, res) => {
     if (includeQuotes === 'true') {
       exportData = await Promise.all(
         users.map(async (user) => {
-          const quotes = await Quote.find({ userId: user.userId })
-            .select('text author category createdAt')
-            .lean();
+          const [quotes, weeklyReports, monthlyReports] = await Promise.all([
+            Quote.find({ userId: user.userId })
+              .select('text author category createdAt')
+              .lean(),
+            WeeklyReport.find({ userId: user.userId })
+              .select('weekNumber year sentAt analysis')
+              .lean(),
+            MonthlyReport.find({ userId: user.userId })
+              .select('month year sentAt analysis')
+              .lean()
+          ]);
           
           return {
             ...user,
-            quotes
+            quotes,
+            weeklyReports,
+            monthlyReports
           };
         })
       );
@@ -440,16 +465,17 @@ router.get('/export', requireAdmin, async (req, res) => {
       const csv = convertToCSV(exportData);
       
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=reader-users.csv');
+      res.setHeader('Content-Disposition', `attachment; filename=reader-${userId ? `user-${userId}` : 'users'}.csv`);
       res.send(csv);
     } else {
       // JSON формат
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', 'attachment; filename=reader-users.json');
+      res.setHeader('Content-Disposition', `attachment; filename=reader-${userId ? `user-${userId}` : 'users'}.json`);
       res.json({
         exportedAt: new Date(),
         totalUsers: exportData.length,
         includeQuotes: includeQuotes === 'true',
+        exportType: userId ? 'single_user' : 'all_users',
         users: exportData
       });
     }
@@ -536,7 +562,7 @@ router.put('/:userId', requireAdmin, async (req, res) => {
     res.json({
       success: true,
       message: 'Пользователь обновлен',
-      user: user.toSummary()
+      user: user.toSummary ? user.toSummary() : user
     });
 
   } catch (error) {
