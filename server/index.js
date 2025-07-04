@@ -28,7 +28,7 @@ const knowledgeRoutes = require('./api/knowledge');
 const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 НОВОЕ: Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 ИСПРАВЛЕНО: Правильный путь
-const usersRoutes = require('./routes/users'); // 👥 НОВОЕ: Маршруты пользователей
+const usersRoutes = require('./api/users'); // 👥 ИСПРАВЛЕНО: Правильный путь к users API
 
 // Services
 const dbService = require('./services/database');
@@ -147,7 +147,7 @@ app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
 app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
 app.use(`${config.app.apiPrefix}/reports`, reportRoutes); // 📖 НОВОЕ: Маршруты отчетов
 app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes); // 📊 ИСПРАВЛЕНО: Маршруты аналитики
-app.use(`${config.app.apiPrefix}/users`, usersRoutes); // 👥 НОВОЕ: Маршруты пользователей
+app.use(`${config.app.apiPrefix}/users`, usersRoutes); // 👥 ИСПРАВЛЕНО: Маршруты пользователей
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
