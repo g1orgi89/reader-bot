@@ -166,8 +166,7 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
     let analyticsHealth = { status: 'ok' };
     try {
       // Простая проверка доступности моделей аналитики
-      const UTMClick = require('./models/utmClick');
-      const PromoCodeUsage = require('./models/promoCodeUsage');
+      const { UTMClick, PromoCodeUsage } = require('./models');
       await UTMClick.countDocuments().limit(1);
       await PromoCodeUsage.countDocuments().limit(1);
       analyticsHealth.modelsAvailable = true;
@@ -806,6 +805,10 @@ async function startServer() {
       logger.error(`❌ CronService initialization failed: ${error.message}`);
       // Не прерываем запуск сервера
     }
+    
+    // 📖 УДАЛЕНО: Инициализация Telegram бота из server.js
+    // Telegram bot теперь запускается отдельно через telegram/start.js
+    logger.info('📖 Telegram bot will be started separately via telegram/start.js');
     
     // Инициализация векторной базы (если включена)
     if (config.features.enableRAG) {
