@@ -1,8 +1,11 @@
 /**
  * @fileoverview Сервис аналитики Reader Bot - ТОЛЬКО РЕАЛЬНЫЕ ДАННЫЕ
  * @description Показывает исключительно данные из MongoDB, НЕТ fallback данных
- * @version 3.0.0
+ * @version 3.1.0
  */
+
+// Правильный импорт моделей из index.js
+const { UserProfile, Quote, UTMClick, PromoCodeUsage, UserAction } = require('../models');
 
 /**
  * @typedef {import('../types/reader').DashboardStats} DashboardStats
@@ -110,9 +113,6 @@ class AnalyticsService {
     try {
       console.log('📊 Получение РЕАЛЬНОЙ статистики retention');
       
-      const { UserProfile } = require('../models/userProfile');
-      const { Quote } = require('../models/quote');
-
       const cohorts = await UserProfile.aggregate([
         {
           $match: {
@@ -189,7 +189,6 @@ class AnalyticsService {
       console.log(`📊 Получение РЕАЛЬНОГО топ контента для периода: ${dateRange}`);
       
       const startDate = this.getStartDate(dateRange);
-      const { Quote } = require('../models/quote');
 
       // Топ авторы
       const topAuthors = await Quote.aggregate([
@@ -262,12 +261,9 @@ class AnalyticsService {
    */
   async trackUTMClick(utmParams, userId) {
     try {
-      // Пытаемся использовать модель аналитики, если есть
-      let UTMClick;
-      try {
-        UTMClick = require('../models/analytics').UTMClick;
-      } catch (error) {
-        console.warn('📊 Модель UTMClick недоступна, создаем простую запись');
+      // Проверяем доступность модели UTMClick
+      if (!UTMClick) {
+        console.warn('📊 Модель UTMClick недоступна');
         return;
       }
       
@@ -302,11 +298,8 @@ class AnalyticsService {
    */
   async trackPromoCodeUsage(promoCode, userId, orderValue, metadata = {}) {
     try {
-      // Пытаемся использовать модель промокодов, если есть
-      let PromoCodeUsage;
-      try {
-        PromoCodeUsage = require('../models/analytics').PromoCodeUsage;
-      } catch (error) {
+      // Проверяем доступность модели PromoCodeUsage
+      if (!PromoCodeUsage) {
         console.warn('📊 Модель PromoCodeUsage недоступна');
         return;
       }
@@ -338,11 +331,8 @@ class AnalyticsService {
    */
   async trackUserAction(userId, action, metadata = {}) {
     try {
-      // Пытаемся использовать модель действий, если есть
-      let UserAction;
-      try {
-        UserAction = require('../models/analytics').UserAction;
-      } catch (error) {
+      // Проверяем доступность модели UserAction
+      if (!UserAction) {
         console.warn('📊 Модель UserAction недоступна');
         return;
       }
@@ -368,7 +358,10 @@ class AnalyticsService {
 
   async getTotalUsers() {
     try {
-      const { UserProfile } = require('../models/userProfile');
+      if (!UserProfile) {
+        console.error('📊 UserProfile модель недоступна');
+        return 0;
+      }
       const count = await UserProfile.countDocuments({ isOnboardingComplete: true });
       console.log(`📊 Общее количество пользователей: ${count}`);
       return count;
@@ -380,7 +373,10 @@ class AnalyticsService {
 
   async getNewUsers(startDate) {
     try {
-      const { UserProfile } = require('../models/userProfile');
+      if (!UserProfile) {
+        console.error('📊 UserProfile модель недоступна');
+        return 0;
+      }
       const count = await UserProfile.countDocuments({
         isOnboardingComplete: true,
         registeredAt: { $gte: startDate }
@@ -395,7 +391,10 @@ class AnalyticsService {
 
   async getTotalQuotes(startDate) {
     try {
-      const { Quote } = require('../models/quote');
+      if (!Quote) {
+        console.error('📊 Quote модель недоступна');
+        return 0;
+      }
       const count = await Quote.countDocuments({ createdAt: { $gte: startDate } });
       console.log(`📊 Цитат с ${startDate.toISOString()}: ${count}`);
       return count;
@@ -407,7 +406,10 @@ class AnalyticsService {
 
   async getActiveUsers(startDate) {
     try {
-      const { Quote } = require('../models/quote');
+      if (!Quote) {
+        console.error('📊 Quote модель недоступна');
+        return 0;
+      }
       const activeUsers = await Quote.distinct('userId', { 
         createdAt: { $gte: startDate } 
       });
@@ -421,7 +423,10 @@ class AnalyticsService {
 
   async getPromoUsage(startDate) {
     try {
-      const { PromoCodeUsage } = require('../models/analytics');
+      if (!PromoCodeUsage) {
+        console.warn('📊 Модель PromoCodeUsage недоступна');
+        return 0;
+      }
       const count = await PromoCodeUsage.countDocuments({
         timestamp: { $gte: startDate }
       });
@@ -435,7 +440,10 @@ class AnalyticsService {
 
   async getSourceStats(startDate) {
     try {
-      const { UserProfile } = require('../models/userProfile');
+      if (!UserProfile) {
+        console.error('📊 UserProfile модель недоступна');
+        return [];
+      }
       const stats = await UserProfile.aggregate([
         { 
           $match: { 
@@ -456,7 +464,10 @@ class AnalyticsService {
 
   async getUTMStats(startDate) {
     try {
-      const { UTMClick } = require('../models/analytics');
+      if (!UTMClick) {
+        console.warn('📊 Модель UTMClick недоступна');
+        return [];
+      }
       const stats = await UTMClick.aggregate([
         { $match: { timestamp: { $gte: startDate } } },
         { 
