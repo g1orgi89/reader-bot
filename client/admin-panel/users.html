@@ -48,6 +48,7 @@
             <div class="dashboard-header">
                 <h2>👥 Управление пользователями</h2>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()">🔄 Обновить</button>
                     <button class="btn btn-primary" onclick="exportUsers()">📥 Экспорт</button>
                 </div>
             </div>
@@ -100,8 +101,10 @@
                         <h3>Всего пользователей</h3>
                         <div class="stat-icon">👥</div>
                     </div>
-                    <div class="stat-value" id="total-users">--</div>
-                    <div class="stat-change positive">+12% за месяц</div>
+                    <div class="stat-value" id="total-users">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="stat-change" id="total-users-change">Загрузка...</div>
                 </div>
                 
                 <div class="stat-card glow-card">
@@ -109,26 +112,32 @@
                         <h3>Активные пользователи</h3>
                         <div class="stat-icon">🔥</div>
                     </div>
-                    <div class="stat-value" id="active-users">--</div>
-                    <div class="stat-change positive">+8% за неделю</div>
+                    <div class="stat-value" id="active-users">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="stat-change" id="active-users-change">Загрузка...</div>
                 </div>
                 
                 <div class="stat-card glow-card">
                     <div class="stat-header">
-                        <h3>Новые за месяц</h3>
+                        <h3>Новые за неделю</h3>
                         <div class="stat-icon">✨</div>
                     </div>
-                    <div class="stat-value" id="new-users">--</div>
-                    <div class="stat-change positive">+25% к прошлому месяцу</div>
+                    <div class="stat-value" id="new-users">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="stat-change" id="new-users-change">Загрузка...</div>
                 </div>
                 
                 <div class="stat-card glow-card">
                     <div class="stat-header">
-                        <h3>Средний retention</h3>
+                        <h3>Retention rate</h3>
                         <div class="stat-icon">📈</div>
                     </div>
-                    <div class="stat-value" id="retention-rate">--</div>
-                    <div class="stat-change positive">+5% к прошлому месяцу</div>
+                    <div class="stat-value" id="retention-rate">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="stat-change" id="retention-change">Загрузка...</div>
                 </div>
             </div>
             
@@ -158,7 +167,10 @@
                         </thead>
                         <tbody id="users-table-body">
                             <tr class="table-loading">
-                                <td colspan="9">📖 Загрузка пользователей...</td>
+                                <td colspan="9">
+                                    <div class="loading-spinner"></div>
+                                    📖 Загрузка пользователей...
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -187,7 +199,39 @@
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body" id="user-modal-content">
-                <!-- Содержимое загружается динамически -->
+                <div class="loading-spinner"></div>
+                Загрузка данных пользователя...
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно отправки сообщения -->
+    <div class="modal-overlay" id="message-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💬 Отправить сообщение</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="message-form">
+                    <input type="hidden" id="message-user-id">
+                    <div class="form-group">
+                        <label for="message-text">Текст сообщения:</label>
+                        <textarea id="message-text" class="form-control" rows="4" placeholder="Введите сообщение для пользователя..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="message-type">Тип сообщения:</label>
+                        <select id="message-type" class="select-glow">
+                            <option value="announcement">Объявление</option>
+                            <option value="personal">Личное</option>
+                            <option value="reminder">Напоминание</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Отправить</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -201,8 +245,15 @@
     
     <script>
         /**
-         * Управление пользователями
+         * Управление пользователями с реальными API
          */
+        
+        // Глобальные переменные
+        let currentPage = 1;
+        let currentFilters = {};
+        let usersData = {};
+        let isLoading = false;
+        
         document.addEventListener('DOMContentLoaded', () => {
             console.log('👥 Инициализация страницы пользователей');
             
@@ -223,84 +274,277 @@
         /**
          * Инициализация страницы пользователей
          */
-        function initUsersPage() {
-            loadUsersStats();
-            loadUsersTable();
-            setupFilters();
+        async function initUsersPage() {
+            try {
+                await loadUsersStats();
+                await loadUsersTable();
+                setupFilters();
+                setupMessageForm();
+            } catch (error) {
+                console.error('❌ Ошибка инициализации страницы пользователей:', error);
+                showNotification('error', 'Ошибка загрузки данных');
+            }
         }
         
         /**
          * Загрузка статистики пользователей
          */
-        function loadUsersStats() {
-            // Заглушка для демонстрации
-            setTimeout(() => {
-                document.getElementById('total-users').textContent = '1,247';
-                document.getElementById('active-users').textContent = '423';
-                document.getElementById('new-users').textContent = '156';
-                document.getElementById('retention-rate').textContent = '68%';
-            }, 500);
+        async function loadUsersStats() {
+            try {
+                console.log('📊 Загрузка статистики пользователей...');
+                
+                const response = await fetch('/api/users/stats', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const stats = await response.json();
+                
+                // Обновляем статистику
+                document.getElementById('total-users').textContent = formatNumber(stats.totalUsers);
+                document.getElementById('active-users').textContent = formatNumber(stats.activeUsers);
+                document.getElementById('new-users').textContent = formatNumber(stats.newUsersThisWeek);
+                document.getElementById('retention-rate').textContent = `${stats.retentionRate}%`;
+                
+                // Обновляем изменения
+                const changeElement = document.getElementById('new-users-change');
+                if (stats.newUsersChange !== undefined) {
+                    const changeClass = stats.newUsersChange >= 0 ? 'positive' : 'negative';
+                    const changeSign = stats.newUsersChange >= 0 ? '+' : '';
+                    changeElement.textContent = `${changeSign}${stats.newUsersChange}% за неделю`;
+                    changeElement.className = `stat-change ${changeClass}`;
+                } else {
+                    changeElement.textContent = 'Недостаточно данных';
+                    changeElement.className = 'stat-change neutral';
+                }
+                
+                // Остальные изменения (пока статичные)
+                document.getElementById('total-users-change').textContent = 'Общий рост';
+                document.getElementById('active-users-change').textContent = 'За неделю';
+                document.getElementById('retention-change').textContent = 'За месяц';
+                
+                console.log('✅ Статистика пользователей загружена:', stats);
+                
+            } catch (error) {
+                console.error('❌ Ошибка загрузки статистики:', error);
+                
+                // Показываем ошибку в UI
+                ['total-users', 'active-users', 'new-users', 'retention-rate'].forEach(id => {
+                    document.getElementById(id).textContent = '—';
+                });
+                
+                showNotification('error', 'Ошибка загрузки статистики');
+            }
         }
         
         /**
          * Загрузка таблицы пользователей
          */
-        function loadUsersTable() {
-            const tbody = document.getElementById('users-table-body');
+        async function loadUsersTable(page = 1, filters = {}) {
+            if (isLoading) return;
             
-            // Заглушка с демо-данными
-            setTimeout(() => {
-                const demoUsers = [
-                    {
-                        id: 'USR001',
-                        name: 'Мария Иванова',
-                        email: 'maria@example.com',
-                        source: 'Instagram',
-                        quotes: 23,
-                        registered: '2025-01-15',
-                        lastActive: '2 часа назад',
-                        status: 'active'
-                    },
-                    {
-                        id: 'USR002', 
-                        name: 'Елена Петрова',
-                        email: 'elena@example.com',
-                        source: 'Telegram',
-                        quotes: 45,
-                        registered: '2025-01-10',
-                        lastActive: '1 день назад',
-                        status: 'active'
-                    },
-                    {
-                        id: 'USR003',
-                        name: 'Анна Сидорова',
-                        email: 'anna@example.com', 
-                        source: 'YouTube',
-                        quotes: 12,
-                        registered: '2025-01-20',
-                        lastActive: '3 дня назад',
-                        status: 'inactive'
-                    }
-                ];
+            try {
+                isLoading = true;
+                currentPage = page;
+                currentFilters = { ...filters };
                 
-                tbody.innerHTML = demoUsers.map(user => `
-                    <tr onclick="viewUser('${user.id}')">
-                        <td>${user.id}</td>
-                        <td><strong>${user.name}</strong></td>
-                        <td>${user.email}</td>
-                        <td><span class="source-badge source-${user.source.toLowerCase()}">${user.source}</span></td>
-                        <td>${user.quotes}</td>
-                        <td>${formatDate(user.registered)}</td>
-                        <td>${user.lastActive}</td>
-                        <td><span class="status-badge status-${user.status}">${getStatusText(user.status)}</span></td>
-                        <td>
-                            <button class="btn btn-sm" onclick="event.stopPropagation(); viewUser('${user.id}')">Просмотр</button>
+                console.log('👥 Загрузка пользователей:', { page, filters });
+                
+                // Показываем индикатор загрузки
+                const tbody = document.getElementById('users-table-body');
+                if (page === 1) {
+                    tbody.innerHTML = `
+                        <tr class="table-loading">
+                            <td colspan="9">
+                                <div class="loading-spinner"></div>
+                                📖 Загрузка пользователей...
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                // Подготовка параметров запроса
+                const params = new URLSearchParams({
+                    page: page.toString(),
+                    limit: '20',
+                    ...filters
+                });
+                
+                const response = await fetch(`/api/users?${params}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                usersData = await response.json();
+                
+                // Отображаем пользователей
+                displayUsers(usersData.users);
+                displayPagination(usersData.pagination);
+                
+                // Обновляем счетчик
+                document.getElementById('users-count').textContent = usersData.pagination.totalCount;
+                
+                console.log('✅ Пользователи загружены:', usersData);
+                
+            } catch (error) {
+                console.error('❌ Ошибка загрузки пользователей:', error);
+                
+                const tbody = document.getElementById('users-table-body');
+                tbody.innerHTML = `
+                    <tr class="table-error">
+                        <td colspan="9">
+                            ❌ Ошибка загрузки пользователей: ${error.message}
+                            <button class="btn btn-sm" onclick="loadUsersTable()">Повторить</button>
                         </td>
                     </tr>
-                `).join('');
+                `;
                 
-                document.getElementById('users-count').textContent = demoUsers.length;
-            }, 1000);
+                showNotification('error', 'Ошибка загрузки пользователей');
+                
+            } finally {
+                isLoading = false;
+            }
+        }
+        
+        /**
+         * Отображение пользователей в таблице
+         */
+        function displayUsers(users) {
+            const tbody = document.getElementById('users-table-body');
+            
+            if (!users || users.length === 0) {
+                tbody.innerHTML = `
+                    <tr class="table-empty">
+                        <td colspan="9">
+                            📖 Пользователи не найдены
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = users.map(user => {
+                const lastActivity = formatLastActivity(user.daysSinceLastActive, user.lastQuoteDate);
+                const registrationDate = formatDate(user.registeredAt);
+                const statusInfo = getUserStatusInfo(user);
+                
+                return `
+                    <tr onclick="viewUser('${user.userId}')">
+                        <td>
+                            <span class="user-id">${user.userId.substring(0, 8)}...</span>
+                        </td>
+                        <td>
+                            <div class="user-name">
+                                <strong>${escapeHtml(user.name || 'Без имени')}</strong>
+                                ${user.telegramUsername ? `<small>@${user.telegramUsername}</small>` : ''}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="user-email">${escapeHtml(user.email || 'Не указан')}</span>
+                        </td>
+                        <td>
+                            <span class="source-badge source-${(user.source || 'другое').toLowerCase().replace(/[^a-z0-9]/g, '')}">${user.source || 'Другое'}</span>
+                        </td>
+                        <td>
+                            <span class="quotes-count">${user.quotesCount || 0}</span>
+                        </td>
+                        <td>
+                            <span class="registration-date">${registrationDate}</span>
+                            <small>${user.daysSinceRegistration} дней назад</small>
+                        </td>
+                        <td>
+                            <span class="last-activity">${lastActivity}</span>
+                        </td>
+                        <td>
+                            <span class="status-badge status-${statusInfo.class}">${statusInfo.text}</span>
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="btn btn-sm" onclick="event.stopPropagation(); viewUser('${user.userId}')" title="Подробнее">👁️</button>
+                                <button class="btn btn-sm" onclick="event.stopPropagation(); sendMessage('${user.userId}')" title="Написать">💬</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        /**
+         * Отображение пагинации
+         */
+        function displayPagination(pagination) {
+            const container = document.getElementById('users-pagination');
+            
+            if (pagination.totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = '<div class="pagination-controls">';
+            
+            // Кнопка "Назад"
+            if (pagination.hasPrevPage) {
+                paginationHTML += `<button class="btn btn-pagination" onclick="changePage(${pagination.currentPage - 1})">← Назад</button>`;
+            }
+            
+            // Номера страниц
+            const startPage = Math.max(1, pagination.currentPage - 2);
+            const endPage = Math.min(pagination.totalPages, pagination.currentPage + 2);
+            
+            if (startPage > 1) {
+                paginationHTML += `<button class="btn btn-pagination" onclick="changePage(1)">1</button>`;
+                if (startPage > 2) {
+                    paginationHTML += '<span class="pagination-dots">...</span>';
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === pagination.currentPage ? ' active' : '';
+                paginationHTML += `<button class="btn btn-pagination${activeClass}" onclick="changePage(${i})">${i}</button>`;
+            }
+            
+            if (endPage < pagination.totalPages) {
+                if (endPage < pagination.totalPages - 1) {
+                    paginationHTML += '<span class="pagination-dots">...</span>';
+                }
+                paginationHTML += `<button class="btn btn-pagination" onclick="changePage(${pagination.totalPages})">${pagination.totalPages}</button>`;
+            }
+            
+            // Кнопка "Вперед"
+            if (pagination.hasNextPage) {
+                paginationHTML += `<button class="btn btn-pagination" onclick="changePage(${pagination.currentPage + 1})">Вперед →</button>`;
+            }
+            
+            paginationHTML += '</div>';
+            
+            // Информация о пагинации
+            paginationHTML += `
+                <div class="pagination-info">
+                    Страница ${pagination.currentPage} из ${pagination.totalPages} 
+                    (${pagination.totalCount} пользователей)
+                </div>
+            `;
+            
+            container.innerHTML = paginationHTML;
+        }
+        
+        /**
+         * Смена страницы
+         */
+        function changePage(page) {
+            if (page !== currentPage && page >= 1) {
+                loadUsersTable(page, currentFilters);
+            }
         }
         
         /**
@@ -312,12 +556,18 @@
             const statusFilter = document.getElementById('filter-status');
             const dateFilter = document.getElementById('filter-date');
             
-            // Обработчики изменения фильтров
-            [searchInput, sourceFilter, statusFilter, dateFilter].forEach(element => {
+            // Debounced поиск
+            let searchTimeout;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    applyFilters();
+                }, 500);
+            });
+            
+            // Немедленное применение фильтров для селектов
+            [sourceFilter, statusFilter, dateFilter].forEach(element => {
                 element.addEventListener('change', applyFilters);
-                if (element.tagName === 'INPUT') {
-                    element.addEventListener('input', debounce(applyFilters, 300));
-                }
             });
         }
         
@@ -325,113 +575,460 @@
          * Применение фильтров
          */
         function applyFilters() {
-            console.log('👥 Применение фильтров');
-            // Здесь будет логика фильтрации
-            showNotification('info', 'Фильтры применены');
+            const filters = {
+                search: document.getElementById('search-users').value.trim(),
+                source: document.getElementById('filter-source').value,
+                status: document.getElementById('filter-status').value,
+                dateFilter: document.getElementById('filter-date').value
+            };
+            
+            // Убираем пустые фильтры
+            Object.keys(filters).forEach(key => {
+                if (!filters[key]) {
+                    delete filters[key];
+                }
+            });
+            
+            console.log('🔍 Применение фильтров:', filters);
+            loadUsersTable(1, filters);
         }
         
         /**
          * Просмотр деталей пользователя
          */
-        function viewUser(userId) {
-            console.log('👥 Просмотр пользователя:', userId);
-            
+        async function viewUser(userId) {
+            try {
+                console.log('👤 Просмотр пользователя:', userId);
+                
+                // Показываем модальное окно с индикатором загрузки
+                document.getElementById('user-modal-content').innerHTML = `
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        📖 Загрузка данных пользователя...
+                    </div>
+                `;
+                openModal('user-modal');
+                
+                // Загружаем детальную информацию
+                const response = await fetch(`/api/users/${userId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const userDetail = await response.json();
+                
+                // Отображаем детальную информацию
+                displayUserDetail(userDetail);
+                
+            } catch (error) {
+                console.error('❌ Ошибка загрузки деталей пользователя:', error);
+                
+                document.getElementById('user-modal-content').innerHTML = `
+                    <div class="error-message">
+                        ❌ Ошибка загрузки данных: ${error.message}
+                        <button class="btn btn-secondary" onclick="viewUser('${userId}')">Повторить</button>
+                    </div>
+                `;
+            }
+        }
+        
+        /**
+         * Отображение детальной информации о пользователе
+         */
+        function displayUserDetail(user) {
             const modalContent = document.getElementById('user-modal-content');
+            
+            // Результаты теста
+            const testResults = user.testResults || {};
+            const testResultsHTML = Object.keys(testResults).length > 0 ? `
+                <div class="user-test-results">
+                    <h5>📝 Результаты теста:</h5>
+                    <ul>
+                        ${Object.entries(testResults).map(([key, value]) => 
+                            value ? `<li><strong>${getTestQuestionName(key)}:</strong> ${escapeHtml(value)}</li>` : ''
+                        ).filter(Boolean).join('')}
+                    </ul>
+                </div>
+            ` : '<div class="user-test-results"><p>Тест не пройден</p></div>';
+            
+            // Последние цитаты
+            const recentQuotesHTML = user.quoteStats?.recent?.length > 0 ? `
+                <div class="user-recent-quotes">
+                    <h5>📖 Последние цитаты:</h5>
+                    <div class="quotes-list">
+                        ${user.quoteStats.recent.slice(0, 5).map(quote => `
+                            <div class="quote-item">
+                                <div class="quote-text">"${escapeHtml(quote.text.substring(0, 100))}${quote.text.length > 100 ? '...' : ''}"</div>
+                                <div class="quote-meta">
+                                    ${quote.author ? `— ${escapeHtml(quote.author)}` : ''}
+                                    <span class="quote-date">${formatDate(quote.createdAt)}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '<div class="user-recent-quotes"><p>Цитат пока нет</p></div>';
+            
+            // Топ категории и авторы
+            const topCategoriesHTML = user.quoteStats?.topCategories?.length > 0 ? 
+                user.quoteStats.topCategories.map(([cat, count]) => `${cat} (${count})`).join(', ') : 
+                'Нет данных';
+                
+            const topAuthorsHTML = user.quoteStats?.topAuthors?.length > 0 ? 
+                user.quoteStats.topAuthors.map(([author, count]) => `${author} (${count})`).join(', ') : 
+                'Нет данных';
+            
             modalContent.innerHTML = `
                 <div class="user-details">
                     <div class="user-header">
                         <div class="user-avatar">👤</div>
                         <div class="user-info">
-                            <h4>Мария Иванова</h4>
-                            <p>maria@example.com</p>
-                            <span class="status-badge status-active">Активный</span>
+                            <h4>${escapeHtml(user.name || 'Без имени')}</h4>
+                            <p>${escapeHtml(user.email || 'Email не указан')}</p>
+                            ${user.telegramUsername ? `<p>@${escapeHtml(user.telegramUsername)}</p>` : ''}
+                            <span class="status-badge status-${getUserStatusInfo(user).class}">${getUserStatusInfo(user).text}</span>
                         </div>
                     </div>
                     
                     <div class="user-stats">
                         <div class="stat-item">
                             <span class="stat-label">Цитат сохранено:</span>
-                            <span class="stat-value">23</span>
+                            <span class="stat-value">${user.quoteStats?.total || 0}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Дней с ботом:</span>
-                            <span class="stat-value">18</span>
+                            <span class="stat-value">${user.daysSinceRegistration}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Источник:</span>
-                            <span class="stat-value">Instagram</span>
+                            <span class="stat-value">${user.source || 'Не указан'}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Цитат в день:</span>
+                            <span class="stat-value">${user.engagement?.quotesPerDay || 0}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Текущая серия:</span>
+                            <span class="stat-value">${user.statistics?.currentStreak || 0} дней</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Лучшая серия:</span>
+                            <span class="stat-value">${user.engagement?.longestStreak || 0} дней</span>
                         </div>
                     </div>
                     
-                    <div class="user-test-results">
-                        <h5>📝 Результаты теста:</h5>
-                        <ul>
-                            <li><strong>Имя:</strong> Мария</li>
-                            <li><strong>О себе:</strong> Мама (дети - главная забота)</li>
-                            <li><strong>Время для себя:</strong> После того, как дети лягут спать</li>
-                            <li><strong>Приоритеты:</strong> Семья и личностный рост</li>
-                        </ul>
+                    ${testResultsHTML}
+                    
+                    <div class="user-preferences">
+                        <h5>🎯 Интересы и категории:</h5>
+                        <p><strong>Топ категории:</strong> ${topCategoriesHTML}</p>
+                        <p><strong>Любимые авторы:</strong> ${topAuthorsHTML}</p>
+                    </div>
+                    
+                    ${recentQuotesHTML}
+                    
+                    <div class="user-reports">
+                        <h5>📊 Отчеты:</h5>
+                        <div class="reports-info">
+                            <p><strong>Еженедельных отчетов:</strong> ${user.reports?.weekly?.length || 0}</p>
+                            <p><strong>Месячных отчетов:</strong> ${user.reports?.monthly?.length || 0}</p>
+                        </div>
                     </div>
                     
                     <div class="user-actions">
-                        <button class="btn btn-primary" onclick="sendMessage('${userId}')">💬 Написать сообщение</button>
-                        <button class="btn btn-secondary" onclick="viewUserQuotes('${userId}')">📝 Посмотреть цитаты</button>
+                        <button class="btn btn-primary" onclick="sendMessage('${user.userId}')">💬 Написать сообщение</button>
+                        <button class="btn btn-secondary" onclick="viewUserQuotes('${user.userId}')">📝 Все цитаты</button>
+                        <button class="btn btn-secondary" onclick="exportUserData('${user.userId}')">📥 Экспорт данных</button>
                     </div>
                 </div>
             `;
-            
-            openModal('user-modal');
         }
         
         /**
-         * Экспорт пользователей
+         * Настройка формы отправки сообщений
          */
-        function exportUsers() {
-            showNotification('info', 'Начинаем экспорт пользователей...');
-            
-            // Заглушка экспорта
-            setTimeout(() => {
-                showNotification('success', 'Экспорт завершен. Файл скачан.');
-            }, 2000);
+        function setupMessageForm() {
+            const form = document.getElementById('message-form');
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await handleSendMessage();
+            });
         }
         
         /**
          * Отправка сообщения пользователю
          */
-        function sendMessage(userId) {
-            console.log('💬 Отправка сообщения пользователю:', userId);
-            showNotification('info', 'Функция отправки сообщений в разработке');
+        async function sendMessage(userId) {
+            console.log('💬 Подготовка к отправке сообщения пользователю:', userId);
+            
+            // Заполняем форму
+            document.getElementById('message-user-id').value = userId;
+            document.getElementById('message-text').value = '';
+            document.getElementById('message-type').value = 'announcement';
+            
+            // Показываем модальное окно
+            closeModal(); // Закрываем предыдущее
+            openModal('message-modal');
+            
+            // Фокус на поле ввода
+            setTimeout(() => {
+                document.getElementById('message-text').focus();
+            }, 100);
+        }
+        
+        /**
+         * Обработка отправки сообщения
+         */
+        async function handleSendMessage() {
+            try {
+                const userId = document.getElementById('message-user-id').value;
+                const message = document.getElementById('message-text').value.trim();
+                const messageType = document.getElementById('message-type').value;
+                
+                if (!message) {
+                    showNotification('warning', 'Введите текст сообщения');
+                    return;
+                }
+                
+                console.log('📨 Отправка сообщения:', { userId, messageType, message });
+                
+                const response = await fetch(`/api/users/${userId}/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    },
+                    body: JSON.stringify({
+                        message,
+                        messageType
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                console.log('✅ Сообщение отправлено:', result);
+                showNotification('success', 'Сообщение отправлено пользователю');
+                closeModal();
+                
+            } catch (error) {
+                console.error('❌ Ошибка отправки сообщения:', error);
+                showNotification('error', `Ошибка отправки: ${error.message}`);
+            }
+        }
+        
+        /**
+         * Обновление данных
+         */
+        async function refreshData() {
+            console.log('🔄 Обновление данных пользователей');
+            showNotification('info', 'Обновление данных...');
+            
+            try {
+                await Promise.all([
+                    loadUsersStats(),
+                    loadUsersTable(currentPage, currentFilters)
+                ]);
+                
+                showNotification('success', 'Данные обновлены');
+            } catch (error) {
+                console.error('❌ Ошибка обновления данных:', error);
+                showNotification('error', 'Ошибка обновления данных');
+            }
+        }
+        
+        /**
+         * Экспорт пользователей
+         */
+        async function exportUsers() {
+            try {
+                console.log('📥 Экспорт пользователей...');
+                showNotification('info', 'Начинаем экспорт пользователей...');
+                
+                const response = await fetch('/api/users/export?format=json&includeQuotes=false', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `reader-users-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showNotification('success', 'Экспорт завершен. Файл скачан.');
+                
+            } catch (error) {
+                console.error('❌ Ошибка экспорта:', error);
+                showNotification('error', `Ошибка экспорта: ${error.message}`);
+            }
+        }
+        
+        /**
+         * Экспорт данных пользователя
+         */
+        async function exportUserData(userId) {
+            try {
+                const response = await fetch(`/api/users/export?format=json&includeQuotes=true&userId=${userId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `reader-user-${userId}-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showNotification('success', 'Данные пользователя экспортированы');
+                
+            } catch (error) {
+                console.error('❌ Ошибка экспорта данных пользователя:', error);
+                showNotification('error', 'Ошибка экспорта данных пользователя');
+            }
         }
         
         /**
          * Просмотр цитат пользователя
          */
         function viewUserQuotes(userId) {
-            window.location.href = `quotes.html?user=${userId}`;
+            window.location.href = `quotes.html?userId=${userId}`;
         }
         
+        // ============ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ============
+        
         /**
-         * Получение текста статуса
+         * Форматирование числа
          */
-        function getStatusText(status) {
-            const statuses = {
-                'active': 'Активный',
-                'inactive': 'Неактивный',
-                'completed_onboarding': 'Прошел онбординг'
-            };
-            return statuses[status] || status;
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '—';
+            return new Intl.NumberFormat('ru-RU').format(num);
         }
         
         /**
          * Форматирование даты
          */
         function formatDate(dateString) {
+            if (!dateString) return '—';
+            
             const date = new Date(dateString);
             return date.toLocaleDateString('ru-RU', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric'
             });
+        }
+        
+        /**
+         * Форматирование последней активности
+         */
+        function formatLastActivity(daysSinceLastActive, lastQuoteDate) {
+            if (daysSinceLastActive === null || daysSinceLastActive === undefined) {
+                return 'Не активен';
+            }
+            
+            if (daysSinceLastActive === 0) {
+                return 'Сегодня';
+            } else if (daysSinceLastActive === 1) {
+                return 'Вчера';
+            } else if (daysSinceLastActive <= 7) {
+                return `${daysSinceLastActive} дн. назад`;
+            } else {
+                return lastQuoteDate ? formatDate(lastQuoteDate) : 'Давно';
+            }
+        }
+        
+        /**
+         * Получение информации о статусе пользователя
+         */
+        function getUserStatusInfo(user) {
+            if (user.isBlocked) {
+                return { class: 'blocked', text: 'Заблокирован' };
+            }
+            
+            if (!user.isOnboardingComplete) {
+                return { class: 'incomplete', text: 'Не завершил онбординг' };
+            }
+            
+            if (!user.isActive) {
+                return { class: 'inactive', text: 'Неактивен' };
+            }
+            
+            switch (user.activityStatus) {
+                case 'active':
+                    return { class: 'active', text: 'Активен' };
+                case 'recent':
+                    return { class: 'recent', text: 'Недавно активен' };
+                default:
+                    return { class: 'inactive', text: 'Неактивен' };
+            }
+        }
+        
+        /**
+         * Получение читаемого названия вопроса теста
+         */
+        function getTestQuestionName(key) {
+            const questionNames = {
+                'name': 'Имя',
+                'lifestyle': 'О себе',
+                'timeForSelf': 'Время для себя',
+                'priorities': 'Приоритеты',
+                'readingFeelings': 'Чувства при чтении',
+                'closestPhrase': 'Близкая фраза',
+                'readingTime': 'Время чтения'
+            };
+            return questionNames[key] || key;
+        }
+        
+        /**
+         * Экранирование HTML
+         */
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        /**
+         * Debounce функция
+         */
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
         }
         
         /**
@@ -484,14 +1081,15 @@
             border-radius: 4px;
             font-size: 0.8rem;
             font-weight: 500;
+            text-transform: uppercase;
         }
         
         .source-instagram { background: #e1306c; color: white; }
         .source-telegram { background: #0088cc; color: white; }
         .source-youtube { background: #ff0000; color: white; }
         .source-threads { background: #000000; color: white; }
-        .source-друзья { background: var(--reader-gold); color: var(--dark-bg); }
-        .source-другое { background: var(--text-muted); color: white; }
+        .source-друзья, .source-friends { background: var(--reader-gold); color: var(--dark-bg); }
+        .source-другое, .source-other { background: var(--text-muted); color: white; }
         
         .table-controls {
             display: flex;
@@ -567,11 +1165,11 @@
             font-size: 1.1rem;
         }
         
-        .user-test-results {
+        .user-test-results, .user-preferences, .user-recent-quotes, .user-reports {
             margin-bottom: 1.5rem;
         }
         
-        .user-test-results h5 {
+        .user-test-results h5, .user-preferences h5, .user-recent-quotes h5, .user-reports h5 {
             color: var(--reader-gold);
             margin-bottom: 1rem;
         }
@@ -591,10 +1189,40 @@
             border-bottom: none;
         }
         
+        .quotes-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .quote-item {
+            background: var(--hover-bg);
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+        }
+        
+        .quote-text {
+            color: var(--text-white);
+            font-style: italic;
+            margin-bottom: 0.5rem;
+        }
+        
+        .quote-meta {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .quote-date {
+            float: right;
+        }
+        
         .user-actions {
             display: flex;
             gap: 1rem;
             justify-content: flex-end;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
         }
         
         .data-table tr {
@@ -604,6 +1232,118 @@
         
         .data-table tr:hover {
             background: rgba(212, 175, 55, 0.05);
+        }
+        
+        .table-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .user-id {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        
+        .user-name {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-name small {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        .user-email {
+            color: var(--text-light);
+        }
+        
+        .quotes-count {
+            font-weight: 600;
+            color: var(--reader-gold);
+        }
+        
+        .registration-date {
+            display: block;
+        }
+        
+        .registration-date + small {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        .last-activity {
+            color: var(--text-light);
+        }
+        
+        .pagination-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        
+        .btn-pagination {
+            min-width: 40px;
+            height: 40px;
+        }
+        
+        .btn-pagination.active {
+            background: var(--reader-gold);
+            color: var(--dark-bg);
+        }
+        
+        .pagination-dots {
+            color: var(--text-muted);
+            padding: 0 0.5rem;
+        }
+        
+        .pagination-info {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .loading-container, .error-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+        
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--reader-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .table-loading, .table-error, .table-empty {
+            text-align: center;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+        
+        .reports-info p {
+            margin: 0.5rem 0;
+            color: var(--text-light);
         }
         
         @media (max-width: 768px) {
@@ -621,6 +1361,14 @@
             }
             
             .user-actions {
+                flex-direction: column;
+            }
+            
+            .pagination-controls {
+                flex-wrap: wrap;
+            }
+            
+            .table-actions {
                 flex-direction: column;
             }
         }
