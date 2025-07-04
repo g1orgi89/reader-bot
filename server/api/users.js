@@ -10,9 +10,11 @@ const router = express.Router();
 const { requireAdmin } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
-// Models - импортируем из центрального файла
-const models = require('../models');
-const { UserProfile, Quote, WeeklyReport, MonthlyReport } = models;
+// Models - импортируем напрямую, избегая конфликтов
+const UserProfile = require('../models/userProfile');
+const Quote = require('../models/quote');
+const WeeklyReport = require('../models/weeklyReport');
+const MonthlyReport = require('../models/monthlyReport');
 
 /**
  * @typedef {Object} UserStats
