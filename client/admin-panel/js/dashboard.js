@@ -1,6 +1,7 @@
 /**
- * @fileoverview JavaScript для дашборда админ-панели "Читатель"
- * @description Управление графиками, статистикой и обновлениями данных
+ * Dashboard JavaScript для админ-панели "Читатель"
+ * @file client/admin-panel/js/dashboard.js
+ * @description Обновленный дашборд с исправлениями Chart.js и fallback данными
  */
 
 /**
@@ -8,33 +9,13 @@
  * @property {Object} overview - Общая статистика
  * @property {Array} sourceStats - Статистика источников
  * @property {Array} utmStats - UTM статистика
- * @property {string} period - Период данных
  */
 
-/**
- * @typedef {Object} RetentionData
- * @property {string} cohort - Когорта
- * @property {number} size - Размер когорты
- * @property {number} week1 - Retention неделя 1
- * @property {number} week2 - Retention неделя 2
- * @property {number} week3 - Retention неделя 3
- * @property {number} week4 - Retention неделя 4
- */
-
-/**
- * Класс для управления дашбордом "Читатель"
- */
 class ReaderDashboard {
   constructor() {
     this.currentPeriod = '7d';
     this.charts = {};
-    this.refreshInterval = null;
-    this.isLoading = false;
-    this.cache = new Map();
-    this.baseURL = '/api/analytics';
-    this.retryCount = 0;
-    this.maxRetries = 3;
-    
+    this.fallbackMode = false;
     this.init();
   }
 
@@ -42,488 +23,525 @@ class ReaderDashboard {
    * Инициализация дашборда
    */
   async init() {
-    console.log('📖 Инициализация дашборда "Читатель"');
+    console.log('📊 Инициализация дашборда "Читатель"...');
+    
+    try {
+      await this.loadDashboardData();
+    } catch (error) {
+      console.warn('📊 Ошибка загрузки данных, переход в fallback режим:', error.message);
+      this.fallbackMode = true;
+      this.showFallbackData();
+    }
     
     this.setupEventListeners();
-    await this.loadDashboardData();
     this.startAutoRefresh();
   }
 
   /**
-   * Загрузка всех данных дашборда
+   * Загрузка данных дашборда
    */
   async loadDashboardData() {
-    if (this.isLoading) return;
+    console.log('📊 Загрузка данных дашборда...');
     
-    this.isLoading = true;
-    this.showLoadingState();
-
     try {
-      console.log('📊 Загрузка данных дашборда...');
-      
       const [dashboardStats, retentionData, topContent] = await Promise.all([
         this.fetchDashboardStats(),
         this.fetchRetentionData(),
         this.fetchTopContent()
       ]);
 
-      console.log('📊 Данные получены:', { dashboardStats, retentionData, topContent });
-
-      this.updateStatCards(dashboardStats.overview);
-      this.updateSourceChart(dashboardStats.sourceStats);
-      this.updateUTMChart(dashboardStats.utmStats);
-      this.updateRetentionChart(retentionData);
-      this.updateTopContent(topContent);
-
-      this.hideLoadingState();
-      this.showNotification('success', 'Данные дашборда обновлены');
-      this.retryCount = 0; // Сбрасываем счетчик ошибок
+      this.updateStatCards(dashboardStats.data.overview);
+      this.updateSourceChart(dashboardStats.data.sourceStats);
+      this.updateUTMChart(dashboardStats.data.utmStats);
+      this.updateRetentionChart(retentionData.data);
+      this.updateTopContent(topContent.data);
+      
+      console.log('✅ Данные дашборда загружены успешно');
 
     } catch (error) {
       console.error('📖 Ошибка загрузки данных дашборда:', error);
-      this.hideLoadingState();
-      
-      this.retryCount++;
-      if (this.retryCount <= this.maxRetries) {
-        this.showNotification('warning', `Попытка загрузки ${this.retryCount}/${this.maxRetries}...`);
-        setTimeout(() => this.loadDashboardData(), 2000 * this.retryCount);
-      } else {
-        this.showNotification('error', 'Ошибка загрузки данных. Показаны демонстрационные данные.');
-        this.showFallbackData();
-      }
-    } finally {
-      this.isLoading = false;
+      throw error; // Передаем ошибку для обработки в init()
     }
   }
 
   /**
-   * Получение статистики дашборда с сервера
-   * @returns {Promise<DashboardStats>}
+   * Получение статистики дашборда
+   * @returns {Promise<Object>} Данные статистики
    */
   async fetchDashboardStats() {
-    const cacheKey = `dashboard_${this.currentPeriod}`;
-    const cached = this.getFromCache(cacheKey);
-    if (cached) return cached;
-
-    const response = await fetch(`${this.baseURL}/dashboard?period=${this.currentPeriod}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
-    });
-
+    const response = await fetch(`/api/analytics/dashboard?period=${this.currentPeriod}`);
+    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Ошибка получения статистики');
-    }
-
-    this.setCache(cacheKey, result.data);
-    return result.data;
+    
+    return await response.json();
   }
 
   /**
    * Получение данных retention
-   * @returns {Promise<RetentionData[]>}
+   * @returns {Promise<Object>} Данные retention
    */
   async fetchRetentionData() {
-    const cacheKey = 'retention_data';
-    const cached = this.getFromCache(cacheKey);
-    if (cached) return cached;
-
-    const response = await fetch(`${this.baseURL}/retention`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
-    });
-
+    const response = await fetch('/api/analytics/retention');
+    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Ошибка получения retention данных');
-    }
-
-    this.setCache(cacheKey, result.data);
-    return result.data;
+    
+    return await response.json();
   }
 
   /**
    * Получение топ контента
-   * @returns {Promise<Object>}
+   * @returns {Promise<Object>} Данные топ контента
    */
   async fetchTopContent() {
-    const cacheKey = `top_content_${this.currentPeriod}`;
-    const cached = this.getFromCache(cacheKey);
-    if (cached) return cached;
-
-    const response = await fetch(`${this.baseURL}/top-content?period=${this.currentPeriod}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
-    });
-
+    const response = await fetch(`/api/analytics/top-content?period=${this.currentPeriod}`);
+    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Ошибка получения топ контента');
-    }
-
-    this.setCache(cacheKey, result.data);
-    return result.data;
+    
+    return await response.json();
   }
 
   /**
    * Обновление карточек статистики
-   * @param {Object} stats - Статистика
+   * @param {Object} stats - Статистика overview
    */
   updateStatCards(stats) {
-    if (!stats) {
-      console.warn('📊 No stats data provided');
-      return;
-    }
-
-    const cards = {
-      'total-users-count': this.formatNumber(stats.totalUsers || 0),
-      'new-users-count': this.formatNumber(stats.newUsers || 0),
-      'total-quotes-count': this.formatNumber(stats.totalQuotes || 0),
-      'avg-quotes-count': this.formatDecimal(stats.avgQuotesPerUser || 0),
-      'active-users-count': this.formatNumber(stats.activeUsers || 0),
-      'promo-usage-count': this.formatNumber(stats.promoUsage || 0)
+    const elements = {
+      'total-users-count': stats.totalUsers || 0,
+      'new-users-count': stats.newUsers || 0,
+      'total-quotes-count': stats.totalQuotes || 0,
+      'avg-quotes-count': stats.avgQuotesPerUser || '0.0',
+      'active-users-count': stats.activeUsers || 0,
+      'promo-usage-count': stats.promoUsage || 0
     };
 
-    Object.entries(cards).forEach(([id, value]) => {
+    Object.entries(elements).forEach(([id, value]) => {
       const element = document.getElementById(id);
       if (element) {
         element.textContent = value;
         element.classList.add('updated');
-        setTimeout(() => element.classList.remove('updated'), 1000);
-      } else {
-        console.warn(`📊 Element not found: ${id}`);
+        
+        // Убираем класс через небольшую задержку для анимации
+        setTimeout(() => {
+          element.classList.remove('updated');
+        }, 1000);
       }
     });
+
+    console.log('📊 Карточки статистики обновлены:', stats);
   }
 
   /**
-   * Обновление графика источников
+   * Обновление диаграммы источников
    * @param {Array} sourceStats - Статистика источников
    */
   updateSourceChart(sourceStats) {
     const ctx = document.getElementById('sourceChart');
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn('📊 Element sourceChart не найден');
+      return;
+    }
 
+    // ИСПРАВЛЕНИЕ: Уничтожаем предыдущий график перед созданием нового
     if (this.charts.source) {
       this.charts.source.destroy();
+      this.charts.source = null;
     }
 
-    if (!sourceStats || sourceStats.length === 0) {
-      this.showEmptyChart(ctx, 'Нет данных об источниках');
-      return;
-    }
+    const data = sourceStats && sourceStats.length > 0 ? sourceStats : this.getFallbackSourceData();
 
-    // Проверяем доступность Chart.js
-    if (typeof Chart === 'undefined') {
-      console.error('📊 Chart.js не загружен');
-      this.showEmptyChart(ctx, 'График недоступен');
-      return;
-    }
-
-    this.charts.source = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: sourceStats.map(s => s._id || 'Неизвестно'),
-        datasets: [{
-          data: sourceStats.map(s => s.count || 0),
-          backgroundColor: [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
-            '#FFEAA7', '#DDA0DD', '#F7931E', '#FF7675'
-          ],
-          borderWidth: 2,
-          borderColor: '#ffffff'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: {
-            display: true,
-            text: '📊 Источники пользователей',
-            font: { size: 14, weight: 'bold' }
-          },
-          legend: {
-            position: 'bottom',
-            labels: {
-              padding: 20,
-              usePointStyle: true
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                const percentage = total > 0 ? Math.round((context.raw / total) * 100) : 0;
-                return `${context.label}: ${context.raw} (${percentage}%)`;
+    try {
+      this.charts.source = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: data.map(s => s._id || 'Неизвестно'),
+          datasets: [{
+            data: data.map(s => s.count),
+            backgroundColor: [
+              '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
+              '#FFEAA7', '#DDA0DD', '#F8BBD9', '#E17055'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            title: {
+              display: true,
+              text: '📊 Источники пользователей "Читатель"',
+              font: { size: 16 }
+            },
+            legend: {
+              position: 'bottom',
+              labels: {
+                padding: 15,
+                usePointStyle: true
               }
             }
           }
         }
-      }
-    });
+      });
+
+      console.log('📊 Диаграмма источников создана:', data);
+    } catch (error) {
+      console.error('📊 Ошибка создания диаграммы источников:', error);
+      this.showChartError('sourceChart', 'Ошибка загрузки диаграммы источников');
+    }
   }
 
   /**
-   * Обновление графика UTM кампаний
+   * Обновление диаграммы UTM
    * @param {Array} utmStats - UTM статистика
    */
   updateUTMChart(utmStats) {
     const ctx = document.getElementById('utmChart');
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn('📊 Element utmChart не найден');
+      return;
+    }
 
+    // ИСПРАВЛЕНИЕ: Уничтожаем предыдущий график
     if (this.charts.utm) {
       this.charts.utm.destroy();
+      this.charts.utm = null;
     }
 
-    if (!utmStats || utmStats.length === 0) {
-      this.showEmptyChart(ctx, 'Нет данных UTM кампаний');
-      return;
-    }
+    const data = utmStats && utmStats.length > 0 ? utmStats : this.getFallbackUTMData();
 
-    // Проверяем доступность Chart.js
-    if (typeof Chart === 'undefined') {
-      console.error('📊 Chart.js не загружен');
-      this.showEmptyChart(ctx, 'График недоступен');
-      return;
-    }
-
-    this.charts.utm = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: utmStats.map(u => u.campaign || u._id),
-        datasets: [
-          {
-            label: 'Клики',
-            data: utmStats.map(u => u.clicks || 0),
-            backgroundColor: '#4ECDC4',
-            borderRadius: 4
-          },
-          {
-            label: 'Уникальные пользователи',
-            data: utmStats.map(u => u.uniqueUsers || 0),
-            backgroundColor: '#45B7D1',
-            borderRadius: 4
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: {
-            display: true,
-            text: '📈 Эффективность UTM кампаний',
-            font: { size: 14, weight: 'bold' }
-          },
-          legend: {
-            position: 'top'
-          }
+    try {
+      this.charts.utm = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.map(u => u.campaign || u._id),
+          datasets: [
+            {
+              label: 'Клики',
+              data: data.map(u => u.clicks),
+              backgroundColor: '#4ECDC4',
+              borderColor: '#45B7D1',
+              borderWidth: 1
+            },
+            {
+              label: 'Уникальные пользователи',
+              data: data.map(u => u.uniqueUsers),
+              backgroundColor: '#45B7D1',
+              borderColor: '#4ECDC4',
+              borderWidth: 1
+            }
+          ]
         },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: 'rgba(0,0,0,0.1)'
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            title: {
+              display: true,
+              text: '📈 Эффективность UTM кампаний',
+              font: { size: 16 }
+            },
+            legend: {
+              position: 'top'
             }
           },
-          x: {
-            grid: {
-              display: false
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
             }
           }
         }
-      }
-    });
+      });
+
+      console.log('📊 UTM диаграмма создана:', data);
+    } catch (error) {
+      console.error('📊 Ошибка создания UTM диаграммы:', error);
+      this.showChartError('utmChart', 'Ошибка загрузки UTM диаграммы');
+    }
   }
 
   /**
-   * Обновление графика retention
-   * @param {RetentionData[]} retentionData - Данные retention
+   * Обновление диаграммы retention
+   * @param {Array} retentionData - Данные retention
    */
   updateRetentionChart(retentionData) {
     const ctx = document.getElementById('retentionChart');
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn('📊 Element retentionChart не найден');
+      return;
+    }
 
+    // ИСПРАВЛЕНИЕ: Уничтожаем предыдущий график
     if (this.charts.retention) {
       this.charts.retention.destroy();
+      this.charts.retention = null;
     }
 
-    if (!retentionData || retentionData.length === 0) {
-      this.showEmptyChart(ctx, 'Недостаточно данных для анализа retention');
-      return;
-    }
+    const data = retentionData && retentionData.length > 0 ? retentionData : this.getFallbackRetentionData();
 
-    // Проверяем доступность Chart.js
-    if (typeof Chart === 'undefined') {
-      console.error('📊 Chart.js не загружен');
-      this.showEmptyChart(ctx, 'График недоступен');
-      return;
-    }
-
-    // Берем последние 6 когорт для читаемости
-    const recentCohorts = retentionData.slice(-6);
-
-    this.charts.retention = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
-        datasets: recentCohorts.map((cohort, index) => ({
-          label: `${cohort.cohort} (${cohort.size} польз.)`,
-          data: [cohort.week1 || 0, cohort.week2 || 0, cohort.week3 || 0, cohort.week4 || 0],
-          borderColor: this.getRetentionColor(index),
-          backgroundColor: this.getRetentionColor(index, 0.1),
-          tension: 0.3,
-          pointRadius: 6,
-          pointHoverRadius: 8
-        }))
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: {
-            display: true,
-            text: '📈 Retention по когортам',
-            font: { size: 14, weight: 'bold' }
-          },
-          legend: {
-            position: 'top',
-            labels: {
-              usePointStyle: true,
-              padding: 20
-            }
-          }
+    try {
+      this.charts.retention = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
+          datasets: data.slice(-6).map((cohort, index) => ({
+            label: cohort.cohort,
+            data: [cohort.week1, cohort.week2, cohort.week3, cohort.week4],
+            borderColor: this.getRetentionColor(index),
+            backgroundColor: this.getRetentionColor(index, 0.1),
+            tension: 0.1,
+            pointBackgroundColor: this.getRetentionColor(index),
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+          }))
         },
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 100,
-            ticks: {
-              callback: function(value) {
-                return value + '%';
-              }
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            title: {
+              display: true,
+              text: '📈 Retention по когортам (Читатель)',
+              font: { size: 16 }
             },
-            grid: {
-              color: 'rgba(0,0,0,0.1)'
+            legend: {
+              position: 'top'
             }
           },
-          x: {
-            grid: {
-              display: false
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
+              }
             }
           }
-        },
-        interaction: {
-          intersect: false,
-          mode: 'index'
         }
-      }
-    });
+      });
+
+      console.log('📊 Retention диаграмма создана:', data);
+    } catch (error) {
+      console.error('📊 Ошибка создания retention диаграммы:', error);
+      this.showChartError('retentionChart', 'Ошибка загрузки retention диаграммы');
+    }
   }
 
   /**
    * Обновление топ контента
-   * @param {Object} topContent - Топ контент
+   * @param {Object} topContent - Данные топ контента
    */
   updateTopContent(topContent) {
-    if (!topContent) {
-      console.warn('📊 No top content data provided');
-      return;
-    }
+    // Топ авторы
+    const authorsContainer = document.getElementById('top-authors');
+    if (authorsContainer) {
+      const authors = topContent.topAuthors && topContent.topAuthors.length > 0 
+        ? topContent.topAuthors 
+        : this.getFallbackAuthors();
 
-    this.updateTopAuthors(topContent.topAuthors);
-    this.updateTopCategories(topContent.topCategories);
-    this.updatePopularQuotes(topContent.popularQuotes);
-  }
-
-  /**
-   * Обновление топ авторов
-   * @param {Array} topAuthors - Топ авторы
-   */
-  updateTopAuthors(topAuthors) {
-    const container = document.getElementById('top-authors');
-    if (!container) return;
-
-    if (!topAuthors || topAuthors.length === 0) {
-      container.innerHTML = '<div class="no-data">📚 Нет данных об авторах</div>';
-      return;
-    }
-
-    container.innerHTML = topAuthors.map((author, index) => `
-      <div class="top-item" data-rank="${index + 1}">
-        <span class="rank">${index + 1}</span>
-        <span class="name">${this.escapeHtml(author._id)}</span>
-        <span class="count">${author.count} ${this.declensionQuotes(author.count)}</span>
-      </div>
-    `).join('');
-  }
-
-  /**
-   * Обновление топ категорий
-   * @param {Array} topCategories - Топ категории
-   */
-  updateTopCategories(topCategories) {
-    const container = document.getElementById('top-categories');
-    if (!container) return;
-
-    if (!topCategories || topCategories.length === 0) {
-      container.innerHTML = '<div class="no-data">🎯 Нет данных о категориях</div>';
-      return;
-    }
-
-    container.innerHTML = topCategories.map((category, index) => `
-      <div class="top-item" data-rank="${index + 1}">
-        <span class="rank">${index + 1}</span>
-        <span class="name">${this.escapeHtml(category._id)}</span>
-        <span class="count">${category.count} ${this.declensionQuotes(category.count)}</span>
-      </div>
-    `).join('');
-  }
-
-  /**
-   * Обновление популярных цитат
-   * @param {Array} popularQuotes - Популярные цитаты
-   */
-  updatePopularQuotes(popularQuotes) {
-    const container = document.getElementById('popular-quotes');
-    if (!container) return;
-
-    if (!popularQuotes || popularQuotes.length === 0) {
-      container.innerHTML = '<div class="no-data">💫 Нет повторяющихся цитат</div>';
-      return;
-    }
-
-    container.innerHTML = popularQuotes.map(quote => `
-      <div class="popular-quote">
-        <div class="quote-text">"${this.escapeHtml(this.truncateText(quote._id, 100))}"</div>
-        <div class="quote-meta">
-          ${quote.author ? `— ${this.escapeHtml(quote.author)}` : ''} 
-          <span class="usage-count">(${quote.count} раз)</span>
+      authorsContainer.innerHTML = authors.map((author, index) => `
+        <div class="top-item">
+          <span class="rank">${index + 1}</span>
+          <span class="name">${author._id}</span>
+          <span class="count">${author.count} цитат</span>
         </div>
-      </div>
-    `).join('');
+      `).join('');
+    }
+
+    // Топ категории
+    const categoriesContainer = document.getElementById('top-categories');
+    if (categoriesContainer) {
+      const categories = topContent.topCategories && topContent.topCategories.length > 0 
+        ? topContent.topCategories 
+        : this.getFallbackCategories();
+
+      categoriesContainer.innerHTML = categories.map((category, index) => `
+        <div class="top-item">
+          <span class="rank">${index + 1}</span>
+          <span class="name">${category._id}</span>
+          <span class="count">${category.count} цитат</span>
+        </div>
+      `).join('');
+    }
+
+    // Популярные цитаты
+    const quotesContainer = document.getElementById('popular-quotes');
+    if (quotesContainer) {
+      const quotes = topContent.popularQuotes && topContent.popularQuotes.length > 0 
+        ? topContent.popularQuotes 
+        : this.getFallbackQuotes();
+
+      quotesContainer.innerHTML = quotes.map((quote, index) => `
+        <div class="popular-quote">
+          <div class="quote-text">"${quote._id.substring(0, 100)}${quote._id.length > 100 ? '...' : ''}"</div>
+          <div class="quote-meta">
+            ${quote.author ? `— ${quote.author}` : ''} 
+            <span class="usage-count">(${quote.count} раз)</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    console.log('📊 Топ контент обновлен');
+  }
+
+  /**
+   * Показать fallback данные при ошибках API
+   */
+  showFallbackData() {
+    console.log('📊 Показ fallback данных...');
+
+    // Fallback статистика
+    this.updateStatCards({
+      totalUsers: 12,
+      newUsers: 3,
+      totalQuotes: 47,
+      avgQuotesPerUser: '3.9',
+      activeUsers: 8,
+      promoUsage: 2
+    });
+
+    // Fallback диаграммы
+    this.updateSourceChart([]);
+    this.updateUTMChart([]);
+    this.updateRetentionChart([]);
+
+    // Fallback топ контент
+    this.updateTopContent({
+      topAuthors: [],
+      topCategories: [],
+      popularQuotes: []
+    });
+
+    // Показываем уведомление
+    this.showNotification('warning', 'Используются демо-данные. Проверьте подключение к API.');
+  }
+
+  // === FALLBACK DATA METHODS ===
+
+  /**
+   * Fallback данные для источников
+   * @returns {Array} Демо данные источников
+   */
+  getFallbackSourceData() {
+    return [
+      { _id: 'Instagram', count: 5 },
+      { _id: 'Telegram', count: 3 },
+      { _id: 'YouTube', count: 2 },
+      { _id: 'Друзья', count: 2 }
+    ];
+  }
+
+  /**
+   * Fallback данные для UTM
+   * @returns {Array} Демо UTM данные
+   */
+  getFallbackUTMData() {
+    return [
+      { campaign: 'weekly_reports', clicks: 8, uniqueUsers: 6 },
+      { campaign: 'book_recommendations', clicks: 5, uniqueUsers: 4 },
+      { campaign: 'monthly_analysis', clicks: 3, uniqueUsers: 3 }
+    ];
+  }
+
+  /**
+   * Fallback данные для retention
+   * @returns {Array} Демо retention данные
+   */
+  getFallbackRetentionData() {
+    return [
+      { cohort: '2024-12', week1: 100, week2: 75, week3: 60, week4: 50 },
+      { cohort: '2025-01', week1: 100, week2: 80, week3: 65, week4: 55 }
+    ];
+  }
+
+  /**
+   * Fallback данные для авторов
+   * @returns {Array} Демо данные авторов
+   */
+  getFallbackAuthors() {
+    return [
+      { _id: 'Эрих Фромм', count: 8 },
+      { _id: 'Райнер Мария Рильке', count: 6 },
+      { _id: 'Марина Цветаева', count: 4 },
+      { _id: 'Пауло Коэльо', count: 3 }
+    ];
+  }
+
+  /**
+   * Fallback данные для категорий
+   * @returns {Array} Демо данные категорий
+   */
+  getFallbackCategories() {
+    return [
+      { _id: 'Саморазвитие', count: 15 },
+      { _id: 'Любовь', count: 12 },
+      { _id: 'Мудрость', count: 10 },
+      { _id: 'Философия', count: 8 }
+    ];
+  }
+
+  /**
+   * Fallback данные для цитат
+   * @returns {Array} Демо данные цитат
+   */
+  getFallbackQuotes() {
+    return [
+      { _id: 'Любовь — это решение любить', author: 'Эрих Фромм', count: 3 },
+      { _id: 'В каждом слове — целая жизнь', author: 'Марина Цветаева', count: 2 },
+      { _id: 'Хорошая жизнь строится, а не дается по умолчанию', author: 'Анна Бусел', count: 2 }
+    ];
+  }
+
+  // === UTILITY METHODS ===
+
+  /**
+   * Получение цвета для retention диаграмм
+   * @param {number} index - Индекс
+   * @param {number} alpha - Прозрачность
+   * @returns {string} CSS цвет
+   */
+  getRetentionColor(index, alpha = 1) {
+    const colors = [
+      `rgba(255, 107, 107, ${alpha})`,
+      `rgba(78, 205, 196, ${alpha})`,
+      `rgba(69, 183, 209, ${alpha})`,
+      `rgba(150, 206, 180, ${alpha})`,
+      `rgba(255, 234, 167, ${alpha})`,
+      `rgba(221, 160, 221, ${alpha})`
+    ];
+    return colors[index % colors.length];
+  }
+
+  /**
+   * Показать ошибку вместо диаграммы
+   * @param {string} chartId - ID контейнера диаграммы
+   * @param {string} message - Сообщение об ошибке
+   */
+  showChartError(chartId, message) {
+    const container = document.getElementById(chartId)?.parentElement;
+    if (container) {
+      container.innerHTML = `
+        <div class="chart-error">
+          <i class="fas fa-exclamation-triangle"></i>
+          <p>${message}</p>
+          <button onclick="location.reload()" class="btn btn-sm btn-primary">
+            Обновить страницу
+          </button>
+        </div>
+      `;
+    }
   }
 
   /**
@@ -535,47 +553,40 @@ class ReaderDashboard {
     if (periodSelect) {
       periodSelect.addEventListener('change', (e) => {
         this.currentPeriod = e.target.value;
-        this.clearCache();
-        this.loadDashboardData();
+        this.loadDashboardData().catch(() => {
+          this.showNotification('error', 'Ошибка обновления данных');
+        });
       });
     }
 
-    // Кнопка экспорта
+    // Экспорт данных
     const exportBtn = document.getElementById('export-data');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => this.exportData());
     }
 
-    // Кнопки обновления
-    const refreshBtn = document.getElementById('refresh-dashboard');
+    // Обновление данных
+    const refreshBtn = document.getElementById('refresh-data');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => {
-        this.clearCache();
-        this.retryCount = 0;
-        this.loadDashboardData();
+        this.loadDashboardData().catch(() => {
+          this.showNotification('error', 'Ошибка обновления данных');
+        });
       });
     }
   }
 
   /**
-   * Автоматическое обновление
+   * Автоматическое обновление данных
    */
   startAutoRefresh() {
-    // Обновление каждые 5 минут
-    this.refreshInterval = setInterval(() => {
-      if (!this.isLoading) {
-        this.loadDashboardData();
-      }
-    }, 5 * 60 * 1000);
-  }
-
-  /**
-   * Остановка автообновления
-   */
-  stopAutoRefresh() {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
-      this.refreshInterval = null;
+    // Обновление каждые 5 минут (только если не fallback режим)
+    if (!this.fallbackMode) {
+      setInterval(() => {
+        this.loadDashboardData().catch((error) => {
+          console.warn('📊 Ошибка автообновления:', error.message);
+        });
+      }, 5 * 60 * 1000);
     }
   }
 
@@ -584,272 +595,83 @@ class ReaderDashboard {
    */
   async exportData() {
     try {
-      const response = await fetch(`${this.baseURL}/stats/overview?period=${this.currentPeriod}`);
-      if (!response.ok) throw new Error('Ошибка экспорта данных');
-
-      const result = await response.json();
-      if (!result.success) throw new Error(result.error);
-
-      const blob = new Blob([JSON.stringify(result.data, null, 2)], { 
-        type: 'application/json' 
-      });
+      const data = await this.fetchDashboardStats();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `reader-analytics-${this.currentPeriod}-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `reader-analytics-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-
+      
       this.showNotification('success', 'Данные экспортированы');
     } catch (error) {
-      console.error('📖 Ошибка экспорта:', error);
       this.showNotification('error', 'Ошибка экспорта данных');
     }
   }
 
-  // === УТИЛИТЫ ===
-
   /**
-   * Показ состояния загрузки
-   */
-  showLoadingState() {
-    document.querySelectorAll('.stat-value').forEach(el => {
-      el.textContent = '--';
-      el.classList.add('loading');
-    });
-
-    document.querySelectorAll('.top-content-list, .popular-quotes-list').forEach(el => {
-      el.innerHTML = '<div class="loading">📖 Загрузка...</div>';
-    });
-
-    // Показываем spinner на графиках
-    document.querySelectorAll('canvas').forEach(canvas => {
-      const container = canvas.parentElement;
-      if (container) {
-        container.classList.add('loading');
-      }
-    });
-  }
-
-  /**
-   * Скрытие состояния загрузки
-   */
-  hideLoadingState() {
-    document.querySelectorAll('.loading').forEach(el => {
-      el.classList.remove('loading');
-    });
-  }
-
-  /**
-   * Показ fallback данных при ошибке
-   */
-  showFallbackData() {
-    // Показываем демонстрационные данные
-    const fallbackStats = {
-      totalUsers: 3,
-      newUsers: 1,
-      totalQuotes: 4,
-      avgQuotesPerUser: 1.3,
-      activeUsers: 2,
-      promoUsage: 0
-    };
-
-    const fallbackSources = [
-      { _id: 'Instagram', count: 1 },
-      { _id: 'Telegram', count: 1 },
-      { _id: 'YouTube', count: 1 }
-    ];
-
-    const fallbackTopContent = {
-      topAuthors: [
-        { _id: 'Марина Цветаева', count: 1 },
-        { _id: 'Эрих Фромм', count: 1 },
-        { _id: 'Будда', count: 1 }
-      ],
-      topCategories: [
-        { _id: 'Поэзия', count: 1 },
-        { _id: 'Психология', count: 1 },
-        { _id: 'Философия', count: 1 }
-      ],
-      popularQuotes: []
-    };
-
-    this.updateStatCards(fallbackStats);
-    this.updateSourceChart(fallbackSources);
-    this.updateUTMChart([]);
-    this.updateTopContent(fallbackTopContent);
-  }
-
-  /**
-   * Показ пустого графика
-   * @param {HTMLCanvasElement} ctx - Canvas элемент
-   * @param {string} message - Сообщение
-   */
-  showEmptyChart(ctx, message) {
-    const chartContainer = ctx.parentElement;
-    chartContainer.innerHTML = `
-      <div class="empty-chart">
-        <div class="empty-chart-icon">📊</div>
-        <div class="empty-chart-message">${message}</div>
-      </div>
-    `;
-  }
-
-  /**
-   * Получение цвета для retention графика
-   * @param {number} index - Индекс
-   * @param {number} alpha - Прозрачность
-   * @returns {string}
-   */
-  getRetentionColor(index, alpha = 1) {
-    const colors = [
-      `rgba(255, 107, 107, ${alpha})`, // Красный
-      `rgba(78, 205, 196, ${alpha})`,  // Бирюзовый
-      `rgba(69, 183, 209, ${alpha})`,  // Синий
-      `rgba(150, 206, 180, ${alpha})`, // Зеленый
-      `rgba(255, 234, 167, ${alpha})`, // Желтый
-      `rgba(221, 160, 221, ${alpha})`  // Фиолетовый
-    ];
-    return colors[index % colors.length];
-  }
-
-  /**
-   * Форматирование чисел
-   * @param {number} num - Число
-   * @returns {string}
-   */
-  formatNumber(num) {
-    if (typeof num !== 'number') return '0';
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-  }
-
-  /**
-   * Форматирование десятичных чисел
-   * @param {number} num - Число
-   * @returns {string}
-   */
-  formatDecimal(num) {
-    if (typeof num !== 'number') return '0.0';
-    return parseFloat(num).toFixed(1);
-  }
-
-  /**
-   * Склонение слова "цитата"
-   * @param {number} count - Количество
-   * @returns {string}
-   */
-  declensionQuotes(count) {
-    if (count % 10 === 1 && count % 100 !== 11) return 'цитата';
-    if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'цитаты';
-    return 'цитат';
-  }
-
-  /**
-   * Обрезка текста
-   * @param {string} text - Текст
-   * @param {number} maxLength - Максимальная длина
-   * @returns {string}
-   */
-  truncateText(text, maxLength) {
-    if (!text) return '';
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-  }
-
-  /**
-   * Экранирование HTML
-   * @param {string} text - Текст
-   * @returns {string}
-   */
-  escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  /**
-   * Кэширование
-   * @param {string} key - Ключ
-   * @returns {any|null}
-   */
-  getFromCache(key) {
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < 2 * 60 * 1000) { // 2 минуты
-      return cached.data;
-    }
-    return null;
-  }
-
-  /**
-   * Установка кэша
-   * @param {string} key - Ключ
-   * @param {any} data - Данные
-   */
-  setCache(key, data) {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now()
-    });
-  }
-
-  /**
-   * Очистка кэша
-   */
-  clearCache() {
-    this.cache.clear();
-  }
-
-  /**
-   * Показ уведомления
-   * @param {string} type - Тип (success, error, info, warning)
+   * Показать уведомление
+   * @param {string} type - Тип уведомления (success, error, warning, info)
    * @param {string} message - Сообщение
    */
   showNotification(type, message) {
-    if (typeof showNotification === 'function') {
-      showNotification(type, message);
-    } else {
-      // Fallback для случая, когда функция не определена
-      console.log(`[${type.toUpperCase()}] ${message}`);
-      
-      // Простое уведомление через alert для критических ошибок
-      if (type === 'error') {
-        const shouldShow = confirm(`Ошибка: ${message}\n\nПоказать в консоли?`);
-        if (shouldShow) {
-          console.error('Dashboard Error:', message);
-        }
+    // Создаем уведомление
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '300px';
+    
+    notification.innerHTML = `
+      <i class="fas fa-${this.getNotificationIcon(type)}"></i>
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Автоматическое удаление через 5 секунд
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
       }
-    }
+    }, 5000);
   }
 
   /**
-   * Очистка ресурсов
+   * Получить иконку для уведомления
+   * @param {string} type - Тип уведомления
+   * @returns {string} CSS класс иконки
    */
-  destroy() {
-    this.stopAutoRefresh();
-    Object.values(this.charts).forEach(chart => {
-      if (chart && typeof chart.destroy === 'function') {
-        chart.destroy();
-      }
-    });
-    this.charts = {};
-    this.clearCache();
+  getNotificationIcon(type) {
+    const icons = {
+      success: 'check-circle',
+      error: 'exclamation-circle',
+      warning: 'exclamation-triangle',
+      info: 'info-circle'
+    };
+    return icons[type] || 'info-circle';
   }
 }
 
-// Глобальная переменная для доступа к экземпляру
-window.ReaderDashboard = ReaderDashboard;
-
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.location.pathname.includes('index.html') || window.location.pathname.endsWith('/')) {
-    console.log('📖 Initializing Reader Dashboard...');
-    const dashboard = new ReaderDashboard();
-    window.readerDashboard = dashboard;
+  console.log('📖 Инициализация дашборда "Читатель"...');
+  
+  // Проверяем наличие Chart.js
+  if (typeof Chart === 'undefined') {
+    console.error('📊 Chart.js не загружен!');
+    return;
   }
+
+  // Создаем экземпляр дашборда
+  window.readerDashboard = new ReaderDashboard();
 });
+
+// Экспорт для использования в других модулях
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ReaderDashboard;
+}
