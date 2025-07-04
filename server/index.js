@@ -28,7 +28,26 @@ const knowledgeRoutes = require('./api/knowledge');
 const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 НОВОЕ: Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 ИСПРАВЛЕНО: Правильный путь
-const usersRoutes = require('./api/users'); // 👥 ИСПРАВЛЕНО: Правильный путь к users API
+
+// 🐛 ДИАГНОСТИКА: Безопасный импорт users routes с обработкой ошибок
+let usersRoutes;
+try {
+  logger.info('🔧 Attempting to import users routes...');
+  usersRoutes = require('./api/users');
+  logger.info('✅ Users routes imported successfully');
+} catch (error) {
+  logger.error('❌ Failed to import users routes:', error);
+  logger.error('❌ Error stack:', error.stack);
+  // Создаем пустой роутер как fallback
+  usersRoutes = express.Router();
+  usersRoutes.get('*', (req, res) => {
+    res.status(500).json({
+      success: false,
+      error: 'Users routes failed to load',
+      details: error.message
+    });
+  });
+}
 
 // Services
 const dbService = require('./services/database');
