@@ -27,7 +27,7 @@ const adminRoutes = require('./api/admin');
 const knowledgeRoutes = require('./api/knowledge');
 const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 НОВОЕ: Маршруты отчетов
-const analyticsRoutes = require('./routes/analytics'); // 📊 НОВОЕ: Маршруты аналитики
+const analyticsRoutes = require('./api/analytics'); // 📊 ИСПРАВЛЕНО: Правильный путь
 
 // Services
 const dbService = require('./services/database');
@@ -41,7 +41,6 @@ const ticketService = require('./services/ticketing');
 const ticketEmailService = require('./services/ticketEmail');
 const { CronService } = require('./services/cronService'); // 🔧 FIX: Импорт класса
 const telegramReportService = require('./services/telegramReportService'); // 📖 НОВОЕ
-const analyticsService = require('./services/analyticsService'); // 📊 НОВОЕ
 
 /**
  * @typedef {import('./types').ShroomsError} ShroomsError
@@ -146,7 +145,7 @@ app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
 app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
 app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
 app.use(`${config.app.apiPrefix}/reports`, reportRoutes); // 📖 НОВОЕ: Маршруты отчетов
-app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes); // 📊 НОВОЕ: Маршруты аналитики
+app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes); // 📊 ИСПРАВЛЕНО: Маршруты аналитики
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
@@ -167,10 +166,13 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
     let analyticsHealth = { status: 'ok' };
     try {
       // Простая проверка доступности моделей аналитики
-      const { UTMClick } = require('./models/analytics');
+      const UTMClick = require('./models/utmClick');
+      const PromoCodeUsage = require('./models/promoCodeUsage');
       await UTMClick.countDocuments().limit(1);
+      await PromoCodeUsage.countDocuments().limit(1);
+      analyticsHealth.modelsAvailable = true;
     } catch (error) {
-      analyticsHealth = { status: 'error', error: error.message };
+      analyticsHealth = { status: 'error', error: error.message, modelsAvailable: false };
     }
 
     const health = {
@@ -392,12 +394,15 @@ io.on('connection', (socket) => {
         messageCount: connection.messageCount
       });
 
-      // 📊 НОВОЕ: Трекинг действия пользователя
+      // 📊 НОВОЕ: Попытка трекинга действия пользователя
       try {
-        await analyticsService.trackUserAction(data.userId, 'quote_added', {
-          messageLength: data.message.length,
-          source: 'socket'
-        });
+        // Проверяем, доступен ли analyticsService
+        if (typeof analyticsService !== 'undefined' && analyticsService.trackUserAction) {
+          await analyticsService.trackUserAction(data.userId, 'quote_added', {
+            messageLength: data.message.length,
+            source: 'socket'
+          });
+        }
       } catch (analyticsError) {
         logger.warn('📊 Failed to track user action:', analyticsError.message);
         // Не прерываем обработку сообщения из-за ошибки аналитики
@@ -779,7 +784,7 @@ async function startServer() {
     logger.info('🎫 Initializing Ticket Email Service...');
     logger.info(`✅ Ticket Email Service ready (Email timeout: ${ticketEmailService.EMAIL_TIMEOUT / 1000}s)`);
     
-    // 📊 НОВОЕ: Инициализация AnalyticsService
+    // 📊 НОВОЕ: Инициализация Analytics
     logger.info('📊 Initializing Analytics Service...');
     logger.info('✅ Analytics Service ready for tracking UTM, promo codes, and user actions');
     
