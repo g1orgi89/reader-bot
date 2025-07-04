@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reader Bot Analytics Dashboard</title>
+    
+    <!-- Chart.js для графиков -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- Tailwind CSS для стилей -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        .stat-card {
+            transition: transform 0.2s ease-in-out;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+        }
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .success-message {
+            background-color: #f0f9ff;
+            border: 1px solid #bae6fd;
+            color: #1e40af;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <h1 class="text-xl font-semibold text-gray-900">
+                            📖 Reader Bot Analytics
+                        </h1>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="index.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                        <a href="analytics.html" class="bg-blue-100 text-blue-700 px-3 py-2 rounded-md text-sm font-medium">Analytics</a>
+                        <a href="users.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">Users</a>
+                        <a href="quotes.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">Quotes</a>
+                        <a href="reports.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">Reports</a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <select id="date-range" class="rounded-md border-gray-300 text-sm">
+                        <option value="1d">Last 24 Hours</option>
+                        <option value="7d" selected>Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                    </select>
+                    <button id="refresh-btn" class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
+                        <i class="fas fa-sync-alt mr-1"></i> Refresh
+                    </button>
+                    <button id="export-btn" class="bg-green-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+                        <i class="fas fa-download mr-1"></i> Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <!-- Overview Stats -->
+        <div class="mb-8">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">📊 Overview Statistics</h2>
+            <div id="stats-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                <!-- Stat cards will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Source Distribution -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                    <i class="fas fa-chart-pie text-blue-600 mr-2"></i>
+                    Traffic Sources
+                </h3>
+                <div class="chart-container">
+                    <canvas id="sourceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- UTM Campaign Performance -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                    <i class="fas fa-bullhorn text-green-600 mr-2"></i>
+                    UTM Campaign Performance
+                </h3>
+                <div class="chart-container">
+                    <canvas id="utmChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- User Retention -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                    <i class="fas fa-users text-purple-600 mr-2"></i>
+                    User Retention by Cohorts
+                </h3>
+                <div class="chart-container">
+                    <canvas id="retentionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Daily Activity -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                    <i class="fas fa-chart-line text-orange-600 mr-2"></i>
+                    Daily User Activity
+                </h3>
+                <div class="chart-container">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Analysis -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- Top Authors -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                    <i class="fas fa-feather-alt text-red-600 mr-2"></i>
+                    Top Authors
+                </h3>
+                <div id="top-authors" class="space-y-2">
+                    <!-- Authors list will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Top Categories -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                    <i class="fas fa-tags text-yellow-600 mr-2"></i>
+                    Top Categories
+                </h3>
+                <div id="top-categories" class="space-y-2">
+                    <!-- Categories list will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Popular Quotes -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                    <i class="fas fa-quote-left text-indigo-600 mr-2"></i>
+                    Popular Quotes
+                </h3>
+                <div id="popular-quotes" class="space-y-3">
+                    <!-- Popular quotes will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+            <p class="mt-4 text-center text-gray-600">Loading analytics data...</p>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="fixed top-4 right-4 z-50"></div>
+
+    <script>
+        /**
+         * Reader Bot Analytics Dashboard
+         * Интегрированная система аналитики для проекта "Читатель"
+         */
+        class ReaderAnalyticsDashboard {
+            constructor() {
+                this.currentPeriod = '7d';
+                this.charts = {};
+                this.apiBase = '/api';
+                this.token = localStorage.getItem('admin_token');
+                this.init();
+            }
+
+            async init() {
+                this.setupEventListeners();
+                await this.checkAuth();
+                await this.loadAllData();
+                this.startAutoRefresh();
+            }
+
+            async checkAuth() {
+                if (!this.token) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${this.apiBase}/admin/verify`, {
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Auth failed');
+                    }
+                } catch (error) {
+                    console.error('Authentication failed:', error);
+                    localStorage.removeItem('admin_token');
+                    window.location.href = 'login.html';
+                }
+            }
+
+            setupEventListeners() {
+                // Period selector
+                const periodSelect = document.getElementById('date-range');
+                if (periodSelect) {
+                    periodSelect.addEventListener('change', (e) => {
+                        this.currentPeriod = e.target.value;
+                        this.loadAllData();
+                    });
+                }
+
+                // Refresh button
+                const refreshBtn = document.getElementById('refresh-btn');
+                if (refreshBtn) {
+                    refreshBtn.addEventListener('click', () => {
+                        this.loadAllData();
+                    });
+                }
+
+                // Export button
+                const exportBtn = document.getElementById('export-btn');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', () => {
+                        this.exportData();
+                    });
+                }
+            }
+
+            async loadAllData() {
+                this.showLoading(true);
+                
+                try {
+                    const [dashboardData, retentionData, topContentData] = await Promise.all([
+                        this.fetchDashboardStats(),
+                        this.fetchRetentionData(),
+                        this.fetchTopContent()
+                    ]);
+
+                    this.updateStatCards(dashboardData.data.overview);
+                    this.updateSourceChart(dashboardData.data.sourceStats);
+                    this.updateUTMChart(dashboardData.data.utmStats);
+                    this.updateRetentionChart(retentionData.data);
+                    this.updateTopContent(topContentData.data);
+
+                    this.showNotification('Analytics data updated successfully', 'success');
+                } catch (error) {
+                    console.error('Error loading analytics data:', error);
+                    this.showNotification('Failed to load analytics data: ' + error.message, 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            async fetchDashboardStats() {
+                const response = await fetch(`${this.apiBase}/analytics/dashboard?period=${this.currentPeriod}`, {
+                    headers: { 'Authorization': `Bearer ${this.token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            }
+
+            async fetchRetentionData() {
+                const response = await fetch(`${this.apiBase}/analytics/retention`, {
+                    headers: { 'Authorization': `Bearer ${this.token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            }
+
+            async fetchTopContent() {
+                const response = await fetch(`${this.apiBase}/analytics/top-content?period=${this.currentPeriod}`, {
+                    headers: { 'Authorization': `Bearer ${this.token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            }
+
+            updateStatCards(stats) {
+                const statsGrid = document.getElementById('stats-grid');
+                if (!statsGrid) return;
+
+                const statCards = [
+                    { label: 'Total Users', value: stats.totalUsers || 0, icon: 'fas fa-users', color: 'blue' },
+                    { label: 'New Users', value: stats.newUsers || 0, icon: 'fas fa-user-plus', color: 'green' },
+                    { label: 'Total Quotes', value: stats.totalQuotes || 0, icon: 'fas fa-quote-left', color: 'purple' },
+                    { label: 'Avg Quotes/User', value: stats.avgQuotesPerUser || 0, icon: 'fas fa-chart-bar', color: 'yellow' },
+                    { label: 'Active Users', value: stats.activeUsers || 0, icon: 'fas fa-user-check', color: 'red' },
+                    { label: 'Promo Usage', value: stats.promoUsage || 0, icon: 'fas fa-gift', color: 'pink' }
+                ];
+
+                statsGrid.innerHTML = statCards.map(card => `
+                    <div class="stat-card bg-white p-6 rounded-lg shadow hover:shadow-md">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-8 h-8 bg-${card.color}-100 rounded-md flex items-center justify-center">
+                                    <i class="${card.icon} text-${card.color}-600"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">${card.label}</p>
+                                <p class="text-2xl font-semibold text-gray-900">${this.formatNumber(card.value)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            updateSourceChart(sourceStats) {
+                const ctx = document.getElementById('sourceChart');
+                if (!ctx) return;
+
+                if (this.charts.source) {
+                    this.charts.source.destroy();
+                }
+
+                this.charts.source = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: sourceStats.map(s => s._id || 'Unknown'),
+                        datasets: [{
+                            data: sourceStats.map(s => s.count),
+                            backgroundColor: [
+                                '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                        return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateUTMChart(utmStats) {
+                const ctx = document.getElementById('utmChart');
+                if (!ctx) return;
+
+                if (this.charts.utm) {
+                    this.charts.utm.destroy();
+                }
+
+                if (!utmStats || utmStats.length === 0) {
+                    ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+                    ctx.getContext('2d').font = '16px Arial';
+                    ctx.getContext('2d').fillText('No UTM data available', 10, 50);
+                    return;
+                }
+
+                this.charts.utm = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: utmStats.map(u => u.campaign),
+                        datasets: [
+                            {
+                                label: 'Clicks',
+                                data: utmStats.map(u => u.clicks),
+                                backgroundColor: '#3B82F6',
+                                borderColor: '#1D4ED8',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Unique Users',
+                                data: utmStats.map(u => u.uniqueUsers),
+                                backgroundColor: '#10B981',
+                                borderColor: '#059669',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateRetentionChart(retentionData) {
+                const ctx = document.getElementById('retentionChart');
+                if (!ctx) return;
+
+                if (this.charts.retention) {
+                    this.charts.retention.destroy();
+                }
+
+                if (!retentionData || retentionData.length === 0) {
+                    ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+                    ctx.getContext('2d').font = '16px Arial';
+                    ctx.getContext('2d').fillText('No retention data available', 10, 50);
+                    return;
+                }
+
+                this.charts.retention = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                        datasets: retentionData.slice(-6).map((cohort, index) => ({
+                            label: cohort.cohort,
+                            data: [cohort.week1, cohort.week2, cohort.week3, cohort.week4],
+                            borderColor: this.getRetentionColor(index),
+                            backgroundColor: this.getRetentionColor(index, 0.1),
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false
+                        }))
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateTopContent(topContent) {
+                // Top authors
+                const authorsContainer = document.getElementById('top-authors');
+                if (authorsContainer && topContent.topAuthors) {
+                    authorsContainer.innerHTML = topContent.topAuthors.map((author, index) => `
+                        <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-semibold">
+                                    ${index + 1}
+                                </span>
+                                <span class="ml-3 text-sm font-medium text-gray-900">${author._id}</span>
+                            </div>
+                            <span class="text-sm text-gray-500">${author.count} quotes</span>
+                        </div>
+                    `).join('');
+                }
+
+                // Top categories
+                const categoriesContainer = document.getElementById('top-categories');
+                if (categoriesContainer && topContent.topCategories) {
+                    categoriesContainer.innerHTML = topContent.topCategories.map((category, index) => `
+                        <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center text-xs font-semibold">
+                                    ${index + 1}
+                                </span>
+                                <span class="ml-3 text-sm font-medium text-gray-900">${category._id || 'Uncategorized'}</span>
+                            </div>
+                            <span class="text-sm text-gray-500">${category.count} quotes</span>
+                        </div>
+                    `).join('');
+                }
+
+                // Popular quotes
+                const quotesContainer = document.getElementById('popular-quotes');
+                if (quotesContainer && topContent.popularQuotes) {
+                    quotesContainer.innerHTML = topContent.popularQuotes.map((quote, index) => `
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm text-gray-800 italic">"${quote._id.substring(0, 100)}..."</p>
+                            <div class="mt-2 flex justify-between items-center">
+                                <span class="text-xs text-gray-500">${quote.author ? `— ${quote.author}` : ''}</span>
+                                <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">${quote.count} times</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            getRetentionColor(index, alpha = 1) {
+                const colors = [
+                    `rgba(59, 130, 246, ${alpha})`,   // blue
+                    `rgba(16, 185, 129, ${alpha})`,   // green
+                    `rgba(245, 158, 11, ${alpha})`,   // yellow
+                    `rgba(239, 68, 68, ${alpha})`,    // red
+                    `rgba(139, 92, 246, ${alpha})`,   // purple
+                    `rgba(249, 115, 22, ${alpha})`    // orange
+                ];
+                return colors[index % colors.length];
+            }
+
+            formatNumber(num) {
+                if (num >= 1000000) {
+                    return (num / 1000000).toFixed(1) + 'M';
+                } else if (num >= 1000) {
+                    return (num / 1000).toFixed(1) + 'K';
+                }
+                return num.toString();
+            }
+
+            showLoading(show) {
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) {
+                    overlay.style.display = show ? 'flex' : 'none';
+                }
+            }
+
+            showNotification(message, type = 'info') {
+                const container = document.getElementById('notification-container');
+                if (!container) return;
+
+                const notification = document.createElement('div');
+                notification.className = `p-4 mb-4 rounded-lg shadow-lg ${type === 'success' ? 'bg-green-100 text-green-800' : type === 'error' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`;
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} mr-2"></i>
+                        <span>${message}</span>
+                        <button class="ml-auto" onclick="this.parentElement.parentElement.remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+
+                container.appendChild(notification);
+
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 5000);
+            }
+
+            async exportData() {
+                try {
+                    const response = await fetch(`${this.apiBase}/analytics/export?type=dashboard&period=${this.currentPeriod}`, {
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Export failed');
+                    }
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `reader-analytics-${this.currentPeriod}-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    this.showNotification('Analytics data exported successfully', 'success');
+                } catch (error) {
+                    console.error('Export failed:', error);
+                    this.showNotification('Failed to export data: ' + error.message, 'error');
+                }
+            }
+
+            startAutoRefresh() {
+                // Refresh every 5 minutes
+                setInterval(() => {
+                    this.loadAllData();
+                }, 5 * 60 * 1000);
+            }
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ReaderAnalyticsDashboard();
+        });
+    </script>
+</body>
+</html>
