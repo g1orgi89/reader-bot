@@ -1,7 +1,7 @@
 /**
  * @fileoverview Исправленный дашборд аналитики для "Читатель"
  * @description Фиксит проблемы с Chart.js и добавляет fallback данные
- * @version 2.1.0 - ИСПРАВЛЕНЫ API URLS
+ * @version 2.2.0 - ИСПРАВЛЕНА ОБРАБОТКА CANVAS
  */
 
 class ReaderDashboard {
@@ -11,7 +11,7 @@ class ReaderDashboard {
     this.isLoading = false;
     
     // ИСПРАВЛЕНО: Правильный API prefix
-    this.apiBase = '/api/reader/analytics'; // ДО ЭТОГО БЫЛО: /api/analytics
+    this.apiBase = '/api/reader/analytics';
     
     this.init();
   }
@@ -134,20 +134,28 @@ class ReaderDashboard {
   }
 
   /**
-   * ИСПРАВЛЕНО: Обновление диаграммы источников
+   * ИСПРАВЛЕНО: Обновление диаграммы источников с лучшей обработкой ошибок
    */
   updateSourceChart(sourceStats) {
+    const chartId = 'sourceChart';
+    
     try {
-      const chartId = 'sourceChart';
-      const ctx = document.getElementById(chartId);
-      
-      if (!ctx) {
-        console.warn(`📊 Canvas ${chartId} не найден`);
-        return;
-      }
-
       // КРИТИЧНО: Уничтожаем существующий график
       this.destroyChart(chartId);
+
+      // ИСПРАВЛЕНО: Ищем canvas или создаем заново если нужно
+      let ctx = document.getElementById(chartId);
+      
+      if (!ctx) {
+        console.warn(`📊 Canvas ${chartId} не найден, попытка восстановить...`);
+        this.restoreCanvas(chartId, 400, 200);
+        ctx = document.getElementById(chartId);
+      }
+      
+      if (!ctx) {
+        console.error(`📊 Не удалось найти или создать canvas ${chartId}`);
+        return;
+      }
 
       if (!sourceStats || sourceStats.length === 0) {
         this.showEmptyChart(chartId, 'Нет данных об источниках');
@@ -195,17 +203,25 @@ class ReaderDashboard {
    * ИСПРАВЛЕНО: Обновление UTM диаграммы
    */
   updateUTMChart(utmStats) {
+    const chartId = 'utmChart';
+    
     try {
-      const chartId = 'utmChart';
-      const ctx = document.getElementById(chartId);
-      
-      if (!ctx) {
-        console.warn(`📊 Canvas ${chartId} не найден`);
-        return;
-      }
-
       // КРИТИЧНО: Уничтожаем существующий график
       this.destroyChart(chartId);
+
+      // ИСПРАВЛЕНО: Ищем canvas или создаем заново если нужно
+      let ctx = document.getElementById(chartId);
+      
+      if (!ctx) {
+        console.warn(`📊 Canvas ${chartId} не найден, попытка восстановить...`);
+        this.restoreCanvas(chartId, 400, 200);
+        ctx = document.getElementById(chartId);
+      }
+      
+      if (!ctx) {
+        console.error(`📊 Не удалось найти или создать canvas ${chartId}`);
+        return;
+      }
 
       if (!utmStats || utmStats.length === 0) {
         this.showEmptyChart(chartId, 'Нет данных о UTM кампаниях');
@@ -259,17 +275,25 @@ class ReaderDashboard {
    * ИСПРАВЛЕНО: Обновление диаграммы retention
    */
   updateRetentionChart(retentionData) {
+    const chartId = 'retentionChart';
+    
     try {
-      const chartId = 'retentionChart';
-      const ctx = document.getElementById(chartId);
-      
-      if (!ctx) {
-        console.warn(`📊 Canvas ${chartId} не найден`);
-        return;
-      }
-
       // КРИТИЧНО: Уничтожаем существующий график
       this.destroyChart(chartId);
+
+      // ИСПРАВЛЕНО: Ищем canvas или создаем заново если нужно
+      let ctx = document.getElementById(chartId);
+      
+      if (!ctx) {
+        console.warn(`📊 Canvas ${chartId} не найден, попытка восстановить...`);
+        this.restoreCanvas(chartId, 800, 300);
+        ctx = document.getElementById(chartId);
+      }
+      
+      if (!ctx) {
+        console.error(`📊 Не удалось найти или создать canvas ${chartId}`);
+        return;
+      }
 
       if (!retentionData || retentionData.length === 0) {
         this.showEmptyChart(chartId, 'Нет данных о retention');
@@ -318,6 +342,42 @@ class ReaderDashboard {
       console.error('📊 Ошибка создания retention диаграммы:', error);
       this.showChartError('retentionChart', 'Ошибка retention диаграммы');
     }
+  }
+
+  /**
+   * НОВОЕ: Восстановление canvas элемента
+   */
+  restoreCanvas(canvasId, width, height) {
+    // Ищем контейнер графика
+    const containers = document.querySelectorAll('.chart-container');
+    let targetContainer = null;
+    
+    for (const container of containers) {
+      if (container.innerHTML.includes(canvasId) || 
+          (canvasId === 'sourceChart' && container.innerHTML.includes('Источники')) ||
+          (canvasId === 'utmChart' && container.innerHTML.includes('UTM')) ||
+          (canvasId === 'retentionChart' && container.innerHTML.includes('Retention'))) {
+        targetContainer = container;
+        break;
+      }
+    }
+    
+    if (!targetContainer) {
+      console.error(`📊 Не найден контейнер для canvas ${canvasId}`);
+      return;
+    }
+    
+    // Находим или создаем chart-wrapper
+    let wrapper = targetContainer.querySelector('.chart-wrapper');
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'chart-wrapper';
+      targetContainer.appendChild(wrapper);
+    }
+    
+    // Создаем новый canvas
+    wrapper.innerHTML = `<canvas id="${canvasId}" width="${width}" height="${height}"></canvas>`;
+    console.log(`📊 Canvas ${canvasId} восстановлен`);
   }
 
   /**
@@ -446,32 +506,43 @@ class ReaderDashboard {
   }
 
   /**
-   * Показ ошибки на графике
+   * ИСПРАВЛЕНО: Показ ошибки на графике без замены canvas
    */
   showChartError(canvasId, message) {
     const canvas = document.getElementById(canvasId);
     if (canvas) {
-      const parent = canvas.parentElement;
-      parent.innerHTML = `
-        <div class="chart-error">
-          <i class="error-icon">⚠️</i>
-          <p>${message}</p>
+      const wrapper = canvas.closest('.chart-wrapper') || canvas.parentElement;
+      // Не заменяем wrapper, а добавляем overlay
+      wrapper.style.position = 'relative';
+      wrapper.innerHTML = canvas.outerHTML + `
+        <div class="chart-error-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+             display: flex; align-items: center; justify-content: center; 
+             background: rgba(255,255,255,0.9); backdrop-filter: blur(2px);">
+          <div class="chart-error" style="text-align: center;">
+            <i class="error-icon">⚠️</i>
+            <p>${message}</p>
+          </div>
         </div>
       `;
     }
   }
 
   /**
-   * Показ пустого графика
+   * ИСПРАВЛЕНО: Показ пустого графика без замены canvas
    */
   showEmptyChart(canvasId, message) {
     const canvas = document.getElementById(canvasId);
     if (canvas) {
-      const parent = canvas.parentElement;
-      parent.innerHTML = `
-        <div class="chart-empty">
-          <i class="empty-icon">📭</i>
-          <p>${message}</p>
+      const wrapper = canvas.closest('.chart-wrapper') || canvas.parentElement;
+      wrapper.style.position = 'relative';
+      wrapper.innerHTML = canvas.outerHTML + `
+        <div class="chart-empty-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+             display: flex; align-items: center; justify-content: center; 
+             background: rgba(248,249,250,0.9);">
+          <div class="chart-empty" style="text-align: center; color: #6c757d;">
+            <i class="empty-icon">📭</i>
+            <p>${message}</p>
+          </div>
         </div>
       `;
     }
