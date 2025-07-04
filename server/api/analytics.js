@@ -1,18 +1,24 @@
+/**
+ * DEBUG VERSION - Analytics route registration debugging
+ */
+
 const express = require('express');
 const router = express.Router();
 
-// Простой тест endpoint
+console.log('🔧 Analytics routes file loaded!');
+
 router.get('/test', (req, res) => {
-  console.log('📊 Analytics test endpoint hit!');
+  console.log('📊 TEST Analytics endpoint hit!');
   res.json({
     success: true,
     message: 'Analytics API is working!',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    debug: 'This proves the route is registered correctly'
   });
 });
 
 router.get('/dashboard', (req, res) => {
-  console.log('📊 Dashboard endpoint hit!');
+  console.log('📊 DASHBOARD Analytics endpoint hit!');
   res.json({
     success: true,
     data: {
@@ -37,7 +43,7 @@ router.get('/dashboard', (req, res) => {
 });
 
 router.get('/retention', (req, res) => {
-  console.log('📊 Retention endpoint hit!');
+  console.log('📊 RETENTION Analytics endpoint hit!');
   res.json({
     success: true,
     data: [
@@ -47,7 +53,7 @@ router.get('/retention', (req, res) => {
 });
 
 router.get('/top-content', (req, res) => {
-  console.log('📊 Top content endpoint hit!');
+  console.log('📊 TOP-CONTENT Analytics endpoint hit!');
   res.json({
     success: true,
     data: {
@@ -57,5 +63,23 @@ router.get('/top-content', (req, res) => {
     }
   });
 });
+
+// Catch-all для отладки
+router.use('*', (req, res) => {
+  console.log('📊 Analytics catch-all hit for:', req.originalUrl);
+  res.status(404).json({
+    error: 'Analytics endpoint not found',
+    path: req.originalUrl,
+    method: req.method,
+    availableEndpoints: [
+      '/api/analytics/test',
+      '/api/analytics/dashboard',
+      '/api/analytics/retention', 
+      '/api/analytics/top-content'
+    ]
+  });
+});
+
+console.log('🔧 Analytics routes configured with debug endpoints');
 
 module.exports = router;
