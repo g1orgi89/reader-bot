@@ -1,7 +1,7 @@
 /**
- * @fileoverview Исправленный сервис аналитики с fallback данными
- * @description Обеспечивает работу дашборда даже при отсутствии данных в БД
- * @version 2.0.0
+ * @fileoverview Сервис аналитики Reader Bot - ТОЛЬКО РЕАЛЬНЫЕ ДАННЫЕ
+ * @description Показывает исключительно данные из MongoDB, НЕТ fallback данных
+ * @version 3.0.0
  */
 
 /**
@@ -14,30 +14,21 @@
 class AnalyticsService {
   constructor() {
     this.name = 'AnalyticsService';
-    this.fallbackMode = false;
-    console.log('📊 AnalyticsService инициализирован');
+    console.log('📊 AnalyticsService инициализирован (только реальные данные)');
   }
 
   /**
-   * Получение статистики дашборда с fallback
+   * Получение статистики дашборда - ТОЛЬКО реальные данные
    * @param {string} dateRange - Период (1d, 7d, 30d, 90d)
    * @returns {Promise<DashboardStats>}
    */
   async getDashboardStats(dateRange = '7d') {
     try {
-      console.log(`📊 Получение статистики дашборда для периода: ${dateRange}`);
+      console.log(`📊 Получение РЕАЛЬНОЙ статистики дашборда для периода: ${dateRange}`);
       
-      // Проверяем доступность моделей
-      const modelsAvailable = await this.checkModelsAvailability();
-      
-      if (!modelsAvailable) {
-        console.log('📊 Модели недоступны, используем fallback данные');
-        return this.getFallbackDashboardStats(dateRange);
-      }
-
       const startDate = this.getStartDate(dateRange);
       
-      // Пытаемся получить реальные данные
+      // Получаем реальные данные
       const [
         totalUsers,
         newUsers,
@@ -68,42 +59,66 @@ class AnalyticsService {
           activeUsers,
           promoUsage
         },
-        sourceStats,
-        utmStats,
+        sourceStats: sourceStats || [],
+        utmStats: utmStats || [],
         period: dateRange,
         timestamp: new Date().toISOString(),
-        fallbackMode: false
+        fallbackMode: false,
+        dataSource: 'mongodb'
       };
 
-      console.log('📊 Реальные данные дашборда получены успешно');
+      console.log('📊 Реальные данные дашборда получены:', {
+        totalUsers,
+        newUsers,
+        totalQuotes,
+        activeUsers,
+        sources: sourceStats.length,
+        utmCampaigns: utmStats.length
+      });
+
       return stats;
 
     } catch (error) {
-      console.error('📊 Ошибка получения данных, переход на fallback:', error);
-      return this.getFallbackDashboardStats(dateRange);
+      console.error('📊 Ошибка получения данных дашборда:', error);
+      
+      // Возвращаем пустую структуру вместо fallback
+      return {
+        overview: {
+          totalUsers: 0,
+          newUsers: 0,
+          totalQuotes: 0,
+          avgQuotesPerUser: 0,
+          activeUsers: 0,
+          promoUsage: 0
+        },
+        sourceStats: [],
+        utmStats: [],
+        period: dateRange,
+        timestamp: new Date().toISOString(),
+        fallbackMode: false,
+        dataSource: 'error',
+        error: error.message
+      };
     }
   }
 
   /**
-   * Получение данных retention с fallback
+   * Получение данных retention - ТОЛЬКО реальные данные
    * @returns {Promise<RetentionData[]>}
    */
   async getUserRetentionStats() {
     try {
-      console.log('📊 Получение статистики retention');
+      console.log('📊 Получение РЕАЛЬНОЙ статистики retention');
       
-      const modelsAvailable = await this.checkModelsAvailability();
-      
-      if (!modelsAvailable) {
-        console.log('📊 Модели недоступны, используем fallback retention данные');
-        return this.getFallbackRetentionData();
-      }
-
-      // Попытка получить реальные данные retention
       const { UserProfile } = require('../models/userProfile');
       const { Quote } = require('../models/quote');
 
       const cohorts = await UserProfile.aggregate([
+        {
+          $match: {
+            isOnboardingComplete: true
+          }
+        },
         {
           $group: {
             _id: {
@@ -117,7 +132,8 @@ class AnalyticsService {
       ]);
 
       if (!cohorts || cohorts.length === 0) {
-        return this.getFallbackRetentionData();
+        console.log('📊 Нет данных когорт для retention анализа');
+        return [];
       }
 
       const retentionData = [];
@@ -147,37 +163,31 @@ class AnalyticsService {
             createdAt: { $gte: weekStart, $lt: weekEnd }
           });
 
-          retention[`week${week}`] = Math.round((activeInWeek.length / cohortUsers.length) * 100);
+          retention[`week${week}`] = cohortUsers.length > 0 ?
+            Math.round((activeInWeek.length / cohortUsers.length) * 100) : 0;
         }
 
         retentionData.push(retention);
       }
 
-      console.log('📊 Реальные данные retention получены');
+      console.log(`📊 Реальные данные retention получены: ${retentionData.length} когорт`);
       return retentionData;
 
     } catch (error) {
       console.error('📊 Ошибка получения retention данных:', error);
-      return this.getFallbackRetentionData();
+      return []; // Возвращаем пустой массив вместо fallback
     }
   }
 
   /**
-   * Получение топ контента с fallback
+   * Получение топ контента - ТОЛЬКО реальные данные
    * @param {string} dateRange - Период
    * @returns {Promise<Object>}
    */
   async getTopQuotesAndAuthors(dateRange = '30d') {
     try {
-      console.log(`📊 Получение топ контента для периода: ${dateRange}`);
+      console.log(`📊 Получение РЕАЛЬНОГО топ контента для периода: ${dateRange}`);
       
-      const modelsAvailable = await this.checkModelsAvailability();
-      
-      if (!modelsAvailable) {
-        console.log('📊 Модели недоступны, используем fallback топ контент');
-        return this.getFallbackTopContent();
-      }
-
       const startDate = this.getStartDate(dateRange);
       const { Quote } = require('../models/quote');
 
@@ -202,7 +212,7 @@ class AnalyticsService {
         { $limit: 10 }
       ]);
 
-      // Популярные цитаты
+      // Популярные цитаты (повторяющиеся)
       const popularQuotes = await Quote.aggregate([
         { $match: { createdAt: { $gte: startDate } } },
         { 
@@ -218,18 +228,30 @@ class AnalyticsService {
       ]);
 
       const topContent = {
-        topAuthors: topAuthors.length > 0 ? topAuthors : this.getFallbackTopContent().topAuthors,
-        topCategories: topCategories.length > 0 ? topCategories : this.getFallbackTopContent().topCategories,
-        popularQuotes: popularQuotes.length > 0 ? popularQuotes : this.getFallbackTopContent().popularQuotes,
-        fallbackMode: topAuthors.length === 0
+        topAuthors: topAuthors || [],
+        topCategories: topCategories || [],
+        popularQuotes: popularQuotes || [],
+        dataSource: 'mongodb',
+        period: dateRange
       };
 
-      console.log('📊 Топ контент получен');
+      console.log('📊 Реальный топ контент получен:', {
+        authors: topAuthors.length,
+        categories: topCategories.length,
+        popularQuotes: popularQuotes.length
+      });
+
       return topContent;
 
     } catch (error) {
       console.error('📊 Ошибка получения топ контента:', error);
-      return this.getFallbackTopContent();
+      return {
+        topAuthors: [],
+        topCategories: [],
+        popularQuotes: [],
+        dataSource: 'error',
+        error: error.message
+      };
     }
   }
 
@@ -240,7 +262,14 @@ class AnalyticsService {
    */
   async trackUTMClick(utmParams, userId) {
     try {
-      const { UTMClick } = require('../models/analytics');
+      // Пытаемся использовать модель аналитики, если есть
+      let UTMClick;
+      try {
+        UTMClick = require('../models/analytics').UTMClick;
+      } catch (error) {
+        console.warn('📊 Модель UTMClick недоступна, создаем простую запись');
+        return;
+      }
       
       const click = new UTMClick({
         userId,
@@ -273,7 +302,14 @@ class AnalyticsService {
    */
   async trackPromoCodeUsage(promoCode, userId, orderValue, metadata = {}) {
     try {
-      const { PromoCodeUsage } = require('../models/analytics');
+      // Пытаемся использовать модель промокодов, если есть
+      let PromoCodeUsage;
+      try {
+        PromoCodeUsage = require('../models/analytics').PromoCodeUsage;
+      } catch (error) {
+        console.warn('📊 Модель PromoCodeUsage недоступна');
+        return;
+      }
       
       const usage = new PromoCodeUsage({
         promoCode,
@@ -302,7 +338,14 @@ class AnalyticsService {
    */
   async trackUserAction(userId, action, metadata = {}) {
     try {
-      const { UserAction } = require('../models/analytics');
+      // Пытаемся использовать модель действий, если есть
+      let UserAction;
+      try {
+        UserAction = require('../models/analytics').UserAction;
+      } catch (error) {
+        console.warn('📊 Модель UserAction недоступна');
+        return;
+      }
       
       const userAction = new UserAction({
         userId,
@@ -320,159 +363,17 @@ class AnalyticsService {
   }
 
   // ========================================
-  // ПРИВАТНЫЕ МЕТОДЫ
-  // ========================================
-
-  /**
-   * Проверка доступности моделей
-   */
-  async checkModelsAvailability() {
-    try {
-      const { UserProfile } = require('../models/userProfile');
-      await UserProfile.countDocuments().limit(1);
-      return true;
-    } catch (error) {
-      console.warn('📊 Модели недоступны:', error.message);
-      return false;
-    }
-  }
-
-  /**
-   * Fallback данные для дашборда
-   */
-  getFallbackDashboardStats(dateRange) {
-    const baseStats = {
-      overview: {
-        totalUsers: 12,
-        newUsers: 3,
-        totalQuotes: 47,
-        avgQuotesPerUser: 3.9,
-        activeUsers: 8,
-        promoUsage: 2
-      },
-      sourceStats: [
-        { _id: 'Instagram', count: 5 },
-        { _id: 'Telegram', count: 4 },
-        { _id: 'YouTube', count: 2 },
-        { _id: 'Друзья', count: 1 }
-      ],
-      utmStats: [
-        { campaign: 'reader_recommendations', clicks: 15, uniqueUsers: 8 },
-        { campaign: 'weekly_report', clicks: 23, uniqueUsers: 12 },
-        { campaign: 'monthly_announcement', clicks: 8, uniqueUsers: 5 }
-      ],
-      period: dateRange,
-      timestamp: new Date().toISOString(),
-      fallbackMode: true
-    };
-
-    console.log('📊 Возвращены fallback данные дашборда');
-    return baseStats;
-  }
-
-  /**
-   * Fallback данные для retention
-   */
-  getFallbackRetentionData() {
-    const retentionData = [
-      { 
-        cohort: '2024-12', 
-        size: 8,
-        week1: 85, 
-        week2: 72, 
-        week3: 58, 
-        week4: 45 
-      },
-      { 
-        cohort: '2025-01', 
-        size: 12,
-        week1: 90, 
-        week2: 78, 
-        week3: 65, 
-        week4: 52 
-      }
-    ];
-
-    console.log('📊 Возвращены fallback данные retention');
-    return retentionData;
-  }
-
-  /**
-   * Fallback данные для топ контента
-   */
-  getFallbackTopContent() {
-    const topContent = {
-      topAuthors: [
-        { _id: 'Эрих Фромм', count: 8 },
-        { _id: 'Марина Цветаева', count: 6 },
-        { _id: 'Анна Бусел', count: 4 },
-        { _id: 'Лев Толстой', count: 3 },
-        { _id: 'Фёдор Достоевский', count: 2 }
-      ],
-      topCategories: [
-        { _id: 'Саморазвитие', count: 18 },
-        { _id: 'Психология', count: 12 },
-        { _id: 'Философия', count: 9 },
-        { _id: 'Любовь', count: 5 },
-        { _id: 'Мудрость', count: 3 }
-      ],
-      popularQuotes: [
-        { 
-          _id: 'В каждом слове — целая жизнь', 
-          author: 'Марина Цветаева', 
-          count: 3 
-        },
-        { 
-          _id: 'Любовь — это решение любить', 
-          author: 'Эрих Фромм', 
-          count: 2 
-        }
-      ],
-      fallbackMode: true
-    };
-
-    console.log('📊 Возвращены fallback данные топ контента');
-    return topContent;
-  }
-
-  /**
-   * Получение даты начала периода
-   */
-  getStartDate(dateRange) {
-    const now = new Date();
-    switch (dateRange) {
-      case '1d': return new Date(now.setDate(now.getDate() - 1));
-      case '7d': return new Date(now.setDate(now.getDate() - 7));
-      case '30d': return new Date(now.setDate(now.getDate() - 30));
-      case '90d': return new Date(now.setDate(now.getDate() - 90));
-      default: return new Date(now.setDate(now.getDate() - 7));
-    }
-  }
-
-  /**
-   * Получение размера скидки для промокода
-   */
-  getDiscountForPromoCode(promoCode) {
-    const discountMap = {
-      'READER20': 20,
-      'WISDOM20': 20,
-      'QUOTES20': 20,
-      'BOOKS20': 20,
-      'MONTH25': 25,
-      'READER15': 15
-    };
-    return discountMap[promoCode] || 10;
-  }
-
-  // ========================================
   // МЕТОДЫ ДЛЯ РАБОТЫ С РЕАЛЬНЫМИ ДАННЫМИ
   // ========================================
 
   async getTotalUsers() {
     try {
       const { UserProfile } = require('../models/userProfile');
-      return await UserProfile.countDocuments({ isOnboardingComplete: true });
+      const count = await UserProfile.countDocuments({ isOnboardingComplete: true });
+      console.log(`📊 Общее количество пользователей: ${count}`);
+      return count;
     } catch (error) {
+      console.error('📊 Ошибка получения общего количества пользователей:', error);
       return 0;
     }
   }
@@ -480,11 +381,14 @@ class AnalyticsService {
   async getNewUsers(startDate) {
     try {
       const { UserProfile } = require('../models/userProfile');
-      return await UserProfile.countDocuments({
+      const count = await UserProfile.countDocuments({
         isOnboardingComplete: true,
         registeredAt: { $gte: startDate }
       });
+      console.log(`📊 Новые пользователи с ${startDate.toISOString()}: ${count}`);
+      return count;
     } catch (error) {
+      console.error('📊 Ошибка получения новых пользователей:', error);
       return 0;
     }
   }
@@ -492,8 +396,11 @@ class AnalyticsService {
   async getTotalQuotes(startDate) {
     try {
       const { Quote } = require('../models/quote');
-      return await Quote.countDocuments({ createdAt: { $gte: startDate } });
+      const count = await Quote.countDocuments({ createdAt: { $gte: startDate } });
+      console.log(`📊 Цитат с ${startDate.toISOString()}: ${count}`);
+      return count;
     } catch (error) {
+      console.error('📊 Ошибка получения количества цитат:', error);
       return 0;
     }
   }
@@ -504,8 +411,10 @@ class AnalyticsService {
       const activeUsers = await Quote.distinct('userId', { 
         createdAt: { $gte: startDate } 
       });
+      console.log(`📊 Активные пользователи с ${startDate.toISOString()}: ${activeUsers.length}`);
       return activeUsers.length;
     } catch (error) {
+      console.error('📊 Ошибка получения активных пользователей:', error);
       return 0;
     }
   }
@@ -513,10 +422,13 @@ class AnalyticsService {
   async getPromoUsage(startDate) {
     try {
       const { PromoCodeUsage } = require('../models/analytics');
-      return await PromoCodeUsage.countDocuments({
+      const count = await PromoCodeUsage.countDocuments({
         timestamp: { $gte: startDate }
       });
+      console.log(`📊 Использование промокодов с ${startDate.toISOString()}: ${count}`);
+      return count;
     } catch (error) {
+      console.warn('📊 Модель промокодов недоступна или ошибка:', error.message);
       return 0;
     }
   }
@@ -524,12 +436,20 @@ class AnalyticsService {
   async getSourceStats(startDate) {
     try {
       const { UserProfile } = require('../models/userProfile');
-      return await UserProfile.aggregate([
-        { $match: { registeredAt: { $gte: startDate } } },
+      const stats = await UserProfile.aggregate([
+        { 
+          $match: { 
+            registeredAt: { $gte: startDate },
+            isOnboardingComplete: true
+          } 
+        },
         { $group: { _id: '$source', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]);
+      console.log(`📊 Статистика источников: ${stats.length} источников`);
+      return stats;
     } catch (error) {
+      console.error('📊 Ошибка получения статистики источников:', error);
       return [];
     }
   }
@@ -537,7 +457,7 @@ class AnalyticsService {
   async getUTMStats(startDate) {
     try {
       const { UTMClick } = require('../models/analytics');
-      return await UTMClick.aggregate([
+      const stats = await UTMClick.aggregate([
         { $match: { timestamp: { $gte: startDate } } },
         { 
           $group: { 
@@ -555,9 +475,60 @@ class AnalyticsService {
         },
         { $sort: { clicks: -1 } }
       ]);
+      console.log(`📊 UTM статистика: ${stats.length} кампаний`);
+      return stats;
     } catch (error) {
+      console.warn('📊 Модель UTM недоступна или ошибка:', error.message);
       return [];
     }
+  }
+
+  // ========================================
+  // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+  // ========================================
+
+  /**
+   * Получение даты начала периода
+   */
+  getStartDate(dateRange) {
+    const now = new Date();
+    switch (dateRange) {
+      case '1d': 
+        const oneDayAgo = new Date(now);
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        return oneDayAgo;
+      case '7d': 
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        return sevenDaysAgo;
+      case '30d': 
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return thirtyDaysAgo;
+      case '90d': 
+        const ninetyDaysAgo = new Date(now);
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        return ninetyDaysAgo;
+      default: 
+        const defaultDate = new Date(now);
+        defaultDate.setDate(defaultDate.getDate() - 7);
+        return defaultDate;
+    }
+  }
+
+  /**
+   * Получение размера скидки для промокода
+   */
+  getDiscountForPromoCode(promoCode) {
+    const discountMap = {
+      'READER20': 20,
+      'WISDOM20': 20,
+      'QUOTES20': 20,
+      'BOOKS20': 20,
+      'MONTH25': 25,
+      'READER15': 15
+    };
+    return discountMap[promoCode] || 10;
   }
 }
 
