@@ -49,14 +49,22 @@
         <main class="admin-content">
             <div class="dashboard-header">
                 <h2>📊 Аналитика "Читателя"</h2>
-                <div class="date-range-picker">
-                    <label for="date-range">Период:</label>
-                    <select id="date-range" class="select-glow">
-                        <option value="1d">Сегодня</option>
-                        <option value="7d" selected>7 дней</option>
-                        <option value="30d">30 дней</option>
-                        <option value="90d">90 дней</option>
-                    </select>
+                <div class="dashboard-controls">
+                    <div class="date-range-picker">
+                        <label for="date-range">Период:</label>
+                        <select id="date-range" class="select-glow">
+                            <option value="1d">Сегодня</option>
+                            <option value="7d" selected>7 дней</option>
+                            <option value="30d">30 дней</option>
+                            <option value="90d">90 дней</option>
+                        </select>
+                    </div>
+                    <button id="refresh-dashboard" class="refresh-btn">
+                        🔄 Обновить
+                    </button>
+                    <button id="export-data" class="export-btn">
+                        📥 Экспорт
+                    </button>
                 </div>
             </div>
             
@@ -95,7 +103,7 @@
                         <div class="stat-icon">📊</div>
                     </div>
                     <div class="stat-value" id="avg-quotes-count">--</div>
-                    <div class="stat-change positive" id="avg-quotes-change">-5% к прошлому периоду</div>
+                    <div class="stat-change negative" id="avg-quotes-change">-5% к прошлому периоду</div>
                 </div>
                 
                 <div class="stat-card glow-card">
@@ -217,7 +225,7 @@
             
             // Инициализация дашборда
             if (typeof ReaderDashboard === 'function') {
-                new ReaderDashboard();
+                window.readerDashboardInstance = new ReaderDashboard();
             } else {
                 console.log('📖 Класс ReaderDashboard не найден, используем базовую инициализацию');
                 initBasicDashboard();
@@ -230,7 +238,7 @@
         });
         
         /**
-         * Базовая инициализация дашборда
+         * Базовая инициализация дашборда (fallback)
          */
         function initBasicDashboard() {
             console.log('📖 Базовая инициализация дашборда');
@@ -244,6 +252,24 @@
                 });
             }
             
+            // Кнопка обновления
+            const refreshBtn = document.getElementById('refresh-dashboard');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    console.log('📖 Обновление данных');
+                    loadBasicStats();
+                });
+            }
+            
+            // Кнопка экспорта
+            const exportBtn = document.getElementById('export-data');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => {
+                    console.log('📖 Экспорт данных');
+                    exportBasicData();
+                });
+            }
+            
             // Загрузка базовой статистики
             loadBasicStats();
         }
@@ -253,6 +279,11 @@
          */
         function loadBasicStats() {
             console.log('📖 Загрузка статистики');
+            
+            // Показываем состояние загрузки
+            document.querySelectorAll('.stat-value').forEach(el => {
+                el.classList.add('loading');
+            });
             
             // Имитация загрузки
             setTimeout(() => {
@@ -269,11 +300,15 @@
                     const element = document.getElementById(id);
                     if (element) {
                         element.textContent = value;
+                        element.classList.remove('loading');
+                        element.classList.add('updated');
+                        setTimeout(() => element.classList.remove('updated'), 1000);
                     }
                 });
                 
                 loadTopContentStub();
                 loadRecentTicketsStub();
+                showNotification('success', 'Данные обновлены');
             }, 1000);
         }
         
@@ -372,6 +407,34 @@
                     <td><button class="btn btn-sm" onclick="viewTicket('RDER003')">Просмотр</button></td>
                 </tr>
             `;
+        }
+        
+        /**
+         * Экспорт базовых данных (заглушка)
+         */
+        function exportBasicData() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                period: document.getElementById('date-range')?.value || '7d',
+                stats: {
+                    totalUsers: 1247,
+                    newUsers: 156,
+                    totalQuotes: 8734,
+                    avgQuotes: 7.2,
+                    activeUsers: 423,
+                    promoUsage: 89
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reader-basic-stats-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showNotification('success', 'Данные экспортированы');
         }
         
         /**
