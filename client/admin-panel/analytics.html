@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reader Bot Analytics Dashboard</title>
+    <title>📊 Аналитика "Читатель" - Reader Bot</title>
     
     <!-- Chart.js для графиков -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
@@ -15,83 +15,98 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
+        /* Стили в тематике "Читателя" */
+        body {
+            background: linear-gradient(135deg, #f5f1eb 0%, #ede7d9 100%);
+            color: #3d2914;
+        }
+        
         .stat-card {
             transition: transform 0.2s ease-in-out;
+            border-left: 4px solid #8b4513;
         }
         .stat-card:hover {
             transform: translateY(-2px);
         }
+        
         .chart-container {
             position: relative;
             height: 400px;
         }
+        
         .loading {
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100px;
         }
+        
         .spinner {
             border: 4px solid #f3f4f6;
-            border-top: 4px solid #3b82f6;
+            border-top: 4px solid #8b4513;
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
         }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .error-message {
-            background-color: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #b91c1c;
-            padding: 12px;
-            border-radius: 8px;
-            margin: 16px 0;
+        
+        .reader-header {
+            background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%);
         }
-        .success-message {
-            background-color: #f0f9ff;
-            border: 1px solid #bae6fd;
-            color: #1e40af;
-            padding: 12px;
-            border-radius: 8px;
-            margin: 16px 0;
+        
+        .reader-card {
+            background: white;
+            border-top: 4px solid #cd853f;
+        }
+        
+        .fallback-indicator {
+            background: #fff3cd;
+            color: #856404;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
         }
     </style>
 </head>
-<body class="bg-gray-50">
+<body>
     <!-- Navigation -->
-    <nav class="bg-white shadow-sm border-b">
+    <nav class="reader-header shadow-sm border-b text-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <h1 class="text-xl font-semibold text-gray-900">
-                            📖 Reader Bot Analytics
+                        <h1 class="text-xl font-semibold">
+                            📖 Аналитика "Читатель"
                         </h1>
                     </div>
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                        <a href="index.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
-                        <a href="analytics.html" class="bg-blue-100 text-blue-700 px-3 py-2 rounded-md text-sm font-medium">Analytics</a>
-                        <a href="users.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">Users</a>
-                        <a href="quotes.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">Quotes</a>
-                        <a href="reports.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">Reports</a>
+                        <a href="index.html" class="text-white/80 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                        <a href="analytics.html" class="bg-white/20 text-white px-3 py-2 rounded-md text-sm font-medium">Analytics</a>
+                        <a href="users.html" class="text-white/80 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Users</a>
+                        <a href="quotes.html" class="text-white/80 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Quotes</a>
+                        <a href="reports.html" class="text-white/80 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Reports</a>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <select id="date-range" class="rounded-md border-gray-300 text-sm">
-                        <option value="1d">Last 24 Hours</option>
-                        <option value="7d" selected>Last 7 Days</option>
-                        <option value="30d">Last 30 Days</option>
-                        <option value="90d">Last 90 Days</option>
+                    <div id="api-status" class="text-sm">⏳ Проверка...</div>
+                    <div id="fallback-indicator" class="fallback-indicator" style="display: none;">⚠️ Тестовые данные</div>
+                    <select id="date-range" class="rounded-md border-gray-300 text-sm text-gray-900">
+                        <option value="1d">За день</option>
+                        <option value="7d" selected>За неделю</option>
+                        <option value="30d">За месяц</option>
+                        <option value="90d">За 3 месяца</option>
                     </select>
-                    <button id="refresh-btn" class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
-                        <i class="fas fa-sync-alt mr-1"></i> Refresh
+                    <button id="refresh-btn" class="bg-white/20 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-white/30">
+                        <i class="fas fa-sync-alt mr-1"></i> Обновить
                     </button>
-                    <button id="export-btn" class="bg-green-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
-                        <i class="fas fa-download mr-1"></i> Export
+                    <button id="export-btn" class="bg-white/20 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-white/30">
+                        <i class="fas fa-download mr-1"></i> Экспорт
                     </button>
                 </div>
             </div>
@@ -102,7 +117,7 @@
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <!-- Overview Stats -->
         <div class="mb-8">
-            <h2 class="text-lg font-medium text-gray-900 mb-4">📊 Overview Statistics</h2>
+            <h2 class="text-lg font-medium text-gray-900 mb-4">📊 Обзорная статистика</h2>
             <div id="stats-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 <!-- Stat cards will be inserted here -->
             </div>
@@ -111,10 +126,9 @@
         <!-- Charts Row 1 -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Source Distribution -->
-            <div class="bg-white p-6 rounded-lg shadow">
+            <div class="reader-card p-6 rounded-lg shadow">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">
-                    <i class="fas fa-chart-pie text-blue-600 mr-2"></i>
-                    Traffic Sources
+                    📱 Источники трафика
                 </h3>
                 <div class="chart-container">
                     <canvas id="sourceChart"></canvas>
@@ -122,10 +136,9 @@
             </div>
 
             <!-- UTM Campaign Performance -->
-            <div class="bg-white p-6 rounded-lg shadow">
+            <div class="reader-card p-6 rounded-lg shadow">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">
-                    <i class="fas fa-bullhorn text-green-600 mr-2"></i>
-                    UTM Campaign Performance
+                    📈 UTM кампании
                 </h3>
                 <div class="chart-container">
                     <canvas id="utmChart"></canvas>
@@ -133,27 +146,14 @@
             </div>
         </div>
 
-        <!-- Charts Row 2 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <!-- User Retention -->
-            <div class="bg-white p-6 rounded-lg shadow">
+        <!-- Retention Chart -->
+        <div class="grid grid-cols-1 gap-6 mb-6">
+            <div class="reader-card p-6 rounded-lg shadow">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">
-                    <i class="fas fa-users text-purple-600 mr-2"></i>
-                    User Retention by Cohorts
+                    📉 Retention пользователей
                 </h3>
                 <div class="chart-container">
                     <canvas id="retentionChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Daily Activity -->
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">
-                    <i class="fas fa-chart-line text-orange-600 mr-2"></i>
-                    Daily User Activity
-                </h3>
-                <div class="chart-container">
-                    <canvas id="activityChart"></canvas>
                 </div>
             </div>
         </div>
@@ -161,35 +161,32 @@
         <!-- Content Analysis -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <!-- Top Authors -->
-            <div class="bg-white p-6 rounded-lg shadow">
+            <div class="reader-card p-6 rounded-lg shadow">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">
-                    <i class="fas fa-feather-alt text-red-600 mr-2"></i>
-                    Top Authors
+                    🏆 Топ авторы
                 </h3>
                 <div id="top-authors" class="space-y-2">
-                    <!-- Authors list will be inserted here -->
+                    <div class="text-center text-gray-500">📝 Загрузка...</div>
                 </div>
             </div>
 
             <!-- Top Categories -->
-            <div class="bg-white p-6 rounded-lg shadow">
+            <div class="reader-card p-6 rounded-lg shadow">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">
-                    <i class="fas fa-tags text-yellow-600 mr-2"></i>
-                    Top Categories
+                    🏷️ Топ категории
                 </h3>
                 <div id="top-categories" class="space-y-2">
-                    <!-- Categories list will be inserted here -->
+                    <div class="text-center text-gray-500">📝 Загрузка...</div>
                 </div>
             </div>
 
             <!-- Popular Quotes -->
-            <div class="bg-white p-6 rounded-lg shadow">
+            <div class="reader-card p-6 rounded-lg shadow">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">
-                    <i class="fas fa-quote-left text-indigo-600 mr-2"></i>
-                    Popular Quotes
+                    ⭐ Популярные цитаты
                 </h3>
                 <div id="popular-quotes" class="space-y-3">
-                    <!-- Popular quotes will be inserted here -->
+                    <div class="text-center text-gray-500">📝 Загрузка...</div>
                 </div>
             </div>
         </div>
@@ -201,7 +198,7 @@
             <div class="loading">
                 <div class="spinner"></div>
             </div>
-            <p class="mt-4 text-center text-gray-600">Loading analytics data...</p>
+            <p class="mt-4 text-center text-gray-600">Загрузка данных аналитики...</p>
         </div>
     </div>
 
@@ -210,43 +207,52 @@
 
     <script>
         /**
-         * Reader Bot Analytics Dashboard
-         * Интегрированная система аналитики для проекта "Читатель"
+         * Reader Bot Analytics Dashboard - ИСПРАВЛЕННАЯ ВЕРСИЯ
+         * Теперь использует правильные пути API
          */
         class ReaderAnalyticsDashboard {
             constructor() {
                 this.currentPeriod = '7d';
                 this.charts = {};
-                this.apiBase = '/api';
-                this.token = localStorage.getItem('admin_token');
+                this.apiBase = '/api';  // ✅ Правильный базовый путь
+                this.fallbackMode = false;
+                console.log('📊 Инициализация дашборда Reader Bot...');
                 this.init();
             }
 
             async init() {
                 this.setupEventListeners();
-                await this.checkAuth();
-                await this.loadAllData();
-                this.startAutoRefresh();
+                
+                // Проверяем API
+                try {
+                    await this.checkAPI();
+                    await this.loadAllData();
+                    console.log('✅ Дашборд инициализирован успешно');
+                } catch (error) {
+                    console.error('❌ Ошибка инициализации:', error);
+                    this.showNotification('Ошибка инициализации: ' + error.message, 'error');
+                }
             }
 
-            async checkAuth() {
-                if (!this.token) {
-                    window.location.href = 'login.html';
-                    return;
-                }
-
+            async checkAPI() {
                 try {
-                    const response = await fetch(`${this.apiBase}/admin/verify`, {
-                        headers: { 'Authorization': `Bearer ${this.token}` }
-                    });
-
+                    console.log('📊 Проверка API...');
+                    const response = await fetch(`${this.apiBase}/analytics/test`);
+                    
                     if (!response.ok) {
-                        throw new Error('Auth failed');
+                        throw new Error(`API недоступен: ${response.status}`);
                     }
+                    
+                    const data = await response.json();
+                    console.log('✅ API работает:', data.message);
+                    
+                    document.getElementById('api-status').innerHTML = '✅ API работает';
+                    
                 } catch (error) {
-                    console.error('Authentication failed:', error);
-                    localStorage.removeItem('admin_token');
-                    window.location.href = 'login.html';
+                    console.warn('⚠️ API недоступен, fallback режим');
+                    this.fallbackMode = true;
+                    document.getElementById('api-status').innerHTML = '❌ API недоступен';
+                    document.getElementById('fallback-indicator').style.display = 'inline-block';
                 }
             }
 
@@ -256,6 +262,7 @@
                 if (periodSelect) {
                     periodSelect.addEventListener('change', (e) => {
                         this.currentPeriod = e.target.value;
+                        console.log(`📊 Период изменен на: ${this.currentPeriod}`);
                         this.loadAllData();
                     });
                 }
@@ -264,6 +271,7 @@
                 const refreshBtn = document.getElementById('refresh-btn');
                 if (refreshBtn) {
                     refreshBtn.addEventListener('click', () => {
+                        console.log('📊 Ручное обновление данных');
                         this.loadAllData();
                     });
                 }
@@ -278,6 +286,7 @@
             }
 
             async loadAllData() {
+                console.log(`📊 Загрузка данных для периода: ${this.currentPeriod}`);
                 this.showLoading(true);
                 
                 try {
@@ -287,90 +296,92 @@
                         this.fetchTopContent()
                     ]);
 
-                    this.updateStatCards(dashboardData.data.overview);
-                    this.updateSourceChart(dashboardData.data.sourceStats);
-                    this.updateUTMChart(dashboardData.data.utmStats);
-                    this.updateRetentionChart(retentionData.data);
-                    this.updateTopContent(topContentData.data);
+                    this.updateStatCards(dashboardData.overview);
+                    this.updateSourceChart(dashboardData.sourceStats);
+                    this.updateUTMChart(dashboardData.utmStats);
+                    this.updateRetentionChart(retentionData);
+                    this.updateTopContent(topContentData);
+                    
+                    // Проверяем fallback режим
+                    if (dashboardData.fallbackMode) {
+                        document.getElementById('fallback-indicator').style.display = 'inline-block';
+                    }
 
-                    this.showNotification('Analytics data updated successfully', 'success');
+                    console.log('✅ Данные дашборда загружены успешно');
+                    this.showNotification('Данные обновлены успешно', 'success');
                 } catch (error) {
-                    console.error('Error loading analytics data:', error);
-                    this.showNotification('Failed to load analytics data: ' + error.message, 'error');
+                    console.error('❌ Ошибка загрузки данных:', error);
+                    this.showNotification('Ошибка загрузки: ' + error.message, 'error');
                 } finally {
                     this.showLoading(false);
                 }
             }
 
             async fetchDashboardStats() {
-                const response = await fetch(`${this.apiBase}/analytics/dashboard?period=${this.currentPeriod}`, {
-                    headers: { 'Authorization': `Bearer ${this.token}` }
-                });
+                console.log(`📊 Fetching dashboard from: ${this.apiBase}/analytics/dashboard?period=${this.currentPeriod}`);
+                
+                const response = await fetch(`${this.apiBase}/analytics/dashboard?period=${this.currentPeriod}`);
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Dashboard API error: ${response.status}`);
                 }
                 
-                return await response.json();
+                const result = await response.json();
+                return result.data;
             }
 
             async fetchRetentionData() {
-                const response = await fetch(`${this.apiBase}/analytics/retention`, {
-                    headers: { 'Authorization': `Bearer ${this.token}` }
-                });
+                console.log(`📊 Fetching retention from: ${this.apiBase}/analytics/retention`);
+                
+                const response = await fetch(`${this.apiBase}/analytics/retention`);
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Retention API error: ${response.status}`);
                 }
                 
-                return await response.json();
+                const result = await response.json();
+                return result.data;
             }
 
             async fetchTopContent() {
-                const response = await fetch(`${this.apiBase}/analytics/top-content?period=${this.currentPeriod}`, {
-                    headers: { 'Authorization': `Bearer ${this.token}` }
-                });
+                console.log(`📊 Fetching top content from: ${this.apiBase}/analytics/top-content?period=${this.currentPeriod}`);
+                
+                const response = await fetch(`${this.apiBase}/analytics/top-content?period=${this.currentPeriod}`);
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Top content API error: ${response.status}`);
                 }
                 
-                return await response.json();
+                const result = await response.json();
+                return result.data;
             }
 
             updateStatCards(stats) {
+                console.log('📊 Карточки статистики обновлены:', stats);
                 const statsGrid = document.getElementById('stats-grid');
                 if (!statsGrid) return;
 
                 const statCards = [
-                    { label: 'Total Users', value: stats.totalUsers || 0, icon: 'fas fa-users', color: 'blue' },
-                    { label: 'New Users', value: stats.newUsers || 0, icon: 'fas fa-user-plus', color: 'green' },
-                    { label: 'Total Quotes', value: stats.totalQuotes || 0, icon: 'fas fa-quote-left', color: 'purple' },
-                    { label: 'Avg Quotes/User', value: stats.avgQuotesPerUser || 0, icon: 'fas fa-chart-bar', color: 'yellow' },
-                    { label: 'Active Users', value: stats.activeUsers || 0, icon: 'fas fa-user-check', color: 'red' },
-                    { label: 'Promo Usage', value: stats.promoUsage || 0, icon: 'fas fa-gift', color: 'pink' }
+                    { label: '👥 Всего пользователей', value: stats.totalUsers || 0, color: 'blue' },
+                    { label: '✨ Новые пользователи', value: stats.newUsers || 0, color: 'green' },
+                    { label: '📚 Всего цитат', value: stats.totalQuotes || 0, color: 'purple' },
+                    { label: '📊 Среднее цитат/пользователь', value: (stats.avgQuotesPerUser || 0).toFixed(1), color: 'yellow' },
+                    { label: '🔥 Активные пользователи', value: stats.activeUsers || 0, color: 'red' },
+                    { label: '🎁 Промокоды', value: stats.promoUsage || 0, color: 'pink' }
                 ];
 
                 statsGrid.innerHTML = statCards.map(card => `
                     <div class="stat-card bg-white p-6 rounded-lg shadow hover:shadow-md">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 bg-${card.color}-100 rounded-md flex items-center justify-center">
-                                    <i class="${card.icon} text-${card.color}-600"></i>
-                                </div>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-500">${card.label}</p>
-                                <p class="text-2xl font-semibold text-gray-900">${this.formatNumber(card.value)}</p>
-                            </div>
-                        </div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">${card.label}</h3>
+                        <p class="text-2xl font-semibold text-gray-900">${this.formatNumber(card.value)}</p>
                     </div>
                 `).join('');
             }
 
             updateSourceChart(sourceStats) {
+                console.log('📊 Диаграмма источников создана:', sourceStats);
                 const ctx = document.getElementById('sourceChart');
-                if (!ctx) return;
+                if (!ctx || !sourceStats) return;
 
                 if (this.charts.source) {
                     this.charts.source.destroy();
@@ -379,11 +390,12 @@
                 this.charts.source = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
-                        labels: sourceStats.map(s => s._id || 'Unknown'),
+                        labels: sourceStats.map(s => s._id || 'Неизвестно'),
                         datasets: [{
                             data: sourceStats.map(s => s.count),
                             backgroundColor: [
-                                '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'
+                                '#8B4513', '#CD853F', '#DEB887', '#F4A460', 
+                                '#D2691E', '#A0522D'
                             ],
                             borderWidth: 2,
                             borderColor: '#ffffff'
@@ -399,15 +411,6 @@
                                     padding: 20,
                                     usePointStyle: true
                                 }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: (context) => {
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                        return `${context.label}: ${context.parsed} (${percentage}%)`;
-                                    }
-                                }
                             }
                         }
                     }
@@ -415,6 +418,7 @@
             }
 
             updateUTMChart(utmStats) {
+                console.log('📊 UTM диаграмма создана:', utmStats);
                 const ctx = document.getElementById('utmChart');
                 if (!ctx) return;
 
@@ -423,29 +427,28 @@
                 }
 
                 if (!utmStats || utmStats.length === 0) {
-                    ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
                     ctx.getContext('2d').font = '16px Arial';
-                    ctx.getContext('2d').fillText('No UTM data available', 10, 50);
+                    ctx.getContext('2d').fillText('Нет данных UTM', 10, 50);
                     return;
                 }
 
                 this.charts.utm = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: utmStats.map(u => u.campaign),
+                        labels: utmStats.map(u => u.campaign || u._id),
                         datasets: [
                             {
-                                label: 'Clicks',
+                                label: 'Клики',
                                 data: utmStats.map(u => u.clicks),
-                                backgroundColor: '#3B82F6',
-                                borderColor: '#1D4ED8',
+                                backgroundColor: '#CD853F',
+                                borderColor: '#8B4513',
                                 borderWidth: 1
                             },
                             {
-                                label: 'Unique Users',
+                                label: 'Уникальные пользователи',
                                 data: utmStats.map(u => u.uniqueUsers),
-                                backgroundColor: '#10B981',
-                                borderColor: '#059669',
+                                backgroundColor: '#DEB887',
+                                borderColor: '#D2691E',
                                 borderWidth: 1
                             }
                         ]
@@ -468,6 +471,7 @@
             }
 
             updateRetentionChart(retentionData) {
+                console.log('📊 Retention диаграмма создана:', retentionData);
                 const ctx = document.getElementById('retentionChart');
                 if (!ctx) return;
 
@@ -476,18 +480,17 @@
                 }
 
                 if (!retentionData || retentionData.length === 0) {
-                    ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
                     ctx.getContext('2d').font = '16px Arial';
-                    ctx.getContext('2d').fillText('No retention data available', 10, 50);
+                    ctx.getContext('2d').fillText('Нет данных retention', 10, 50);
                     return;
                 }
 
                 this.charts.retention = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                        labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
                         datasets: retentionData.slice(-6).map((cohort, index) => ({
-                            label: cohort.cohort,
+                            label: `Когорта ${cohort.cohort} (${cohort.size} польз.)`,
                             data: [cohort.week1, cohort.week2, cohort.week3, cohort.week4],
                             borderColor: this.getRetentionColor(index),
                             backgroundColor: this.getRetentionColor(index, 0.1),
@@ -520,6 +523,8 @@
             }
 
             updateTopContent(topContent) {
+                console.log('📊 Топ контент обновлен');
+                
                 // Top authors
                 const authorsContainer = document.getElementById('top-authors');
                 if (authorsContainer && topContent.topAuthors) {
@@ -529,9 +534,9 @@
                                 <span class="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-semibold">
                                     ${index + 1}
                                 </span>
-                                <span class="ml-3 text-sm font-medium text-gray-900">${author._id}</span>
+                                <span class="ml-3 text-sm font-medium text-gray-900">📚 ${author._id}</span>
                             </div>
-                            <span class="text-sm text-gray-500">${author.count} quotes</span>
+                            <span class="text-sm text-gray-500">${author.count} цитат</span>
                         </div>
                     `).join('');
                 }
@@ -545,9 +550,9 @@
                                 <span class="w-6 h-6 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center text-xs font-semibold">
                                     ${index + 1}
                                 </span>
-                                <span class="ml-3 text-sm font-medium text-gray-900">${category._id || 'Uncategorized'}</span>
+                                <span class="ml-3 text-sm font-medium text-gray-900">🏷️ ${category._id || 'Без категории'}</span>
                             </div>
-                            <span class="text-sm text-gray-500">${category.count} quotes</span>
+                            <span class="text-sm text-gray-500">${category.count} цитат</span>
                         </div>
                     `).join('');
                 }
@@ -557,10 +562,10 @@
                 if (quotesContainer && topContent.popularQuotes) {
                     quotesContainer.innerHTML = topContent.popularQuotes.map((quote, index) => `
                         <div class="p-3 bg-gray-50 rounded-lg">
-                            <p class="text-sm text-gray-800 italic">"${quote._id.substring(0, 100)}..."</p>
+                            <p class="text-sm text-gray-800 italic">"${quote._id.substring(0, 80)}..."</p>
                             <div class="mt-2 flex justify-between items-center">
                                 <span class="text-xs text-gray-500">${quote.author ? `— ${quote.author}` : ''}</span>
-                                <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">${quote.count} times</span>
+                                <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">${quote.count} раз</span>
                             </div>
                         </div>
                     `).join('');
@@ -569,12 +574,12 @@
 
             getRetentionColor(index, alpha = 1) {
                 const colors = [
-                    `rgba(59, 130, 246, ${alpha})`,   // blue
-                    `rgba(16, 185, 129, ${alpha})`,   // green
-                    `rgba(245, 158, 11, ${alpha})`,   // yellow
-                    `rgba(239, 68, 68, ${alpha})`,    // red
-                    `rgba(139, 92, 246, ${alpha})`,   // purple
-                    `rgba(249, 115, 22, ${alpha})`    // orange
+                    `rgba(139, 69, 19, ${alpha})`,    // SaddleBrown
+                    `rgba(205, 133, 63, ${alpha})`,   // Peru
+                    `rgba(222, 184, 135, ${alpha})`,  // BurlyWood  
+                    `rgba(244, 164, 96, ${alpha})`,   // SandyBrown
+                    `rgba(210, 105, 30, ${alpha})`,   // Chocolate
+                    `rgba(160, 82, 45, ${alpha})`     // Sienna
                 ];
                 return colors[index % colors.length];
             }
@@ -600,10 +605,18 @@
                 if (!container) return;
 
                 const notification = document.createElement('div');
-                notification.className = `p-4 mb-4 rounded-lg shadow-lg ${type === 'success' ? 'bg-green-100 text-green-800' : type === 'error' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`;
+                notification.className = `p-4 mb-4 rounded-lg shadow-lg ${
+                    type === 'success' ? 'bg-green-100 text-green-800' : 
+                    type === 'error' ? 'bg-red-100 text-red-800' : 
+                    'bg-blue-100 text-blue-800'
+                }`;
                 notification.innerHTML = `
                     <div class="flex items-center">
-                        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} mr-2"></i>
+                        <i class="fas ${
+                            type === 'success' ? 'fa-check-circle' : 
+                            type === 'error' ? 'fa-exclamation-circle' : 
+                            'fa-info-circle'
+                        } mr-2"></i>
                         <span>${message}</span>
                         <button class="ml-auto" onclick="this.parentElement.parentElement.remove()">
                             <i class="fas fa-times"></i>
@@ -613,7 +626,6 @@
 
                 container.appendChild(notification);
 
-                // Auto remove after 5 seconds
                 setTimeout(() => {
                     if (notification.parentElement) {
                         notification.remove();
@@ -623,9 +635,7 @@
 
             async exportData() {
                 try {
-                    const response = await fetch(`${this.apiBase}/analytics/export?type=dashboard&period=${this.currentPeriod}`, {
-                        headers: { 'Authorization': `Bearer ${this.token}` }
-                    });
+                    const response = await fetch(`${this.apiBase}/analytics/export?format=json&period=${this.currentPeriod}`);
 
                     if (!response.ok) {
                         throw new Error('Export failed');
@@ -642,23 +652,17 @@
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
 
-                    this.showNotification('Analytics data exported successfully', 'success');
+                    this.showNotification('Данные экспортированы успешно', 'success');
                 } catch (error) {
                     console.error('Export failed:', error);
-                    this.showNotification('Failed to export data: ' + error.message, 'error');
+                    this.showNotification('Ошибка экспорта: ' + error.message, 'error');
                 }
-            }
-
-            startAutoRefresh() {
-                // Refresh every 5 minutes
-                setInterval(() => {
-                    this.loadAllData();
-                }, 5 * 60 * 1000);
             }
         }
 
         // Initialize dashboard when page loads
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('📊 DOM загружен, инициализация дашборда...');
             new ReaderAnalyticsDashboard();
         });
     </script>
