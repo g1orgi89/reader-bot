@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: reader-bot-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: reader_admin
+      MONGO_INITDB_ROOT_PASSWORD: reader_secure_2025
+      MONGO_INITDB_DATABASE: reader_bot
+    volumes:
+      - reader_mongodb_data:/data/db
+      - reader_mongodb_config:/data/configdb
+    networks:
+      - reader-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: reader-bot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - reader_redis_data:/data
+    networks:
+      - reader-network
+
+volumes:
+  reader_mongodb_data:
+    driver: local
+  reader_mongodb_config:
+    driver: local
+  reader_redis_data:
+    driver: local
+
+networks:
+  reader-network:
+    driver: bridge
