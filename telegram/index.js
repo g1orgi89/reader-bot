@@ -6,6 +6,7 @@
  * 📖 ADDED: Full Day 13-14 functionality with AI analysis and achievements
  * 📖 ADDED: WeeklyReportHandler integration and feedback support
  * 📖 ADDED: MonthlyReportService and FeedbackHandler integration (Day 18-19)
+ * 📖 ADDED: NavigationHandler for modern UX with visual panels
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -24,6 +25,7 @@ const { QuoteHandler } = require('./handlers/quoteHandler');
 const { CommandHandler } = require('./handlers/commandHandler');
 const { ComplexQuestionHandler } = require('./handlers/complexQuestionHandler');
 const { FeedbackHandler } = require('./handlers/feedbackHandler');
+const { NavigationHandler } = require('./handlers/navigationHandler');
 const BotHelpers = require('./helpers/botHelpers');
 
 /**
@@ -61,12 +63,13 @@ class ReaderTelegramBot {
     this.commandHandler = new CommandHandler();
     this.complexQuestionHandler = new ComplexQuestionHandler();
     this.feedbackHandler = new FeedbackHandler();
+    this.navigationHandler = new NavigationHandler(); // NEW: Modern UX navigation
     
     // External services will be set externally
     this.weeklyReportHandler = null;
     this.monthlyReportService = null;
     
-    logger.info('📖 ReaderTelegramBot constructor initialized with all handlers including FeedbackHandler');
+    logger.info('📖 ReaderTelegramBot constructor initialized with NavigationHandler for modern UX');
   }
 
   /**
@@ -107,7 +110,7 @@ class ReaderTelegramBot {
       this._setupErrorHandling();
       
       this.isInitialized = true;
-      logger.info('📖 Reader Telegram bot initialized successfully with all Day 18-19 features');
+      logger.info('📖 Reader Telegram bot initialized successfully with modern UX navigation system');
     } catch (error) {
       logger.error(`📖 Failed to initialize Reader Telegram bot: ${error.message}`);
       throw error;
@@ -127,7 +130,7 @@ class ReaderTelegramBot {
       models
     });
     
-    logger.info('📖 All handlers initialized with dependencies');
+    logger.info('📖 All handlers initialized with dependencies including NavigationHandler');
   }
 
   /**
@@ -141,8 +144,7 @@ class ReaderTelegramBot {
       const userId = ctx.from?.id;
       const messageText = ctx.message?.text?.substring(0, 50) || 'non-text';
       
-      logger.info(`📖 Message from user ${userId}: "${messageText}..."`);
-      
+      logger.info(`📖 Message from user ${userId}: \"${messageText}...\"`);\nw      
       await next();
       
       const duration = Date.now() - start;
@@ -219,17 +221,43 @@ class ReaderTelegramBot {
    * @private
    */
   _setupCommands() {
-    // /start command - Begin onboarding or show welcome for existing users
+    // /start command - Begin onboarding or show modern navigation
     this.bot.start(async (ctx) => {
       try {
         const userId = ctx.from.id.toString();
         logger.info(`📖 Processing /start command for user ${userId}`);
         
-        await this.onboardingHandler.handleStart(ctx);
+        // Check if user completed onboarding
+        const userProfile = await UserProfile.findOne({ userId });
+        
+        if (userProfile && userProfile.isOnboardingComplete) {
+          // Show modern navigation interface
+          await this.navigationHandler.showMainMenu(ctx, userProfile);
+        } else {
+          // Start onboarding process
+          await this.onboardingHandler.handleStart(ctx);
+        }
         
       } catch (error) {
         logger.error(`📖 Error in /start command: ${error.message}`);
         await ctx.reply(`📖 Здравствуйте! Добро пожаловать в «Читатель» - ваш персональный дневник цитат от Анны Бусел.`);
+      }
+    });
+
+    // /menu command - Show navigation interface
+    this.bot.command('menu', async (ctx) => {
+      try {
+        const userId = ctx.from.id.toString();
+        const userProfile = await UserProfile.findOne({ userId });
+        
+        if (userProfile && userProfile.isOnboardingComplete) {
+          await this.navigationHandler.showMainMenu(ctx, userProfile);
+        } else {
+          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
+        }
+      } catch (error) {
+        logger.error(`📖 Error in /menu command: ${error.message}`);
+        await ctx.reply('📖 Произошла ошибка при загрузке меню. Попробуйте /start');
       }
     });
 
@@ -239,30 +267,34 @@ class ReaderTelegramBot {
         await this.commandHandler.handleHelp(ctx);
       } catch (error) {
         logger.error(`📖 Error in /help command: ${error.message}`);
-        await ctx.reply('📖 Я могу помочь вам с сохранением цитат и рекомендациями книг! Просто отправьте мне цитату.');
+        await ctx.reply('📖 Я могу помочь вам с сохранением цитат и рекомендациями книг! Попробуйте /menu для навигации.');
       }
     });
 
-    // /stats command - Show user statistics
+    // /stats command - Show user statistics (fallback for old interface)
     this.bot.command('stats', async (ctx) => {
       try {
         const userId = ctx.from.id.toString();
-        if (await this.commandHandler.hasAccess('stats', userId)) {
-          await this.commandHandler.handleStats(ctx);
+        const userProfile = await UserProfile.findOne({ userId });
+        
+        if (userProfile && userProfile.isOnboardingComplete) {
+          await this.navigationHandler.showStats(ctx);
         } else {
           await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
         }
       } catch (error) {
         logger.error(`📖 Error in /stats command: ${error.message}`);
-        await ctx.reply('📖 Произошла ошибка при получении статистики. Попробуйте позже.');
+        await ctx.reply('📖 Произошла ошибка при получении статистики. Попробуйте /menu');
       }
     });
 
-    // /search command - Search user's quotes
+    // /search command - Search user's quotes (fallback for old interface)
     this.bot.command('search', async (ctx) => {
       try {
         const userId = ctx.from.id.toString();
-        if (await this.commandHandler.hasAccess('search', userId)) {
+        const userProfile = await UserProfile.findOne({ userId });
+        
+        if (userProfile && userProfile.isOnboardingComplete) {
           // Check if there's a search query
           const commandText = ctx.message.text;
           const searchQuery = commandText.replace('/search', '').trim();
@@ -270,18 +302,18 @@ class ReaderTelegramBot {
           if (searchQuery) {
             await this.commandHandler.handleSearchWithQuery(ctx, searchQuery);
           } else {
-            await this.commandHandler.handleSearch(ctx);
+            await this.navigationHandler.showDiary(ctx, 1);
           }
         } else {
           await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
         }
       } catch (error) {
         logger.error(`📖 Error in /search command: ${error.message}`);
-        await ctx.reply('📖 Произошла ошибка при поиске цитат. Попробуйте позже.');
+        await ctx.reply('📖 Произошла ошибка при поиске цитат. Попробуйте /menu');
       }
     });
 
-    // /settings command - User settings
+    // /settings command - User settings (fallback for old interface)
     this.bot.command('settings', async (ctx) => {
       try {
         const userId = ctx.from.id.toString();
@@ -292,7 +324,7 @@ class ReaderTelegramBot {
         }
       } catch (error) {
         logger.error(`📖 Error in /settings command: ${error.message}`);
-        await ctx.reply('📖 Произошла ошибка при загрузке настроек. Попробуйте позже.');
+        await ctx.reply('📖 Произошла ошибка при загрузке настроек. Попробуйте /menu');
       }
     });
   }
@@ -309,6 +341,11 @@ class ReaderTelegramBot {
         
         logger.info(`📖 Callback query from user ${userId}: ${callbackData}`);
 
+        // Check if NavigationHandler can handle this callback
+        if (await this.navigationHandler.handleCallback(ctx, callbackData)) {
+          return; // NavigationHandler handled it
+        }
+
         // Check if it's an onboarding callback
         if (this.onboardingHandler.isInOnboarding(userId) || 
             callbackData === 'start_test' || 
@@ -316,6 +353,13 @@ class ReaderTelegramBot {
             callbackData.startsWith('source_')) {
           
           if (await this.onboardingHandler.handleCallback(ctx)) {
+            // After onboarding completion, show navigation menu
+            const userProfile = await UserProfile.findOne({ userId });
+            if (userProfile && userProfile.isOnboardingComplete) {
+              setTimeout(async () => {
+                await this.navigationHandler.showMainMenu(ctx, userProfile);
+              }, 2000); // Show menu after 2 seconds
+            }
             return;
           }
         }
@@ -371,18 +415,10 @@ class ReaderTelegramBot {
           }
         }
 
-        // Handle user stats callback
-        if (callbackData === 'show_user_stats') {
-          await this.commandHandler.handleStats(ctx);
-          await ctx.answerCbQuery();
-          return;
-        }
-
-        // Handle settings callbacks
+        // Handle settings callbacks (fallback to old system)
         if (callbackData.startsWith('toggle_') || 
             callbackData.startsWith('set_time_') ||
-            callbackData.startsWith('change_') ||
-            callbackData === 'show_settings' ||
+            callbackData.startsWith('change_') ||\n            callbackData === 'show_settings' ||
             callbackData === 'export_quotes' ||
             callbackData === 'close_settings') {
           
@@ -417,7 +453,7 @@ class ReaderTelegramBot {
         const messageText = ctx.message.text;
         const userId = ctx.from.id.toString();
 
-        logger.info(`📖 Processing text message from user ${userId}: "${messageText.substring(0, 30)}..."`);
+        logger.info(`📖 Processing text message from user ${userId}: \"${messageText.substring(0, 30)}...\"`);
 
         // Check if user is in onboarding process
         if (await this.onboardingHandler.handleTextMessage(ctx)) {
@@ -440,6 +476,20 @@ class ReaderTelegramBot {
         // Check if message looks like a quote
         if (BotHelpers.isQuoteMessage(messageText)) {
           await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
+          
+          // After adding quote, show a quick confirmation with menu option
+          setTimeout(async () => {
+            await ctx.reply(
+              '✅ Цитата сохранена!\n\n💡 Используйте /menu для навигации по дневнику и статистике.',
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: "📖 Открыть меню", callback_data: "nav_main" }]
+                  ]
+                }
+              }
+            );
+          }, 1000);
           return;
         }
 
@@ -469,10 +519,17 @@ class ReaderTelegramBot {
                            ctx.message.video ? 'видео' : 'файл';
 
         await ctx.reply(
-          `📖 Спасибо за ${messageType}! Но я принимаю только текстовые цитаты.\n\n` +
+          `📖 Спасибо за ${messageType}! Но я принимаю только текстовые цитаты.\\n\\n` +
           `💡 Если у вас есть интересная цитата из изображения или документа, ` +
-          `пожалуйста, перепечатайте ее текстом.\n\n` +
-          `Например: "В каждом слове — целая жизнь" (Марина Цветаева)`
+          `пожалуйста, перепечатайте ее текстом.\\n\\n` +
+          `Например: \"В каждом слове — целая жизнь\" (Марина Цветаева)`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "📖 Открыть меню", callback_data: "nav_main" }]
+              ]
+            }
+          }
         );
 
       } catch (error) {
@@ -501,7 +558,13 @@ class ReaderTelegramBot {
         errorMessage = '📖 Сообщение слишком длинное. Попробуйте разделить его на части.';
       }
 
-      ctx.reply(errorMessage)
+      ctx.reply(errorMessage, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "📖 Главное меню", callback_data: "nav_main" }]
+          ]
+        }
+      })
         .catch(sendError => {
           logger.error(`📖 Failed to send error message: ${sendError.message}`);
         });
@@ -525,7 +588,13 @@ class ReaderTelegramBot {
         message = '📖 Цитата слишком длинная. Максимум 1000 символов.';
       }
 
-      await ctx.reply(message);
+      await ctx.reply(message, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "📖 Главное меню", callback_data: "nav_main" }]
+          ]
+        }
+      });
     } catch (sendError) {
       logger.error(`📖 Failed to send error message: ${sendError.message}`);
     }
@@ -542,7 +611,7 @@ class ReaderTelegramBot {
 
     try {
       await this.bot.launch();
-      logger.info('📖 Reader Telegram bot started successfully with all Day 18-19 features');
+      logger.info('📖 Reader Telegram bot started successfully with modern UX navigation system');
       
       // Graceful stop
       process.once('SIGINT', () => this.stop('SIGINT'));
@@ -562,6 +631,10 @@ class ReaderTelegramBot {
   async stop(signal = 'manual') {
     try {
       logger.info(`📖 Stopping Reader Telegram bot (${signal})...`);
+      
+      // Cleanup navigation states
+      this.navigationHandler.cleanupStaleStates();
+      
       await this.bot.stop(signal);
       logger.info('📖 Reader Telegram bot stopped successfully');
     } catch (error) {
@@ -644,6 +717,7 @@ class ReaderTelegramBot {
           commands: this.commandHandler.getStats(),
           complexQuestions: this.complexQuestionHandler.getStats(),
           feedback: this.feedbackHandler.getDiagnostics(),
+          navigation: this.navigationHandler.getStats(), // NEW: Navigation stats
           helpers: BotHelpers.getStats(),
           weeklyReports: !!this.weeklyReportHandler,
           monthlyReports: !!this.monthlyReportService
@@ -662,7 +736,9 @@ class ReaderTelegramBot {
           weeklyReports: !!this.weeklyReportHandler,
           monthlyReports: !!this.monthlyReportService,
           feedbackSystem: true,
-          scheduledTasks: true
+          scheduledTasks: true,
+          modernNavigation: true, // NEW: Modern UX navigation
+          visualPanels: true // NEW: Visual panels
         }
       };
     } catch (error) {
@@ -682,6 +758,9 @@ class ReaderTelegramBot {
     try {
       // Clean up onboarding states
       this.onboardingHandler.cleanupStaleStates();
+      
+      // Clean up navigation states
+      this.navigationHandler.cleanupStaleStates();
       
       logger.info('📖 Reader bot cleanup completed');
     } catch (error) {
@@ -715,9 +794,11 @@ class ReaderTelegramBot {
         handlers: {
           initialized: this.isInitialized,
           onboardingActive: this.onboardingHandler.userStates.size,
+          navigationActive: this.navigationHandler.userStates.size, // NEW
           weeklyReportsEnabled: !!this.weeklyReportHandler,
           monthlyReportsEnabled: !!this.monthlyReportService,
-          feedbackSystemEnabled: this.feedbackHandler.isReady()
+          feedbackSystemEnabled: this.feedbackHandler.isReady(),
+          modernUXEnabled: true // NEW
         },
         timestamp: new Date().toISOString()
       };
