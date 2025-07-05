@@ -7,6 +7,7 @@
  * 📖 ADDED: WeeklyReportHandler integration and feedback support
  * 📖 ADDED: MonthlyReportService and FeedbackHandler integration (Day 18-19)
  * 📖 ADDED: NavigationHandler for modern UX with visual panels
+ * 📖 ADDED: MessageClassifier integration for smart quote vs question detection
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -26,6 +27,7 @@ const { CommandHandler } = require('./handlers/commandHandler');
 const { ComplexQuestionHandler } = require('./handlers/complexQuestionHandler');
 const { FeedbackHandler } = require('./handlers/feedbackHandler');
 const { NavigationHandler } = require('./handlers/navigationHandler');
+const { MessageClassifier } = require('./helpers/messageClassifier'); // NEW: Smart classifier
 const BotHelpers = require('./helpers/botHelpers');
 
 /**
@@ -63,13 +65,17 @@ class ReaderTelegramBot {
     this.commandHandler = new CommandHandler();
     this.complexQuestionHandler = new ComplexQuestionHandler();
     this.feedbackHandler = new FeedbackHandler();
-    this.navigationHandler = new NavigationHandler(); // NEW: Modern UX navigation
+    this.navigationHandler = new NavigationHandler();
+    this.messageClassifier = new MessageClassifier(); // NEW: Smart message classification
     
     // External services will be set externally
     this.weeklyReportHandler = null;
     this.monthlyReportService = null;
     
-    logger.info('📖 ReaderTelegramBot constructor initialized with NavigationHandler for modern UX');
+    // Store pending ambiguous messages for resolution
+    this.pendingClassifications = new Map(); // userId -> { message, timestamp }
+    
+    logger.info('📖 ReaderTelegramBot constructor initialized with MessageClassifier for smart quote/question detection');
   }
 
   /**
@@ -110,7 +116,7 @@ class ReaderTelegramBot {
       this._setupErrorHandling();
       
       this.isInitialized = true;
-      logger.info('📖 Reader Telegram bot initialized successfully with modern UX navigation system');
+      logger.info('📖 Reader Telegram bot initialized successfully with smart message classification system');
     } catch (error) {
       logger.error(`📖 Failed to initialize Reader Telegram bot: ${error.message}`);
       throw error;
@@ -130,7 +136,7 @@ class ReaderTelegramBot {
       models
     });
     
-    logger.info('📖 All handlers initialized with dependencies including NavigationHandler');
+    logger.info('📖 All handlers initialized with dependencies including MessageClassifier');
   }
 
   /**
@@ -144,7 +150,8 @@ class ReaderTelegramBot {
       const userId = ctx.from?.id;
       const messageText = ctx.message?.text?.substring(0, 50) || 'non-text';
       
-      logger.info(`📖 Message from user ${userId}: \"${messageText}...\"`);\nw      
+      logger.info(`📖 Message from user ${userId}: \"${messageText}...\"`);
+      
       await next();
       
       const duration = Date.now() - start;
@@ -341,6 +348,12 @@ class ReaderTelegramBot {
         
         logger.info(`📖 Callback query from user ${userId}: ${callbackData}`);
 
+        // Handle message classification callbacks (NEW)
+        if (callbackData.startsWith('classify_')) {
+          await this._handleClassificationCallback(ctx, callbackData);
+          return;
+        }
+
         // Check if NavigationHandler can handle this callback
         if (await this.navigationHandler.handleCallback(ctx, callbackData)) {
           return; // NavigationHandler handled it
@@ -418,7 +431,8 @@ class ReaderTelegramBot {
         // Handle settings callbacks (fallback to old system)
         if (callbackData.startsWith('toggle_') || 
             callbackData.startsWith('set_time_') ||
-            callbackData.startsWith('change_') ||\n            callbackData === 'show_settings' ||
+            callbackData.startsWith('change_') ||
+            callbackData === 'show_settings' ||
             callbackData === 'export_quotes' ||
             callbackData === 'close_settings') {
           
@@ -444,7 +458,82 @@ class ReaderTelegramBot {
   }
 
   /**
-   * Setup text message handlers
+   * Handle message classification callbacks (NEW)
+   * @private
+   * @param {Object} ctx - Telegram context
+   * @param {string} callbackData - Callback data
+   */
+  async _handleClassificationCallback(ctx, callbackData) {
+    const userId = ctx.from.id.toString();
+    
+    try {
+      if (callbackData === 'classify_cancel') {
+        // User cancelled classification
+        this.pendingClassifications.delete(userId);
+        await ctx.editMessageText('📖 Отменено. Попробуйте еще раз, если нужно.');
+        await ctx.answerCbQuery('❌ Отменено');
+        return;
+      }
+
+      // Get pending message
+      const pendingMessage = this.pendingClassifications.get(userId);
+      if (!pendingMessage) {
+        await ctx.answerCbQuery('⏰ Время истекло, попробуйте еще раз');
+        return;
+      }
+
+      const messageText = pendingMessage.message;
+      
+      if (callbackData.startsWith('classify_quote_')) {
+        // User confirmed it's a quote
+        await ctx.editMessageText('📖 Обрабатываю цитату...');
+        await ctx.answerCbQuery('✅ Принято как цитата');
+        
+        const userProfile = await UserProfile.findOne({ userId });
+        await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
+        
+        // Show menu option after quote processing
+        setTimeout(async () => {
+          await ctx.reply(
+            '✅ Цитата сохранена!\n\n💡 Используйте /menu для навигации по дневнику.',
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "📖 Открыть меню", callback_data: "nav_main" }]
+                ]
+              }
+            }
+          );
+        }, 1000);
+        
+      } else if (callbackData.startsWith('classify_question_')) {
+        // User confirmed it's a question
+        await ctx.editMessageText('💬 Обрабатываю вопрос...');
+        await ctx.answerCbQuery('✅ Принято как вопрос');
+        
+        const userProfile = await UserProfile.findOne({ userId });
+        
+        // Check if it's a complex question
+        if (this.complexQuestionHandler.isComplexQuestion(messageText)) {
+          await this.complexQuestionHandler.handleComplexQuestion(ctx, messageText, userProfile);
+        } else {
+          // Handle as general conversation
+          await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
+        }
+      }
+      
+      // Clean up pending message
+      this.pendingClassifications.delete(userId);
+      
+    } catch (error) {
+      logger.error(`📖 Error handling classification callback: ${error.message}`);
+      await ctx.answerCbQuery('❌ Произошла ошибка');
+      this.pendingClassifications.delete(userId);
+    }
+  }
+
+  /**
+   * Setup text message handlers with smart classification
    * @private
    */
   _setupMessageHandlers() {
@@ -467,34 +556,58 @@ class ReaderTelegramBot {
           return;
         }
 
-        // Check if it's a complex question that needs Anna's attention
-        if (this.complexQuestionHandler.isComplexQuestion(messageText)) {
-          await this.complexQuestionHandler.handleComplexQuestion(ctx, messageText, userProfile);
-          return;
-        }
+        // NEW: Use MessageClassifier for smart message detection
+        const classification = await this.messageClassifier.classifyMessage(messageText, {
+          userId,
+          userProfile
+        });
 
-        // Check if message looks like a quote
-        if (BotHelpers.isQuoteMessage(messageText)) {
-          await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
-          
-          // After adding quote, show a quick confirmation with menu option
-          setTimeout(async () => {
-            await ctx.reply(
-              '✅ Цитата сохранена!\n\n💡 Используйте /menu для навигации по дневнику и статистике.',
-              {
-                reply_markup: {
-                  inline_keyboard: [
-                    [{ text: "📖 Открыть меню", callback_data: "nav_main" }]
-                  ]
+        logger.info(`📖 Message classified as: ${classification.type} (confidence: ${classification.confidence})`);
+
+        // Route message based on classification
+        switch (classification.type) {
+          case 'quote':
+            await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
+            
+            // Show confirmation with menu option
+            setTimeout(async () => {
+              await ctx.reply(
+                '✅ Цитата сохранена!\n\n💡 Используйте /menu для навигации по дневнику.',
+                {
+                  reply_markup: {
+                    inline_keyboard: [
+                      [{ text: "📖 Открыть меню", callback_data: "nav_main" }]
+                    ]
+                  }
                 }
-              }
-            );
-          }, 1000);
-          return;
-        }
+              );
+            }, 1000);
+            break;
 
-        // Handle as general conversation with Anna Busel's AI
-        await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
+          case 'complex_question':
+            await this.complexQuestionHandler.handleComplexQuestion(ctx, messageText, userProfile);
+            break;
+
+          case 'question':
+            await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
+            break;
+
+          case 'command':
+            // This shouldn't happen as commands are handled separately
+            logger.warn(`📖 Command detected in text handler: ${messageText}`);
+            await ctx.reply('📖 Неизвестная команда. Попробуйте /help для списка команд.');
+            break;
+
+          case 'ambiguous':
+            // Ask user for clarification
+            await this._handleAmbiguousMessage(ctx, messageText, classification);
+            break;
+
+          default:
+            logger.warn(`📖 Unknown classification type: ${classification.type}`);
+            await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
+            break;
+        }
 
       } catch (error) {
         logger.error(`📖 Error processing text message: ${error.message}`);
@@ -519,9 +632,9 @@ class ReaderTelegramBot {
                            ctx.message.video ? 'видео' : 'файл';
 
         await ctx.reply(
-          `📖 Спасибо за ${messageType}! Но я принимаю только текстовые цитаты.\\n\\n` +
+          `📖 Спасибо за ${messageType}! Но я принимаю только текстовые цитаты.\n\n` +
           `💡 Если у вас есть интересная цитата из изображения или документа, ` +
-          `пожалуйста, перепечатайте ее текстом.\\n\\n` +
+          `пожалуйста, перепечатайте ее текстом.\n\n` +
           `Например: \"В каждом слове — целая жизнь\" (Марина Цветаева)`,
           {
             reply_markup: {
@@ -537,6 +650,48 @@ class ReaderTelegramBot {
         await ctx.reply('📖 Произошла ошибка. Попробуйте отправить цитату текстом.');
       }
     });
+  }
+
+  /**
+   * Handle ambiguous messages by asking user for clarification (NEW)
+   * @private
+   * @param {Object} ctx - Telegram context
+   * @param {string} messageText - Original message text
+   * @param {Object} classification - Classification result
+   */
+  async _handleAmbiguousMessage(ctx, messageText, classification) {
+    const userId = ctx.from.id.toString();
+    
+    try {
+      // Store message for later processing
+      this.pendingClassifications.set(userId, {
+        message: messageText,
+        timestamp: Date.now(),
+        classification
+      });
+
+      // Create clarification keyboard
+      const clarification = this.messageClassifier.createAmbiguityResolutionKeyboard(messageText);
+      
+      await ctx.reply(clarification.text, {
+        reply_markup: clarification.keyboard
+      });
+
+      // Auto-cleanup after 5 minutes
+      setTimeout(() => {
+        if (this.pendingClassifications.has(userId)) {
+          this.pendingClassifications.delete(userId);
+          logger.info(`📖 Auto-cleaned up pending classification for user ${userId}`);
+        }
+      }, 5 * 60 * 1000);
+
+    } catch (error) {
+      logger.error(`📖 Error handling ambiguous message: ${error.message}`);
+      
+      // Fallback to treating as question
+      const userProfile = await UserProfile.findOne({ userId });
+      await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
+    }
   }
 
   /**
@@ -611,7 +766,7 @@ class ReaderTelegramBot {
 
     try {
       await this.bot.launch();
-      logger.info('📖 Reader Telegram bot started successfully with modern UX navigation system');
+      logger.info('📖 Reader Telegram bot started successfully with smart message classification system');
       
       // Graceful stop
       process.once('SIGINT', () => this.stop('SIGINT'));
@@ -634,6 +789,9 @@ class ReaderTelegramBot {
       
       // Cleanup navigation states
       this.navigationHandler.cleanupStaleStates();
+      
+      // Cleanup pending classifications
+      this.pendingClassifications.clear();
       
       await this.bot.stop(signal);
       logger.info('📖 Reader Telegram bot stopped successfully');
@@ -686,6 +844,9 @@ class ReaderTelegramBot {
       // Feedback statistics
       const feedbackStats = await this.feedbackHandler.getFeedbackStats();
 
+      // Classification statistics (NEW)
+      const classificationStats = this.messageClassifier.getStats();
+
       return {
         botInfo: {
           id: me.id,
@@ -700,7 +861,8 @@ class ReaderTelegramBot {
         },
         status: {
           initialized: this.isInitialized,
-          uptime: process.uptime()
+          uptime: process.uptime(),
+          pendingClassifications: this.pendingClassifications.size // NEW
         },
         readerStats: {
           totalUsers,
@@ -711,13 +873,14 @@ class ReaderTelegramBot {
           activeUsersToday: todayUsers.length
         },
         feedback: feedbackStats,
+        classification: classificationStats, // NEW: Classification system stats
         handlers: {
           onboarding: this.onboardingHandler.getStats(),
           quotes: this.quoteHandler.getStats(),
           commands: this.commandHandler.getStats(),
           complexQuestions: this.complexQuestionHandler.getStats(),
           feedback: this.feedbackHandler.getDiagnostics(),
-          navigation: this.navigationHandler.getStats(), // NEW: Navigation stats
+          navigation: this.navigationHandler.getStats(),
           helpers: BotHelpers.getStats(),
           weeklyReports: !!this.weeklyReportHandler,
           monthlyReports: !!this.monthlyReportService
@@ -737,8 +900,10 @@ class ReaderTelegramBot {
           monthlyReports: !!this.monthlyReportService,
           feedbackSystem: true,
           scheduledTasks: true,
-          modernNavigation: true, // NEW: Modern UX navigation
-          visualPanels: true // NEW: Visual panels
+          modernNavigation: true,
+          visualPanels: true,
+          smartClassification: true, // NEW: Smart message classification
+          ambiguityResolution: true // NEW: User clarification for unclear messages
         }
       };
     } catch (error) {
@@ -761,6 +926,9 @@ class ReaderTelegramBot {
       
       // Clean up navigation states
       this.navigationHandler.cleanupStaleStates();
+      
+      // Clean up pending classifications
+      this.pendingClassifications.clear();
       
       logger.info('📖 Reader bot cleanup completed');
     } catch (error) {
@@ -794,11 +962,13 @@ class ReaderTelegramBot {
         handlers: {
           initialized: this.isInitialized,
           onboardingActive: this.onboardingHandler.userStates.size,
-          navigationActive: this.navigationHandler.userStates.size, // NEW
+          navigationActive: this.navigationHandler.userStates.size,
+          pendingClassifications: this.pendingClassifications.size, // NEW
           weeklyReportsEnabled: !!this.weeklyReportHandler,
           monthlyReportsEnabled: !!this.monthlyReportService,
           feedbackSystemEnabled: this.feedbackHandler.isReady(),
-          modernUXEnabled: true // NEW
+          modernUXEnabled: true,
+          smartClassificationEnabled: true // NEW
         },
         timestamp: new Date().toISOString()
       };
