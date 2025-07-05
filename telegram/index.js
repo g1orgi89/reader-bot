@@ -2,12 +2,8 @@
  * Main Telegram bot for Reader project - Personal quotes diary with AI analysis
  * @file telegram/index.js
  * 📖 READER BOT: Transformed from Shrooms for Anna Busel's book club
- * 📖 UPDATED: Complete integration with all handlers (Quote, Command, ComplexQuestion)
- * 📖 ADDED: Full Day 13-14 functionality with AI analysis and achievements
- * 📖 ADDED: WeeklyReportHandler integration and feedback support
- * 📖 ADDED: MonthlyReportService and FeedbackHandler integration (Day 18-19)
- * 📖 ADDED: NavigationHandler for modern UX with visual panels
- * 📖 ADDED: MessageClassifier integration for smart quote vs question detection
+ * 📖 UPDATED: Complete integration with MODERN handlers (ModernNavigation, ModernOnboarding, ModernQuote)
+ * 📖 FIXED: Now using MODERN handlers instead of old ones
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -20,14 +16,14 @@ const ticketingService = require('../server/services/ticketing');
 // Import Reader bot models
 const { UserProfile, Quote } = require('../server/models');
 
-// Import Reader bot handlers and helpers
-const { OnboardingHandler } = require('./handlers/onboardingHandler');
-const { QuoteHandler } = require('./handlers/quoteHandler');
+// Import MODERN Reader bot handlers and helpers
+const { ModernOnboardingHandler } = require('./handlers/modernOnboardingHandler');
+const { ModernQuoteHandler } = require('./handlers/modernQuoteHandler');
 const { CommandHandler } = require('./handlers/commandHandler');
 const { ComplexQuestionHandler } = require('./handlers/complexQuestionHandler');
 const { FeedbackHandler } = require('./handlers/feedbackHandler');
-const { NavigationHandler } = require('./handlers/navigationHandler');
-const { MessageClassifier } = require('./helpers/messageClassifier'); // NEW: Smart classifier
+const { ModernNavigationHandler } = require('./handlers/modernNavigationHandler');
+const { MessageClassifier } = require('./helpers/messageClassifier');
 const BotHelpers = require('./helpers/botHelpers');
 
 /**
@@ -59,14 +55,14 @@ class ReaderTelegramBot {
     this.bot = new Telegraf(this.config.token);
     this.isInitialized = false;
     
-    // Initialize Reader bot handlers
-    this.onboardingHandler = new OnboardingHandler();
-    this.quoteHandler = new QuoteHandler();
+    // Initialize MODERN Reader bot handlers
+    this.onboardingHandler = new ModernOnboardingHandler();
+    this.quoteHandler = new ModernQuoteHandler();
     this.commandHandler = new CommandHandler();
     this.complexQuestionHandler = new ComplexQuestionHandler();
     this.feedbackHandler = new FeedbackHandler();
-    this.navigationHandler = new NavigationHandler();
-    this.messageClassifier = new MessageClassifier(); // NEW: Smart message classification
+    this.navigationHandler = new ModernNavigationHandler();
+    this.messageClassifier = new MessageClassifier();
     
     // External services will be set externally
     this.weeklyReportHandler = null;
@@ -75,7 +71,7 @@ class ReaderTelegramBot {
     // Store pending ambiguous messages for resolution
     this.pendingClassifications = new Map(); // userId -> { message, timestamp }
     
-    logger.info('📖 ReaderTelegramBot constructor initialized with MessageClassifier for smart quote/question detection');
+    logger.info('📖 ReaderTelegramBot constructor initialized with MODERN handlers and MessageClassifier');
   }
 
   /**
@@ -116,7 +112,7 @@ class ReaderTelegramBot {
       this._setupErrorHandling();
       
       this.isInitialized = true;
-      logger.info('📖 Reader Telegram bot initialized successfully with smart message classification system');
+      logger.info('📖 Reader Telegram bot initialized successfully with MODERN UX system');
     } catch (error) {
       logger.error(`📖 Failed to initialize Reader Telegram bot: ${error.message}`);
       throw error;
@@ -136,7 +132,7 @@ class ReaderTelegramBot {
       models
     });
     
-    logger.info('📖 All handlers initialized with dependencies including MessageClassifier');
+    logger.info('📖 All MODERN handlers initialized with dependencies including MessageClassifier');
   }
 
   /**
@@ -238,10 +234,10 @@ class ReaderTelegramBot {
         const userProfile = await UserProfile.findOne({ userId });
         
         if (userProfile && userProfile.isOnboardingComplete) {
-          // Show modern navigation interface
+          // Show MODERN navigation interface
           await this.navigationHandler.showMainMenu(ctx, userProfile);
         } else {
-          // Start onboarding process
+          // Start MODERN onboarding process
           await this.onboardingHandler.handleStart(ctx);
         }
         
@@ -251,7 +247,7 @@ class ReaderTelegramBot {
       }
     });
 
-    // /menu command - Show navigation interface
+    // /menu command - Show MODERN navigation interface
     this.bot.command('menu', async (ctx) => {
       try {
         const userId = ctx.from.id.toString();
@@ -348,25 +344,25 @@ class ReaderTelegramBot {
         
         logger.info(`📖 Callback query from user ${userId}: ${callbackData}`);
 
-        // Handle message classification callbacks (NEW)
+        // Handle message classification callbacks
         if (callbackData.startsWith('classify_')) {
           await this._handleClassificationCallback(ctx, callbackData);
           return;
         }
 
-        // Check if NavigationHandler can handle this callback
+        // Check if MODERN NavigationHandler can handle this callback
         if (await this.navigationHandler.handleCallback(ctx, callbackData)) {
-          return; // NavigationHandler handled it
+          return; // ModernNavigationHandler handled it
         }
 
-        // Check if it's an onboarding callback
+        // Check if it's a MODERN onboarding callback
         if (this.onboardingHandler.isInOnboarding(userId) || 
             callbackData === 'start_test' || 
             callbackData.startsWith('test_') || 
             callbackData.startsWith('source_')) {
           
           if (await this.onboardingHandler.handleCallback(ctx)) {
-            // After onboarding completion, show navigation menu
+            // After onboarding completion, show MODERN navigation menu
             const userProfile = await UserProfile.findOne({ userId });
             if (userProfile && userProfile.isOnboardingComplete) {
               setTimeout(async () => {
@@ -458,7 +454,7 @@ class ReaderTelegramBot {
   }
 
   /**
-   * Handle message classification callbacks (NEW)
+   * Handle message classification callbacks
    * @private
    * @param {Object} ctx - Telegram context
    * @param {string} callbackData - Callback data
@@ -544,9 +540,9 @@ class ReaderTelegramBot {
 
         logger.info(`📖 Processing text message from user ${userId}: \"${messageText.substring(0, 30)}...\"`);
 
-        // Check if user is in onboarding process
+        // Check if user is in MODERN onboarding process
         if (await this.onboardingHandler.handleTextMessage(ctx)) {
-          return; // Message was handled by onboarding
+          return; // Message was handled by MODERN onboarding
         }
 
         // Check if user has completed onboarding
@@ -556,7 +552,7 @@ class ReaderTelegramBot {
           return;
         }
 
-        // NEW: Use MessageClassifier for smart message detection
+        // Use MessageClassifier for smart message detection
         const classification = await this.messageClassifier.classifyMessage(messageText, {
           userId,
           userProfile
@@ -653,7 +649,7 @@ class ReaderTelegramBot {
   }
 
   /**
-   * Handle ambiguous messages by asking user for clarification (NEW)
+   * Handle ambiguous messages by asking user for clarification
    * @private
    * @param {Object} ctx - Telegram context
    * @param {string} messageText - Original message text
@@ -766,7 +762,7 @@ class ReaderTelegramBot {
 
     try {
       await this.bot.launch();
-      logger.info('📖 Reader Telegram bot started successfully with smart message classification system');
+      logger.info('📖 Reader Telegram bot started successfully with MODERN UX system');
       
       // Graceful stop
       process.once('SIGINT', () => this.stop('SIGINT'));
@@ -844,7 +840,7 @@ class ReaderTelegramBot {
       // Feedback statistics
       const feedbackStats = await this.feedbackHandler.getFeedbackStats();
 
-      // Classification statistics (NEW)
+      // Classification statistics
       const classificationStats = this.messageClassifier.getStats();
 
       return {
@@ -862,7 +858,8 @@ class ReaderTelegramBot {
         status: {
           initialized: this.isInitialized,
           uptime: process.uptime(),
-          pendingClassifications: this.pendingClassifications.size // NEW
+          pendingClassifications: this.pendingClassifications.size,
+          modernUXEnabled: true
         },
         readerStats: {
           totalUsers,
@@ -873,7 +870,7 @@ class ReaderTelegramBot {
           activeUsersToday: todayUsers.length
         },
         feedback: feedbackStats,
-        classification: classificationStats, // NEW: Classification system stats
+        classification: classificationStats,
         handlers: {
           onboarding: this.onboardingHandler.getStats(),
           quotes: this.quoteHandler.getStats(),
@@ -902,8 +899,9 @@ class ReaderTelegramBot {
           scheduledTasks: true,
           modernNavigation: true,
           visualPanels: true,
-          smartClassification: true, // NEW: Smart message classification
-          ambiguityResolution: true // NEW: User clarification for unclear messages
+          smartClassification: true,
+          ambiguityResolution: true,
+          modernUX: true // NEW: Modern UX system active
         }
       };
     } catch (error) {
@@ -963,12 +961,12 @@ class ReaderTelegramBot {
           initialized: this.isInitialized,
           onboardingActive: this.onboardingHandler.userStates.size,
           navigationActive: this.navigationHandler.userStates.size,
-          pendingClassifications: this.pendingClassifications.size, // NEW
+          pendingClassifications: this.pendingClassifications.size,
           weeklyReportsEnabled: !!this.weeklyReportHandler,
           monthlyReportsEnabled: !!this.monthlyReportService,
           feedbackSystemEnabled: this.feedbackHandler.isReady(),
           modernUXEnabled: true,
-          smartClassificationEnabled: true // NEW
+          smartClassificationEnabled: true
         },
         timestamp: new Date().toISOString()
       };
