@@ -30,7 +30,7 @@ class QuotesManager {
         };
         this.charts = {};
         this.isLoading = false;
-        this.apiPrefix = '/api/reader'; // ИСПРАВЛЕНО: используем правильный API prefix
+        this.apiPrefix = '/api/reader';
         
         this.init();
     }
@@ -42,6 +42,13 @@ class QuotesManager {
         console.log('📝 Инициализация QuotesManager');
         
         try {
+            // Проверяем авторизацию
+            if (!this.checkAuthentication()) {
+                console.error('❌ Пользователь не авторизован');
+                window.location.href = 'login.html';
+                return;
+            }
+
             // Загрузка начальных данных
             await this.loadData();
             
@@ -57,6 +64,36 @@ class QuotesManager {
             console.error('❌ Ошибка инициализации QuotesManager:', error);
             this.showNotification('error', 'Ошибка загрузки данных цитат');
         }
+    }
+
+    /**
+     * Проверка авторизации
+     */
+    checkAuthentication() {
+        const token = localStorage.getItem('reader_admin_token');
+        const expires = localStorage.getItem('reader_admin_expires');
+        
+        if (!token || !expires) {
+            console.log('📖 Нет токена авторизации');
+            return false;
+        }
+        
+        if (Date.now() > parseInt(expires, 10)) {
+            console.log('📖 Токен истек');
+            this.clearSession();
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Очистка сессии
+     */
+    clearSession() {
+        localStorage.removeItem('reader_admin_token');
+        localStorage.removeItem('reader_admin_user');
+        localStorage.removeItem('reader_admin_expires');
     }
 
     /**
@@ -80,6 +117,15 @@ class QuotesManager {
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных:', error);
+            
+            // Если 401 - перенаправляем на логин
+            if (error.message.includes('401')) {
+                console.log('📖 Требуется повторная авторизация');
+                this.clearSession();
+                window.location.href = 'login.html';
+                return;
+            }
+            
             throw error;
         } finally {
             this.setLoading(false);
@@ -847,11 +893,11 @@ class QuotesManager {
     // ==================== УТИЛИТЫ ====================
 
     /**
-     * Получение заголовков авторизации
+     * ИСПРАВЛЕНО: Получение заголовков авторизации с правильным ключом токена
      * @returns {Object} Заголовки
      */
     getAuthHeaders() {
-        const token = localStorage.getItem('adminToken');
+        const token = localStorage.getItem('reader_admin_token'); // ИСПРАВЛЕНО: используем правильный ключ
         return {
             'Content-Type': 'application/json',
             'Authorization': token ? `Bearer ${token}` : ''
