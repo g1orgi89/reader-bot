@@ -191,22 +191,7 @@ app.use(express.static(path.join(__dirname, '../client'), {
   }
 }));
 
-// API Routes
-logger.info('🔧 Registering API routes...');
-
-app.use(`${config.app.apiPrefix}/chat`, chatRoutes);
-app.use(`${config.app.apiPrefix}/tickets`, ticketRoutes);
-app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
-app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
-app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
-app.use(`${config.app.apiPrefix}/reports`, reportRoutes);
-app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
-app.use(`${config.app.apiPrefix}/users`, usersRoutes);
-app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
-
-logger.info('✅ All API routes registered successfully');
-
-// Helper function for connection stats
+// 🔧 ИСПРАВЛЕНИЕ: Health check endpoint ПЕРЕД API роутами
 function getConnectionsByIP() {
   const connections = {};
   if (io && io.sockets) {
@@ -218,7 +203,7 @@ function getConnectionsByIP() {
   return connections;
 }
 
-// Health check endpoint
+// Health check endpoint - ВАЖНО: должен быть ПЕРЕД API роутами
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
   try {
     const dbHealth = await dbService.healthCheck();
@@ -337,6 +322,21 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
     });
   }
 });
+
+// API Routes
+logger.info('🔧 Registering API routes...');
+
+app.use(`${config.app.apiPrefix}/chat`, chatRoutes);
+app.use(`${config.app.apiPrefix}/tickets`, ticketRoutes);
+app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
+app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
+app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
+app.use(`${config.app.apiPrefix}/reports`, reportRoutes);
+app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
+app.use(`${config.app.apiPrefix}/users`, usersRoutes);
+app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
+
+logger.info('✅ All API routes registered successfully');
 
 // Мониторинг метрик (если включен)
 if (config.features.enableMetrics) {
@@ -728,7 +728,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// 404 handler для API
+// 404 handler для API - ВАЖНО: должен быть ПОСЛЕ всех API роутов
 app.use(`${config.app.apiPrefix}/*`, (req, res) => {
   res.status(404).json({
     success: false,
