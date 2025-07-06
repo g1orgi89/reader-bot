@@ -26,25 +26,39 @@ const ticketRoutes = require('./api/tickets');
 const adminRoutes = require('./api/admin');
 const knowledgeRoutes = require('./api/knowledge');
 const promptRoutes = require('./api/prompts');
-const reportRoutes = require('./api/reports'); // 📖 НОВОЕ: Маршруты отчетов
-const analyticsRoutes = require('./api/analytics'); // 📊 ИСПРАВЛЕНО: Правильный путь
-const quotesRoutes = require('./api/quotes'); // 📝 НОВОЕ: Маршруты цитат
+const reportRoutes = require('./api/reports');
+const analyticsRoutes = require('./api/analytics');
 
-// 🐛 ДИАГНОСТИКА: Безопасный импорт users routes с обработкой ошибок
-let usersRoutes;
+// 🐛 ДИАГНОСТИКА: Безопасный импорт users routes и quotes routes
+let usersRoutes, quotesRoutes;
+
 try {
   logger.info('🔧 Attempting to import users routes...');
   usersRoutes = require('./api/users');
   logger.info('✅ Users routes imported successfully');
 } catch (error) {
   logger.error('❌ Failed to import users routes:', error);
-  logger.error('❌ Error stack:', error.stack);
-  // Создаем пустой роутер как fallback
   usersRoutes = express.Router();
   usersRoutes.get('*', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Users routes failed to load',
+      details: error.message
+    });
+  });
+}
+
+try {
+  logger.info('🔧 Attempting to import quotes routes...');
+  quotesRoutes = require('./api/quotes');
+  logger.info('✅ Quotes routes imported successfully');
+} catch (error) {
+  logger.error('❌ Failed to import quotes routes:', error);
+  quotesRoutes = express.Router();
+  quotesRoutes.get('*', (req, res) => {
+    res.status(500).json({
+      success: false,
+      error: 'Quotes routes failed to load',
       details: error.message
     });
   });
@@ -60,8 +74,6 @@ const conversationService = require('./services/conversation');
 const messageService = require('./services/message');
 const ticketService = require('./services/ticketing');
 const ticketEmailService = require('./services/ticketEmail');
-const { CronService } = require('./services/cronService'); // 🔧 FIX: Импорт класса
-const telegramReportService = require('./services/telegramReportService'); // 📖 НОВОЕ
 
 /**
  * @typedef {import('./types').ShroomsError} ShroomsError
@@ -74,37 +86,31 @@ const telegramReportService = require('./services/telegramReportService'); // �
 const app = express();
 const server = http.createServer(app);
 
-// ИСПРАВЛЕНО: Настройка Socket.IO с более строгими ограничениями
+// Socket.IO настройка
 const io = socketIo(server, {
   cors: {
     origin: config.cors.origin,
     methods: config.cors.methods,
     credentials: config.cors.credentials
   },
-  // Добавляем ограничения для предотвращения избыточных подключений
   transports: ['websocket', 'polling'],
   maxHttpBufferSize: 1e6, // 1MB
   pingTimeout: 60000,
   pingInterval: 25000,
-  // Ограничиваем количество подключений с одного IP
   connectionStateRecovery: {
     maxDisconnectionDuration: 60000
   }
 });
 
-// 🔧 FIX: Создание экземпляра CronService
-const cronService = new CronService();
-
-// ИСПРАВЛЕНО: Убираем проблемное req.setEncoding()
+// Middleware для заголовков
 app.use((req, res, next) => {
-  // Просто устанавливаем правильные заголовки без изменения encoding stream
   if (req.path.startsWith('/api')) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
   }
   next();
 });
 
-// Middleware CORS
+// CORS middleware
 app.use(cors({
   origin: config.cors.origin,
   credentials: config.cors.credentials,
@@ -112,7 +118,7 @@ app.use(cors({
   allowedHeaders: config.cors.allowedHeaders
 }));
 
-// ИСПРАВЛЕНО: Простое express.json middleware без verify функции
+// JSON parser middleware
 app.use(express.json({ 
   limit: '10mb',
   type: 'application/json'
@@ -125,7 +131,7 @@ app.use(express.urlencoded({
   parameterLimit: 1000
 }));
 
-// Middleware для обработки JSON parse errors
+// JSON parse error handler
 app.use((error, req, res, next) => {
   if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
     return res.status(400).json({
@@ -138,10 +144,10 @@ app.use((error, req, res, next) => {
   next(error);
 });
 
-// 🐛 ДОБАВЛЕНО: Детальное логирование HTTP запросов
+// HTTP logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
-  logger.info(`🌐 HTTP ${req.method} ${req.path} - Query: ${JSON.stringify(req.query)} - Body: ${JSON.stringify(req.body)}`);
+  logger.info(`🌐 HTTP ${req.method} ${req.path}`);
   
   res.on('finish', () => {
     const duration = Date.now() - start;
@@ -151,15 +157,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Логирование HTTP запросов (если включено)
-if (config.logging.enableHttpLogging) {
-  app.use(logger.httpLogger);
-}
-
-// ИСПРАВЛЕННАЯ обслуживание статических файлов с правильными MIME типами
+// Static files
 app.use(express.static(path.join(__dirname, '../client'), {
   setHeaders: (res, filePath) => {
-    // Устанавливаем правильные MIME типы для разных файлов
     if (filePath.endsWith('.html')) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
     } else if (filePath.endsWith('.css')) {
@@ -172,38 +172,32 @@ app.use(express.static(path.join(__dirname, '../client'), {
   }
 }));
 
-// 🐛 ДОБАВЛЕНО: Логирование регистрации роутов
+// API Routes
 logger.info('🔧 Registering API routes...');
 
-// API Routes с префиксом
-logger.info(`🔧 Mounting /api/chat routes`);
 app.use(`${config.app.apiPrefix}/chat`, chatRoutes);
-
-logger.info(`🔧 Mounting /api/tickets routes`);
 app.use(`${config.app.apiPrefix}/tickets`, ticketRoutes);
-
-logger.info(`🔧 Mounting /api/admin routes`);
 app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
-
-logger.info(`🔧 Mounting /api/knowledge routes`);
 app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
-
-logger.info(`🔧 Mounting /api/prompts routes`);
 app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
-
-logger.info(`🔧 Mounting /api/reports routes`);
-app.use(`${config.app.apiPrefix}/reports`, reportRoutes); // 📖 НОВОЕ: Маршруты отчетов
-
-logger.info(`🔧 Mounting /api/analytics routes`);
-app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes); // 📊 ИСПРАВЛЕНО: Маршруты аналитики
-
-logger.info(`🔧 Mounting /api/quotes routes`);
-app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes); // 📝 НОВОЕ: Маршруты цитат
-
-logger.info(`🔧 Mounting /api/users routes`);
-app.use(`${config.app.apiPrefix}/users`, usersRoutes); // 👥 ИСПРАВЛЕНО: Маршруты пользователей
+app.use(`${config.app.apiPrefix}/reports`, reportRoutes);
+app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
+app.use(`${config.app.apiPrefix}/users`, usersRoutes);
+app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
 
 logger.info('✅ All API routes registered successfully');
+
+// Helper function for connection stats
+function getConnectionsByIP() {
+  const connections = {};
+  if (io && io.sockets) {
+    for (const [id, socket] of io.sockets.sockets) {
+      const ip = socket.handshake.address;
+      connections[ip] = (connections[ip] || 0) + 1;
+    }
+  }
+  return connections;
+}
 
 // Health check endpoint
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
@@ -216,43 +210,6 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
     const aiProviderInfo = claude.getProviderInfo();
     const promptHealth = await promptService.diagnose();
     const pendingTicketsStats = ticketEmailService.getPendingTicketsStats();
-    
-    // 📖 НОВОЕ: Статус cron задач
-    const cronStatus = cronService.getJobsStatus();
-
-    // 📊 НОВОЕ: Проверка сервиса аналитики
-    let analyticsHealth = { status: 'ok' };
-    try {
-      // Простая проверка доступности моделей аналитики
-      const { UTMClick, PromoCodeUsage } = require('./models');
-      await UTMClick.countDocuments().limit(1);
-      await PromoCodeUsage.countDocuments().limit(1);
-      analyticsHealth.modelsAvailable = true;
-    } catch (error) {
-      analyticsHealth = { status: 'error', error: error.message, modelsAvailable: false };
-    }
-
-    // 👥 НОВОЕ: Проверка пользовательских роутов
-    let usersHealth = { status: 'ok' };
-    try {
-      const UserProfile = require('./models/userProfile');
-      const Quote = require('./models/quote');
-      await UserProfile.countDocuments().limit(1);
-      await Quote.countDocuments().limit(1);
-      usersHealth.modelsAvailable = true;
-    } catch (error) {
-      usersHealth = { status: 'error', error: error.message, modelsAvailable: false };
-    }
-
-    // 📝 НОВОЕ: Проверка сервиса цитат
-    let quotesHealth = { status: 'ok' };
-    try {
-      const Quote = require('./models/quote');
-      await Quote.countDocuments().limit(1);
-      quotesHealth.modelsAvailable = true;
-    } catch (error) {
-      quotesHealth = { status: 'error', error: error.message, modelsAvailable: false };
-    }
 
     const health = {
       status: 'ok',
@@ -265,11 +222,7 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         ai: claude ? 'ok' : 'error',
         prompts: promptHealth,
         ticketEmail: 'ok',
-        language: simpleLanguageService.healthCheck(),
-        cron: cronStatus.totalJobs > 0 ? 'ok' : 'stopped', // 📖 НОВОЕ: исправлено
-        analytics: analyticsHealth.status, // 📊 НОВОЕ
-        users: usersHealth.status, // 👥 НОВОЕ
-        quotes: quotesHealth.status // 📝 НОВОЕ
+        language: simpleLanguageService.healthCheck()
       },
       aiProvider: aiProviderInfo,
       promptService: {
@@ -279,32 +232,14 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       },
       ticketEmailService: pendingTicketsStats,
       languageService: simpleLanguageService.getStats(),
-      // 📖 НОВОЕ: Информация о cron задачах
-      cronService: {
-        ...cronStatus,
-        nextRuns: {
-          weeklyReports: cronService.getNextRunTime('weekly_reports'),
-          dailyReminders: cronService.getNextRunTime('daily_reminders'),
-          monthlyReports: cronService.getNextRunTime('monthly_reports'),
-          dailyCleanup: cronService.getNextRunTime('daily_cleanup')
-        }
-      },
-      // 📊 НОВОЕ: Информация о сервисе аналитики
-      analyticsService: analyticsHealth,
-      // 👥 НОВОЕ: Информация о пользовательском сервисе
-      usersService: usersHealth,
-      // 📝 НОВОЕ: Информация о сервисе цитат
-      quotesService: quotesHealth,
       features: config.features,
-      // ДОБАВЛЕНО: информация о Socket.IO подключениях
       socketConnections: {
-        total: io.engine.clientsCount,
-        active: io.sockets.sockets.size,
+        total: io.engine ? io.engine.clientsCount : 0,
+        active: io.sockets ? io.sockets.sockets.size : 0,
         byIP: getConnectionsByIP()
       }
     };
 
-    // Если какой-то сервис неработоспособен, возвращаем 503
     const hasError = Object.values(health.services).some(
       service => service.status === 'error'
     );
@@ -320,8 +255,180 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
   }
 });
 
-// Остальная часть кода остается без изменений...
-// (включая Socket.IO, graceful shutdown, и прочие функции)
+// 404 handler для API
+app.use(`${config.app.apiPrefix}/*`, (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'API endpoint not found',
+    code: ERROR_CODES.NOT_FOUND,
+    path: req.path
+  });
+});
+
+// Serve admin panel
+app.get('/admin*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/admin-panel/index.html'));
+});
+
+// Default route
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  logger.info(`Socket connected: ${socket.id} from ${socket.handshake.address}`);
+
+  socket.on('join-conversation', (conversationId) => {
+    if (conversationId) {
+      socket.join(conversationId);
+      logger.info(`Socket ${socket.id} joined conversation ${conversationId}`);
+    }
+  });
+
+  socket.on('leave-conversation', (conversationId) => {
+    if (conversationId) {
+      socket.leave(conversationId);
+      logger.info(`Socket ${socket.id} left conversation ${conversationId}`);
+    }
+  });
+
+  socket.on('disconnect', (reason) => {
+    logger.info(`Socket disconnected: ${socket.id}, reason: ${reason}`);
+  });
+
+  socket.on('error', (error) => {
+    logger.error(`Socket error for ${socket.id}:`, error);
+  });
+});
+
+// Global error handler
+app.use(errorHandler);
+
+/**
+ * Запуск сервера
+ * @returns {Promise<void>}
+ */
+async function startServer() {
+  try {
+    logger.info('🚀 Starting Reader Bot server...');
+    
+    // Инициализация базы данных
+    logger.info('📊 Connecting to database...');
+    await dbService.connect();
+    logger.info('✅ Database connected successfully');
+
+    // Инициализация векторного хранилища (если включено)
+    if (config.features.enableRAG) {
+      logger.info('🔍 Initializing vector store...');
+      await vectorStoreService.initialize();
+      logger.info('✅ Vector store initialized');
+    }
+
+    // Инициализация сервиса промптов
+    logger.info('📝 Initializing prompt service...');
+    await promptService.initialize();
+    logger.info('✅ Prompt service initialized');
+
+    // Инициализация языкового сервиса
+    logger.info('🌍 Initializing language service...');
+    await simpleLanguageService.initialize();
+    logger.info('✅ Language service initialized');
+
+    // Инициализация сервиса тикетов
+    logger.info('🎫 Initializing ticket service...');
+    await ticketService.initialize();
+    logger.info('✅ Ticket service initialized');
+
+    // Инициализация email сервиса для тикетов
+    logger.info('📧 Initializing ticket email service...');
+    await ticketEmailService.initialize();
+    logger.info('✅ Ticket email service initialized');
+
+    // Запуск HTTP сервера
+    const port = config.app.port;
+    await new Promise((resolve, reject) => {
+      server.listen(port, (error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    logger.info(`✅ Reader Bot server running on port ${port}`);
+    logger.info(`🌐 Environment: ${config.app.environment}`);
+    logger.info(`🔧 Admin panel: http://localhost:${port}/admin`);
+    logger.info(`📊 Health check: http://localhost:${port}${config.app.apiPrefix}/health`);
+
+  } catch (error) {
+    logger.error('❌ Server startup failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Graceful shutdown
+ */
+async function gracefulShutdown(signal) {
+  logger.info(`📴 Received ${signal}, starting graceful shutdown...`);
+
+  try {
+    // Закрываем HTTP сервер
+    await new Promise((resolve) => {
+      server.close(() => {
+        logger.info('✅ HTTP server closed');
+        resolve();
+      });
+    });
+
+    // Закрываем Socket.IO подключения
+    io.close(() => {
+      logger.info('✅ Socket.IO server closed');
+    });
+
+    // Закрываем подключение к базе данных
+    if (dbService) {
+      await dbService.disconnect();
+      logger.info('✅ Database disconnected');
+    }
+
+    // Останавливаем векторное хранилище
+    if (config.features.enableRAG && vectorStoreService) {
+      await vectorStoreService.cleanup();
+      logger.info('✅ Vector store cleaned up');
+    }
+
+    // Останавливаем email сервис
+    if (ticketEmailService) {
+      await ticketEmailService.cleanup();
+      logger.info('✅ Ticket email service stopped');
+    }
+
+    logger.info('✅ Graceful shutdown completed');
+    process.exit(0);
+
+  } catch (error) {
+    logger.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+}
+
+// Обработчики сигналов
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Обработчик необработанных исключений
+process.on('uncaughtException', (error) => {
+  logger.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
 
 // Экспорт для тестирования
 module.exports = {
