@@ -11,10 +11,9 @@ const router = express.Router();
 const { basicAdminAuth } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
-// 🔧 ВРЕМЕННО: Пока модели не созданы, используем заглушки
-// TODO: Раскомментировать после создания моделей
-// const Quote = require('../models/Quote');
-// const UserProfile = require('../models/UserProfile');
+// Импорт моделей
+const Quote = require('../models/quote');
+const UserProfile = require('../models/userProfile');
 
 /**
  * @typedef {Object} QuoteFilters
@@ -33,14 +32,6 @@ const logger = require('../utils/logger');
  * @property {string} popularCategory - Самая популярная категория
  * @property {number} dailyAverage - Среднее количество цитат в день
  * @property {Object} changeStats - Статистика изменений
- */
-
-/**
- * @typedef {Object} QuoteAnalytics
- * @property {Array} categoriesData - Данные по категориям
- * @property {Array} timelineData - Временная динамика
- * @property {Array} topAuthors - Топ авторы
- * @property {Array} sentimentData - Анализ настроений
  */
 
 // ==================== ОСНОВНЫЕ РОУТЫ ====================
@@ -65,23 +56,106 @@ router.get('/', basicAdminAuth, async (req, res) => {
             period, category, author, search, page, limit
         });
 
-        // Устанавливаем правильный Content-Type
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Пока возвращаем mock данные, позже заменим на реальные запросы к БД
-        const mockQuotes = generateMockQuotes(parseInt(page), parseInt(limit));
-        const totalCount = 8734; // Mock общего количества
+        // Построение фильтра для MongoDB
+        const filter = {};
+        
+        // Фильтр по периоду
+        if (period !== 'all') {
+            const days = parseInt(period);
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+            filter.createdAt = { $gte: startDate };
+        }
+
+        // Фильтр по категории
+        if (category !== 'all') {
+            filter.category = category;
+        }
+
+        // Фильтр по автору
+        if (author === 'has_author') {
+            filter.author = { $ne: null, $ne: '' };
+        } else if (author === 'no_author') {
+            filter.$or = [
+                { author: null },
+                { author: '' }
+            ];
+        }
+
+        // Поиск по тексту
+        if (search.trim()) {
+            const searchRegex = new RegExp(search.trim(), 'i');
+            filter.$or = [
+                { text: searchRegex },
+                { author: searchRegex },
+                { source: searchRegex }
+            ];
+        }
+
+        // Вычисляем пропуск записей для пагинации
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        // Сортировка
+        const sort = {};
+        sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        // Выполняем запросы параллельно
+        const [quotes, totalCount] = await Promise.all([
+            Quote.find(filter)
+                .sort(sort)
+                .skip(skip)
+                .limit(parseInt(limit))
+                .lean(),
+            Quote.countDocuments(filter)
+        ]);
+
+        // Получаем информацию о пользователях для найденных цитат
+        const userIds = [...new Set(quotes.map(q => q.userId))];
+        const users = await UserProfile.find(
+            { userId: { $in: userIds } },
+            { userId: 1, name: 1, telegramUsername: 1, email: 1 }
+        ).lean();
+
+        const userMap = users.reduce((map, user) => {
+            map[user.userId] = user;
+            return map;
+        }, {});
+
+        // Обогащаем цитаты информацией о пользователях
+        const enrichedQuotes = quotes.map(quote => ({
+            id: quote._id.toString(),
+            text: quote.text,
+            author: quote.author,
+            source: quote.source,
+            category: quote.category,
+            sentiment: quote.sentiment,
+            themes: quote.themes || [],
+            weekNumber: quote.weekNumber,
+            monthNumber: quote.monthNumber,
+            createdAt: quote.createdAt,
+            isEdited: quote.isEdited,
+            editedAt: quote.editedAt,
+            user: {
+                id: quote.userId,
+                name: userMap[quote.userId]?.name || 'Неизвестный',
+                username: userMap[quote.userId]?.telegramUsername || 'N/A',
+                email: userMap[quote.userId]?.email || 'N/A'
+            }
+        }));
 
         const response = {
             success: true,
             data: {
-                quotes: mockQuotes,
+                quotes: enrichedQuotes,
                 pagination: {
                     currentPage: parseInt(page),
                     totalPages: Math.ceil(totalCount / parseInt(limit)),
                     totalCount,
-                    hasNext: page * limit < totalCount,
-                    hasPrev: page > 1
+                    hasNext: skip + parseInt(limit) < totalCount,
+                    hasPrev: parseInt(page) > 1,
+                    limit: parseInt(limit)
                 },
                 filters: {
                     period,
@@ -115,16 +189,82 @@ router.get('/statistics', basicAdminAuth, async (req, res) => {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Mock статистика
+        // Определяем временные рамки
+        const days = parseInt(period);
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        const previousStartDate = new Date(startDate);
+        previousStartDate.setDate(previousStartDate.getDate() - days);
+
+        // Выполняем статистические запросы параллельно
+        const [
+            currentStats,
+            previousStats,
+            topCategories,
+            uniqueAuthors
+        ] = await Promise.all([
+            Quote.aggregate([
+                { $match: { createdAt: { $gte: startDate } } },
+                {
+                    $group: {
+                        _id: null,
+                        totalQuotes: { $sum: 1 },
+                        avgDaily: { $avg: 1 }
+                    }
+                }
+            ]),
+            Quote.aggregate([
+                { 
+                    $match: { 
+                        createdAt: { 
+                            $gte: previousStartDate, 
+                            $lt: startDate 
+                        } 
+                    } 
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalQuotes: { $sum: 1 }
+                    }
+                }
+            ]),
+            Quote.aggregate([
+                { $match: { createdAt: { $gte: startDate } } },
+                {
+                    $group: {
+                        _id: '$category',
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { count: -1 } },
+                { $limit: 1 }
+            ]),
+            Quote.distinct('author', { 
+                createdAt: { $gte: startDate },
+                author: { $ne: null, $ne: '' }
+            })
+        ]);
+
+        const current = currentStats[0] || { totalQuotes: 0, avgDaily: 0 };
+        const previous = previousStats[0] || { totalQuotes: 0 };
+        const topCategory = topCategories[0] || { _id: 'Другое' };
+
+        // Вычисляем изменения
+        const quotesChange = current.totalQuotes - previous.totalQuotes;
+        const authorsChange = uniqueAuthors.length;
+        const dailyAverage = Math.round((current.totalQuotes / days) * 10) / 10;
+
         const statistics = {
-            totalQuotes: 8734,
-            totalAuthors: 156,
-            popularCategory: 'Саморазвитие',
-            dailyAverage: 18.2,
+            totalQuotes: current.totalQuotes,
+            totalAuthors: uniqueAuthors.length,
+            popularCategory: topCategory._id,
+            dailyAverage,
             changeStats: {
-                quotesChange: '+127',
-                authorsChange: '+12',
-                avgChange: '+2.3'
+                quotesChange: quotesChange > 0 ? `+${quotesChange}` : quotesChange.toString(),
+                authorsChange: `+${authorsChange}`,
+                avgChange: '+0.0' // Временно, нужна логика расчета
             },
             period
         };
@@ -155,36 +295,124 @@ router.get('/analytics', basicAdminAuth, async (req, res) => {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Mock данные для графиков
+        const days = parseInt(period);
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        // Параллельные запросы для аналитики
+        const [
+            categoriesData,
+            timelineData,
+            topAuthorsData,
+            sentimentData
+        ] = await Promise.all([
+            // Распределение по категориям
+            Quote.aggregate([
+                { $match: { createdAt: { $gte: startDate } } },
+                {
+                    $group: {
+                        _id: '$category',
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { count: -1 } }
+            ]),
+
+            // Временная динамика
+            Quote.aggregate([
+                { $match: { createdAt: { $gte: startDate } } },
+                {
+                    $group: {
+                        _id: {
+                            $dateToString: {
+                                format: period === '1d' ? '%H:00' : '%Y-%m-%d',
+                                date: '$createdAt'
+                            }
+                        },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { '_id': 1 } }
+            ]),
+
+            // Топ авторы
+            Quote.aggregate([
+                { 
+                    $match: { 
+                        createdAt: { $gte: startDate },
+                        author: { $ne: null, $ne: '' }
+                    } 
+                },
+                {
+                    $group: {
+                        _id: '$author',
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { count: -1 } },
+                { $limit: 6 }
+            ]),
+
+            // Анализ настроений
+            Quote.aggregate([
+                { $match: { createdAt: { $gte: startDate } } },
+                {
+                    $group: {
+                        _id: '$sentiment',
+                        count: { $sum: 1 }
+                    }
+                }
+            ])
+        ]);
+
+        // Подготавливаем данные для графиков
+        const categoryColors = {
+            'Саморазвитие': '#d4af37',
+            'Любовь': '#c97a7e', 
+            'Мудрость': '#81b3d3',
+            'Философия': '#a8c686',
+            'Творчество': '#deb887',
+            'Мотивация': '#cd853f',
+            'Отношения': '#f4a460',
+            'Материнство': '#dda0dd',
+            'Карьера': '#98fb98',
+            'Другое': '#d3d3d3'
+        };
+
         const analytics = {
             categories: {
-                labels: ['Саморазвитие', 'Любовь', 'Мудрость', 'Философия', 'Творчество', 'Мотивация', 'Отношения'],
-                data: [34, 22, 18, 12, 8, 4, 2],
-                colors: ['#d4af37', '#c97a7e', '#81b3d3', '#a8c686', '#deb887', '#cd853f', '#f4a460']
+                labels: categoriesData.map(item => item._id),
+                data: categoriesData.map(item => item.count),
+                colors: categoriesData.map(item => categoryColors[item._id] || '#d3d3d3')
             },
             timeline: {
-                labels: period === '1d' ? 
-                    ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'] :
-                    period === '7d' ?
-                    ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] :
-                    ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
-                data: period === '1d' ? 
-                    [2, 1, 5, 12, 8, 4] :
-                    period === '7d' ?
-                    [12, 19, 15, 25, 22, 18, 24] :
-                    [78, 89, 95, 102]
+                labels: timelineData.map(item => {
+                    if (period === '1d') {
+                        return item._id;
+                    }
+                    const date = new Date(item._id);
+                    return date.toLocaleDateString('ru-RU', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                }),
+                data: timelineData.map(item => item.count)
             },
-            topAuthors: [
-                { name: 'Лев Толстой', count: 234, percentage: 15.2 },
-                { name: 'Эрих Фромм', count: 189, percentage: 12.3 },
-                { name: 'Марина Цветаева', count: 156, percentage: 10.1 },
-                { name: 'Будда', count: 134, percentage: 8.7 },
-                { name: 'Ральф Эмерсон', count: 98, percentage: 6.4 },
-                { name: 'Без автора', count: 87, percentage: 5.7 }
-            ],
+            topAuthors: topAuthorsData.map((author, index) => {
+                const totalQuotes = categoriesData.reduce((sum, cat) => sum + cat.count, 0);
+                return {
+                    name: author._id,
+                    count: author.count,
+                    percentage: totalQuotes > 0 ? Math.round((author.count / totalQuotes) * 100 * 10) / 10 : 0
+                };
+            }),
             sentiment: {
                 labels: ['Позитивные', 'Нейтральные', 'Негативные'],
-                data: [68, 27, 5],
+                data: [
+                    sentimentData.find(s => s._id === 'positive')?.count || 0,
+                    sentimentData.find(s => s._id === 'neutral')?.count || 0,
+                    sentimentData.find(s => s._id === 'negative')?.count || 0
+                ],
                 colors: ['#4ade80', '#64748b', '#ef4444']
             }
         };
@@ -215,43 +443,51 @@ router.get('/:id', basicAdminAuth, async (req, res) => {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Mock детальная информация
+        // Находим цитату
+        const quote = await Quote.findById(id).lean();
+        if (!quote) {
+            return res.status(404).json({
+                success: false,
+                message: 'Цитата не найдена'
+            });
+        }
+
+        // Получаем информацию о пользователе
+        const user = await UserProfile.findOne({ userId: quote.userId }).lean();
+
+        // Ищем похожие цитаты
+        const similarQuotes = await Quote.findSimilarQuotes(quote.text, quote.userId);
+
         const quoteDetails = {
-            id: id,
-            text: 'В каждом слове — целая жизнь. Каждое слово несет в себе историю, эмоцию, смысл, который может изменить восприятие мира.',
-            author: 'Марина Цветаева',
-            source: 'Собрание сочинений',
-            category: 'Творчество',
-            themes: ['поэзия', 'творчество', 'вдохновение', 'слово'],
-            sentiment: 'positive',
+            id: quote._id.toString(),
+            text: quote.text,
+            author: quote.author,
+            source: quote.source,
+            category: quote.category,
+            themes: quote.themes || [],
+            sentiment: quote.sentiment,
             user: {
-                id: 'user123',
-                name: 'Мария Петрова',
-                telegramUsername: '@maria_p',
-                email: 'maria@example.com'
+                id: quote.userId,
+                name: user?.name || 'Неизвестный',
+                telegramUsername: user?.telegramUsername || 'N/A',
+                email: user?.email || 'N/A'
             },
             meta: {
-                weekNumber: 27,
-                monthNumber: 7,
-                createdAt: '2025-07-03T11:23:00.000Z',
-                editedAt: null,
-                wordCount: 22,
-                characterCount: 134
+                weekNumber: quote.weekNumber,
+                monthNumber: quote.monthNumber,
+                yearNumber: quote.yearNumber,
+                createdAt: quote.createdAt,
+                editedAt: quote.editedAt,
+                isEdited: quote.isEdited,
+                wordCount: quote.text.split(' ').length,
+                characterCount: quote.text.length
             },
-            aiAnalysis: {
-                summary: 'Эта цитата отражает глубокое понимание силы слов и языка.',
-                insights: 'Пользователь находится в поиске творческого самовыражения и понимания глубинного смысла литературы. Цитата показывает высокий уровень эстетического восприятия и философского мышления.',
-                recommendation: 'Подходит разбор "Письма к молодому поэту" Рильке для развития творческого потенциала.',
-                confidence: 0.92
-            },
-            relatedQuotes: [
-                {
-                    id: 'Q002',
-                    text: 'Поэзия — это живопись словами',
-                    author: 'Симонид',
-                    similarity: 0.78
-                }
-            ]
+            relatedQuotes: similarQuotes.map(sq => ({
+                id: sq._id.toString(),
+                text: sq.text,
+                author: sq.author,
+                similarity: Math.random() * 0.3 + 0.7 // Временная логика
+            }))
         };
 
         res.json({
@@ -280,10 +516,18 @@ router.post('/:id/analyze', basicAdminAuth, async (req, res) => {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Имитация анализа
-        setTimeout(() => {
-            // В реальной реализации здесь будет вызов Claude API
-        }, 2000);
+        // Находим цитату
+        const quote = await Quote.findById(id);
+        if (!quote) {
+            return res.status(404).json({
+                success: false,
+                message: 'Цитата не найдена'
+            });
+        }
+
+        // TODO: Здесь будет интеграция с Claude для анализа
+        // const claudeService = require('../services/claudeService');
+        // const analysis = await claudeService.analyzeQuote(quote.text, quote.author);
 
         res.json({
             success: true,
@@ -325,21 +569,46 @@ router.put('/:id', basicAdminAuth, async (req, res) => {
             });
         }
 
-        // Имитация обновления
-        const updatedQuote = {
+        if (text.length > 1000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Текст цитаты не может превышать 1000 символов'
+            });
+        }
+
+        // Обновляем цитату
+        const updatedQuote = await Quote.findByIdAndUpdate(
             id,
-            text: text.trim(),
-            author: author?.trim() || null,
-            category: category || 'Мудрость',
-            themes: themes || ['обновлено'],
-            updatedAt: new Date().toISOString(),
-            updatedBy: req.user.username
-        };
+            {
+                text: text.trim(),
+                author: author?.trim() || null,
+                category: category || 'Другое',
+                themes: themes || [],
+                isEdited: true,
+                editedAt: new Date()
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedQuote) {
+            return res.status(404).json({
+                success: false,
+                message: 'Цитата не найдена'
+            });
+        }
 
         res.json({
             success: true,
             message: 'Цитата успешно обновлена',
-            data: updatedQuote
+            data: {
+                id: updatedQuote._id.toString(),
+                text: updatedQuote.text,
+                author: updatedQuote.author,
+                category: updatedQuote.category,
+                themes: updatedQuote.themes,
+                updatedAt: updatedQuote.editedAt,
+                updatedBy: req.user?.username || 'admin'
+            }
         });
 
     } catch (error) {
@@ -364,14 +633,33 @@ router.delete('/:id', basicAdminAuth, async (req, res) => {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // В реальной реализации - мягкое удаление с логированием
+        // Находим и удаляем цитату
+        const deletedQuote = await Quote.findByIdAndDelete(id);
+
+        if (!deletedQuote) {
+            return res.status(404).json({
+                success: false,
+                message: 'Цитата не найдена'
+            });
+        }
+
+        // Логируем удаление для аудита
+        logger.info('🗑️ Цитата удалена:', {
+            id,
+            text: deletedQuote.text,
+            author: deletedQuote.author,
+            userId: deletedQuote.userId,
+            reason,
+            deletedBy: req.user?.username || 'admin'
+        });
+
         res.json({
             success: true,
             message: 'Цитата успешно удалена',
             data: {
                 id,
                 deletedAt: new Date().toISOString(),
-                deletedBy: req.user.username,
+                deletedBy: req.user?.username || 'admin',
                 reason
             }
         });
@@ -402,11 +690,27 @@ router.post('/export', basicAdminAuth, async (req, res) => {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Имитация генерации файла
+        // Построение фильтра
+        const filter = {};
+        if (period !== 'all') {
+            const days = parseInt(period);
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+            filter.createdAt = { $gte: startDate };
+        }
+
+        if (category !== 'all') {
+            filter.category = category;
+        }
+
+        // Подсчитываем количество записей для экспорта
+        const recordsCount = await Quote.countDocuments(filter);
+
+        // TODO: Здесь будет логика генерации файла
         const exportData = {
             filename: `quotes_export_${new Date().toISOString().split('T')[0]}.${format}`,
             format,
-            recordsCount: 1234,
+            recordsCount,
             generatedAt: new Date().toISOString(),
             downloadUrl: `/api/quotes/download/${Date.now()}.${format}`
         };
@@ -439,29 +743,34 @@ router.get('/search/similar/:id', basicAdminAuth, async (req, res) => {
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Mock похожие цитаты
-        const similarQuotes = [
-            {
-                id: 'Q002',
-                text: 'Поэзия — это живопись словами, а живопись — немая поэзия',
-                author: 'Симонид',
-                similarity: 0.78,
-                category: 'Творчество'
-            },
-            {
-                id: 'Q003', 
-                text: 'Слово — одно из величайших орудий человека',
-                author: 'Анатоль Франс',
-                similarity: 0.72,
-                category: 'Творчество'
-            }
-        ];
+        // Находим исходную цитату
+        const sourceQuote = await Quote.findById(id);
+        if (!sourceQuote) {
+            return res.status(404).json({
+                success: false,
+                message: 'Исходная цитата не найдена'
+            });
+        }
+
+        // Ищем похожие цитаты
+        const similarQuotes = await Quote.findSimilarQuotes(
+            sourceQuote.text, 
+            sourceQuote.userId
+        );
+
+        const result = similarQuotes.slice(0, parseInt(limit)).map(quote => ({
+            id: quote._id.toString(),
+            text: quote.text,
+            author: quote.author,
+            category: quote.category,
+            similarity: Math.random() * 0.3 + 0.7 // Временная логика, заменить на реальный алгоритм
+        }));
 
         res.json({
             success: true,
             data: {
                 sourceQuoteId: id,
-                similarQuotes: similarQuotes.slice(0, parseInt(limit))
+                similarQuotes: result
             }
         });
 
@@ -478,117 +787,17 @@ router.get('/search/similar/:id', basicAdminAuth, async (req, res) => {
 // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 
 /**
- * Генерация mock данных цитат для тестирования
- * @param {number} page - Номер страницы
- * @param {number} limit - Количество записей на странице
- * @returns {Array} Массив цитат
- */
-function generateMockQuotes(page = 1, limit = 20) {
-    const quotes = [
-        {
-            id: 'Q001',
-            text: 'В каждом слове — целая жизнь',
-            author: 'Марина Цветаева',
-            category: 'Творчество',
-            sentiment: 'positive',
-            user: {
-                name: 'Мария П.',
-                username: '@maria_p'
-            },
-            createdAt: '2025-07-06T11:23:00.000Z',
-            themes: ['поэзия', 'творчество'],
-            wordCount: 6
-        },
-        {
-            id: 'Q002',
-            text: 'Любовь — это решение любить, а не просто чувство',
-            author: 'Эрих Фромм',
-            category: 'Любовь',
-            sentiment: 'positive',
-            user: {
-                name: 'Елена С.',
-                username: '@elena_s'
-            },
-            createdAt: '2025-07-06T09:15:00.000Z',
-            themes: ['любовь', 'отношения'],
-            wordCount: 9
-        },
-        {
-            id: 'Q003',
-            text: 'Счастье внутри нас, а не вовне',
-            author: 'Будда',
-            category: 'Мудрость',
-            sentiment: 'positive',
-            user: {
-                name: 'Анна М.',
-                username: '@anna_m'
-            },
-            createdAt: '2025-07-06T07:30:00.000Z',
-            themes: ['счастье', 'внутренний мир'],
-            wordCount: 7
-        },
-        {
-            id: 'Q004',
-            text: 'Жизнь — это постоянное обучение и рост',
-            author: null,
-            category: 'Саморазвитие',
-            sentiment: 'positive',
-            user: {
-                name: 'Наталья К.',
-                username: '@natalia_k'
-            },
-            createdAt: '2025-07-05T20:45:00.000Z',
-            themes: ['обучение', 'развитие'],
-            wordCount: 7
-        },
-        {
-            id: 'Q005',
-            text: 'Время лечит раны, но оставляет шрамы памяти',
-            author: 'Народная мудрость',
-            category: 'Философия',
-            sentiment: 'neutral',
-            user: {
-                name: 'Ольга Р.',
-                username: '@olga_r'
-            },
-            createdAt: '2025-07-05T18:20:00.000Z',
-            themes: ['время', 'память'],
-            wordCount: 8
-        }
-    ];
-
-    // Дублируем данные для имитации пагинации
-    const allQuotes = [];
-    for (let i = 0; i < Math.ceil(8734 / quotes.length); i++) {
-        quotes.forEach((quote, index) => {
-            allQuotes.push({
-                ...quote,
-                id: `Q${String(i * quotes.length + index + 1).padStart(3, '0')}`,
-                createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
-            });
-        });
-    }
-
-    // Возвращаем нужную страницу
-    const startIndex = (page - 1) * limit;
-    return allQuotes.slice(startIndex, startIndex + limit);
-}
-
-/**
  * Получение статистики для конкретного периода
  * @param {string} period - Период ('1d', '7d', '30d', '90d')
- * @returns {Object} Статистика
+ * @returns {Promise<Object>} Статистика
  */
-function getStatisticsForPeriod(period) {
-    const baseStats = {
-        '1d': { quotes: 24, authors: 18, avgDaily: 24.0 },
-        '7d': { quotes: 127, authors: 89, avgDaily: 18.1 },
-        '30d': { quotes: 542, authors: 234, avgDaily: 18.1 },
-        '90d': { quotes: 1624, authors: 456, avgDaily: 18.0 }
-    };
+async function getStatisticsForPeriod(period) {
+    const days = parseInt(period);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
 
-    return baseStats[period] || baseStats['7d'];
+    const stats = await Quote.getQuoteStats(period);
+    return stats;
 }
 
-// 🔧 CRITICAL: Убеждаемся что router экспортируется корректно
 module.exports = router;
