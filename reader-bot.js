@@ -1,7 +1,7 @@
 /**
  * Main entry point for Reader Bot - Telegram bot for Anna Busel's book club
  * @file reader-bot.js
- * 🔧 UPDATED: Added ReminderService and AnnouncementService integration
+ * 🔧 UPDATED: Now using ModernReaderBot with menu button navigation
  */
 
 require('dotenv').config();
@@ -11,7 +11,7 @@ const logger = require('./server/utils/simpleLogger');
 
 // Import Reader bot services
 const { initializeModels } = require('./server/models');
-const ReaderTelegramBot = require('./telegram');
+const ModernReaderBot = require('./telegram/modernBot'); // 🔧 FIXED: Use ModernReaderBot
 const { CronService } = require('./server/services/cronService');
 const WeeklyReportService = require('./server/services/weeklyReportService');
 const MonthlyReportService = require('./server/services/monthlyReportService');
@@ -26,7 +26,8 @@ const config = {
   telegram: {
     token: process.env.TELEGRAM_BOT_TOKEN,
     environment: process.env.NODE_ENV || 'development',
-    maxMessageLength: 4096
+    maxMessageLength: 4096,
+    enableModernUX: true // 🔧 Enable modern UX with menu button
   },
   database: {
     uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/reader-bot'
@@ -133,11 +134,8 @@ async function initializeServices(telegramBot) {
     commandHandler.initialize({ reminderService });
     logger.info('⚙️ CommandHandler initialized');
     
-    // Update Telegram bot with enhanced command handler
-    if (telegramBot && telegramBot.updateCommandHandler) {
-      telegramBot.updateCommandHandler(commandHandler);
-      logger.info('🤖 Telegram bot updated with enhanced command handler');
-    }
+    // Note: ModernReaderBot handles its own command routing, no need to update
+    logger.info('🤖 ModernReaderBot uses its own command routing system');
     
     return {
       weeklyReportService,
@@ -219,14 +217,14 @@ async function startTelegramBotWithTimeout(readerBot, timeoutMs = 30000) {
     }, timeoutMs);
 
     try {
-      logger.info('📖 Starting Telegram bot (with 30s timeout)...');
+      logger.info('🎨 Starting ModernReaderBot (with 30s timeout)...');
       await readerBot.start();
       clearTimeout(timeout);
-      logger.info('📖 Telegram bot started successfully!');
+      logger.info('🎨 ModernReaderBot started successfully with menu button!');
       resolve();
     } catch (error) {
       clearTimeout(timeout);
-      logger.error(`❌ Telegram bot start failed: ${error.message}`);
+      logger.error(`❌ ModernReaderBot start failed: ${error.message}`);
       reject(error);
     }
   });
@@ -246,9 +244,9 @@ async function startReaderBot() {
     // Initialize database
     await initializeDatabase();
     
-    // Create Telegram bot
-    logger.info('📖 Creating ReaderTelegramBot instance...');
-    const readerBot = new ReaderTelegramBot(config.telegram);
+    // Create Modern Telegram bot
+    logger.info('🎨 Creating ModernReaderBot instance with menu button...');
+    const readerBot = new ModernReaderBot(config.telegram);
     
     // Start Telegram bot with timeout
     try {
@@ -277,7 +275,9 @@ async function startReaderBot() {
     const cronService = await initializeCronService(readerBot, services);
     
     logger.info('🎉 Reader Bot started successfully!');
+    logger.info('🎨 Modern UX with menu button navigation enabled');
     logger.info('📖 Users can now start conversations with /start');
+    logger.info('📋 Menu button available next to attachment button');
     logger.info('📊 Automated weekly reports enabled');
     logger.info('📈 Automated monthly reports enabled');
     logger.info('🔔 Smart reminder system enabled');
@@ -294,8 +294,8 @@ async function startReaderBot() {
     if (config.telegram.environment === 'development') {
       logger.info('🔧 Development mode active');
       logger.info('📝 Send /start to your bot to begin onboarding');
-      logger.info('💡 Use /help to see available commands');
-      logger.info('⚙️ Use /settings to configure reminders');
+      logger.info('📋 Use menu button for navigation');
+      logger.info('💡 Test commands: /help, /stats, /search, /settings');
       logger.info('📊 Test reports with: npm run test:reports');
       logger.info('🔔 Test reminders with: npm run test:reminders');
       logger.info('📢 Test announcements with: npm run test:announcements');
@@ -305,6 +305,12 @@ async function startReaderBot() {
     setTimeout(async () => {
       logger.info('🧪 Testing all services...');
       try {
+        // Test ModernReaderBot health
+        logger.info('🎨 Testing ModernReaderBot health...');
+        const botHealth = await readerBot.healthCheck();
+        logger.info(`✅ ModernReaderBot health: ${botHealth.status}`);
+        logger.info(`📋 Menu button: ${botHealth.modernHandlers.modernUXEnabled ? 'enabled' : 'disabled'}`);
+        
         // Test ReminderService
         logger.info('🔔 Testing ReminderService...');
         const reminderStats = await services.reminderService.getReminderStats();
@@ -328,6 +334,7 @@ async function startReaderBot() {
         }
         
         logger.info('🎉 All service tests completed successfully!');
+        logger.info('🎨 ModernReaderBot ready with elegant menu button navigation!');
         
       } catch (error) {
         logger.error(`❌ Service tests failed: ${error.message}`);
@@ -373,7 +380,7 @@ async function gracefulShutdown(signal) {
     // Stop Telegram bot if available
     if (global.readerBotServices?.telegramBot) {
       await global.readerBotServices.telegramBot.stop();
-      logger.info('✅ Telegram bot stopped');
+      logger.info('✅ ModernReaderBot stopped');
     }
     
     // Close database connection
