@@ -7,8 +7,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Импорт middleware
-const { basicAdminAuth } = require('../middleware/auth');
+// Импорт утилит
 const logger = require('../utils/logger');
 
 // Импорт моделей
@@ -39,7 +38,7 @@ const UserProfile = require('../models/userProfile');
 /**
  * GET /api/quotes - Получение списка цитат с фильтрацией
  */
-router.get('/', basicAdminAuth, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const {
             period = '7d',
@@ -181,7 +180,7 @@ router.get('/', basicAdminAuth, async (req, res) => {
 /**
  * GET /api/quotes/statistics - Получение статистики цитат
  */
-router.get('/statistics', basicAdminAuth, async (req, res) => {
+router.get('/statistics', async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
@@ -287,7 +286,7 @@ router.get('/statistics', basicAdminAuth, async (req, res) => {
 /**
  * GET /api/quotes/analytics - Получение аналитических данных для графиков
  */
-router.get('/analytics', basicAdminAuth, async (req, res) => {
+router.get('/analytics', async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
@@ -435,7 +434,7 @@ router.get('/analytics', basicAdminAuth, async (req, res) => {
 /**
  * GET /api/quotes/:id - Получение детальной информации о цитате
  */
-router.get('/:id', basicAdminAuth, async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -508,7 +507,7 @@ router.get('/:id', basicAdminAuth, async (req, res) => {
 /**
  * POST /api/quotes/:id/analyze - Запуск AI анализа цитаты
  */
-router.post('/:id/analyze', basicAdminAuth, async (req, res) => {
+router.post('/:id/analyze', async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -552,7 +551,7 @@ router.post('/:id/analyze', basicAdminAuth, async (req, res) => {
 /**
  * PUT /api/quotes/:id - Обновление цитаты (редактирование)
  */
-router.put('/:id', basicAdminAuth, async (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { text, author, category, themes } = req.body;
@@ -607,7 +606,7 @@ router.put('/:id', basicAdminAuth, async (req, res) => {
                 category: updatedQuote.category,
                 themes: updatedQuote.themes,
                 updatedAt: updatedQuote.editedAt,
-                updatedBy: req.user?.username || 'admin'
+                updatedBy: 'admin'
             }
         });
 
@@ -624,7 +623,7 @@ router.put('/:id', basicAdminAuth, async (req, res) => {
 /**
  * DELETE /api/quotes/:id - Удаление цитаты
  */
-router.delete('/:id', basicAdminAuth, async (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { reason = 'Удалено администратором' } = req.body;
@@ -650,7 +649,7 @@ router.delete('/:id', basicAdminAuth, async (req, res) => {
             author: deletedQuote.author,
             userId: deletedQuote.userId,
             reason,
-            deletedBy: req.user?.username || 'admin'
+            deletedBy: 'admin'
         });
 
         res.json({
@@ -659,7 +658,7 @@ router.delete('/:id', basicAdminAuth, async (req, res) => {
             data: {
                 id,
                 deletedAt: new Date().toISOString(),
-                deletedBy: req.user?.username || 'admin',
+                deletedBy: 'admin',
                 reason
             }
         });
@@ -677,7 +676,7 @@ router.delete('/:id', basicAdminAuth, async (req, res) => {
 /**
  * POST /api/quotes/export - Экспорт цитат
  */
-router.post('/export', basicAdminAuth, async (req, res) => {
+router.post('/export', async (req, res) => {
     try {
         const { 
             format = 'csv',
@@ -734,7 +733,7 @@ router.post('/export', basicAdminAuth, async (req, res) => {
 /**
  * GET /api/quotes/search/similar/:id - Поиск похожих цитат
  */
-router.get('/search/similar/:id', basicAdminAuth, async (req, res) => {
+router.get('/search/similar/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { limit = 5 } = req.query;
