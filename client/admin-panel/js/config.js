@@ -5,32 +5,33 @@
 
 // API Configuration
 const API_CONFIG = {
-    BASE_URL: '/api/reader',
+    BASE_URL: '/api',
     ENDPOINTS: {
         // Users endpoints
-        USERS: '/api/reader/users',
-        USERS_STATS: '/api/reader/users/stats',
-        USER_DETAIL: (userId) => `/api/reader/users/${userId}`,
-        USER_MESSAGE: (userId) => `/api/reader/users/${userId}/message`,
-        USERS_EXPORT: '/api/reader/users/export',
+        USERS: '/api/users',
+        USERS_STATS: '/api/users/stats',
+        USER_DETAIL: (userId) => `/api/users/${userId}`,
+        USER_MESSAGE: (userId) => `/api/users/${userId}/message`,
+        USERS_EXPORT: '/api/users/export',
         
         // Quotes endpoints
-        QUOTES: '/api/reader/quotes',
-        QUOTES_STATS: '/api/reader/quotes/stats',
+        QUOTES: '/api/quotes',
+        QUOTES_STATS: '/api/quotes/statistics',
+        QUOTES_ANALYTICS: '/api/quotes/analytics',
         
         // Reports endpoints
-        REPORTS: '/api/reader/reports',
-        REPORTS_WEEKLY: '/api/reader/reports/weekly',
-        REPORTS_MONTHLY: '/api/reader/reports/monthly',
+        REPORTS: '/api/reports',
+        REPORTS_WEEKLY: '/api/reports/weekly',
+        REPORTS_MONTHLY: '/api/reports/monthly',
         
         // Analytics endpoints
-        ANALYTICS: '/api/reader/analytics',
-        ANALYTICS_DASHBOARD: '/api/reader/analytics/dashboard',
-        ANALYTICS_UTM: '/api/reader/analytics/utm',
+        ANALYTICS: '/api/analytics',
+        ANALYTICS_DASHBOARD: '/api/analytics/dashboard',
+        ANALYTICS_UTM: '/api/analytics/utm',
         
         // Admin endpoints
-        ADMIN_AUTH: '/api/reader/admin/auth',
-        ADMIN_HEALTH: '/api/reader/health'
+        ADMIN_AUTH: '/api/admin/auth',
+        ADMIN_HEALTH: '/api/health'
     }
 };
 
