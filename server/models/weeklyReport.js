@@ -1,6 +1,7 @@
 /**
  * @fileoverview Модель еженедельных отчетов для бота "Читатель"
  * @author g1orgi89
+ * 🔧 FIX: Сделано поле reasoning необязательным для совместимости
  */
 
 const mongoose = require('mongoose');
@@ -30,7 +31,7 @@ const weeklyAnalysisSchema = new mongoose.Schema({
   emotionalTone: {
     type: String,
     required: true,
-    enum: ['позитивный', 'нейтральный', 'задумчивый', 'вдохновляющий', 'меланхоличный', 'энергичный']
+    enum: ['позитивный', 'нейтральный', 'задумчивый', 'вдохновляющий', 'меланхоличный', 'энергичный', 'размышляющий', 'вдохновленный']
     // Эмоциональный тон недели
   },
   insights: {
@@ -42,7 +43,7 @@ const weeklyAnalysisSchema = new mongoose.Schema({
 }, { _id: false });
 
 /**
- * Схема рекомендации книги
+ * 🔧 FIX: Схема рекомендации книги с необязательным reasoning
  */
 const bookRecommendationSchema = new mongoose.Schema({
   title: {
@@ -60,7 +61,7 @@ const bookRecommendationSchema = new mongoose.Schema({
   price: {
     type: String,
     required: true,
-    match: /^\$\d+$/
+    match: /^\\$\\d+$/
     // Цена в формате $8, $12
   },
   link: {
@@ -70,7 +71,8 @@ const bookRecommendationSchema = new mongoose.Schema({
   },
   reasoning: {
     type: String,
-    required: true,
+    required: false, // 🔧 FIX: Сделано необязательным
+    default: 'Рекомендация на основе анализа ваших цитат',
     maxlength: 300
     // Почему именно эта книга подойдет пользователю
   }
@@ -472,6 +474,15 @@ weeklyReportSchema.pre('save', function(next) {
   // Автоматически заполняем validUntil для промокода (3 дня)
   if (this.isNew && this.promoCode && !this.promoCode.validUntil) {
     this.promoCode.validUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  }
+  
+  // 🔧 FIX: Автоматически добавляем reasoning если отсутствует
+  if (this.recommendations && this.recommendations.length > 0) {
+    this.recommendations.forEach(rec => {
+      if (!rec.reasoning) {
+        rec.reasoning = 'Рекомендация на основе анализа ваших цитат';
+      }
+    });
   }
   
   next();
