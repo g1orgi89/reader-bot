@@ -35,10 +35,10 @@ if (missingVars.length > 0) {
 const config = {
   // Настройки приложения
   app: {
-    name: 'Shrooms Support Bot',
+    name: 'Reader Bot',
     version: process.env.npm_package_version || '1.0.0',
     environment: process.env.NODE_ENV || 'development',
-    port: parseInt(process.env.PORT) || 3000,
+    port: parseInt(process.env.PORT) || 3002, // 📖 Изменили порт на 3002 для Reader Bot
     apiPrefix: process.env.API_PREFIX || '/api',
     isDevelopment: process.env.NODE_ENV === 'development',
     isProduction: process.env.NODE_ENV === 'production',
@@ -48,7 +48,7 @@ const config = {
 
   // Настройки базы данных
   database: {
-    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/shrooms-support',
+    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/reader-bot', // 📖 Изменили имя БД
     options: {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -79,7 +79,7 @@ const config = {
   // Настройки векторной базы данных
   vectorStore: {
     url: process.env.VECTOR_DB_URL || 'http://localhost:6333',
-    collectionName: process.env.VECTOR_COLLECTION_NAME || 'shrooms_knowledge',
+    collectionName: process.env.VECTOR_COLLECTION_NAME || 'reader_knowledge', // 📖 Изменили название коллекции
     timeout: parseInt(process.env.VECTOR_DB_TIMEOUT) || 10000,
     batchSize: parseInt(process.env.VECTOR_BATCH_SIZE) || 100,
     searchLimit: parseInt(process.env.VECTOR_SEARCH_LIMIT) || 5
@@ -107,7 +107,7 @@ const config = {
 
   // Настройки CORS
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3002', // 📖 Обновили CORS origin
     credentials: process.env.CORS_CREDENTIALS === 'true',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
@@ -146,10 +146,10 @@ const config = {
 
   // Настройки локализации
   i18n: {
-    defaultLanguage: process.env.DEFAULT_LANGUAGE || 'en',
+    defaultLanguage: process.env.DEFAULT_LANGUAGE || 'ru', // 📖 Изменили на русский как основной
     supportedLanguages: process.env.SUPPORTED_LANGUAGES 
       ? process.env.SUPPORTED_LANGUAGES.split(',') 
-      : ['en', 'es', 'ru']
+      : ['ru', 'en'] // 📖 Русский приоритетный для проекта "Читатель"
   },
 
   // Флаги функций
@@ -180,7 +180,7 @@ const config = {
 
   // Настройки email
   email: {
-    from: process.env.EMAIL_FROM || 'noreply@shrooms.io',
+    from: process.env.EMAIL_FROM || 'noreply@reader-bot.io', // 📖 Обновили email domain
     smtp: {
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT) || 587,
@@ -192,13 +192,29 @@ const config = {
     }
   },
 
-  // Настройки для Shrooms проекта
-  shrooms: {
-    farmingYield: parseFloat(process.env.SHROOMS_FARMING_YIELD) || 12.5,
-    contractAddress: process.env.SHROOMS_CONTRACT_ADDRESS,
-    stacksRpcUrl: process.env.STACKS_RPC_URL || 'https://stacks-node-api.mainnet.stacks.co',
-    widgetBaseUrl: process.env.WIDGET_BASE_URL || 'http://localhost:3000',
-    theme: process.env.WIDGET_THEME || 'dark'
+  // 📖 Настройки для проекта "Читатель"
+  reader: {
+    // Настройки цитат
+    maxQuotesPerDay: parseInt(process.env.MAX_QUOTES_PER_DAY) || 10,
+    maxQuoteLength: parseInt(process.env.MAX_QUOTE_LENGTH) || 1000,
+    
+    // Настройки отчетов
+    weeklyReportTime: process.env.WEEKLY_REPORT_TIME || '11:00', // 11:00 МСК воскресенье
+    monthlyReportDay: parseInt(process.env.MONTHLY_REPORT_DAY) || 1, // 1 число месяца
+    
+    // Настройки напоминаний
+    reminderTimes: process.env.REMINDER_TIMES ? 
+      process.env.REMINDER_TIMES.split(',') : 
+      ['09:00', '19:00'],
+    
+    // UTM трекинг
+    utmSource: process.env.UTM_SOURCE || 'telegram_bot',
+    baseBookUrl: process.env.BASE_BOOK_URL || 'https://anna-busel.com/books',
+    
+    // Промокоды
+    defaultPromoDiscount: parseInt(process.env.DEFAULT_PROMO_DISCOUNT) || 20,
+    monthlyPromoDiscount: parseInt(process.env.MONTHLY_PROMO_DISCOUNT) || 25,
+    promoValidityDays: parseInt(process.env.PROMO_VALIDITY_DAYS) || 3
   },
 
   // Настройки производительности
@@ -251,6 +267,15 @@ function validateConfig() {
   );
   if (invalidLanguages.length > 0) {
     errors.push(`Invalid languages in SUPPORTED_LANGUAGES: ${invalidLanguages.join(', ')}`);
+  }
+
+  // 📖 Валидация настроек Reader Bot
+  if (config.reader.maxQuotesPerDay < 1 || config.reader.maxQuotesPerDay > 50) {
+    errors.push('MAX_QUOTES_PER_DAY must be between 1 and 50');
+  }
+
+  if (config.reader.maxQuoteLength < 10 || config.reader.maxQuoteLength > 2000) {
+    errors.push('MAX_QUOTE_LENGTH must be between 10 and 2000');
   }
 
   if (errors.length > 0) {
