@@ -2,6 +2,7 @@
  * Clean Onboarding Handler - menu button + simple text for Reader bot
  * @file telegram/handlers/modernOnboardingHandler.js
  * 🎨 CLEAN UX: Menu button, simple text, no visual spam
+ * 🔧 FIXED: Message editing errors, robust error handling
  */
 
 const logger = require('../../server/utils/logger');
@@ -244,7 +245,7 @@ class ModernOnboardingHandler {
   }
 
   /**
-   * Start test with single message interface
+   * Start test - robust message handling
    */
   async _startTest(ctx) {
     const userId = ctx.from.id.toString();
@@ -255,19 +256,22 @@ class ModernOnboardingHandler {
       currentQuestion: 1,
       startTime: Date.now(),
       lastActivity: Date.now(),
-      messageId: ctx.callbackQuery.message.message_id
+      useNewMessages: false // Will use new messages instead of editing
     });
 
     await this._showQuestion(ctx, 1);
   }
 
   /**
-   * Show question with clean design
+   * Show question with robust error handling
    */
   async _showQuestion(ctx, questionNumber) {
     try {
+      const userId = ctx.from.id.toString();
+      const state = this.userStates.get(userId);
       const question = this.testQuestions[questionNumber - 1];
-      if (!question) return;
+      
+      if (!question || !state) return;
 
       const progress = `📊 ${questionNumber}/${this.testQuestions.length}`;
       
@@ -276,15 +280,12 @@ class ModernOnboardingHandler {
       if (question.type === 'text') {
         message += '\n\n💬 Просто напишите ваш ответ:';
         
-        await ctx.editMessageText(message);
+        // Отправляем новое сообщение
+        await ctx.reply(message);
         
         // Установить состояние ожидания текста
-        const userId = ctx.from.id.toString();
-        const state = this.userStates.get(userId);
-        if (state) {
-          state.step = 'awaiting_name';
-          state.lastActivity = Date.now();
-        }
+        state.step = 'awaiting_name';
+        state.lastActivity = Date.now();
 
       } else if (question.type === 'buttons') {
         const keyboard = {
@@ -294,17 +295,56 @@ class ModernOnboardingHandler {
           }])
         };
 
-        await ctx.editMessageText(message, { reply_markup: keyboard });
+        // Пытаемся отредактировать существующее сообщение, если не получается - отправляем новое
+        try {
+          if (ctx.callbackQuery && ctx.callbackQuery.message) {
+            await ctx.editMessageText(message, { reply_markup: keyboard });
+          } else {
+            await ctx.reply(message, { reply_markup: keyboard });
+          }
+        } catch (editError) {
+          // Если не удалось отредактировать, отправляем новое сообщение
+          logger.warn(`Could not edit message, sending new: ${editError.message}`);
+          await ctx.reply(message, { reply_markup: keyboard });
+        }
       }
       
     } catch (error) {
       logger.error(`Error showing question: ${error.message}`);
+      // Graceful fallback
+      await this._sendFallbackMessage(ctx, questionNumber);
+    }
+  }
+
+  /**
+   * Fallback message when editing fails
+   */
+  async _sendFallbackMessage(ctx, questionNumber) {
+    try {
+      const question = this.testQuestions[questionNumber - 1];
+      if (!question) return;
+
+      const message = `${question.emoji} ${question.question}`;
+
+      if (question.type === 'text') {
+        await ctx.reply(message + '\n\n💬 Напишите ваш ответ:');
+      } else if (question.type === 'buttons') {
+        const keyboard = {
+          inline_keyboard: question.options.map(option => [{
+            text: option.text,
+            callback_data: `answer_${question.id}_${option.value}`
+          }])
+        };
+        await ctx.reply(message, { reply_markup: keyboard });
+      }
+    } catch (error) {
+      logger.error(`Error in fallback message: ${error.message}`);
       await ctx.reply('📖 Произошла ошибка. Попробуйте /start');
     }
   }
 
   /**
-   * Handle answer - update same message
+   * Handle answer - robust message handling
    */
   async _handleAnswer(ctx, callbackData) {
     try {
@@ -346,7 +386,7 @@ class ModernOnboardingHandler {
   }
 
   /**
-   * Handle name input - delete user message, update bot message
+   * Handle name input with deletion
    */
   async _handleNameInput(ctx, name) {
     try {
@@ -379,7 +419,7 @@ class ModernOnboardingHandler {
       state.step = 'test_question_2';
       state.lastActivity = Date.now();
 
-      // Обновляем основное сообщение
+      // Показываем следующий вопрос
       await this._showQuestion(ctx, 2);
       
     } catch (error) {
@@ -407,7 +447,8 @@ class ModernOnboardingHandler {
         '• Эксклюзивные промокоды\n\n' +
         '💌 Введите ваш email:';
 
-      await ctx.editMessageText(message);
+      // Отправляем новое сообщение
+      await ctx.reply(message);
 
       state.step = 'awaiting_email';
       state.lastActivity = Date.now();
@@ -476,18 +517,7 @@ class ModernOnboardingHandler {
         }])
       };
 
-      // Используем editMessageText если есть messageId, иначе новое сообщение
-      if (state.messageId) {
-        await ctx.telegram.editMessageText(
-          ctx.chat.id,
-          state.messageId,
-          undefined,
-          message,
-          { reply_markup: keyboard }
-        );
-      } else {
-        await ctx.reply(message, { reply_markup: keyboard });
-      }
+      await ctx.reply(message, { reply_markup: keyboard });
       
     } catch (error) {
       logger.error(`Error collecting source: ${error.message}`);
@@ -593,17 +623,7 @@ class ModernOnboardingHandler {
         '📖 Хватит сидеть в телефоне — читайте книги!\n\n' +
         '💡 Используйте кнопку меню 📋 (рядом с прикреплением файлов) для навигации';
 
-      // Обновляем основное сообщение
-      if (state.messageId) {
-        await ctx.telegram.editMessageText(
-          ctx.chat.id,
-          state.messageId,
-          undefined,
-          completionMessage
-        );
-      } else {
-        await ctx.reply(completionMessage);
-      }
+      await ctx.reply(completionMessage);
 
       // Очищаем состояние
       this.userStates.delete(userId);
