@@ -43,20 +43,22 @@ try {
   Quote = null;
 }
 
-// Безопасная загрузка сервисов с обработкой ошибок
+// 🔧 FIX: Безопасная загрузка сервисов с обработкой ошибок и правильными экземплярами
 let weeklyReportService, monthlyReportService, telegramReportService, cronService;
 
 try {
-  weeklyReportService = require('../services/weeklyReportService');
-  logger.info('✅ weeklyReportService loaded');
+  const WeeklyReportService = require('../services/weeklyReportService');
+  weeklyReportService = new WeeklyReportService(); // Создаем экземпляр класса
+  logger.info('✅ weeklyReportService instance created');
 } catch (error) {
   logger.warn('⚠️ weeklyReportService not available:', error.message);
   weeklyReportService = null;
 }
 
 try {
-  monthlyReportService = require('../services/monthlyReportService');
-  logger.info('✅ monthlyReportService loaded');
+  const MonthlyReportService = require('../services/monthlyReportService');
+  monthlyReportService = new MonthlyReportService(); // Создаем экземпляр класса
+  logger.info('✅ monthlyReportService instance created');
 } catch (error) {
   logger.warn('⚠️ monthlyReportService not available:', error.message);
   monthlyReportService = null;
@@ -73,7 +75,7 @@ try {
 try {
   const { CronService } = require('../services/cronService');
   cronService = new CronService();
-  logger.info('✅ cronService loaded');
+  logger.info('✅ cronService instance created');
 } catch (error) {
   logger.warn('⚠️ cronService not available:', error.message);
   cronService = null;
@@ -444,46 +446,81 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
       });
     }
     
-    let result;
-    
     if (userId) {
-      // Генерация для конкретного пользователя
-      result = await weeklyReportService.generateWeeklyReport(userId);
+      // 🔧 FIX: Генерация для конкретного пользователя с правильными параметрами
       
-      if (result) {
-        // Отправляем в Telegram (если доступно)
-        let sendSuccess = false;
-        if (telegramReportService) {
-          try {
-            sendSuccess = await telegramReportService.sendWeeklyReport(result);
-          } catch (error) {
-            logger.warn('Failed to send to Telegram:', error.message);
-          }
-        }
-        
-        res.json({
-          success: true,
-          data: {
-            report: {
-              id: result._id,
-              userId: result.userId,
-              weekNumber: result.weekNumber,
-              year: result.year,
-              quotesCount: result.quotes.length
-            },
-            telegramSent: sendSuccess,
-            telegramAvailable: !!telegramReportService
-          }
+      // Получаем пользователя
+      const userProfile = await UserProfile.findOne({ userId }).lean();
+      if (!userProfile) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found',
+          userId
         });
-      } else {
-        res.json({
+      }
+
+      // Получаем цитаты за текущую неделю
+      const currentWeek = weeklyReportService.getCurrentWeekNumber();
+      const currentYear = new Date().getFullYear();
+      
+      const quotes = await Quote.find({
+        userId,
+        $or: [
+          { weekNumber: currentWeek, yearNumber: currentYear },
+          { 
+            createdAt: { 
+              $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Последние 7 дней
+            }
+          }
+        ]
+      }).lean();
+
+      if (quotes.length === 0) {
+        return res.json({
           success: true,
           data: {
-            message: 'No report generated (empty week or user not found)',
-            userId
+            message: 'No quotes found for this user in the current week',
+            userId,
+            weekNumber: currentWeek,
+            year: currentYear
           }
         });
       }
+
+      // Генерируем отчет с правильными параметрами
+      const reportData = await weeklyReportService.generateWeeklyReport(userId, quotes, userProfile);
+      
+      // Сохраняем отчет в базу данных
+      const savedReport = await WeeklyReport.create({
+        ...reportData,
+        sentAt: new Date()
+      });
+
+      // Отправляем в Telegram (если доступно)
+      let sendSuccess = false;
+      if (telegramReportService && typeof telegramReportService.sendWeeklyReport === 'function') {
+        try {
+          sendSuccess = await telegramReportService.sendWeeklyReport(savedReport);
+        } catch (telegramError) {
+          logger.warn('Failed to send to Telegram:', telegramError.message);
+        }
+      }
+      
+      res.json({
+        success: true,
+        data: {
+          report: {
+            id: savedReport._id,
+            userId: savedReport.userId,
+            weekNumber: savedReport.weekNumber,
+            year: savedReport.year,
+            quotesCount: quotes.length,
+            analysis: savedReport.analysis
+          },
+          telegramSent: sendSuccess,
+          telegramAvailable: !!telegramReportService
+        }
+      });
     } else {
       // Генерация для всех пользователей
       if (!cronService) {
@@ -493,13 +530,12 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
         });
       }
       
-      const stats = await cronService.runWeeklyReportsManually();
-      
+      // TODO: Реализовать bulk генерацию через cronService
       res.json({
         success: true,
         data: {
-          generationStats: stats,
-          message: 'Bulk weekly reports generation completed'
+          message: 'Bulk generation not yet implemented',
+          note: 'Use userId parameter for individual report generation'
         }
       });
     }
@@ -538,7 +574,7 @@ router.get('/weekly/:userId', checkModelsAvailable, async (req, res) => {
           id: report._id,
           weekNumber: report.weekNumber,
           year: report.year,
-          quotesCount: report.quotes.length,
+          quotesCount: report.quotes ? report.quotes.length : 0,
           sentAt: report.sentAt,
           isRead: report.isRead,
           feedback: report.feedback,
