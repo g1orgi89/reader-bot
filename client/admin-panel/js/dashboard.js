@@ -1,7 +1,7 @@
 /**
  * @fileoverview Исправленный дашборд аналитики для "Читатель"
  * @description Фиксит проблемы с Chart.js и добавляет fallback данные
- * @version 2.3.0 - ИСПРАВЛЕНЫ API ENDPOINTS
+ * @version 2.2.0 - ИСПРАВЛЕНА ОБРАБОТКА CANVAS
  */
 
 class ReaderDashboard {
@@ -10,8 +10,8 @@ class ReaderDashboard {
     this.charts = new Map(); // Используем Map для лучшего отслеживания
     this.isLoading = false;
     
-    // 🔧 ИСПРАВЛЕНО: Используем правильный API prefix без /reader
-    this.apiBase = '/api/analytics';
+    // ИСПРАВЛЕНО: Правильный API prefix
+    this.apiBase = '/api/reader/analytics';
     
     this.init();
   }
@@ -46,9 +46,9 @@ class ReaderDashboard {
         this.fetchTopContent()
       ]);
 
-      this.updateStatCards(dashboardStats.overview || dashboardStats);
-      this.updateSourceChart(dashboardStats.sourceStats || []);
-      this.updateUTMChart(dashboardStats.utmStats || []);
+      this.updateStatCards(dashboardStats.overview);
+      this.updateSourceChart(dashboardStats.sourceStats);
+      this.updateUTMChart(dashboardStats.utmStats);
       this.updateRetentionChart(retentionData);
       this.updateTopContent(topContent);
 
@@ -62,7 +62,7 @@ class ReaderDashboard {
   }
 
   /**
-   * 🔧 ИСПРАВЛЕНО: Получение статистики дашборда с правильным URL
+   * ИСПРАВЛЕНО: Получение статистики дашборда с правильным URL
    */
   async fetchDashboardStats() {
     const url = `${this.apiBase}/dashboard?period=${this.currentPeriod}`;
@@ -77,7 +77,7 @@ class ReaderDashboard {
   }
 
   /**
-   * 🔧 ИСПРАВЛЕНО: Получение данных retention с правильным URL
+   * ИСПРАВЛЕНО: Получение данных retention с правильным URL
    */
   async fetchRetentionData() {
     const url = `${this.apiBase}/retention`;
@@ -92,7 +92,7 @@ class ReaderDashboard {
   }
 
   /**
-   * 🔧 ИСПРАВЛЕНО: Получение топ контента с правильным URL
+   * ИСПРАВЛЕНО: Получение топ контента с правильным URL
    */
   async fetchTopContent() {
     const url = `${this.apiBase}/top-content?period=${this.currentPeriod}`;
@@ -634,7 +634,7 @@ class ReaderDashboard {
   }
 
   /**
-   * 🔧 ИСПРАВЛЕНО: Экспорт данных с правильным URL
+   * ИСПРАВЛЕНО: Экспорт данных с правильным URL
    */
   async exportData() {
     try {
