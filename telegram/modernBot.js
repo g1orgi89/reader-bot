@@ -4,6 +4,7 @@
  * 🎨 VISUAL UX: Beautiful panels, modern navigation, elegant design
  * 📖 READER THEME: Book-focused design with Anna Busel persona
  * ✨ FEATURES: Smart classification, modern panels, achievements
+ * 📋 MENU BUTTON: Modern navigation with menu button
  */
 
 const { Telegraf, Markup } = require('telegraf');
@@ -67,6 +68,10 @@ class ModernReaderBot {
    */
   async initialize() {
     try {
+      // 📋 SETUP MENU BUTTON FIRST
+      await this.onboardingHandler.setupMenuButton(this.bot);
+      logger.info('📋 Menu button and commands configured');
+      
       // Setup middleware
       this._setupMiddleware();
       
@@ -153,8 +158,11 @@ class ModernReaderBot {
         const userProfile = await UserProfile.findOne({ userId });
         
         if (userProfile && userProfile.isOnboardingComplete) {
-          // Show modern main menu
-          await this.navigationHandler.showMainMenu(ctx, userProfile);
+          // Show simple welcome back message
+          await ctx.reply(
+            '📖 Добро пожаловать обратно!\n\n' +
+            '💡 Используйте кнопку меню 📋 (рядом с прикреплением файлов) для навигации'
+          );
         } else {
           // Start modern onboarding
           await this.onboardingHandler.handleStart(ctx);
@@ -166,30 +174,33 @@ class ModernReaderBot {
       }
     });
 
-    // /menu - Modern navigation interface
-    this.bot.command('menu', async (ctx) => {
-      try {
-        const userId = ctx.from.id.toString();
-        const userProfile = await UserProfile.findOne({ userId });
-        
-        if (userProfile && userProfile.isOnboardingComplete) {
-          await this.navigationHandler.showMainMenu(ctx, userProfile);
-        } else {
-          await ctx.reply('📖 Пожалуйста, сначала пройдите регистрацию. Используйте /start');
-        }
-      } catch (error) {
-        logger.error(`🎨 Error in /menu: ${error.message}`);
-        await this._sendFallbackMessage(ctx, 'menu');
-      }
-    });
-
     // /help - Beautiful help interface
     this.bot.help(async (ctx) => {
       try {
         const userProfile = await UserProfile.findOne({ userId: ctx.from.id.toString() });
         
         if (userProfile && userProfile.isOnboardingComplete) {
-          await this.navigationHandler.showHelp(ctx);
+          const helpMessage = 
+            '📖 **Справка по боту «Читатель»**\n\n' +
+            '🎯 **Главная функция:**\n' +
+            'Отправляйте мне цитаты текстом, и я сохраню их в ваш персональный дневник.\n\n' +
+            '📝 **Формат цитат:**\n' +
+            '• Просто текст: "Мудрая мысль"\n' +
+            '• С автором: "Цитата" (Автор)\n' +
+            '• Лимит: 10 цитат в день\n\n' +
+            '📋 **Команды (через меню кнопку):**\n' +
+            '• 📊 /stats - Ваша статистика\n' +
+            '• 🔍 /search - Поиск по цитатам\n' +
+            '• ⚙️ /settings - Настройки\n\n' +
+            '📊 **Отчеты:**\n' +
+            '• Еженедельно (воскресенье, 11:00)\n' +
+            '• Анализ от Анны Бусел\n' +
+            '• Рекомендации книг\n' +
+            '• Промокоды\n\n' +
+            '💡 **Навигация:**\n' +
+            'Используйте кнопку меню 📋 рядом с прикреплением файлов';
+
+          await ctx.reply(helpMessage, { parse_mode: 'Markdown' });
         } else {
           await this._sendOnboardingHelp(ctx);
         }
@@ -204,27 +215,41 @@ class ModernReaderBot {
       try {
         const userProfile = await UserProfile.findOne({ userId: ctx.from.id.toString() });
         if (userProfile && userProfile.isOnboardingComplete) {
-          await this.navigationHandler.showStats(ctx);
+          await this._showStats(ctx, userProfile);
         } else {
           await ctx.reply('📖 Сначала пройдите регистрацию: /start');
         }
       } catch (error) {
         logger.error(`🎨 Error in /stats: ${error.message}`);
-        await ctx.reply('📊 Произошла ошибка при загрузке статистики. Попробуйте /menu');
+        await ctx.reply('📊 Произошла ошибка при загрузке статистики. Попробуйте /start');
       }
     });
 
-    this.bot.command('diary', async (ctx) => {
+    this.bot.command('search', async (ctx) => {
       try {
         const userProfile = await UserProfile.findOne({ userId: ctx.from.id.toString() });
         if (userProfile && userProfile.isOnboardingComplete) {
-          await this.navigationHandler.showDiary(ctx, 1);
+          await this._showSearch(ctx);
         } else {
           await ctx.reply('📖 Сначала пройдите регистрацию: /start');
         }
       } catch (error) {
-        logger.error(`🎨 Error in /diary: ${error.message}`);
-        await ctx.reply('📚 Произошла ошибка при загрузке дневника. Попробуйте /menu');
+        logger.error(`🎨 Error in /search: ${error.message}`);
+        await ctx.reply('🔍 Произошла ошибка при поиске. Попробуйте /start');
+      }
+    });
+
+    this.bot.command('settings', async (ctx) => {
+      try {
+        const userProfile = await UserProfile.findOne({ userId: ctx.from.id.toString() });
+        if (userProfile && userProfile.isOnboardingComplete) {
+          await this._showSettings(ctx, userProfile);
+        } else {
+          await ctx.reply('📖 Сначала пройдите регистрацию: /start');
+        }
+      } catch (error) {
+        logger.error(`🎨 Error in /settings: ${error.message}`);
+        await ctx.reply('⚙️ Произошла ошибка при загрузке настроек. Попробуйте /start');
       }
     });
   }
@@ -238,6 +263,9 @@ class ModernReaderBot {
       try {
         const messageText = ctx.message.text;
         const userId = ctx.from.id.toString();
+
+        // Skip commands
+        if (messageText.startsWith('/')) return;
 
         logger.info(`🎨 Processing text: "${messageText.substring(0, 50)}..."`);
 
@@ -253,16 +281,14 @@ class ModernReaderBot {
           return;
         }
 
-        // Smart message classification
-        const classification = await this.messageClassifier.classifyMessage(messageText, {
-          userId,
-          userProfile
-        });
+        // Simple quote detection and handling
+        if (this._isQuote(messageText)) {
+          await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
+          return;
+        }
 
-        logger.info(`🎨 Message classified as: ${classification.type} (${classification.confidence})`);
-
-        // Route based on classification
-        await this._routeClassifiedMessage(ctx, messageText, classification, userProfile);
+        // Handle as general message
+        await this._handleGeneralMessage(ctx, messageText, userProfile);
 
       } catch (error) {
         logger.error(`🎨 Error processing text message: ${error.message}`);
@@ -283,43 +309,41 @@ class ModernReaderBot {
 
         const messageType = this._getMessageType(ctx.message);
         
-        const nonTextResponse = `
-╭─────────────────────────╮
-│   📎 ФАЙЛЫ НЕ ПРИНИМАЮ  │
-╰─────────────────────────╯
+        const nonTextResponse = 
+          '📎 Спасибо за ' + messageType + '! Но я принимаю только текстовые цитаты.\n\n' +
+          '💡 Если у вас есть интересная цитата из изображения или документа, ' +
+          'пожалуйста, перепечатайте ее текстом.\n\n' +
+          '📝 Пример: "В каждом слове — целая жизнь" (Марина Цветаева)\n\n' +
+          '📋 Используйте кнопку меню для навигации';
 
-Спасибо за ${messageType}! Но я принимаю 
-только текстовые цитаты.
-
-💡 Если у вас есть интересная цитата 
-   из изображения или документа, 
-   пожалуйста, перепечатайте ее.
-
-📝 Пример:
-   "В каждом слове — целая жизнь"
-   (Марина Цветаева)
-
-┌─────────────────────────┐
-│      КАК ОТПРАВИТЬ:     │
-└─────────────────────────┘
-✨ Просто напишите цитату текстом
-📖 Укажите автора в скобках (если знаете)
-🌟 Без фотографий и файлов`;
-
-        await ctx.reply(nonTextResponse, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "📖 Главное меню", callback_data: "nav_main" }],
-              [{ text: "❓ Как пользоваться", callback_data: "nav_help" }]
-            ]
-          }
-        });
+        await ctx.reply(nonTextResponse);
 
       } catch (error) {
         logger.error(`🎨 Error processing non-text message: ${error.message}`);
         await ctx.reply('📖 Я принимаю только текстовые цитаты. Попробуйте написать текстом.');
       }
     });
+  }
+
+  /**
+   * Simple quote detection
+   * @private
+   */
+  _isQuote(text) {
+    // Simple heuristics for quote detection
+    if (text.length < 10) return false;
+    if (text.length > 1000) return false;
+    
+    // Has quotes or parentheses
+    if (text.includes('"') || text.includes('(') || text.includes('—')) return true;
+    
+    // Philosophical/wisdom words
+    const wisdomWords = ['жизнь', 'любовь', 'счастье', 'мудрость', 'душа', 'сердце', 'путь', 'цель', 'смысл'];
+    const lowerText = text.toLowerCase();
+    if (wisdomWords.some(word => lowerText.includes(word))) return true;
+    
+    // Default to treating meaningful text as potential quotes
+    return text.length > 20;
   }
 
   /**
@@ -334,21 +358,15 @@ class ModernReaderBot {
         
         logger.info(`🎨 Callback: ${callbackData} from user ${userId}`);
 
-        // Handle message classification callbacks
-        if (callbackData.startsWith('classify_')) {
-          await this._handleClassificationCallback(ctx, callbackData);
-          return;
-        }
-
-        // Try navigation handler first
-        if (await this.navigationHandler.handleCallback(ctx, callbackData)) {
-          await ctx.answerCbQuery(); // Acknowledge callback
-          return;
-        }
-
-        // Try onboarding handler
+        // Try onboarding handler first
         if (await this.onboardingHandler.handleCallback(ctx)) {
           await ctx.answerCbQuery();
+          return;
+        }
+
+        // Handle settings callbacks
+        if (callbackData.startsWith('settings_')) {
+          await this._handleSettingsCallback(ctx, callbackData);
           return;
         }
 
@@ -364,198 +382,134 @@ class ModernReaderBot {
   }
 
   /**
-   * Route classified message to appropriate handler
+   * Show user statistics
    * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} messageText - Original message
-   * @param {Object} classification - Classification result
-   * @param {Object} userProfile - User profile
    */
-  async _routeClassifiedMessage(ctx, messageText, classification, userProfile) {
+  async _showStats(ctx, userProfile) {
     try {
-      switch (classification.type) {
-        case 'quote':
-          await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
-          break;
-
-        case 'question':
-        case 'complex_question':
-          await this._handleQuestion(ctx, messageText, userProfile);
-          break;
-
-        case 'ambiguous':
-          await this._handleAmbiguousMessage(ctx, messageText, classification);
-          break;
-
-        default:
-          await this._handleGeneralMessage(ctx, messageText, userProfile);
-          break;
-      }
-    } catch (error) {
-      logger.error(`🎨 Error routing classified message: ${error.message}`);
-      await this._sendErrorMessage(ctx, error);
-    }
-  }
-
-  /**
-   * Handle ambiguous messages with user clarification
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} messageText - Original message
-   * @param {Object} classification - Classification result
-   */
-  async _handleAmbiguousMessage(ctx, messageText, classification) {
-    try {
-      const userId = ctx.from.id.toString();
+      const totalQuotes = await Quote.countDocuments({ userId: userProfile.userId });
       
-      // Store for later processing
-      this.pendingClassifications.set(userId, {
-        message: messageText,
-        timestamp: Date.now(),
-        classification
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayQuotes = await Quote.countDocuments({ 
+        userId: userProfile.userId, 
+        createdAt: { $gte: today } 
       });
 
-      const clarificationPanel = `
-╭─────────────────────────╮
-│   🤔 УТОЧНИТЕ, ПОЖАЛУЙСТА │
-╰─────────────────────────╯
+      const daysWithBot = Math.floor((Date.now() - userProfile.registeredAt.getTime()) / (1000 * 60 * 60 * 24));
 
-Ваше сообщение:
-"${messageText.substring(0, 100)}${messageText.length > 100 ? '...' : ''}"
+      const statsMessage = 
+        `📊 **Ваша статистика, ${userProfile.name}**\n\n` +
+        `📖 Цитат собрано: ${totalQuotes}\n` +
+        `📅 Сегодня добавлено: ${todayQuotes}\n` +
+        `🔥 Текущая серия: ${userProfile.statistics.currentStreak} дней\n` +
+        `⭐ Рекорд серии: ${userProfile.statistics.longestStreak} дней\n` +
+        `🕐 С ботом: ${daysWithBot} дней\n\n` +
+        `🏆 Достижения: ${userProfile.achievements.length}\n\n` +
+        `📧 Email: ${userProfile.email}\n` +
+        `📱 Источник: ${userProfile.source}`;
 
-💭 Я не совсем понял, что вы хотели:
-
-┌─────────────────────────┐
-│     ЭТО ЦИТАТА ИЛИ      │
-│       ВОПРОС?           │
-└─────────────────────────┘
-
-Помогите мне понять, чтобы я мог 
-лучше вам ответить.`;
-
-      const keyboard = {
-        inline_keyboard: [
-          [
-            { text: "📖 Это цитата", callback_data: "classify_quote_confirm" },
-            { text: "❓ Это вопрос", callback_data: "classify_question_confirm" }
-          ],
-          [
-            { text: "❌ Отменить", callback_data: "classify_cancel" }
-          ]
-        ]
-      };
-
-      await ctx.reply(clarificationPanel, { reply_markup: keyboard });
-
-      // Auto-cleanup after 5 minutes
-      setTimeout(() => {
-        if (this.pendingClassifications.has(userId)) {
-          this.pendingClassifications.delete(userId);
-        }
-      }, 5 * 60 * 1000);
-
+      await ctx.reply(statsMessage, { parse_mode: 'Markdown' });
     } catch (error) {
-      logger.error(`🎨 Error handling ambiguous message: ${error.message}`);
-      await this._handleGeneralMessage(ctx, messageText, userProfile);
+      logger.error(`Error showing stats: ${error.message}`);
+      await ctx.reply('📊 Произошла ошибка при загрузке статистики');
     }
   }
 
   /**
-   * Handle classification callbacks
+   * Show search interface
    * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} callbackData - Callback data
    */
-  async _handleClassificationCallback(ctx, callbackData) {
+  async _showSearch(ctx) {
+    try {
+      const userId = ctx.from.id.toString();
+      const quotes = await Quote.find({ userId })
+        .sort({ createdAt: -1 })
+        .limit(10);
+
+      if (quotes.length === 0) {
+        await ctx.reply('🔍 У вас пока нет сохраненных цитат. Отправьте первую!');
+        return;
+      }
+
+      let searchText = '🔍 **Ваши последние цитаты:**\n\n';
+      quotes.forEach((quote, index) => {
+        const author = quote.author ? ` (${quote.author})` : '';
+        const shortText = quote.text.length > 100 ? quote.text.substring(0, 100) + '...' : quote.text;
+        searchText += `${index + 1}. "${shortText}"${author}\n\n`;
+      });
+
+      await ctx.reply(searchText, { parse_mode: 'Markdown' });
+    } catch (error) {
+      logger.error(`Error showing search: ${error.message}`);
+      await ctx.reply('🔍 Произошла ошибка при поиске');
+    }
+  }
+
+  /**
+   * Show settings interface
+   * @private
+   */
+  async _showSettings(ctx, userProfile) {
+    try {
+      const settingsMessage = 
+        `⚙️ **Настройки бота**\n\n` +
+        `👤 Имя: ${userProfile.name}\n` +
+        `📧 Email: ${userProfile.email}\n` +
+        `🔔 Напоминания: ${userProfile.settings.reminderEnabled ? 'Включены' : 'Выключены'}\n` +
+        `⏰ Время: ${userProfile.settings.reminderTimes.join(', ')}\n\n` +
+        `Выберите, что хотите изменить:`;
+
+      const keyboard = {
+        inline_keyboard: [
+          [{ 
+            text: userProfile.settings.reminderEnabled ? '🔕 Выключить напоминания' : '🔔 Включить напоминания',
+            callback_data: 'settings_toggle_reminders'
+          }],
+          [{ text: '⏰ Изменить время напоминаний', callback_data: 'settings_change_time' }]
+        ]
+      };
+
+      await ctx.reply(settingsMessage, { 
+        parse_mode: 'Markdown',
+        reply_markup: keyboard 
+      });
+    } catch (error) {
+      logger.error(`Error showing settings: ${error.message}`);
+      await ctx.reply('⚙️ Произошла ошибка при загрузке настроек');
+    }
+  }
+
+  /**
+   * Handle settings callbacks
+   * @private
+   */
+  async _handleSettingsCallback(ctx, callbackData) {
     try {
       const userId = ctx.from.id.toString();
       
-      if (callbackData === 'classify_cancel') {
-        this.pendingClassifications.delete(userId);
-        await ctx.editMessageText('📖 Отменено. Попробуйте еще раз, если нужно.');
-        await ctx.answerCbQuery('❌ Отменено');
-        return;
-      }
+      if (callbackData === 'settings_toggle_reminders') {
+        const userProfile = await UserProfile.findOne({ userId });
+        const newState = !userProfile.settings.reminderEnabled;
+        
+        await UserProfile.findOneAndUpdate(
+          { userId },
+          { 'settings.reminderEnabled': newState }
+        );
 
-      const pendingMessage = this.pendingClassifications.get(userId);
-      if (!pendingMessage) {
-        await ctx.answerCbQuery('⏰ Время истекло, попробуйте еще раз');
-        return;
+        const message = newState ? 
+          '🔔 Напоминания включены' : 
+          '🔕 Напоминания выключены';
+          
+        await ctx.answerCbQuery(message);
+        
+        // Refresh settings display
+        const updatedProfile = await UserProfile.findOne({ userId });
+        await this._showSettings(ctx, updatedProfile);
       }
-
-      const userProfile = await UserProfile.findOne({ userId });
-      const messageText = pendingMessage.message;
-      
-      if (callbackData === 'classify_quote_confirm') {
-        await ctx.editMessageText('📖 Обрабатываю как цитату...');
-        await ctx.answerCbQuery('✅ Принято как цитата');
-        
-        await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
-        
-      } else if (callbackData === 'classify_question_confirm') {
-        await ctx.editMessageText('💬 Обрабатываю как вопрос...');
-        await ctx.answerCbQuery('✅ Принято как вопрос');
-        
-        await this._handleQuestion(ctx, messageText, userProfile);
-      }
-      
-      this.pendingClassifications.delete(userId);
-      
     } catch (error) {
-      logger.error(`🎨 Error handling classification callback: ${error.message}`);
+      logger.error(`Error handling settings callback: ${error.message}`);
       await ctx.answerCbQuery('❌ Произошла ошибка');
-    }
-  }
-
-  /**
-   * Handle questions from users
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} messageText - Question text
-   * @param {Object} userProfile - User profile
-   */
-  async _handleQuestion(ctx, messageText, userProfile) {
-    try {
-      // For now, provide a helpful response and offer to contact Anna
-      const questionResponse = `
-╭─────────────────────────╮
-│     💬 ВАШ ВОПРОС       │
-╰─────────────────────────╯
-
-Спасибо за вопрос! Я передам его 
-Анне для персонального ответа.
-
-┌─────────────────────────┐
-│    АННА СВЯЖЕТСЯ С      │
-│    ВАМИ ЧЕРЕЗ:          │
-└─────────────────────────┘
-📧 Email: ${userProfile.email}
-📱 Telegram: @${userProfile.telegramUsername || ctx.from.username}
-
-⏰ Обычно отвечает в течение 24 часов
-
-💡 А пока можете:`;
-
-      const keyboard = {
-        inline_keyboard: [
-          [
-            { text: "📚 Посмотреть дневник", callback_data: "nav_diary" },
-            { text: "💎 Рекомендации", callback_data: "nav_recommendations" }
-          ],
-          [
-            { text: "✨ Добавить цитату", callback_data: "nav_add_quote" },
-            { text: "📖 Главное меню", callback_data: "nav_main" }
-          ]
-        ]
-      };
-
-      await ctx.reply(questionResponse, { reply_markup: keyboard });
-
-      // TODO: Integrate with ticketing system for complex questions
-      
-    } catch (error) {
-      logger.error(`🎨 Error handling question: ${error.message}`);
-      await ctx.reply('💬 Спасибо за вопрос! Анна ответит в ближайшее время.');
     }
   }
 
@@ -568,40 +522,18 @@ class ModernReaderBot {
    */
   async _handleGeneralMessage(ctx, messageText, userProfile) {
     try {
-      const generalResponse = `
-╭─────────────────────────╮
-│    💭 ПОНЯЛ ВАС!        │
-╰─────────────────────────╯
+      const generalResponse = 
+        '📖 Спасибо за сообщение!\n\n' +
+        'Если это была цитата, попробуйте отправить ее еще раз в таком формате:\n\n' +
+        '📝 "Текст цитаты" (Автор)\n' +
+        'или просто: Текст цитаты\n\n' +
+        '💡 Используйте кнопку меню 📋 для навигации';
 
-Спасибо за сообщение! 
-
-Если это была цитата, попробуйте 
-отправить ее еще раз в таком формате:
-
-📝 "Текст цитаты" (Автор)
-или просто: Текст цитаты
-
-┌─────────────────────────┐
-│     ЧТО МОЖНО ДЕЛАТЬ:   │
-└─────────────────────────┘`;
-
-      const keyboard = {
-        inline_keyboard: [
-          [
-            { text: "✨ Добавить цитату", callback_data: "nav_add_quote" },
-            { text: "❓ Помощь", callback_data: "nav_help" }
-          ],
-          [
-            { text: "📖 Главное меню", callback_data: "nav_main" }
-          ]
-        ]
-      };
-
-      await ctx.reply(generalResponse, { reply_markup: keyboard });
+      await ctx.reply(generalResponse);
       
     } catch (error) {
       logger.error(`🎨 Error handling general message: ${error.message}`);
-      await ctx.reply('📖 Спасибо за сообщение! Используйте /menu для навигации.');
+      await ctx.reply('📖 Спасибо за сообщение! Используйте кнопку меню 📋 для навигации.');
     }
   }
 
@@ -636,14 +568,7 @@ class ModernReaderBot {
    */
   async _sendFallbackError(ctx, message) {
     try {
-      await ctx.reply(message, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🔄 Попробовать снова", callback_data: "nav_main" }],
-            [{ text: "❓ Помощь", callback_data: "nav_help" }]
-          ]
-        }
-      });
+      await ctx.reply(message + '\n\n📋 Используйте кнопку меню для навигации');
     } catch (error) {
       logger.error(`🎨 Failed to send fallback error: ${error.message}`);
     }
@@ -664,7 +589,7 @@ class ModernReaderBot {
       };
 
       const message = fallbackMessages[command] || fallbackMessages.start;
-      await ctx.reply(message);
+      await ctx.reply(message + '\n\n📋 Используйте кнопку меню для навигации');
       
     } catch (error) {
       logger.error(`🎨 Failed to send fallback message: ${error.message}`);
@@ -678,31 +603,17 @@ class ModernReaderBot {
    */
   async _sendOnboardingReminder(ctx) {
     try {
-      const reminderMessage = `
-╭─────────────────────────╮
-│   📋 НУЖНА РЕГИСТРАЦИЯ  │
-╰─────────────────────────╯
+      const reminderMessage = 
+        '📋 Для использования бота необходимо пройти быструю регистрацию.\n\n' +
+        '💡 Это займет всего 2 минуты!\n\n' +
+        '📚 Что получите:\n' +
+        '• Персональный дневник цитат\n' +
+        '• Еженедельные отчеты от Анны\n' +
+        '• Рекомендации книг специально для вас\n' +
+        '• Достижения и статистику\n\n' +
+        'Используйте /start для начала регистрации';
 
-Для использования бота необходимо 
-пройти быструю регистрацию.
-
-💡 Это займет всего 2 минуты!
-
-┌─────────────────────────┐
-│      ЧТО ПОЛУЧИТЕ:      │
-└─────────────────────────┘
-📚 Персональный дневник цитат
-📊 Еженедельные отчеты от Анны
-💎 Рекомендации книг специально для вас
-🏆 Достижения и статистику`;
-
-      await ctx.reply(reminderMessage, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "✨ Начать регистрацию", callback_data: "start_beautiful_test" }]
-          ]
-        }
-      });
+      await ctx.reply(reminderMessage);
       
     } catch (error) {
       logger.error(`🎨 Error sending onboarding reminder: ${error.message}`);
@@ -717,32 +628,17 @@ class ModernReaderBot {
    */
   async _sendOnboardingHelp(ctx) {
     try {
-      const helpMessage = `
-╭─────────────────────────╮
-│    📖 О ПРОЕКТЕ         │
-╰─────────────────────────╯
+      const helpMessage = 
+        '📖 **О проекте «Читатель»**\n\n' +
+        '«Читатель» - персональный дневник цитат с AI-анализом от психолога Анны Бусел.\n\n' +
+        '**Как работает:**\n' +
+        '1️⃣ Отправляете боту цитаты\n' +
+        '2️⃣ ИИ анализирует ваши интересы\n' +
+        '3️⃣ Получаете персональные отчеты\n' +
+        '4️⃣ Анна рекомендует подходящие книги\n\n' +
+        'Для начала работы используйте /start';
 
-«Читатель» - персональный дневник 
-цитат с AI-анализом от психолога 
-Анны Бусел.
-
-┌─────────────────────────┐
-│      КАК РАБОТАЕТ:      │
-└─────────────────────────┘
-1️⃣ Отправляете боту цитаты
-2️⃣ ИИ анализирует ваши интересы
-3️⃣ Получаете персональные отчеты
-4️⃣ Анна рекомендует подходящие книги
-
-💡 Для начала работы нужна регистрация:`;
-
-      await ctx.reply(helpMessage, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "✨ Пройти регистрацию", callback_data: "start_beautiful_test" }]
-          ]
-        }
-      });
+      await ctx.reply(helpMessage, { parse_mode: 'Markdown' });
       
     } catch (error) {
       logger.error(`🎨 Error sending onboarding help: ${error.message}`);
@@ -792,27 +688,14 @@ class ModernReaderBot {
    */
   async _sendErrorMessage(ctx, error) {
     try {
-      const errorPanel = `
-╭─────────────────────────╮
-│      ❌ ОШИБКА         │
-╰─────────────────────────╯
+      const errorMessage = 
+        '❌ Произошла ошибка при обработке вашего сообщения.\n\n' +
+        '💡 Попробуйте:\n' +
+        '• Перефразировать сообщение\n' +
+        '• Использовать кнопку меню 📋 для навигации\n' +
+        '• Обратиться в поддержку';
 
-Произошла ошибка при обработке 
-вашего сообщения.
-
-💡 Попробуйте:
-• Перефразировать сообщение
-• Использовать /menu для навигации
-• Обратиться в поддержку`;
-
-      await ctx.reply(errorPanel, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🔄 Попробовать снова", callback_data: "nav_main" }],
-            [{ text: "💬 Поддержка", callback_data: "nav_contact" }]
-          ]
-        }
-      });
+      await ctx.reply(errorMessage);
       
     } catch (sendError) {
       logger.error(`🎨 Failed to send error message: ${sendError.message}`);
@@ -831,7 +714,7 @@ class ModernReaderBot {
 
     try {
       await this.bot.launch();
-      logger.info('🎨 ModernReaderBot started successfully with elegant UX design');
+      logger.info('🎨 ModernReaderBot started successfully with menu button navigation');
       
       // Graceful stop handlers
       process.once('SIGINT', () => this.stop('SIGINT'));
@@ -853,9 +736,15 @@ class ModernReaderBot {
       logger.info(`🎨 Stopping ModernReaderBot (${signal})...`);
       
       // Cleanup handlers
-      this.navigationHandler.cleanup();
-      this.onboardingHandler.cleanup();
-      this.quoteHandler.cleanup();
+      if (this.navigationHandler && this.navigationHandler.cleanup) {
+        this.navigationHandler.cleanup();
+      }
+      if (this.onboardingHandler && this.onboardingHandler.cleanupStaleStates) {
+        this.onboardingHandler.cleanupStaleStates();
+      }
+      if (this.quoteHandler && this.quoteHandler.cleanup) {
+        this.quoteHandler.cleanup();
+      }
       
       // Clear pending classifications
       this.pendingClassifications.clear();
@@ -932,20 +821,10 @@ class ModernReaderBot {
           activeUsersToday: activeUsers.length
         },
         modernFeatures: {
-          navigation: this.navigationHandler.getStats(),
-          onboarding: this.onboardingHandler.getStats(),
-          quotes: this.quoteHandler.getStats(),
-          classification: this.messageClassifier.getStats()
-        },
-        features: {
+          menuButton: true,
           modernUX: true,
-          visualPanels: true,
-          smartClassification: true,
-          ambiguityResolution: true,
-          elegantDesign: true,
-          beautifulOnboarding: true,
-          modernNavigation: true,
-          enhancedQuotes: true
+          cleanDesign: true,
+          simpleNavigation: true
         }
       };
     } catch (error) {
@@ -982,10 +861,10 @@ class ModernReaderBot {
         },
         modernHandlers: {
           initialized: this.isInitialized,
-          navigationActive: this.navigationHandler.userStates?.size || 0,
           onboardingActive: this.onboardingHandler.userStates?.size || 0,
           pendingClassifications: this.pendingClassifications.size,
-          modernUXEnabled: this.config.enableModernUX
+          modernUXEnabled: this.config.enableModernUX,
+          menuButtonEnabled: true
         },
         timestamp: new Date().toISOString()
       };
@@ -1005,9 +884,15 @@ class ModernReaderBot {
   cleanup() {
     try {
       // Cleanup handlers
-      this.navigationHandler.cleanup();
-      this.onboardingHandler.cleanup();
-      this.quoteHandler.cleanup();
+      if (this.navigationHandler && this.navigationHandler.cleanup) {
+        this.navigationHandler.cleanup();
+      }
+      if (this.onboardingHandler && this.onboardingHandler.cleanupStaleStates) {
+        this.onboardingHandler.cleanupStaleStates();
+      }
+      if (this.quoteHandler && this.quoteHandler.cleanup) {
+        this.quoteHandler.cleanup();
+      }
       
       // Clear pending classifications
       this.pendingClassifications.clear();
