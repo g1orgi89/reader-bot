@@ -30,7 +30,7 @@ class QuotesManager {
         };
         this.charts = {};
         this.isLoading = false;
-        this.apiPrefix = '/api/reader';
+        this.apiPrefix = '/api/reader'; // ИСПРАВЛЕНО: используем правильный API prefix
         
         this.init();
     }
@@ -42,13 +42,6 @@ class QuotesManager {
         console.log('📝 Инициализация QuotesManager');
         
         try {
-            // Проверяем авторизацию
-            if (!this.checkAuthentication()) {
-                console.error('❌ Пользователь не авторизован');
-                window.location.href = 'login.html';
-                return;
-            }
-
             // Загрузка начальных данных
             await this.loadData();
             
@@ -64,36 +57,6 @@ class QuotesManager {
             console.error('❌ Ошибка инициализации QuotesManager:', error);
             this.showNotification('error', 'Ошибка загрузки данных цитат');
         }
-    }
-
-    /**
-     * Проверка авторизации
-     */
-    checkAuthentication() {
-        const token = localStorage.getItem('reader_admin_token');
-        const expires = localStorage.getItem('reader_admin_expires');
-        
-        if (!token || !expires) {
-            console.log('📖 Нет токена авторизации');
-            return false;
-        }
-        
-        if (Date.now() > parseInt(expires, 10)) {
-            console.log('📖 Токен истек');
-            this.clearSession();
-            return false;
-        }
-        
-        return true;
-    }
-
-    /**
-     * Очистка сессии
-     */
-    clearSession() {
-        localStorage.removeItem('reader_admin_token');
-        localStorage.removeItem('reader_admin_user');
-        localStorage.removeItem('reader_admin_expires');
     }
 
     /**
@@ -117,15 +80,6 @@ class QuotesManager {
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных:', error);
-            
-            // Если 401 - перенаправляем на логин
-            if (error.message.includes('401')) {
-                console.log('📖 Требуется повторная авторизация');
-                this.clearSession();
-                window.location.href = 'login.html';
-                return;
-            }
-            
             throw error;
         } finally {
             this.setLoading(false);
@@ -143,9 +97,7 @@ class QuotesManager {
             ...this.filters
         });
 
-        const response = await fetch(`${this.apiPrefix}/quotes?${params}`, {
-            headers: this.getAuthHeaders()
-        });
+        const response = await fetch(`${this.apiPrefix}/quotes?${params}`);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -164,9 +116,7 @@ class QuotesManager {
      * @returns {Promise<Object>} Статистика
      */
     async fetchStatistics() {
-        const response = await fetch(`${this.apiPrefix}/quotes/statistics?period=${this.filters.period}`, {
-            headers: this.getAuthHeaders()
-        });
+        const response = await fetch(`${this.apiPrefix}/quotes/statistics?period=${this.filters.period}`);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -185,9 +135,7 @@ class QuotesManager {
      * @returns {Promise<Object>} Аналитика
      */
     async fetchAnalytics() {
-        const response = await fetch(`${this.apiPrefix}/quotes/analytics?period=${this.filters.period}`, {
-            headers: this.getAuthHeaders()
-        });
+        const response = await fetch(`${this.apiPrefix}/quotes/analytics?period=${this.filters.period}`);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -546,9 +494,7 @@ class QuotesManager {
             modal.style.display = 'flex';
 
             // Загружаем детальную информацию
-            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}`, {
-                headers: this.getAuthHeaders()
-            });
+            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}`);
 
             if (!response.ok) {
                 throw new Error('Ошибка загрузки информации о цитате');
@@ -699,8 +645,7 @@ class QuotesManager {
             console.log('🤖 Запуск AI анализа цитаты:', quoteId);
 
             const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}/analyze`, {
-                method: 'POST',
-                headers: this.getAuthHeaders()
+                method: 'POST'
             });
 
             if (!response.ok) {
@@ -734,7 +679,9 @@ class QuotesManager {
 
             const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}`, {
                 method: 'DELETE',
-                headers: this.getAuthHeaders(),
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
                     reason: 'Удалено администратором'
                 })
@@ -767,7 +714,9 @@ class QuotesManager {
 
             const response = await fetch(`${this.apiPrefix}/quotes/export`, {
                 method: 'POST',
-                headers: this.getAuthHeaders(),
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
                     format: 'csv',
                     ...this.filters
@@ -799,9 +748,7 @@ class QuotesManager {
         try {
             console.log('🔍 Поиск похожих цитат для:', quoteId);
 
-            const response = await fetch(`${this.apiPrefix}/quotes/search/similar/${quoteId}`, {
-                headers: this.getAuthHeaders()
-            });
+            const response = await fetch(`${this.apiPrefix}/quotes/search/similar/${quoteId}`);
 
             if (!response.ok) {
                 throw new Error('Ошибка поиска');
@@ -891,18 +838,6 @@ class QuotesManager {
     }
 
     // ==================== УТИЛИТЫ ====================
-
-    /**
-     * ИСПРАВЛЕНО: Получение заголовков авторизации с правильным ключом токена
-     * @returns {Object} Заголовки
-     */
-    getAuthHeaders() {
-        const token = localStorage.getItem('reader_admin_token'); // ИСПРАВЛЕНО: используем правильный ключ
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-        };
-    }
 
     /**
      * Установка состояния загрузки
