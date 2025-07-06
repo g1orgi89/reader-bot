@@ -30,6 +30,7 @@ class QuotesManager {
         };
         this.charts = {};
         this.isLoading = false;
+        this.apiPrefix = '/api/reader'; // ИСПРАВЛЕНО: используем правильный API prefix
         
         this.init();
     }
@@ -96,7 +97,7 @@ class QuotesManager {
             ...this.filters
         });
 
-        const response = await fetch(`/api/quotes?${params}`, {
+        const response = await fetch(`${this.apiPrefix}/quotes?${params}`, {
             headers: this.getAuthHeaders()
         });
 
@@ -117,7 +118,7 @@ class QuotesManager {
      * @returns {Promise<Object>} Статистика
      */
     async fetchStatistics() {
-        const response = await fetch(`/api/quotes/statistics?period=${this.filters.period}`, {
+        const response = await fetch(`${this.apiPrefix}/quotes/statistics?period=${this.filters.period}`, {
             headers: this.getAuthHeaders()
         });
 
@@ -138,7 +139,7 @@ class QuotesManager {
      * @returns {Promise<Object>} Аналитика
      */
     async fetchAnalytics() {
-        const response = await fetch(`/api/quotes/analytics?period=${this.filters.period}`, {
+        const response = await fetch(`${this.apiPrefix}/quotes/analytics?period=${this.filters.period}`, {
             headers: this.getAuthHeaders()
         });
 
@@ -499,7 +500,7 @@ class QuotesManager {
             modal.style.display = 'flex';
 
             // Загружаем детальную информацию
-            const response = await fetch(`/api/quotes/${quoteId}`, {
+            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}`, {
                 headers: this.getAuthHeaders()
             });
 
@@ -651,7 +652,7 @@ class QuotesManager {
         try {
             console.log('🤖 Запуск AI анализа цитаты:', quoteId);
 
-            const response = await fetch(`/api/quotes/${quoteId}/analyze`, {
+            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}/analyze`, {
                 method: 'POST',
                 headers: this.getAuthHeaders()
             });
@@ -685,7 +686,7 @@ class QuotesManager {
         try {
             console.log('🗑️ Удаление цитаты:', quoteId);
 
-            const response = await fetch(`/api/quotes/${quoteId}`, {
+            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}`, {
                 method: 'DELETE',
                 headers: this.getAuthHeaders(),
                 body: JSON.stringify({
@@ -718,7 +719,7 @@ class QuotesManager {
         try {
             console.log('📊 Экспорт цитат');
 
-            const response = await fetch('/api/quotes/export', {
+            const response = await fetch(`${this.apiPrefix}/quotes/export`, {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 body: JSON.stringify({
@@ -752,7 +753,7 @@ class QuotesManager {
         try {
             console.log('🔍 Поиск похожих цитат для:', quoteId);
 
-            const response = await fetch(`/api/quotes/search/similar/${quoteId}`, {
+            const response = await fetch(`${this.apiPrefix}/quotes/search/similar/${quoteId}`, {
                 headers: this.getAuthHeaders()
             });
 
@@ -1018,6 +1019,28 @@ class QuotesManager {
                 notification.parentNode.removeChild(notification);
             }
         }, 5000);
+    }
+
+    /**
+     * Обновление изменений статистики
+     * @param {Object} changeStats - Статистика изменений
+     */
+    updateStatChanges(changeStats) {
+        const elements = {
+            'quotes-change': changeStats.quotesChange,
+            'authors-change': changeStats.authorsChange, 
+            'avg-change': changeStats.avgChange
+        };
+
+        Object.entries(elements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element && value) {
+                element.textContent = value;
+                element.className = value.startsWith('+') ? 'stat-change positive' : 
+                                   value.startsWith('-') ? 'stat-change negative' : 
+                                   'stat-change neutral';
+            }
+        });
     }
 }
 
