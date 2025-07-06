@@ -1,266 +1,82 @@
 /**
- * Main Telegram bot for Reader project - Personal quotes diary with AI analysis
+ * Main Telegram bot for Reader project - Clean UX with menu button
  * @file telegram/index.js
- * 📖 READER BOT: Transformed from Shrooms for Anna Busel's book club
- * 📖 UPDATED: Complete integration with MODERN handlers (ModernNavigation, ModernOnboarding, ModernQuote)
- * 📖 FIXED: Now using MODERN handlers instead of old ones
+ * 🎨 CLEAN UX: Menu button navigation, simple text responses, no visual spam
  */
 
-const { Telegraf, Markup } = require('telegraf');
+const { Telegraf } = require('telegraf');
 const logger = require('../server/utils/logger');
 
 // Import Reader bot services
 const claudeService = require('../server/services/claude');
-const ticketingService = require('../server/services/ticketing');
-
-// Import Reader bot models
 const { UserProfile, Quote } = require('../server/models');
 
-// Import MODERN Reader bot handlers and helpers
+// Import CLEAN handlers
 const { ModernOnboardingHandler } = require('./handlers/modernOnboardingHandler');
 const { ModernQuoteHandler } = require('./handlers/modernQuoteHandler');
 const { CommandHandler } = require('./handlers/commandHandler');
 const { ComplexQuestionHandler } = require('./handlers/complexQuestionHandler');
-const { FeedbackHandler } = require('./handlers/feedbackHandler');
-const { ModernNavigationHandler } = require('./handlers/modernNavigationHandler');
-const { MessageClassifier } = require('./helpers/messageClassifier');
-const BotHelpers = require('./helpers/botHelpers');
+const { WeeklyReportHandler } = require('./handlers/weeklyReportHandler');
 
-/**
- * @typedef {Object} ReaderTelegramBotConfig
- * @property {string} token - Telegram bot token
- * @property {string} [environment] - Environment (development/production)
- * @property {number} [maxMessageLength] - Maximum message length
- */
-
-/**
- * @class ReaderTelegramBot
- * @description Telegram bot for Reader project - personal quotes diary with AI analysis by Anna Busel
- */
 class ReaderTelegramBot {
-  /**
-   * @constructor
-   * @param {ReaderTelegramBotConfig} config - Bot configuration
-   */
   constructor(config) {
     this.config = {
       token: config.token,
       environment: config.environment || 'production',
       maxMessageLength: config.maxMessageLength || 4096,
-      typingDelay: 1500,
       platform: 'telegram',
-      maxQuotesPerDay: 10 // Reader-specific limit
+      maxQuotesPerDay: 10
     };
 
     this.bot = new Telegraf(this.config.token);
     this.isInitialized = false;
     
-    // Initialize MODERN Reader bot handlers
+    // Initialize CLEAN handlers
     this.onboardingHandler = new ModernOnboardingHandler();
     this.quoteHandler = new ModernQuoteHandler();
     this.commandHandler = new CommandHandler();
     this.complexQuestionHandler = new ComplexQuestionHandler();
-    this.feedbackHandler = new FeedbackHandler();
-    this.navigationHandler = new ModernNavigationHandler();
-    this.messageClassifier = new MessageClassifier();
+    this.weeklyReportHandler = new WeeklyReportHandler();
     
-    // External services will be set externally
-    this.weeklyReportHandler = null;
-    this.monthlyReportService = null;
-    
-    // Store pending ambiguous messages for resolution
-    this.pendingClassifications = new Map(); // userId -> { message, timestamp }
-    
-    logger.info('📖 ReaderTelegramBot constructor initialized with MODERN handlers and MessageClassifier');
+    logger.info('✅ ReaderTelegramBot initialized with clean UX');
   }
 
   /**
-   * Set external services (called from start.js)
-   * @param {Object} services - External services
-   * @param {Object} services.weeklyReportHandler - WeeklyReportHandler instance
-   * @param {Object} services.monthlyReportService - MonthlyReportService instance
-   */
-  setExternalServices(services) {
-    this.weeklyReportHandler = services.weeklyReportHandler;
-    this.monthlyReportService = services.monthlyReportService;
-    
-    logger.info('📖 External services integrated into main bot');
-  }
-
-  /**
-   * Initialize the Reader bot
-   * @returns {Promise<void>}
+   * Initialize the bot
    */
   async initialize() {
     try {
-      // Initialize all handlers with dependencies
-      await this._initializeHandlers();
+      // Setup menu button and commands
+      await this.onboardingHandler.setupMenuButton(this.bot);
       
-      // Setup middleware
-      this._setupMiddleware();
-      
-      // Setup command handlers
+      // Setup bot handlers
       this._setupCommands();
-      
-      // Setup message handlers
       this._setupMessageHandlers();
-      
-      // Setup callback handlers
       this._setupCallbackHandlers();
-      
-      // Setup error handling
       this._setupErrorHandling();
       
+      // Set bot instance for handlers that need it
+      this.weeklyReportHandler.setBotInstance(this.bot);
+      
       this.isInitialized = true;
-      logger.info('📖 Reader Telegram bot initialized successfully with MODERN UX system');
+      logger.info('✅ Reader bot initialized with menu button navigation');
     } catch (error) {
-      logger.error(`📖 Failed to initialize Reader Telegram bot: ${error.message}`);
+      logger.error(`Failed to initialize bot: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Initialize all handlers with dependencies
-   * @private
-   */
-  async _initializeHandlers() {
-    const models = require('../server/models');
-    
-    // Initialize FeedbackHandler
-    this.feedbackHandler.initialize({
-      bot: this.bot,
-      models
-    });
-    
-    logger.info('📖 All MODERN handlers initialized with dependencies including MessageClassifier');
-  }
-
-  /**
-   * Setup middleware for logging and typing indicators
-   * @private
-   */
-  _setupMiddleware() {
-    // Logging middleware
-    this.bot.use(async (ctx, next) => {
-      const start = Date.now();
-      const userId = ctx.from?.id;
-      const messageText = ctx.message?.text?.substring(0, 50) || 'non-text';
-      
-      logger.info(`📖 Message from user ${userId}: \"${messageText}...\"`);
-      
-      await next();
-      
-      const duration = Date.now() - start;
-      logger.info(`📖 Response sent to user ${userId} in ${duration}ms`);
-    });
-
-    // User state handling middleware
-    this.bot.use(async (ctx, next) => {
-      // Check for user states and handle accordingly
-      if (ctx.message?.text && !ctx.message.text.startsWith('/')) {
-        const userId = ctx.from.id.toString();
-        const userState = await this.feedbackHandler.getUserState(userId);
-        
-        if (userState) {
-          await this._handleUserStateMessage(ctx, userState);
-          return;
-        }
-      }
-      
-      await next();
-    });
-
-    // Typing indicator for text messages
-    this.bot.use(async (ctx, next) => {
-      if (ctx.message?.text && !ctx.message.text.startsWith('/')) {
-        await ctx.sendChatAction('typing');
-        setTimeout(async () => {
-          await next();
-        }, this.config.typingDelay);
-      } else {
-        await next();
-      }
-    });
-  }
-
-  /**
-   * Handle messages from users in specific states
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} userState - Current user state
-   */
-  async _handleUserStateMessage(ctx, userState) {
-    const userId = ctx.from.id.toString();
-    const messageText = ctx.message.text;
-
-    try {
-      // Handle monthly survey responses
-      if (userState === 'awaiting_monthly_survey') {
-        await ctx.reply("📝 Пожалуйста, выберите тему из предложенных кнопок выше.");
-        return;
-      }
-
-      // Handle detailed feedback responses
-      if (userState.startsWith('awaiting_feedback_')) {
-        const parts = userState.split('_');
-        const type = parts[2]; // weekly/monthly
-        const reportId = parts.slice(3).join('_');
-        
-        await this.feedbackHandler.processDetailedFeedback(ctx, messageText, reportId, type);
-        return;
-      }
-
-      // Clear unknown states
-      await this.feedbackHandler.clearUserState(userId);
-      
-    } catch (error) {
-      logger.error(`📖 Error handling user state message: ${error.message}`, error);
-      await this.feedbackHandler.clearUserState(userId);
-    }
-  }
-
-  /**
-   * Setup command handlers
-   * @private
+   * Setup commands
    */
   _setupCommands() {
-    // /start command - Begin onboarding or show modern navigation
+    // /start command
     this.bot.start(async (ctx) => {
       try {
-        const userId = ctx.from.id.toString();
-        logger.info(`📖 Processing /start command for user ${userId}`);
-        
-        // Check if user completed onboarding
-        const userProfile = await UserProfile.findOne({ userId });
-        
-        if (userProfile && userProfile.isOnboardingComplete) {
-          // Show MODERN navigation interface
-          await this.navigationHandler.showMainMenu(ctx, userProfile);
-        } else {
-          // Start MODERN onboarding process
-          await this.onboardingHandler.handleStart(ctx);
-        }
-        
+        await this.onboardingHandler.handleStart(ctx);
       } catch (error) {
-        logger.error(`📖 Error in /start command: ${error.message}`);
-        await ctx.reply(`📖 Здравствуйте! Добро пожаловать в «Читатель» - ваш персональный дневник цитат от Анны Бусел.`);
-      }
-    });
-
-    // /menu command - Show MODERN navigation interface
-    this.bot.command('menu', async (ctx) => {
-      try {
-        const userId = ctx.from.id.toString();
-        const userProfile = await UserProfile.findOne({ userId });
-        
-        if (userProfile && userProfile.isOnboardingComplete) {
-          await this.navigationHandler.showMainMenu(ctx, userProfile);
-        } else {
-          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
-        }
-      } catch (error) {
-        logger.error(`📖 Error in /menu command: ${error.message}`);
-        await ctx.reply('📖 Произошла ошибка при загрузке меню. Попробуйте /start');
+        logger.error(`Error in /start: ${error.message}`);
+        await ctx.reply('📖 Здравствуйте! Добро пожаловать в «Читатель».');
       }
     });
 
@@ -269,268 +85,44 @@ class ReaderTelegramBot {
       try {
         await this.commandHandler.handleHelp(ctx);
       } catch (error) {
-        logger.error(`📖 Error in /help command: ${error.message}`);
-        await ctx.reply('📖 Я могу помочь вам с сохранением цитат и рекомендациями книг! Попробуйте /menu для навигации.');
+        logger.error(`Error in /help: ${error.message}`);
+        await ctx.reply('📖 Используйте кнопку меню 📋 для навигации');
       }
     });
 
-    // /stats command - Show user statistics (fallback for old interface)
+    // /stats command
     this.bot.command('stats', async (ctx) => {
       try {
-        const userId = ctx.from.id.toString();
-        const userProfile = await UserProfile.findOne({ userId });
-        
-        if (userProfile && userProfile.isOnboardingComplete) {
-          await this.navigationHandler.showStats(ctx);
-        } else {
-          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
-        }
+        await this.commandHandler.handleStats(ctx);
       } catch (error) {
-        logger.error(`📖 Error in /stats command: ${error.message}`);
-        await ctx.reply('📖 Произошла ошибка при получении статистики. Попробуйте /menu');
+        logger.error(`Error in /stats: ${error.message}`);
+        await ctx.reply('📖 Произошла ошибка при получении статистики');
       }
     });
 
-    // /search command - Search user's quotes (fallback for old interface)
+    // /search command
     this.bot.command('search', async (ctx) => {
       try {
-        const userId = ctx.from.id.toString();
-        const userProfile = await UserProfile.findOne({ userId });
-        
-        if (userProfile && userProfile.isOnboardingComplete) {
-          // Check if there's a search query
-          const commandText = ctx.message.text;
-          const searchQuery = commandText.replace('/search', '').trim();
-          
-          if (searchQuery) {
-            await this.commandHandler.handleSearchWithQuery(ctx, searchQuery);
-          } else {
-            await this.navigationHandler.showDiary(ctx, 1);
-          }
-        } else {
-          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
-        }
+        await this.commandHandler.handleSearch(ctx);
       } catch (error) {
-        logger.error(`📖 Error in /search command: ${error.message}`);
-        await ctx.reply('📖 Произошла ошибка при поиске цитат. Попробуйте /menu');
+        logger.error(`Error in /search: ${error.message}`);
+        await ctx.reply('📖 Произошла ошибка при поиске цитат');
       }
     });
 
-    // /settings command - User settings (fallback for old interface)
+    // /settings command
     this.bot.command('settings', async (ctx) => {
       try {
-        const userId = ctx.from.id.toString();
-        if (await this.commandHandler.hasAccess('settings', userId)) {
-          await this.commandHandler.handleSettings(ctx);
-        } else {
-          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
-        }
+        await this.commandHandler.handleSettings(ctx);
       } catch (error) {
-        logger.error(`📖 Error in /settings command: ${error.message}`);
-        await ctx.reply('📖 Произошла ошибка при загрузке настроек. Попробуйте /menu');
+        logger.error(`Error in /settings: ${error.message}`);
+        await ctx.reply('📖 Произошла ошибка при загрузке настроек');
       }
     });
   }
 
   /**
-   * Setup callback query handlers
-   * @private
-   */
-  _setupCallbackHandlers() {
-    this.bot.on('callback_query', async (ctx) => {
-      try {
-        const userId = ctx.from.id.toString();
-        const callbackData = ctx.callbackQuery.data;
-        
-        logger.info(`📖 Callback query from user ${userId}: ${callbackData}`);
-
-        // Handle message classification callbacks
-        if (callbackData.startsWith('classify_')) {
-          await this._handleClassificationCallback(ctx, callbackData);
-          return;
-        }
-
-        // Check if MODERN NavigationHandler can handle this callback
-        if (await this.navigationHandler.handleCallback(ctx, callbackData)) {
-          return; // ModernNavigationHandler handled it
-        }
-
-        // Check if it's a MODERN onboarding callback
-        if (this.onboardingHandler.isInOnboarding(userId) || 
-            callbackData === 'start_test' || 
-            callbackData.startsWith('test_') || 
-            callbackData.startsWith('source_')) {
-          
-          if (await this.onboardingHandler.handleCallback(ctx)) {
-            // After onboarding completion, show MODERN navigation menu
-            const userProfile = await UserProfile.findOne({ userId });
-            if (userProfile && userProfile.isOnboardingComplete) {
-              setTimeout(async () => {
-                await this.navigationHandler.showMainMenu(ctx, userProfile);
-              }, 2000); // Show menu after 2 seconds
-            }
-            return;
-          }
-        }
-
-        // Handle monthly survey callbacks
-        if (callbackData.startsWith('monthly_survey_')) {
-          const themeMapping = {
-            'monthly_survey_confidence': 'Поиск уверенности',
-            'monthly_survey_femininity': 'Женственность и нежность',
-            'monthly_survey_balance': 'Баланс между «дать» и «взять»',
-            'monthly_survey_love': 'Любовь и отношения',
-            'monthly_survey_growth': 'Вдохновение и рост',
-            'monthly_survey_family': 'Материнство и семья'
-          };
-
-          const selectedTheme = themeMapping[callbackData];
-          
-          if (selectedTheme && this.monthlyReportService) {
-            await ctx.editMessageText('📝 Спасибо за ответ! Анализирую ваш месяц и готовлю персональный отчет...');
-            await ctx.answerCbQuery('✅ Тема выбрана!');
-            
-            try {
-              await this.monthlyReportService.processSurveyResponse(userId, selectedTheme);
-            } catch (error) {
-              logger.error(`📖 Error processing monthly survey: ${error.message}`);
-              await ctx.reply('📖 Произошла ошибка при обработке опроса. Попробуйте позже.');
-            }
-          }
-          return;
-        }
-
-        // Handle monthly rating callbacks
-        if (callbackData.startsWith('monthly_rating_')) {
-          const parts = callbackData.split('_');
-          if (parts.length >= 4) {
-            const rating = parts[2]; // 1-5
-            const reportId = parts.slice(3).join('_');
-            
-            await this.feedbackHandler.handleMonthlyRating(ctx, rating, reportId);
-            return;
-          }
-        }
-
-        // Handle weekly report feedback callbacks
-        if (callbackData.startsWith('feedback_')) {
-          const parts = callbackData.split('_');
-          if (parts.length >= 3) {
-            const rating = parts[1]; // excellent/good/bad
-            const reportId = parts.slice(2).join('_');
-            
-            await this.feedbackHandler.handleWeeklyFeedback(ctx, rating, reportId);
-            return;
-          }
-        }
-
-        // Handle settings callbacks (fallback to old system)
-        if (callbackData.startsWith('toggle_') || 
-            callbackData.startsWith('set_time_') ||
-            callbackData.startsWith('change_') ||
-            callbackData === 'show_settings' ||
-            callbackData === 'export_quotes' ||
-            callbackData === 'close_settings') {
-          
-          if (callbackData === 'show_settings') {
-            await this.commandHandler.handleSettings(ctx);
-            await ctx.answerCbQuery();
-            return;
-          }
-          
-          if (await this.commandHandler.handleSettingsCallback(ctx, callbackData)) {
-            return;
-          }
-        }
-
-        // Handle other callbacks through BotHelpers
-        await BotHelpers.handleOtherCallbacks(ctx, callbackData);
-
-      } catch (error) {
-        logger.error(`📖 Error handling callback query: ${error.message}`);
-        await ctx.answerCbQuery("Произошла ошибка. Попробуйте еще раз.");
-      }
-    });
-  }
-
-  /**
-   * Handle message classification callbacks
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} callbackData - Callback data
-   */
-  async _handleClassificationCallback(ctx, callbackData) {
-    const userId = ctx.from.id.toString();
-    
-    try {
-      if (callbackData === 'classify_cancel') {
-        // User cancelled classification
-        this.pendingClassifications.delete(userId);
-        await ctx.editMessageText('📖 Отменено. Попробуйте еще раз, если нужно.');
-        await ctx.answerCbQuery('❌ Отменено');
-        return;
-      }
-
-      // Get pending message
-      const pendingMessage = this.pendingClassifications.get(userId);
-      if (!pendingMessage) {
-        await ctx.answerCbQuery('⏰ Время истекло, попробуйте еще раз');
-        return;
-      }
-
-      const messageText = pendingMessage.message;
-      
-      if (callbackData.startsWith('classify_quote_')) {
-        // User confirmed it's a quote
-        await ctx.editMessageText('📖 Обрабатываю цитату...');
-        await ctx.answerCbQuery('✅ Принято как цитата');
-        
-        const userProfile = await UserProfile.findOne({ userId });
-        await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
-        
-        // Show menu option after quote processing
-        setTimeout(async () => {
-          await ctx.reply(
-            '✅ Цитата сохранена!\n\n💡 Используйте /menu для навигации по дневнику.',
-            {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: "📖 Открыть меню", callback_data: "nav_main" }]
-                ]
-              }
-            }
-          );
-        }, 1000);
-        
-      } else if (callbackData.startsWith('classify_question_')) {
-        // User confirmed it's a question
-        await ctx.editMessageText('💬 Обрабатываю вопрос...');
-        await ctx.answerCbQuery('✅ Принято как вопрос');
-        
-        const userProfile = await UserProfile.findOne({ userId });
-        
-        // Check if it's a complex question
-        if (this.complexQuestionHandler.isComplexQuestion(messageText)) {
-          await this.complexQuestionHandler.handleComplexQuestion(ctx, messageText, userProfile);
-        } else {
-          // Handle as general conversation
-          await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
-        }
-      }
-      
-      // Clean up pending message
-      this.pendingClassifications.delete(userId);
-      
-    } catch (error) {
-      logger.error(`📖 Error handling classification callback: ${error.message}`);
-      await ctx.answerCbQuery('❌ Произошла ошибка');
-      this.pendingClassifications.delete(userId);
-    }
-  }
-
-  /**
-   * Setup text message handlers with smart classification
-   * @private
+   * Setup message handlers
    */
   _setupMessageHandlers() {
     this.bot.on('text', async (ctx) => {
@@ -538,222 +130,166 @@ class ReaderTelegramBot {
         const messageText = ctx.message.text;
         const userId = ctx.from.id.toString();
 
-        logger.info(`📖 Processing text message from user ${userId}: \"${messageText.substring(0, 30)}...\"`);
+        // Skip commands
+        if (messageText.startsWith('/')) return;
 
-        // Check if user is in MODERN onboarding process
+        // Check onboarding
         if (await this.onboardingHandler.handleTextMessage(ctx)) {
-          return; // Message was handled by MODERN onboarding
-        }
-
-        // Check if user has completed onboarding
-        const userProfile = await UserProfile.findOne({ userId });
-        if (!userProfile || !userProfile.isOnboardingComplete) {
-          await ctx.reply(`📖 Пожалуйста, сначала пройдите регистрацию. Введите /start`);
           return;
         }
 
-        // Use MessageClassifier for smart message detection
-        const classification = await this.messageClassifier.classifyMessage(messageText, {
-          userId,
-          userProfile
-        });
-
-        logger.info(`📖 Message classified as: ${classification.type} (confidence: ${classification.confidence})`);
-
-        // Route message based on classification
-        switch (classification.type) {
-          case 'quote':
-            await this.quoteHandler.handleQuote(ctx, messageText, userProfile);
-            
-            // Show confirmation with menu option
-            setTimeout(async () => {
-              await ctx.reply(
-                '✅ Цитата сохранена!\n\n💡 Используйте /menu для навигации по дневнику.',
-                {
-                  reply_markup: {
-                    inline_keyboard: [
-                      [{ text: "📖 Открыть меню", callback_data: "nav_main" }]
-                    ]
-                  }
-                }
-              );
-            }, 1000);
-            break;
-
-          case 'complex_question':
-            await this.complexQuestionHandler.handleComplexQuestion(ctx, messageText, userProfile);
-            break;
-
-          case 'question':
-            await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
-            break;
-
-          case 'command':
-            // This shouldn't happen as commands are handled separately
-            logger.warn(`📖 Command detected in text handler: ${messageText}`);
-            await ctx.reply('📖 Неизвестная команда. Попробуйте /help для списка команд.');
-            break;
-
-          case 'ambiguous':
-            // Ask user for clarification
-            await this._handleAmbiguousMessage(ctx, messageText, classification);
-            break;
-
-          default:
-            logger.warn(`📖 Unknown classification type: ${classification.type}`);
-            await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
-            break;
+        // Check if user exists
+        const userProfile = await UserProfile.findOne({ userId });
+        if (!userProfile || !userProfile.isOnboardingComplete) {
+          await ctx.reply('📖 Пожалуйста, сначала пройдите регистрацию: /start');
+          return;
         }
 
+        // Check if it's settings message
+        if (this.commandHandler.isSettingsMessage(messageText)) {
+          await this.commandHandler.handleSettingsText(ctx, messageText);
+          return;
+        }
+
+        // Check if it's a quote
+        if (this.quoteHandler.isQuote(messageText)) {
+          await this.quoteHandler.handleQuote(ctx, messageText);
+          return;
+        }
+
+        // Check if it's a complex question
+        if (await this.complexQuestionHandler.detectComplexQuestion(messageText)) {
+          await this.complexQuestionHandler.createTicketForAnna(ctx, messageText);
+          return;
+        }
+
+        // Handle as general message
+        await this._handleGeneralMessage(ctx, messageText);
+
       } catch (error) {
-        logger.error(`📖 Error processing text message: ${error.message}`);
-        await this._sendErrorMessage(ctx, error);
+        logger.error(`Error processing message: ${error.message}`);
+        await ctx.reply('📖 Произошла ошибка. Попробуйте еще раз.');
       }
     });
 
-    // Handle non-text messages (photos, documents, etc.)
+    // Handle non-text messages
     this.bot.on(['photo', 'document', 'voice', 'video', 'sticker'], async (ctx) => {
       try {
         const userId = ctx.from.id.toString();
         const userProfile = await UserProfile.findOne({ userId });
         
         if (!userProfile || !userProfile.isOnboardingComplete) {
-          await ctx.reply("📖 Пожалуйста, сначала пройдите регистрацию. Введите /start");
+          await ctx.reply('📖 Пожалуйста, сначала пройдите регистрацию: /start');
           return;
         }
 
-        const messageType = ctx.message.photo ? 'фото' : 
-                           ctx.message.document ? 'документ' :
-                           ctx.message.voice ? 'голосовое сообщение' :
-                           ctx.message.video ? 'видео' : 'файл';
-
         await ctx.reply(
-          `📖 Спасибо за ${messageType}! Но я принимаю только текстовые цитаты.\n\n` +
-          `💡 Если у вас есть интересная цитата из изображения или документа, ` +
-          `пожалуйста, перепечатайте ее текстом.\n\n` +
-          `Например: \"В каждом слове — целая жизнь\" (Марина Цветаева)`,
-          {
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "📖 Открыть меню", callback_data: "nav_main" }]
-              ]
-            }
-          }
+          '📖 Спасибо! Но я принимаю только текстовые цитаты.\n\n' +
+          'Если у вас есть интересная цитата из изображения, ' +
+          'пожалуйста, перепечатайте ее текстом.\n\n' +
+          'Например: "В каждом слове — целая жизнь" (Марина Цветаева)'
         );
 
       } catch (error) {
-        logger.error(`📖 Error processing non-text message: ${error.message}`);
-        await ctx.reply('📖 Произошла ошибка. Попробуйте отправить цитату текстом.');
+        logger.error(`Error processing non-text: ${error.message}`);
+        await ctx.reply('📖 Отправьте цитату текстом, пожалуйста.');
       }
     });
   }
 
   /**
-   * Handle ambiguous messages by asking user for clarification
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} messageText - Original message text
-   * @param {Object} classification - Classification result
+   * Setup callback handlers
    */
-  async _handleAmbiguousMessage(ctx, messageText, classification) {
-    const userId = ctx.from.id.toString();
-    
-    try {
-      // Store message for later processing
-      this.pendingClassifications.set(userId, {
-        message: messageText,
-        timestamp: Date.now(),
-        classification
-      });
+  _setupCallbackHandlers() {
+    this.bot.on('callback_query', async (ctx) => {
+      try {
+        const callbackData = ctx.callbackQuery.data;
 
-      // Create clarification keyboard
-      const clarification = this.messageClassifier.createAmbiguityResolutionKeyboard(messageText);
-      
-      await ctx.reply(clarification.text, {
-        reply_markup: clarification.keyboard
-      });
-
-      // Auto-cleanup after 5 minutes
-      setTimeout(() => {
-        if (this.pendingClassifications.has(userId)) {
-          this.pendingClassifications.delete(userId);
-          logger.info(`📖 Auto-cleaned up pending classification for user ${userId}`);
+        // Handle onboarding callbacks
+        if (await this.onboardingHandler.handleCallback(ctx)) {
+          return;
         }
-      }, 5 * 60 * 1000);
+
+        // Handle weekly report feedback
+        if (await this.weeklyReportHandler.handleFeedback(ctx)) {
+          return;
+        }
+
+        // Handle settings callbacks
+        if (await this.commandHandler.handleSettingsCallback(ctx)) {
+          return;
+        }
+
+        // Unknown callback
+        await ctx.answerCbQuery('❓ Неизвестная команда');
+
+      } catch (error) {
+        logger.error(`Error handling callback: ${error.message}`);
+        await ctx.answerCbQuery('❌ Произошла ошибка');
+      }
+    });
+  }
+
+  /**
+   * Handle general messages with AI
+   */
+  async _handleGeneralMessage(ctx, messageText) {
+    try {
+      const userId = ctx.from.id.toString();
+      const userProfile = await UserProfile.findOne({ userId });
+
+      const prompt = `Ты помощник психолога Анны Бусел в боте "Читатель". 
+Пользователь написал: "${messageText}"
+
+Ответь в стиле Анны Бусел:
+- Тон: теплый, поддерживающий
+- Обращение на "Вы"
+- Если это вопрос о книгах/психологии - дай совет
+- Если это благодарность - отвечай скромно
+- Если непонятно - переспроси деликатно
+- Максимум 2-3 предложения
+
+Если вопрос слишком сложный, предложи написать Анне лично.`;
+
+      const response = await claudeService.generateResponse(prompt, {
+        platform: 'telegram',
+        userId: userId
+      });
+
+      await ctx.reply(response.message);
 
     } catch (error) {
-      logger.error(`📖 Error handling ambiguous message: ${error.message}`);
-      
-      // Fallback to treating as question
-      const userProfile = await UserProfile.findOne({ userId });
-      await BotHelpers.handleGeneralMessage(ctx, messageText, userProfile);
+      logger.error(`Error in general message: ${error.message}`);
+      await ctx.reply(
+        '📖 Спасибо за сообщение! Если у вас есть сложный вопрос, ' +
+        'я передам его Анне для персонального ответа.'
+      );
     }
   }
 
   /**
    * Setup error handling
-   * @private
    */
   _setupErrorHandling() {
     this.bot.catch((err, ctx) => {
-      logger.error(`📖 Telegram bot error: ${err.message}`);
+      logger.error(`Bot error: ${err.message}`);
       
-      // Определяем подходящий ответ на основе типа ошибки
-      let errorMessage = '📖 Упс! Что-то пошло не так. Попробуйте еще раз.';
+      let errorMessage = '📖 Произошла ошибка. Попробуйте еще раз.';
       
       if (err.code === 429) {
-        errorMessage = '📖 Слишком много запросов. Пожалуйста, подождите немного.';
+        errorMessage = '📖 Слишком много запросов. Подождите немного.';
       } else if (err.code === 403) {
         errorMessage = '📖 Нет доступа. Проверьте, не заблокировали ли вы бота.';
-      } else if (err.message.includes('message is too long')) {
-        errorMessage = '📖 Сообщение слишком длинное. Попробуйте разделить его на части.';
       }
 
-      ctx.reply(errorMessage, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "📖 Главное меню", callback_data: "nav_main" }]
-          ]
-        }
-      })
-        .catch(sendError => {
-          logger.error(`📖 Failed to send error message: ${sendError.message}`);
-        });
+      ctx.reply(errorMessage).catch(sendError => {
+        logger.error(`Failed to send error message: ${sendError.message}`);
+      });
     });
   }
 
   /**
-   * Send error message to user
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {Error} error - Error object
-   */
-  async _sendErrorMessage(ctx, error) {
-    try {
-      let message = '📖 Произошла ошибка. Попробуйте еще раз через минуту.';
-      
-      // Специальные сообщения для определенных ошибок
-      if (error.message.includes('daily limit')) {
-        message = '📖 Вы достигли дневного лимита цитат (10 штук). Возвращайтесь завтра!';
-      } else if (error.message.includes('quote too long')) {
-        message = '📖 Цитата слишком длинная. Максимум 1000 символов.';
-      }
-
-      await ctx.reply(message, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "📖 Главное меню", callback_data: "nav_main" }]
-          ]
-        }
-      });
-    } catch (sendError) {
-      logger.error(`📖 Failed to send error message: ${sendError.message}`);
-    }
-  }
-
-  /**
    * Start the bot
-   * @returns {Promise<void>}
    */
   async start() {
     if (!this.isInitialized) {
@@ -762,86 +298,65 @@ class ReaderTelegramBot {
 
     try {
       await this.bot.launch();
-      logger.info('📖 Reader Telegram bot started successfully with MODERN UX system');
+      logger.info('✅ Reader bot started with clean UX');
       
       // Graceful stop
       process.once('SIGINT', () => this.stop('SIGINT'));
       process.once('SIGTERM', () => this.stop('SIGTERM'));
       
     } catch (error) {
-      logger.error(`📖 Failed to start Reader Telegram bot: ${error.message}`);
+      logger.error(`Failed to start bot: ${error.message}`);
       throw error;
     }
   }
 
   /**
    * Stop the bot
-   * @param {string} [signal] - Stop signal
-   * @returns {Promise<void>}
    */
   async stop(signal = 'manual') {
     try {
-      logger.info(`📖 Stopping Reader Telegram bot (${signal})...`);
+      logger.info(`Stopping bot (${signal})...`);
       
-      // Cleanup navigation states
-      this.navigationHandler.cleanupStaleStates();
-      
-      // Cleanup pending classifications
-      this.pendingClassifications.clear();
+      // Cleanup handlers
+      this.onboardingHandler.cleanupStaleStates();
       
       await this.bot.stop(signal);
-      logger.info('📖 Reader Telegram bot stopped successfully');
+      logger.info('✅ Bot stopped successfully');
     } catch (error) {
-      logger.error(`📖 Error stopping bot: ${error.message}`);
+      logger.error(`Error stopping bot: ${error.message}`);
     }
   }
 
   /**
-   * Send message to user (external API)
-   * @param {string} userId - User ID
-   * @param {string} message - Message text
-   * @param {Object} [options] - Additional options
-   * @returns {Promise<void>}
+   * Send message to user
    */
   async sendMessageToUser(userId, message, options = {}) {
     try {
       await this.bot.telegram.sendMessage(userId, message, {
-        parse_mode: options.parseMode || 'Markdown',
+        parse_mode: options.parseMode,
         reply_markup: options.replyMarkup,
-        disable_web_page_preview: options.disablePreview !== false
+        disable_web_page_preview: true
       });
       
-      logger.info(`📖 Message sent to user ${userId}`);
+      logger.info(`Message sent to user ${userId}`);
     } catch (error) {
-      logger.error(`📖 Failed to send message to user ${userId}: ${error.message}`);
+      logger.error(`Failed to send message to user ${userId}: ${error.message}`);
       throw error;
     }
   }
 
   /**
    * Get bot statistics
-   * @returns {Promise<Object>}
    */
   async getStats() {
     try {
       const me = await this.bot.telegram.getMe();
-      
-      // Reader bot specific stats
       const totalUsers = await UserProfile.countDocuments({ isOnboardingComplete: true });
       const totalQuotes = await Quote.countDocuments();
-      const onboardingUsers = this.onboardingHandler.userStates.size;
       
-      // Today's activity
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayQuotes = await Quote.countDocuments({ createdAt: { $gte: today } });
-      const todayUsers = await Quote.distinct('userId', { createdAt: { $gte: today } });
-
-      // Feedback statistics
-      const feedbackStats = await this.feedbackHandler.getFeedbackStats();
-
-      // Classification statistics
-      const classificationStats = this.messageClassifier.getStats();
 
       return {
         botInfo: {
@@ -849,101 +364,31 @@ class ReaderTelegramBot {
           username: me.username,
           firstName: me.first_name
         },
-        config: {
-          environment: this.config.environment,
-          maxMessageLength: this.config.maxMessageLength,
-          platform: this.config.platform,
-          maxQuotesPerDay: this.config.maxQuotesPerDay
+        stats: {
+          totalUsers,
+          totalQuotes,
+          todayQuotes,
+          averageQuotesPerUser: totalUsers > 0 ? Math.round(totalQuotes / totalUsers * 10) / 10 : 0,
+          onboardingUsers: this.onboardingHandler.userStates.size
         },
         status: {
           initialized: this.isInitialized,
-          uptime: process.uptime(),
-          pendingClassifications: this.pendingClassifications.size,
-          modernUXEnabled: true
-        },
-        readerStats: {
-          totalUsers,
-          totalQuotes,
-          onboardingUsers,
-          averageQuotesPerUser: totalUsers > 0 ? Math.round(totalQuotes / totalUsers * 10) / 10 : 0,
-          todayQuotes,
-          activeUsersToday: todayUsers.length
-        },
-        feedback: feedbackStats,
-        classification: classificationStats,
-        handlers: {
-          onboarding: this.onboardingHandler.getStats(),
-          quotes: this.quoteHandler.getStats(),
-          commands: this.commandHandler.getStats(),
-          complexQuestions: this.complexQuestionHandler.getStats(),
-          feedback: this.feedbackHandler.getDiagnostics(),
-          navigation: this.navigationHandler.getStats(),
-          helpers: BotHelpers.getStats(),
-          weeklyReports: !!this.weeklyReportHandler,
-          monthlyReports: !!this.monthlyReportService
-        },
-        features: {
-          onboardingFlow: true,
-          quoteCollection: true,
-          aiAnalysis: true,
-          achievementSystem: true,
-          complexQuestionHandling: true,
-          annaPersona: true,
-          userCommands: true,
-          settingsManagement: true,
-          quoteExport: true,
-          ticketingSystem: true,
-          weeklyReports: !!this.weeklyReportHandler,
-          monthlyReports: !!this.monthlyReportService,
-          feedbackSystem: true,
-          scheduledTasks: true,
-          modernNavigation: true,
-          visualPanels: true,
-          smartClassification: true,
-          ambiguityResolution: true,
-          modernUX: true // NEW: Modern UX system active
+          cleanUXEnabled: true,
+          menuButtonEnabled: true
         }
       };
     } catch (error) {
-      logger.error(`📖 Error getting bot stats: ${error.message}`);
-      return {
-        status: 'error',
-        error: error.message
-      };
+      logger.error(`Error getting stats: ${error.message}`);
+      return { status: 'error', error: error.message };
     }
   }
 
   /**
-   * Clean up resources
-   * @returns {Promise<void>}
-   */
-  async cleanup() {
-    try {
-      // Clean up onboarding states
-      this.onboardingHandler.cleanupStaleStates();
-      
-      // Clean up navigation states
-      this.navigationHandler.cleanupStaleStates();
-      
-      // Clean up pending classifications
-      this.pendingClassifications.clear();
-      
-      logger.info('📖 Reader bot cleanup completed');
-    } catch (error) {
-      logger.error(`📖 Error during cleanup: ${error.message}`);
-    }
-  }
-
-  /**
-   * Health check for the bot
-   * @returns {Promise<Object>}
+   * Health check
    */
   async healthCheck() {
     try {
-      // Check if bot can communicate with Telegram
       const me = await this.bot.telegram.getMe();
-      
-      // Check database connectivity
       const userCount = await UserProfile.countDocuments();
       
       return {
@@ -957,21 +402,10 @@ class ReaderTelegramBot {
           connected: true,
           userCount
         },
-        handlers: {
-          initialized: this.isInitialized,
-          onboardingActive: this.onboardingHandler.userStates.size,
-          navigationActive: this.navigationHandler.userStates.size,
-          pendingClassifications: this.pendingClassifications.size,
-          weeklyReportsEnabled: !!this.weeklyReportHandler,
-          monthlyReportsEnabled: !!this.monthlyReportService,
-          feedbackSystemEnabled: this.feedbackHandler.isReady(),
-          modernUXEnabled: true,
-          smartClassificationEnabled: true
-        },
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      logger.error(`📖 Health check failed: ${error.message}`);
+      logger.error(`Health check failed: ${error.message}`);
       return {
         status: 'unhealthy',
         error: error.message,
