@@ -1,0 +1,594 @@
+/**
+ * quotes.css - дополнительные стили для страницы цитат
+ * Использует стили из main.css и dashboard.css
+ */
+
+/* ========================================
+   КОМПАКТНЫЕ ГРАФИКИ - ПЕРЕИСПОЛЬЗУЕМ СТИЛИ ДАШБОРДА
+   ======================================== */
+
+.dashboard-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  height: 320px; /* Компактная высота */
+  position: relative;
+  transition: all var(--transition-normal);
+}
+
+.chart-container:hover {
+  border-color: var(--reader-gold);
+  box-shadow: var(--box-shadow-glow);
+}
+
+.chart-container h3 {
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--text-white);
+  font-family: var(--font-heading);
+}
+
+.chart-wrapper {
+  height: calc(100% - 40px);
+  position: relative;
+}
+
+.chart-container canvas {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* ========================================
+   СПЕЦИФИЧНЫЕ СТИЛИ ДЛЯ ЦИТАТ
+   ======================================== */
+
+.quotes-content {
+  padding: 2rem;
+}
+
+.quotes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.quotes-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Специфичные стили для таблицы цитат */
+.quotes-container .table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.table-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.quotes-table {
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+/* Колонки таблицы цитат */
+.col-id { width: 80px; }
+.col-quote { width: 300px; }
+.col-author { width: 150px; }
+.col-category { width: 120px; }
+.col-user { width: 150px; }
+.col-sentiment { width: 120px; }
+.col-date { width: 120px; }
+.col-actions { width: 180px; }
+
+/* Контент цитат */
+.quote-text {
+  font-style: italic;
+  color: var(--text-white);
+  line-height: 1.4;
+}
+
+.quote-themes {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.theme-tag {
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--reader-gold);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.author-name {
+  color: var(--text-white);
+  font-weight: 500;
+}
+
+.no-author {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  color: var(--text-white);
+  font-weight: 500;
+}
+
+.user-username {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.date-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.time-ago {
+  color: var(--text-white);
+  font-size: 0.9rem;
+}
+
+.full-date {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Действия в строке */
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-buttons .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  min-width: auto;
+}
+
+/* Бейджи для цитат */
+.category-badge {
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--reader-gold);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sentiment-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sentiment-positive {
+  background: rgba(39, 174, 96, 0.2);
+  color: var(--success-color);
+}
+
+.sentiment-neutral {
+  background: rgba(149, 165, 166, 0.2);
+  color: var(--text-muted);
+}
+
+.sentiment-negative {
+  background: rgba(231, 76, 60, 0.2);
+  color: var(--error-color);
+}
+
+/* Модальное окно деталей цитаты */
+.quote-details-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.quote-details-container {
+  background: var(--card-bg);
+  border: 2px solid var(--reader-gold);
+  border-radius: var(--border-radius);
+  max-width: 800px;
+  max-height: 90vh;
+  width: 90%;
+  overflow-y: auto;
+  position: relative;
+}
+
+.quote-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.quote-details-content {
+  padding: 1.5rem;
+}
+
+.quote-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.quote-main {
+  text-align: center;
+  padding: 1.5rem;
+  background: rgba(212, 175, 55, 0.05);
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.quote-text-full {
+  font-size: 1.2rem;
+  font-style: italic;
+  color: var(--text-white);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  font-family: var(--font-heading);
+}
+
+.quote-author {
+  color: var(--reader-gold);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.quote-author.no-author {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.quote-source {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.quote-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.meta-section h4 {
+  color: var(--reader-gold);
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.meta-data {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.meta-item label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.themes-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.ai-analysis {
+  background: rgba(52, 152, 219, 0.1);
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+.ai-analysis p {
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.confidence-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.confidence-badge {
+  background: var(--info-color);
+  color: var(--text-white);
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.quote-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Пагинация */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+.pagination-info {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Топ авторы в sidebar */
+.top-content-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.top-author-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--hover-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.top-author-item:hover {
+  background: var(--hover-bg);
+  border-color: var(--reader-gold);
+  transform: translateX(2px);
+}
+
+.top-author-item .rank {
+  font-weight: bold;
+  color: var(--reader-gold);
+  font-size: 1rem;
+  margin-right: 0.75rem;
+  min-width: 25px;
+}
+
+.author-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.author-info .name {
+  color: var(--text-white);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.author-info .percentage {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.top-author-item .count {
+  color: var(--reader-gold);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Сортировка таблицы */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sortable:hover {
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.sort-indicator {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.sortable.asc .sort-indicator::after {
+  content: '▲';
+  color: var(--reader-gold);
+}
+
+.sortable.desc .sort-indicator::after {
+  content: '▼';
+  color: var(--reader-gold);
+}
+
+/* ========================================
+   АДАПТИВНОСТЬ
+   ======================================== */
+
+@media (max-width: 1200px) {
+  .dashboard-charts {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .chart-container {
+    height: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .quotes-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .quotes-actions {
+    width: 100%;
+  }
+  
+  .filter-group {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-group select,
+  .filter-group input {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .dashboard-charts {
+    grid-template-columns: 1fr;
+  }
+  
+  .chart-container {
+    height: 250px;
+  }
+  
+  .quote-meta {
+    grid-template-columns: 1fr;
+  }
+  
+  .quote-actions {
+    flex-direction: column;
+  }
+  
+  .action-buttons {
+    justify-content: center;
+  }
+  
+  .pagination-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  /* Скрыть некоторые колонки на мобильных */
+  .col-sentiment,
+  .col-category {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .quotes-content {
+    padding: 1rem;
+  }
+  
+  .stats-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .quote-details-container {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .quote-details-content {
+    padding: 1rem;
+  }
+  
+  .quote-main {
+    padding: 1rem;
+  }
+  
+  .quote-text-full {
+    font-size: 1rem;
+  }
+  
+  /* Еще больше скрыть колонки */
+  .col-author,
+  .col-user {
+    display: none;
+  }
+  
+  .col-quote {
+    width: auto;
+  }
+}
