@@ -1,13 +1,18 @@
 /**
  * API роуты для управления цитатами проекта "Читатель"
  * Адаптировано из Shrooms Support Bot для нового проекта
+ * @file server/api/quotes.js
  */
 
 const express = require('express');
 const router = express.Router();
-const { basicAdminAuth } = require('../middleware/auth');
 
-// Подключение моделей (когда будут созданы)
+// Импорт middleware
+const { basicAdminAuth } = require('../middleware/auth');
+const logger = require('../utils/logger');
+
+// 🔧 ВРЕМЕННО: Пока модели не созданы, используем заглушки
+// TODO: Раскомментировать после создания моделей
 // const Quote = require('../models/Quote');
 // const UserProfile = require('../models/UserProfile');
 
@@ -56,9 +61,12 @@ router.get('/', basicAdminAuth, async (req, res) => {
             sortOrder = 'desc'
         } = req.query;
 
-        console.log('📝 Получение цитат с фильтрами:', {
+        logger.info('📝 Получение цитат с фильтрами:', {
             period, category, author, search, page, limit
         });
+
+        // Устанавливаем правильный Content-Type
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // Пока возвращаем mock данные, позже заменим на реальные запросы к БД
         const mockQuotes = generateMockQuotes(parseInt(page), parseInt(limit));
@@ -87,7 +95,7 @@ router.get('/', basicAdminAuth, async (req, res) => {
         res.json(response);
 
     } catch (error) {
-        console.error('❌ Ошибка получения цитат:', error);
+        logger.error('❌ Ошибка получения цитат:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка получения цитат',
@@ -103,7 +111,9 @@ router.get('/statistics', basicAdminAuth, async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
-        console.log('📊 Получение статистики цитат за период:', period);
+        logger.info('📊 Получение статистики цитат за период:', period);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // Mock статистика
         const statistics = {
@@ -125,7 +135,7 @@ router.get('/statistics', basicAdminAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Ошибка получения статистики:', error);
+        logger.error('❌ Ошибка получения статистики:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка получения статистики цитат',
@@ -141,7 +151,9 @@ router.get('/analytics', basicAdminAuth, async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
-        console.log('📈 Получение аналитики цитат за период:', period);
+        logger.info('📈 Получение аналитики цитат за период:', period);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // Mock данные для графиков
         const analytics = {
@@ -183,7 +195,7 @@ router.get('/analytics', basicAdminAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Ошибка получения аналитики:', error);
+        logger.error('❌ Ошибка получения аналитики:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка получения аналитики цитат',
@@ -199,7 +211,9 @@ router.get('/:id', basicAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
-        console.log('📝 Получение детальной информации о цитате:', id);
+        logger.info('📝 Получение детальной информации о цитате:', id);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // Mock детальная информация
         const quoteDetails = {
@@ -246,7 +260,7 @@ router.get('/:id', basicAdminAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Ошибка получения детальной информации:', error);
+        logger.error('❌ Ошибка получения детальной информации:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка получения информации о цитате',
@@ -262,7 +276,9 @@ router.post('/:id/analyze', basicAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
-        console.log('🤖 Запуск AI анализа цитаты:', id);
+        logger.info('🤖 Запуск AI анализа цитаты:', id);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // Имитация анализа
         setTimeout(() => {
@@ -280,7 +296,7 @@ router.post('/:id/analyze', basicAdminAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Ошибка запуска анализа:', error);
+        logger.error('❌ Ошибка запуска анализа:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка запуска AI анализа',
@@ -297,7 +313,9 @@ router.put('/:id', basicAdminAuth, async (req, res) => {
         const { id } = req.params;
         const { text, author, category, themes } = req.body;
 
-        console.log('✏️ Обновление цитаты:', id, { text, author, category });
+        logger.info('✏️ Обновление цитаты:', id, { text, author, category });
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // Валидация
         if (!text || text.trim().length === 0) {
@@ -325,7 +343,7 @@ router.put('/:id', basicAdminAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Ошибка обновления цитаты:', error);
+        logger.error('❌ Ошибка обновления цитаты:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка обновления цитаты',
@@ -342,7 +360,9 @@ router.delete('/:id', basicAdminAuth, async (req, res) => {
         const { id } = req.params;
         const { reason = 'Удалено администратором' } = req.body;
 
-        console.log('🗑️ Удаление цитаты:', id, 'Причина:', reason);
+        logger.info('🗑️ Удаление цитаты:', id, 'Причина:', reason);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // В реальной реализации - мягкое удаление с логированием
         res.json({
@@ -357,7 +377,7 @@ router.delete('/:id', basicAdminAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Ошибка удаления цитаты:', error);
+        logger.error('❌ Ошибка удаления цитаты:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка удаления цитаты',
@@ -378,7 +398,9 @@ router.post('/export', basicAdminAuth, async (req, res) => {
             includeUserData = false
         } = req.body;
 
-        console.log('📊 Экспорт цитат:', { format, period, category, includeUserData });
+        logger.info('📊 Экспорт цитат:', { format, period, category, includeUserData });
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // Имитация генерации файла
         const exportData = {
@@ -396,7 +418,7 @@ router.post('/export', basicAdminAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Ошибка экспорта:', error);
+        logger.error('❌ Ошибка экспорта:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка экспорта цитат',
@@ -413,7 +435,9 @@ router.get('/search/similar/:id', basicAdminAuth, async (req, res) => {
         const { id } = req.params;
         const { limit = 5 } = req.query;
 
-        console.log('🔍 Поиск похожих цитат для:', id);
+        logger.info('🔍 Поиск похожих цитат для:', id);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
         // Mock похожие цитаты
         const similarQuotes = [
@@ -442,7 +466,7 @@ router.get('/search/similar/:id', basicAdminAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Ошибка поиска похожих цитат:', error);
+        logger.error('❌ Ошибка поиска похожих цитат:', error);
         res.status(500).json({
             success: false,
             message: 'Ошибка поиска похожих цитат',
@@ -566,4 +590,5 @@ function getStatisticsForPeriod(period) {
     return baseStats[period] || baseStats['7d'];
 }
 
+// 🔧 CRITICAL: Убеждаемся что router экспортируется корректно
 module.exports = router;
