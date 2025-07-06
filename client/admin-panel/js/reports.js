@@ -51,6 +51,7 @@ class ReportsManager {
             // Загружаем начальные данные
             await this.loadStatistics();
             await this.loadReports();
+            await this.loadSystemStatus();
             
             // Устанавливаем обработчики событий
             this.setupEventListeners();
@@ -125,6 +126,7 @@ class ReportsManager {
         } catch (error) {
             console.error('❌ Ошибка загрузки статистики:', error);
             this.updateStatisticsDisplay(this.getDefaultStatistics());
+            this.showNotification('warning', 'Статистика загружена из демо-данных');
         }
     }
 
@@ -167,8 +169,12 @@ class ReportsManager {
      * Обновление индикаторов изменений
      */
     updateChangeIndicators(overview) {
-        // Здесь можно добавить логику для отображения изменений
-        // Пока оставляем статичные значения
+        // Обновляем статус изменений на "Загружено"
+        const changeElements = document.querySelectorAll('.stat-change');
+        changeElements.forEach(element => {
+            element.textContent = 'Обновлено';
+            element.className = 'stat-change positive';
+        });
     }
 
     /**
@@ -199,7 +205,7 @@ class ReportsManager {
                 ...this.buildFilterParams()
             });
             
-            const response = await fetch(`${this.baseApiUrl}/reports/stats?${params}`);
+            const response = await fetch(`${this.baseApiUrl}/reports/list?${params}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -208,8 +214,8 @@ class ReportsManager {
             const result = await response.json();
             
             if (result.success && result.data) {
-                await this.updateReportsTable(result.data);
-                console.log('✅ Отчеты загружены:', result.data);
+                await this.updateReportsTable(result.data.reports);
+                console.log('✅ Отчеты загружены:', result.data.reports.length);
             } else {
                 throw new Error(result.error || 'Неизвестная ошибка при загрузке отчетов');
             }
@@ -217,8 +223,18 @@ class ReportsManager {
         } catch (error) {
             console.error('❌ Ошибка загрузки отчетов:', error);
             this.showEmptyReportsTable();
-            this.showNotification('error', 'Ошибка загрузки отчетов: ' + error.message);
+            this.showNotification('warning', 'Загружены демо-данные отчетов');
+            // Загружаем демо-данные при ошибке
+            await this.loadDemoReports();
         }
+    }
+
+    /**
+     * Загрузка демо-отчетов при ошибке API
+     */
+    async loadDemoReports() {
+        const demoReports = this.generateDemoReports();
+        await this.updateReportsTable(demoReports);
     }
 
     /**
@@ -248,22 +264,16 @@ class ReportsManager {
 
     /**
      * Обновление таблицы отчетов
-     * @param {Object} data - Данные отчетов
+     * @param {Array} reports - Данные отчетов
      */
-    async updateReportsTable(data) {
+    async updateReportsTable(reports) {
         const tableBody = document.querySelector('#reports-table tbody');
         if (!tableBody) {
             console.error('❌ Таблица отчетов не найдена');
             return;
         }
 
-        // Показываем загрузку
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-center">Загрузка отчетов...</td></tr>';
-
         try {
-            // Получаем реальные отчеты из различных эндпоинтов
-            const reports = await this.fetchMixedReports();
-            
             if (reports.length === 0) {
                 this.showEmptyReportsTable();
                 return;
@@ -279,177 +289,6 @@ class ReportsManager {
             console.error('❌ Ошибка обновления таблицы отчетов:', error);
             this.showEmptyReportsTable();
         }
-    }
-
-    /**
-     * Получение смешанных отчетов из разных источников
-     */
-    async fetchMixedReports() {
-        try {
-            // Пробуем получить данные из разных эндпоинтов
-            const responses = await Promise.allSettled([
-                this.fetchWeeklyReportsFromStats(),
-                this.fetchPopularThemes(),
-                this.fetchCronStatus()
-            ]);
-
-            let reports = [];
-
-            // Обрабатываем результаты
-            for (const response of responses) {
-                if (response.status === 'fulfilled' && response.value) {
-                    reports = reports.concat(response.value);
-                }
-            }
-
-            // Если нет реальных данных, создаем демо-отчеты
-            if (reports.length === 0) {
-                reports = this.generateDemoReports();
-            }
-
-            // Применяем фильтры
-            reports = this.applyClientSideFilters(reports);
-
-            // Сортируем по дате (новые первыми)
-            reports.sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
-
-            return reports.slice(0, this.limit);
-            
-        } catch (error) {
-            console.error('❌ Ошибка получения отчетов:', error);
-            return this.generateDemoReports();
-        }
-    }
-
-    /**
-     * Получение данных из эндпоинта статистики
-     */
-    async fetchWeeklyReportsFromStats() {
-        try {
-            const response = await fetch(`${this.baseApiUrl}/reports/stats?days=30`);
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success) {
-                    // Преобразуем статистику в формат отчетов
-                    return this.convertStatsToReports(result.data);
-                }
-            }
-        } catch (error) {
-            console.log('📊 Эндпоинт stats недоступен:', error.message);
-        }
-        return [];
-    }
-
-    /**
-     * Получение популярных тем
-     */
-    async fetchPopularThemes() {
-        try {
-            const response = await fetch(`${this.baseApiUrl}/reports/popular-themes?days=30`);
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.data.themes) {
-                    // Преобразуем темы в отчеты
-                    return this.convertThemesToReports(result.data.themes);
-                }
-            }
-        } catch (error) {
-            console.log('🎨 Эндпоинт themes недоступен:', error.message);
-        }
-        return [];
-    }
-
-    /**
-     * Получение статуса cron
-     */
-    async fetchCronStatus() {
-        try {
-            const response = await fetch(`${this.baseApiUrl}/reports/cron/status`);
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success) {
-                    // Преобразуем статус в отчеты
-                    return this.convertCronStatusToReports(result.data);
-                }
-            }
-        } catch (error) {
-            console.log('⏰ Эндпоинт cron недоступен:', error.message);
-        }
-        return [];
-    }
-
-    /**
-     * Преобразование статистики в отчеты
-     */
-    convertStatsToReports(stats) {
-        // Создаем виртуальные отчеты на основе статистики
-        const reports = [];
-        const now = new Date();
-        
-        for (let i = 0; i < 5; i++) {
-            const date = new Date(now);
-            date.setDate(date.getDate() - (i * 7));
-            
-            reports.push({
-                id: `STAT${i + 1}`,
-                userId: `user${i + 1}`,
-                userName: `Пользователь ${i + 1}`,
-                type: 'weekly',
-                period: this.formatWeekPeriod(date),
-                quotesCount: Math.floor(Math.random() * 10) + 3,
-                rating: Math.floor(Math.random() * 2) + 4,
-                sentAt: date.toISOString(),
-                status: 'sent',
-                dominantThemes: ['Саморазвитие', 'Мудрость'],
-                emotionalTone: 'positive'
-            });
-        }
-        
-        return reports;
-    }
-
-    /**
-     * Преобразование тем в отчеты
-     */
-    convertThemesToReports(themes) {
-        return themes.slice(0, 3).map((theme, index) => ({
-            id: `THEME${index + 1}`,
-            userId: `theme_user${index + 1}`,
-            userName: `Любитель темы "${theme.name}"`,
-            type: 'monthly',
-            period: 'Январь 2025',
-            quotesCount: theme.count,
-            rating: 5,
-            sentAt: new Date().toISOString(),
-            status: 'sent',
-            dominantThemes: [theme.name],
-            emotionalTone: 'positive'
-        }));
-    }
-
-    /**
-     * Преобразование статуса cron в отчеты
-     */
-    convertCronStatusToReports(cronData) {
-        const reports = [];
-        
-        if (cronData.status) {
-            reports.push({
-                id: 'CRON1',
-                userId: 'system',
-                userName: 'Система отчетов',
-                type: 'weekly',
-                period: 'Автоматический',
-                quotesCount: 0,
-                rating: null,
-                sentAt: cronData.currentTime,
-                status: 'automated',
-                dominantThemes: ['Система'],
-                emotionalTone: 'neutral'
-            });
-        }
-        
-        return reports;
     }
 
     /**
@@ -499,45 +338,6 @@ class ReportsManager {
         ];
 
         return demoReports;
-    }
-
-    /**
-     * Применение фильтров на клиенте
-     */
-    applyClientSideFilters(reports) {
-        return reports.filter(report => {
-            // Фильтр по типу
-            if (this.currentFilters.type !== 'all' && report.type !== this.currentFilters.type) {
-                return false;
-            }
-
-            // Фильтр по поиску пользователя
-            if (this.currentFilters.userSearch.trim()) {
-                const search = this.currentFilters.userSearch.toLowerCase();
-                const userName = report.userName.toLowerCase();
-                if (!userName.includes(search)) {
-                    return false;
-                }
-            }
-
-            // Фильтр по дате
-            if (this.currentFilters.dateFrom || this.currentFilters.dateTo) {
-                const reportDate = new Date(report.sentAt);
-                
-                if (this.currentFilters.dateFrom) {
-                    const fromDate = new Date(this.currentFilters.dateFrom);
-                    if (reportDate < fromDate) return false;
-                }
-                
-                if (this.currentFilters.dateTo) {
-                    const toDate = new Date(this.currentFilters.dateTo);
-                    toDate.setHours(23, 59, 59, 999);
-                    if (reportDate > toDate) return false;
-                }
-            }
-
-            return true;
-        });
     }
 
     /**
@@ -627,22 +427,6 @@ class ReportsManager {
     }
 
     /**
-     * Форматирование периода недели
-     */
-    formatWeekPeriod(date) {
-        const startOfWeek = new Date(date);
-        startOfWeek.setDate(date.getDate() - date.getDay() + 1);
-        
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        
-        const start = startOfWeek.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
-        const end = endOfWeek.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
-        
-        return `${start} - ${end}`;
-    }
-
-    /**
      * Экранирование HTML
      */
     escapeHtml(text) {
@@ -665,6 +449,67 @@ class ReportsManager {
                     </td>
                 </tr>
             `;
+        }
+    }
+
+    /**
+     * Загрузка статуса системы
+     */
+    async loadSystemStatus() {
+        try {
+            console.log('🔧 Загрузка статуса системы...');
+            
+            // Загружаем статус Telegram
+            const telegramResponse = await fetch(`${this.baseApiUrl}/reports/telegram/status`);
+            if (telegramResponse.ok) {
+                const telegramResult = await telegramResponse.json();
+                if (telegramResult.success) {
+                    this.updateTelegramStatus(telegramResult.data);
+                }
+            }
+            
+            // Загружаем статус cron
+            const cronResponse = await fetch(`${this.baseApiUrl}/reports/cron/status`);
+            if (cronResponse.ok) {
+                const cronResult = await cronResponse.json();
+                if (cronResult.success) {
+                    this.updateSystemInfo(cronResult.data);
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки статуса системы:', error);
+            this.updateTelegramStatus({ botStatus: 'unknown' });
+        }
+    }
+
+    /**
+     * Обновление статуса Telegram
+     */
+    updateTelegramStatus(data) {
+        const statusElement = document.getElementById('telegram-status');
+        if (statusElement) {
+            switch (data.botStatus) {
+                case 'active':
+                    statusElement.textContent = '🟢 Активен';
+                    break;
+                case 'inactive':
+                    statusElement.textContent = '🔴 Неактивен';
+                    break;
+                default:
+                    statusElement.textContent = '🟡 Проверка...';
+            }
+        }
+    }
+
+    /**
+     * Обновление информации о системе
+     */
+    updateSystemInfo(data) {
+        // Обновляем время последнего отчета
+        const lastReportElement = document.getElementById('last-report-time');
+        if (lastReportElement && data.moscowTime) {
+            lastReportElement.textContent = data.moscowTime;
         }
     }
 
