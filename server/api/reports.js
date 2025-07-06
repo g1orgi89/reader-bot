@@ -8,17 +8,76 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 
-// Модели
-const WeeklyReport = require('../models/weeklyReport');
-const MonthlyReport = require('../models/monthlyReport');
-const UserProfile = require('../models/userProfile');
-const Quote = require('../models/quote');
+// 🔧 ИСПРАВЛЕНЫ ИМПОРТЫ: Безопасная загрузка моделей с обработкой ошибок
+let WeeklyReport, MonthlyReport, UserProfile, Quote;
 
-// Сервисы
-const weeklyReportService = require('../services/weeklyReportService');
-const monthlyReportService = require('../services/monthlyReportService');
-const telegramReportService = require('../services/telegramReportService');
-const cronService = require('../services/cronService');
+try {
+  WeeklyReport = require('../models/weeklyReport');
+  logger.info('✅ WeeklyReport model loaded');
+} catch (error) {
+  logger.error('❌ Failed to load WeeklyReport model:', error.message);
+  WeeklyReport = null;
+}
+
+try {
+  MonthlyReport = require('../models/monthlyReport');
+  logger.info('✅ MonthlyReport model loaded');
+} catch (error) {
+  logger.error('❌ Failed to load MonthlyReport model:', error.message);
+  MonthlyReport = null;
+}
+
+try {
+  UserProfile = require('../models/userProfile');
+  logger.info('✅ UserProfile model loaded');
+} catch (error) {
+  logger.error('❌ Failed to load UserProfile model:', error.message);
+  UserProfile = null;
+}
+
+try {
+  Quote = require('../models/quote');
+  logger.info('✅ Quote model loaded');
+} catch (error) {
+  logger.error('❌ Failed to load Quote model:', error.message);
+  Quote = null;
+}
+
+// Безопасная загрузка сервисов с обработкой ошибок
+let weeklyReportService, monthlyReportService, telegramReportService, cronService;
+
+try {
+  weeklyReportService = require('../services/weeklyReportService');
+  logger.info('✅ weeklyReportService loaded');
+} catch (error) {
+  logger.warn('⚠️ weeklyReportService not available:', error.message);
+  weeklyReportService = null;
+}
+
+try {
+  monthlyReportService = require('../services/monthlyReportService');
+  logger.info('✅ monthlyReportService loaded');
+} catch (error) {
+  logger.warn('⚠️ monthlyReportService not available:', error.message);
+  monthlyReportService = null;
+}
+
+try {
+  telegramReportService = require('../services/telegramReportService');
+  logger.info('✅ telegramReportService loaded');
+} catch (error) {
+  logger.warn('⚠️ telegramReportService not available:', error.message);
+  telegramReportService = null;
+}
+
+try {
+  const { CronService } = require('../services/cronService');
+  cronService = new CronService();
+  logger.info('✅ cronService loaded');
+} catch (error) {
+  logger.warn('⚠️ cronService not available:', error.message);
+  cronService = null;
+}
 
 /**
  * @typedef {import('../types/reader').WeeklyReport} WeeklyReport
@@ -26,10 +85,24 @@ const cronService = require('../services/cronService');
  */
 
 /**
- * GET /api/reader/reports/stats
+ * Middleware для проверки доступности моделей
+ */
+function checkModelsAvailable(req, res, next) {
+  if (!WeeklyReport || !UserProfile || !Quote) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database models not available',
+      details: 'Some required models failed to load'
+    });
+  }
+  next();
+}
+
+/**
+ * GET /api/reports/stats
  * Получение статистики отчетов
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', checkModelsAvailable, async (req, res) => {
   try {
     const { days = 30 } = req.query;
     
@@ -47,7 +120,7 @@ router.get('/stats', async (req, res) => {
       uniqueUsers
     ] = await Promise.all([
       WeeklyReport.countDocuments({ sentAt: { $gte: startDate } }),
-      MonthlyReport.countDocuments({ sentAt: { $gte: startDate } }),
+      MonthlyReport ? MonthlyReport.countDocuments({ sentAt: { $gte: startDate } }) : 0,
       WeeklyReport.countDocuments({ 
         sentAt: { $gte: startDate },
         'feedback.rating': { $exists: true }
@@ -72,7 +145,13 @@ router.get('/stats', async (req, res) => {
       feedbackRate,
       averageRating: Number(averageRating.toFixed(1)),
       uniqueUsers: uniqueUsers.length,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
+      servicesStatus: {
+        weeklyReportService: !!weeklyReportService,
+        monthlyReportService: !!monthlyReportService,
+        telegramReportService: !!telegramReportService,
+        cronService: !!cronService
+      }
     };
     
     res.json({
@@ -81,7 +160,7 @@ router.get('/stats', async (req, res) => {
     });
     
   } catch (error) {
-    logger.error(`📖 Error getting reports stats: ${error.message}`);
+    logger.error(`📖 Error getting reports stats: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to get reports statistics',
@@ -91,10 +170,10 @@ router.get('/stats', async (req, res) => {
 });
 
 /**
- * GET /api/reader/reports/analytics/overview
+ * GET /api/reports/analytics/overview
  * Общая аналитика отчетов
  */
-router.get('/analytics/overview', async (req, res) => {
+router.get('/analytics/overview', checkModelsAvailable, async (req, res) => {
   try {
     const { days = 30 } = req.query;
     
@@ -153,7 +232,7 @@ router.get('/analytics/overview', async (req, res) => {
     });
     
   } catch (error) {
-    logger.error(`📖 Error getting analytics overview: ${error.message}`);
+    logger.error(`📖 Error getting analytics overview: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to get analytics overview',
@@ -163,10 +242,10 @@ router.get('/analytics/overview', async (req, res) => {
 });
 
 /**
- * GET /api/reader/reports/popular-themes
+ * GET /api/reports/popular-themes
  * Получение популярных тем в отчетах
  */
-router.get('/popular-themes', async (req, res) => {
+router.get('/popular-themes', checkModelsAvailable, async (req, res) => {
   try {
     const { days = 30, limit = 10 } = req.query;
     
@@ -196,7 +275,7 @@ router.get('/popular-themes', async (req, res) => {
     });
     
   } catch (error) {
-    logger.error(`📖 Error getting popular themes: ${error.message}`);
+    logger.error(`📖 Error getting popular themes: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to get popular themes',
@@ -206,10 +285,10 @@ router.get('/popular-themes', async (req, res) => {
 });
 
 /**
- * GET /api/reader/reports/list
+ * GET /api/reports/list
  * Получение списка отчетов с фильтрацией
  */
-router.get('/list', async (req, res) => {
+router.get('/list', checkModelsAvailable, async (req, res) => {
   try {
     const {
       type = 'all',
@@ -266,7 +345,7 @@ router.get('/list', async (req, res) => {
       totalCount += weeklyCount;
     }
     
-    if (type === 'all' || type === 'monthly') {
+    if ((type === 'all' || type === 'monthly') && MonthlyReport) {
       const monthlyReports = await MonthlyReport.find(filter)
         .sort({ sentAt: -1 })
         .skip((Number(page) - 1) * Number(limit))
@@ -339,7 +418,7 @@ router.get('/list', async (req, res) => {
     });
     
   } catch (error) {
-    logger.error(`📖 Error getting reports list: ${error.message}`);
+    logger.error(`📖 Error getting reports list: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to get reports list',
@@ -349,14 +428,21 @@ router.get('/list', async (req, res) => {
 });
 
 /**
- * POST /api/reader/reports/weekly/generate
+ * POST /api/reports/weekly/generate
  * Ручной запуск генерации еженедельных отчетов
  */
-router.post('/weekly/generate', async (req, res) => {
+router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
   try {
     const { weekNumber, year, userId } = req.body;
     
     logger.info(`📖 Manual weekly reports generation requested`, { weekNumber, year, userId });
+
+    if (!weeklyReportService) {
+      return res.status(503).json({
+        success: false,
+        error: 'Weekly report service not available'
+      });
+    }
     
     let result;
     
@@ -365,8 +451,15 @@ router.post('/weekly/generate', async (req, res) => {
       result = await weeklyReportService.generateWeeklyReport(userId);
       
       if (result) {
-        // Отправляем в Telegram
-        const sendSuccess = await telegramReportService.sendWeeklyReport(result);
+        // Отправляем в Telegram (если доступно)
+        let sendSuccess = false;
+        if (telegramReportService) {
+          try {
+            sendSuccess = await telegramReportService.sendWeeklyReport(result);
+          } catch (error) {
+            logger.warn('Failed to send to Telegram:', error.message);
+          }
+        }
         
         res.json({
           success: true,
@@ -378,7 +471,8 @@ router.post('/weekly/generate', async (req, res) => {
               year: result.year,
               quotesCount: result.quotes.length
             },
-            telegramSent: sendSuccess
+            telegramSent: sendSuccess,
+            telegramAvailable: !!telegramReportService
           }
         });
       } else {
@@ -392,6 +486,13 @@ router.post('/weekly/generate', async (req, res) => {
       }
     } else {
       // Генерация для всех пользователей
+      if (!cronService) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cron service not available for bulk generation'
+        });
+      }
+      
       const stats = await cronService.runWeeklyReportsManually();
       
       res.json({
@@ -403,7 +504,7 @@ router.post('/weekly/generate', async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error(`📖 Error in manual weekly reports generation: ${error.message}`);
+    logger.error(`📖 Error in manual weekly reports generation: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to generate weekly reports',
@@ -413,10 +514,10 @@ router.post('/weekly/generate', async (req, res) => {
 });
 
 /**
- * GET /api/reader/reports/weekly/:userId
+ * GET /api/reports/weekly/:userId
  * Получение еженедельных отчетов пользователя
  */
-router.get('/weekly/:userId', async (req, res) => {
+router.get('/weekly/:userId', checkModelsAvailable, async (req, res) => {
   try {
     const { userId } = req.params;
     const { limit = 10 } = req.query;
@@ -448,7 +549,7 @@ router.get('/weekly/:userId', async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error(`📖 Error getting user reports: ${error.message}`);
+    logger.error(`📖 Error getting user reports: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to get user reports',
@@ -458,105 +559,7 @@ router.get('/weekly/:userId', async (req, res) => {
 });
 
 /**
- * POST /api/reader/reports/weekly/:reportId/feedback
- * Добавление обратной связи к отчету
- */
-router.post('/weekly/:reportId/feedback', async (req, res) => {
-  try {
-    const { reportId } = req.params;
-    const { rating, comment } = req.body;
-    
-    logger.info(`📝 Добавление обратной связи к отчету ${reportId}`);
-    
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        error: 'Rating must be between 1 and 5'
-      });
-    }
-    
-    const updatedReport = await WeeklyReport.findByIdAndUpdate(
-      reportId,
-      {
-        'feedback.rating': rating,
-        'feedback.comment': comment || '',
-        'feedback.respondedAt': new Date()
-      },
-      { new: true }
-    );
-    
-    if (!updatedReport) {
-      return res.status(404).json({
-        success: false,
-        error: 'Report not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        reportId,
-        feedback: updatedReport.feedback,
-        message: 'Feedback added successfully'
-      }
-    });
-  } catch (error) {
-    logger.error(`📖 Error adding report feedback: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to add feedback',
-      details: error.message
-    });
-  }
-});
-
-/**
- * POST /api/reader/reports/weekly/:reportId/read
- * Отметить отчет как прочитанный
- */
-router.post('/weekly/:reportId/read', async (req, res) => {
-  try {
-    const { reportId } = req.params;
-    
-    logger.info(`👁️ Отметка отчета ${reportId} как прочитанного`);
-    
-    const updatedReport = await WeeklyReport.findByIdAndUpdate(
-      reportId,
-      {
-        isRead: true,
-        readAt: new Date()
-      },
-      { new: true }
-    );
-    
-    if (!updatedReport) {
-      return res.status(404).json({
-        success: false,
-        error: 'Report not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        reportId,
-        isRead: updatedReport.isRead,
-        readAt: updatedReport.readAt,
-        message: 'Report marked as read'
-      }
-    });
-  } catch (error) {
-    logger.error(`📖 Error marking report as read: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to mark report as read',
-      details: error.message
-    });
-  }
-});
-
-/**
- * GET /api/reader/reports/telegram/status
+ * GET /api/reports/telegram/status
  * Проверка статуса Telegram сервиса
  */
 router.get('/telegram/status', async (req, res) => {
@@ -564,11 +567,16 @@ router.get('/telegram/status', async (req, res) => {
     logger.info('🤖 Проверка статуса Telegram сервиса');
     
     const serviceInfo = {
-      botStatus: 'active',
-      lastReportSent: await WeeklyReport.findOne().sort({ sentAt: -1 }).select('sentAt'),
+      botStatus: telegramReportService ? 'active' : 'disabled',
+      lastReportSent: WeeklyReport ? await WeeklyReport.findOne().sort({ sentAt: -1 }).select('sentAt') : null,
       nextScheduledReport: 'Воскресенье, 11:00 МСК',
       serviceUptime: process.uptime(),
-      checkedAt: new Date().toISOString()
+      checkedAt: new Date().toISOString(),
+      available: {
+        telegramReportService: !!telegramReportService,
+        weeklyReportService: !!weeklyReportService,
+        cronService: !!cronService
+      }
     };
     
     res.json({
@@ -576,7 +584,7 @@ router.get('/telegram/status', async (req, res) => {
       data: serviceInfo
     });
   } catch (error) {
-    logger.error(`📖 Error getting Telegram service status: ${error.message}`);
+    logger.error(`📖 Error getting Telegram service status: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to get Telegram service status',
@@ -586,70 +594,7 @@ router.get('/telegram/status', async (req, res) => {
 });
 
 /**
- * POST /api/reader/reports/telegram/test
- * Тестовая отправка отчета в Telegram
- */
-router.post('/telegram/test', async (req, res) => {
-  try {
-    const { userId, reportId } = req.body;
-    
-    logger.info('🧪 Тестовая отправка отчета в Telegram', { userId, reportId });
-    
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        error: 'User ID is required'
-      });
-    }
-    
-    let report;
-    
-    if (reportId) {
-      // Отправляем существующий отчет
-      report = await WeeklyReport.findById(reportId).populate('quotes');
-      
-      if (!report) {
-        return res.status(404).json({
-          success: false,
-          error: 'Report not found'
-        });
-      }
-    } else {
-      // Создаем тестовый отчет
-      report = await weeklyReportService.generateWeeklyReport(userId);
-      
-      if (!report) {
-        return res.status(404).json({
-          success: false,
-          error: 'Unable to generate report for user (no quotes or user not found)'
-        });
-      }
-    }
-    
-    // Отправляем в Telegram
-    const success = await telegramReportService.sendWeeklyReport(report);
-    
-    res.json({
-      success: true,
-      data: {
-        reportId: report._id,
-        userId: report.userId,
-        telegramSent: success,
-        message: success ? 'Test report sent successfully' : 'Failed to send to Telegram'
-      }
-    });
-  } catch (error) {
-    logger.error(`📖 Error in Telegram test: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to send test report',
-      details: error.message
-    });
-  }
-});
-
-/**
- * GET /api/reader/reports/cron/status
+ * GET /api/reports/cron/status
  * Получение статуса cron задач
  */
 router.get('/cron/status', async (req, res) => {
@@ -658,19 +603,19 @@ router.get('/cron/status', async (req, res) => {
     
     const status = {
       weeklyReports: {
-        enabled: true,
+        enabled: !!cronService,
         schedule: '0 11 * * 0', // Каждое воскресенье в 11:00
         nextRun: 'Воскресенье, 11:00 МСК',
         lastRun: null
       },
       monthlyReports: {
-        enabled: true,
+        enabled: !!cronService && !!monthlyReportService,
         schedule: '0 12 1 * *', // 1 числа каждого месяца в 12:00
         nextRun: '1 число месяца, 12:00 МСК',
         lastRun: null
       },
       reminders: {
-        enabled: true,
+        enabled: !!cronService,
         schedule: '0 9,19 * * *', // Ежедневно в 9:00 и 19:00
         nextRun: 'Ежедневно в 9:00 и 19:00 МСК',
         lastRun: null
@@ -679,7 +624,8 @@ router.get('/cron/status', async (req, res) => {
     
     const schedule = {
       timezone: 'Europe/Moscow',
-      jobs: Object.keys(status).length
+      jobs: Object.keys(status).length,
+      cronServiceAvailable: !!cronService
     };
     
     res.json({
@@ -693,7 +639,7 @@ router.get('/cron/status', async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error(`📖 Error getting cron status: ${error.message}`);
+    logger.error(`📖 Error getting cron status: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Failed to get cron status',
@@ -702,43 +648,24 @@ router.get('/cron/status', async (req, res) => {
   }
 });
 
-/**
- * POST /api/reader/reports/cron/restart/:jobName
- * Перезапуск конкретной cron задачи
- */
-router.post('/cron/restart/:jobName', async (req, res) => {
-  try {
-    const { jobName } = req.params;
-    
-    logger.info(`🔄 Перезапуск cron задачи: ${jobName}`);
-    
-    // Здесь будет логика перезапуска задач
-    const success = true; // Временно всегда успешно
-    
-    if (success) {
-      res.json({
-        success: true,
-        data: {
-          jobName,
-          message: `Job ${jobName} restarted successfully`,
-          restartedAt: new Date().toISOString()
-        }
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: `Failed to restart job ${jobName}`,
-        details: 'Job not found or restart failed'
-      });
-    }
-  } catch (error) {
-    logger.error(`📖 Error restarting cron job: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to restart cron job',
-      details: error.message
-    });
-  }
+// Fallback endpoints for graceful degradation
+router.use((req, res, next) => {
+  logger.warn(`📖 Reports API: Unknown endpoint ${req.method} ${req.path}`);
+  res.status(404).json({
+    success: false,
+    error: 'Reports endpoint not found',
+    path: req.path,
+    availableEndpoints: [
+      'GET /api/reports/stats',
+      'GET /api/reports/analytics/overview',
+      'GET /api/reports/popular-themes',
+      'GET /api/reports/list',
+      'GET /api/reports/weekly/:userId',
+      'POST /api/reports/weekly/generate',
+      'GET /api/reports/telegram/status',
+      'GET /api/reports/cron/status'
+    ]
+  });
 });
 
 module.exports = router;
