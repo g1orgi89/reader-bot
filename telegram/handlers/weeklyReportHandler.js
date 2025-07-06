@@ -1,200 +1,365 @@
 /**
- * @fileoverview Обработчик отправки еженедельных отчетов в Telegram
- * @author g1orgi89
+ * Clean Weekly Report Handler - simple reports for Reader bot
+ * @file telegram/handlers/weeklyReportHandler.js
+ * 🎨 CLEAN UX: Simple text reports, no visual clutter
  */
 
 const logger = require('../../server/utils/logger');
-const { WeeklyReportService } = require('../../server/services/weeklyReportService');
+const { UserProfile, Quote, WeeklyReport } = require('../../server/models');
+const claudeService = require('../../server/services/claude');
 
-/**
- * @typedef {import('../../server/types/reader').WeeklyReport} WeeklyReport
- */
-
-/**
- * Обработчик отправки еженедельных отчетов
- */
 class WeeklyReportHandler {
-  constructor(bot) {
+  constructor() {
+    this.bot = null;
+    logger.info('✅ WeeklyReportHandler initialized with clean design');
+  }
+
+  /**
+   * Set bot instance
+   */
+  setBotInstance(bot) {
     this.bot = bot;
-    this.weeklyReportService = new WeeklyReportService();
-    
-    logger.info('📖 WeeklyReportHandler initialized');
   }
 
   /**
-   * Отправка еженедельного отчета пользователю
-   * @param {string} userId - ID пользователя
-   * @returns {Promise<boolean>} Успех отправки
+   * Generate weekly report for user
    */
-  async sendWeeklyReport(userId) {
+  async generateWeeklyReport(userId) {
     try {
-      // Генерируем отчет
-      const report = await this.weeklyReportService.generateWeeklyReport(userId);
-      
-      if (!report) {
-        logger.warn(`📖 Failed to generate weekly report for user ${userId}`);
-        return false;
+      const user = await UserProfile.findOne({ userId });
+      if (!user || !user.isOnboardingComplete) {
+        logger.warn(`User ${userId} not found or onboarding incomplete`);
+        return null;
       }
 
-      // Отправляем отчет в Telegram
-      const success = await this.sendReportToTelegram(userId, report);
-      
-      if (success) {
-        logger.info(`📖 Weekly report sent successfully to user ${userId}`);
-      } else {
-        logger.error(`📖 Failed to send weekly report to user ${userId}`);
+      const weekNumber = this._getCurrentWeekNumber();
+      const year = new Date().getFullYear();
+
+      // Check if report already sent
+      const existingReport = await WeeklyReport.findOne({ userId, weekNumber, year });
+      if (existingReport) {
+        logger.info(`Weekly report already exists for user ${userId}, week ${weekNumber}`);
+        return existingReport;
       }
 
-      return success;
+      // Get quotes for this week
+      const weekQuotes = await Quote.find({
+        userId,
+        weekNumber,
+        yearNumber: year
+      }).sort({ createdAt: 1 });
 
-    } catch (error) {
-      logger.error(`📖 Error sending weekly report to user ${userId}: ${error.message}`, error);
-      return false;
-    }
-  }
-
-  /**
-   * Отправка отчета в Telegram
-   * @param {string} userId - ID пользователя
-   * @param {WeeklyReport} report - Отчет для отправки
-   * @returns {Promise<boolean>} Успех отправки
-   */
-  async sendReportToTelegram(userId, report) {
-    try {
-      let message;
-
-      if (report.quotes.length === 0) {
-        // Отчет для недели без цитат
-        message = this.formatEmptyWeekMessage(report);
-      } else {
-        // Полный отчет с цитатами
-        message = await this.formatFullReportMessage(report);
+      if (weekQuotes.length === 0) {
+        await this._sendEmptyWeekReport(userId, user);
+        return null;
       }
 
-      // Отправляем основное сообщение
-      const keyboard = this.createReportKeyboard(report);
+      // Generate AI analysis
+      const analysis = await this._analyzeWeeklyQuotes(weekQuotes, user);
       
-      await this.bot.telegram.sendMessage(userId, message, {
-        parse_mode: 'Markdown',
-        disable_web_page_preview: true,
-        reply_markup: keyboard
+      // Get book recommendations
+      const recommendations = await this._getBookRecommendations(analysis, user);
+      
+      // Generate promo code
+      const promoCode = this._generatePromoCode();
+
+      // Create report
+      const report = new WeeklyReport({
+        userId,
+        weekNumber,
+        year,
+        quotes: weekQuotes.map(q => q._id),
+        analysis,
+        recommendations,
+        promoCode
       });
 
-      return true;
+      await report.save();
 
+      // Send report
+      await this._sendWeeklyReport(userId, report, weekQuotes, user);
+
+      return report;
+      
     } catch (error) {
-      logger.error(`📖 Error sending report message: ${error.message}`, error);
-      return false;
+      logger.error(`Error generating weekly report for user ${userId}: ${error.message}`);
+      return null;
     }
   }
 
   /**
-   * Форматирование сообщения для недели с цитатами
-   * @param {WeeklyReport} report - Отчет
-   * @returns {Promise<string>} Форматированное сообщение
+   * Send weekly report to user
+   * @private
    */
-  async formatFullReportMessage(report) {
-    const { Quote } = require('../../server/models');
-    
-    // Получаем полные данные цитат
-    const quotes = await Quote.find({ _id: { $in: report.quotes } }).sort({ createdAt: 1 });
-    
-    const quotesCount = quotes.length;
-    const quotesText = quotes.map((quote, index) => {
-      const author = quote.author ? ` (${quote.author})` : '';
-      return `✅ "${quote.text}"${author}`;
-    }).join('\n');
+  async _sendWeeklyReport(userId, report, quotes, user) {
+    try {
+      if (!this.bot) {
+        logger.error('Bot instance not set');
+        return;
+      }
 
-    const recommendationsText = report.recommendations.map((rec, index) => {
-      return `${index + 1}. [${rec.title}](${rec.link}) - ${rec.price}\n   ${rec.description}`;
-    }).join('\n\n');
+      // Format quotes list
+      const quotesText = quotes.map((quote, index) => {
+        const author = quote.author ? ` (${quote.author})` : '';
+        return `• "${quote.text}"${author}`;
+      }).join('\n');
 
-    const promoText = report.promoCode 
-      ? `🎁 *Промокод ${report.promoCode.code}* - скидка ${report.promoCode.discount}% до ${report.promoCode.validUntil.toLocaleDateString()}!`
-      : '';
+      // Format recommendations
+      let recommendationsText = '';
+      if (report.recommendations && report.recommendations.length > 0) {
+        recommendationsText = report.recommendations.map((rec, index) => {
+          return `📚 "${rec.title}" - ${rec.price}\n   ${rec.description}`;
+        }).join('\n\n');
+      }
 
-    return `📊 *Ваш отчет за неделю*
+      const reportMessage = 
+        `📊 Ваш отчет за неделю\n\n` +
+        `Здравствуйте, ${user.name}!\n\n` +
+        `За эту неделю вы сохранили ${quotes.length} ${this._getDeclension(quotes.length, 'цитату', 'цитаты', 'цитат')}:\n\n` +
+        `${quotesText}\n\n` +
+        `🎯 Анализ недели:\n${report.analysis.insights}\n\n`;
 
-За эту неделю вы сохранили ${quotesCount} ${this.weeklyReportService.declensionQuotes(quotesCount)}:
+      let finalMessage = reportMessage;
 
+      if (recommendationsText) {
+        finalMessage += `💎 Рекомендации от Анны:\n${recommendationsText}\n\n`;
+      }
+
+      if (report.promoCode) {
+        finalMessage += 
+          `🎁 Промокод ${report.promoCode.code} - скидка ${report.promoCode.discount}% ` +
+          `до ${report.promoCode.validUntil.toLocaleDateString('ru-RU')}!\n\n`;
+      }
+
+      finalMessage += '💬 Как вам этот отчет?';
+
+      // Send with feedback buttons
+      await this.bot.telegram.sendMessage(userId, finalMessage, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "👍 Отлично", callback_data: `feedback_excellent_${report._id}` },
+              { text: "👌 Хорошо", callback_data: `feedback_good_${report._id}` },
+              { text: "👎 Плохо", callback_data: `feedback_bad_${report._id}` }
+            ]
+          ]
+        }
+      });
+
+      logger.info(`Weekly report sent to user ${userId}`);
+      
+    } catch (error) {
+      logger.error(`Error sending weekly report: ${error.message}`);
+    }
+  }
+
+  /**
+   * Send empty week report
+   * @private
+   */
+  async _sendEmptyWeekReport(userId, user) {
+    try {
+      if (!this.bot) return;
+
+      const encouragementMessage = 
+        `📖 Отчет за неделю\n\n` +
+        `Здравствуйте, ${user.name}!\n\n` +
+        `На этой неделе вы не сохранили ни одной цитаты.\n\n` +
+        `💭 Помните: "Хватит сидеть в телефоне - читайте книги!"\n\n` +
+        `Каждая цитата - это ступенька к лучшему пониманию себя. ` +
+        `Начните с одной прямо сейчас!\n\n` +
+        `📚 Попробуйте найти что-то вдохновляющее в книге, которую читаете, ` +
+        `или вспомните мудрые слова, которые когда-то вас тронули.`;
+
+      await this.bot.telegram.sendMessage(userId, encouragementMessage);
+      
+    } catch (error) {
+      logger.error(`Error sending empty week report: ${error.message}`);
+    }
+  }
+
+  /**
+   * Analyze weekly quotes with AI
+   * @private
+   */
+  async _analyzeWeeklyQuotes(quotes, userProfile) {
+    try {
+      const quotesText = quotes.map(q => `"${q.text}" ${q.author ? `(${q.author})` : ''}`).join('\n\n');
+      
+      const prompt = `Ты психолог Анна Бусел. Проанализируй цитаты пользователя за неделю и дай психологический анализ.
+
+Имя пользователя: ${userProfile.name}
+Результаты теста: ${JSON.stringify(userProfile.testResults)}
+
+Цитаты за неделю:
 ${quotesText}
 
-🎯 *Анализ недели:*
-${report.analysis.insights}
+Напиши анализ в стиле Анны Бусел:
+- Тон: теплый, профессиональный, обращение на "Вы"
+- Глубокий психологический анализ
+- Связь с результатами первоначального теста
+- Выводы о текущем состоянии и интересах
+- 2-3 абзаца
 
-${report.recommendations.length > 0 ? `💎 *Рекомендации от Анны:*\n${recommendationsText}\n\n` : ''}${promoText}
+Верни JSON:
+{
+  "summary": "Краткий анализ недели одним предложением",
+  "dominantThemes": ["тема1", "тема2"],
+  "emotionalTone": "позитивный/нейтральный/задумчивый/etc",
+  "insights": "Подробный психологический анализ от Анны"
+}`;
 
----
-💬 Как вам этот отчет?`;
-  }
-
-  /**
-   * Форматирование сообщения для пустой недели
-   * @param {WeeklyReport} report - Отчет
-   * @returns {string} Форматированное сообщение
-   */
-  formatEmptyWeekMessage(report) {
-    return `📖 *Отчет за неделю*
-
-${report.analysis.insights}
-
-💭 Помните: "Хватит сидеть в телефоне - читайте книги!"
-
-Каждая цитата - это ступенька к лучшему пониманию себя. Начните с одной прямо сейчас!
-
-📚 Попробуйте найти что-то вдохновляющее в книге, которую читаете, или вспомните мудрые слова, которые когда-то вас тронули.`;
-  }
-
-  /**
-   * Создание клавиатуры для отчета
-   * @param {WeeklyReport} report - Отчет
-   * @returns {Object} Telegram inline keyboard
-   */
-  createReportKeyboard(report) {
-    const keyboard = [];
-
-    // Кнопки обратной связи (только для полных отчетов)
-    if (report.quotes.length > 0) {
-      keyboard.push([
-        { text: "👍 Отлично", callback_data: `feedback_excellent_${report._id}` },
-        { text: "👌 Хорошо", callback_data: `feedback_good_${report._id}` },
-        { text: "👎 Плохо", callback_data: `feedback_bad_${report._id}` }
-      ]);
+      const response = await claudeService.generateResponse(prompt, {
+        platform: 'telegram',
+        userId: 'weekly_report'
+      });
+      
+      return JSON.parse(response.message);
+    } catch (error) {
+      logger.error(`Error analyzing weekly quotes: ${error.message}`);
+      
+      // Fallback analysis
+      return {
+        summary: "Ваши цитаты отражают глубокий внутренний поиск",
+        dominantThemes: ["саморазвитие", "мудрость"],
+        emotionalTone: "позитивный",
+        insights: "Эта неделя показывает ваш интерес к глубоким жизненным вопросам. Вы ищете ответы и вдохновение в словах мудрых людей."
+      };
     }
+  }
 
-    // Кнопка для просмотра статистики
-    keyboard.push([
-      { text: "📈 Моя статистика", callback_data: "show_user_stats" }
-    ]);
+  /**
+   * Get book recommendations
+   * @private
+   */
+  async _getBookRecommendations(analysis, userProfile) {
+    try {
+      const prompt = `Ты психолог Анна Бусел. На основе анализа недели пользователя, подбери 2-3 рекомендации из твоих разборов книг.
 
-    // Кнопка настроек (если пользователь хочет изменить частоту отчетов)
-    keyboard.push([
-      { text: "⚙️ Настройки", callback_data: "show_settings" }
-    ]);
+Имя: ${userProfile.name}
+Анализ недели: ${analysis.insights}
+Доминирующие темы: ${analysis.dominantThemes.join(', ')}
 
+Доступные разборы книг Анны Бусел:
+- "Искусство любить" Эриха Фромма ($8) - о построении здоровых отношений
+- "Письма к молодому поэту" Рильке ($8) - о творчестве и самопознании
+- "Быть собой" курс ($12) - о самопринятии и аутентичности
+- "Женщина, которая читает, опасна" ($10) - о женственности и силе
+- "Алхимик" Пауло Коэльо ($8) - о поиске смысла жизни
+- "Маленький принц" ($6) - о простых истинах жизни
+
+Верни JSON массив рекомендаций:
+[
+  {
+    "title": "Название книги/курса",
+    "price": "$8",
+    "description": "Краткое описание почему подходит",
+    "reasoning": "Почему именно эта книга подойдет пользователю на основе анализа"
+  }
+]
+
+Максимум 2 рекомендации, самые подходящие.`;
+
+      const response = await claudeService.generateResponse(prompt, {
+        platform: 'telegram', 
+        userId: 'book_recommendations'
+      });
+      
+      const recommendations = JSON.parse(response.message);
+      
+      // Add UTM links
+      return recommendations.map(rec => ({
+        ...rec,
+        link: this._generateUTMLink(rec.title, userProfile.userId)
+      }));
+    } catch (error) {
+      logger.error(`Error getting book recommendations: ${error.message}`);
+      
+      // Fallback recommendation
+      return [
+        {
+          title: "Искусство любить",
+          price: "$8",
+          description: "О построении здоровых отношений с собой и миром",
+          reasoning: "Подходит для глубокого самопознания",
+          link: this._generateUTMLink("Искусство любить", userProfile.userId)
+        }
+      ];
+    }
+  }
+
+  /**
+   * Generate promo code
+   * @private
+   */
+  _generatePromoCode() {
+    const codes = ['READER20', 'WISDOM20', 'QUOTES20', 'BOOKS20'];
     return {
-      inline_keyboard: keyboard
+      code: codes[Math.floor(Math.random() * codes.length)],
+      discount: 20,
+      validUntil: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days
     };
   }
 
   /**
-   * Обработка обратной связи по отчету
-   * @param {Object} ctx - Telegram context
-   * @param {string} rating - Рейтинг (excellent/good/bad)
-   * @param {string} reportId - ID отчета
-   * @returns {Promise<void>}
+   * Generate UTM link
+   * @private
    */
-  async handleWeeklyFeedback(ctx, rating, reportId) {
+  _generateUTMLink(bookTitle, userId) {
+    const baseUrl = "https://anna-busel.com/books";
+    const utmParams = new URLSearchParams({
+      utm_source: 'telegram_bot',
+      utm_medium: 'weekly_report',
+      utm_campaign: 'reader_recommendations',
+      utm_content: bookTitle.toLowerCase().replace(/\s+/g, '_'),
+      user_id: userId
+    });
+    
+    return `${baseUrl}?${utmParams.toString()}`;
+  }
+
+  /**
+   * Get current week number
+   * @private
+   */
+  _getCurrentWeekNumber() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const diff = now - start;
+    const oneWeek = 1000 * 60 * 60 * 24 * 7;
+    return Math.floor(diff / oneWeek) + 1;
+  }
+
+  /**
+   * Get word declension
+   * @private
+   */
+  _getDeclension(count, one, few, many) {
+    if (count % 10 === 1 && count % 100 !== 11) return one;
+    if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return few;
+    return many;
+  }
+
+  /**
+   * Handle feedback callback
+   */
+  async handleFeedback(ctx) {
     try {
-      const { WeeklyReport } = require('../../server/models');
+      const callbackData = ctx.callbackQuery.data;
       
-      // Обновляем отчет с обратной связью
-      const ratingValue = this.convertRatingToNumber(rating);
-      
-      await WeeklyReport.findByIdAndUpdate(reportId, {
-        'feedback.rating': ratingValue,
+      if (!callbackData.startsWith('feedback_')) return false;
+
+      const parts = callbackData.split('_');
+      const rating = parts[1]; // excellent, good, bad
+      const reportId = parts[2];
+
+      // Update report with feedback
+      const updateData = {
+        'feedback.rating': this._convertRatingToNumber(rating),
         'feedback.respondedAt': new Date()
-      });
+      };
+
+      await WeeklyReport.findByIdAndUpdate(reportId, updateData);
 
       let responseMessage;
       switch (rating) {
@@ -202,39 +367,37 @@ ${report.analysis.insights}
           responseMessage = "🎉 Спасибо за отзыв! Рада, что отчет оказался полезным.";
           break;
         case 'good':
-          responseMessage = "👌 Спасибо! Что бы вы хотели улучшить в следующих отчетах?";
-          // Можно добавить запрос детальной обратной связи
+          responseMessage = "👌 Спасибо за отзыв! Продолжаем улучшать отчеты.";
           break;
         case 'bad':
-          responseMessage = "😔 Извините, что отчет не оправдал ожиданий. Что бы вы хотели изменить?";
-          // Можно добавить запрос детальной обратной связи
+          responseMessage = "😔 Извините, что отчет не оправдал ожиданий. Мы работаем над улучшениями.";
           break;
         default:
-          responseMessage = "📝 Спасибо за обратную связь!";
+          responseMessage = "Спасибо за отзыв!";
       }
 
-      await ctx.editMessageText(responseMessage);
+      await ctx.answerCbQuery(responseMessage);
+      
+      // Update message to remove buttons
+      const originalText = ctx.callbackQuery.message.text;
+      const updatedText = originalText.replace('💬 Как вам этот отчет?', `📝 Спасибо за оценку "${rating}"!`);
+      
+      await ctx.editMessageText(updatedText);
 
-      // Логируем обратную связь
-      logger.info(`📖 Weekly report feedback received: user ${ctx.from.id}, rating ${rating}, report ${reportId}`);
-
-      // Если рейтинг низкий, уведомляем администратора
-      if (ratingValue <= 2) {
-        await this.notifyAdminAboutLowRating(ctx.from.id, rating, reportId);
-      }
-
+      return true;
+      
     } catch (error) {
-      logger.error(`📖 Error handling weekly feedback: ${error.message}`, error);
-      await ctx.reply("Произошла ошибка при обработке отзыва. Попробуйте позже.");
+      logger.error(`Error handling feedback: ${error.message}`);
+      await ctx.answerCbQuery('Произошла ошибка');
+      return false;
     }
   }
 
   /**
-   * Конвертация рейтинга в число
-   * @param {string} rating - Текстовый рейтинг
-   * @returns {number} Числовой рейтинг
+   * Convert rating to number
+   * @private
    */
-  convertRatingToNumber(rating) {
+  _convertRatingToNumber(rating) {
     switch (rating) {
       case 'excellent': return 5;
       case 'good': return 4;
@@ -244,167 +407,31 @@ ${report.analysis.insights}
   }
 
   /**
-   * Уведомление администратора о низком рейтинге
-   * @param {string} userId - ID пользователя
-   * @param {string} rating - Рейтинг
-   * @param {string} reportId - ID отчета
-   * @returns {Promise<void>}
+   * Generate reports for all active users
    */
-  async notifyAdminAboutLowRating(userId, rating, reportId) {
+  async generateWeeklyReportsForAllUsers() {
     try {
-      const { UserProfile } = require('../../server/models');
-      const user = await UserProfile.findOne({ userId });
-      
-      if (!user) return;
-
-      const adminMessage = `
-📝 *Низкий рейтинг еженедельного отчета*
-
-*Пользователь:* ${user.name} (@${user.telegramUsername || 'неизвестно'})
-*Email:* ${user.email}
-*Рейтинг:* ${rating} (${this.convertRatingToNumber(rating)}/5)
-*ID отчета:* ${reportId}
-
-*Статистика пользователя:*
-- Дата регистрации: ${user.registeredAt.toLocaleDateString()}
-- Всего цитат: ${user.statistics.totalQuotes}
-- Источник: ${user.source}
-
-Стоит связаться с пользователем для выяснения причин недовольства.
-      `;
-
-      // Отправляем уведомление администратору (если настроен ADMIN_TELEGRAM_ID)
-      if (process.env.ADMIN_TELEGRAM_ID) {
-        await this.bot.telegram.sendMessage(
-          process.env.ADMIN_TELEGRAM_ID,
-          adminMessage,
-          { parse_mode: 'Markdown' }
-        );
-      }
-
-    } catch (error) {
-      logger.error(`📖 Error notifying admin about low rating: ${error.message}`, error);
-    }
-  }
-
-  /**
-   * Отправка отчетов всем активным пользователям
-   * @returns {Promise<Object>} Статистика отправки
-   */
-  async sendReportsToAllUsers() {
-    try {
-      const { UserProfile } = require('../../server/models');
-      
-      // Получаем всех активных пользователей
       const activeUsers = await UserProfile.find({
         isOnboardingComplete: true,
         'settings.reminderEnabled': true
       });
 
-      const stats = {
-        total: activeUsers.length,
-        sent: 0,
-        failed: 0,
-        errors: []
-      };
-
-      logger.info(`📖 Starting weekly reports sending to ${stats.total} users`);
+      logger.info(`Generating weekly reports for ${activeUsers.length} users`);
 
       for (const user of activeUsers) {
         try {
-          const success = await this.sendWeeklyReport(user.userId);
-          
-          if (success) {
-            stats.sent++;
-          } else {
-            stats.failed++;
-          }
-
-          // Небольшая задержка между отправками чтобы не превысить лимиты Telegram API
+          await this.generateWeeklyReport(user.userId);
+          // Small delay to avoid rate limits
           await new Promise(resolve => setTimeout(resolve, 100));
-
         } catch (error) {
-          stats.failed++;
-          stats.errors.push({
-            userId: user.userId,
-            error: error.message
-          });
-          
-          logger.error(`📖 Failed to send weekly report to user ${user.userId}: ${error.message}`);
+          logger.error(`Failed to generate report for user ${user.userId}: ${error.message}`);
         }
       }
 
-      logger.info(`📖 Weekly reports sending completed: ${stats.sent} sent, ${stats.failed} failed`);
+      logger.info('Weekly reports generation completed');
       
-      return stats;
-
     } catch (error) {
-      logger.error(`📖 Error in sendReportsToAllUsers: ${error.message}`, error);
-      return {
-        total: 0,
-        sent: 0,
-        failed: 0,
-        errors: [{ error: error.message }]
-      };
-    }
-  }
-
-  /**
-   * Получение статистики еженедельных отчетов
-   * @param {number} days - Количество дней для анализа
-   * @returns {Promise<Object>} Статистика
-   */
-  async getReportStats(days = 30) {
-    try {
-      const { WeeklyReport } = require('../../server/models');
-      
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
-      const reports = await WeeklyReport.find({
-        sentAt: { $gte: startDate }
-      });
-
-      const stats = {
-        totalReports: reports.length,
-        reportsWithQuotes: reports.filter(r => r.quotes.length > 0).length,
-        emptyReports: reports.filter(r => r.quotes.length === 0).length,
-        averageQuotesPerReport: 0,
-        feedbackStats: {
-          total: 0,
-          excellent: 0,
-          good: 0,
-          bad: 0,
-          averageRating: 0
-        }
-      };
-
-      // Подсчет средних значений
-      if (stats.reportsWithQuotes > 0) {
-        const totalQuotes = reports
-          .filter(r => r.quotes.length > 0)
-          .reduce((sum, r) => sum + r.quotes.length, 0);
-        stats.averageQuotesPerReport = Math.round(totalQuotes / stats.reportsWithQuotes * 10) / 10;
-      }
-
-      // Статистика обратной связи
-      const reportsWithFeedback = reports.filter(r => r.feedback && r.feedback.rating);
-      stats.feedbackStats.total = reportsWithFeedback.length;
-
-      if (reportsWithFeedback.length > 0) {
-        stats.feedbackStats.excellent = reportsWithFeedback.filter(r => r.feedback.rating === 5).length;
-        stats.feedbackStats.good = reportsWithFeedback.filter(r => r.feedback.rating === 4).length;
-        stats.feedbackStats.bad = reportsWithFeedback.filter(r => r.feedback.rating <= 2).length;
-
-        const totalRating = reportsWithFeedback.reduce((sum, r) => sum + r.feedback.rating, 0);
-        stats.feedbackStats.averageRating = Math.round(totalRating / reportsWithFeedback.length * 10) / 10;
-      }
-
-      return stats;
-
-    } catch (error) {
-      logger.error(`📖 Error getting report stats: ${error.message}`, error);
-      return null;
+      logger.error(`Error generating weekly reports for all users: ${error.message}`);
     }
   }
 }
