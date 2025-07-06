@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
+const { basicAdminAuth } = require('../middleware/auth');
 
 // Подключение моделей (когда будут созданы)
 // const Quote = require('../models/Quote');
@@ -43,7 +43,7 @@ const { requireAuth } = require('../middleware/auth');
 /**
  * GET /api/quotes - Получение списка цитат с фильтрацией
  */
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', basicAdminAuth, async (req, res) => {
     try {
         const {
             period = '7d',
@@ -99,7 +99,7 @@ router.get('/', requireAuth, async (req, res) => {
 /**
  * GET /api/quotes/statistics - Получение статистики цитат
  */
-router.get('/statistics', requireAuth, async (req, res) => {
+router.get('/statistics', basicAdminAuth, async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
@@ -137,7 +137,7 @@ router.get('/statistics', requireAuth, async (req, res) => {
 /**
  * GET /api/quotes/analytics - Получение аналитических данных для графиков
  */
-router.get('/analytics', requireAuth, async (req, res) => {
+router.get('/analytics', basicAdminAuth, async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
@@ -195,7 +195,7 @@ router.get('/analytics', requireAuth, async (req, res) => {
 /**
  * GET /api/quotes/:id - Получение детальной информации о цитате
  */
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', basicAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -258,7 +258,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 /**
  * POST /api/quotes/:id/analyze - Запуск AI анализа цитаты
  */
-router.post('/:id/analyze', requireAuth, async (req, res) => {
+router.post('/:id/analyze', basicAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -292,7 +292,7 @@ router.post('/:id/analyze', requireAuth, async (req, res) => {
 /**
  * PUT /api/quotes/:id - Обновление цитаты (редактирование)
  */
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', basicAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { text, author, category, themes } = req.body;
@@ -337,7 +337,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 /**
  * DELETE /api/quotes/:id - Удаление цитаты
  */
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', basicAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { reason = 'Удалено администратором' } = req.body;
@@ -369,7 +369,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 /**
  * POST /api/quotes/export - Экспорт цитат
  */
-router.post('/export', requireAuth, async (req, res) => {
+router.post('/export', basicAdminAuth, async (req, res) => {
     try {
         const { 
             format = 'csv',
@@ -408,7 +408,7 @@ router.post('/export', requireAuth, async (req, res) => {
 /**
  * GET /api/quotes/search/similar/:id - Поиск похожих цитат
  */
-router.get('/search/similar/:id', requireAuth, async (req, res) => {
+router.get('/search/similar/:id', basicAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { limit = 5 } = req.query;
