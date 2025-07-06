@@ -1,40 +1,24 @@
 /**
- * Modern Onboarding Handler with beautiful test design for Reader bot
+ * Clean Onboarding Handler - menu button + simple text for Reader bot
  * @file telegram/handlers/modernOnboardingHandler.js
- * 🎨 VISUAL UX: Beautiful test panels, elegant progress indicators
- * 📖 READER THEME: Book-focused onboarding for Anna Busel's project
+ * 🎨 CLEAN UX: Menu button, simple text, no visual spam
  */
 
 const logger = require('../../server/utils/logger');
 const { UserProfile } = require('../../server/models');
 const claudeService = require('../../server/services/claude');
 
-/**
- * @typedef {Object} OnboardingState
- * @property {string} step - Current onboarding step
- * @property {Object} answers - Collected answers
- * @property {number} startTime - When onboarding started
- * @property {number} lastActivity - Last activity timestamp
- */
-
-/**
- * @class ModernOnboardingHandler
- * @description Modern beautiful onboarding flow with elegant test design
- */
 class ModernOnboardingHandler {
   constructor() {
-    /** @type {Map<string, OnboardingState>} */
+    /** @type {Map<string, Object>} */
     this.userStates = new Map();
     
-    // Test questions with beautiful formatting
     this.testQuestions = [
       {
         id: 'name',
         number: 1,
         type: 'text',
         question: 'Как вас зовут?',
-        description: 'Расскажите, как к вам обращаться',
-        placeholder: 'Например: Мария',
         emoji: '👋'
       },
       {
@@ -42,7 +26,6 @@ class ModernOnboardingHandler {
         number: 2,
         type: 'buttons',
         question: 'Расскажите о себе:',
-        description: 'Выберите наиболее близкий вариант',
         emoji: '🌟',
         options: [
           { text: '👶 Я мама (дети - главная забота)', value: 'mother' },
@@ -55,7 +38,6 @@ class ModernOnboardingHandler {
         number: 3,
         type: 'buttons',
         question: 'Как находите время для себя?',
-        description: 'Ваша стратегия личного времени',
         emoji: '⏰',
         options: [
           { text: '🌅 Рано утром, пока все спят', value: 'early_morning' },
@@ -69,7 +51,6 @@ class ModernOnboardingHandler {
         number: 4,
         type: 'buttons',
         question: 'Что сейчас важнее всего?',
-        description: 'Выберите главный приоритет в жизни',
         emoji: '🎯',
         options: [
           { text: '🧘‍♀️ Найти внутренний баланс', value: 'inner_balance' },
@@ -83,7 +64,6 @@ class ModernOnboardingHandler {
         number: 5,
         type: 'buttons',
         question: 'Что чувствуете, читая книги?',
-        description: 'Ваши эмоции от чтения',
         emoji: '📚',
         options: [
           { text: '🔍 Нахожу ответы на свои вопросы', value: 'finding_answers' },
@@ -97,7 +77,6 @@ class ModernOnboardingHandler {
         number: 6,
         type: 'buttons',
         question: 'Какая фраза ближе?',
-        description: 'Выберите то, что резонирует с вами',
         emoji: '💫',
         options: [
           { text: '✨ "Счастье — это выбор"', value: 'happiness_choice' },
@@ -111,7 +90,6 @@ class ModernOnboardingHandler {
         number: 7,
         type: 'buttons',
         question: 'Сколько времени читаете в неделю?',
-        description: 'Честно оцените свое время на чтение',
         emoji: '📖',
         options: [
           { text: '📚 Меньше часа (читаю редко)', value: 'less_hour' },
@@ -122,7 +100,6 @@ class ModernOnboardingHandler {
       }
     ];
 
-    // Source options for traffic attribution
     this.sourceOptions = [
       { text: '📱 Instagram', value: 'Instagram' },
       { text: '💬 Telegram', value: 'Telegram' },
@@ -132,324 +109,255 @@ class ModernOnboardingHandler {
       { text: '🔍 Другое', value: 'Другое' }
     ];
 
-    this.stateCleanupInterval = 30 * 60 * 1000; // 30 minutes
+    // Очистка каждые 30 минут
+    setInterval(() => this.cleanupStaleStates(), 30 * 60 * 1000);
     
-    // Start cleanup timer
-    this.cleanupTimer = setInterval(() => {
-      this.cleanupStaleStates();
-    }, 10 * 60 * 1000); // Clean up every 10 minutes
-    
-    logger.info('🎨 ModernOnboardingHandler initialized with beautiful test design');
+    logger.info('✅ ModernOnboardingHandler initialized with clean UX');
   }
 
   /**
-   * Handle /start command with beautiful welcome
-   * @param {Object} ctx - Telegram context
+   * Setup bot menu button and commands
+   * @param {Object} bot - Telegram bot instance
+   */
+  async setupMenuButton(bot) {
+    try {
+      // Устанавливаем menu button
+      await bot.telegram.setChatMenuButton({
+        menu_button: {
+          type: 'commands'
+        }
+      });
+
+      // Устанавливаем команды для меню
+      await bot.telegram.setMyCommands([
+        { command: 'stats', description: '📊 Моя статистика' },
+        { command: 'search', description: '🔍 Поиск цитат' },
+        { command: 'help', description: '❓ Справка' },
+        { command: 'settings', description: '⚙️ Настройки' }
+      ]);
+
+      logger.info('✅ Menu button and commands configured');
+    } catch (error) {
+      logger.error(`Error setting up menu button: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle /start command with simple welcome
    */
   async handleStart(ctx) {
     try {
       const userId = ctx.from.id.toString();
       
-      // Check if user already exists
+      // Проверка существующего пользователя
       const existingUser = await UserProfile.findOne({ userId });
       if (existingUser && existingUser.isOnboardingComplete) {
-        await ctx.reply('📖 Добро пожаловать обратно! Используйте /menu для навигации.');
+        await ctx.reply(
+          '📖 Добро пожаловать обратно!\n\n' +
+          '💡 Используйте кнопку меню 📋 (рядом с прикреплением файлов) для навигации'
+        );
         return;
       }
 
-      const welcomeMessage = `
-╭─────────────────────────╮
-│    📖 ДОБРО ПОЖАЛОВАТЬ   │
-│        В ЧИТАТЕЛЬ       │
-╰─────────────────────────╯
+      const welcomeMessage = 
+        '👋 Здравствуйте!\n\n' +
+        'Вы попали в «Читатель» — ваш личный проводник в мире слов и цитат.\n\n' +
+        'Меня зовут Анна Бусел, я психолог и основатель «Книжного клуба». ' +
+        'Здесь мы превратим ваши случайные цитаты в персональный дневник роста.\n\n' +
+        '📝 Сначала пройдём короткий тест (2 минуты) — он поможет мне понять, ' +
+        'какие книги будут откликаться именно вам.';
 
-Здравствуйте! 👋
-
-Вы попали в «Читатель» — ваш личный 
-проводник в мире слов и цитат.
-
-┌─────────────────────────┐
-│  Меня зовут Анна Бусел  │
-│                         │
-│  🧠 Психолог            │
-│  📚 Основатель          │
-│     «Книжного клуба»    │
-└─────────────────────────┘
-
-Здесь мы превратим ваши случайные 
-цитаты в персональный дневник роста.
-
-💡 Сначала пройдём короткий тест 
-   (2 минуты) — он поможет мне понять, 
-   какие книги будут откликаться 
-   именно вам.
-
-┌─────────────────────────┐
-│     ГОТОВЫ НАЧАТЬ?      │
-└─────────────────────────┘`;
-
-      const keyboard = {
-        inline_keyboard: [
-          [{ text: "✨ Начать тест", callback_data: "start_beautiful_test" }],
-          [{ text: "❓ Что это за бот?", callback_data: "about_bot" }]
-        ]
-      };
-
-      await ctx.reply(welcomeMessage, { reply_markup: keyboard });
-      
-      // Initialize user state
-      this._initializeUserState(userId);
+      await ctx.reply(welcomeMessage, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "✨ Начать тест", callback_data: "start_test" }]
+          ]
+        }
+      });
       
     } catch (error) {
-      logger.error(`🎨 Error in handleStart: ${error.message}`);
+      logger.error(`Error in handleStart: ${error.message}`);
       await ctx.reply('📖 Здравствуйте! Добро пожаловать в «Читатель». Попробуйте еще раз.');
     }
   }
 
   /**
-   * Handle callback queries for onboarding
-   * @param {Object} ctx - Telegram context
-   * @returns {Promise<boolean>} - True if handled
+   * Handle callback queries
    */
   async handleCallback(ctx) {
     try {
       const userId = ctx.from.id.toString();
-      const callbackData = ctx.callbackQuery.data;
+      const data = ctx.callbackQuery.data;
 
-      if (callbackData === 'start_beautiful_test') {
+      if (data === 'start_test') {
         await this._startTest(ctx);
         await ctx.answerCbQuery('🎯 Начинаем тест!');
         return true;
       }
 
-      if (callbackData === 'about_bot') {
-        await this._showAboutBot(ctx);
-        await ctx.answerCbQuery('ℹ️ О боте');
+      if (data.startsWith('answer_')) {
+        await this._handleAnswer(ctx, data);
         return true;
       }
 
-      if (callbackData.startsWith('test_answer_')) {
-        await this._handleTestAnswer(ctx, callbackData);
-        return true;
-      }
-
-      if (callbackData.startsWith('source_')) {
-        await this._handleSourceSelection(ctx, callbackData);
-        return true;
-      }
-
-      if (callbackData === 'skip_email') {
-        await this._handleEmailSkip(ctx);
-        return true;
-      }
-
-      if (callbackData === 'restart_test') {
-        await this._restartTest(ctx);
-        await ctx.answerCbQuery('🔄 Тест перезапущен');
+      if (data.startsWith('source_')) {
+        await this._handleSourceSelection(ctx, data);
         return true;
       }
 
       return false;
       
     } catch (error) {
-      logger.error(`🎨 Error in handleCallback: ${error.message}`);
+      logger.error(`Error in handleCallback: ${error.message}`);
       await ctx.answerCbQuery('❌ Произошла ошибка');
       return false;
     }
   }
 
   /**
-   * Handle text messages during onboarding
-   * @param {Object} ctx - Telegram context
-   * @returns {Promise<boolean>} - True if handled
+   * Handle text messages
    */
   async handleTextMessage(ctx) {
     try {
       const userId = ctx.from.id.toString();
-      const messageText = ctx.message.text;
-      const userState = this.userStates.get(userId);
+      const text = ctx.message.text;
+      const state = this.userStates.get(userId);
 
-      if (!userState) return false;
+      if (!state) return false;
 
-      // Handle name input
-      if (userState.step === 'awaiting_name') {
-        await this._handleNameInput(ctx, messageText);
+      if (state.step === 'awaiting_name') {
+        await this._handleNameInput(ctx, text);
         return true;
       }
 
-      // Handle email input
-      if (userState.step === 'awaiting_email') {
-        await this._handleEmailInput(ctx, messageText);
+      if (state.step === 'awaiting_email') {
+        await this._handleEmailInput(ctx, text);
         return true;
       }
 
       return false;
       
     } catch (error) {
-      logger.error(`🎨 Error in handleTextMessage: ${error.message}`);
+      logger.error(`Error in handleTextMessage: ${error.message}`);
       return false;
     }
   }
 
   /**
-   * Start the beautiful test
-   * @private
-   * @param {Object} ctx - Telegram context
+   * Start test with single message interface
    */
   async _startTest(ctx) {
     const userId = ctx.from.id.toString();
     
-    // Update state to first question
     this.userStates.set(userId, {
       step: 'test_question_1',
       answers: {},
+      currentQuestion: 1,
       startTime: Date.now(),
-      lastActivity: Date.now()
+      lastActivity: Date.now(),
+      messageId: ctx.callbackQuery.message.message_id
     });
 
-    await this._showTestQuestion(ctx, 1);
+    await this._showQuestion(ctx, 1);
   }
 
   /**
-   * Show test question with beautiful formatting
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {number} questionNumber - Question number (1-7)
+   * Show question with clean design
    */
-  async _showTestQuestion(ctx, questionNumber) {
+  async _showQuestion(ctx, questionNumber) {
     try {
       const question = this.testQuestions[questionNumber - 1];
-      if (!question) {
-        logger.error(`🎨 Question ${questionNumber} not found`);
-        return;
-      }
+      if (!question) return;
 
-      const progressBar = this._createProgressBar(questionNumber, this.testQuestions.length);
+      const progress = `📊 ${questionNumber}/${this.testQuestions.length}`;
       
-      let questionPanel = `
-╭─────────────────────────╮
-│      📝 ТЕСТ АННЫ       │
-╰─────────────────────────╯
-
-${progressBar}
-
-${question.emoji} Вопрос ${question.number} из ${this.testQuestions.length}
-
-┌─────────────────────────┐
-│  ${question.question.toUpperCase()}  │
-└─────────────────────────┘
-
-💭 ${question.description}
-`;
+      let message = `${progress}\n\n${question.emoji} Вопрос ${question.number} из ${this.testQuestions.length}\n\n${question.question}`;
 
       if (question.type === 'text') {
-        questionPanel += `
-💡 ${question.placeholder}
-
-Напишите ваш ответ:`;
-
-        await ctx.editMessageText(questionPanel, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "⏭️ Пропустить", callback_data: `test_answer_skip_${question.id}` }],
-              [{ text: "🔄 Перезапустить тест", callback_data: "restart_test" }]
-            ]
-          }
-        });
-
-        // Update state to await text input
+        message += '\n\n💬 Просто напишите ваш ответ:';
+        
+        await ctx.editMessageText(message);
+        
+        // Установить состояние ожидания текста
         const userId = ctx.from.id.toString();
-        const userState = this.userStates.get(userId);
-        if (userState) {
-          userState.step = 'awaiting_name';
-          userState.lastActivity = Date.now();
+        const state = this.userStates.get(userId);
+        if (state) {
+          state.step = 'awaiting_name';
+          state.lastActivity = Date.now();
         }
 
       } else if (question.type === 'buttons') {
         const keyboard = {
-          inline_keyboard: [
-            ...question.options.map(option => [{
-              text: option.text,
-              callback_data: `test_answer_${question.id}_${option.value}`
-            }]),
-            [{ text: "🔄 Перезапустить тест", callback_data: "restart_test" }]
-          ]
+          inline_keyboard: question.options.map(option => [{
+            text: option.text,
+            callback_data: `answer_${question.id}_${option.value}`
+          }])
         };
 
-        await ctx.editMessageText(questionPanel, { reply_markup: keyboard });
+        await ctx.editMessageText(message, { reply_markup: keyboard });
       }
       
     } catch (error) {
-      logger.error(`🎨 Error showing test question: ${error.message}`);
-      await ctx.reply('📖 Произошла ошибка при загрузке вопроса. Попробуйте /start');
+      logger.error(`Error showing question: ${error.message}`);
+      await ctx.reply('📖 Произошла ошибка. Попробуйте /start');
     }
   }
 
   /**
-   * Handle test answer
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} callbackData - Callback data
+   * Handle answer - update same message
    */
-  async _handleTestAnswer(ctx, callbackData) {
+  async _handleAnswer(ctx, callbackData) {
     try {
       const userId = ctx.from.id.toString();
-      const userState = this.userStates.get(userId);
+      const state = this.userStates.get(userId);
       
-      if (!userState) {
+      if (!state) {
         await ctx.answerCbQuery('⏰ Сессия истекла, начните заново с /start');
         return;
       }
 
-      // Parse callback data: test_answer_{questionId}_{value}
-      const parts = callbackData.replace('test_answer_', '').split('_');
+      // Парсим ответ: answer_questionId_value
+      const parts = callbackData.replace('answer_', '').split('_');
       const questionId = parts[0];
-      const answerValue = parts.slice(1).join('_');
+      const value = parts.slice(1).join('_');
 
-      // Save answer
-      userState.answers[questionId] = answerValue;
-      userState.lastActivity = Date.now();
-
-      // Find current question number
-      const currentQuestion = this.testQuestions.find(q => q.id === questionId);
-      const nextQuestionNumber = currentQuestion ? currentQuestion.number + 1 : 8;
+      // Сохраняем ответ
+      state.answers[questionId] = value;
+      state.lastActivity = Date.now();
 
       await ctx.answerCbQuery('✅ Ответ сохранен');
 
-      // Show next question or proceed to email collection
-      if (nextQuestionNumber <= this.testQuestions.length) {
-        userState.step = `test_question_${nextQuestionNumber}`;
-        await this._showTestQuestion(ctx, nextQuestionNumber);
+      // Переход к следующему вопросу
+      const nextQuestion = state.currentQuestion + 1;
+      
+      if (nextQuestion <= this.testQuestions.length) {
+        state.currentQuestion = nextQuestion;
+        state.step = `test_question_${nextQuestion}`;
+        await this._showQuestion(ctx, nextQuestion);
       } else {
-        // Test completed, collect email
+        // Тест завершен, переход к email
         await this._collectEmail(ctx);
       }
       
     } catch (error) {
-      logger.error(`🎨 Error handling test answer: ${error.message}`);
+      logger.error(`Error handling answer: ${error.message}`);
       await ctx.answerCbQuery('❌ Ошибка при сохранении ответа');
     }
   }
 
   /**
-   * Handle name input
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} name - User's name
+   * Handle name input - delete user message, update bot message
    */
   async _handleNameInput(ctx, name) {
     try {
       const userId = ctx.from.id.toString();
-      const userState = this.userStates.get(userId);
+      const state = this.userStates.get(userId);
       
-      if (!userState || userState.step !== 'awaiting_name') return;
+      if (!state || state.step !== 'awaiting_name') return;
 
-      // Validate name
+      // Валидация
       if (!name || name.trim().length < 2) {
-        await ctx.reply(
-          '📝 Пожалуйста, введите имя (минимум 2 символа).\n\n' +
-          'Например: Мария, Анна, Елена'
-        );
+        await ctx.reply('📝 Пожалуйста, введите имя (минимум 2 символа).');
         return;
       }
 
@@ -458,157 +366,108 @@ ${question.emoji} Вопрос ${question.number} из ${this.testQuestions.leng
         return;
       }
 
-      // Save name and move to next question
-      userState.answers.name = name.trim();
-      userState.step = 'test_question_2';
-      userState.lastActivity = Date.now();
+      // Удаляем сообщение пользователя для чистоты
+      try {
+        await ctx.deleteMessage(ctx.message.message_id);
+      } catch (e) {
+        // Ignore if can't delete
+      }
 
-      // Send confirmation and show next question
-      await ctx.reply(`✨ Приятно познакомиться, ${name.trim()}!`);
-      await this._showTestQuestion(ctx, 2);
+      // Сохраняем имя
+      state.answers.name = name.trim();
+      state.currentQuestion = 2;
+      state.step = 'test_question_2';
+      state.lastActivity = Date.now();
+
+      // Обновляем основное сообщение
+      await this._showQuestion(ctx, 2);
       
     } catch (error) {
-      logger.error(`🎨 Error handling name input: ${error.message}`);
+      logger.error(`Error handling name: ${error.message}`);
       await ctx.reply('📖 Произошла ошибка. Попробуйте еще раз.');
     }
   }
 
   /**
-   * Collect email with beautiful panel
-   * @private
-   * @param {Object} ctx - Telegram context
+   * Collect email - simple design
    */
   async _collectEmail(ctx) {
     try {
       const userId = ctx.from.id.toString();
-      const userState = this.userStates.get(userId);
+      const state = this.userStates.get(userId);
       
-      if (!userState) return;
+      if (!state) return;
 
-      const emailPanel = `
-╭─────────────────────────╮
-│    📧 ПОЧТИ ГОТОВО!     │
-╰─────────────────────────╯
+      const message = 
+        '📧 Отлично! Тест завершён.\n\n' +
+        'Теперь мне нужен ваш email для еженедельных отчетов:\n\n' +
+        '📊 Еженедельные отчеты:\n' +
+        '• Анализ ваших цитат\n' +
+        '• Персональные рекомендации книг\n' +
+        '• Эксклюзивные промокоды\n\n' +
+        '💌 Введите ваш email:';
 
-🎉 Тест завершён! Отлично справились.
+      await ctx.editMessageText(message);
 
-Теперь мне нужен ваш email для 
-отправки еженедельных отчетов:
-
-┌─────────────────────────┐
-│  📊 ЕЖЕНЕДЕЛЬНЫЕ ОТЧЕТЫ │
-│                         │
-│  💎 Анализ ваших цитат  │
-│  📚 Персональные        │
-│      рекомендации книг  │
-│  🎁 Эксклюзивные        │
-│      промокоды          │
-└─────────────────────────┘
-
-💌 Введите ваш email:
-Например: maria@example.com`;
-
-      const keyboard = {
-        inline_keyboard: [
-          [{ text: "⏭️ Пропустить email", callback_data: "skip_email" }],
-          [{ text: "🔄 Перезапустить тест", callback_data: "restart_test" }]
-        ]
-      };
-
-      await ctx.editMessageText(emailPanel, { reply_markup: keyboard });
-
-      // Update state
-      userState.step = 'awaiting_email';
-      userState.lastActivity = Date.now();
+      state.step = 'awaiting_email';
+      state.lastActivity = Date.now();
       
     } catch (error) {
-      logger.error(`🎨 Error collecting email: ${error.message}`);
+      logger.error(`Error collecting email: ${error.message}`);
       await ctx.reply('📖 Произошла ошибка. Попробуйте /start');
     }
   }
 
   /**
    * Handle email input
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} email - User's email
    */
   async _handleEmailInput(ctx, email) {
     try {
       const userId = ctx.from.id.toString();
-      const userState = this.userStates.get(userId);
+      const state = this.userStates.get(userId);
       
-      if (!userState || userState.step !== 'awaiting_email') return;
+      if (!state || state.step !== 'awaiting_email') return;
 
-      // Validate email
+      // Валидация email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
-        await ctx.reply(
-          '📧 Пожалуйста, введите корректный email.\n\n' +
-          'Например: maria@gmail.com'
-        );
+        await ctx.reply('📧 Пожалуйста, введите корректный email.\n\nНапример: maria@gmail.com');
         return;
       }
 
-      // Save email and proceed to source selection
-      userState.answers.email = email.trim();
-      userState.step = 'selecting_source';
-      userState.lastActivity = Date.now();
+      // Удаляем сообщение пользователя
+      try {
+        await ctx.deleteMessage(ctx.message.message_id);
+      } catch (e) {
+        // Ignore if can't delete
+      }
 
-      await ctx.reply('✅ Email сохранен!');
+      // Сохраняем email
+      state.answers.email = email.trim();
+      state.step = 'selecting_source';
+      state.lastActivity = Date.now();
+
       await this._collectSource(ctx);
       
     } catch (error) {
-      logger.error(`🎨 Error handling email input: ${error.message}`);
+      logger.error(`Error handling email: ${error.message}`);
       await ctx.reply('📖 Произошла ошибка. Попробуйте еще раз.');
     }
   }
 
   /**
-   * Handle email skip
-   * @private
-   * @param {Object} ctx - Telegram context
-   */
-  async _handleEmailSkip(ctx) {
-    try {
-      const userId = ctx.from.id.toString();
-      const userState = this.userStates.get(userId);
-      
-      if (!userState) return;
-
-      userState.answers.email = `${userId}@temp.reader`;
-      userState.step = 'selecting_source';
-      userState.lastActivity = Date.now();
-
-      await ctx.answerCbQuery('⏭️ Email пропущен');
-      await this._collectSource(ctx);
-      
-    } catch (error) {
-      logger.error(`🎨 Error handling email skip: ${error.message}`);
-      await ctx.answerCbQuery('❌ Произошла ошибка');
-    }
-  }
-
-  /**
-   * Collect traffic source
-   * @private
-   * @param {Object} ctx - Telegram context
+   * Collect source - simple list
    */
   async _collectSource(ctx) {
     try {
-      const sourcePanel = `
-╭─────────────────────────╮
-│   🔍 ПОСЛЕДНИЙ ВОПРОС   │
-╰─────────────────────────╯
+      const userId = ctx.from.id.toString();
+      const state = this.userStates.get(userId);
+      
+      if (!state) return;
 
-🤔 Откуда вы узнали о боте?
-
-Это поможет Анне понимать, 
-где искать единомышленников.
-
-┌─────────────────────────┐
-│    ВЫБЕРИТЕ ИСТОЧНИК:   │
-└─────────────────────────┘`;
+      const message = 
+        '🔍 Откуда вы узнали о боте?\n\n' +
+        'Это поможет Анне понимать, где искать единомышленников.';
 
       const keyboard = {
         inline_keyboard: this.sourceOptions.map(option => [{
@@ -617,75 +476,82 @@ ${question.emoji} Вопрос ${question.number} из ${this.testQuestions.leng
         }])
       };
 
-      await ctx.editMessageText(sourcePanel, { reply_markup: keyboard });
+      // Используем editMessageText если есть messageId, иначе новое сообщение
+      if (state.messageId) {
+        await ctx.telegram.editMessageText(
+          ctx.chat.id,
+          state.messageId,
+          undefined,
+          message,
+          { reply_markup: keyboard }
+        );
+      } else {
+        await ctx.reply(message, { reply_markup: keyboard });
+      }
       
     } catch (error) {
-      logger.error(`🎨 Error collecting source: ${error.message}`);
+      logger.error(`Error collecting source: ${error.message}`);
       await ctx.reply('📖 Произошла ошибка. Попробуйте /start');
     }
   }
 
   /**
    * Handle source selection
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {string} callbackData - Callback data
    */
   async _handleSourceSelection(ctx, callbackData) {
     try {
       const userId = ctx.from.id.toString();
-      const userState = this.userStates.get(userId);
+      const state = this.userStates.get(userId);
       
-      if (!userState) {
+      if (!state) {
         await ctx.answerCbQuery('⏰ Сессия истекла, начните заново с /start');
         return;
       }
 
       const source = callbackData.replace('source_', '');
-      userState.answers.source = source;
-      userState.lastActivity = Date.now();
+      state.answers.source = source;
+      state.lastActivity = Date.now();
 
       await ctx.answerCbQuery('✅ Источник сохранен');
       await this._completeOnboarding(ctx);
       
     } catch (error) {
-      logger.error(`🎨 Error handling source selection: ${error.message}`);
-      await ctx.answerCbQuery('❌ Ошибка при сохранении источника');
+      logger.error(`Error handling source: ${error.message}`);
+      await ctx.answerCbQuery('❌ Ошибка при сохранении');
     }
   }
 
   /**
-   * Complete onboarding process
-   * @private
-   * @param {Object} ctx - Telegram context
+   * Complete onboarding - clean final message
    */
   async _completeOnboarding(ctx) {
     try {
       const userId = ctx.from.id.toString();
-      const userState = this.userStates.get(userId);
+      const state = this.userStates.get(userId);
       
-      if (!userState) return;
+      if (!state) return;
 
-      // Analyze test results with AI
-      const preferences = await this._analyzeTestResults(userState.answers);
-
-      // Create user profile
+      // Создаем профиль пользователя
       const userProfile = {
         userId,
         telegramUsername: ctx.from.username || '',
-        name: userState.answers.name,
-        email: userState.answers.email,
+        name: state.answers.name,
+        email: state.answers.email,
         testResults: {
-          name: userState.answers.name,
-          lifestyle: userState.answers.lifestyle,
-          timeForSelf: userState.answers.timeForSelf,
-          priorities: userState.answers.priorities,
-          readingFeelings: userState.answers.readingFeelings,
-          closestPhrase: userState.answers.closestPhrase,
-          readingTime: userState.answers.readingTime
+          name: state.answers.name,
+          lifestyle: state.answers.lifestyle,
+          timeForSelf: state.answers.timeForSelf,
+          priorities: state.answers.priorities,
+          readingFeelings: state.answers.readingFeelings,
+          closestPhrase: state.answers.closestPhrase,
+          readingTime: state.answers.readingTime
         },
-        source: userState.answers.source,
-        preferences,
+        source: state.answers.source,
+        preferences: {
+          mainThemes: ['Саморазвитие', 'Мудрость'],
+          personalityType: 'Ищущий развития',
+          recommendationStyle: 'Практические книги'
+        },
         statistics: {
           totalQuotes: 0,
           currentStreak: 0,
@@ -703,316 +569,93 @@ ${question.emoji} Вопрос ${question.number} из ${this.testQuestions.leng
         isOnboardingComplete: true
       };
 
-      // Save to database
+      // Сохранить в БД
       await UserProfile.findOneAndUpdate(
         { userId },
         userProfile,
         { upsert: true, new: true }
       );
 
-      // Show completion message
-      await this._showCompletionMessage(ctx, userProfile);
+      // Показать сообщение о завершении - простой текст
+      const completionMessage = 
+        `🎉 Добро пожаловать, ${userProfile.name}!\n\n` +
+        'Регистрация завершена успешно.\n\n' +
+        '📖 Главная фишка бота:\n' +
+        'Каждый раз, когда встречаете цитату, которая зажигает что-то важное — просто копируйте и присылайте сюда.\n\n' +
+        '💡 Пример:\n' +
+        '"В каждом слове — целая жизнь" (Марина Цветаева)\n\n' +
+        '📚 Что получите:\n' +
+        '• Персональный дневник цитат\n' +
+        '• Еженедельные отчеты с анализом\n' +
+        '• Рекомендации книг от Анны\n' +
+        '• Достижения и статистику\n\n' +
+        '🎯 Попробуйте прямо сейчас! Пришлите любую цитату.\n\n' +
+        '📖 Хватит сидеть в телефоне — читайте книги!\n\n' +
+        '💡 Используйте кнопку меню 📋 (рядом с прикреплением файлов) для навигации';
 
-      // Clean up state
+      // Обновляем основное сообщение
+      if (state.messageId) {
+        await ctx.telegram.editMessageText(
+          ctx.chat.id,
+          state.messageId,
+          undefined,
+          completionMessage
+        );
+      } else {
+        await ctx.reply(completionMessage);
+      }
+
+      // Очищаем состояние
       this.userStates.delete(userId);
       
-      logger.info(`🎨 User ${userId} completed onboarding successfully`);
+      logger.info(`✅ User ${userId} completed onboarding successfully`);
       
     } catch (error) {
-      logger.error(`🎨 Error completing onboarding: ${error.message}`);
-      await ctx.reply('📖 Произошла ошибка при завершении регистрации. Попробуйте /start');
+      logger.error(`Error completing onboarding: ${error.message}`);
+      await ctx.reply('📖 Произошла ошибка при завершении регистрации.');
     }
-  }
-
-  /**
-   * Show completion message
-   * @private
-   * @param {Object} ctx - Telegram context
-   * @param {Object} userProfile - User profile
-   */
-  async _showCompletionMessage(ctx, userProfile) {
-    try {
-      const completionMessage = `
-╭─────────────────────────╮
-│   🎉 ДОБРО ПОЖАЛОВАТЬ!  │
-╰─────────────────────────╯
-
-Здравствуйте, ${userProfile.name}! 
-Регистрация завершена успешно.
-
-┌─────────────────────────┐
-│   ГЛАВНАЯ ФИШКА БОТА:   │
-└─────────────────────────┘
-
-📝 Каждый раз, когда встречаете 
-   цитату, которая зажигает что-то 
-   важное — просто копируйте и 
-   присылайте сюда.
-
-💡 Пример:
-   "В каждом слове — целая жизнь" 
-   (Марина Цветаева)
-
-┌─────────────────────────┐
-│     ЧТО ПОЛУЧИТЕ:       │
-└─────────────────────────┘
-
-📚 Персональный дневник цитат
-📊 Еженедельные отчеты с анализом
-💎 Рекомендации книг от Анны
-🏆 Достижения и статистику
-🎁 Эксклюзивные промокоды
-
-🎯 Попробуйте прямо сейчас! 
-   Пришлите любую цитату, которая 
-   вам нравится.
-
-📖 Хватит сидеть в телефоне — 
-   читайте книги!`;
-
-      const keyboard = {
-        inline_keyboard: [
-          [{ text: "📖 Открыть главное меню", callback_data: "nav_main" }],
-          [{ text: "❓ Как пользоваться ботом?", callback_data: "nav_help" }]
-        ]
-      };
-
-      await ctx.editMessageText(completionMessage, { reply_markup: keyboard });
-      
-    } catch (error) {
-      logger.error(`🎨 Error showing completion message: ${error.message}`);
-      await ctx.reply(
-        `🎉 Добро пожаловать, ${userProfile.name}! Регистрация завершена.\n\n` +
-        `💡 Отправьте любую цитату, чтобы начать!\n\n` +
-        `Используйте /menu для навигации.`
-      );
-    }
-  }
-
-  /**
-   * Analyze test results with AI
-   * @private
-   * @param {Object} answers - Test answers
-   * @returns {Promise<Object>} - Analyzed preferences
-   */
-  async _analyzeTestResults(answers) {
-    try {
-      const prompt = `Проанализируй результаты теста пользователя как психолог Анна Бусел и определи предпочтения для рекомендаций книг:
-
-Ответы пользователя:
-- Имя: ${answers.name}
-- Образ жизни: ${answers.lifestyle}
-- Время для себя: ${answers.timeForSelf}
-- Приоритеты: ${answers.priorities}
-- Чувства при чтении: ${answers.readingFeelings}
-- Близкая фраза: ${answers.closestPhrase}
-- Время на чтение: ${answers.readingTime}
-
-Верни JSON с анализом:
-{
-  "mainThemes": ["тема1", "тема2", "тема3"],
-  "personalityType": "краткое описание типа личности",
-  "recommendationStyle": "стиль рекомендаций"
-}`;
-
-      const response = await claudeService.generateResponse(prompt, {
-        platform: 'telegram',
-        userId: 'onboarding_analysis'
-      });
-
-      return JSON.parse(response.message);
-      
-    } catch (error) {
-      logger.error(`🎨 Error analyzing test results: ${error.message}`);
-      
-      // Fallback analysis
-      return {
-        mainThemes: ['Саморазвитие', 'Мудрость', 'Отношения'],
-        personalityType: 'Ищущий развития и понимания',
-        recommendationStyle: 'Практические книги с глубоким смыслом'
-      };
-    }
-  }
-
-  /**
-   * Show about bot information
-   * @private
-   * @param {Object} ctx - Telegram context
-   */
-  async _showAboutBot(ctx) {
-    try {
-      const aboutMessage = `
-╭─────────────────────────╮
-│     📖 О ПРОЕКТЕ        │
-╰─────────────────────────╯
-
-«Читатель» — это персональный 
-дневник цитат с AI-анализом 
-от психолога Анны Бусел.
-
-┌─────────────────────────┐
-│    КАК ЭТО РАБОТАЕТ:    │
-└─────────────────────────┘
-
-1️⃣ Присылайте боту цитаты 
-   из книг или свои мысли
-
-2️⃣ ИИ анализирует ваши 
-   интересы и эмоции
-
-3️⃣ Каждое воскресенье получаете 
-   персональный отчет
-
-4️⃣ Анна рекомендует книги 
-   именно для вас
-
-┌─────────────────────────┐
-│     ЧТО ПОЛУЧИТЕ:       │
-└─────────────────────────┘
-
-📚 Личный дневник мудрости
-🧠 Психологический анализ
-💎 Рекомендации от эксперта
-🎁 Скидки на разборы книг
-📈 Трекинг личного роста
-
-💫 Превратите чтение в инструмент 
-   самопознания и развития!`;
-
-      const keyboard = {
-        inline_keyboard: [
-          [{ text: "✨ Начать тест", callback_data: "start_beautiful_test" }],
-          [{ text: "🔙 Назад", callback_data: "show_welcome" }]
-        ]
-      };
-
-      await ctx.editMessageText(aboutMessage, { reply_markup: keyboard });
-      
-    } catch (error) {
-      logger.error(`🎨 Error showing about bot: ${error.message}`);
-      await ctx.answerCbQuery('❌ Ошибка загрузки информации');
-    }
-  }
-
-  /**
-   * Restart test
-   * @private
-   * @param {Object} ctx - Telegram context
-   */
-  async _restartTest(ctx) {
-    try {
-      const userId = ctx.from.id.toString();
-      
-      // Reset state
-      this.userStates.set(userId, {
-        step: 'test_question_1',
-        answers: {},
-        startTime: Date.now(),
-        lastActivity: Date.now()
-      });
-
-      await this._showTestQuestion(ctx, 1);
-      
-    } catch (error) {
-      logger.error(`🎨 Error restarting test: ${error.message}`);
-      await ctx.reply('📖 Произошла ошибка. Попробуйте /start');
-    }
-  }
-
-  /**
-   * Create progress bar for test
-   * @private
-   * @param {number} current - Current question
-   * @param {number} total - Total questions
-   * @returns {string} - Progress bar
-   */
-  _createProgressBar(current, total) {
-    const percentage = Math.round((current / total) * 100);
-    const filled = Math.round((current / total) * 10);
-    const empty = 10 - filled;
-    
-    return `📊 Прогресс: ${'▓'.repeat(filled)}${'░'.repeat(empty)} ${percentage}%`;
-  }
-
-  /**
-   * Initialize user state
-   * @private
-   * @param {string} userId - User ID
-   */
-  _initializeUserState(userId) {
-    this.userStates.set(userId, {
-      step: 'welcome',
-      answers: {},
-      startTime: Date.now(),
-      lastActivity: Date.now()
-    });
   }
 
   /**
    * Check if user is in onboarding
-   * @param {string} userId - User ID
-   * @returns {boolean} - True if in onboarding
    */
   isInOnboarding(userId) {
     return this.userStates.has(userId);
   }
 
   /**
-   * Clean up stale onboarding states
+   * Clean up stale states
    */
   cleanupStaleStates() {
-    const staleThreshold = Date.now() - this.stateCleanupInterval;
-    let cleanedCount = 0;
+    const staleThreshold = Date.now() - (30 * 60 * 1000); // 30 минут
+    let cleaned = 0;
 
     for (const [userId, state] of this.userStates) {
       if (state.lastActivity < staleThreshold) {
         this.userStates.delete(userId);
-        cleanedCount++;
+        cleaned++;
       }
     }
 
-    if (cleanedCount > 0) {
-      logger.info(`🎨 Cleaned up ${cleanedCount} stale onboarding states`);
+    if (cleaned > 0) {
+      logger.info(`🧹 Cleaned up ${cleaned} stale onboarding states`);
     }
   }
 
   /**
-   * Get onboarding statistics
-   * @returns {Object} - Onboarding stats
+   * Get stats
    */
   getStats() {
-    const stepCounts = {};
-    let totalDuration = 0;
-    let completedCount = 0;
+    const stats = {
+      activeUsers: this.userStates.size,
+      stepDistribution: {}
+    };
 
     for (const state of this.userStates.values()) {
-      stepCounts[state.step] = (stepCounts[state.step] || 0) + 1;
-      
-      if (state.step === 'completed') {
-        completedCount++;
-        totalDuration += (Date.now() - state.startTime);
-      }
+      stats.stepDistribution[state.step] = (stats.stepDistribution[state.step] || 0) + 1;
     }
 
-    return {
-      activeUsers: this.userStates.size,
-      stepDistribution: stepCounts,
-      completedSessions: completedCount,
-      averageDuration: completedCount > 0 ? Math.round(totalDuration / completedCount / 1000) : 0,
-      staleCleanupInterval: this.stateCleanupInterval
-    };
-  }
-
-  /**
-   * Cleanup resources
-   */
-  cleanup() {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = null;
-    }
-    this.userStates.clear();
-    logger.info('🎨 ModernOnboardingHandler cleanup completed');
+    return stats;
   }
 }
 
