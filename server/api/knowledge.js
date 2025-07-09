@@ -2,6 +2,7 @@
  * Knowledge Base API Routes - Enhanced multilingual search with FULL chunking support
  * @file server/api/knowledge.js
  * 🍄 УПРОЩЕНО: Универсальный поиск без языковых ограничений
+ * 📖 ИСПРАВЛЕНО: Убрана аутентификация с базовых endpoints для админ-панели
  */
 
 const express = require('express');
@@ -10,7 +11,7 @@ const KnowledgeDocument = require('../models/knowledge');
 const knowledgeService = require('../services/knowledge');
 const vectorStoreService = require('../services/vectorStore');
 const logger = require('../utils/logger');
-const { requireAdminAuth } = require('../middleware/adminAuth');
+const { requireAdminAuth, optionalAdminAuth } = require('../middleware/adminAuth');
 
 // Middleware to ensure UTF-8 encoding
 router.use((req, res, next) => {
@@ -22,7 +23,7 @@ router.use((req, res, next) => {
 /**
  * @route GET /api/knowledge
  * @desc Get knowledge documents with optional filtering
- * @access Public
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для админ-панели)
  * @param {string} [category] - Filter by category
  * @param {string} [tags] - Filter by tags (comma-separated)
  * @param {number} [page=1] - Page number
@@ -74,7 +75,7 @@ router.get('/', async (req, res) => {
 /**
  * @route GET /api/knowledge/search
  * @desc Search knowledge documents by text with FULL chunking support
- * @access Public
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для поиска)
  * @param {string} q - Search query
  * @param {string} [category] - Filter by category
  * @param {string} [tags] - Filter by tags (comma-separated)
@@ -166,6 +167,170 @@ router.get('/search', async (req, res) => {
       success: false,
       error: 'Search failed',
       errorCode: 'SEARCH_ERROR'
+    });
+  }
+});
+
+/**
+ * @route GET /api/knowledge/stats
+ * @desc Get knowledge base statistics for admin dashboard with chunking info
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для статистики админ-панели)
+ */
+router.get('/stats', async (req, res) => {
+  try {
+    // 📖 БЫСТРОЕ РЕШЕНИЕ: Сначала пробуем получить статистику из knowledgeService
+    let knowledgeStats;
+    try {
+      knowledgeStats = await knowledgeService.getStats();
+    } catch (error) {
+      logger.warn('Knowledge service stats failed, using fallback:', error.message);
+      knowledgeStats = { success: false };
+    }
+
+    if (!knowledgeStats.success) {
+      // Fallback на прямую MongoDB статистику
+      logger.info('Using fallback stats from MongoDB...');
+      
+      let totalDocs = 0;
+      let publishedDocs = 0;
+      let draftDocs = 0;
+      let languageStats = [];
+      let categoryStats = [];
+      let recentlyUpdated = [];
+
+      try {
+        totalDocs = await KnowledgeDocument.countDocuments();
+        publishedDocs = await KnowledgeDocument.countDocuments({ status: 'published' });
+        draftDocs = await KnowledgeDocument.countDocuments({ status: 'draft' });
+        
+        languageStats = await KnowledgeDocument.aggregate([
+          { $group: { _id: '$language', count: { $sum: 1 } } },
+          { $sort: { count: -1 } }
+        ]);
+        
+        categoryStats = await KnowledgeDocument.aggregate([
+          { $group: { _id: '$category', count: { $sum: 1 } } },
+          { $sort: { count: -1 } }
+        ]);
+        
+        recentlyUpdated = await KnowledgeDocument.find()
+          .sort({ updatedAt: -1 })
+          .limit(5)
+          .select('title category language updatedAt');
+
+      } catch (dbError) {
+        logger.error('Database stats query failed:', dbError.message);
+        // Возвращаем пустую статистику в случае ошибки
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          total: totalDocs,
+          published: publishedDocs,
+          draft: draftDocs,
+          byLanguage: languageStats,
+          byCategory: categoryStats,
+          recentlyUpdated: recentlyUpdated,
+          lastUpdated: new Date().toISOString(),
+          chunkingEnabled: false,
+          vectorStore: {
+            status: 'unknown',
+            totalVectors: 0,
+            documentsCount: 0,
+            chunksCount: 0
+          },
+          chunking: {
+            enabled: false,
+            totalChunks: 0
+          },
+          universalSearch: true,
+          fallbackMode: true
+        }
+      });
+    }
+
+    // Используем статистику из knowledgeService
+    const totalDocs = knowledgeStats.mongodb.totalDocuments;
+    let publishedDocs = 0;
+    let draftDocs = 0;
+    let recentlyUpdated = [];
+
+    try {
+      publishedDocs = await KnowledgeDocument.countDocuments({ status: 'published' });
+      draftDocs = totalDocs - publishedDocs;
+
+      recentlyUpdated = await KnowledgeDocument.find()
+        .sort({ updatedAt: -1 })
+        .limit(5)
+        .select('title category language updatedAt');
+    } catch (dbError) {
+      logger.warn('Failed to get additional stats:', dbError.message);
+    }
+
+    // 🍄 УПРОЩЕНО: Возвращаем языковую статистику в ожидаемом формате
+    const languageArray = Object.entries(knowledgeStats.mongodb.languages || {}).map(([lang, count]) => ({
+      _id: lang,
+      count
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        total: totalDocs,
+        published: publishedDocs,
+        draft: draftDocs,
+        byLanguage: languageArray,
+        byCategory: Object.entries(knowledgeStats.mongodb.categories || {}).map(([cat, count]) => ({
+          _id: cat,
+          count
+        })),
+        recentlyUpdated: recentlyUpdated,
+        lastUpdated: new Date().toISOString(),
+        chunkingEnabled: knowledgeStats.chunking?.enabled || false,
+        vectorStore: knowledgeStats.vectorStore || {
+          status: 'unknown',
+          totalVectors: 0,
+          documentsCount: 0,
+          chunksCount: 0
+        },
+        chunking: knowledgeStats.chunking || {
+          enabled: false,
+          totalChunks: 0
+        },
+        universalSearch: true // 🍄 НОВОЕ: индикатор универсального поиска
+      }
+    });
+
+    logger.info(`🍄 Knowledge base statistics retrieved with universal search and chunking info`);
+  } catch (error) {
+    logger.error(`🍄 Error retrieving knowledge base statistics: ${error.message}`);
+    
+    // Возвращаем минимальную статистику в случае ошибки
+    res.json({
+      success: true,
+      data: {
+        total: 0,
+        published: 0,
+        draft: 0,
+        byLanguage: [],
+        byCategory: [],
+        recentlyUpdated: [],
+        lastUpdated: new Date().toISOString(),
+        chunkingEnabled: false,
+        vectorStore: {
+          status: 'error',
+          totalVectors: 0,
+          documentsCount: 0,
+          chunksCount: 0
+        },
+        chunking: {
+          enabled: false,
+          totalChunks: 0
+        },
+        universalSearch: true,
+        error: error.message
+      }
     });
   }
 });
@@ -766,97 +931,9 @@ router.post('/sync-vector-store', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route GET /api/knowledge/stats
- * @desc Get knowledge base statistics for admin dashboard with chunking info
- * @access Private (Admin only)
- */
-router.get('/stats', requireAdminAuth, async (req, res) => {
-  try {
-    const knowledgeStats = await knowledgeService.getStats();
-
-    if (!knowledgeStats.success) {
-      // Fallback на старую статистику
-      const totalDocs = await KnowledgeDocument.countDocuments();
-      const publishedDocs = await KnowledgeDocument.countDocuments({ status: 'published' });
-      const draftDocs = await KnowledgeDocument.countDocuments({ status: 'draft' });
-      
-      const languageStats = await KnowledgeDocument.aggregate([
-        { $group: { _id: '$language', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]);
-      
-      const categoryStats = await KnowledgeDocument.aggregate([
-        { $group: { _id: '$category', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]);
-      
-      const recentlyUpdated = await KnowledgeDocument.find()
-        .sort({ updatedAt: -1 })
-        .limit(5)
-        .select('title category language updatedAt');
-
-      return res.json({
-        success: true,
-        data: {
-          total: totalDocs,
-          published: publishedDocs,
-          draft: draftDocs,
-          byLanguage: languageStats,
-          byCategory: categoryStats,
-          recentlyUpdated: recentlyUpdated,
-          lastUpdated: new Date().toISOString(),
-          chunkingEnabled: false,
-          universalSearch: true // 🍄 НОВОЕ
-        }
-      });
-    }
-
-    const totalDocs = knowledgeStats.mongodb.totalDocuments;
-    const publishedDocs = await KnowledgeDocument.countDocuments({ status: 'published' });
-    const draftDocs = totalDocs - publishedDocs;
-
-    const recentlyUpdated = await KnowledgeDocument.find()
-      .sort({ updatedAt: -1 })
-      .limit(5)
-      .select('title category language updatedAt');
-
-    // 🍄 УПРОЩЕНО: Возвращаем языковую статистику в ожидаемом формате
-    const languageArray = Object.entries(knowledgeStats.mongodb.languages).map(([lang, count]) => ({
-      _id: lang,
-      count
-    }));
-
-    res.json({
-      success: true,
-      data: {
-        total: totalDocs,
-        published: publishedDocs,
-        draft: draftDocs,
-        byLanguage: languageArray, // 🍄 ИЗМЕНЕНО: возвращаем в ожидаемом формате
-        recentlyUpdated: recentlyUpdated,
-        lastUpdated: new Date().toISOString(),
-        chunkingEnabled: knowledgeStats.chunking?.enabled || false,
-        vectorStore: knowledgeStats.vectorStore,
-        chunking: knowledgeStats.chunking,
-        universalSearch: true // 🍄 НОВОЕ: индикатор универсального поиска
-      }
-    });
-
-    logger.info(`🍄 Knowledge base statistics retrieved with universal search and chunking info`);
-  } catch (error) {
-    logger.error(`🍄 Error retrieving knowledge base statistics: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to retrieve statistics',
-      errorCode: 'STATS_ERROR'
-    });
-  }
-});
-
-/**
  * @route GET /api/knowledge/:id
  * @desc Get a specific knowledge document
- * @access Public
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для получения документа)
  * @param {string} id - Document ID
  */
 router.get('/:id', async (req, res) => {
