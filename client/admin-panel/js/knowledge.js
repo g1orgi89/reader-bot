@@ -1,1264 +1,1248 @@
 /**
- * knowledge.js - система управления базой знаний для "Читатель"
- * 
- * Этот модуль отвечает за взаимодействие с векторной базой данных Qdrant,
- * управление документами и RAG-функциональность.
- * 
- * @fileoverview Управление базой знаний для проекта "Читатель"
- * @author Reader Development Team
+ * Knowledge Base Management
+ * @file client/admin-panel/js/knowledge.js
+ * 📖 Adapted for Reader Bot project
  */
 
-/**
- * @typedef {Object} KnowledgeDocument
- * @property {string} [id] - Уникальный идентификатор документа
- * @property {string} title - Название документа
- * @property {string} content - Содержимое документа в формате Markdown
- * @property {string} category - Категория документа
- * @property {string} language - Язык документа (none|en|ru)
- * @property {string[]} tags - Массив тегов для категоризации
- * @property {string} [status] - Статус документа (published|draft|archived)
- * @property {string} [createdAt] - Дата создания документа
- * @property {string} [updatedAt] - Дата последнего обновления
- * @property {string} [authorId] - ID автора документа
- */
+// Глобальные переменные
+let currentPage = 1;
+let itemsPerPage = 10;
+let totalItems = 0;
+let currentCategory = '';
+let currentTags = '';
+let isLoading = false;
+
+// Constants
+const CATEGORIES = [
+    'books',
+    'psychology', 
+    'self-development',
+    'relationships',
+    'productivity',
+    'mindfulness',
+    'creativity',
+    'general'
+];
 
 /**
- * @typedef {Object} DocumentFilter
- * @property {string} [category] - Фильтр по категории ('all' для всех)
- * @property {string} [language] - Фильтр по языку ('all' для всех)
- * @property {string} [search] - Поисковый запрос
- * @property {number} [page] - Номер страницы для пагинации
- * @property {number} [limit] - Количество документов на странице
+ * Безопасный запрос к API с аутентификацией
+ * @param {string} url - URL для запроса
+ * @param {object} options - Опции fetch
+ * @returns {Promise<Response>} - Response объект
  */
+async function makeAuthenticatedRequest(url, options = {}) {
+    try {
+        console.log('📖 Making authenticated request to:', url);
+        
+        // Проверяем доступность authManager
+        if (typeof authManager === 'undefined') {
+            console.error('📖 AuthManager not available');
+            throw new Error('Authentication system not loaded');
+        }
 
-/**
- * @typedef {Object} ApiResponse
- * @property {boolean} success - Успешность выполнения запроса
- * @property {*} [data] - Данные ответа
- * @property {Object} [error] - Информация об ошибке
- * @property {string} [error.message] - Сообщение об ошибке
- * @property {string} [error.code] - Код ошибки
- */
+        // Проверяем аутентификацию
+        if (!authManager.isAuthenticated()) {
+            console.warn('📖 User not authenticated, redirecting to login');
+            window.location.href = '/admin-panel/login.html';
+            return;
+        }
 
-/**
- * @typedef {Object} RAGStats
- * @property {number} total - Общее количество документов
- * @property {number} published - Количество опубликованных документов
- * @property {number} draft - Количество черновиков
- * @property {Array} byLanguage - Статистика по языкам
- * @property {Array} byCategory - Статистика по категориям
- * @property {Array} recentlyUpdated - Недавно обновленные документы
- * @property {string} lastUpdated - Время последнего обновления
- */
+        // Получаем токен
+        const token = authManager.getToken();
+        if (!token) {
+            console.error('📖 No authentication token available');
+            throw new Error('No authentication token');
+        }
 
-/**
- * Конфигурация модуля управления базой знаний
- */
-const KNOWLEDGE_CONFIG = {
-  /** @type {string} Базовый URL для API запросов */
-  API_BASE: '/api/knowledge',
-  
-  /** @type {number} Количество документов на странице по умолчанию */
-  DEFAULT_PAGE_SIZE: 10,
-  
-  /** @type {number} Максимальный размер документа в символах */
-  MAX_DOCUMENT_SIZE: 50000,
-  
-  /** @type {Object<string, string>} Переводы категорий для "Читателя" */
-  CATEGORY_LABELS: {
-    'faq': '❓ Частые вопросы',
-    'book_catalog': '📚 Каталог книг',
-    'promo_codes': '🎁 Промокоды',
-    'announcements': '📢 Анонсы',
-    'user_guide': '📋 Руководства',
-    'course_info': '🎓 Информация о курсах',
-    'book-analysis': '📖 Разборы книг',
-    'psychology': '🧠 Психология',
-    'quotes-analysis': '💭 Анализ цитат',
-    'personal-growth': '🌱 Личностный рост',
-    'relationships': '💕 Отношения',
-    'self-development': '✨ Саморазвитие'
-  },
-  
-  /** @type {Object<string, string>} Переводы языков */
-  LANGUAGE_LABELS: {
-    'none': '🤖 Универсальный',
-    'ru': '🇷🇺 Русский',
-    'en': '🇺🇸 English'
-  }
-};
+        console.log('📖 Using token:', token.substring(0, 20) + '...');
 
-/**
- * Состояние модуля управления базой знаний
- */
-const knowledgeState = {
-  /** @type {KnowledgeDocument[]} Загруженные документы */
-  documents: [],
-  
-  /** @type {DocumentFilter} Текущие фильтры */
-  currentFilters: {
-    category: 'all',
-    language: 'all',
-    search: '',
-    page: 1,
-    limit: KNOWLEDGE_CONFIG.DEFAULT_PAGE_SIZE
-  },
-  
-  /** @type {number} Общее количество документов */
-  totalDocuments: 0,
-  
-  /** @type {boolean} Идет ли загрузка */
-  isLoading: false,
-  
-  /** @type {RAGStats|null} Статистика RAG */
-  ragStats: null
-};
+        // Настройка заголовков
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        };
 
-/**
- * Инициализация страницы управления базой знаний
- * Основная точка входа после проверки аутентификации
- */
-function initKnowledgePage() {
-  console.log('📚 Инициализация базы знаний "Читатель"...');
-  
-  try {
-    // Проверяем аутентификацию
-    if (!authManager || !authManager.isAuthenticated()) {
-      console.error('📚 Аутентификация не пройдена');
-      showNotification('error', 'Требуется авторизация');
-      return;
+        // Объединяем опции
+        const finalOptions = {
+            ...defaultOptions,
+            ...options,
+            headers: {
+                ...defaultOptions.headers,
+                ...options.headers
+            }
+        };
+
+        console.log('📖 Request options:', {
+            method: finalOptions.method || 'GET',
+            url: url,
+            hasAuth: !!finalOptions.headers.Authorization
+        });
+
+        // Выполняем запрос
+        const response = await fetch(url, finalOptions);
+        
+        console.log('📖 Response status:', response.status, response.statusText);
+
+        // Обработка ошибок аутентификации
+        if (response.status === 401) {
+            console.warn('📖 Authentication failed, clearing token and redirecting');
+            authManager.logout();
+            window.location.href = '/admin-panel/login.html';
+            return;
+        }
+
+        // Проверяем успешность запроса
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('📖 API request failed:', {
+                status: response.status,
+                statusText: response.statusText,
+                body: errorText
+            });
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return response;
+    } catch (error) {
+        console.error('📖 Request error:', error);
+        throw error;
     }
-    
-    // Инициализируем компоненты интерфейса
-    initKnowledgeFilters();
-    initDocumentEditor();
-    initRAGControls();
-    initPagination();
-    
-    // Загружаем начальные данные
-    loadDocuments();
-    loadRAGStats();
-    
-    console.log('📚 База знаний готова!');
-  } catch (error) {
-    console.error('📚 Ошибка инициализации базы знаний:', error);
-    showNotification('error', '📚 Не удалось инициализировать базу знаний');
-  }
 }
 
 /**
- * Инициализация фильтров и поиска
- */
-function initKnowledgeFilters() {
-  console.log('📚 Настройка фильтров поиска...');
-  
-  const categoryFilter = document.getElementById('category-filter');
-  const languageFilter = document.getElementById('language-filter');
-  const searchInput = document.getElementById('search-knowledge');
-  
-  // Обработчик изменения категории
-  if (categoryFilter) {
-    categoryFilter.addEventListener('change', () => {
-      knowledgeState.currentFilters.category = categoryFilter.value;
-      knowledgeState.currentFilters.page = 1; // Сбрасываем на первую страницу
-      loadDocuments();
-    });
-  }
-  
-  // Обработчик изменения языка
-  if (languageFilter) {
-    languageFilter.addEventListener('change', () => {
-      knowledgeState.currentFilters.language = languageFilter.value;
-      knowledgeState.currentFilters.page = 1;
-      loadDocuments();
-    });
-  }
-  
-  // Обработчик поиска с задержкой
-  if (searchInput) {
-    let searchTimeout;
-    searchInput.addEventListener('input', () => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        knowledgeState.currentFilters.search = searchInput.value.trim();
-        knowledgeState.currentFilters.page = 1;
-        loadDocuments();
-      }, 500); // Задержка 500мс для предотвращения слишком частых запросов
-    });
-  }
-}
-
-/**
- * Загружает документы из базы знаний с применением фильтров
- * @returns {Promise<void>}
+ * Загрузка документов с пагинацией
  */
 async function loadDocuments() {
-  if (knowledgeState.isLoading) return;
-  
-  console.log('📚 Загрузка документов из базы знаний...');
-  
-  try {
-    knowledgeState.isLoading = true;
-    updateLoadingState(true);
+    if (isLoading) return;
     
-    // Формируем параметры запроса
-    const params = new URLSearchParams();
-    
-    if (knowledgeState.currentFilters.category && knowledgeState.currentFilters.category !== 'all') {
-      params.append('category', knowledgeState.currentFilters.category);
+    try {
+        isLoading = true;
+        console.log('📖 Loading documents...', {
+            page: currentPage,
+            limit: itemsPerPage,
+            category: currentCategory,
+            tags: currentTags
+        });
+
+        showLoading('Загрузка документов...');
+
+        // Формируем URL с параметрами
+        const params = new URLSearchParams({
+            page: currentPage,
+            limit: itemsPerPage
+        });
+
+        if (currentCategory) {
+            params.append('category', currentCategory);
+        }
+
+        if (currentTags) {
+            params.append('tags', currentTags);
+        }
+
+        const url = `/api/knowledge?${params.toString()}`;
+        const response = await makeAuthenticatedRequest(url);
+        
+        if (!response) {
+            console.error('📖 No response received');
+            return;
+        }
+
+        const data = await response.json();
+        console.log('📖 Documents data received:', data);
+
+        if (data.success) {
+            displayDocuments(data.data);
+            updatePagination(data.pagination);
+        } else {
+            throw new Error(data.error || 'Failed to load documents');
+        }
+    } catch (error) {
+        console.error('📖 Ошибка загрузки документов:', error);
+        showError('Ошибка загрузки документов: ' + error.message);
+    } finally {
+        isLoading = false;
+        hideLoading();
     }
-    
-    if (knowledgeState.currentFilters.language && knowledgeState.currentFilters.language !== 'all') {
-      params.append('language', knowledgeState.currentFilters.language);
-    }
-    
-    if (knowledgeState.currentFilters.search) {
-      params.append('search', knowledgeState.currentFilters.search);
-    }
-    
-    params.append('page', knowledgeState.currentFilters.page.toString());
-    params.append('limit', knowledgeState.currentFilters.limit.toString());
-    
-    // Отправляем запрос
-    const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}?${params}`);
-    
-    if (response.success) {
-      // Правильная обработка ответа API
-      knowledgeState.documents = response.data || [];
-      knowledgeState.totalDocuments = response.pagination?.total || 0;
-      
-      renderDocumentsTable();
-      updatePaginationInfo();
-      updateRAGDocumentCount(knowledgeState.totalDocuments);
-      
-      console.log(`📚 Загружено ${knowledgeState.documents.length} документов из ${knowledgeState.totalDocuments} общих`);
-    } else {
-      throw new Error(response.error?.message || 'Не удалось загрузить документы');
-    }
-  } catch (error) {
-    console.error('📚 Ошибка загрузки документов:', error);
-    showNotification('error', `📚 Не удалось загрузить документы: ${error.message}`);
-    renderEmptyDocumentsTable();
-  } finally {
-    knowledgeState.isLoading = false;
-    updateLoadingState(false);
-  }
 }
 
 /**
- * Отображает состояние загрузки в интерфейсе
- * @param {boolean} isLoading - Идет ли загрузка
+ * Загрузка статистики RAG
  */
-function updateLoadingState(isLoading) {
-  const tbody = document.querySelector('#knowledge-table tbody');
-  if (!tbody) return;
-  
-  if (isLoading) {
-    tbody.innerHTML = `
-      <tr class="table-loading">
-        <td colspan="7" style="text-align: center; padding: var(--spacing-lg);">
-          <div class="loading-spinner"></div>
-          📚 Загрузка библиотеки...
-        </td>
-      </tr>
+async function loadRAGStats() {
+    try {
+        console.log('📖 Loading RAG statistics...');
+
+        const response = await makeAuthenticatedRequest('/api/knowledge/stats');
+        
+        if (!response) {
+            console.error('📖 No response received for stats');
+            return;
+        }
+
+        const data = await response.json();
+        console.log('📖 Stats data received:', data);
+
+        if (data.success) {
+            updateStatsDisplay(data.data);
+        } else {
+            throw new Error(data.error || 'Failed to load statistics');
+        }
+    } catch (error) {
+        console.error('📖 Ошибка загрузки статистики RAG:', error);
+        // Не показываем ошибку пользователю для статистики, просто логируем
+        updateStatsDisplay({
+            total: 0,
+            published: 0,
+            draft: 0,
+            byLanguage: [],
+            lastUpdated: new Date().toISOString()
+        });
+    }
+}
+
+/**
+ * Отображение документов в таблице
+ */
+function displayDocuments(documents) {
+    console.log('📖 Displaying documents:', documents.length);
+    
+    const tbody = document.querySelector('#documents-table tbody');
+    if (!tbody) {
+        console.error('📖 Documents table body not found');
+        return;
+    }
+
+    if (!documents || documents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Документы не найдены</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = documents.map(doc => `
+        <tr>
+            <td>
+                <div class="doc-title">${escapeHtml(doc.title)}</div>
+                <div class="doc-id text-muted small">ID: ${doc.id || doc._id}</div>
+            </td>
+            <td><span class="badge badge-secondary">${escapeHtml(doc.category || 'general')}</span></td>
+            <td><span class="badge badge-info">${escapeHtml(doc.language || 'auto')}</span></td>
+            <td>
+                ${doc.tags && doc.tags.length > 0 
+                    ? doc.tags.map(tag => `<span class="badge badge-light">${escapeHtml(tag)}</span>`).join(' ')
+                    : '<span class="text-muted">Нет тегов</span>'
+                }
+            </td>
+            <td>
+                <span class="badge ${doc.status === 'published' ? 'badge-success' : 'badge-warning'}">
+                    ${doc.status === 'published' ? 'Опубликован' : 'Черновик'}
+                </span>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="viewDocument('${doc.id || doc._id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="editDocument('${doc.id || doc._id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteDocument('${doc.id || doc._id}', '${escapeHtml(doc.title)}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Обновление отображения статистики
+ */
+function updateStatsDisplay(stats) {
+    console.log('📖 Updating stats display:', stats);
+    
+    try {
+        // Обновляем основную статистику
+        const totalEl = document.getElementById('total-docs');
+        if (totalEl) totalEl.textContent = stats.total || 0;
+
+        const publishedEl = document.getElementById('published-docs');
+        if (publishedEl) publishedEl.textContent = stats.published || 0;
+
+        const draftEl = document.getElementById('draft-docs');
+        if (draftEl) draftEl.textContent = stats.draft || 0;
+
+        // Обновляем информацию о языках
+        const languageStatsEl = document.getElementById('language-stats');
+        if (languageStatsEl && stats.byLanguage) {
+            if (stats.byLanguage.length > 0) {
+                languageStatsEl.innerHTML = stats.byLanguage.map(lang => 
+                    `<div class="language-stat">
+                        <span class="badge badge-info">${escapeHtml(lang._id || 'Unknown')}</span> 
+                        <span>${lang.count}</span>
+                    </div>`
+                ).join('');
+            } else {
+                languageStatsEl.innerHTML = '<div class="text-muted">Нет данных о языках</div>';
+            }
+        }
+
+        // Обновляем время последнего обновления
+        const lastUpdatedEl = document.getElementById('last-updated');
+        if (lastUpdatedEl && stats.lastUpdated) {
+            const date = new Date(stats.lastUpdated);
+            lastUpdatedEl.textContent = date.toLocaleString('ru-RU');
+        }
+
+        // Обновляем информацию о векторном хранилище
+        if (stats.vectorStore) {
+            const vectorStatsEl = document.getElementById('vector-store-stats');
+            if (vectorStatsEl) {
+                vectorStatsEl.innerHTML = `
+                    <div class="vector-stat">
+                        <span class="text-muted">Статус:</span> 
+                        <span class="badge ${stats.vectorStore.status === 'ok' ? 'badge-success' : 'badge-warning'}">
+                            ${stats.vectorStore.status}
+                        </span>
+                    </div>
+                    <div class="vector-stat">
+                        <span class="text-muted">Документов:</span> 
+                        <span>${stats.vectorStore.documentsCount || 0}</span>
+                    </div>
+                    <div class="vector-stat">
+                        <span class="text-muted">Чанков:</span> 
+                        <span>${stats.vectorStore.chunksCount || 0}</span>
+                    </div>
+                `;
+            }
+        }
+
+        // Обновляем информацию о чанкинге
+        if (stats.chunkingEnabled !== undefined) {
+            const chunkingEl = document.getElementById('chunking-status');
+            if (chunkingEl) {
+                chunkingEl.innerHTML = `
+                    <span class="badge ${stats.chunkingEnabled ? 'badge-success' : 'badge-secondary'}">
+                        Чанкинг: ${stats.chunkingEnabled ? 'Включен' : 'Отключен'}
+                    </span>
+                `;
+            }
+        }
+
+    } catch (error) {
+        console.error('📖 Error updating stats display:', error);
+    }
+}
+
+/**
+ * Обновление пагинации
+ */
+function updatePagination(pagination) {
+    if (!pagination) return;
+
+    console.log('📖 Updating pagination:', pagination);
+
+    totalItems = pagination.total || 0;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    const paginationEl = document.getElementById('pagination');
+    if (!paginationEl) return;
+
+    // Обновляем информацию о результатах
+    const resultsInfoEl = document.getElementById('results-info');
+    if (resultsInfoEl) {
+        const startItem = ((currentPage - 1) * itemsPerPage) + 1;
+        const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+        resultsInfoEl.textContent = `Показано ${startItem}-${endItem} из ${totalItems}`;
+    }
+
+    // Генерируем кнопки пагинации
+    if (totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+
+    let paginationHTML = '';
+
+    // Кнопка "Предыдущая"
+    paginationHTML += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})" 
+               ${currentPage === 1 ? 'tabindex="-1" aria-disabled="true"' : ''}>
+                Предыдущая
+            </a>
+        </li>
     `;
-  }
+
+    // Номера страниц
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            paginationHTML += `
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                </li>
+            `;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            paginationHTML += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+
+    // Кнопка "Следующая"
+    paginationHTML += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})"
+               ${currentPage === totalPages ? 'tabindex="-1" aria-disabled="true"' : ''}>
+                Следующая
+            </a>
+        </li>
+    `;
+
+    paginationEl.innerHTML = paginationHTML;
 }
 
 /**
- * Отображает таблицу документов
+ * Смена страницы
  */
-function renderDocumentsTable() {
-  const tbody = document.querySelector('#knowledge-table tbody');
-  if (!tbody) return;
-  
-  if (knowledgeState.documents.length === 0) {
-    renderEmptyDocumentsTable();
-    return;
-  }
-  
-  tbody.innerHTML = knowledgeState.documents.map(doc => `
-    <tr class="document-row" onclick="viewDocument('${doc.id}')">
-      <td class="col-id">${doc.id.substring(0, 8)}...</td>
-      <td class="col-title">
-        <div class="document-title">${escapeHtml(doc.title)}</div>
-        ${doc.status === 'draft' ? '<span class="status-badge status-draft">Черновик</span>' : ''}
-      </td>
-      <td class="col-category">
-        <span class="category-badge category-${doc.category}">
-          ${KNOWLEDGE_CONFIG.CATEGORY_LABELS[doc.category] || doc.category}
-        </span>
-      </td>
-      <td class="col-language">
-        <span class="language-badge language-${doc.language}">
-          ${KNOWLEDGE_CONFIG.LANGUAGE_LABELS[doc.language] || doc.language}
-        </span>
-      </td>
-      <td class="col-tags">
-        <div class="tags-container">
-          ${doc.tags.slice(0, 3).map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}
-          ${doc.tags.length > 3 ? `<span class="tag-badge">+${doc.tags.length - 3}</span>` : ''}
-        </div>
-      </td>
-      <td class="col-updated">${formatRelativeTime(doc.updatedAt)}</td>
-      <td class="col-actions">
-        <div class="action-buttons">
-          <button class="action-edit" onclick="editDocument('${doc.id}'); event.stopPropagation();" 
-                  title="Редактировать документ">
-            ✏️
-          </button>
-          <button class="action-delete" onclick="deleteDocument('${doc.id}'); event.stopPropagation();"
-                  title="Удалить документ">
-            🗑️
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
+function changePage(page) {
+    if (page < 1 || page === currentPage || isLoading) return;
+    
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    if (page > totalPages) return;
+
+    currentPage = page;
+    loadDocuments();
 }
 
 /**
- * Отображает пустую таблицу документов
+ * Поиск документов
  */
-function renderEmptyDocumentsTable() {
-  const tbody = document.querySelector('#knowledge-table tbody');
-  if (!tbody) return;
-  
-  tbody.innerHTML = `
-    <tr class="table-empty">
-      <td colspan="7" style="text-align: center; padding: var(--spacing-xl);">
-        <div class="empty-state">
-          <div class="empty-icon">📚</div>
-          <div class="empty-title">Пока нет материалов в библиотеке</div>
-          <div class="empty-subtitle">
-            ${knowledgeState.currentFilters.search ? 
-              `По запросу "${knowledgeState.currentFilters.search}" ничего не найдено` :
-              'Добавьте первый материал в базу знаний "Читателя"'}
-          </div>
-          <button class="btn btn-primary btn-glow" onclick="showDocumentEditor()">
-            📝 Добавить Материал
-          </button>
-        </div>
-      </td>
-    </tr>
-  `;
+async function searchDocuments() {
+    const searchInput = document.getElementById('search-input');
+    const searchQuery = searchInput ? searchInput.value.trim() : '';
+
+    if (!searchQuery) {
+        showError('Введите запрос для поиска');
+        return;
+    }
+
+    try {
+        isLoading = true;
+        showLoading('Поиск документов...');
+
+        console.log('📖 Searching documents:', searchQuery);
+
+        const params = new URLSearchParams({
+            q: searchQuery,
+            page: 1,
+            limit: itemsPerPage
+        });
+
+        if (currentCategory) {
+            params.append('category', currentCategory);
+        }
+
+        if (currentTags) {
+            params.append('tags', currentTags);
+        }
+
+        const response = await makeAuthenticatedRequest(`/api/knowledge/search?${params.toString()}`);
+        
+        if (!response) return;
+
+        const data = await response.json();
+        console.log('📖 Search results:', data);
+
+        if (data.success) {
+            displayDocuments(data.data);
+            
+            // Обновляем информацию о результатах поиска
+            const resultsInfoEl = document.getElementById('results-info');
+            if (resultsInfoEl) {
+                resultsInfoEl.textContent = `Найдено ${data.count || data.data.length} результатов по запросу "${searchQuery}"`;
+            }
+
+            // Скрываем пагинацию для результатов поиска
+            const paginationEl = document.getElementById('pagination');
+            if (paginationEl) {
+                paginationEl.innerHTML = '';
+            }
+        } else {
+            throw new Error(data.error || 'Search failed');
+        }
+    } catch (error) {
+        console.error('📖 Search error:', error);
+        showError('Ошибка поиска: ' + error.message);
+    } finally {
+        isLoading = false;
+        hideLoading();
+    }
 }
 
 /**
- * Инициализация редактора документов
+ * Сброс поиска и фильтров
  */
-function initDocumentEditor() {
-  console.log('📚 Настройка редактора документов...');
-  
-  // Кнопка добавления документа
-  const addDocBtn = document.getElementById('add-document');
-  if (addDocBtn) {
-    addDocBtn.addEventListener('click', () => showDocumentEditor());
-  }
-  
-  // Кнопки закрытия модальных окон
-  const closeEditorBtn = document.getElementById('close-document-editor');
-  if (closeEditorBtn) {
-    closeEditorBtn.addEventListener('click', hideDocumentEditor);
-  }
-  
-  const closePreviewBtn = document.getElementById('close-document-preview');
-  if (closePreviewBtn) {
-    closePreviewBtn.addEventListener('click', hideDocumentPreview);
-  }
-  
-  // Кнопка предпросмотра
-  const previewBtn = document.getElementById('preview-document');
-  if (previewBtn) {
-    previewBtn.addEventListener('click', showDocumentPreview);
-  }
-  
-  // Кнопка редактирования из предпросмотра
-  const editFromPreviewBtn = document.getElementById('edit-from-preview');
-  if (editFromPreviewBtn) {
-    editFromPreviewBtn.addEventListener('click', () => {
-      hideDocumentPreview();
-      // Редактор уже открыт, просто скрываем предпросмотр
+function resetSearch() {
+    // Очищаем поисковый запрос
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+
+    // Сбрасываем фильтры
+    const categoryFilter = document.getElementById('category-filter');
+    if (categoryFilter) {
+        categoryFilter.value = '';
+    }
+
+    const tagsFilter = document.getElementById('tags-filter');
+    if (tagsFilter) {
+        tagsFilter.value = '';
+    }
+
+    // Сбрасываем переменные
+    currentPage = 1;
+    currentCategory = '';
+    currentTags = '';
+
+    // Перезагружаем документы
+    loadDocuments();
+}
+
+/**
+ * Применение фильтров
+ */
+function applyFilters() {
+    const categoryFilter = document.getElementById('category-filter');
+    const tagsFilter = document.getElementById('tags-filter');
+
+    currentCategory = categoryFilter ? categoryFilter.value : '';
+    currentTags = tagsFilter ? tagsFilter.value : '';
+    currentPage = 1;
+
+    console.log('📖 Applying filters:', {
+        category: currentCategory,
+        tags: currentTags
     });
-  }
-  
-  // Форма документа
-  const documentForm = document.getElementById('document-form');
-  if (documentForm) {
-    documentForm.addEventListener('submit', handleDocumentSave);
-  }
-  
-  // Закрытие модальных окон по клику на overlay
-  document.addEventListener('click', (event) => {
-    if (event.target.classList.contains('document-editor-overlay')) {
-      hideDocumentEditor();
-    }
-    if (event.target.classList.contains('document-preview-overlay')) {
-      hideDocumentPreview();
-    }
-  });
-  
-  // Закрытие по Escape
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      if (document.getElementById('document-editor-overlay').style.display === 'flex') {
-        hideDocumentEditor();
-      }
-      if (document.getElementById('document-preview-overlay').style.display === 'flex') {
-        hideDocumentPreview();
-      }
-    }
-  });
+
+    loadDocuments();
 }
 
 /**
- * Показывает редактор документов
- * @param {string|null} documentId - ID документа для редактирования (null для создания нового)
+ * Просмотр документа
  */
-function showDocumentEditor(documentId = null) {
-  console.log('📚 Открытие редактора документов:', documentId ? 'редактирование' : 'создание');
-  
-  const overlay = document.getElementById('document-editor-overlay');
-  const title = document.getElementById('editor-title');
-  const form = document.getElementById('document-form');
-  const saveText = document.getElementById('save-document-text');
-  
-  if (!overlay || !title || !form) return;
-  
-  if (documentId) {
-    // Режим редактирования
-    title.textContent = '✏️ Редактировать Материал';
-    if (saveText) saveText.textContent = '💾 Сохранить Изменения';
-    
-    // Загружаем данные документа
-    loadDocumentForEditing(documentId);
-  } else {
-    // Режим создания
-    title.textContent = '📝 Добавить Материал';
-    if (saveText) saveText.textContent = '💾 Создать Материал';
-    
-    // Очищаем форму
-    form.reset();
-    document.getElementById('document-id').value = '';
-  }
-  
-  // Показываем модальное окно
-  overlay.style.display = 'flex';
-  setTimeout(() => overlay.classList.add('active'), 10);
-  
-  // Фокусируемся на поле заголовка
-  const titleInput = document.getElementById('document-title');
-  if (titleInput) {
-    setTimeout(() => titleInput.focus(), 300);
-  }
-}
+async function viewDocument(documentId) {
+    try {
+        console.log('📖 Viewing document:', documentId);
+        showLoading('Загрузка документа...');
 
-/**
- * Скрывает редактор документов
- */
-function hideDocumentEditor() {
-  const overlay = document.getElementById('document-editor-overlay');
-  if (!overlay) return;
-  
-  overlay.classList.remove('active');
-  setTimeout(() => {
-    overlay.style.display = 'none';
-  }, 300);
-}
+        const response = await makeAuthenticatedRequest(`/api/knowledge/${documentId}`);
+        
+        if (!response) return;
 
-/**
- * Загружает документ для редактирования
- * @param {string} documentId - ID документа
- */
-async function loadDocumentForEditing(documentId) {
-  try {
-    const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/${documentId}`);
-    
-    if (response.success) {
-      const doc = response.data;
-      
-      // Заполняем форму данными документа
-      document.getElementById('document-id').value = doc.id;
-      document.getElementById('document-title').value = doc.title;
-      document.getElementById('document-category').value = doc.category;
-      document.getElementById('document-language').value = doc.language;
-      document.getElementById('document-tags').value = doc.tags.join(', ');
-      document.getElementById('document-content').value = doc.content;
-      
-      console.log('📚 Документ загружен для редактирования');
-    } else {
-      throw new Error(response.error?.message || 'Не удалось загрузить документ');
+        const data = await response.json();
+
+        if (data.success) {
+            showDocumentModal(data.data, 'view');
+        } else {
+            throw new Error(data.error || 'Failed to load document');
+        }
+    } catch (error) {
+        console.error('📖 Error viewing document:', error);
+        showError('Ошибка загрузки документа: ' + error.message);
+    } finally {
+        hideLoading();
     }
-  } catch (error) {
-    console.error('📚 Ошибка загрузки документа для редактирования:', error);
-    showNotification('error', `📚 Не удалось загрузить документ: ${error.message}`);
-    hideDocumentEditor();
-  }
-}
-
-/**
- * Показывает предпросмотр документа
- */
-function showDocumentPreview() {
-  const title = document.getElementById('document-title').value.trim();
-  const category = document.getElementById('document-category').value;
-  const language = document.getElementById('document-language').value;
-  const tags = document.getElementById('document-tags').value.trim();
-  const content = document.getElementById('document-content').value.trim();
-  
-  if (!title || !content) {
-    showNotification('warning', '📚 Заполните заголовок и содержимое для предпросмотра');
-    return;
-  }
-  
-  // Заполняем предпросмотр
-  document.getElementById('preview-title').textContent = title;
-  document.getElementById('preview-category').textContent = KNOWLEDGE_CONFIG.CATEGORY_LABELS[category];
-  document.getElementById('preview-language').textContent = KNOWLEDGE_CONFIG.LANGUAGE_LABELS[language];
-  
-  // Обрабатываем теги
-  const tagList = tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-  document.getElementById('preview-tags').innerHTML = tagList.length > 0 ?
-    tagList.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join(' ') :
-    '<span class="text-dim">Нет тегов</span>';
-  
-  // Рендерим содержимое как Markdown
-  document.getElementById('preview-content').innerHTML = renderMarkdown(content);
-  
-  // Показываем предпросмотр
-  const overlay = document.getElementById('document-preview-overlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
-    setTimeout(() => overlay.classList.add('active'), 10);
-  }
-}
-
-/**
- * Скрывает предпросмотр документа
- */
-function hideDocumentPreview() {
-  const overlay = document.getElementById('document-preview-overlay');
-  if (!overlay) return;
-  
-  overlay.classList.remove('active');
-  setTimeout(() => {
-    overlay.style.display = 'none';
-  }, 300);
-}
-
-/**
- * Обработчик сохранения документа
- * @param {Event} event - Событие отправки формы
- */
-async function handleDocumentSave(event) {
-  event.preventDefault();
-  
-  const formData = new FormData(event.target);
-  const documentId = formData.get('document-id');
-  
-  /** @type {KnowledgeDocument} */
-  const documentData = {
-    title: formData.get('document-title').trim(),
-    category: formData.get('document-category'),
-    language: formData.get('document-language') || 'none',
-    tags: formData.get('document-tags').split(',').map(tag => tag.trim()).filter(tag => tag),
-    content: formData.get('document-content').trim(),
-    status: 'published'
-  };
-  
-  // Валидация
-  if (!documentData.title) {
-    showNotification('error', '📚 Заполните название документа');
-    return;
-  }
-  
-  if (!documentData.content) {
-    showNotification('error', '📚 Заполните содержимое документа');
-    return;
-  }
-  
-  if (documentData.content.length > KNOWLEDGE_CONFIG.MAX_DOCUMENT_SIZE) {
-    showNotification('error', `📚 Документ слишком большой (максимум ${KNOWLEDGE_CONFIG.MAX_DOCUMENT_SIZE} символов)`);
-    return;
-  }
-  
-  try {
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    const btnText = submitBtn?.querySelector('.btn-text');
-    
-    // Показываем состояние загрузки
-    if (submitBtn) submitBtn.disabled = true;
-    if (btnText) btnText.textContent = documentId ? '💾 Сохранение...' : '📚 Создание...';
-    
-    let response;
-    if (documentId) {
-      // Обновляем существующий документ
-      response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/${documentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(documentData)
-      });
-    } else {
-      // Создаем новый документ
-      response = await makeAuthenticatedRequest(KNOWLEDGE_CONFIG.API_BASE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(documentData)
-      });
-    }
-    
-    if (response.success) {
-      const action = documentId ? 'обновлен' : 'создан';
-      showNotification('success', `📚 Материал успешно ${action} в базе знаний!`);
-      
-      hideDocumentEditor();
-      loadDocuments(); // Перезагружаем список документов
-      
-      // Запускаем синхронизацию с векторным хранилищем
-      syncVectorStore();
-      
-      console.log(`📚 Документ ${action}: ${documentData.title}`);
-    } else {
-      throw new Error(response.error?.message || 'Не удалось сохранить документ');
-    }
-  } catch (error) {
-    console.error('📚 Ошибка сохранения документа:', error);
-    showNotification('error', `📚 Не удалось сохранить документ: ${error.message}`);
-  } finally {
-    // Восстанавливаем кнопку
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    const btnText = submitBtn?.querySelector('.btn-text');
-    
-    if (submitBtn) submitBtn.disabled = false;
-    if (btnText) {
-      btnText.textContent = documentId ? '💾 Сохранить Изменения' : '💾 Создать Материал';
-    }
-  }
-}
-
-/**
- * Просмотр документа (открывает в режиме только чтения)
- * @param {string} documentId - ID документа
- */
-function viewDocument(documentId) {
-  console.log('📚 Просмотр документа:', documentId);
-  editDocument(documentId);
 }
 
 /**
  * Редактирование документа
- * @param {string} documentId - ID документа
  */
-function editDocument(documentId) {
-  console.log('📚 Редактирование документа:', documentId);
-  showDocumentEditor(documentId);
+async function editDocument(documentId) {
+    try {
+        console.log('📖 Editing document:', documentId);
+        showLoading('Загрузка документа для редактирования...');
+
+        const response = await makeAuthenticatedRequest(`/api/knowledge/${documentId}`);
+        
+        if (!response) return;
+
+        const data = await response.json();
+
+        if (data.success) {
+            showDocumentModal(data.data, 'edit');
+        } else {
+            throw new Error(data.error || 'Failed to load document for editing');
+        }
+    } catch (error) {
+        console.error('📖 Error loading document for editing:', error);
+        showError('Ошибка загрузки документа: ' + error.message);
+    } finally {
+        hideLoading();
+    }
 }
 
 /**
  * Удаление документа
- * @param {string} documentId - ID документа
  */
-async function deleteDocument(documentId) {
-  // Находим документ для отображения названия в подтверждении
-  const document = knowledgeState.documents.find(doc => doc.id === documentId);
-  const documentTitle = document ? document.title : documentId;
-  
-  const confirmed = confirm(
-    `📚 Вы уверены, что хотите удалить материал "${documentTitle}" из базы знаний?\n\n` +
-    'Это действие нельзя отменить!'
-  );
-  
-  if (!confirmed) return;
-  
-  try {
-    console.log('📚 Удаление документа:', documentId);
-    
-    const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/${documentId}`, {
-      method: 'DELETE'
-    });
-    
-    if (response.success) {
-      showNotification('success', '📚 Материал удален из базы знаний');
-      
-      loadDocuments(); // Перезагружаем список документов
-      
-      // Запускаем синхронизацию с векторным хранилищем
-      syncVectorStore();
-      
-      console.log('📚 Документ успешно удален');
-    } else {
-      throw new Error(response.error?.message || 'Не удалось удалить документ');
+async function deleteDocument(documentId, title) {
+    if (!confirm(`Вы уверены, что хотите удалить документ "${title}"?`)) {
+        return;
     }
-  } catch (error) {
-    console.error('📚 Ошибка удаления документа:', error);
-    showNotification('error', `📚 Не удалось удалить документ: ${error.message}`);
-  }
+
+    try {
+        console.log('📖 Deleting document:', documentId);
+        showLoading('Удаление документа...');
+
+        const response = await makeAuthenticatedRequest(`/api/knowledge/${documentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response) return;
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('Документ успешно удален');
+            loadDocuments(); // Перезагружаем список
+        } else {
+            throw new Error(data.error || 'Failed to delete document');
+        }
+    } catch (error) {
+        console.error('📖 Error deleting document:', error);
+        showError('Ошибка удаления документа: ' + error.message);
+    } finally {
+        hideLoading();
+    }
 }
 
 /**
- * Инициализация управления RAG
+ * Отображение модального окна документа
  */
-function initRAGControls() {
-  console.log('📚 Настройка управления RAG системой...');
-  
-  // Синхронизация с векторным хранилищем
-  const syncBtn = document.getElementById('sync-vector-store');
-  if (syncBtn) {
-    syncBtn.addEventListener('click', syncVectorStore);
-  }
-  
-  // Пересборка индекса
-  const rebuildBtn = document.getElementById('rebuild-index');
-  if (rebuildBtn) {
-    rebuildBtn.addEventListener('click', rebuildVectorIndex);
-  }
-  
-  // Тестирование RAG поиска
-  const testBtn = document.getElementById('test-rag-search');
-  if (testBtn) {
-    testBtn.addEventListener('click', showRAGTestModal);
-  }
-  
-  // Диагностика RAG
-  const diagnoseBtn = document.getElementById('diagnose-rag');
-  if (diagnoseBtn) {
-    diagnoseBtn.addEventListener('click', runRAGDiagnosis);
-  }
-  
-  // Управление модальным окном RAG тестирования
-  const closeRAGTestBtn = document.getElementById('close-rag-test');
-  if (closeRAGTestBtn) {
-    closeRAGTestBtn.addEventListener('click', hideRAGTestModal);
-  }
-  
-  const runTestBtn = document.getElementById('run-rag-test');
-  if (runTestBtn) {
-    runTestBtn.addEventListener('click', runRAGTest);
-  }
-  
-  // Закрытие модального окна по клику на overlay и Escape
-  document.addEventListener('click', (event) => {
-    if (event.target.classList.contains('rag-test-overlay')) {
-      hideRAGTestModal();
+function showDocumentModal(document, mode = 'view') {
+    console.log('📖 Showing document modal:', mode, document.title);
+
+    const modal = document.getElementById('document-modal');
+    if (!modal) return;
+
+    const modalTitle = modal.querySelector('.modal-title');
+    const modalBody = modal.querySelector('.modal-body');
+    const modalFooter = modal.querySelector('.modal-footer');
+
+    if (modalTitle) {
+        modalTitle.textContent = mode === 'edit' ? 'Редактирование документа' : 'Просмотр документа';
     }
-  });
-  
-  // Выполнение теста по Enter в поле ввода
-  const testQueryInput = document.getElementById('rag-test-query');
-  if (testQueryInput) {
-    testQueryInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        runRAGTest();
-      }
-    });
-  }
+
+    if (modalBody) {
+        if (mode === 'view') {
+            modalBody.innerHTML = `
+                <div class="document-view">
+                    <h4>${escapeHtml(document.title)}</h4>
+                    <div class="document-meta mb-3">
+                        <span class="badge badge-secondary">${escapeHtml(document.category || 'general')}</span>
+                        <span class="badge badge-info">${escapeHtml(document.language || 'auto')}</span>
+                        <span class="badge badge-${document.status === 'published' ? 'success' : 'warning'}">
+                            ${document.status === 'published' ? 'Опубликован' : 'Черновик'}
+                        </span>
+                    </div>
+                    ${document.tags && document.tags.length > 0 ? `
+                        <div class="document-tags mb-3">
+                            <strong>Теги:</strong>
+                            ${document.tags.map(tag => `<span class="badge badge-light">${escapeHtml(tag)}</span>`).join(' ')}
+                        </div>
+                    ` : ''}
+                    <div class="document-content">
+                        <strong>Содержание:</strong>
+                        <div class="mt-2 p-3 border rounded bg-light">
+                            ${escapeHtml(document.content).replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            modalBody.innerHTML = `
+                <form id="edit-document-form">
+                    <input type="hidden" id="edit-doc-id" value="${document.id || document._id}">
+                    
+                    <div class="form-group">
+                        <label for="edit-title">Название</label>
+                        <input type="text" class="form-control" id="edit-title" value="${escapeHtml(document.title)}" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="edit-category">Категория</label>
+                            <select class="form-control" id="edit-category" required>
+                                ${CATEGORIES.map(cat => 
+                                    `<option value="${cat}" ${document.category === cat ? 'selected' : ''}>${cat}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="edit-language">Язык</label>
+                            <select class="form-control" id="edit-language">
+                                <option value="auto" ${(document.language || 'auto') === 'auto' ? 'selected' : ''}>Авто-определение</option>
+                                <option value="ru" ${document.language === 'ru' ? 'selected' : ''}>Русский</option>
+                                <option value="en" ${document.language === 'en' ? 'selected' : ''}>Английский</option>
+                                <option value="es" ${document.language === 'es' ? 'selected' : ''}>Испанский</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-tags">Теги (через запятую)</label>
+                        <input type="text" class="form-control" id="edit-tags" 
+                               value="${document.tags ? document.tags.join(', ') : ''}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-status">Статус</label>
+                        <select class="form-control" id="edit-status">
+                            <option value="draft" ${document.status === 'draft' ? 'selected' : ''}>Черновик</option>
+                            <option value="published" ${document.status === 'published' ? 'selected' : ''}>Опубликован</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-content">Содержание</label>
+                        <textarea class="form-control" id="edit-content" rows="10" required>${escapeHtml(document.content)}</textarea>
+                    </div>
+                </form>
+            `;
+        }
+    }
+
+    if (modalFooter) {
+        if (mode === 'view') {
+            modalFooter.innerHTML = `
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-primary" onclick="editDocument('${document.id || document._id}')">
+                    Редактировать
+                </button>
+            `;
+        } else {
+            modalFooter.innerHTML = `
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveDocument()">
+                    Сохранить изменения
+                </button>
+            `;
+        }
+    }
+
+    // Показываем модальное окно
+    $(modal).modal('show');
+}
+
+/**
+ * Сохранение изменений документа
+ */
+async function saveDocument() {
+    try {
+        const form = document.getElementById('edit-document-form');
+        if (!form) return;
+
+        const documentId = document.getElementById('edit-doc-id').value;
+        const title = document.getElementById('edit-title').value.trim();
+        const category = document.getElementById('edit-category').value;
+        const language = document.getElementById('edit-language').value;
+        const tags = document.getElementById('edit-tags').value.trim();
+        const status = document.getElementById('edit-status').value;
+        const content = document.getElementById('edit-content').value.trim();
+
+        if (!title || !content || !category) {
+            showError('Заполните все обязательные поля');
+            return;
+        }
+
+        console.log('📖 Saving document:', documentId);
+        showLoading('Сохранение документа...');
+
+        const updateData = {
+            title,
+            category,
+            language,
+            status,
+            content,
+            tags: tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+        };
+
+        const response = await makeAuthenticatedRequest(`/api/knowledge/${documentId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        
+        if (!response) return;
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('Документ успешно обновлен');
+            $('#document-modal').modal('hide');
+            loadDocuments(); // Перезагружаем список
+        } else {
+            throw new Error(data.error || 'Failed to update document');
+        }
+    } catch (error) {
+        console.error('📖 Error saving document:', error);
+        showError('Ошибка сохранения документа: ' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Создание нового документа
+ */
+function createNewDocument() {
+    console.log('📖 Creating new document');
+
+    const modal = document.getElementById('document-modal');
+    if (!modal) return;
+
+    const modalTitle = modal.querySelector('.modal-title');
+    const modalBody = modal.querySelector('.modal-body');
+    const modalFooter = modal.querySelector('.modal-footer');
+
+    if (modalTitle) {
+        modalTitle.textContent = 'Создание нового документа';
+    }
+
+    if (modalBody) {
+        modalBody.innerHTML = `
+            <form id="create-document-form">
+                <div class="form-group">
+                    <label for="new-title">Название</label>
+                    <input type="text" class="form-control" id="new-title" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="new-category">Категория</label>
+                        <select class="form-control" id="new-category" required>
+                            ${CATEGORIES.map(cat => 
+                                `<option value="${cat}">${cat}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="new-language">Язык</label>
+                        <select class="form-control" id="new-language">
+                            <option value="auto" selected>Авто-определение</option>
+                            <option value="ru">Русский</option>
+                            <option value="en">Английский</option>
+                            <option value="es">Испанский</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="new-tags">Теги (через запятую)</label>
+                    <input type="text" class="form-control" id="new-tags">
+                </div>
+                
+                <div class="form-group">
+                    <label for="new-status">Статус</label>
+                    <select class="form-control" id="new-status">
+                        <option value="draft" selected>Черновик</option>
+                        <option value="published">Опубликован</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="new-content">Содержание</label>
+                    <textarea class="form-control" id="new-content" rows="10" required></textarea>
+                </div>
+            </form>
+        `;
+    }
+
+    if (modalFooter) {
+        modalFooter.innerHTML = `
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" onclick="saveNewDocument()">
+                Создать документ
+            </button>
+        `;
+    }
+
+    // Показываем модальное окно
+    $(modal).modal('show');
+}
+
+/**
+ * Сохранение нового документа
+ */
+async function saveNewDocument() {
+    try {
+        const form = document.getElementById('create-document-form');
+        if (!form) return;
+
+        const title = document.getElementById('new-title').value.trim();
+        const category = document.getElementById('new-category').value;
+        const language = document.getElementById('new-language').value;
+        const tags = document.getElementById('new-tags').value.trim();
+        const status = document.getElementById('new-status').value;
+        const content = document.getElementById('new-content').value.trim();
+
+        if (!title || !content || !category) {
+            showError('Заполните все обязательные поля');
+            return;
+        }
+
+        console.log('📖 Creating new document:', title);
+        showLoading('Создание документа...');
+
+        const newDocument = {
+            title,
+            category,
+            language,
+            status,
+            content,
+            tags: tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+        };
+
+        const response = await makeAuthenticatedRequest('/api/knowledge', {
+            method: 'POST',
+            body: JSON.stringify(newDocument)
+        });
+        
+        if (!response) return;
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('Документ успешно создан');
+            $('#document-modal').modal('hide');
+            currentPage = 1; // Возвращаемся на первую страницу
+            loadDocuments(); // Перезагружаем список
+            loadRAGStats(); // Обновляем статистику
+        } else {
+            throw new Error(data.error || 'Failed to create document');
+        }
+    } catch (error) {
+        console.error('📖 Error creating document:', error);
+        showError('Ошибка создания документа: ' + error.message);
+    } finally {
+        hideLoading();
+    }
 }
 
 /**
  * Синхронизация с векторным хранилищем
  */
 async function syncVectorStore() {
-  try {
-    console.log('📚 Запуск синхронизации с векторным хранилищем...');
-    
-    showNotification('info', '📚 Синхронизация с векторным хранилищем...');
-    
-    const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/sync-vector-store`, {
-      method: 'POST'
-    });
-    
-    if (response.success) {
-      showNotification('success', '📚 Синхронизация с Qdrant завершена успешно!');
-      
-      // Обновляем статистику RAG
-      loadRAGStats();
-      
-      console.log('📚 Синхронизация завершена');
-    } else {
-      throw new Error(response.error?.message || 'Не удалось синхронизировать');
+    if (!confirm('Вы уверены, что хотите синхронизировать документы с векторным хранилищем? Это может занять некоторое время.')) {
+        return;
     }
-  } catch (error) {
-    console.error('📚 Ошибка синхронизации:', error);
-    showNotification('error', `📚 Ошибка синхронизации: ${error.message}`);
-  }
-}
 
-/**
- * Пересборка векторного индекса
- */
-async function rebuildVectorIndex() {
-  const confirmed = confirm(
-    '📚 Пересборка индекса может занять несколько минут и временно повлиять на работу бота.\n\n' +
-    'Продолжить?'
-  );
-  
-  if (!confirmed) return;
-  
-  try {
-    console.log('📚 Запуск пересборки векторного индекса...');
-    
-    showNotification('info', '📚 Пересборка векторного индекса... Это может занять время.');
-    
-    const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/rebuild-index`, {
-      method: 'POST'
-    });
-    
-    if (response.success) {
-      showNotification('success', '📚 Векторный индекс успешно пересобран!');
-      
-      // Обновляем статистику RAG
-      loadRAGStats();
-      
-      console.log('📚 Пересборка индекса завершена');
-    } else {
-      throw new Error(response.error?.message || 'Не удалось пересобрать индекс');
+    try {
+        console.log('📖 Starting vector store synchronization');
+        showLoading('Синхронизация с векторным хранилищем...');
+
+        const response = await makeAuthenticatedRequest('/api/knowledge/sync-vector-store', {
+            method: 'POST',
+            body: JSON.stringify({
+                enableChunking: true,
+                chunkSize: 500,
+                overlap: 100,
+                preserveParagraphs: true
+            })
+        });
+        
+        if (!response) return;
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess(`Синхронизация завершена! Обработано ${data.processed} из ${data.totalDocuments} документов`);
+            loadRAGStats(); // Обновляем статистику
+        } else {
+            throw new Error(data.error || 'Synchronization failed');
+        }
+    } catch (error) {
+        console.error('📖 Error syncing vector store:', error);
+        showError('Ошибка синхронизации: ' + error.message);
+    } finally {
+        hideLoading();
     }
-  } catch (error) {
-    console.error('📚 Ошибка пересборки индекса:', error);
-    showNotification('error', `📚 Ошибка пересборки: ${error.message}`);
-  }
 }
 
 /**
- * Показывает модальное окно тестирования RAG
+ * Тестирование RAG поиска
  */
-function showRAGTestModal() {
-  const overlay = document.getElementById('rag-test-overlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
-    setTimeout(() => overlay.classList.add('active'), 10);
-    
-    // Фокусируемся на поле ввода
-    const queryInput = document.getElementById('rag-test-query');
-    if (queryInput) {
-      setTimeout(() => queryInput.focus(), 300);
+async function testRAGSearch() {
+    const searchQuery = prompt('Введите тестовый запрос для RAG поиска:');
+    if (!searchQuery) return;
+
+    try {
+        console.log('📖 Testing RAG search:', searchQuery);
+        showLoading('Тестирование RAG поиска...');
+
+        const response = await makeAuthenticatedRequest('/api/knowledge/test-search', {
+            method: 'POST',
+            body: JSON.stringify({
+                query: searchQuery,
+                limit: 5,
+                returnChunks: true
+            })
+        });
+        
+        if (!response) return;
+
+        const data = await response.json();
+
+        if (data.success) {
+            showRAGTestResults(data.data);
+        } else {
+            throw new Error(data.error || 'RAG test failed');
+        }
+    } catch (error) {
+        console.error('📖 Error testing RAG search:', error);
+        showError('Ошибка тестирования RAG: ' + error.message);
+    } finally {
+        hideLoading();
     }
-  }
 }
 
 /**
- * Скрывает модальное окно тестирования RAG
+ * Отображение результатов тестирования RAG
  */
-function hideRAGTestModal() {
-  const overlay = document.getElementById('rag-test-overlay');
-  if (!overlay) return;
-  
-  overlay.classList.remove('active');
-  setTimeout(() => {
-    overlay.style.display = 'none';
-  }, 300);
-}
+function showRAGTestResults(results) {
+    console.log('📖 Showing RAG test results:', results);
 
-/**
- * Выполняет тест RAG поиска
- */
-async function runRAGTest() {
-  const queryInput = document.getElementById('rag-test-query');
-  const resultsDiv = document.getElementById('rag-test-results');
-  
-  if (!queryInput || !resultsDiv) return;
-  
-  const query = queryInput.value.trim();
-  if (!query) {
-    showNotification('warning', '📚 Введите тестовый запрос');
-    queryInput.focus();
-    return;
-  }
-  
-  try {
-    console.log('📚 Выполнение RAG теста для запроса:', query);
-    
-    resultsDiv.innerHTML = '<div class="loading">📚 Поиск в базе знаний...</div>';
-    
-    const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/test-search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, limit: 5 })
-    });
-    
-    if (response.success) {
-      const results = response.data.results;
-      
-      if (results.length === 0) {
-        resultsDiv.innerHTML = `
-          <div class="test-no-results">
-            <div class="empty-icon">🔍</div>
-            <div class="empty-title">Ничего не найдено</div>
-            <div class="empty-subtitle">Попробуйте другой запрос или добавьте больше материалов в базу знаний</div>
-          </div>
+    const modal = document.getElementById('rag-test-modal');
+    if (!modal) {
+        // Создаем модальное окно если его нет
+        document.body.insertAdjacentHTML('beforeend', `
+            <div class="modal fade" id="rag-test-modal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Результаты RAG поиска</h5>
+                            <button type="button" class="close" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="rag-test-content"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    const contentEl = document.getElementById('rag-test-content');
+    if (contentEl) {
+        contentEl.innerHTML = `
+            <div class="rag-test-results">
+                <div class="test-info mb-3">
+                    <strong>Запрос:</strong> ${escapeHtml(results.query)}<br>
+                    <strong>Найдено результатов:</strong> ${results.totalFound}<br>
+                    <strong>Тип поиска:</strong> ${results.searchType}<br>
+                    <strong>Чанкинг использован:</strong> ${results.chunkingUsed ? 'Да' : 'Нет'}
+                </div>
+                
+                ${results.statistics ? `
+                    <div class="test-stats mb-3">
+                        <strong>Статистика:</strong><br>
+                        <small>
+                            Средний score: ${results.statistics.averageScore}<br>
+                            Диапазон score: ${results.statistics.scoreRange ? `${results.statistics.scoreRange.min} - ${results.statistics.scoreRange.max}` : 'N/A'}<br>
+                            Общая длина контента: ${results.statistics.contentLengths.total} символов
+                        </small>
+                    </div>
+                ` : ''}
+                
+                <div class="search-results">
+                    ${results.results.map((result, index) => `
+                        <div class="result-item mb-3 p-3 border rounded">
+                            <div class="result-header">
+                                <strong>${escapeHtml(result.title)}</strong>
+                                <span class="badge badge-primary ml-2">Score: ${result.score.toFixed(4)}</span>
+                                ${result.isChunk ? '<span class="badge badge-info ml-1">Чанк</span>' : ''}
+                            </div>
+                            <div class="result-meta text-muted small">
+                                Категория: ${escapeHtml(result.category)} | 
+                                Язык: ${escapeHtml(result.language)}
+                                ${result.chunkInfo ? ` | Чанк ${result.chunkInfo.chunkIndex + 1}` : ''}
+                            </div>
+                            <div class="result-content mt-2">
+                                <small>${escapeHtml(result.content.substring(0, 300))}${result.content.length > 300 ? '...' : ''}</small>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
         `;
-      } else {
-        resultsDiv.innerHTML = results.map((result, index) => `
-          <div class="test-result">
-            <div class="result-header">
-              <h5 class="result-title">📚 ${escapeHtml(result.title)}</h5>
-              <span class="result-score">Релевантность: ${Math.round(result.score * 100)}%</span>
-            </div>
-            <div class="result-meta">
-              <span class="result-category">${KNOWLEDGE_CONFIG.CATEGORY_LABELS[result.category]}</span>
-              <span class="result-language">${KNOWLEDGE_CONFIG.LANGUAGE_LABELS[result.language]}</span>
-            </div>
-            <div class="result-content">${escapeHtml(result.content.substring(0, 200))}...</div>
-          </div>
-        `).join('');
-      }
-      
-      console.log(`📚 RAG тест завершен, найдено ${results.length} результатов`);
+    }
+
+    $('#rag-test-modal').modal('show');
+}
+
+// Utility functions
+function escapeHtml(text) {
+    if (typeof text !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showLoading(message = 'Загрузка...') {
+    const loadingEl = document.getElementById('loading-indicator');
+    if (loadingEl) {
+        loadingEl.textContent = message;
+        loadingEl.style.display = 'block';
+    }
+}
+
+function hideLoading() {
+    const loadingEl = document.getElementById('loading-indicator');
+    if (loadingEl) {
+        loadingEl.style.display = 'none';
+    }
+}
+
+function showError(message) {
+    console.error('📖 Error:', message);
+    
+    // Показываем уведомление
+    if (typeof showNotification === 'function') {
+        showNotification('error', message);
     } else {
-      throw new Error(response.error?.message || 'Не удалось выполнить поиск');
+        alert('Ошибка: ' + message);
     }
-  } catch (error) {
-    console.error('📚 Ошибка RAG теста:', error);
-    resultsDiv.innerHTML = `
-      <div class="test-error">
-        <div class="error-icon">⚠️</div>
-        <div class="error-title">Ошибка поиска</div>
-        <div class="error-message">${escapeHtml(error.message)}</div>
-      </div>
-    `;
-  }
 }
 
-/**
- * Выполняет диагностику RAG системы
- */
-async function runRAGDiagnosis() {
-  try {
-    console.log('📚 Запуск диагностики RAG системы...');
+function showSuccess(message) {
+    console.log('📖 Success:', message);
     
-    showNotification('info', '📚 Выполняется диагностика RAG системы...');
-    
-    const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/diagnose`);
-    
-    if (response.success) {
-      const diagnosis = response.data;
-      
-      // Формируем отчет о диагностике
-      let reportMessages = [
-        `🔍 Векторное хранилище: ${diagnosis.vectorStore.status}`,
-        `📊 Документов в MongoDB: ${diagnosis.mongodb.documentCount}`,
-        `🗃️ Документов в Qdrant: ${diagnosis.qdrant.documentCount}`,
-        `⚡ Время ответа Qdrant: ${diagnosis.qdrant.responseTime}ms`
-      ];
-      
-      if (diagnosis.issues.length > 0) {
-        reportMessages.push('⚠️ Обнаружены проблемы:', ...diagnosis.issues);
-      } else {
-        reportMessages.push('✅ Проблем не обнаружено');
-      }
-      
-      showNotification('success', reportMessages.join('\n'));
-      
-      // Обновляем статистику RAG
-      loadRAGStats();
-      
-      console.log('📚 Диагностика завершена:', diagnosis);
+    // Показываем уведомление
+    if (typeof showNotification === 'function') {
+        showNotification('success', message);
     } else {
-      throw new Error(response.error?.message || 'Не удалось выполнить диагностику');
+        alert('Успех: ' + message);
     }
-  } catch (error) {
-    console.error('📚 Ошибка диагностики:', error);
-    showNotification('error', `📚 Ошибка диагностики: ${error.message}`);
-  }
 }
 
 /**
- * Загружает статистику RAG системы
+ * Инициализация страницы базы знаний
  */
-async function loadRAGStats() {
-  try {
-    console.log('📚 Загрузка статистики RAG...');
-    
-    const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/stats`);
-    
-    if (response.success) {
-      knowledgeState.ragStats = response.data;
-      updateRAGStatsDisplay();
-    } else {
-      console.warn('📚 Не удалось загрузить статистику RAG:', response.error?.message);
-      // Показываем заглушки
-      updateRAGStatsDisplay(null);
+async function initKnowledgePage() {
+    try {
+        console.log('📖 Initializing knowledge page...');
+
+        // Проверяем аутентификацию
+        if (typeof authManager === 'undefined') {
+            console.error('📖 AuthManager not loaded, redirecting to login');
+            window.location.href = '/admin-panel/login.html';
+            return;
+        }
+
+        if (!authManager.isAuthenticated()) {
+            console.warn('📖 User not authenticated, redirecting to login');
+            window.location.href = '/admin-panel/login.html';
+            return;
+        }
+
+        console.log('📖 User authenticated, loading knowledge base data...');
+
+        // Инициализируем фильтры категорий
+        const categoryFilter = document.getElementById('category-filter');
+        if (categoryFilter) {
+            categoryFilter.innerHTML = '<option value="">Все категории</option>' +
+                CATEGORIES.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+        }
+
+        // Загружаем данные
+        await Promise.all([
+            loadDocuments(),
+            loadRAGStats()
+        ]);
+
+        // Настраиваем обработчики событий
+        setupEventListeners();
+
+        console.log('📖 Knowledge page initialized successfully');
+    } catch (error) {
+        console.error('📖 Error initializing knowledge page:', error);
+        showError('Ошибка инициализации страницы: ' + error.message);
     }
-  } catch (error) {
-    console.error('📚 Ошибка загрузки статистики RAG:', error);
-    updateRAGStatsDisplay(null);
-  }
 }
 
 /**
- * Обновляет отображение статистики RAG
- * @param {RAGStats|null} stats - Статистика или null для заглушек
+ * Настройка обработчиков событий
  */
-function updateRAGStatsDisplay(stats = knowledgeState.ragStats) {
-  const elements = {
-    lastIndexed: document.getElementById('rag-last-indexed'),
-    docsCount: document.getElementById('rag-docs-count'),
-    vectorStore: document.getElementById('rag-vector-store'),
-    embeddingModel: document.getElementById('rag-embedding-model'),
-    syncStatus: document.getElementById('rag-sync-status')
-  };
-  
-  if (stats) {
-    if (elements.lastIndexed) {
-      elements.lastIndexed.textContent = formatRelativeTime(stats.lastUpdated);
+function setupEventListeners() {
+    // Поиск
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchDocuments();
+            }
+        });
     }
-    if (elements.docsCount) {
-      elements.docsCount.textContent = (stats.total || 0).toString();
+
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchDocuments);
     }
-    if (elements.vectorStore) {
-      elements.vectorStore.textContent = 'Qdrant';
+
+    // Сброс поиска
+    const resetBtn = document.getElementById('reset-search-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetSearch);
     }
-    if (elements.embeddingModel) {
-      elements.embeddingModel.textContent = 'text-embedding-ada-002';
+
+    // Фильтры
+    const categoryFilter = document.getElementById('category-filter');
+    const tagsFilter = document.getElementById('tags-filter');
+
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', applyFilters);
     }
-    if (elements.syncStatus) {
-      elements.syncStatus.textContent = 'Синхронизирован';
-      elements.syncStatus.className = 'status-badge status-success';
+
+    if (tagsFilter) {
+        tagsFilter.addEventListener('change', applyFilters);
     }
-  } else {
-    // Заглушки
-    if (elements.lastIndexed) elements.lastIndexed.textContent = 'Неизвестно';
-    if (elements.docsCount) elements.docsCount.textContent = knowledgeState.totalDocuments.toString();
-    if (elements.vectorStore) elements.vectorStore.textContent = 'Qdrant (локальный)';
-    if (elements.embeddingModel) elements.embeddingModel.textContent = 'text-embedding-ada-002';
-    if (elements.syncStatus) {
-      elements.syncStatus.textContent = 'Неизвестно';
-      elements.syncStatus.className = 'status-badge status-unknown';
+
+    // Кнопки действий
+    const newDocBtn = document.getElementById('new-document-btn');
+    if (newDocBtn) {
+        newDocBtn.addEventListener('click', createNewDocument);
     }
-  }
+
+    const syncBtn = document.getElementById('sync-vector-btn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', syncVectorStore);
+    }
+
+    const testRAGBtn = document.getElementById('test-rag-btn');
+    if (testRAGBtn) {
+        testRAGBtn.addEventListener('click', testRAGSearch);
+    }
 }
 
-/**
- * Обновляет количество документов в RAG статистике
- * @param {number} count - Количество документов
- */
-function updateRAGDocumentCount(count) {
-  const element = document.getElementById('rag-docs-count');
-  if (element) {
-    element.textContent = count.toString();
-  }
-}
-
-/**
- * Инициализация пагинации
- */
-function initPagination() {
-  const prevBtn = document.getElementById('prev-page');
-  const nextBtn = document.getElementById('next-page');
-  
-  if (prevBtn) {
-    prevBtn.addEventListener('click', () => {
-      if (knowledgeState.currentFilters.page > 1) {
-        knowledgeState.currentFilters.page--;
-        loadDocuments();
-      }
-    });
-  }
-  
-  if (nextBtn) {
-    nextBtn.addEventListener('click', () => {
-      const totalPages = Math.ceil(knowledgeState.totalDocuments / knowledgeState.currentFilters.limit);
-      if (knowledgeState.currentFilters.page < totalPages) {
-        knowledgeState.currentFilters.page++;
-        loadDocuments();
-      }
-    });
-  }
-}
-
-/**
- * Обновляет информацию о пагинации
- */
-function updatePaginationInfo() {
-  const rangeElement = document.getElementById('pagination-range');
-  const totalElement = document.getElementById('pagination-total');
-  const currentElement = document.getElementById('pagination-current');
-  const prevBtn = document.getElementById('prev-page');
-  const nextBtn = document.getElementById('next-page');
-  
-  const { page, limit } = knowledgeState.currentFilters;
-  const total = knowledgeState.totalDocuments;
-  const totalPages = Math.ceil(total / limit);
-  
-  // Вычисляем диапазон отображаемых документов
-  const start = total > 0 ? (page - 1) * limit + 1 : 0;
-  const end = Math.min(page * limit, total);
-  
-  // Обновляем элементы
-  if (rangeElement) rangeElement.textContent = `${start}-${end}`;
-  if (totalElement) totalElement.textContent = total.toString();
-  if (currentElement) currentElement.textContent = total > 0 ? `Страница ${page} из ${totalPages}` : 'Страница 0 из 0';
-  
-  // Обновляем состояние кнопок
-  if (prevBtn) {
-    prevBtn.disabled = page <= 1;
-  }
-  if (nextBtn) {
-    nextBtn.disabled = page >= totalPages || total === 0;
-  }
-}
-
-// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
-
-/**
- * ИСПРАВЛЕНО: Выполняет аутентифицированный запрос к API
- * @param {string} url - URL для запроса
- * @param {RequestInit} [options] - Дополнительные опции запроса
- * @returns {Promise<ApiResponse>} Ответ API
- */
-async function makeAuthenticatedRequest(url, options = {}) {
-  // ИСПРАВЛЕНО: Используем правильный ключ для токена
-  if (!authManager || !authManager.isAuthenticated()) {
-    throw new Error('Пользователь не авторизован');
-  }
-  
-  const token = authManager.getToken();
-  if (!token) {
-    throw new Error('Токен аутентификации не найден');
-  }
-  
-  const headers = {
-    'Authorization': `Bearer ${token}`,
-    ...options.headers
-  };
-  
-  const response = await fetch(url, {
-    ...options,
-    headers
-  });
-  
-  // Проверяем авторизацию
-  if (response.status === 401 || response.status === 403) {
-    authManager.logout();
-    throw new Error('Сессия истекла, требуется повторная авторизация');
-  }
-  
-  const result = await response.json();
-  return result;
-}
-
-/**
- * Экранирует HTML в строке
- * @param {string} str - Строка для экранирования
- * @returns {string} Экранированная строка
- */
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-/**
- * Форматирует время в относительном формате
- * @param {string} dateString - Строка даты в ISO формате
- * @returns {string} Относительное время (например, "2 часа назад")
- */
-function formatRelativeTime(dateString) {
-  if (!dateString) return 'Неизвестно';
-  
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffMinutes < 1) return 'только что';
-    if (diffMinutes < 60) return `${diffMinutes} мин назад`;
-    if (diffHours < 24) return `${diffHours} ч назад`;
-    if (diffDays < 7) return `${diffDays} дн назад`;
-    
-    return date.toLocaleDateString('ru-RU');
-  } catch (error) {
-    return 'Неизвестно';
-  }
-}
-
-/**
- * ИСПРАВЛЕНО: Простой рендеринг Markdown в HTML
- * @param {string} markdown - Текст в формате Markdown
- * @returns {string} HTML код
- */
-function renderMarkdown(markdown) {
-  return markdown
-    // Заголовки
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    
-    // Жирный и курсив
-    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    
-    // Код
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/```([^```]+)```/g, '<pre><code>$1</code></pre>')
-    
-    // ИСПРАВЛЕНО: Ссылки Markdown
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-    
-    // Списки
-    .replace(/^\* (.+$)/gim, '<li>$1</li>')
-    .replace(/^(\d+)\. (.+$)/gim, '<li>$2</li>')
-    
-    // Переносы строк
-    .replace(/\n/g, '<br>');
-}
-
-/**
- * Показывает уведомление пользователю
- * @param {string} type - Тип уведомления (success|error|warning|info)
- * @param {string} message - Текст сообщения
- * @param {number} [duration=5000] - Длительность показа в миллисекундах
- */
-function showNotification(type, message, duration = 5000) {
-  const container = document.getElementById('notification-container');
-  if (!container) {
-    // Fallback к alert если контейнер не найден
-    alert(message);
-    return;
-  }
-  
-  const notification = document.createElement('div');
-  notification.className = `notification notification-${type}`;
-  
-  // Иконки для разных типов уведомлений
-  const icons = {
-    success: '✅',
-    error: '❌',
-    warning: '⚠️',
-    info: 'ℹ️'
-  };
-  
-  notification.innerHTML = `
-    <div class="notification-icon">${icons[type] || '📚'}</div>
-    <div class="notification-message">${escapeHtml(message)}</div>
-    <button class="notification-close" onclick="this.parentElement.remove()">×</button>
-  `;
-  
-  container.appendChild(notification);
-  
-  // Показываем уведомление с анимацией
-  setTimeout(() => notification.classList.add('show'), 10);
-  
-  // Автоматически скрываем уведомление
-  setTimeout(() => {
-    notification.classList.remove('show');
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.parentNode.removeChild(notification);
-      }
-    }, 300);
-  }, duration);
-}
-
-// Экспорт основной функции для использования в HTML
-window.initKnowledgePage = initKnowledgePage;
-
-// Экспорт вспомогательных функций для использования в других модулях или HTML
-window.showDocumentEditor = showDocumentEditor;
+// Экспортируем функции для глобального использования
+window.loadDocuments = loadDocuments;
+window.searchDocuments = searchDocuments;
+window.resetSearch = resetSearch;
+window.applyFilters = applyFilters;
+window.changePage = changePage;
+window.viewDocument = viewDocument;
 window.editDocument = editDocument;
 window.deleteDocument = deleteDocument;
-window.viewDocument = viewDocument;
+window.saveDocument = saveDocument;
+window.createNewDocument = createNewDocument;
+window.saveNewDocument = saveNewDocument;
+window.syncVectorStore = syncVectorStore;
+window.testRAGSearch = testRAGSearch;
+
+// Автоинициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', initKnowledgePage);
