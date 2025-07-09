@@ -1,7 +1,7 @@
 /**
  * Knowledge Management JavaScript
  * @file client/admin-panel/js/knowledge.js
- * 📖 ИСПРАВЛЕНО: Убрана аутентификация для базовых endpoints + правильный API prefix
+ * 📖 ИСПРАВЛЕНО: Реализовано создание документов + тестовый поиск
  */
 
 // API configuration - использование правильного prefix
@@ -282,6 +282,256 @@ async function searchDocuments(query) {
 }
 
 /**
+ * Show add document modal
+ */
+function showAddDocumentModal() {
+    // Создаем модальное окно
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📖 Добавить новый документ</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-document-form">
+                    <div class="form-group">
+                        <label for="doc-title">Заголовок документа *</label>
+                        <input type="text" id="doc-title" name="title" required 
+                               placeholder="Например: Цитаты о любви и отношениях">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="doc-category">Категория *</label>
+                        <select id="doc-category" name="category" required>
+                            <option value="">Выберите категорию</option>
+                            <option value="Саморазвитие">Саморазвитие</option>
+                            <option value="Любовь">Любовь и отношения</option>
+                            <option value="Философия">Философия</option>
+                            <option value="Мотивация">Мотивация</option>
+                            <option value="Психология">Психология</option>
+                            <option value="Книги">Книги и авторы</option>
+                            <option value="Цитаты">Цитаты</option>
+                            <option value="Другое">Другое</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="doc-content">Содержание документа *</label>
+                        <textarea id="doc-content" name="content" required rows="10"
+                                  placeholder="Введите содержание документа..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="doc-tags">Теги</label>
+                        <input type="text" id="doc-tags" name="tags" 
+                               placeholder="Разделите теги запятыми: любовь, психология, отношения">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="doc-language">Язык</label>
+                        <select id="doc-language" name="language">
+                            <option value="ru">Русский</option>
+                            <option value="en">English</option>
+                            <option value="auto">Авто-определение</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="doc-status">Статус</label>
+                        <select id="doc-status" name="status">
+                            <option value="published">Опубликован</option>
+                            <option value="draft">Черновик</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="addDocument()">
+                    📖 Создать документ
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Фокус на первое поле
+    document.getElementById('doc-title').focus();
+}
+
+/**
+ * Add new document
+ */
+async function addDocument() {
+    const form = document.getElementById('add-document-form');
+    const formData = new FormData(form);
+    
+    // Валидация
+    const title = formData.get('title').trim();
+    const category = formData.get('category');
+    const content = formData.get('content').trim();
+    
+    if (!title || !category || !content) {
+        showError('Заполните все обязательные поля');
+        return;
+    }
+    
+    if (content.length < 10) {
+        showError('Содержание документа должно быть минимум 10 символов');
+        return;
+    }
+
+    try {
+        // Показываем индикатор загрузки
+        const addButton = document.querySelector('.modal-footer .btn-primary');
+        const originalText = addButton.textContent;
+        addButton.textContent = 'Создание...';
+        addButton.disabled = true;
+
+        // Подготавливаем данные
+        const documentData = {
+            title: title,
+            category: category,
+            content: content,
+            tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+            language: formData.get('language') || 'ru',
+            status: formData.get('status') || 'published'
+        };
+
+        console.log('📖 Creating document:', documentData);
+
+        const response = await makeAuthenticatedRequest('/knowledge', {
+            method: 'POST',
+            body: JSON.stringify(documentData)
+        });
+
+        if (response.success) {
+            showNotification('success', 'Документ успешно создан!');
+            closeModal();
+            
+            // Обновляем список документов
+            currentPage = 1;
+            await loadDocuments();
+            await loadRAGStats();
+        } else {
+            throw new Error(response.error || 'Не удалось создать документ');
+        }
+    } catch (error) {
+        console.error('📖 Ошибка создания документа:', error);
+        showError('Ошибка создания документа: ' + error.message);
+        
+        // Восстанавливаем кнопку
+        const addButton = document.querySelector('.modal-footer .btn-primary');
+        addButton.textContent = originalText;
+        addButton.disabled = false;
+    }
+}
+
+/**
+ * Show test search modal
+ */
+function showTestSearchModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔍 Тестовый поиск</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="test-query">Поисковый запрос</label>
+                    <input type="text" id="test-query" placeholder="Например: цитаты о любви">
+                </div>
+                <div class="form-group">
+                    <label for="test-limit">Количество результатов</label>
+                    <select id="test-limit">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="test-chunks" checked>
+                        Показать чанки
+                    </label>
+                </div>
+                <div id="test-results"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Закрыть</button>
+                <button type="button" class="btn btn-primary" onclick="testSearch()">
+                    🔍 Выполнить поиск
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Фокус на поле поиска
+    document.getElementById('test-query').focus();
+}
+
+/**
+ * Close modal
+ */
+function closeModal() {
+    const modal = document.querySelector('.modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+/**
+ * Test search functionality
+ */
+async function testSearch() {
+    const modal = document.getElementById('test-search-modal');
+    const queryInput = document.getElementById('test-query');
+    const limitSelect = document.getElementById('test-limit');
+    const chunksCheckbox = document.getElementById('test-chunks');
+    const resultsContainer = document.getElementById('test-results');
+    
+    if (!queryInput || !resultsContainer) return;
+
+    const query = queryInput.value.trim();
+    if (!query) {
+        showError('Введите поисковый запрос');
+        return;
+    }
+
+    try {
+        showLoading('test-results', 'Выполняется тестовый поиск...');
+
+        const response = await makeAuthenticatedRequest('/knowledge/test-search', {
+            method: 'POST',
+            body: JSON.stringify({
+                query: query,
+                limit: parseInt(limitSelect.value) || 5,
+                returnChunks: chunksCheckbox.checked
+            })
+        });
+
+        if (response.success) {
+            renderTestResults(response.data);
+        } else {
+            throw new Error(response.error || 'Ошибка тестового поиска');
+        }
+    } catch (error) {
+        console.error('📖 Ошибка тестового поиска:', error);
+        resultsContainer.innerHTML = `<div class="alert alert-danger">Ошибка: ${error.message}</div>`;
+    }
+}
+
+/**
  * Render documents list
  */
 function renderDocuments(documents, isSearchResult = false, searchQuery = '') {
@@ -424,45 +674,6 @@ function changePage(page) {
     
     currentPage = page;
     loadDocuments();
-}
-
-/**
- * Test search functionality
- */
-async function testSearch() {
-    const modal = document.getElementById('test-search-modal');
-    const queryInput = document.getElementById('test-query');
-    const resultsContainer = document.getElementById('test-results');
-    
-    if (!queryInput || !resultsContainer) return;
-
-    const query = queryInput.value.trim();
-    if (!query) {
-        showError('Введите поисковый запрос');
-        return;
-    }
-
-    try {
-        showLoading('test-results', 'Выполняется тестовый поиск...');
-
-        const response = await makeAuthenticatedRequest('/knowledge/test-search', {
-            method: 'POST',
-            body: JSON.stringify({
-                query: query,
-                limit: 5,
-                returnChunks: true
-            })
-        });
-
-        if (response.success) {
-            renderTestResults(response.data);
-        } else {
-            throw new Error(response.error || 'Ошибка тестового поиска');
-        }
-    } catch (error) {
-        console.error('📖 Ошибка тестового поиска:', error);
-        resultsContainer.innerHTML = `<div class="alert alert-danger">Ошибка: ${error.message}</div>`;
-    }
 }
 
 /**
@@ -627,15 +838,7 @@ function showWarning(message) {
     }
 }
 
-// Placeholder functions for modal operations (to be implemented)
-function showAddDocumentModal() {
-    showError('Функция добавления документов в разработке');
-}
-
-function showTestSearchModal() {
-    showError('Функция тестового поиска в разработке');
-}
-
+// Document management functions
 function viewDocument(id) {
     showError('Функция просмотра документа в разработке');
 }
