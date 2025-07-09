@@ -24,13 +24,34 @@ const { errorHandler } = require('./middleware/errorHandler');
 const chatRoutes = require('./api/chat');
 const ticketRoutes = require('./api/tickets');
 const adminRoutes = require('./api/admin');
-const knowledgeRoutes = require('./api/knowledge');
 const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 Маршруты аналитики
 
 // 🐛 ДИАГНОСТИКА: Безопасный импорт routes с обработкой ошибок
-let usersRoutes, quotesRoutes;
+let knowledgeRoutes, usersRoutes, quotesRoutes;
+
+// 🔍 Безопасная загрузка knowledge routes
+try {
+  logger.info('🔍 [KNOWLEDGE] Starting knowledge.js file loading...');
+  knowledgeRoutes = require('./api/knowledge');
+  logger.info('✅ [KNOWLEDGE] Knowledge routes imported successfully');
+} catch (error) {
+  logger.error('❌ [KNOWLEDGE] Failed to import knowledge routes:', {
+    message: error.message,
+    stack: error.stack,
+    code: error.code
+  });
+  knowledgeRoutes = express.Router();
+  knowledgeRoutes.get('*', (req, res) => {
+    res.status(500).json({
+      success: false,
+      error: 'Knowledge routes failed to load',
+      details: error.message,
+      code: 'KNOWLEDGE_ROUTES_ERROR'
+    });
+  });
+}
 
 try {
   logger.info('🔧 Attempting to import users routes...');
@@ -259,6 +280,16 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       quotesHealth = { status: 'error', error: error.message, modelsAvailable: false };
     }
 
+    // 🔍 Безопасная проверка knowledge service
+    let knowledgeHealth = { status: 'ok' };
+    try {
+      const KnowledgeBase = require('./models/knowledgeBase');
+      await KnowledgeBase.countDocuments().limit(1);
+      knowledgeHealth.modelsAvailable = true;
+    } catch (error) {
+      knowledgeHealth = { status: 'error', error: error.message, modelsAvailable: false };
+    }
+
     const health = {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -274,7 +305,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
         cron: cronStatus.status,
         analytics: analyticsHealth.status,
         users: usersHealth.status,
-        quotes: quotesHealth.status
+        quotes: quotesHealth.status,
+        knowledge: knowledgeHealth.status
       },
       aiProvider: aiProviderInfo,
       promptService: {
@@ -300,6 +332,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       usersService: usersHealth,
       // 📝 Информация о сервисе цитат
       quotesService: quotesHealth,
+      // 🔍 Информация о knowledge service
+      knowledgeService: knowledgeHealth,
       features: config.features,
       socketConnections: {
         total: io.engine ? io.engine.clientsCount : 0,
@@ -800,6 +834,9 @@ async function startServer() {
     logger.info('📝 Initializing Quotes Service...');
     logger.info('✅ Quotes Service ready with API endpoints /api/quotes/*');
     
+    logger.info('🔍 Initializing Knowledge Service...');
+    logger.info('✅ Knowledge Service ready with API endpoints /api/knowledge/*');
+    
     // 📖 Безопасная инициализация CronService
     if (cronService) {
       logger.info('📖 Initializing Cron Service...');
@@ -860,6 +897,7 @@ async function startServer() {
     logger.info(`📊 Analytics API: ${config.app.apiPrefix}/analytics`);
     logger.info(`👥 Users API: ${config.app.apiPrefix}/users`);
     logger.info(`📝 Quotes API: ${config.app.apiPrefix}/quotes`);
+    logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
     
     if (config.app.isDevelopment) {
       logger.info('🔄 Development mode: Hot reload enabled');
