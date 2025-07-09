@@ -1,8 +1,11 @@
 /**
  * Knowledge Management JavaScript
  * @file client/admin-panel/js/knowledge.js
- * 📖 ИСПРАВЛЕНО: Убрана аутентификация для базовых endpoints
+ * 📖 ИСПРАВЛЕНО: Убрана аутентификация для базовых endpoints + правильный API prefix
  */
+
+// API configuration - использование правильного prefix
+const API_PREFIX = '/api/reader'; // 📖 Правильный prefix для Reader Bot
 
 // Global variables
 let currentPage = 1;
@@ -33,18 +36,21 @@ async function initKnowledgePage() {
 
 /**
  * Make authenticated request with error handling
- * @param {string} url - Request URL
+ * @param {string} endpoint - API endpoint (without prefix)
  * @param {Object} options - Fetch options
  * @returns {Promise<any>} Response data
  */
-async function makeAuthenticatedRequest(url, options = {}) {
+async function makeAuthenticatedRequest(endpoint, options = {}) {
     try {
+        // Создаем полный URL с API prefix
+        const url = `${API_PREFIX}${endpoint}`;
+        
         // Базовые endpoints больше не требуют аутентификации
-        const isPublicEndpoint = url.includes('/api/knowledge') && 
-                                 !url.includes('/diagnose') && 
-                                 !url.includes('/vector-search') && 
-                                 !url.includes('/test-search') && 
-                                 !url.includes('/sync-vector-store') &&
+        const isPublicEndpoint = endpoint.includes('/knowledge') && 
+                                 !endpoint.includes('/diagnose') && 
+                                 !endpoint.includes('/vector-search') && 
+                                 !endpoint.includes('/test-search') && 
+                                 !endpoint.includes('/sync-vector-store') &&
                                  !options.method || options.method === 'GET';
 
         const headers = {
@@ -63,10 +69,14 @@ async function makeAuthenticatedRequest(url, options = {}) {
             }
         }
 
+        console.log(`📖 Making request to: ${url}`);
+        
         const response = await fetch(url, {
             ...options,
             headers
         });
+
+        console.log(`📖 Response status: ${response.status}`);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -109,7 +119,7 @@ async function loadDocuments() {
             params.append('q', searchInput.value.trim());
         }
 
-        const response = await makeAuthenticatedRequest(`/api/knowledge?${params}`);
+        const response = await makeAuthenticatedRequest(`/knowledge?${params}`);
         
         if (response.success) {
             renderDocuments(response.data);
@@ -136,7 +146,7 @@ async function loadDocuments() {
 async function loadRAGStats() {
     try {
         console.log('📖 Loading RAG statistics...');
-        const response = await makeAuthenticatedRequest('/api/knowledge/stats');
+        const response = await makeAuthenticatedRequest('/knowledge/stats');
         
         if (response.success) {
             renderRAGStats(response.data);
@@ -255,7 +265,7 @@ async function searchDocuments(query) {
             page: 1
         });
 
-        const response = await makeAuthenticatedRequest(`/api/knowledge/search?${params}`);
+        const response = await makeAuthenticatedRequest(`/knowledge/search?${params}`);
         
         if (response.success) {
             renderDocuments(response.data, true, query);
@@ -435,7 +445,7 @@ async function testSearch() {
     try {
         showLoading('test-results', 'Выполняется тестовый поиск...');
 
-        const response = await makeAuthenticatedRequest('/api/knowledge/test-search', {
+        const response = await makeAuthenticatedRequest('/knowledge/test-search', {
             method: 'POST',
             body: JSON.stringify({
                 query: query,
@@ -465,7 +475,7 @@ async function syncVectorStore() {
     try {
         showNotification('info', 'Начинается синхронизация векторного хранилища...');
 
-        const response = await makeAuthenticatedRequest('/api/knowledge/sync-vector-store', {
+        const response = await makeAuthenticatedRequest('/knowledge/sync-vector-store', {
             method: 'POST',
             body: JSON.stringify({
                 enableChunking: true,
@@ -493,7 +503,7 @@ async function runDiagnostics() {
     try {
         showNotification('info', 'Выполняется диагностика системы...');
 
-        const response = await makeAuthenticatedRequest('/api/knowledge/diagnose');
+        const response = await makeAuthenticatedRequest('/knowledge/diagnose');
 
         if (response.success) {
             renderDiagnostics(response);
