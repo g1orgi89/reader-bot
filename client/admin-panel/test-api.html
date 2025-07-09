@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - Reader Bot Admin</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .endpoint {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .endpoint.success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .endpoint.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .endpoint.warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .method {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #007bff;
+            color: white;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .url {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .status {
+            float: right;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: white;
+        }
+        .status.success { background: #28a745; }
+        .status.error { background: #dc3545; }
+        .status.warning { background: #ffc107; color: #212529; }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f1f3f4;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .test-all {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .auth-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📖 Reader Bot API Test</h1>
+        
+        <div class="auth-info">
+            <strong>🔐 Информация об аутентификации:</strong><br>
+            Для доступа к админ endpoints используются базовые credentials:<br>
+            Username: <code>admin</code> | Password: <code>password123</code>
+        </div>
+
+        <div class="test-all">
+            <button class="btn" onclick="testAllEndpoints()">🚀 Тестировать все endpoints</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const endpoints = [
+            // Health check (публичный)
+            { method: 'GET', url: '/api/health', auth: false, description: 'Health check' },
+            
+            // Knowledge endpoints
+            { method: 'GET', url: '/api/knowledge', auth: false, description: 'Get knowledge documents' },
+            { method: 'GET', url: '/api/knowledge/stats', auth: true, description: 'Get knowledge statistics' },
+            { method: 'GET', url: '/api/knowledge/search?q=test', auth: false, description: 'Search knowledge' },
+            { method: 'GET', url: '/api/knowledge/diagnose', auth: true, description: 'Diagnose knowledge system' },
+            
+            // Admin endpoints
+            { method: 'POST', url: '/api/admin/login', auth: false, description: 'Admin login', body: { username: 'admin', password: 'password123' } },
+            { method: 'GET', url: '/api/admin/dashboard', auth: true, description: 'Admin dashboard' },
+            
+            // Users endpoints
+            { method: 'GET', url: '/api/users', auth: true, description: 'Get users' },
+            { method: 'GET', url: '/api/users/stats', auth: true, description: 'Get user statistics' },
+            
+            // Quotes endpoints
+            { method: 'GET', url: '/api/quotes', auth: true, description: 'Get quotes' },
+            { method: 'GET', url: '/api/quotes/stats', auth: true, description: 'Get quote statistics' },
+            
+            // Reports endpoints
+            { method: 'GET', url: '/api/reports/weekly', auth: true, description: 'Get weekly reports' },
+            { method: 'GET', url: '/api/reports/monthly', auth: true, description: 'Get monthly reports' },
+            
+            // Analytics endpoints
+            { method: 'GET', url: '/api/analytics/dashboard', auth: true, description: 'Get analytics dashboard' },
+            
+            // Chat endpoints
+            { method: 'GET', url: '/api/chat/conversations', auth: true, description: 'Get conversations' },
+            
+            // Tickets endpoints
+            { method: 'GET', url: '/api/tickets', auth: true, description: 'Get tickets' },
+            
+            // Prompts endpoints
+            { method: 'GET', url: '/api/prompts', auth: true, description: 'Get prompts' }
+        ];
+
+        let authToken = null;
+
+        async function makeRequest(endpoint) {
+            const options = {
+                method: endpoint.method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            // Добавляем аутентификацию если требуется
+            if (endpoint.auth && authToken) {
+                options.headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
+            // Добавляем тело запроса для POST
+            if (endpoint.body) {
+                options.body = JSON.stringify(endpoint.body);
+            }
+
+            try {
+                const response = await fetch(endpoint.url, options);
+                const contentType = response.headers.get('content-type');
+                
+                let data;
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    data = await response.text();
+                }
+
+                return {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: data,
+                    headers: Object.fromEntries(response.headers.entries())
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    statusText: 'Network Error',
+                    data: { error: error.message },
+                    headers: {}
+                };
+            }
+        }
+
+        async function testEndpoint(endpoint) {
+            console.log(`Testing ${endpoint.method} ${endpoint.url}...`);
+            
+            const result = await makeRequest(endpoint);
+            
+            // Сохраняем токен из логина
+            if (endpoint.url === '/api/admin/login' && result.status === 200 && result.data.token) {
+                authToken = result.data.token;
+                console.log('🔐 Auth token saved:', authToken);
+            }
+            
+            return {
+                endpoint,
+                result
+            };
+        }
+
+        function getStatusClass(status) {
+            if (status >= 200 && status < 300) return 'success';
+            if (status >= 400 && status < 500) return 'warning';
+            return 'error';
+        }
+
+        function getStatusText(status) {
+            if (status >= 200 && status < 300) return 'OK';
+            if (status === 401) return 'AUTH';
+            if (status === 403) return 'FORBIDDEN';
+            if (status === 404) return 'NOT FOUND';
+            if (status >= 500) return 'SERVER ERROR';
+            if (status === 0) return 'NETWORK ERROR';
+            return status;
+        }
+
+        function renderResult(testResult) {
+            const { endpoint, result } = testResult;
+            const statusClass = getStatusClass(result.status);
+            
+            return `
+                <div class="endpoint ${statusClass}">
+                    <span class="method">${endpoint.method}</span>
+                    <span class="url">${endpoint.url}</span>
+                    <span class="status ${statusClass}">${result.status} ${getStatusText(result.status)}</span>
+                    <br>
+                    <small>${endpoint.description}</small>
+                    ${endpoint.auth ? ' <small>🔐 Requires Auth</small>' : ''}
+                    <div class="response">
+                        <strong>Response:</strong><br>
+                        ${JSON.stringify(result.data, null, 2)}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function testAllEndpoints() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>⏳ Тестирование endpoints...</p>';
+            
+            // Сначала логинимся
+            console.log('🔐 Performing admin login first...');
+            const loginResult = await testEndpoint(endpoints.find(e => e.url === '/api/admin/login'));
+            
+            let html = '<h2>📊 Результаты тестирования:</h2>';
+            html += renderResult(loginResult);
+            
+            // Тестируем остальные endpoints
+            for (const endpoint of endpoints) {
+                if (endpoint.url === '/api/admin/login') continue; // Уже протестировали
+                
+                const result = await testEndpoint(endpoint);
+                html += renderResult(result);
+            }
+            
+            resultsDiv.innerHTML = html;
+            
+            // Статистика
+            const successCount = endpoints.filter(e => {
+                // Мок результат для подсчета
+                return true; // Реальная логика будет в результатах
+            }).length;
+            
+            console.log(`✅ Testing completed! Check results above.`);
+        }
+
+        // Автоматически тестируем при загрузке страницы
+        window.addEventListener('load', () => {
+            console.log('🚀 API Test page loaded. Click button to test endpoints.');
+        });
+    </script>
+</body>
+</html>
