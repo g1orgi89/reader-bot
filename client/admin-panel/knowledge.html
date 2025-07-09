@@ -31,8 +31,8 @@
                     <li><a href="users.html">👥 Пользователи</a></li>
                     <li><a href="quotes.html">📝 Цитаты</a></li>
                     <li><a href="reports.html">📈 Отчеты</a></li>
-                    <li><a href="knowledge.html" class="active">📚 База знаний</a></li>
                     <li><a href="tickets.html">🎫 Обращения</a></li>
+                    <li><a href="knowledge.html" class="active">📚 База знаний</a></li>
                     <li><a href="prompts.html">💭 Промпты</a></li>
                 </ul>
             </nav>
@@ -224,8 +224,10 @@
     <div class="notification-container" id="notification-container"></div>
     
     <!-- Scripts -->
-    <!-- ВАЖНО: Загружаем auth.js ПЕРВЫМ -->
+    <!-- ВАЖНО: Загружаем auth.js ПЕРВЫМ (как в рабочих примерах) -->
     <script src="js/auth.js"></script>
+    <!-- Затем main.js -->
+    <script src="js/main.js"></script>
     <!-- jQuery and Bootstrap -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -235,113 +237,48 @@
     <script>
         /**
          * 📖 Инициализация страницы управления базой знаний "Читатель"
+         * УПРОЩЕНО: Используем паттерн из dashboard.html и users.html
          */
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('📚 DOM загружен, начинаем инициализацию базы знаний...');
+            console.log('📚 Инициализация страницы базы знаний...');
             
-            // Ждем загрузки authManager с таймаутом
-            function waitForAuthManager(retries = 0) {
-                const maxRetries = 50; // 5 секунд (50 * 100ms)
-                
-                if (typeof authManager !== 'undefined') {
-                    console.log('📚 AuthManager загружен, проверяем аутентификацию...');
-                    
-                    if (authManager.isAuthenticated()) {
-                        console.log('📚 Пользователь авторизован, инициализируем базу знаний...');
-                        
-                        // Проверяем доступность функции инициализации
-                        if (typeof initKnowledgePage === 'function') {
-                            console.log('📚 Вызываем initKnowledgePage...');
-                            initKnowledgePage();
-                        } else {
-                            console.warn('📚 Функция initKnowledgePage не найдена, ждем загрузки...');
-                            // Повторная попытка через 100ms
-                            setTimeout(() => {
-                                if (typeof initKnowledgePage === 'function') {
-                                    initKnowledgePage();
-                                } else {
-                                    console.error('📚 Не удалось найти initKnowledgePage');
-                                    showNotification('error', 'Ошибка загрузки страницы базы знаний');
-                                }
-                            }, 100);
-                        }
-                    } else {
-                        console.warn('📚 Пользователь не авторизован, перенаправляем на страницу входа...');
-                        showNotification('warning', 'Требуется авторизация для доступа к базе знаний');
-                        setTimeout(() => {
-                            window.location.href = '/admin-panel/login.html';
-                        }, 1500);
-                    }
-                } else if (retries < maxRetries) {
-                    console.log(`📚 Ожидание загрузки authManager... (попытка ${retries + 1}/${maxRetries})`);
-                    setTimeout(() => waitForAuthManager(retries + 1), 100);
-                } else {
-                    console.error('📚 Таймаут загрузки authManager, перенаправляем на страницу входа');
-                    showNotification('error', 'Система аутентификации не загружена');
-                    setTimeout(() => {
-                        window.location.href = '/admin-panel/login.html';
-                    }, 2000);
-                }
+            // Проверка авторизации (как в users.html)
+            if (typeof checkAuthStatus === 'function') {
+                checkAuthStatus();
             }
             
-            // Начинаем ожидание загрузки authManager
-            waitForAuthManager();
+            // Инициализация страницы
+            if (typeof initKnowledgePage === 'function') {
+                initKnowledgePage();
+            } else {
+                console.error('📚 Функция initKnowledgePage не найдена');
+                showNotification('error', 'Ошибка загрузки страницы базы знаний');
+            }
             
             // Инициализируем книжную анимацию (если доступна)
             if (typeof initReaderMatrix === 'function') {
-                console.log('📚 Инициализируем книжную анимацию...');
-                initReaderMatrix(true); // subtle mode для рабочих страниц
+                initReaderMatrix(true);
             }
         });
         
         /**
-         * Показ уведомления (fallback функция)
+         * Функция показа уведомлений (fallback как в index.html)
          */
         function showNotification(type, message) {
-            // Пытаемся использовать основную функцию уведомлений
-            if (typeof window.showNotification === 'function') {
-                window.showNotification(type, message);
-                return;
-            }
-            
-            // Fallback: простое уведомление
             const container = document.getElementById('notification-container');
             if (!container) {
-                console.log(`${type.toUpperCase()}: ${message}`);
-                alert(message);
+                console.log(`[${type.toUpperCase()}] ${message}`);
                 return;
             }
-            
-            const iconMap = {
-                'success': '✅',
-                'error': '❌',
-                'warning': '⚠️',
-                'info': '📚'
-            };
             
             const notification = document.createElement('div');
             notification.className = `notification notification-${type}`;
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: white;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-                padding: 12px 16px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                z-index: 1000;
-                min-width: 300px;
-                font-family: Inter, sans-serif;
-            `;
-            
             notification.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 18px;">${iconMap[type] || '📚'}</span>
-                    <span style="flex: 1; color: #333;">${message}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" 
-                            style="background: none; border: none; cursor: pointer; font-size: 18px; color: #999;">×</button>
+                <div class="notification-content">
+                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : '📖'}</span>
+                    <span class="notification-message">${message}</span>
                 </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
             `;
             
             container.appendChild(notification);
