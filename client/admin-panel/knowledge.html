@@ -51,14 +51,18 @@
                     <div class="filter-group">
                         <select id="category-filter" class="select-glow">
                             <option value="all">Все категории</option>
-                            <option value="book-analysis">Разборы книг</option>
-                            <option value="psychology">Психология</option>
-                            <option value="quotes-analysis">Анализ цитат</option>
-                            <option value="personal-growth">Личностный рост</option>
-                            <option value="relationships">Отношения</option>
-                            <option value="self-development">Саморазвитие</option>
-                            <option value="user-guides">Руководства</option>
-                            <option value="faq">Частые вопросы</option>
+                            <option value="faq">❓ Частые вопросы</option>
+                            <option value="book_catalog">📚 Каталог книг</option>
+                            <option value="promo_codes">🎁 Промокоды</option>
+                            <option value="announcements">📢 Анонсы</option>
+                            <option value="user_guide">📋 Руководства</option>
+                            <option value="course_info">🎓 Информация о курсах</option>
+                            <option value="book-analysis">📖 Разборы книг</option>
+                            <option value="psychology">🧠 Психология</option>
+                            <option value="quotes-analysis">💭 Анализ цитат</option>
+                            <option value="personal-growth">🌱 Личностный рост</option>
+                            <option value="relationships">💕 Отношения</option>
+                            <option value="self-development">✨ Саморазвитие</option>
                         </select>
                         
                         <select id="language-filter" class="select-glow">
@@ -84,8 +88,8 @@
                     <div class="empty-state" id="empty-state" style="display: none;">
                         <div class="empty-state-icon">📚</div>
                         <h3>Пока нет материалов в библиотеке</h3>
-                        <p>Добавьте первый документ в базу знаний "Читателя"</p>
-                        <button class="btn btn-primary btn-glow" onclick="openDocumentEditor()">
+                        <p>Добавьте первый материал в базу знаний "Читателя"</p>
+                        <button class="btn btn-primary btn-glow" onclick="showDocumentEditor()">
                             <span class="btn-text">📝 Добавить Материал</span>
                         </button>
                     </div>
@@ -142,21 +146,25 @@
                             <div class="form-group">
                                 <label for="document-title">Название материала:</label>
                                 <input type="text" id="document-title" name="document-title" required 
-                                       placeholder="Например: Разбор книги 'Искусство любить' Эриха Фромма">
+                                       placeholder="Например: FAQ по еженедельным отчетам">
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="document-category">Категория:</label>
                                     <select id="document-category" name="document-category" class="select-glow" required>
+                                        <option value="faq">❓ Частые вопросы</option>
+                                        <option value="book_catalog">📚 Каталог книг</option>
+                                        <option value="promo_codes">🎁 Промокоды</option>
+                                        <option value="announcements">📢 Анонсы</option>
+                                        <option value="user_guide">📋 Руководства</option>
+                                        <option value="course_info">🎓 Информация о курсах</option>
                                         <option value="book-analysis">📖 Разборы книг</option>
                                         <option value="psychology">🧠 Психология</option>
                                         <option value="quotes-analysis">💭 Анализ цитат</option>
                                         <option value="personal-growth">🌱 Личностный рост</option>
                                         <option value="relationships">💕 Отношения</option>
                                         <option value="self-development">✨ Саморазвитие</option>
-                                        <option value="user-guides">📋 Руководства</option>
-                                        <option value="faq">❓ Частые вопросы</option>
                                     </select>
                                 </div>
                                 
@@ -173,35 +181,29 @@
                             <div class="form-group">
                                 <label for="document-tags">Теги (через запятую):</label>
                                 <input type="text" id="document-tags" name="document-tags" 
-                                       placeholder="любовь, отношения, психология, фромм, книги">
+                                       placeholder="отчеты, еженедельные, настройки, помощь">
                             </div>
                             
                             <div class="form-group">
                                 <label for="document-content">Содержимое (поддерживается Markdown):</label>
                                 <textarea id="document-content" name="document-content" rows="15" required
-                                          placeholder="# Разбор книги 'Искусство любить'
+                                          placeholder="# Частые вопросы о еженедельных отчетах
 
-## Основные идеи
+## Когда приходят отчеты?
 
-Эрих Фромм в своей работе раскрывает природу любви как искусства, которому нужно учиться.
+Еженедельные отчеты отправляются каждое воскресенье в 11:00 МСК.
 
-**Ключевые тезисы:**
-- Любовь - это активность, а не пассивное чувство
-- Любовь требует знания, заботы, ответственности и уважения
-- Самая важная любовь - это любовь к себе
+## Как изменить время отчетов?
 
-## Практические выводы
+В настройках бота используйте команду /settings и выберите удобное время.
 
-Для развития способности любить необходимо:
-1. Развивать самосознание
-2. Практиковать концентрацию
-3. Учиться терпению
+## Что делать, если отчет не пришел?
 
-## Цитаты для анализа
+1. Проверьте, что у вас есть цитаты за эту неделю
+2. Убедитесь, что напоминания включены
+3. Напишите в поддержку, если проблема не решается
 
-> 'Любовь - это единственный разумный и удовлетворительный ответ на проблему человеческого существования'
-
-Эта цитата помогает понять..."></textarea>
+**Важно:** Отчеты генерируются только при наличии минимум одной цитаты за неделю."></textarea>
                                 <div class="editor-hints">
                                     <span>💡 Поддерживается Markdown: **жирный**, *курсив*, [ссылки](url), # Заголовки, `код`, > цитаты</span>
                                 </div>
@@ -316,7 +318,7 @@
                     <div class="rag-test-content">
                         <div class="test-input-group">
                             <label for="rag-test-query">Тестовый запрос:</label>
-                            <input type="text" id="rag-test-query" placeholder="Например: как анализировать цитаты о любви?"
+                            <input type="text" id="rag-test-query" placeholder="Например: как настроить еженедельные отчеты?"
                                    class="test-query-input">
                             <button id="run-rag-test" class="btn btn-primary">
                                 <span class="btn-text">🔍 Выполнить Поиск</span>
@@ -355,17 +357,23 @@
         document.addEventListener('DOMContentLoaded', () => {
             console.log('📚 Инициализация базы знаний "Читатель"');
             
-            // Проверка аутентификации
-            if (typeof checkAuthStatus === 'function') {
-                checkAuthStatus();
-            }
-            
-            // Инициализируем страницу базы знаний
-            if (typeof initKnowledgePage === 'function') {
-                initKnowledgePage();
+            // ИСПРАВЛЕНО: Проверяем аутентификацию через authManager
+            if (typeof authManager !== 'undefined' && authManager.isAuthenticated()) {
+                console.log('📚 Пользователь авторизован, инициализируем базу знаний');
+                
+                // Инициализируем страницу базы знаний
+                if (typeof initKnowledgePage === 'function') {
+                    initKnowledgePage();
+                } else {
+                    console.warn('📚 Функция initKnowledgePage не найдена, используем fallback');
+                    initBasicKnowledge();
+                }
             } else {
-                console.log('📚 Функция initKnowledgePage не найдена, используем базовую инициализацию');
-                initBasicKnowledge();
+                console.warn('📚 Пользователь не авторизован или authManager не загружен');
+                showNotification('error', 'Требуется авторизация для доступа к базе знаний');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
             }
             
             // Инициализируем книжную анимацию
@@ -375,12 +383,12 @@
         });
         
         /**
-         * Базовая инициализация базы знаний
+         * Fallback инициализация базы знаний
          */
         function initBasicKnowledge() {
-            console.log('📚 Базовая инициализация базы знаний');
+            console.log('📚 Fallback инициализация базы знаний');
             
-            // Загрузка данных
+            // Загрузка демо-данных
             loadKnowledgeData();
             
             // Обработчики фильтров
@@ -401,7 +409,7 @@
             // Обработчик добавления документа
             const addDocumentBtn = document.getElementById('add-document');
             if (addDocumentBtn) {
-                addDocumentBtn.addEventListener('click', openDocumentEditor);
+                addDocumentBtn.addEventListener('click', () => showDocumentEditor());
             }
             
             // Обработчики RAG системы
@@ -409,7 +417,7 @@
         }
         
         /**
-         * Загрузка данных базы знаний
+         * Загрузка демо-данных базы знаний
          */
         function loadKnowledgeData() {
             const tbody = document.querySelector('#knowledge-table tbody');
@@ -420,7 +428,7 @@
             
             // Имитируем загрузку данных
             setTimeout(() => {
-                // Пример: проверяем, есть ли данные
+                // Проверяем, есть ли демо-данные
                 const hasData = localStorage.getItem('reader-knowledge-demo') === 'true';
                 
                 if (!hasData) {
@@ -451,7 +459,7 @@
         }
         
         /**
-         * Загрузка демо-данных базы знаний
+         * Загрузка демо-данных базы знаний для "Читателя"
          */
         function loadKnowledgeDemo() {
             const tbody = document.querySelector('#knowledge-table tbody');
@@ -462,44 +470,44 @@
             
             const demoData = [
                 {
-                    id: 'KB001',
-                    title: 'Разбор "Искусство любить" Эриха Фромма',
-                    category: '📖 Разборы книг',
-                    language: '🇷🇺 Русский',
-                    tags: 'любовь, отношения, психология, фромм',
-                    updated: '2 дня назад'
-                },
-                {
-                    id: 'KB002', 
-                    title: 'Анализ цитат о саморазвитии',
-                    category: '💭 Анализ цитат',
-                    language: '🤖 Универсальный',
-                    tags: 'саморазвитие, рост, мотивация',
-                    updated: '5 дней назад'
-                },
-                {
-                    id: 'KB003',
-                    title: 'Письма к молодому поэту - ключевые идеи',
-                    category: '📖 Разборы книг', 
-                    language: '🇷🇺 Русский',
-                    tags: 'рильке, творчество, самопознание',
-                    updated: '1 неделя назад'
-                },
-                {
-                    id: 'KB004',
-                    title: 'Психология женственности и силы',
-                    category: '🧠 Психология',
-                    language: '🇷🇺 Русский',
-                    tags: 'женственность, сила, личность',
-                    updated: '2 недели назад'
-                },
-                {
-                    id: 'KB005',
+                    id: 'RDR001',
                     title: 'FAQ: Частые вопросы о еженедельных отчетах',
                     category: '❓ Частые вопросы',
                     language: '🇷🇺 Русский',
-                    tags: 'отчеты, вопросы, помощь',
+                    tags: 'отчеты, еженедельные, настройки',
+                    updated: '1 день назад'
+                },
+                {
+                    id: 'RDR002', 
+                    title: 'Каталог книг Анны Бусел',
+                    category: '📚 Каталог книг',
+                    language: '🇷🇺 Русский',
+                    tags: 'книги, каталог, разборы',
                     updated: '3 дня назад'
+                },
+                {
+                    id: 'RDR003',
+                    title: 'Активные промокоды января 2025',
+                    category: '🎁 Промокоды',
+                    language: '🤖 Универсальный',
+                    tags: 'промокоды, скидки, январь',
+                    updated: '5 дней назад'
+                },
+                {
+                    id: 'RDR004',
+                    title: 'Руководство по работе с ботом "Читатель"',
+                    category: '📋 Руководства',
+                    language: '🇷🇺 Русский',
+                    tags: 'руководство, инструкция, помощь',
+                    updated: '1 неделя назад'
+                },
+                {
+                    id: 'RDR005',
+                    title: 'Анализ цитат о саморазвитии',
+                    category: '💭 Анализ цитат',
+                    language: '🇷🇺 Русский',
+                    tags: 'саморазвитие, анализ, психология',
+                    updated: '2 недели назад'
                 }
             ];
             
@@ -508,7 +516,7 @@
             table.style.display = 'table';
             
             tbody.innerHTML = demoData.map(item => `
-                <tr>
+                <tr onclick="viewDocument('${item.id}')">
                     <td>${item.id}</td>
                     <td><strong>${item.title}</strong></td>
                     <td><span class="category-badge">${item.category}</span></td>
@@ -516,9 +524,9 @@
                     <td><span class="tags">${item.tags}</span></td>
                     <td>${item.updated}</td>
                     <td>
-                        <button class="btn btn-sm btn-secondary" onclick="editDocument('${item.id}')" title="Редактировать">✏️</button>
-                        <button class="btn btn-sm btn-secondary" onclick="previewDocument('${item.id}')" title="Предпросмотр">👁️</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteDocument('${item.id}')" title="Удалить">🗑️</button>
+                        <button class="btn btn-sm btn-secondary" onclick="editDocument('${item.id}'); event.stopPropagation();" title="Редактировать">✏️</button>
+                        <button class="btn btn-sm btn-secondary" onclick="previewDocument('${item.id}'); event.stopPropagation();" title="Предпросмотр">👁️</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteDocument('${item.id}'); event.stopPropagation();" title="Удалить">🗑️</button>
                     </td>
                 </tr>
             `).join('');
@@ -539,10 +547,10 @@
             
             if (syncBtn) {
                 syncBtn.addEventListener('click', () => {
-                    showNotification('info', 'Синхронизация с Vector Store...');
-                    // Имитация синхронизации
+                    showNotification('info', '🔄 Синхронизация с Vector Store...');
                     setTimeout(() => {
-                        showNotification('success', 'Vector Store синхронизирован');
+                        showNotification('success', '✅ Vector Store синхронизирован');
+                        updateRAGStats();
                     }, 2000);
                 });
             }
@@ -550,9 +558,10 @@
             if (rebuildBtn) {
                 rebuildBtn.addEventListener('click', () => {
                     if (confirm('Пересобрать индекс? Это может занять несколько минут.')) {
-                        showNotification('info', 'Пересборка индекса...');
+                        showNotification('info', '🔨 Пересборка индекса...');
                         setTimeout(() => {
-                            showNotification('success', 'Индекс пересобран');
+                            showNotification('success', '✅ Индекс пересобран');
+                            updateRAGStats();
                         }, 3000);
                     }
                 });
@@ -561,14 +570,17 @@
             if (testBtn) {
                 testBtn.addEventListener('click', () => {
                     document.getElementById('rag-test-overlay').style.display = 'flex';
+                    setTimeout(() => {
+                        document.getElementById('rag-test-overlay').classList.add('active');
+                    }, 10);
                 });
             }
             
             if (diagnoseBtn) {
                 diagnoseBtn.addEventListener('click', () => {
-                    showNotification('info', 'Диагностика RAG системы...');
+                    showNotification('info', '🩺 Диагностика RAG системы...');
                     setTimeout(() => {
-                        showNotification('success', 'Система работает корректно');
+                        showNotification('success', '✅ Система работает корректно');
                     }, 1500);
                 });
             }
@@ -577,6 +589,36 @@
             const runTestBtn = document.getElementById('run-rag-test');
             if (runTestBtn) {
                 runTestBtn.addEventListener('click', runRAGTest);
+            }
+            
+            // Закрытие модальных окон
+            const closeRAGTestBtn = document.getElementById('close-rag-test');
+            if (closeRAGTestBtn) {
+                closeRAGTestBtn.addEventListener('click', () => {
+                    document.getElementById('rag-test-overlay').classList.remove('active');
+                    setTimeout(() => {
+                        document.getElementById('rag-test-overlay').style.display = 'none';
+                    }, 300);
+                });
+            }
+            
+            // Инициализация статистики RAG
+            updateRAGStats();
+        }
+        
+        /**
+         * Обновление статистики RAG
+         */
+        function updateRAGStats() {
+            document.getElementById('rag-last-indexed').textContent = 'только что';
+            document.getElementById('rag-docs-count').textContent = '5';
+            document.getElementById('rag-vector-store').textContent = 'Qdrant (локальный)';
+            document.getElementById('rag-embedding-model').textContent = 'text-embedding-ada-002';
+            
+            const syncStatus = document.getElementById('rag-sync-status');
+            if (syncStatus) {
+                syncStatus.textContent = 'Синхронизирован';
+                syncStatus.className = 'status-badge status-success';
             }
         }
         
@@ -592,27 +634,32 @@
                 return;
             }
             
-            resultsDiv.innerHTML = '🔍 Поиск...';
+            resultsDiv.innerHTML = '🔍 Поиск в базе знаний...';
             
             // Имитация поиска
             setTimeout(() => {
                 const mockResults = [
                     {
-                        title: 'Разбор "Искусство любить" Эриха Фромма',
+                        title: 'FAQ: Частые вопросы о еженедельных отчетах',
                         relevance: 0.95,
-                        excerpt: 'Любовь требует знания, заботы, ответственности и уважения...'
+                        category: '❓ Частые вопросы',
+                        excerpt: 'Еженедельные отчеты отправляются каждое воскресенье в 11:00 МСК...'
                     },
                     {
-                        title: 'Анализ цитат о любви и отношениях',
+                        title: 'Руководство по работе с ботом "Читатель"',
                         relevance: 0.87,
-                        excerpt: 'Цитаты о любви часто отражают глубокие психологические потребности...'
+                        category: '📋 Руководства',
+                        excerpt: 'Подробное руководство по использованию всех функций бота...'
                     }
                 ];
                 
                 resultsDiv.innerHTML = mockResults.map(result => `
                     <div class="search-result">
-                        <h5>${result.title}</h5>
-                        <div class="relevance">Релевантность: ${(result.relevance * 100).toFixed(1)}%</div>
+                        <h5>📚 ${result.title}</h5>
+                        <div class="result-meta">
+                            <span class="result-category">${result.category}</span>
+                            <span class="result-relevance">Релевантность: ${(result.relevance * 100).toFixed(1)}%</span>
+                        </div>
                         <p>${result.excerpt}</p>
                     </div>
                 `).join('');
@@ -637,52 +684,15 @@
         }
         
         /**
-         * Открытие редактора документов
+         * Просмотр документа
          */
-        function openDocumentEditor(documentId = null) {
-            const overlay = document.getElementById('document-editor-overlay');
-            const title = document.getElementById('editor-title');
-            const form = document.getElementById('document-form');
-            
-            if (documentId) {
-                title.textContent = '✏️ Редактировать Материал';
-                // В реальной версии здесь будет загрузка данных документа
-                showNotification('info', `Загрузка документа ${documentId}...`);
+        function viewDocument(documentId) {
+            console.log('📚 Просмотр документа:', documentId);
+            if (typeof showDocumentEditor === 'function') {
+                showDocumentEditor(documentId);
             } else {
-                title.textContent = '📝 Добавить Материал';
-                form.reset();
-                
-                // Устанавливаем демо-контент при первом добавлении
-                if (!localStorage.getItem('reader-knowledge-demo')) {
-                    const contentTextarea = document.getElementById('document-content');
-                    const titleInput = document.getElementById('document-title');
-                    const tagsInput = document.getElementById('document-tags');
-                    
-                    titleInput.value = 'Мой первый материал в "Читателе"';
-                    tagsInput.value = 'тест, первый материал, демо';
-                    contentTextarea.value = `# Добро пожаловать в базу знаний "Читателя"!
-
-Это ваш первый материал. Здесь вы можете хранить:
-
-## Разборы книг
-- Ключевые идеи и концепции
-- Практические выводы
-- Цитаты для анализа
-
-## Психологические материалы
-- Статьи о личностном росте
-- Техники работы с эмоциями
-- Анализ поведенческих паттернов
-
-## Руководства по работе с ботом
-- FAQ для пользователей
-- Инструкции по использованию
-
-**Совет от Анны:** Структурируйте материалы так, чтобы AI мог легко находить нужную информацию для персональных рекомендаций!`;
-                }
+                showNotification('info', `Открытие документа ${documentId}`);
             }
-            
-            overlay.style.display = 'flex';
         }
         
         /**
@@ -690,7 +700,11 @@
          */
         function editDocument(documentId) {
             console.log('📚 Редактирование документа:', documentId);
-            openDocumentEditor(documentId);
+            if (typeof showDocumentEditor === 'function') {
+                showDocumentEditor(documentId);
+            } else {
+                showNotification('info', `Редактирование документа ${documentId}`);
+            }
         }
         
         /**
@@ -700,24 +714,22 @@
             console.log('📚 Предпросмотр документа:', documentId);
             const overlay = document.getElementById('document-preview-overlay');
             
-            // Загружаем предпросмотр
-            document.getElementById('preview-title').textContent = 'Разбор "Искусство любить" Эриха Фромма';
-            document.getElementById('preview-category').textContent = '📖 Разборы книг';
+            // Загружаем демо-предпросмотр
+            document.getElementById('preview-title').textContent = 'FAQ: Частые вопросы о еженедельных отчетах';
+            document.getElementById('preview-category').textContent = '❓ Частые вопросы';
             document.getElementById('preview-language').textContent = '🇷🇺 Русский';
-            document.getElementById('preview-tags').innerHTML = '<span class="tag">любовь</span><span class="tag">отношения</span><span class="tag">психология</span>';
+            document.getElementById('preview-tags').innerHTML = '<span class="tag">отчеты</span><span class="tag">еженедельные</span><span class="tag">настройки</span>';
             document.getElementById('preview-content').innerHTML = `
-                <h1>Разбор книги "Искусство любить"</h1>
-                <h2>Основные идеи</h2>
-                <p>Эрих Фромм в своей работе раскрывает природу любви как искусства, которому нужно учиться...</p>
-                <p><strong>Ключевые тезисы:</strong></p>
-                <ul>
-                    <li>Любовь - это активность, а не пассивное чувство</li>
-                    <li>Любовь требует знания, заботы, ответственности и уважения</li>
-                    <li>Самая важная любовь - это любовь к себе</li>
-                </ul>
+                <h1>Частые вопросы о еженедельных отчетах</h1>
+                <h2>Когда приходят отчеты?</h2>
+                <p>Еженедельные отчеты отправляются каждое воскресенье в 11:00 МСК.</p>
+                <h2>Как изменить время отчетов?</h2>
+                <p>В настройках бота используйте команду /settings и выберите удобное время.</p>
+                <p><strong>Важно:</strong> Отчеты генерируются только при наличии минимум одной цитаты за неделю.</p>
             `;
             
             overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('active'), 10);
         }
         
         /**
@@ -821,12 +833,11 @@
             if (e.target.id === 'close-document-preview' || e.target.closest('#close-document-preview')) {
                 document.getElementById('document-preview-overlay').style.display = 'none';
             }
-            if (e.target.id === 'close-rag-test' || e.target.closest('#close-rag-test')) {
-                document.getElementById('rag-test-overlay').style.display = 'none';
-            }
             if (e.target.id === 'edit-from-preview' || e.target.closest('#edit-from-preview')) {
                 document.getElementById('document-preview-overlay').style.display = 'none';
-                openDocumentEditor('current');
+                if (typeof showDocumentEditor === 'function') {
+                    showDocumentEditor('current');
+                }
             }
         });
         
@@ -844,26 +855,30 @@
             }
             
             // Конвертируем категорию в читаемый вид
-            const categoryMap = {
+            const categoryLabels = {
+                'faq': '❓ Частые вопросы',
+                'book_catalog': '📚 Каталог книг',
+                'promo_codes': '🎁 Промокоды',
+                'announcements': '📢 Анонсы',
+                'user_guide': '📋 Руководства',
+                'course_info': '🎓 Информация о курсах',
                 'book-analysis': '📖 Разборы книг',
                 'psychology': '🧠 Психология',
                 'quotes-analysis': '💭 Анализ цитат',
                 'personal-growth': '🌱 Личностный рост',
                 'relationships': '💕 Отношения',
-                'self-development': '✨ Саморазвитие',
-                'user-guides': '📋 Руководства',
-                'faq': '❓ Частые вопросы'
+                'self-development': '✨ Саморазвитие'
             };
             
-            const languageMap = {
+            const languageLabels = {
                 'none': '🤖 Универсальный',
                 'ru': '🇷🇺 Русский',
                 'en': '🇺🇸 English'
             };
             
             document.getElementById('preview-title').textContent = title;
-            document.getElementById('preview-category').textContent = categoryMap[category] || category;
-            document.getElementById('preview-language').textContent = languageMap[language] || language;
+            document.getElementById('preview-category').textContent = categoryLabels[category] || category;
+            document.getElementById('preview-language').textContent = languageLabels[language] || language;
             
             // Обработка тегов
             const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
@@ -876,13 +891,16 @@
                 .replace(/^# (.*$)/gim, '<h1>$1</h1>')
                 .replace(/^## (.*$)/gim, '<h2>$1</h2>')
                 .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-                .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-                .replace(/\*(.*)\*/gim, '<em>$1</em>')
+                .replace(/\\*\\*(.*?)\\*\\*/gim, '<strong>$1</strong>')
+                .replace(/\\*(.*?)\\*/gim, '<em>$1</em>')
                 .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-                .replace(/\n/gim, '<br>');
+                .replace(/\\n/gim, '<br>');
             
             document.getElementById('preview-content').innerHTML = processedContent;
             document.getElementById('document-preview-overlay').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('document-preview-overlay').classList.add('active');
+            }, 10);
         });
     </script>
 </body>
