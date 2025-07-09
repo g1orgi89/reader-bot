@@ -664,7 +664,7 @@ async function deleteDocument(documentId) {
   const documentTitle = document ? document.title : documentId;
   
   const confirmed = confirm(
-    `📚 Вы уверены, что хотите удалить материал "${documentTitle}" из базы знаний?\\n\\n` +
+    `📚 Вы уверены, что хотите удалить материал "${documentTitle}" из базы знаний?\n\n` +
     'Это действие нельзя отменить!'
   );
   
@@ -788,7 +788,7 @@ async function syncVectorStore() {
  */
 async function rebuildVectorIndex() {
   const confirmed = confirm(
-    '📚 Пересборка индекса может занять несколько минут и временно повлиять на работу бота.\\n\\n' +
+    '📚 Пересборка индекса может занять несколько минут и временно повлиять на работу бота.\n\n' +
     'Продолжить?'
   );
   
@@ -947,7 +947,7 @@ async function runRAGDiagnosis() {
         reportMessages.push('✅ Проблем не обнаружено');
       }
       
-      showNotification('success', reportMessages.join('\\n'));
+      showNotification('success', reportMessages.join('\n'));
       
       // Обновляем статистику RAG
       loadRAGStats();
@@ -1176,7 +1176,7 @@ function formatRelativeTime(dateString) {
 }
 
 /**
- * Простой рендеринг Markdown в HTML
+ * ИСПРАВЛЕНО: Простой рендеринг Markdown в HTML
  * @param {string} markdown - Текст в формате Markdown
  * @returns {string} HTML код
  */
@@ -1188,23 +1188,23 @@ function renderMarkdown(markdown) {
     .replace(/^# (.*$)/gim, '<h1>$1</h1>')
     
     // Жирный и курсив
-    .replace(/\\*\\*\\*(.*?)\\*\\*\\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
-    .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
+    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
     
     // Код
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/```([^```]+)```/g, '<pre><code>$1</code></pre>')
     
-    // Ссылки
-    .replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank">$1</a>')
+    // ИСПРАВЛЕНО: Ссылки Markdown
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
     
     // Списки
-    .replace(/^\\* (.+$)/gim, '<li>$1</li>')
-    .replace(/^(\\d+)\\. (.+$)/gim, '<li>$2</li>')
+    .replace(/^\* (.+$)/gim, '<li>$1</li>')
+    .replace(/^(\d+)\. (.+$)/gim, '<li>$2</li>')
     
     // Переносы строк
-    .replace(/\\n/g, '<br>');
+    .replace(/\n/g, '<br>');
 }
 
 /**
