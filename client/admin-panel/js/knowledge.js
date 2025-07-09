@@ -1,20 +1,20 @@
 /**
- * knowledge.js - система управления грибной базой знаний для Shrooms AI Support Bot
+ * knowledge.js - система управления базой знаний для "Читатель"
  * 
  * Этот модуль отвечает за взаимодействие с векторной базой данных Qdrant,
  * управление документами и RAG-функциональность.
  * 
- * @fileoverview Управление грибной базой знаний и векторным хранилищем спор мудрости
- * @author Shrooms Development Team
+ * @fileoverview Управление базой знаний для проекта "Читатель"
+ * @author Reader Development Team
  */
 
 /**
  * @typedef {Object} KnowledgeDocument
- * @property {string} [id] - Уникальный идентификатор документа в мицелии
- * @property {string} title - Название документа (заголовок споры знаний)
+ * @property {string} [id] - Уникальный идентификатор документа
+ * @property {string} title - Название документа
  * @property {string} content - Содержимое документа в формате Markdown
- * @property {string} category - Категория документа (general|user-guide|tokenomics|technical|troubleshooting)
- * @property {string} language - Язык документа (none|en|es|ru)
+ * @property {string} category - Категория документа
+ * @property {string} language - Язык документа (none|en|ru)
  * @property {string[]} tags - Массив тегов для категоризации
  * @property {string} [status] - Статус документа (published|draft|archived)
  * @property {string} [createdAt] - Дата создания документа
@@ -64,21 +64,27 @@ const KNOWLEDGE_CONFIG = {
   /** @type {number} Максимальный размер документа в символах */
   MAX_DOCUMENT_SIZE: 50000,
   
-  /** @type {Object<string, string>} Переводы категорий */
+  /** @type {Object<string, string>} Переводы категорий для "Читателя" */
   CATEGORY_LABELS: {
-    'general': 'Общие',
-    'user-guide': 'Руководство',
-    'tokenomics': 'Токеномика', 
-    'technical': 'Техническое',
-    'troubleshooting': 'Решение проблем'
+    'faq': '❓ Частые вопросы',
+    'book_catalog': '📚 Каталог книг',
+    'promo_codes': '🎁 Промокоды',
+    'announcements': '📢 Анонсы',
+    'user_guide': '📋 Руководства',
+    'course_info': '🎓 Информация о курсах',
+    'book-analysis': '📖 Разборы книг',
+    'psychology': '🧠 Психология',
+    'quotes-analysis': '💭 Анализ цитат',
+    'personal-growth': '🌱 Личностный рост',
+    'relationships': '💕 Отношения',
+    'self-development': '✨ Саморазвитие'
   },
   
-  /** @type {Object<string, string>} Упрощенные переводы языков */
+  /** @type {Object<string, string>} Переводы языков */
   LANGUAGE_LABELS: {
     'none': '🤖 Универсальный',
-    'en': '🇺🇸 English',
-    'es': '🇪🇸 Español', 
-    'ru': '🇷🇺 Русский'
+    'ru': '🇷🇺 Русский',
+    'en': '🇺🇸 English'
   }
 };
 
@@ -113,9 +119,16 @@ const knowledgeState = {
  * Основная точка входа после проверки аутентификации
  */
 function initKnowledgePage() {
-  console.log('🍄 Инициализация грибной базы знаний...');
+  console.log('📚 Инициализация базы знаний "Читатель"...');
   
   try {
+    // Проверяем аутентификацию
+    if (!authManager || !authManager.isAuthenticated()) {
+      console.error('📚 Аутентификация не пройдена');
+      showNotification('error', 'Требуется авторизация');
+      return;
+    }
+    
     // Инициализируем компоненты интерфейса
     initKnowledgeFilters();
     initDocumentEditor();
@@ -126,10 +139,10 @@ function initKnowledgePage() {
     loadDocuments();
     loadRAGStats();
     
-    console.log('🍄 База знаний готова к выращиванию мудрости!');
+    console.log('📚 База знаний готова!');
   } catch (error) {
-    console.error('🍄 Ошибка инициализации базы знаний:', error);
-    showNotification('error', '🍄 Не удалось инициализировать базу знаний');
+    console.error('📚 Ошибка инициализации базы знаний:', error);
+    showNotification('error', '📚 Не удалось инициализировать базу знаний');
   }
 }
 
@@ -137,7 +150,7 @@ function initKnowledgePage() {
  * Инициализация фильтров и поиска
  */
 function initKnowledgeFilters() {
-  console.log('🍄 Настройка фильтров грибного поиска...');
+  console.log('📚 Настройка фильтров поиска...');
   
   const categoryFilter = document.getElementById('category-filter');
   const languageFilter = document.getElementById('language-filter');
@@ -182,7 +195,7 @@ function initKnowledgeFilters() {
 async function loadDocuments() {
   if (knowledgeState.isLoading) return;
   
-  console.log('🍄 Загрузка документов из грибного хранилища...');
+  console.log('📚 Загрузка документов из базы знаний...');
   
   try {
     knowledgeState.isLoading = true;
@@ -210,7 +223,7 @@ async function loadDocuments() {
     const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}?${params}`);
     
     if (response.success) {
-      // ИСПРАВЛЕНО: Правильная обработка ответа API
+      // Правильная обработка ответа API
       knowledgeState.documents = response.data || [];
       knowledgeState.totalDocuments = response.pagination?.total || 0;
       
@@ -218,13 +231,13 @@ async function loadDocuments() {
       updatePaginationInfo();
       updateRAGDocumentCount(knowledgeState.totalDocuments);
       
-      console.log(`🍄 Загружено ${knowledgeState.documents.length} документов из ${knowledgeState.totalDocuments} общих`);
+      console.log(`📚 Загружено ${knowledgeState.documents.length} документов из ${knowledgeState.totalDocuments} общих`);
     } else {
       throw new Error(response.error?.message || 'Не удалось загрузить документы');
     }
   } catch (error) {
-    console.error('🍄 Ошибка загрузки документов:', error);
-    showNotification('error', `🍄 Не удалось загрузить документы: ${error.message}`);
+    console.error('📚 Ошибка загрузки документов:', error);
+    showNotification('error', `📚 Не удалось загрузить документы: ${error.message}`);
     renderEmptyDocumentsTable();
   } finally {
     knowledgeState.isLoading = false;
@@ -245,7 +258,7 @@ function updateLoadingState(isLoading) {
       <tr class="table-loading">
         <td colspan="7" style="text-align: center; padding: var(--spacing-lg);">
           <div class="loading-spinner"></div>
-          🍄 Споры прорастают в мудрость...
+          📚 Загрузка библиотеки...
         </td>
       </tr>
     `;
@@ -315,15 +328,15 @@ function renderEmptyDocumentsTable() {
     <tr class="table-empty">
       <td colspan="7" style="text-align: center; padding: var(--spacing-xl);">
         <div class="empty-state">
-          <div class="empty-icon">🍄</div>
-          <div class="empty-title">Пока нет документов в этой части мицелия</div>
+          <div class="empty-icon">📚</div>
+          <div class="empty-title">Пока нет материалов в библиотеке</div>
           <div class="empty-subtitle">
             ${knowledgeState.currentFilters.search ? 
               `По запросу "${knowledgeState.currentFilters.search}" ничего не найдено` :
-              'Добавьте первый документ в грибную базу знаний'}
+              'Добавьте первый материал в базу знаний "Читателя"'}
           </div>
           <button class="btn btn-primary btn-glow" onclick="showDocumentEditor()">
-            📝 Добавить Документ
+            📝 Добавить Материал
           </button>
         </div>
       </td>
@@ -335,7 +348,7 @@ function renderEmptyDocumentsTable() {
  * Инициализация редактора документов
  */
 function initDocumentEditor() {
-  console.log('🍄 Настройка редактора грибных документов...');
+  console.log('📚 Настройка редактора документов...');
   
   // Кнопка добавления документа
   const addDocBtn = document.getElementById('add-document');
@@ -403,7 +416,7 @@ function initDocumentEditor() {
  * @param {string|null} documentId - ID документа для редактирования (null для создания нового)
  */
 function showDocumentEditor(documentId = null) {
-  console.log('🍄 Открытие редактора документов:', documentId ? 'редактирование' : 'создание');
+  console.log('📚 Открытие редактора документов:', documentId ? 'редактирование' : 'создание');
   
   const overlay = document.getElementById('document-editor-overlay');
   const title = document.getElementById('editor-title');
@@ -414,15 +427,15 @@ function showDocumentEditor(documentId = null) {
   
   if (documentId) {
     // Режим редактирования
-    title.textContent = '✏️ Редактировать Документ';
+    title.textContent = '✏️ Редактировать Материал';
     if (saveText) saveText.textContent = '💾 Сохранить Изменения';
     
     // Загружаем данные документа
     loadDocumentForEditing(documentId);
   } else {
     // Режим создания
-    title.textContent = '📝 Добавить Документ';
-    if (saveText) saveText.textContent = '💾 Создать Документ';
+    title.textContent = '📝 Добавить Материал';
+    if (saveText) saveText.textContent = '💾 Создать Материал';
     
     // Очищаем форму
     form.reset();
@@ -472,13 +485,13 @@ async function loadDocumentForEditing(documentId) {
       document.getElementById('document-tags').value = doc.tags.join(', ');
       document.getElementById('document-content').value = doc.content;
       
-      console.log('🍄 Документ загружен для редактирования');
+      console.log('📚 Документ загружен для редактирования');
     } else {
       throw new Error(response.error?.message || 'Не удалось загрузить документ');
     }
   } catch (error) {
-    console.error('🍄 Ошибка загрузки документа для редактирования:', error);
-    showNotification('error', `🍄 Не удалось загрузить документ: ${error.message}`);
+    console.error('📚 Ошибка загрузки документа для редактирования:', error);
+    showNotification('error', `📚 Не удалось загрузить документ: ${error.message}`);
     hideDocumentEditor();
   }
 }
@@ -494,7 +507,7 @@ function showDocumentPreview() {
   const content = document.getElementById('document-content').value.trim();
   
   if (!title || !content) {
-    showNotification('warning', '🍄 Заполните заголовок и содержимое для предпросмотра');
+    showNotification('warning', '📚 Заполните заголовок и содержимое для предпросмотра');
     return;
   }
   
@@ -547,7 +560,7 @@ async function handleDocumentSave(event) {
   const documentData = {
     title: formData.get('document-title').trim(),
     category: formData.get('document-category'),
-    language: formData.get('document-language') || 'none', // Default to 'none'
+    language: formData.get('document-language') || 'none',
     tags: formData.get('document-tags').split(',').map(tag => tag.trim()).filter(tag => tag),
     content: formData.get('document-content').trim(),
     status: 'published'
@@ -555,17 +568,17 @@ async function handleDocumentSave(event) {
   
   // Валидация
   if (!documentData.title) {
-    showNotification('error', '🍄 Заполните название документа');
+    showNotification('error', '📚 Заполните название документа');
     return;
   }
   
   if (!documentData.content) {
-    showNotification('error', '🍄 Заполните содержимое документа');
+    showNotification('error', '📚 Заполните содержимое документа');
     return;
   }
   
   if (documentData.content.length > KNOWLEDGE_CONFIG.MAX_DOCUMENT_SIZE) {
-    showNotification('error', `🍄 Документ слишком большой (максимум ${KNOWLEDGE_CONFIG.MAX_DOCUMENT_SIZE} символов)`);
+    showNotification('error', `📚 Документ слишком большой (максимум ${KNOWLEDGE_CONFIG.MAX_DOCUMENT_SIZE} символов)`);
     return;
   }
   
@@ -575,7 +588,7 @@ async function handleDocumentSave(event) {
     
     // Показываем состояние загрузки
     if (submitBtn) submitBtn.disabled = true;
-    if (btnText) btnText.textContent = documentId ? '💾 Сохранение...' : '🌱 Создание...';
+    if (btnText) btnText.textContent = documentId ? '💾 Сохранение...' : '📚 Создание...';
     
     let response;
     if (documentId) {
@@ -596,7 +609,7 @@ async function handleDocumentSave(event) {
     
     if (response.success) {
       const action = documentId ? 'обновлен' : 'создан';
-      showNotification('success', `🍄 Документ успешно ${action} в грибной базе знаний!`);
+      showNotification('success', `📚 Материал успешно ${action} в базе знаний!`);
       
       hideDocumentEditor();
       loadDocuments(); // Перезагружаем список документов
@@ -604,13 +617,13 @@ async function handleDocumentSave(event) {
       // Запускаем синхронизацию с векторным хранилищем
       syncVectorStore();
       
-      console.log(`🍄 Документ ${action}: ${documentData.title}`);
+      console.log(`📚 Документ ${action}: ${documentData.title}`);
     } else {
       throw new Error(response.error?.message || 'Не удалось сохранить документ');
     }
   } catch (error) {
-    console.error('🍄 Ошибка сохранения документа:', error);
-    showNotification('error', `🍄 Не удалось сохранить документ: ${error.message}`);
+    console.error('📚 Ошибка сохранения документа:', error);
+    showNotification('error', `📚 Не удалось сохранить документ: ${error.message}`);
   } finally {
     // Восстанавливаем кнопку
     const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -618,7 +631,7 @@ async function handleDocumentSave(event) {
     
     if (submitBtn) submitBtn.disabled = false;
     if (btnText) {
-      btnText.textContent = documentId ? '💾 Сохранить Изменения' : '💾 Создать Документ';
+      btnText.textContent = documentId ? '💾 Сохранить Изменения' : '💾 Создать Материал';
     }
   }
 }
@@ -628,8 +641,7 @@ async function handleDocumentSave(event) {
  * @param {string} documentId - ID документа
  */
 function viewDocument(documentId) {
-  console.log('🍄 Просмотр документа:', documentId);
-  // Можно добавить отдельное модальное окно для просмотра или открыть редактор в режиме только чтения
+  console.log('📚 Просмотр документа:', documentId);
   editDocument(documentId);
 }
 
@@ -638,7 +650,7 @@ function viewDocument(documentId) {
  * @param {string} documentId - ID документа
  */
 function editDocument(documentId) {
-  console.log('🍄 Редактирование документа:', documentId);
+  console.log('📚 Редактирование документа:', documentId);
   showDocumentEditor(documentId);
 }
 
@@ -652,34 +664,34 @@ async function deleteDocument(documentId) {
   const documentTitle = document ? document.title : documentId;
   
   const confirmed = confirm(
-    `🍄 Вы уверены, что хотите удалить документ "${documentTitle}" из грибной базы знаний?\n\n` +
+    `📚 Вы уверены, что хотите удалить материал "${documentTitle}" из базы знаний?\\n\\n` +
     'Это действие нельзя отменить!'
   );
   
   if (!confirmed) return;
   
   try {
-    console.log('🍄 Удаление документа:', documentId);
+    console.log('📚 Удаление документа:', documentId);
     
     const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/${documentId}`, {
       method: 'DELETE'
     });
     
     if (response.success) {
-      showNotification('success', '🍄 Документ удален из грибной базы знаний');
+      showNotification('success', '📚 Материал удален из базы знаний');
       
       loadDocuments(); // Перезагружаем список документов
       
       // Запускаем синхронизацию с векторным хранилищем
       syncVectorStore();
       
-      console.log('🍄 Документ успешно удален');
+      console.log('📚 Документ успешно удален');
     } else {
       throw new Error(response.error?.message || 'Не удалось удалить документ');
     }
   } catch (error) {
-    console.error('🍄 Ошибка удаления документа:', error);
-    showNotification('error', `🍄 Не удалось удалить документ: ${error.message}`);
+    console.error('📚 Ошибка удаления документа:', error);
+    showNotification('error', `📚 Не удалось удалить документ: ${error.message}`);
   }
 }
 
@@ -687,7 +699,7 @@ async function deleteDocument(documentId) {
  * Инициализация управления RAG
  */
 function initRAGControls() {
-  console.log('🍄 Настройка управления RAG системой...');
+  console.log('📚 Настройка управления RAG системой...');
   
   // Синхронизация с векторным хранилищем
   const syncBtn = document.getElementById('sync-vector-store');
@@ -747,27 +759,27 @@ function initRAGControls() {
  */
 async function syncVectorStore() {
   try {
-    console.log('🍄 Запуск синхронизации с векторным хранилищем...');
+    console.log('📚 Запуск синхронизации с векторным хранилищем...');
     
-    showNotification('info', '🍄 Синхронизация с векторным хранилищем...');
+    showNotification('info', '📚 Синхронизация с векторным хранилищем...');
     
     const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/sync-vector-store`, {
       method: 'POST'
     });
     
     if (response.success) {
-      showNotification('success', '🍄 Синхронизация с Qdrant завершена успешно!');
+      showNotification('success', '📚 Синхронизация с Qdrant завершена успешно!');
       
       // Обновляем статистику RAG
       loadRAGStats();
       
-      console.log('🍄 Синхронизация завершена');
+      console.log('📚 Синхронизация завершена');
     } else {
       throw new Error(response.error?.message || 'Не удалось синхронизировать');
     }
   } catch (error) {
-    console.error('🍄 Ошибка синхронизации:', error);
-    showNotification('error', `🍄 Ошибка синхронизации: ${error.message}`);
+    console.error('📚 Ошибка синхронизации:', error);
+    showNotification('error', `📚 Ошибка синхронизации: ${error.message}`);
   }
 }
 
@@ -776,34 +788,34 @@ async function syncVectorStore() {
  */
 async function rebuildVectorIndex() {
   const confirmed = confirm(
-    '🍄 Пересборка индекса может занять несколько минут и временно повлиять на работу бота.\n\n' +
+    '📚 Пересборка индекса может занять несколько минут и временно повлиять на работу бота.\\n\\n' +
     'Продолжить?'
   );
   
   if (!confirmed) return;
   
   try {
-    console.log('🍄 Запуск пересборки векторного индекса...');
+    console.log('📚 Запуск пересборки векторного индекса...');
     
-    showNotification('info', '🍄 Пересборка векторного индекса... Это может занять время.');
+    showNotification('info', '📚 Пересборка векторного индекса... Это может занять время.');
     
     const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/rebuild-index`, {
       method: 'POST'
     });
     
     if (response.success) {
-      showNotification('success', '🍄 Векторный индекс успешно пересобран!');
+      showNotification('success', '📚 Векторный индекс успешно пересобран!');
       
       // Обновляем статистику RAG
       loadRAGStats();
       
-      console.log('🍄 Пересборка индекса завершена');
+      console.log('📚 Пересборка индекса завершена');
     } else {
       throw new Error(response.error?.message || 'Не удалось пересобрать индекс');
     }
   } catch (error) {
-    console.error('🍄 Ошибка пересборки индекса:', error);
-    showNotification('error', `🍄 Ошибка пересборки: ${error.message}`);
+    console.error('📚 Ошибка пересборки индекса:', error);
+    showNotification('error', `📚 Ошибка пересборки: ${error.message}`);
   }
 }
 
@@ -848,15 +860,15 @@ async function runRAGTest() {
   
   const query = queryInput.value.trim();
   if (!query) {
-    showNotification('warning', '🍄 Введите тестовый запрос');
+    showNotification('warning', '📚 Введите тестовый запрос');
     queryInput.focus();
     return;
   }
   
   try {
-    console.log('🍄 Выполнение RAG теста для запроса:', query);
+    console.log('📚 Выполнение RAG теста для запроса:', query);
     
-    resultsDiv.innerHTML = '<div class="loading">🍄 Поиск в грибной мудрости...</div>';
+    resultsDiv.innerHTML = '<div class="loading">📚 Поиск в базе знаний...</div>';
     
     const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/test-search`, {
       method: 'POST',
@@ -872,14 +884,14 @@ async function runRAGTest() {
           <div class="test-no-results">
             <div class="empty-icon">🔍</div>
             <div class="empty-title">Ничего не найдено</div>
-            <div class="empty-subtitle">Попробуйте другой запрос или добавьте больше документов в базу знаний</div>
+            <div class="empty-subtitle">Попробуйте другой запрос или добавьте больше материалов в базу знаний</div>
           </div>
         `;
       } else {
         resultsDiv.innerHTML = results.map((result, index) => `
           <div class="test-result">
             <div class="result-header">
-              <h5 class="result-title">📄 ${escapeHtml(result.title)}</h5>
+              <h5 class="result-title">📚 ${escapeHtml(result.title)}</h5>
               <span class="result-score">Релевантность: ${Math.round(result.score * 100)}%</span>
             </div>
             <div class="result-meta">
@@ -891,12 +903,12 @@ async function runRAGTest() {
         `).join('');
       }
       
-      console.log(`🍄 RAG тест завершен, найдено ${results.length} результатов`);
+      console.log(`📚 RAG тест завершен, найдено ${results.length} результатов`);
     } else {
       throw new Error(response.error?.message || 'Не удалось выполнить поиск');
     }
   } catch (error) {
-    console.error('🍄 Ошибка RAG теста:', error);
+    console.error('📚 Ошибка RAG теста:', error);
     resultsDiv.innerHTML = `
       <div class="test-error">
         <div class="error-icon">⚠️</div>
@@ -912,9 +924,9 @@ async function runRAGTest() {
  */
 async function runRAGDiagnosis() {
   try {
-    console.log('🍄 Запуск диагностики RAG системы...');
+    console.log('📚 Запуск диагностики RAG системы...');
     
-    showNotification('info', '🍄 Выполняется диагностика RAG системы...');
+    showNotification('info', '📚 Выполняется диагностика RAG системы...');
     
     const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/diagnose`);
     
@@ -935,18 +947,18 @@ async function runRAGDiagnosis() {
         reportMessages.push('✅ Проблем не обнаружено');
       }
       
-      showNotification('success', reportMessages.join('\n'));
+      showNotification('success', reportMessages.join('\\n'));
       
       // Обновляем статистику RAG
       loadRAGStats();
       
-      console.log('🍄 Диагностика завершена:', diagnosis);
+      console.log('📚 Диагностика завершена:', diagnosis);
     } else {
       throw new Error(response.error?.message || 'Не удалось выполнить диагностику');
     }
   } catch (error) {
-    console.error('🍄 Ошибка диагностики:', error);
-    showNotification('error', `🍄 Ошибка диагностики: ${error.message}`);
+    console.error('📚 Ошибка диагностики:', error);
+    showNotification('error', `📚 Ошибка диагностики: ${error.message}`);
   }
 }
 
@@ -955,7 +967,7 @@ async function runRAGDiagnosis() {
  */
 async function loadRAGStats() {
   try {
-    console.log('🍄 Загрузка статистики RAG...');
+    console.log('📚 Загрузка статистики RAG...');
     
     const response = await makeAuthenticatedRequest(`${KNOWLEDGE_CONFIG.API_BASE}/stats`);
     
@@ -963,12 +975,12 @@ async function loadRAGStats() {
       knowledgeState.ragStats = response.data;
       updateRAGStatsDisplay();
     } else {
-      console.warn('🍄 Не удалось загрузить статистику RAG:', response.error?.message);
+      console.warn('📚 Не удалось загрузить статистику RAG:', response.error?.message);
       // Показываем заглушки
       updateRAGStatsDisplay(null);
     }
   } catch (error) {
-    console.error('🍄 Ошибка загрузки статистики RAG:', error);
+    console.error('📚 Ошибка загрузки статистики RAG:', error);
     updateRAGStatsDisplay(null);
   }
 }
@@ -991,7 +1003,6 @@ function updateRAGStatsDisplay(stats = knowledgeState.ragStats) {
       elements.lastIndexed.textContent = formatRelativeTime(stats.lastUpdated);
     }
     if (elements.docsCount) {
-      // ИСПРАВЛЕНО: Правильная обработка статистики RAG
       elements.docsCount.textContent = (stats.total || 0).toString();
     }
     if (elements.vectorStore) {
@@ -1090,13 +1101,18 @@ function updatePaginationInfo() {
 // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 
 /**
- * Выполняет аутентифицированный запрос к API
+ * ИСПРАВЛЕНО: Выполняет аутентифицированный запрос к API
  * @param {string} url - URL для запроса
  * @param {RequestInit} [options] - Дополнительные опции запроса
  * @returns {Promise<ApiResponse>} Ответ API
  */
 async function makeAuthenticatedRequest(url, options = {}) {
-  const token = localStorage.getItem('adminToken');
+  // ИСПРАВЛЕНО: Используем правильный ключ для токена
+  if (!authManager || !authManager.isAuthenticated()) {
+    throw new Error('Пользователь не авторизован');
+  }
+  
+  const token = authManager.getToken();
   if (!token) {
     throw new Error('Токен аутентификации не найден');
   }
@@ -1113,9 +1129,7 @@ async function makeAuthenticatedRequest(url, options = {}) {
   
   // Проверяем авторизацию
   if (response.status === 401 || response.status === 403) {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUsername');
-    window.location.href = 'login.html';
+    authManager.logout();
     throw new Error('Сессия истекла, требуется повторная авторизация');
   }
   
@@ -1174,23 +1188,23 @@ function renderMarkdown(markdown) {
     .replace(/^# (.*$)/gim, '<h1>$1</h1>')
     
     // Жирный и курсив
-    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\\*\\*\\*(.*?)\\*\\*\\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
+    .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
     
     // Код
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/```([^```]+)```/g, '<pre><code>$1</code></pre>')
     
     // Ссылки
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+    .replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank">$1</a>')
     
     // Списки
-    .replace(/^\* (.+$)/gim, '<li>$1</li>')
-    .replace(/^(\d+)\. (.+$)/gim, '<li>$2</li>')
+    .replace(/^\\* (.+$)/gim, '<li>$1</li>')
+    .replace(/^(\\d+)\\. (.+$)/gim, '<li>$2</li>')
     
     // Переносы строк
-    .replace(/\n/g, '<br>');
+    .replace(/\\n/g, '<br>');
 }
 
 /**
@@ -1219,7 +1233,7 @@ function showNotification(type, message, duration = 5000) {
   };
   
   notification.innerHTML = `
-    <div class="notification-icon">${icons[type] || '🍄'}</div>
+    <div class="notification-icon">${icons[type] || '📚'}</div>
     <div class="notification-message">${escapeHtml(message)}</div>
     <button class="notification-close" onclick="this.parentElement.remove()">×</button>
   `;
