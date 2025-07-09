@@ -50,36 +50,42 @@
                 <div class="knowledge-actions">
                     <div class="filter-group">
                         <select id="category-filter" class="select-glow">
-                            <option value="all">Все категории</option>
-                            <option value="faq">❓ Частые вопросы</option>
-                            <option value="book_catalog">📚 Каталог книг</option>
-                            <option value="promo_codes">🎁 Промокоды</option>
-                            <option value="announcements">📢 Анонсы</option>
-                            <option value="user_guide">📋 Руководства</option>
-                            <option value="course_info">🎓 Информация о курсах</option>
-                            <option value="book-analysis">📖 Разборы книг</option>
+                            <option value="">Все категории</option>
+                            <option value="books">📚 Книги</option>
                             <option value="psychology">🧠 Психология</option>
-                            <option value="quotes-analysis">💭 Анализ цитат</option>
-                            <option value="personal-growth">🌱 Личностный рост</option>
-                            <option value="relationships">💕 Отношения</option>
                             <option value="self-development">✨ Саморазвитие</option>
+                            <option value="relationships">💕 Отношения</option>
+                            <option value="productivity">⚡ Продуктивность</option>
+                            <option value="mindfulness">🧘 Осознанность</option>
+                            <option value="creativity">🎨 Творчество</option>
+                            <option value="general">📖 Общие</option>
                         </select>
                         
-                        <select id="language-filter" class="select-glow">
-                            <option value="all">Все языки</option>
-                            <option value="none">🤖 Универсальный</option>
-                            <option value="ru">🇷🇺 Русский</option>
-                            <option value="en">🇺🇸 English</option>
-                        </select>
+                        <input type="text" id="tags-filter" placeholder="🏷️ Фильтр по тегам..." class="search-input">
                         
-                        <input type="text" id="search-knowledge" placeholder="🔍 Поиск в базе знаний..." class="search-input">
+                        <input type="text" id="search-input" placeholder="🔍 Поиск в базе знаний..." class="search-input">
                     </div>
                     
-                    <button id="add-document" class="btn btn-primary btn-glow">
-                        <span class="btn-text">📝 Добавить Материал</span>
-                        <span class="btn-icon">📚</span>
-                    </button>
+                    <div class="action-buttons">
+                        <button id="search-btn" class="btn btn-secondary btn-glow">
+                            <span class="btn-text">🔍 Поиск</span>
+                        </button>
+                        
+                        <button id="reset-search-btn" class="btn btn-secondary btn-glow">
+                            <span class="btn-text">🔄 Сброс</span>
+                        </button>
+                        
+                        <button id="new-document-btn" class="btn btn-primary btn-glow">
+                            <span class="btn-text">📝 Новый документ</span>
+                            <span class="btn-icon">📚</span>
+                        </button>
+                    </div>
                 </div>
+            </div>
+            
+            <!-- Loading indicator -->
+            <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                📚 Загрузка...
             </div>
             
             <!-- Knowledge base documents -->
@@ -89,26 +95,25 @@
                         <div class="empty-state-icon">📚</div>
                         <h3>Пока нет материалов в библиотеке</h3>
                         <p>Добавьте первый материал в базу знаний "Читателя"</p>
-                        <button class="btn btn-primary btn-glow" onclick="showDocumentEditor()">
+                        <button class="btn btn-primary btn-glow" onclick="createNewDocument()">
                             <span class="btn-text">📝 Добавить Материал</span>
                         </button>
                     </div>
                     
-                    <table class="data-table" id="knowledge-table">
+                    <table class="data-table" id="documents-table">
                         <thead>
                             <tr>
-                                <th class="col-id">ID</th>
                                 <th class="col-title">Название</th>
                                 <th class="col-category">Категория</th>
                                 <th class="col-language">Язык</th>
                                 <th class="col-tags">Теги</th>
-                                <th class="col-updated">Обновлен</th>
+                                <th class="col-status">Статус</th>
                                 <th class="col-actions">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="table-loading">
-                                <td colspan="7">📚 Загрузка библиотеки...</td>
+                                <td colspan="6">📚 Загрузка документов...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -117,140 +122,12 @@
                 <!-- Pagination -->
                 <div class="pagination-container">
                     <div class="pagination-info">
-                        Показано <span id="pagination-range">0-0</span> из <span id="pagination-total">0</span> материалов
+                        <span id="results-info">Загрузка...</span>
                     </div>
                     <div class="pagination-controls">
-                        <button id="prev-page" class="btn btn-icon btn-secondary" disabled>
-                            ← Назад
-                        </button>
-                        <span id="pagination-current">Страница 1</span>
-                        <button id="next-page" class="btn btn-icon btn-secondary" disabled>
-                            Вперед →
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Document editor modal -->
-            <div class="document-editor-overlay" id="document-editor-overlay">
-                <div class="document-editor-container glow-card">
-                    <div class="document-editor-header">
-                        <h3 id="editor-title">📝 Добавить Материал</h3>
-                        <button id="close-document-editor" class="btn btn-icon btn-text">×</button>
-                    </div>
-                    
-                    <div class="document-editor-content">
-                        <form id="document-form" class="document-form">
-                            <input type="hidden" id="document-id" name="document-id" value="">
-                            
-                            <div class="form-group">
-                                <label for="document-title">Название материала:</label>
-                                <input type="text" id="document-title" name="document-title" required 
-                                       placeholder="Например: FAQ по еженедельным отчетам">
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="document-category">Категория:</label>
-                                    <select id="document-category" name="document-category" class="select-glow" required>
-                                        <option value="faq">❓ Частые вопросы</option>
-                                        <option value="book_catalog">📚 Каталог книг</option>
-                                        <option value="promo_codes">🎁 Промокоды</option>
-                                        <option value="announcements">📢 Анонсы</option>
-                                        <option value="user_guide">📋 Руководства</option>
-                                        <option value="course_info">🎓 Информация о курсах</option>
-                                        <option value="book-analysis">📖 Разборы книг</option>
-                                        <option value="psychology">🧠 Психология</option>
-                                        <option value="quotes-analysis">💭 Анализ цитат</option>
-                                        <option value="personal-growth">🌱 Личностный рост</option>
-                                        <option value="relationships">💕 Отношения</option>
-                                        <option value="self-development">✨ Саморазвитие</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="document-language">Язык:</label>
-                                    <select id="document-language" name="document-language" class="select-glow" required>
-                                        <option value="none" selected>🤖 Универсальный (AI определит)</option>
-                                        <option value="ru">🇷🇺 Русский</option>
-                                        <option value="en">🇺🇸 English</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="document-tags">Теги (через запятую):</label>
-                                <input type="text" id="document-tags" name="document-tags" 
-                                       placeholder="отчеты, еженедельные, настройки, помощь">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="document-content">Содержимое (поддерживается Markdown):</label>
-                                <textarea id="document-content" name="document-content" rows="15" required
-                                          placeholder="# Частые вопросы о еженедельных отчетах
-
-## Когда приходят отчеты?
-
-Еженедельные отчеты отправляются каждое воскресенье в 11:00 МСК.
-
-## Как изменить время отчетов?
-
-В настройках бота используйте команду /settings и выберите удобное время.
-
-## Что делать, если отчет не пришел?
-
-1. Проверьте, что у вас есть цитаты за эту неделю
-2. Убедитесь, что напоминания включены
-3. Напишите в поддержку, если проблема не решается
-
-**Важно:** Отчеты генерируются только при наличии минимум одной цитаты за неделю."></textarea>
-                                <div class="editor-hints">
-                                    <span>💡 Поддерживается Markdown: **жирный**, *курсив*, [ссылки](url), # Заголовки, `код`, > цитаты</span>
-                                </div>
-                            </div>
-                            
-                            <div class="form-actions">
-                                <button type="button" id="preview-document" class="btn btn-secondary btn-glow">
-                                    <span class="btn-text">👁️ Предпросмотр</span>
-                                </button>
-                                
-                                <button type="submit" class="btn btn-primary btn-glow">
-                                    <span class="btn-text" id="save-document-text">💾 Сохранить Материал</span>
-                                    <span class="btn-icon">📚</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Document preview modal -->
-            <div class="document-preview-overlay" id="document-preview-overlay">
-                <div class="document-preview-container glow-card">
-                    <div class="document-preview-header">
-                        <h3>👁️ Предпросмотр Материала</h3>
-                        <button id="close-document-preview" class="btn btn-icon btn-text">×</button>
-                    </div>
-                    
-                    <div class="document-preview-content">
-                        <div class="document-preview-meta">
-                            <div class="preview-title" id="preview-title"></div>
-                            <div class="preview-meta">
-                                <span class="preview-category" id="preview-category"></span>
-                                <span class="preview-language" id="preview-language"></span>
-                            </div>
-                            <div class="preview-tags" id="preview-tags"></div>
-                        </div>
-                        
-                        <div class="document-preview-body" id="preview-content">
-                            📚 Загрузка предпросмотра...
-                        </div>
-                        
-                        <div class="preview-actions">
-                            <button id="edit-from-preview" class="btn btn-secondary btn-glow">
-                                <span class="btn-text">✏️ Продолжить Редактирование</span>
-                            </button>
-                        </div>
+                        <ul class="pagination" id="pagination">
+                            <!-- Pagination will be inserted here -->
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -264,37 +141,45 @@
                 
                 <div class="rag-stats">
                     <div class="rag-stat">
-                        <label>📚 Всего материалов:</label>
-                        <span id="rag-docs-count">--</span>
+                        <label>📚 Всего документов:</label>
+                        <span id="total-docs">--</span>
+                    </div>
+                    
+                    <div class="rag-stat">
+                        <label>✅ Опубликовано:</label>
+                        <span id="published-docs">--</span>
+                    </div>
+                    
+                    <div class="rag-stat">
+                        <label>📝 Черновиков:</label>
+                        <span id="draft-docs">--</span>
                     </div>
                     
                     <div class="rag-stat">
                         <label>🗃️ Векторное хранилище:</label>
-                        <span id="rag-vector-store">--</span>
+                        <span id="vector-store-stats">--</span>
                     </div>
                     
                     <div class="rag-stat">
-                        <label>🤖 Модель эмбеддингов:</label>
-                        <span id="rag-embedding-model">--</span>
+                        <label>🔧 Чанкинг:</label>
+                        <span id="chunking-status">--</span>
                     </div>
-                    
-                    <div class="rag-stat">
-                        <label>📈 Статус синхронизации:</label>
-                        <span id="rag-sync-status" class="status-badge status-neutral">Неизвестно</span>
+                </div>
+                
+                <div class="language-stats">
+                    <h4>📊 Статистика по языкам:</h4>
+                    <div id="language-stats">
+                        <div class="text-muted">Загрузка...</div>
                     </div>
                 </div>
                 
                 <div class="rag-actions">
-                    <button id="sync-vector-store" class="btn btn-primary btn-subtle">
+                    <button id="sync-vector-btn" class="btn btn-primary btn-subtle">
                         <span class="btn-text">🔄 Синхронизировать с Vector Store</span>
                     </button>
                     
-                    <button id="rebuild-index" class="btn btn-warning btn-subtle">
-                        <span class="btn-text">🔨 Пересобрать Индекс</span>
-                    </button>
-                    
-                    <button id="test-rag-search" class="btn btn-secondary btn-subtle">
-                        <span class="btn-text">🧪 Тестировать AI Поиск</span>
+                    <button id="test-rag-btn" class="btn btn-secondary btn-subtle">
+                        <span class="btn-text">🧪 Тестировать RAG Поиск</span>
                     </button>
                     
                     <button id="diagnose-rag" class="btn btn-secondary btn-subtle">
@@ -306,34 +191,6 @@
                     <p>💡 <strong>Совет от Анны:</strong> Регулярно синхронизируйте материалы с AI индексом для более точных рекомендаций книг и анализа цитат!</p>
                 </div>
             </div>
-            
-            <!-- RAG Test modal -->
-            <div class="rag-test-overlay" id="rag-test-overlay">
-                <div class="rag-test-container glow-card">
-                    <div class="rag-test-header">
-                        <h3>🧪 Тестирование AI Поиска</h3>
-                        <button id="close-rag-test" class="btn btn-icon btn-text">×</button>
-                    </div>
-                    
-                    <div class="rag-test-content">
-                        <div class="test-input-group">
-                            <label for="rag-test-query">Тестовый запрос:</label>
-                            <input type="text" id="rag-test-query" placeholder="Например: как настроить еженедельные отчеты?"
-                                   class="test-query-input">
-                            <button id="run-rag-test" class="btn btn-primary">
-                                <span class="btn-text">🔍 Выполнить Поиск</span>
-                            </button>
-                        </div>
-                        
-                        <div class="test-results">
-                            <h4>📋 Результаты поиска:</h4>
-                            <div id="rag-test-results" class="test-results-content">
-                                📚 Введите запрос и нажмите "Выполнить Поиск"
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </main>
         
         <!-- Footer -->
@@ -343,427 +200,114 @@
         </footer>
     </div>
     
+    <!-- Document Modal -->
+    <div class="modal fade" id="document-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Документ</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Content will be inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <!-- Footer buttons will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Notification system -->
     <div class="notification-container" id="notification-container"></div>
     
     <!-- Scripts -->
+    <!-- ВАЖНО: Загружаем auth.js ПЕРВЫМ -->
     <script src="js/auth.js"></script>
+    <!-- jQuery and Bootstrap -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- ЗАТЕМ загружаем knowledge.js -->
     <script src="js/knowledge.js"></script>
     
     <script>
         /**
-         * Инициализация страницы управления базой знаний Reader
+         * 📖 Инициализация страницы управления базой знаний "Читатель"
          */
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('📚 Инициализация базы знаний "Читатель"');
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📚 DOM загружен, начинаем инициализацию базы знаний...');
             
-            // ИСПРАВЛЕНО: Проверяем аутентификацию через authManager
-            if (typeof authManager !== 'undefined' && authManager.isAuthenticated()) {
-                console.log('📚 Пользователь авторизован, инициализируем базу знаний');
+            // Ждем загрузки authManager с таймаутом
+            function waitForAuthManager(retries = 0) {
+                const maxRetries = 50; // 5 секунд (50 * 100ms)
                 
-                // Инициализируем страницу базы знаний
-                if (typeof initKnowledgePage === 'function') {
-                    initKnowledgePage();
+                if (typeof authManager !== 'undefined') {
+                    console.log('📚 AuthManager загружен, проверяем аутентификацию...');
+                    
+                    if (authManager.isAuthenticated()) {
+                        console.log('📚 Пользователь авторизован, инициализируем базу знаний...');
+                        
+                        // Проверяем доступность функции инициализации
+                        if (typeof initKnowledgePage === 'function') {
+                            console.log('📚 Вызываем initKnowledgePage...');
+                            initKnowledgePage();
+                        } else {
+                            console.warn('📚 Функция initKnowledgePage не найдена, ждем загрузки...');
+                            // Повторная попытка через 100ms
+                            setTimeout(() => {
+                                if (typeof initKnowledgePage === 'function') {
+                                    initKnowledgePage();
+                                } else {
+                                    console.error('📚 Не удалось найти initKnowledgePage');
+                                    showNotification('error', 'Ошибка загрузки страницы базы знаний');
+                                }
+                            }, 100);
+                        }
+                    } else {
+                        console.warn('📚 Пользователь не авторизован, перенаправляем на страницу входа...');
+                        showNotification('warning', 'Требуется авторизация для доступа к базе знаний');
+                        setTimeout(() => {
+                            window.location.href = '/admin-panel/login.html';
+                        }, 1500);
+                    }
+                } else if (retries < maxRetries) {
+                    console.log(`📚 Ожидание загрузки authManager... (попытка ${retries + 1}/${maxRetries})`);
+                    setTimeout(() => waitForAuthManager(retries + 1), 100);
                 } else {
-                    console.warn('📚 Функция initKnowledgePage не найдена, используем fallback');
-                    initBasicKnowledge();
+                    console.error('📚 Таймаут загрузки authManager, перенаправляем на страницу входа');
+                    showNotification('error', 'Система аутентификации не загружена');
+                    setTimeout(() => {
+                        window.location.href = '/admin-panel/login.html';
+                    }, 2000);
                 }
-            } else {
-                console.warn('📚 Пользователь не авторизован или authManager не загружен');
-                showNotification('error', 'Требуется авторизация для доступа к базе знаний');
-                setTimeout(() => {
-                    window.location.href = 'login.html';
-                }, 2000);
             }
             
-            // Инициализируем книжную анимацию
+            // Начинаем ожидание загрузки authManager
+            waitForAuthManager();
+            
+            // Инициализируем книжную анимацию (если доступна)
             if (typeof initReaderMatrix === 'function') {
+                console.log('📚 Инициализируем книжную анимацию...');
                 initReaderMatrix(true); // subtle mode для рабочих страниц
             }
         });
         
         /**
-         * Fallback инициализация базы знаний
+         * Показ уведомления (fallback функция)
          */
-        function initBasicKnowledge() {
-            console.log('📚 Fallback инициализация базы знаний');
-            
-            // Загрузка демо-данных
-            loadKnowledgeData();
-            
-            // Обработчики фильтров
-            const categoryFilter = document.getElementById('category-filter');
-            const languageFilter = document.getElementById('language-filter');
-            const searchInput = document.getElementById('search-knowledge');
-            
-            if (categoryFilter) {
-                categoryFilter.addEventListener('change', filterKnowledge);
-            }
-            if (languageFilter) {
-                languageFilter.addEventListener('change', filterKnowledge);
-            }
-            if (searchInput) {
-                searchInput.addEventListener('input', debounce(filterKnowledge, 300));
-            }
-            
-            // Обработчик добавления документа
-            const addDocumentBtn = document.getElementById('add-document');
-            if (addDocumentBtn) {
-                addDocumentBtn.addEventListener('click', () => showDocumentEditor());
-            }
-            
-            // Обработчики RAG системы
-            setupRAGHandlers();
-        }
-        
-        /**
-         * Загрузка демо-данных базы знаний
-         */
-        function loadKnowledgeData() {
-            const tbody = document.querySelector('#knowledge-table tbody');
-            const emptyState = document.getElementById('empty-state');
-            const table = document.getElementById('knowledge-table');
-            
-            if (!tbody) return;
-            
-            // Имитируем загрузку данных
-            setTimeout(() => {
-                // Проверяем, есть ли демо-данные
-                const hasData = localStorage.getItem('reader-knowledge-demo') === 'true';
-                
-                if (!hasData) {
-                    // Показываем пустое состояние
-                    showEmptyState();
-                } else {
-                    // Загружаем демо-данные
-                    loadKnowledgeDemo();
-                }
-            }, 1000);
-        }
-        
-        /**
-         * Показ пустого состояния
-         */
-        function showEmptyState() {
-            const tbody = document.querySelector('#knowledge-table tbody');
-            const emptyState = document.getElementById('empty-state');
-            const table = document.getElementById('knowledge-table');
-            
-            tbody.innerHTML = '';
-            table.style.display = 'none';
-            emptyState.style.display = 'block';
-            
-            // Обновляем пагинацию
-            document.getElementById('pagination-range').textContent = '0-0';
-            document.getElementById('pagination-total').textContent = '0';
-        }
-        
-        /**
-         * Загрузка демо-данных базы знаний для "Читателя"
-         */
-        function loadKnowledgeDemo() {
-            const tbody = document.querySelector('#knowledge-table tbody');
-            const emptyState = document.getElementById('empty-state');
-            const table = document.getElementById('knowledge-table');
-            
-            if (!tbody) return;
-            
-            const demoData = [
-                {
-                    id: 'RDR001',
-                    title: 'FAQ: Частые вопросы о еженедельных отчетах',
-                    category: '❓ Частые вопросы',
-                    language: '🇷🇺 Русский',
-                    tags: 'отчеты, еженедельные, настройки',
-                    updated: '1 день назад'
-                },
-                {
-                    id: 'RDR002', 
-                    title: 'Каталог книг Анны Бусел',
-                    category: '📚 Каталог книг',
-                    language: '🇷🇺 Русский',
-                    tags: 'книги, каталог, разборы',
-                    updated: '3 дня назад'
-                },
-                {
-                    id: 'RDR003',
-                    title: 'Активные промокоды января 2025',
-                    category: '🎁 Промокоды',
-                    language: '🤖 Универсальный',
-                    tags: 'промокоды, скидки, январь',
-                    updated: '5 дней назад'
-                },
-                {
-                    id: 'RDR004',
-                    title: 'Руководство по работе с ботом "Читатель"',
-                    category: '📋 Руководства',
-                    language: '🇷🇺 Русский',
-                    tags: 'руководство, инструкция, помощь',
-                    updated: '1 неделя назад'
-                },
-                {
-                    id: 'RDR005',
-                    title: 'Анализ цитат о саморазвитии',
-                    category: '💭 Анализ цитат',
-                    language: '🇷🇺 Русский',
-                    tags: 'саморазвитие, анализ, психология',
-                    updated: '2 недели назад'
-                }
-            ];
-            
-            // Показываем таблицу, скрываем пустое состояние
-            emptyState.style.display = 'none';
-            table.style.display = 'table';
-            
-            tbody.innerHTML = demoData.map(item => `
-                <tr onclick="viewDocument('${item.id}')">
-                    <td>${item.id}</td>
-                    <td><strong>${item.title}</strong></td>
-                    <td><span class="category-badge">${item.category}</span></td>
-                    <td>${item.language}</td>
-                    <td><span class="tags">${item.tags}</span></td>
-                    <td>${item.updated}</td>
-                    <td>
-                        <button class="btn btn-sm btn-secondary" onclick="editDocument('${item.id}'); event.stopPropagation();" title="Редактировать">✏️</button>
-                        <button class="btn btn-sm btn-secondary" onclick="previewDocument('${item.id}'); event.stopPropagation();" title="Предпросмотр">👁️</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteDocument('${item.id}'); event.stopPropagation();" title="Удалить">🗑️</button>
-                    </td>
-                </tr>
-            `).join('');
-            
-            // Обновляем пагинацию
-            document.getElementById('pagination-range').textContent = `1-${demoData.length}`;
-            document.getElementById('pagination-total').textContent = demoData.length;
-        }
-        
-        /**
-         * Настройка обработчиков RAG системы
-         */
-        function setupRAGHandlers() {
-            const syncBtn = document.getElementById('sync-vector-store');
-            const rebuildBtn = document.getElementById('rebuild-index');
-            const testBtn = document.getElementById('test-rag-search');
-            const diagnoseBtn = document.getElementById('diagnose-rag');
-            
-            if (syncBtn) {
-                syncBtn.addEventListener('click', () => {
-                    showNotification('info', '🔄 Синхронизация с Vector Store...');
-                    setTimeout(() => {
-                        showNotification('success', '✅ Vector Store синхронизирован');
-                        updateRAGStats();
-                    }, 2000);
-                });
-            }
-            
-            if (rebuildBtn) {
-                rebuildBtn.addEventListener('click', () => {
-                    if (confirm('Пересобрать индекс? Это может занять несколько минут.')) {
-                        showNotification('info', '🔨 Пересборка индекса...');
-                        setTimeout(() => {
-                            showNotification('success', '✅ Индекс пересобран');
-                            updateRAGStats();
-                        }, 3000);
-                    }
-                });
-            }
-            
-            if (testBtn) {
-                testBtn.addEventListener('click', () => {
-                    document.getElementById('rag-test-overlay').style.display = 'flex';
-                    setTimeout(() => {
-                        document.getElementById('rag-test-overlay').classList.add('active');
-                    }, 10);
-                });
-            }
-            
-            if (diagnoseBtn) {
-                diagnoseBtn.addEventListener('click', () => {
-                    showNotification('info', '🩺 Диагностика RAG системы...');
-                    setTimeout(() => {
-                        showNotification('success', '✅ Система работает корректно');
-                    }, 1500);
-                });
-            }
-            
-            // Обработчик теста RAG поиска
-            const runTestBtn = document.getElementById('run-rag-test');
-            if (runTestBtn) {
-                runTestBtn.addEventListener('click', runRAGTest);
-            }
-            
-            // Закрытие модальных окон
-            const closeRAGTestBtn = document.getElementById('close-rag-test');
-            if (closeRAGTestBtn) {
-                closeRAGTestBtn.addEventListener('click', () => {
-                    document.getElementById('rag-test-overlay').classList.remove('active');
-                    setTimeout(() => {
-                        document.getElementById('rag-test-overlay').style.display = 'none';
-                    }, 300);
-                });
-            }
-            
-            // Инициализация статистики RAG
-            updateRAGStats();
-        }
-        
-        /**
-         * Обновление статистики RAG
-         */
-        function updateRAGStats() {
-            document.getElementById('rag-last-indexed').textContent = 'только что';
-            document.getElementById('rag-docs-count').textContent = '5';
-            document.getElementById('rag-vector-store').textContent = 'Qdrant (локальный)';
-            document.getElementById('rag-embedding-model').textContent = 'text-embedding-ada-002';
-            
-            const syncStatus = document.getElementById('rag-sync-status');
-            if (syncStatus) {
-                syncStatus.textContent = 'Синхронизирован';
-                syncStatus.className = 'status-badge status-success';
-            }
-        }
-        
-        /**
-         * Выполнение теста RAG поиска
-         */
-        function runRAGTest() {
-            const query = document.getElementById('rag-test-query').value.trim();
-            const resultsDiv = document.getElementById('rag-test-results');
-            
-            if (!query) {
-                showNotification('error', 'Введите запрос для поиска');
+        function showNotification(type, message) {
+            // Пытаемся использовать основную функцию уведомлений
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(type, message);
                 return;
             }
             
-            resultsDiv.innerHTML = '🔍 Поиск в базе знаний...';
-            
-            // Имитация поиска
-            setTimeout(() => {
-                const mockResults = [
-                    {
-                        title: 'FAQ: Частые вопросы о еженедельных отчетах',
-                        relevance: 0.95,
-                        category: '❓ Частые вопросы',
-                        excerpt: 'Еженедельные отчеты отправляются каждое воскресенье в 11:00 МСК...'
-                    },
-                    {
-                        title: 'Руководство по работе с ботом "Читатель"',
-                        relevance: 0.87,
-                        category: '📋 Руководства',
-                        excerpt: 'Подробное руководство по использованию всех функций бота...'
-                    }
-                ];
-                
-                resultsDiv.innerHTML = mockResults.map(result => `
-                    <div class="search-result">
-                        <h5>📚 ${result.title}</h5>
-                        <div class="result-meta">
-                            <span class="result-category">${result.category}</span>
-                            <span class="result-relevance">Релевантность: ${(result.relevance * 100).toFixed(1)}%</span>
-                        </div>
-                        <p>${result.excerpt}</p>
-                    </div>
-                `).join('');
-            }, 1500);
-        }
-        
-        /**
-         * Фильтрация базы знаний
-         */
-        function filterKnowledge() {
-            console.log('📚 Фильтрация базы знаний');
-            const category = document.getElementById('category-filter').value;
-            const language = document.getElementById('language-filter').value;
-            const search = document.getElementById('search-knowledge').value.toLowerCase();
-            
-            showNotification('info', 'Применение фильтров...');
-            
-            // В реальной версии здесь будет API запрос
-            setTimeout(() => {
-                showNotification('success', 'Фильтры применены');
-            }, 500);
-        }
-        
-        /**
-         * Просмотр документа
-         */
-        function viewDocument(documentId) {
-            console.log('📚 Просмотр документа:', documentId);
-            if (typeof showDocumentEditor === 'function') {
-                showDocumentEditor(documentId);
-            } else {
-                showNotification('info', `Открытие документа ${documentId}`);
-            }
-        }
-        
-        /**
-         * Редактирование документа
-         */
-        function editDocument(documentId) {
-            console.log('📚 Редактирование документа:', documentId);
-            if (typeof showDocumentEditor === 'function') {
-                showDocumentEditor(documentId);
-            } else {
-                showNotification('info', `Редактирование документа ${documentId}`);
-            }
-        }
-        
-        /**
-         * Предпросмотр документа
-         */
-        function previewDocument(documentId) {
-            console.log('📚 Предпросмотр документа:', documentId);
-            const overlay = document.getElementById('document-preview-overlay');
-            
-            // Загружаем демо-предпросмотр
-            document.getElementById('preview-title').textContent = 'FAQ: Частые вопросы о еженедельных отчетах';
-            document.getElementById('preview-category').textContent = '❓ Частые вопросы';
-            document.getElementById('preview-language').textContent = '🇷🇺 Русский';
-            document.getElementById('preview-tags').innerHTML = '<span class="tag">отчеты</span><span class="tag">еженедельные</span><span class="tag">настройки</span>';
-            document.getElementById('preview-content').innerHTML = `
-                <h1>Частые вопросы о еженедельных отчетах</h1>
-                <h2>Когда приходят отчеты?</h2>
-                <p>Еженедельные отчеты отправляются каждое воскресенье в 11:00 МСК.</p>
-                <h2>Как изменить время отчетов?</h2>
-                <p>В настройках бота используйте команду /settings и выберите удобное время.</p>
-                <p><strong>Важно:</strong> Отчеты генерируются только при наличии минимум одной цитаты за неделю.</p>
-            `;
-            
-            overlay.style.display = 'flex';
-            setTimeout(() => overlay.classList.add('active'), 10);
-        }
-        
-        /**
-         * Удаление документа
-         */
-        function deleteDocument(documentId) {
-            if (confirm(`Удалить материал ${documentId}? Это действие нельзя отменить.`)) {
-                console.log('📚 Удаление документа:', documentId);
-                showNotification('success', `Материал ${documentId} удален`);
-                loadKnowledgeData(); // Перезагрузка данных
-            }
-        }
-        
-        /**
-         * Утилита debounce для оптимизации поиска
-         */
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-        
-        /**
-         * Показ уведомления
-         */
-        function showNotification(type, message) {
+            // Fallback: простое уведомление
             const container = document.getElementById('notification-container');
             if (!container) {
+                console.log(`${type.toUpperCase()}: ${message}`);
                 alert(message);
                 return;
             }
@@ -777,12 +321,27 @@
             
             const notification = document.createElement('div');
             notification.className = `notification notification-${type}`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 12px 16px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                z-index: 1000;
+                min-width: 300px;
+                font-family: Inter, sans-serif;
+            `;
+            
             notification.innerHTML = `
-                <div class="notification-content">
-                    <span class="notification-icon">${iconMap[type] || '📚'}</span>
-                    <span class="notification-message">${message}</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 18px;">${iconMap[type] || '📚'}</span>
+                    <span style="flex: 1; color: #333;">${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="background: none; border: none; cursor: pointer; font-size: 18px; color: #999;">×</button>
                 </div>
-                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
             `;
             
             container.appendChild(notification);
@@ -794,114 +353,6 @@
                 }
             }, 5000);
         }
-        
-        // Обработка отправки формы документа
-        document.addEventListener('submit', (e) => {
-            if (e.target.id === 'document-form') {
-                e.preventDefault();
-                
-                const title = document.getElementById('document-title').value;
-                const category = document.getElementById('document-category').value;
-                const content = document.getElementById('document-content').value;
-                
-                if (!title || !content) {
-                    showNotification('error', 'Заполните обязательные поля');
-                    return;
-                }
-                
-                showNotification('info', 'Сохранение материала...');
-                
-                // Имитация сохранения
-                setTimeout(() => {
-                    showNotification('success', 'Материал сохранен');
-                    document.getElementById('document-editor-overlay').style.display = 'none';
-                    
-                    // Устанавливаем флаг наличия данных
-                    localStorage.setItem('reader-knowledge-demo', 'true');
-                    
-                    // Перезагружаем данные
-                    loadKnowledgeData();
-                }, 1000);
-            }
-        });
-        
-        // Закрытие модальных окон
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'close-document-editor' || e.target.closest('#close-document-editor')) {
-                document.getElementById('document-editor-overlay').style.display = 'none';
-            }
-            if (e.target.id === 'close-document-preview' || e.target.closest('#close-document-preview')) {
-                document.getElementById('document-preview-overlay').style.display = 'none';
-            }
-            if (e.target.id === 'edit-from-preview' || e.target.closest('#edit-from-preview')) {
-                document.getElementById('document-preview-overlay').style.display = 'none';
-                if (typeof showDocumentEditor === 'function') {
-                    showDocumentEditor('current');
-                }
-            }
-        });
-        
-        // Обработчик предпросмотра
-        document.getElementById('preview-document')?.addEventListener('click', () => {
-            const title = document.getElementById('document-title').value;
-            const category = document.getElementById('document-category').value;
-            const language = document.getElementById('document-language').value;
-            const tags = document.getElementById('document-tags').value;
-            const content = document.getElementById('document-content').value;
-            
-            if (!title || !content) {
-                showNotification('error', 'Заполните обязательные поля для предпросмотра');
-                return;
-            }
-            
-            // Конвертируем категорию в читаемый вид
-            const categoryLabels = {
-                'faq': '❓ Частые вопросы',
-                'book_catalog': '📚 Каталог книг',
-                'promo_codes': '🎁 Промокоды',
-                'announcements': '📢 Анонсы',
-                'user_guide': '📋 Руководства',
-                'course_info': '🎓 Информация о курсах',
-                'book-analysis': '📖 Разборы книг',
-                'psychology': '🧠 Психология',
-                'quotes-analysis': '💭 Анализ цитат',
-                'personal-growth': '🌱 Личностный рост',
-                'relationships': '💕 Отношения',
-                'self-development': '✨ Саморазвитие'
-            };
-            
-            const languageLabels = {
-                'none': '🤖 Универсальный',
-                'ru': '🇷🇺 Русский',
-                'en': '🇺🇸 English'
-            };
-            
-            document.getElementById('preview-title').textContent = title;
-            document.getElementById('preview-category').textContent = categoryLabels[category] || category;
-            document.getElementById('preview-language').textContent = languageLabels[language] || language;
-            
-            // Обработка тегов
-            const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
-            document.getElementById('preview-tags').innerHTML = tagsArray.map(tag => 
-                `<span class="tag">${tag}</span>`
-            ).join('');
-            
-            // Простая обработка Markdown (базовая)
-            let processedContent = content
-                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-                .replace(/\\*\\*(.*?)\\*\\*/gim, '<strong>$1</strong>')
-                .replace(/\\*(.*?)\\*/gim, '<em>$1</em>')
-                .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-                .replace(/\\n/gim, '<br>');
-            
-            document.getElementById('preview-content').innerHTML = processedContent;
-            document.getElementById('document-preview-overlay').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('document-preview-overlay').classList.add('active');
-            }, 10);
-        });
     </script>
 </body>
 </html>
