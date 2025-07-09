@@ -1,7 +1,7 @@
 /**
- * Knowledge Base Management
+ * Knowledge Base Management - УПРОЩЕНО: Следует паттерну dashboard.js и users.html
  * @file client/admin-panel/js/knowledge.js
- * 📖 Adapted for Reader Bot project
+ * 📖 Adapted for Reader Bot project with WORKING authentication
  */
 
 // Глобальные переменные
@@ -25,83 +25,42 @@ const CATEGORIES = [
 ];
 
 /**
- * Безопасный запрос к API с аутентификацией
- * @param {string} url - URL для запроса
- * @param {object} options - Опции fetch
- * @returns {Promise<Response>} - Response объект
+ * УПРОЩЕНО: Простой запрос с токеном (как в users.html)
  */
 async function makeAuthenticatedRequest(url, options = {}) {
+    const token = localStorage.getItem('reader_admin_token');
+    
+    if (!token) {
+        console.warn('📖 No token available, redirecting to login');
+        window.location.href = 'login.html';
+        return null;
+    }
+
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    };
+
+    const finalOptions = {
+        ...defaultOptions,
+        ...options,
+        headers: {
+            ...defaultOptions.headers,
+            ...options.headers
+        }
+    };
+
     try {
-        console.log('📖 Making authenticated request to:', url);
-        
-        // Проверяем доступность authManager
-        if (typeof authManager === 'undefined') {
-            console.error('📖 AuthManager not available');
-            throw new Error('Authentication system not loaded');
-        }
-
-        // Проверяем аутентификацию
-        if (!authManager.isAuthenticated()) {
-            console.warn('📖 User not authenticated, redirecting to login');
-            window.location.href = '/admin-panel/login.html';
-            return;
-        }
-
-        // Получаем токен
-        const token = authManager.getToken();
-        if (!token) {
-            console.error('📖 No authentication token available');
-            throw new Error('No authentication token');
-        }
-
-        console.log('📖 Using token:', token.substring(0, 20) + '...');
-
-        // Настройка заголовков
-        const defaultOptions = {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        };
-
-        // Объединяем опции
-        const finalOptions = {
-            ...defaultOptions,
-            ...options,
-            headers: {
-                ...defaultOptions.headers,
-                ...options.headers
-            }
-        };
-
-        console.log('📖 Request options:', {
-            method: finalOptions.method || 'GET',
-            url: url,
-            hasAuth: !!finalOptions.headers.Authorization
-        });
-
-        // Выполняем запрос
         const response = await fetch(url, finalOptions);
         
-        console.log('📖 Response status:', response.status, response.statusText);
-
-        // Обработка ошибок аутентификации
         if (response.status === 401) {
-            console.warn('📖 Authentication failed, clearing token and redirecting');
-            authManager.logout();
-            window.location.href = '/admin-panel/login.html';
-            return;
-        }
-
-        // Проверяем успешность запроса
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('📖 API request failed:', {
-                status: response.status,
-                statusText: response.statusText,
-                body: errorText
-            });
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            console.warn('📖 Authentication failed, redirecting to login');
+            localStorage.removeItem('reader_admin_token');
+            localStorage.removeItem('reader_admin_user');
+            window.location.href = 'login.html';
+            return null;
         }
 
         return response;
@@ -145,10 +104,7 @@ async function loadDocuments() {
         const url = `/api/knowledge?${params.toString()}`;
         const response = await makeAuthenticatedRequest(url);
         
-        if (!response) {
-            console.error('📖 No response received');
-            return;
-        }
+        if (!response) return;
 
         const data = await response.json();
         console.log('📖 Documents data received:', data);
@@ -177,10 +133,7 @@ async function loadRAGStats() {
 
         const response = await makeAuthenticatedRequest('/api/knowledge/stats');
         
-        if (!response) {
-            console.error('📖 No response received for stats');
-            return;
-        }
+        if (!response) return;
 
         const data = await response.json();
         console.log('📖 Stats data received:', data);
@@ -242,13 +195,13 @@ function displayDocuments(documents) {
             <td>
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-primary" onclick="viewDocument('${doc.id || doc._id}')">
-                        <i class="fas fa-eye"></i>
+                        👁️
                     </button>
                     <button class="btn btn-outline-secondary" onclick="editDocument('${doc.id || doc._id}')">
-                        <i class="fas fa-edit"></i>
+                        ✏️
                     </button>
                     <button class="btn btn-outline-danger" onclick="deleteDocument('${doc.id || doc._id}', '${escapeHtml(doc.title)}')">
-                        <i class="fas fa-trash"></i>
+                        🗑️
                     </button>
                 </div>
             </td>
@@ -289,7 +242,7 @@ function updateStatsDisplay(stats) {
         }
 
         // Обновляем время последнего обновления
-        const lastUpdatedEl = document.getElementById('last-updated');
+        const lastUpdatedEl = document.getElementById('rag-last-indexed');
         if (lastUpdatedEl && stats.lastUpdated) {
             const date = new Date(stats.lastUpdated);
             lastUpdatedEl.textContent = date.toLocaleString('ru-RU');
@@ -1130,26 +1083,11 @@ function showSuccess(message) {
 }
 
 /**
- * Инициализация страницы базы знаний
+ * УПРОЩЕНО: Простая инициализация без сложной логики ожидания
  */
 async function initKnowledgePage() {
     try {
         console.log('📖 Initializing knowledge page...');
-
-        // Проверяем аутентификацию
-        if (typeof authManager === 'undefined') {
-            console.error('📖 AuthManager not loaded, redirecting to login');
-            window.location.href = '/admin-panel/login.html';
-            return;
-        }
-
-        if (!authManager.isAuthenticated()) {
-            console.warn('📖 User not authenticated, redirecting to login');
-            window.location.href = '/admin-panel/login.html';
-            return;
-        }
-
-        console.log('📖 User authenticated, loading knowledge base data...');
 
         // Инициализируем фильтры категорий
         const categoryFilter = document.getElementById('category-filter');
@@ -1243,6 +1181,4 @@ window.createNewDocument = createNewDocument;
 window.saveNewDocument = saveNewDocument;
 window.syncVectorStore = syncVectorStore;
 window.testRAGSearch = testRAGSearch;
-
-// Автоинициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', initKnowledgePage);
+window.initKnowledgePage = initKnowledgePage;
