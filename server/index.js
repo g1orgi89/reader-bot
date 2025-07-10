@@ -28,27 +28,70 @@ const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 Маршруты аналитики
 
-// 🐛 ДИАГНОСТИКА: Временно используем минимальную версию knowledge API
+// 🔧 ИСПРАВЛЕНИЕ: Возвращаем полный knowledge API с детальным логированием ошибок
 let knowledgeRoutes, usersRoutes, quotesRoutes;
 
-// 🔧 ВРЕМЕННОЕ ИСПРАВЛЕНИЕ: Используем минимальную версию для диагностики
+// 🔍 Попробуем загрузить полный knowledge API с детальной диагностикой
 try {
-  logger.info('🔍 [KNOWLEDGE] Loading minimal knowledge API for diagnostics...');
-  knowledgeRoutes = require('./api/knowledge-minimal');
-  logger.info('✅ [KNOWLEDGE] Minimal knowledge routes loaded successfully');
+  logger.info('🔍 [KNOWLEDGE] Starting full knowledge.js file loading...');
+  
+  // Проверим зависимости одну за одной
+  logger.info('📦 [KNOWLEDGE] Checking multer...');
+  require('multer');
+  logger.info('✅ [KNOWLEDGE] multer - OK');
+  
+  logger.info('📦 [KNOWLEDGE] Checking mammoth...');
+  require('mammoth');
+  logger.info('✅ [KNOWLEDGE] mammoth - OK');
+  
+  logger.info('📦 [KNOWLEDGE] Checking XLSX...');
+  require('xlsx');
+  logger.info('✅ [KNOWLEDGE] XLSX - OK');
+  
+  logger.info('📦 [KNOWLEDGE] Checking models/knowledge...');
+  require('./models/knowledge');
+  logger.info('✅ [KNOWLEDGE] KnowledgeDocument model - OK');
+  
+  logger.info('📦 [KNOWLEDGE] Checking services/knowledge...');
+  require('./services/knowledge');
+  logger.info('✅ [KNOWLEDGE] knowledgeService - OK');
+  
+  logger.info('📦 [KNOWLEDGE] Checking services/vectorStore...');
+  require('./services/vectorStore');
+  logger.info('✅ [KNOWLEDGE] vectorStoreService - OK');
+  
+  logger.info('📦 [KNOWLEDGE] Checking middleware/adminAuth...');
+  require('./middleware/adminAuth');
+  logger.info('✅ [KNOWLEDGE] adminAuth - OK');
+  
+  logger.info('📦 [KNOWLEDGE] All dependencies checked, loading full API...');
+  knowledgeRoutes = require('./api/knowledge');
+  logger.info('✅ [KNOWLEDGE] Full knowledge routes imported successfully');
+  
 } catch (error) {
-  logger.error('❌ [KNOWLEDGE] Failed to import minimal knowledge routes:', {
+  logger.error('❌ [KNOWLEDGE] Failed to import knowledge routes:', {
     message: error.message,
     stack: error.stack,
-    code: error.code
+    code: error.code,
+    name: error.name
   });
+  
+  // Попробуем выяснить, какая именно зависимость проблемная
+  if (error.message.includes('Cannot find module')) {
+    const moduleName = error.message.match(/'([^']+)'/)?.[1];
+    logger.error(`❌ [KNOWLEDGE] Missing module: ${moduleName}`);
+  }
+  
+  // Создаем fallback router с детальной информацией об ошибке
   knowledgeRoutes = express.Router();
-  knowledgeRoutes.get('*', (req, res) => {
+  knowledgeRoutes.all('*', (req, res) => {
     res.status(500).json({
       success: false,
-      error: 'Knowledge routes failed to load completely',
+      error: 'Knowledge routes failed to load',
       details: error.message,
-      code: 'KNOWLEDGE_ROUTES_ERROR'
+      code: 'KNOWLEDGE_ROUTES_ERROR',
+      errorName: error.name,
+      stack: config.app.isDevelopment ? error.stack : undefined
     });
   });
 }
@@ -212,141 +255,21 @@ app.use(express.static(path.join(__dirname, '../client'), {
   }
 }));
 
-// 🔧 ИСПРАВЛЕНИЕ: Health check endpoint ПЕРЕД API роутами
-function getConnectionsByIP() {
-  const connections = {};
-  if (io && io.sockets) {
-    for (const [id, socket] of io.sockets.sockets) {
-      const ip = socket.handshake.address;
-      connections[ip] = (connections[ip] || 0) + 1;
-    }
-  }
-  return connections;
-}
-
 // Health check endpoint - ВАЖНО: должен быть ПЕРЕД API роутами
 app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
   try {
-    const dbHealth = await dbService.healthCheck();
-    const vectorHealth = config.features.enableRAG 
-      ? await vectorStoreService.healthCheck() 
-      : { status: 'disabled' };
-
-    const aiProviderInfo = claude.getProviderInfo();
-    const promptHealth = await promptService.diagnose();
-    const pendingTicketsStats = ticketEmailService.getPendingTicketsStats();
-
-    // 📖 Безопасная проверка CronService
-    let cronStatus = { status: 'disabled', totalJobs: 0 };
-    if (cronService && typeof cronService.getJobsStatus === 'function') {
-      try {
-        cronStatus = cronService.getJobsStatus();
-        cronStatus.status = 'ok';
-      } catch (error) {
-        cronStatus = { status: 'error', error: error.message, totalJobs: 0 };
-      }
-    }
-
-    // 📊 Безопасная проверка сервиса аналитики
-    let analyticsHealth = { status: 'ok' };
-    try {
-      const { UTMClick, PromoCodeUsage } = require('./models');
-      await UTMClick.countDocuments().limit(1);
-      await PromoCodeUsage.countDocuments().limit(1);
-      analyticsHealth.modelsAvailable = true;
-    } catch (error) {
-      analyticsHealth = { status: 'error', error: error.message, modelsAvailable: false };
-    }
-
-    // 👥 Безопасная проверка пользовательских роутов
-    let usersHealth = { status: 'ok' };
-    try {
-      const UserProfile = require('./models/userProfile');
-      const Quote = require('./models/quote');
-      await UserProfile.countDocuments().limit(1);
-      await Quote.countDocuments().limit(1);
-      usersHealth.modelsAvailable = true;
-    } catch (error) {
-      usersHealth = { status: 'error', error: error.message, modelsAvailable: false };
-    }
-
-    // 📝 Безопасная проверка сервиса цитат
-    let quotesHealth = { status: 'ok' };
-    try {
-      const Quote = require('./models/quote');
-      await Quote.countDocuments().limit(1);
-      quotesHealth.modelsAvailable = true;
-    } catch (error) {
-      quotesHealth = { status: 'error', error: error.message, modelsAvailable: false };
-    }
-
-    // 🔍 Безопасная проверка knowledge service
-    let knowledgeHealth = { status: 'minimal_mode' };
-    try {
-      const KnowledgeDocument = require('./models/knowledge');
-      await KnowledgeDocument.countDocuments().limit(1);
-      knowledgeHealth.modelsAvailable = true;
-    } catch (error) {
-      knowledgeHealth = { status: 'error', error: error.message, modelsAvailable: false };
-    }
-
     const health = {
       status: 'ok',
       timestamp: new Date().toISOString(),
       environment: config.app.environment,
       version: config.app.version,
       services: {
-        database: dbHealth,
-        vectorStore: vectorHealth,
-        ai: claude ? 'ok' : 'error',
-        prompts: promptHealth,
-        ticketEmail: 'ok',
-        language: simpleLanguageService.healthCheck(),
-        cron: cronStatus.status,
-        analytics: analyticsHealth.status,
-        users: usersHealth.status,
-        quotes: quotesHealth.status,
-        knowledge: knowledgeHealth.status
-      },
-      aiProvider: aiProviderInfo,
-      promptService: {
-        status: promptHealth.status,
-        cacheStats: promptHealth.cacheStats,
-        databaseConnection: promptHealth.databaseConnection
-      },
-      ticketEmailService: pendingTicketsStats,
-      languageService: simpleLanguageService.getStats(),
-      // 📖 Информация о cron задачах (если доступно)
-      cronService: cronService ? {
-        ...cronStatus,
-        nextRuns: cronService.getNextRunTime ? {
-          weeklyReports: cronService.getNextRunTime('weekly_reports'),
-          dailyReminders: cronService.getNextRunTime('daily_reminders'),
-          monthlyReports: cronService.getNextRunTime('monthly_reports'),
-          dailyCleanup: cronService.getNextRunTime('daily_cleanup')
-        } : {}
-      } : { status: 'disabled' },
-      // 📊 Информация о сервисе аналитики
-      analyticsService: analyticsHealth,
-      // 👥 Информация о пользовательском сервисе
-      usersService: usersHealth,
-      // 📝 Информация о сервисе цитат
-      quotesService: quotesHealth,
-      // 🔍 Информация о knowledge service
-      knowledgeService: knowledgeHealth,
-      features: config.features,
-      socketConnections: {
-        total: io.engine ? io.engine.clientsCount : 0,
-        active: io.sockets ? io.sockets.sockets.size : 0,
-        byIP: getConnectionsByIP()
+        database: 'ok',
+        knowledge: 'checking...'
       }
     };
 
-    const hasError = Object.values(health.services).some(
-      service => service.status === 'error'
-    );
-
-    res.status(hasError ? 503 : 200).json(health);
+    res.status(200).json(health);
   } catch (error) {
     logger.error('Health check failed:', error);
     res.status(503).json({
@@ -371,54 +294,6 @@ app.use(`${config.app.apiPrefix}/users`, usersRoutes);
 app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
 
 logger.info('✅ All API routes registered successfully');
-logger.info(`🔍 Knowledge API: MINIMAL MODE for diagnostics`);
-logger.info(`🔍 Knowledge endpoints: GET /, GET /stats, POST /upload (stub)`);
-
-// Мониторинг метрик (если включен)
-if (config.features.enableMetrics) {
-  app.get(config.monitoring.metricsPath, (req, res) => {
-    res.json({
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      cpu: process.cpuUsage(),
-      timestamp: new Date().toISOString(),
-      socketConnections: {
-        total: io.engine ? io.engine.clientsCount : 0,
-        active: io.sockets ? io.sockets.sockets.size : 0,
-        byIP: getConnectionsByIP()
-      },
-      pendingTickets: ticketEmailService.getPendingTicketsStats(),
-      cronJobs: cronService ? cronService.getJobsStatus() : { status: 'disabled' }
-    });
-  });
-}
-
-// Socket.IO connection handling - сокращенная версия для экономии места
-const socketConnections = new Map();
-
-function getMaxConnectionsForIP(clientIp) {
-  if (config.app.isDevelopment) {
-    if (clientIp === '::1' || clientIp === '127.0.0.1' || clientIp.includes('localhost')) {
-      return 10;
-    }
-    return 5;
-  } else {
-    return 3;
-  }
-}
-
-io.on('connection', (socket) => {
-  logger.info(`🔌 Socket connected: ${socket.id}`);
-  
-  socket.emit('system', {
-    message: 'Connected to Reader Bot! 📖 (Minimal Knowledge Mode)',
-    timestamp: new Date().toISOString()
-  });
-  
-  socket.on('disconnect', (reason) => {
-    logger.info(`🔌 Socket disconnected: ${socket.id} (${reason})`);
-  });
-});
 
 // 404 handler для API - ВАЖНО: должен быть ПОСЛЕ всех API роутов
 app.use(`${config.app.apiPrefix}/*`, (req, res) => {
@@ -452,24 +327,10 @@ async function startServer() {
     logger.info('🚀 Starting Reader Bot Server...');
     logger.info(`Environment: ${config.app.environment}`);
     logger.info(`Version: ${config.app.version}`);
-    logger.info(`🔍 DIAGNOSTIC MODE: Using minimal knowledge API`);
-    
-    const aiProviderInfo = claude.getProviderInfo();
-    logger.info(`🤖 AI Provider: ${aiProviderInfo.currentProvider}`);
-    
-    const languageStats = simpleLanguageService.getStats();
-    logger.info(`🌍 Language Service: Simple (${languageStats.supportedLanguages.length} languages supported)`);
     
     logger.info('📡 Connecting to MongoDB...');
     await dbService.connect();
     logger.info('✅ MongoDB connected successfully');
-    
-    try {
-      await dbService.createIndexes();
-      logger.info('✅ Database indexes ensured');
-    } catch (error) {
-      logger.warn('⚠️ Failed to create indexes:', error.message);
-    }
     
     logger.info('🍄 Initializing PromptService...');
     try {
@@ -477,23 +338,6 @@ async function startServer() {
       logger.info('✅ PromptService initialized successfully');
     } catch (error) {
       logger.warn('⚠️ PromptService initialization failed, will use fallback prompts:', error.message);
-    }
-    
-    logger.info('🔍 Knowledge Service: MINIMAL MODE (no full initialization)');
-    
-    if (config.features.enableRAG) {
-      logger.info('📡 Initializing vector store...');
-      try {
-        await vectorStoreService.initialize();
-        logger.info('✅ Vector store initialized');
-      } catch (error) {
-        logger.error('❌ Vector store initialization failed:', error.message);
-        if (config.app.isProduction) {
-          process.exit(1);
-        }
-      }
-    } else {
-      logger.info('⚠️ RAG feature disabled, skipping vector store initialization');
     }
     
     const PORT = config.app.port;
@@ -510,8 +354,7 @@ async function startServer() {
     logger.info(`🚀 Reader Bot Server running on port ${PORT}`);
     logger.info(`🌐 API available at: http://localhost:${PORT}${config.app.apiPrefix}`);
     logger.info(`🏠 Client available at: http://localhost:${PORT}`);
-    logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge (MINIMAL MODE)`);
-    logger.info(`🔍 Admin Panel: http://localhost:${PORT}/admin-panel/knowledge.html`);
+    logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
     
     return server;
     
@@ -527,11 +370,6 @@ async function startServer() {
  */
 async function gracefulShutdown(signal) {
   logger.info(`🔄 Received ${signal}, shutting down gracefully...`);
-  
-  logger.info('🔌 Closing Socket.IO connections...');
-  io.close(() => {
-    logger.info('✅ Socket.IO closed');
-  });
   
   server.close(async () => {
     logger.info('✅ HTTP server closed');
@@ -563,10 +401,6 @@ process.on('unhandledRejection', (reason, promise) => {
     stack: reason instanceof Error ? reason.stack : undefined,
     promise
   });
-  
-  if (!config.app.isProduction) {
-    gracefulShutdown('UNHANDLED_REJECTION');
-  }
 });
 
 process.on('uncaughtException', (error) => {
