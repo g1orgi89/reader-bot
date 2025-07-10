@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📚 База знаний - Читатель Админ</title>
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/knowledge.css">
     <meta name="description" content="База знаний для проекта 'Читатель' - книги, разборы и психологические материалы">
     <!-- Подключение шрифтов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -105,7 +106,7 @@
                         <div class="stat-icon">📊</div>
                     </div>
                     <div class="stat-value" id="total-docs">—</div>
-                    <div class="stat-change neutral" id="docs-change">База знаний</div>
+                    <div class="stat-change neutral">База знаний</div>
                 </div>
                 
                 <div class="stat-card glow-card">
@@ -114,7 +115,7 @@
                         <div class="stat-icon">🌟</div>
                     </div>
                     <div class="stat-value" id="published-docs">—</div>
-                    <div class="stat-change positive" id="published-change">Доступно боту</div>
+                    <div class="stat-change positive">Доступно боту</div>
                 </div>
                 
                 <div class="stat-card glow-card">
@@ -123,7 +124,7 @@
                         <div class="stat-icon">⏳</div>
                     </div>
                     <div class="stat-value" id="draft-docs">—</div>
-                    <div class="stat-change warning" id="draft-change">В работе</div>
+                    <div class="stat-change warning">В работе</div>
                 </div>
                 
                 <div class="stat-card glow-card">
@@ -132,7 +133,29 @@
                         <div class="stat-icon">🔗</div>
                     </div>
                     <div class="stat-value" id="vector-store-stats">—</div>
-                    <div class="stat-change neutral" id="vector-change">Векторное хранилище</div>
+                    <div class="stat-change neutral">Векторное хранилище</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>🔗 Статус чанков</h3>
+                        <div class="stat-icon">🧩</div>
+                    </div>
+                    <div class="stat-value">
+                        <span class="badge" id="chunking-status">—</span>
+                    </div>
+                    <div class="stat-change neutral">Разбивка текста</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>🌐 Языки контента</h3>
+                        <div class="stat-icon">🗣️</div>
+                    </div>
+                    <div class="stat-value">
+                        <div id="language-stats" class="language-distribution">—</div>
+                    </div>
+                    <div class="stat-change neutral">Распределение</div>
                 </div>
             </div>
             
@@ -141,7 +164,9 @@
                 <div class="section-header">
                     <h3>📋 Список документов</h3>
                     <div class="table-controls">
-                        <span class="results-count">Найдено: <span id="results-count">0</span> документов</span>
+                        <span class="results-count">
+                            <span id="results-info">Загрузка...</span>
+                        </span>
                     </div>
                 </div>
                 
@@ -149,18 +174,17 @@
                     <table class="data-table" id="documents-table">
                         <thead>
                             <tr>
-                                <th>Название</th>
-                                <th>Категория</th>
-                                <th>Язык</th>
-                                <th>Теги</th>
-                                <th>Статус</th>
-                                <th>Обновлен</th>
-                                <th>Действия</th>
+                                <th class="col-title">Название</th>
+                                <th class="col-category">Категория</th>
+                                <th class="col-language">Язык</th>
+                                <th class="col-tags">Теги</th>
+                                <th class="col-status">Статус</th>
+                                <th class="col-actions">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="table-loading">
-                                <td colspan="7">
+                                <td colspan="6">
                                     <div class="loading-spinner"></div>
                                     📚 Загрузка документов...
                                 </td>
@@ -170,8 +194,10 @@
                 </div>
                 
                 <!-- Пагинация -->
-                <div class="pagination" id="knowledge-pagination">
-                    <!-- Будет заполнено JavaScript -->
+                <div class="pagination-container">
+                    <ul class="pagination" id="pagination">
+                        <!-- Будет заполнено JavaScript -->
+                    </ul>
                 </div>
             </div>
             
@@ -212,62 +238,6 @@
         </footer>
     </div>
     
-    <!-- Модальные окна -->
-    
-    <!-- Модальное окно просмотра документа -->
-    <div class="modal-overlay" id="document-view-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>📄 Просмотр документа</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="document-view-content">
-                <div class="loading-spinner"></div>
-                Загрузка документа...
-            </div>
-        </div>
-    </div>
-    
-    <!-- Модальное окно редактирования документа -->
-    <div class="modal-overlay" id="document-edit-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>✏️ Редактирование документа</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="document-edit-content">
-                <div class="loading-spinner"></div>
-                Загрузка формы редактирования...
-            </div>
-        </div>
-    </div>
-    
-    <!-- Модальное окно загрузки документа -->
-    <div class="modal-overlay" id="document-upload-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>📁 Загрузить документ</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="document-upload-content">
-                <!-- Будет заполнено JavaScript -->
-            </div>
-        </div>
-    </div>
-    
-    <!-- Модальное окно тестирования поиска -->
-    <div class="modal-overlay" id="test-search-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🔍 Тестирование поиска</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="test-search-content">
-                <!-- Будет заполнено JavaScript -->
-            </div>
-        </div>
-    </div>
-    
     <!-- Notification system -->
     <div class="notification-container" id="notification-container"></div>
     
@@ -279,12 +249,13 @@
     <script>
         /**
          * 📖 Инициализация страницы управления базой знаний "Читатель"
-         * В стиле других страниц админ-панели
+         * УБРАНО: Дублирующие функции viewDocument, editDocument, deleteDocument
+         * ИСПОЛЬЗУЕМ: Функции из knowledge.js
          */
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📚 Инициализация страницы базы знаний...');
             
-            // Проверка авторизации (как в users.html)
+            // Проверка авторизации
             if (typeof checkAuthStatus === 'function') {
                 checkAuthStatus();
             }
@@ -297,49 +268,22 @@
                 showNotification('error', 'Ошибка загрузки страницы базы знаний');
             }
             
-            // Инициализируем книжную анимацию (если доступна)
+            // Инициализируем книжную анимацию
             if (typeof initReaderMatrix === 'function') {
                 initReaderMatrix(true);
             }
             
-            // Дополнительные обработчики для улучшенного UI
             setupAdditionalEventListeners();
         });
         
         /**
-         * Дополнительные обработчики событий для улучшенного UI
+         * Дополнительные обработчики событий
          */
         function setupAdditionalEventListeners() {
-            // Обработчики для модальных окон
-            document.addEventListener('click', (e) => {
-                if (e.target.classList.contains('modal-close') || e.target.classList.contains('modal-overlay')) {
-                    closeModal();
-                }
-            });
-            
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    closeModal();
-                }
-            });
-            
-            // Обработчики для фильтров
-            document.getElementById('status-filter')?.addEventListener('change', applyFilters);
-            document.getElementById('tags-filter')?.addEventListener('input', debounce(applyFilters, 500));
-            
             // Обработчик для обновления данных
             document.getElementById('refresh-knowledge')?.addEventListener('click', refreshKnowledgeData);
             
             console.log('📚 Дополнительные обработчики событий настроены');
-        }
-        
-        /**
-         * Применение фильтров
-         */
-        function applyFilters() {
-            if (typeof loadDocuments === 'function') {
-                loadDocuments();
-            }
         }
         
         /**
@@ -365,9 +309,16 @@
         }
         
         /**
-         * Функция показа уведомлений (fallback как в index.html)
+         * Функция показа уведомлений (единая система)
          */
         function showNotification(type, message) {
+            // Используем глобальную функцию из main.js если доступна
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(type, message);
+                return;
+            }
+            
+            // Fallback implementation
             const container = document.getElementById('notification-container');
             if (!container) {
                 console.log(`[${type.toUpperCase()}] ${message}`);
@@ -395,28 +346,6 @@
         }
         
         /**
-         * Закрытие модального окна
-         */
-        function closeModal() {
-            const activeModal = document.querySelector('.modal-overlay.active');
-            if (activeModal) {
-                activeModal.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-        }
-        
-        /**
-         * Открытие модального окна
-         */
-        function openModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-        }
-        
-        /**
          * Debounce функция
          */
         function debounce(func, wait) {
@@ -430,312 +359,6 @@
                 timeout = setTimeout(later, wait);
             };
         }
-        
-        /**
-         * Глобальные функции для документов (расширяем knowledge.js)
-         */
-        window.viewDocument = function(documentId) {
-            console.log('📄 Просмотр документа:', documentId);
-            
-            const modalContent = document.getElementById('document-view-content');
-            modalContent.innerHTML = `
-                <div class="loading-container">
-                    <div class="loading-spinner"></div>
-                    📖 Загрузка документа...
-                </div>
-            `;
-            
-            openModal('document-view-modal');
-            
-            // Тут должна быть загрузка документа через API
-            // Для примера показываем заглушку
-            setTimeout(() => {
-                modalContent.innerHTML = `
-                    <div class="document-content">
-                        <h4>📄 Документ #${documentId}</h4>
-                        <p>Содержимое документа будет загружено из API...</p>
-                        <div class="document-actions">
-                            <button class="btn btn-primary" onclick="editDocument('${documentId}')">✏️ Редактировать</button>
-                            <button class="btn btn-danger" onclick="deleteDocument('${documentId}')">🗑️ Удалить</button>
-                        </div>
-                    </div>
-                `;
-            }, 1000);
-        };
-        
-        window.editDocument = function(documentId) {
-            console.log('✏️ Редактирование документа:', documentId);
-            
-            closeModal(); // Закрываем предыдущее модальное окно
-            
-            const modalContent = document.getElementById('document-edit-content');
-            modalContent.innerHTML = `
-                <div class="loading-container">
-                    <div class="loading-spinner"></div>
-                    📝 Загрузка формы редактирования...
-                </div>
-            `;
-            
-            openModal('document-edit-modal');
-            
-            // Тут должна быть загрузка формы редактирования через API
-            setTimeout(() => {
-                modalContent.innerHTML = `
-                    <form id="edit-document-form">
-                        <div class="form-group">
-                            <label for="edit-title">Название документа:</label>
-                            <input type="text" id="edit-title" class="form-control" value="Пример названия">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-category">Категория:</label>
-                            <select id="edit-category" class="select-glow">
-                                <option value="psychology">🧠 Психология</option>
-                                <option value="books">📚 Книги</option>
-                                <option value="self-development">✨ Саморазвитие</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-status">Статус:</label>
-                            <select id="edit-status" class="select-glow">
-                                <option value="published">Опубликован</option>
-                                <option value="draft">Черновик</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-tags">Теги:</label>
-                            <input type="text" id="edit-tags" class="form-control" placeholder="теги через запятую">
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
-                            <button type="submit" class="btn btn-primary">💾 Сохранить изменения</button>
-                        </div>
-                    </form>
-                `;
-            }, 1000);
-        };
-        
-        window.deleteDocument = function(documentId) {
-            console.log('🗑️ Удаление документа:', documentId);
-            
-            if (confirm('Вы уверены, что хотите удалить этот документ? Это действие нельзя отменить.')) {
-                showNotification('info', 'Удаление документа...');
-                
-                // Тут должно быть удаление через API
-                setTimeout(() => {
-                    showNotification('success', 'Документ успешно удален');
-                    closeModal();
-                    refreshKnowledgeData(); // Обновляем список
-                }, 1000);
-            }
-        };
-        
-        /**
-         * Создание нового документа
-         */
-        window.createNewDocument = function() {
-            console.log('📝 Создание нового документа');
-            
-            // Используем существующую функцию из knowledge.js
-            if (typeof showUploadDocumentModal === 'function') {
-                showUploadDocumentModal();
-            } else {
-                showNotification('error', 'Функция загрузки документов не найдена');
-            }
-        };
     </script>
-    
-    <style>
-        /* Дополнительные стили для улучшенного UI страницы базы знаний */
-        .filters-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .form-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 1rem;
-        }
-        
-        .table-controls {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .results-count {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-        
-        .ai-actions {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-        
-        .ai-info {
-            margin-top: 1rem;
-        }
-        
-        .document-content {
-            padding: 1rem;
-        }
-        
-        .document-actions {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border-color);
-        }
-        
-        .loading-container {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-muted);
-        }
-        
-        .loading-spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--border-color);
-            border-top: 2px solid var(--reader-gold);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            margin-right: 0.5rem;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .category-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-        
-        .category-books { background: var(--reader-gold); color: var(--dark-bg); }
-        .category-psychology { background: #9b59b6; color: var(--text-white); }
-        .category-self-development { background: #e67e22; color: var(--text-white); }
-        .category-relationships { background: #e91e63; color: var(--text-white); }
-        .category-productivity { background: #3498db; color: var(--text-white); }
-        .category-mindfulness { background: #1abc9c; color: var(--text-white); }
-        .category-creativity { background: #f39c12; color: var(--dark-bg); }
-        .category-general { background: var(--reader-brown); color: var(--text-white); }
-        
-        .status-published { background: var(--success-color); color: var(--text-white); }
-        .status-draft { background: var(--warning-color); color: var(--dark-bg); }
-        
-        .tag-badge {
-            display: inline-block;
-            background: rgba(212, 175, 55, 0.1);
-            border: 1px solid var(--reader-gold);
-            color: var(--reader-gold);
-            padding: 0.1rem 0.4rem;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            margin-right: 0.25rem;
-            margin-bottom: 0.25rem;
-        }
-        
-        .table-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .last-updated {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-        
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 1rem;
-            border-top: 1px solid var(--border-color);
-        }
-        
-        .pagination button {
-            min-width: 40px;
-            height: 40px;
-            border: 1px solid var(--border-color);
-            background: var(--card-bg);
-            color: var(--text-light);
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: all var(--transition-fast);
-        }
-        
-        .pagination button:hover {
-            background: var(--hover-bg);
-            border-color: var(--reader-gold);
-            color: var(--reader-gold);
-        }
-        
-        .pagination button.active {
-            background: var(--reader-gold);
-            border-color: var(--reader-gold);
-            color: var(--dark-bg);
-            font-weight: 600;
-        }
-        
-        .data-table tr {
-            cursor: pointer;
-            transition: background-color var(--transition-fast);
-        }
-        
-        .data-table tr:hover {
-            background: rgba(212, 175, 55, 0.05);
-        }
-        
-        .alert {
-            padding: 1rem;
-            border-radius: var(--border-radius);
-            margin-bottom: 1rem;
-            border-left: 4px solid;
-        }
-        
-        .alert-info {
-            background: rgba(52, 152, 219, 0.1);
-            border-left-color: var(--info-color);
-            color: var(--text-light);
-        }
-        
-        @media (max-width: 768px) {
-            .filters-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .ai-actions {
-                flex-direction: column;
-            }
-            
-            .form-actions {
-                flex-direction: column;
-            }
-            
-            .table-actions {
-                flex-direction: column;
-            }
-            
-            .dashboard-controls {
-                flex-direction: column;
-                gap: 1rem;
-            }
-        }
-    </style>
 </body>
 </html>
