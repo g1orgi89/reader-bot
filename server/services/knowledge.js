@@ -58,6 +58,22 @@ class KnowledgeService {
         chunkSize: 500,    // Стандартный размер
         overlap: 100,
         preserveParagraphs: true
+      },
+      // 📖 НОВОЕ: Настройки чанкинга для Reader Bot категорий
+      'books': {
+        chunkSize: 600,    // Больше для книжных цитат
+        overlap: 150,
+        preserveParagraphs: true
+      },
+      'psychology': {
+        chunkSize: 500,    // Стандартный размер для психологических текстов
+        overlap: 120,
+        preserveParagraphs: true
+      },
+      'self-development': {
+        chunkSize: 450,    // Немного меньше для коротких советов
+        overlap: 100,
+        preserveParagraphs: true
       }
     };
   }
@@ -156,12 +172,34 @@ class KnowledgeService {
   }
 
   /**
+   * 📖 НОВОЕ: Create document method for API compatibility
+   * This method provides the same interface as used by the API
+   * @param {Object} docData - Document data
+   * @param {ChunkingOptions} [chunkingOptions={}] - Custom chunking options
+   * @returns {Promise<Object>} Creation result
+   */
+  async createDocument(docData, chunkingOptions = {}) {
+    try {
+      logger.info(`📖 Creating document: "${docData.title}"`);
+      
+      // Используем существующий метод addDocument
+      return await this.addDocument(docData, chunkingOptions);
+    } catch (error) {
+      logger.error('📖 Failed to create knowledge document:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Add a document to the knowledge base with optimized chunking
    * @param {Object} docData - Document data
    * @param {string} docData.title - Document title
    * @param {string} docData.content - Document content
    * @param {string} docData.category - Document category
-   * @param {string} [docData.language='auto'] - Document language (stored but not used for filtering)
+   * @param {string} [docData.language='ru'] - Document language (stored but not used for filtering)
    * @param {string[]} [docData.tags=[]] - Document tags
    * @param {string} [docData.authorId] - Author ID
    * @param {ChunkingOptions} [chunkingOptions={}] - Custom chunking options
@@ -169,9 +207,9 @@ class KnowledgeService {
    */
   async addDocument(docData, chunkingOptions = {}) {
     try {
-      // 🍄 ИЗМЕНЕНО: language по умолчанию 'auto'
+      // 📖 ИЗМЕНЕНО: language по умолчанию 'ru' для Reader Bot
       if (!docData.language) {
-        docData.language = 'auto';
+        docData.language = 'ru';
       }
 
       // Сохраняем в MongoDB
@@ -179,7 +217,7 @@ class KnowledgeService {
       await document.save();
 
       const result = document.toPublicJSON();
-      logger.info(`🍄 Knowledge document added to MongoDB: ${result.id} - "${result.title}"`);
+      logger.info(`📖 Knowledge document added to MongoDB: ${result.id} - "${result.title}"`);
 
       // Добавляем документ также в векторное хранилище с чанкингом
       try {
@@ -193,7 +231,7 @@ class KnowledgeService {
           chunkingOptions
         );
         
-        logger.info(`🍄 Adding document to vector store with chunking: ${optimalChunkingOptions.enableChunking ? 'enabled' : 'disabled'}`);
+        logger.info(`📖 Adding document to vector store with chunking: ${optimalChunkingOptions.enableChunking ? 'enabled' : 'disabled'}`);
         
         // Добавляем документ в векторное хранилище
         const vectorSuccess = await vectorStoreService.addDocuments([{
@@ -211,13 +249,13 @@ class KnowledgeService {
         }], optimalChunkingOptions);
         
         if (vectorSuccess) {
-          logger.info(`🍄 Knowledge document successfully vectorized: ${result.id}`);
+          logger.info(`📖 Knowledge document successfully vectorized: ${result.id}`);
         } else {
-          logger.warn(`🍄 Failed to vectorize document: ${result.id}`);
+          logger.warn(`📖 Failed to vectorize document: ${result.id}`);
         }
       } catch (vectorError) {
         // Если не удалось добавить в векторное хранилище, логируем ошибку, но продолжаем
-        logger.error(`🍄 Failed to add document to vector store: ${vectorError.message}`);
+        logger.error(`📖 Failed to add document to vector store: ${vectorError.message}`);
       }
 
       return {
@@ -226,7 +264,7 @@ class KnowledgeService {
         chunkingUsed: chunkingOptions.enableChunking !== false
       };
     } catch (error) {
-      logger.error('🍄 Failed to add knowledge document:', error);
+      logger.error('📖 Failed to add knowledge document:', error);
       return {
         success: false,
         error: error.message
@@ -334,7 +372,7 @@ class KnowledgeService {
               title: doc.metadata?.title || '',
               content: doc.content,
               category: doc.metadata?.category || '',
-              language: doc.metadata?.language || 'auto', // 🍄 ИЗМЕНЕНО: возвращаем сохраненный язык
+              language: doc.metadata?.language || 'ru', // 📖 ИЗМЕНЕНО: возвращаем русский как основной
               tags: doc.metadata?.tags || [],
               createdAt: doc.metadata?.createdAt,
               updatedAt: doc.metadata?.updatedAt,
@@ -468,7 +506,7 @@ class KnowledgeService {
         title: doc.title,
         content: doc.content,
         category: doc.category,
-        language: doc.language || 'auto', // 🍄 ИЗМЕНЕНО: возвращаем сохраненный язык
+        language: doc.language || 'ru', // 📖 ИЗМЕНЕНО: возвращаем русский как основной
         tags: doc.tags || [],
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt
@@ -480,8 +518,11 @@ class KnowledgeService {
         pagination: {
           page,
           limit,
-          total: totalCount,
-          pages: Math.ceil(totalCount / limit)
+          totalDocs: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+          currentPage: page,
+          startDoc: skip + 1,
+          endDoc: Math.min(skip + limit, totalCount)
         }
       };
     } catch (error) {
@@ -514,7 +555,7 @@ class KnowledgeService {
         title: document.title,
         content: document.content,
         category: document.category,
-        language: document.language || 'auto', // 🍄 ИЗМЕНЕНО
+        language: document.language || 'ru', // 📖 ИЗМЕНЕНО
         tags: document.tags || [],
         createdAt: document.createdAt,
         updatedAt: document.updatedAt
@@ -694,7 +735,7 @@ class KnowledgeService {
                 content: doc.content,
                 category: doc.metadata?.category || '',
                 score: doc.score,
-                language: doc.metadata?.language || 'auto', // 🍄 ИЗМЕНЕНО
+                language: doc.metadata?.language || 'ru', // 📖 ИЗМЕНЕНО
                 source: 'vector',
                 // 🍄 НОВОЕ: Добавляем информацию о чанкинге в контекст
                 isChunk: doc.isChunk || false,
@@ -820,7 +861,7 @@ class KnowledgeService {
               metadata: {
                 title: doc.title,
                 category: doc.category,
-                language: doc.language || 'auto', // 🍄 ИЗМЕНЕНО
+                language: doc.language || 'ru', // 📖 ИЗМЕНЕНО
                 tags: doc.tags || [],
                 authorId: doc.authorId,
                 createdAt: doc.createdAt,
@@ -923,14 +964,24 @@ class KnowledgeService {
         // 🍄 УПРОЩЕНО: подсчет языков для совместимости, но без жесткой фильтрации
         KnowledgeDocument.aggregate([
           { $group: { _id: '$language', count: { $sum: 1 } } }
+        ]),
+        // 📖 НОВОЕ: подсчет по категориям для Reader Bot
+        KnowledgeDocument.aggregate([
+          { $group: { _id: '$category', count: { $sum: 1 } } }
         ])
       ]);
 
       // Преобразуем результат агрегации в удобный формат
       const languageStats = mongoStats[1].reduce((acc, item) => {
-        acc[item._id || 'auto'] = item.count;
+        acc[item._id || 'ru'] = item.count;
         return acc;
-      }, { en: 0, ru: 0, es: 0, auto: 0 });
+      }, { en: 0, ru: 0, es: 0 });
+
+      // Преобразуем статистику по категориям
+      const categoryStats = mongoStats[2].reduce((acc, item) => {
+        acc[item._id || 'general'] = item.count;
+        return acc;
+      }, {});
 
       // Vector store statistics
       let vectorStats = { status: 'unknown', chunksCount: 0, documentsCount: 0 };
@@ -944,7 +995,8 @@ class KnowledgeService {
         success: true,
         mongodb: {
           totalDocuments: mongoStats[0],
-          languages: languageStats // 🍄 ИЗМЕНЕНО: возвращаем агрегированные данные
+          languages: languageStats, // 🍄 ИЗМЕНЕНО: возвращаем агрегированные данные
+          categories: categoryStats // 📖 НОВОЕ: статистика по категориям
         },
         vectorStore: vectorStats,
         chunking: {
