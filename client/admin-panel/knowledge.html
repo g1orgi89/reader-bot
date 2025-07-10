@@ -249,31 +249,34 @@
     <script>
         /**
          * 📖 Инициализация страницы управления базой знаний "Читатель"
-         * УБРАНО: Дублирующие функции viewDocument, editDocument, deleteDocument
-         * ИСПОЛЬЗУЕМ: Функции из knowledge.js
+         * ИСПРАВЛЕНО: Убрана рекурсия в showNotification
          */
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📚 Инициализация страницы базы знаний...');
             
-            // Проверка авторизации
-            if (typeof checkAuthStatus === 'function') {
-                checkAuthStatus();
-            }
-            
-            // Инициализация страницы
-            if (typeof initKnowledgePage === 'function') {
-                initKnowledgePage();
-            } else {
-                console.error('📚 Функция initKnowledgePage не найдена');
-                showNotification('error', 'Ошибка загрузки страницы базы знаний');
-            }
-            
-            // Инициализируем книжную анимацию
-            if (typeof initReaderMatrix === 'function') {
-                initReaderMatrix(true);
-            }
-            
-            setupAdditionalEventListeners();
+            // Ждем загрузки всех скриптов
+            setTimeout(() => {
+                // Проверка авторизации
+                if (typeof checkAuthStatus === 'function') {
+                    checkAuthStatus();
+                }
+                
+                // Инициализация страницы
+                if (typeof initKnowledgePage === 'function') {
+                    console.log('📚 Вызов initKnowledgePage...');
+                    initKnowledgePage();
+                } else {
+                    console.error('📚 Функция initKnowledgePage не найдена');
+                    showKnowledgeNotification('error', 'Ошибка загрузки страницы базы знаний');
+                }
+                
+                // Инициализируем книжную анимацию
+                if (typeof initReaderMatrix === 'function') {
+                    initReaderMatrix(true);
+                }
+                
+                setupAdditionalEventListeners();
+            }, 100);
         });
         
         /**
@@ -291,7 +294,7 @@
          */
         async function refreshKnowledgeData() {
             try {
-                showNotification('info', 'Обновление данных...');
+                showKnowledgeNotification('info', 'Обновление данных...');
                 
                 if (typeof loadDocuments === 'function') {
                     await loadDocuments();
@@ -301,24 +304,17 @@
                     await loadRAGStats();
                 }
                 
-                showNotification('success', 'Данные обновлены');
+                showKnowledgeNotification('success', 'Данные обновлены');
             } catch (error) {
                 console.error('❌ Ошибка обновления данных:', error);
-                showNotification('error', 'Ошибка обновления данных');
+                showKnowledgeNotification('error', 'Ошибка обновления данных');
             }
         }
         
         /**
-         * Функция показа уведомлений (единая система)
+         * ИСПРАВЛЕНО: Уникальная функция уведомлений без рекурсии
          */
-        function showNotification(type, message) {
-            // Используем глобальную функцию из main.js если доступна
-            if (typeof window.showNotification === 'function') {
-                window.showNotification(type, message);
-                return;
-            }
-            
-            // Fallback implementation
+        function showKnowledgeNotification(type, message) {
             const container = document.getElementById('notification-container');
             if (!container) {
                 console.log(`[${type.toUpperCase()}] ${message}`);
@@ -344,6 +340,11 @@
                 }
             }, 5000);
         }
+        
+        /**
+         * Глобальное переопределение showNotification для этой страницы
+         */
+        window.showNotification = showKnowledgeNotification;
         
         /**
          * Debounce функция
