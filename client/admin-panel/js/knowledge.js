@@ -1187,18 +1187,195 @@ function showNotification(type, message) {
 }
 
 // Document management functions
-function viewDocument(id) {
-    showError('Функция просмотра документа в разработке');
+async function viewDocument(documentId) {
+    try {
+        console.log('👁️ Просмотр документа:', documentId);
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'document-view-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>📄 Просмотр документа</h3>
+                    <button type="button" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body" id="document-view-content">
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        📖 Загрузка документа...
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        const response = await makeAuthenticatedRequest(`/knowledge/${documentId}`);
+        
+        if (response.success) {
+            const doc = response.data;
+            const content = document.getElementById('document-view-content');
+            content.innerHTML = `
+                <div class="document-details">
+                    <div class="document-header">
+                        <h4>${escapeHtml(doc.title)}</h4>
+                        <div class="document-meta">
+                            <span class="category-badge category-${doc.category || 'general'}">${getCategoryDisplayName(doc.category)}</span>
+                            <span class="status-badge status-${doc.status || 'draft'}">${getStatusDisplayName(doc.status)}</span>
+                        </div>
+                    </div>
+                    <div class="document-content-text" style="max-height: 400px; overflow-y: auto; margin: 1rem 0; padding: 1rem; background: var(--hover-bg); border-radius: var(--border-radius);">
+                        ${escapeHtml(doc.content || 'Содержание недоступно').replace(/\n/g, '<br>')}
+                    </div>
+                    <div class="document-actions" style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                        <button class="btn btn-primary" onclick="editDocument('${doc._id}')">✏️ Редактировать</button>
+                        <button class="btn btn-danger" onclick="deleteDocument('${doc._id}')">🗑️ Удалить</button>
+                        <button class="btn btn-secondary" onclick="closeModal()">Закрыть</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            throw new Error(response.error || 'Документ не найден');
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка просмотра документа:', error);
+        showError('Ошибка просмотра: ' + error.message);
+    }
 }
 
-function editDocument(id) {
-    showError('Функция редактирования документа в разработке');
+async function editDocument(documentId) {
+    try {
+        console.log('✏️ Редактирование документа:', documentId);
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'document-edit-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>✏️ Редактирование документа</h3>
+                    <button type="button" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-document-form">
+                        <input type="hidden" id="edit-document-id" value="${documentId}">
+                        <div class="form-group">
+                            <label for="edit-title">Название документа *</label>
+                            <input type="text" id="edit-title" class="form-control" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="edit-category">Категория *</label>
+                                <select id="edit-category" class="select-glow" required>
+                                    <option value="books">📚 Книги</option>
+                                    <option value="psychology">🧠 Психология</option>
+                                    <option value="self-development">✨ Саморазвитие</option>
+                                    <option value="relationships">💕 Отношения</option>
+                                    <option value="productivity">⚡ Продуктивность</option>
+                                    <option value="mindfulness">🧘 Осознанность</option>
+                                    <option value="creativity">🎨 Творчество</option>
+                                    <option value="general">📖 Общие</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="edit-status">Статус *</label>
+                                <select id="edit-status" class="select-glow" required>
+                                    <option value="published">Опубликован</option>
+                                    <option value="draft">Черновик</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-content">Содержание *</label>
+                            <textarea id="edit-content" class="form-control" rows="8" required></textarea>
+                        </div>
+                        <div class="form-actions" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Загружаем данные документа
+        const response = await makeAuthenticatedRequest(`/knowledge/${documentId}`);
+        if (response.success) {
+            const doc = response.data;
+            document.getElementById('edit-title').value = doc.title || '';
+            document.getElementById('edit-category').value = doc.category || 'general';
+            document.getElementById('edit-status').value = doc.status || 'draft';
+            document.getElementById('edit-content').value = doc.content || '';
+        }
+        
+        // Обработчик формы
+        document.getElementById('edit-document-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const updateData = {
+                title: document.getElementById('edit-title').value.trim(),
+                category: document.getElementById('edit-category').value,
+                status: document.getElementById('edit-status').value,
+                content: document.getElementById('edit-content').value.trim()
+            };
+            
+            try {
+                const updateResponse = await makeAuthenticatedRequest(`/knowledge/${documentId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (updateResponse.success) {
+                    showNotification('success', 'Документ успешно обновлен');
+                    closeModal();
+                    await loadDocuments();
+                } else {
+                    throw new Error(updateResponse.error || 'Ошибка обновления');
+                }
+            } catch (error) {
+                showError('Ошибка сохранения: ' + error.message);
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка редактирования:', error);
+        showError('Ошибка редактирования: ' + error.message);
+    }
 }
 
-function deleteDocument(id) {
-    const confirmation = confirm('Вы уверены, что хотите удалить этот документ?');
-    if (confirmation) {
-        showError('Функция удаления документа в разработке');
+async function deleteDocument(documentId) {
+    const confirmation = confirm('Вы уверены, что хотите удалить этот документ? Это действие нельзя отменить.');
+    if (!confirmation) return;
+    
+    try {
+        console.log('🗑️ Удаление документа:', documentId);
+        
+        const response = await makeAuthenticatedRequest(`/knowledge/${documentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.success) {
+            showNotification('success', 'Документ успешно удален');
+            closeModal();
+            await loadDocuments();
+            await loadRAGStats();
+        } else {
+            throw new Error(response.error || 'Ошибка удаления');
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка удаления:', error);
+        showError('Ошибка удаления: ' + error.message);
+    }
+}
     }
 }
 
