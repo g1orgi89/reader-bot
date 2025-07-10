@@ -13,7 +13,8 @@ const path = require('path');
 const fs = require('fs').promises;
 const mammoth = require('mammoth');
 const XLSX = require('xlsx');
-const PDFExtract = require('pdf-extract');
+// 🔧 ИСПРАВЛЕНО: Убрали проблемный импорт pdf-extract
+// const PDFExtract = require('pdf-extract');
 
 console.log('✅ [KNOWLEDGE] Express and file processing libraries imported successfully');
 
@@ -196,10 +197,10 @@ async function extractTextFromFile(buffer, filename, mimetype) {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
-            allText += `\n=== ${sheetName} ===\n`;
+            allText += `\\n=== ${sheetName} ===\\n`;
             jsonData.forEach(row => {
               if (row.length > 0) {
-                allText += row.filter(cell => cell !== null && cell !== undefined).join(' | ') + '\n';
+                allText += row.filter(cell => cell !== null && cell !== undefined).join(' | ') + '\\n';
               }
             });
           });
@@ -213,9 +214,9 @@ async function extractTextFromFile(buffer, filename, mimetype) {
       case '.pdf':
         console.log('📄 [KNOWLEDGE] Processing PDF file');
         try {
-          // For PDF, we'll return a placeholder since pdf-extract requires additional setup
-          // In production, you'd want to implement proper PDF text extraction
-          return `[PDF Document: ${filename}]\n\nПримечание: Автоматическое извлечение текста из PDF файлов требует дополнительной настройки. Пожалуйста, добавьте содержимое вручную.`;
+          // 🔧 ИСПРАВЛЕНО: Убрали проблемное использование pdf-extract
+          // Теперь возвращаем placeholder с инструкцией для ручного ввода
+          return `[PDF Document: ${filename}]\\n\\nПримечание: Автоматическое извлечение текста из PDF файлов требует дополнительной настройки. Пожалуйста, добавьте содержимое вручную или конвертируйте PDF в текстовый формат.`;
         } catch (error) {
           console.error('❌ [KNOWLEDGE] PDF extraction failed:', error.message);
           throw new Error('Извлечение текста из PDF временно недоступно: ' + error.message);
@@ -277,11 +278,11 @@ function detectDocumentCategory(filename, content) {
 function generateDocumentTitle(filename) {
   return path.basename(filename, path.extname(filename))
     .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, l => l.toUpperCase());
+    .replace(/\\b\\w/g, l => l.toUpperCase());
 }
 
 /**
- * @route POST /api/knowledge/upload
+ * @route POST /api/reader/knowledge/upload
  * @desc Upload and process document files
  * @access Admin (requires authentication)
  */
@@ -457,7 +458,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
 });
 
 /**
- * @route GET /api/knowledge
+ * @route GET /api/reader/knowledge
  * @desc Get knowledge documents with optional filtering
  * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для админ-панели)
  */
@@ -531,7 +532,7 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * @route GET /api/knowledge/stats
+ * @route GET /api/reader/knowledge/stats
  * @desc Get knowledge base statistics for admin dashboard
  * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для статистики админ-панели)
  */
@@ -826,7 +827,7 @@ router.get('/diagnose', (req, res) => {
   });
 });
 
-// Простые endpoints для GET /api/knowledge/:id
+// Простые endpoints для GET /api/reader/knowledge/:id
 router.get('/:id', async (req, res) => {
   console.log('🔍 [KNOWLEDGE] GET /:id endpoint called with id:', req.params.id);
   
