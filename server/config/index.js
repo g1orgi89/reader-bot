@@ -39,7 +39,7 @@ const config = {
     version: process.env.npm_package_version || '1.0.0',
     environment: process.env.NODE_ENV || 'development',
     port: parseInt(process.env.PORT) || 3002, // 📖 Изменили порт на 3002 для Reader Bot
-    apiPrefix: process.env.API_PREFIX || '/api',
+    apiPrefix: process.env.API_PREFIX || '/api/reader', // 🔧 ИСПРАВЛЕНО: API prefix для Reader Bot
     isDevelopment: process.env.NODE_ENV === 'development',
     isProduction: process.env.NODE_ENV === 'production',
     maxRequestsPerSecond: parseInt(process.env.MAX_REQUESTS_PER_SECOND) || 10,
