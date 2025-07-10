@@ -1,7 +1,8 @@
 /**
- * Knowledge Management JavaScript
+ * Knowledge Management JavaScript with Document Upload Support
  * @file client/admin-panel/js/knowledge.js
- * 📖 ИСПРАВЛЕНО: Реализовано создание документов + тестовый поиск
+ * 📖 ДОБАВЛЕНО: Функционал загрузки документов для Reader Bot
+ * 🔍 ПОДДЕРЖКА: PDF, TXT, DOCX, XLS/XLSX файлов
  */
 
 // API configuration - использование правильного prefix
@@ -51,12 +52,17 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
                                  !endpoint.includes('/vector-search') && 
                                  !endpoint.includes('/test-search') && 
                                  !endpoint.includes('/sync-vector-store') &&
-                                 !options.method || options.method === 'GET';
+                                 (!options.method || options.method === 'GET');
 
+        // Не устанавливаем Content-Type для FormData (multipart/form-data)
         const headers = {
-            'Content-Type': 'application/json',
             ...options.headers
         };
+
+        // Only set Content-Type for non-FormData requests
+        if (!(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
 
         // Добавляем аутентификацию только для приватных endpoints
         if (!isPublicEndpoint) {
@@ -106,7 +112,7 @@ async function loadDocuments() {
     
     try {
         isLoading = true;
-        showLoading('document-list', 'Загрузка документов...');
+        showLoading('documents-table', 'Загрузка документов...');
 
         const params = new URLSearchParams({
             page: currentPage,
@@ -117,6 +123,12 @@ async function loadDocuments() {
         const searchInput = document.getElementById('search-input');
         if (searchInput && searchInput.value.trim()) {
             params.append('q', searchInput.value.trim());
+        }
+
+        // Add category filter if exists
+        const categoryFilter = document.getElementById('category-filter');
+        if (categoryFilter && categoryFilter.value) {
+            params.append('category', categoryFilter.value);
         }
 
         const response = await makeAuthenticatedRequest(`/knowledge?${params}`);
@@ -133,8 +145,10 @@ async function loadDocuments() {
     } catch (error) {
         console.error('📖 Ошибка загрузки документов:', error);
         showError('Ошибка загрузки документов: ' + error.message);
-        document.getElementById('document-list').innerHTML = 
-            '<div class="no-data">Не удалось загрузить документы</div>';
+        const tableBody = document.querySelector('#documents-table tbody');
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Не удалось загрузить документы</td></tr>';
+        }
     } finally {
         isLoading = false;
     }
@@ -187,26 +201,37 @@ function setupEventListeners() {
         });
     }
 
-    // Add document button
-    const addDocButton = document.getElementById('add-document-btn');
-    if (addDocButton) {
-        addDocButton.addEventListener('click', showAddDocumentModal);
-    }
-
-    // Refresh button
-    const refreshButton = document.getElementById('refresh-btn');
-    if (refreshButton) {
-        refreshButton.addEventListener('click', () => {
+    // Category filter
+    const categoryFilter = document.getElementById('category-filter');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', () => {
             currentPage = 1;
             loadDocuments();
-            loadRAGStats();
         });
     }
 
+    // New document button
+    const newDocButton = document.getElementById('new-document-btn');
+    if (newDocButton) {
+        newDocButton.addEventListener('click', showUploadDocumentModal);
+    }
+
+    // Reset search button
+    const resetSearchBtn = document.getElementById('reset-search-btn');
+    if (resetSearchBtn) {
+        resetSearchBtn.addEventListener('click', resetSearch);
+    }
+
+    // Search button
+    const searchBtn = document.getElementById('search-btn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', handleSearch);
+    }
+
     // Test search button
-    const testSearchBtn = document.getElementById('test-search-btn');
-    if (testSearchBtn) {
-        testSearchBtn.addEventListener('click', showTestSearchModal);
+    const testRagBtn = document.getElementById('test-rag-btn');
+    if (testRagBtn) {
+        testRagBtn.addEventListener('click', showTestSearchModal);
     }
 
     // Sync vector store button
@@ -216,7 +241,7 @@ function setupEventListeners() {
     }
 
     // Diagnose button
-    const diagnoseBtn = document.getElementById('diagnose-btn');
+    const diagnoseBtn = document.getElementById('diagnose-rag');
     if (diagnoseBtn) {
         diagnoseBtn.addEventListener('click', runDiagnostics);
     }
@@ -240,118 +265,193 @@ function handleSearch() {
 
     // Debounce search
     searchTimeout = setTimeout(() => {
-        if (query.length === 0) {
-            // Reset to show all documents
-            currentPage = 1;
-            loadDocuments();
-        } else if (query.length >= 2) {
-            // Search with query
-            searchDocuments(query);
-        }
+        currentPage = 1;
+        loadDocuments();
     }, 300);
 }
 
 /**
- * Search documents
+ * Reset search filters
  */
-async function searchDocuments(query) {
-    try {
-        isLoading = true;
-        showLoading('document-list', 'Поиск документов...');
+function resetSearch() {
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    const tagsFilter = document.getElementById('tags-filter');
 
-        const params = new URLSearchParams({
-            q: query,
-            limit: 10,
-            page: 1
-        });
+    if (searchInput) searchInput.value = '';
+    if (categoryFilter) categoryFilter.value = '';
+    if (tagsFilter) tagsFilter.value = '';
 
-        const response = await makeAuthenticatedRequest(`/knowledge/search?${params}`);
-        
-        if (response.success) {
-            renderDocuments(response.data, true, query);
-            updateSearchResults(response.count, query);
-        } else {
-            throw new Error(response.error || 'Ошибка поиска');
-        }
-    } catch (error) {
-        console.error('📖 Ошибка поиска:', error);
-        showError('Ошибка поиска: ' + error.message);
-    } finally {
-        isLoading = false;
-    }
+    currentPage = 1;
+    loadDocuments();
 }
 
 /**
- * Show add document modal
+ * Show upload document modal with file support
  */
-function showAddDocumentModal() {
-    // Создаем модальное окно
+function showUploadDocumentModal() {
+    // Создаем модальное окно для загрузки документов
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'modal fade';
+    modal.id = 'upload-document-modal';
     modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>📖 Добавить новый документ</h3>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="add-document-form">
-                    <div class="form-group">
-                        <label for="doc-title">Заголовок документа *</label>
-                        <input type="text" id="doc-title" name="title" required 
-                               placeholder="Например: Цитаты о любви и отношениях">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">📁 Загрузить документ в базу знаний</h3>
+                    <button type="button" class="close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Upload Methods Tabs -->
+                    <div class="upload-tabs">
+                        <button type="button" class="tab-button active" onclick="switchUploadTab('file')">
+                            📁 Загрузить файл
+                        </button>
+                        <button type="button" class="tab-button" onclick="switchUploadTab('manual')">
+                            ✏️ Ввести вручную
+                        </button>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="doc-category">Категория *</label>
-                        <select id="doc-category" name="category" required>
-                            <option value="">Выберите категорию</option>
-                            <option value="Саморазвитие">Саморазвитие</option>
-                            <option value="Любовь">Любовь и отношения</option>
-                            <option value="Философия">Философия</option>
-                            <option value="Мотивация">Мотивация</option>
-                            <option value="Психология">Психология</option>
-                            <option value="Книги">Книги и авторы</option>
-                            <option value="Цитаты">Цитаты</option>
-                            <option value="Другое">Другое</option>
-                        </select>
+
+                    <!-- File Upload Tab -->
+                    <div id="file-upload-tab" class="upload-tab-content active">
+                        <form id="upload-document-form" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <label for="document-file">Выберите документ *</label>
+                                <div class="file-upload-area" id="file-upload-area">
+                                    <input type="file" id="document-file" name="document" accept=".pdf,.txt,.docx,.doc,.xlsx,.xls" required>
+                                    <div class="file-upload-text">
+                                        <div class="upload-icon">📄</div>
+                                        <div class="upload-message">
+                                            <strong>Перетащите файл сюда или нажмите для выбора</strong>
+                                            <br>
+                                            <small>Поддерживаемые форматы: PDF, TXT, DOCX, XLS/XLSX (макс. 10MB)</small>
+                                        </div>
+                                    </div>
+                                    <div class="file-info" id="file-info" style="display: none;"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group col-md-8">
+                                    <label for="doc-title">Название документа</label>
+                                    <input type="text" id="doc-title" name="title" 
+                                           placeholder="Оставьте пустым для автоматического определения">
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label for="doc-language">Язык</label>
+                                    <select id="doc-language" name="language">
+                                        <option value="ru">Русский</option>
+                                        <option value="en">English</option>
+                                        <option value="auto">Авто-определение</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label for="doc-category">Категория</label>
+                                    <select id="doc-category" name="category">
+                                        <option value="">Авто-определение</option>
+                                        <option value="books">📚 Книги</option>
+                                        <option value="psychology">🧠 Психология</option>
+                                        <option value="self-development">✨ Саморазвитие</option>
+                                        <option value="relationships">💕 Отношения</option>
+                                        <option value="productivity">⚡ Продуктивность</option>
+                                        <option value="mindfulness">🧘 Осознанность</option>
+                                        <option value="creativity">🎨 Творчество</option>
+                                        <option value="general">📖 Общие</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="doc-status">Статус</label>
+                                    <select id="doc-status" name="status">
+                                        <option value="published">Опубликован</option>
+                                        <option value="draft">Черновик</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="doc-tags">Теги (через запятую)</label>
+                                <input type="text" id="doc-tags" name="tags" 
+                                       placeholder="психология, книги, цитаты">
+                                <small class="form-text text-muted">
+                                    Теги по типу файла добавятся автоматически
+                                </small>
+                            </div>
+                        </form>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="doc-content">Содержание документа *</label>
-                        <textarea id="doc-content" name="content" required rows="10"
-                                  placeholder="Введите содержание документа..."></textarea>
+
+                    <!-- Manual Entry Tab -->
+                    <div id="manual-upload-tab" class="upload-tab-content" style="display: none;">
+                        <form id="manual-document-form">
+                            <div class="form-group">
+                                <label for="manual-title">Название документа *</label>
+                                <input type="text" id="manual-title" name="title" required 
+                                       placeholder="Например: Цитаты о любви и отношениях">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="manual-content">Содержание документа *</label>
+                                <textarea id="manual-content" name="content" required rows="10"
+                                          placeholder="Введите содержание документа..."></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label for="manual-category">Категория *</label>
+                                    <select id="manual-category" name="category" required>
+                                        <option value="">Выберите категорию</option>
+                                        <option value="books">📚 Книги</option>
+                                        <option value="psychology">🧠 Психология</option>
+                                        <option value="self-development">✨ Саморазвитие</option>
+                                        <option value="relationships">💕 Отношения</option>
+                                        <option value="productivity">⚡ Продуктивность</option>
+                                        <option value="mindfulness">🧘 Осознанность</option>
+                                        <option value="creativity">🎨 Творчество</option>
+                                        <option value="general">📖 Общие</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="manual-language">Язык</label>
+                                    <select id="manual-language" name="language">
+                                        <option value="ru">Русский</option>
+                                        <option value="en">English</option>
+                                        <option value="auto">Авто-определение</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="manual-tags">Теги (через запятую)</label>
+                                <input type="text" id="manual-tags" name="tags" 
+                                       placeholder="психология, книги, цитаты">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="manual-status">Статус</label>
+                                <select id="manual-status" name="status">
+                                    <option value="published">Опубликован</option>
+                                    <option value="draft">Черновик</option>
+                                </select>
+                            </div>
+                        </form>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="doc-tags">Теги</label>
-                        <input type="text" id="doc-tags" name="tags" 
-                               placeholder="Разделите теги запятыми: любовь, психология, отношения">
+
+                    <!-- Upload Progress -->
+                    <div class="upload-progress" id="upload-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">Загрузка...</div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="doc-language">Язык</label>
-                        <select id="doc-language" name="language">
-                            <option value="ru">Русский</option>
-                            <option value="en">English</option>
-                            <option value="auto">Авто-определение</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="doc-status">Статус</label>
-                        <select id="doc-status" name="status">
-                            <option value="published">Опубликован</option>
-                            <option value="draft">Черновик</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="addDocument()">
-                    📖 Создать документ
-                </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="upload-btn" onclick="uploadDocument()">
+                        📁 Загрузить документ
+                    </button>
+                </div>
             </div>
         </div>
     `;
@@ -359,18 +459,261 @@ function showAddDocumentModal() {
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     
+    // Setup file upload events
+    setupFileUploadEvents();
+    
     // Фокус на первое поле
-    document.getElementById('doc-title').focus();
+    document.getElementById('document-file').focus();
 }
 
 /**
- * Add new document
+ * Switch between upload tabs
  */
-async function addDocument() {
-    const form = document.getElementById('add-document-form');
+function switchUploadTab(tabName) {
+    const fileTab = document.getElementById('file-upload-tab');
+    const manualTab = document.getElementById('manual-upload-tab');
+    const fileTabBtn = document.querySelector('.tab-button:first-child');
+    const manualTabBtn = document.querySelector('.tab-button:last-child');
+    const uploadBtn = document.getElementById('upload-btn');
+
+    if (tabName === 'file') {
+        fileTab.style.display = 'block';
+        manualTab.style.display = 'none';
+        fileTabBtn.classList.add('active');
+        manualTabBtn.classList.remove('active');
+        uploadBtn.textContent = '📁 Загрузить документ';
+    } else {
+        fileTab.style.display = 'none';
+        manualTab.style.display = 'block';
+        fileTabBtn.classList.remove('active');
+        manualTabBtn.classList.add('active');
+        uploadBtn.textContent = '💾 Создать документ';
+    }
+}
+
+/**
+ * Setup file upload drag and drop events
+ */
+function setupFileUploadEvents() {
+    const fileInput = document.getElementById('document-file');
+    const uploadArea = document.getElementById('file-upload-area');
+    const fileInfo = document.getElementById('file-info');
+
+    // File input change event
+    fileInput.addEventListener('change', handleFileSelect);
+
+    // Drag and drop events
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+
+    uploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect();
+        }
+    });
+
+    // Click to select file
+    uploadArea.addEventListener('click', (e) => {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+}
+
+/**
+ * Handle file selection and validation
+ */
+function handleFileSelect() {
+    const fileInput = document.getElementById('document-file');
+    const fileInfo = document.getElementById('file-info');
+    const titleInput = document.getElementById('doc-title');
+    
+    if (fileInput.files.length === 0) {
+        fileInfo.style.display = 'none';
+        return;
+    }
+
+    const file = fileInput.files[0];
+    
+    // File validation
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = [
+        'text/plain',
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+    ];
+
+    if (file.size > maxSize) {
+        showError('Файл слишком большой. Максимальный размер: 10MB');
+        fileInput.value = '';
+        fileInfo.style.display = 'none';
+        return;
+    }
+
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    const allowedExtensions = ['txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls'];
+    
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+        showError('Неподдерживаемый тип файла. Разрешены: PDF, TXT, DOCX, XLS/XLSX');
+        fileInput.value = '';
+        fileInfo.style.display = 'none';
+        return;
+    }
+
+    // Auto-fill title if empty
+    if (!titleInput.value.trim()) {
+        const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+        titleInput.value = fileName.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Show file info
+    fileInfo.innerHTML = `
+        <div class="selected-file">
+            <div class="file-icon">${getFileIcon(fileExtension)}</div>
+            <div class="file-details">
+                <div class="file-name">${file.name}</div>
+                <div class="file-size">${formatFileSize(file.size)}</div>
+            </div>
+            <button type="button" class="remove-file" onclick="removeSelectedFile()">×</button>
+        </div>
+    `;
+    fileInfo.style.display = 'block';
+}
+
+/**
+ * Remove selected file
+ */
+function removeSelectedFile() {
+    const fileInput = document.getElementById('document-file');
+    const fileInfo = document.getElementById('file-info');
+    
+    fileInput.value = '';
+    fileInfo.style.display = 'none';
+}
+
+/**
+ * Get file icon based on extension
+ */
+function getFileIcon(extension) {
+    const icons = {
+        'pdf': '📄',
+        'txt': '📝',
+        'docx': '📘',
+        'doc': '📘',
+        'xlsx': '📊',
+        'xls': '📊'
+    };
+    return icons[extension] || '📄';
+}
+
+/**
+ * Format file size for display
+ */
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Upload document (file or manual)
+ */
+async function uploadDocument() {
+    const activeTab = document.querySelector('.upload-tab-content.active, .upload-tab-content[style*="block"]');
+    const isFileUpload = activeTab && activeTab.id === 'file-upload-tab';
+    
+    if (isFileUpload) {
+        await uploadFileDocument();
+    } else {
+        await uploadManualDocument();
+    }
+}
+
+/**
+ * Upload file document
+ */
+async function uploadFileDocument() {
+    const form = document.getElementById('upload-document-form');
+    const fileInput = document.getElementById('document-file');
+    
+    if (!fileInput.files.length) {
+        showError('Выберите файл для загрузки');
+        return;
+    }
+
+    try {
+        // Show progress
+        showUploadProgress('Подготовка файла...');
+        
+        const formData = new FormData();
+        formData.append('document', fileInput.files[0]);
+        
+        // Add other form fields
+        const fields = ['title', 'category', 'language', 'status', 'tags'];
+        fields.forEach(field => {
+            const element = document.getElementById(`doc-${field}`);
+            if (element && element.value.trim()) {
+                formData.append(field, element.value.trim());
+            }
+        });
+
+        console.log('📁 Uploading file document...');
+        
+        // Update progress
+        updateUploadProgress(30, 'Загрузка файла...');
+        
+        const response = await makeAuthenticatedRequest('/knowledge/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        // Update progress
+        updateUploadProgress(80, 'Обработка документа...');
+
+        if (response.success) {
+            updateUploadProgress(100, 'Готово!');
+            showNotification('success', 'Документ успешно загружен и обработан!');
+            closeModal();
+            
+            // Refresh documents list
+            currentPage = 1;
+            await loadDocuments();
+            await loadRAGStats();
+        } else {
+            throw new Error(response.error || 'Не удалось загрузить документ');
+        }
+    } catch (error) {
+        console.error('📁 Upload error:', error);
+        hideUploadProgress();
+        showError('Ошибка загрузки: ' + error.message);
+    }
+}
+
+/**
+ * Upload manual document
+ */
+async function uploadManualDocument() {
+    const form = document.getElementById('manual-document-form');
     const formData = new FormData(form);
     
-    // Валидация
+    // Validation
     const title = formData.get('title').trim();
     const category = formData.get('category');
     const content = formData.get('content').trim();
@@ -386,13 +729,10 @@ async function addDocument() {
     }
 
     try {
-        // Показываем индикатор загрузки
-        const addButton = document.querySelector('.modal-footer .btn-primary');
-        const originalText = addButton.textContent;
-        addButton.textContent = 'Создание...';
-        addButton.disabled = true;
+        // Show progress
+        showUploadProgress('Создание документа...');
 
-        // Подготавливаем данные
+        // Prepare document data
         const documentData = {
             title: title,
             category: category,
@@ -402,7 +742,7 @@ async function addDocument() {
             status: formData.get('status') || 'published'
         };
 
-        console.log('📖 Creating document:', documentData);
+        console.log('📝 Creating manual document:', documentData);
 
         const response = await makeAuthenticatedRequest('/knowledge', {
             method: 'POST',
@@ -410,10 +750,11 @@ async function addDocument() {
         });
 
         if (response.success) {
+            updateUploadProgress(100, 'Готово!');
             showNotification('success', 'Документ успешно создан!');
             closeModal();
             
-            // Обновляем список документов
+            // Refresh documents list
             currentPage = 1;
             await loadDocuments();
             await loadRAGStats();
@@ -421,63 +762,51 @@ async function addDocument() {
             throw new Error(response.error || 'Не удалось создать документ');
         }
     } catch (error) {
-        console.error('📖 Ошибка создания документа:', error);
+        console.error('📝 Manual document creation error:', error);
+        hideUploadProgress();
         showError('Ошибка создания документа: ' + error.message);
-        
-        // Восстанавливаем кнопку
-        const addButton = document.querySelector('.modal-footer .btn-primary');
-        addButton.textContent = originalText;
-        addButton.disabled = false;
     }
 }
 
 /**
- * Show test search modal
+ * Show upload progress
  */
-function showTestSearchModal() {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🔍 Тестовый поиск</h3>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="test-query">Поисковый запрос</label>
-                    <input type="text" id="test-query" placeholder="Например: цитаты о любви">
-                </div>
-                <div class="form-group">
-                    <label for="test-limit">Количество результатов</label>
-                    <select id="test-limit">
-                        <option value="5">5</option>
-                        <option value="10">10</option>
-                        <option value="20">20</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="test-chunks" checked>
-                        Показать чанки
-                    </label>
-                </div>
-                <div id="test-results"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Закрыть</button>
-                <button type="button" class="btn btn-primary" onclick="testSearch()">
-                    🔍 Выполнить поиск
-                </button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
+function showUploadProgress(message) {
+    const progress = document.getElementById('upload-progress');
+    const progressText = document.getElementById('progress-text');
+    const uploadBtn = document.getElementById('upload-btn');
     
-    // Фокус на поле поиска
-    document.getElementById('test-query').focus();
+    progress.style.display = 'block';
+    progressText.textContent = message;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Загрузка...';
+    
+    updateUploadProgress(10, message);
+}
+
+/**
+ * Update upload progress
+ */
+function updateUploadProgress(percent, message) {
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    
+    progressFill.style.width = percent + '%';
+    if (message) {
+        progressText.textContent = message;
+    }
+}
+
+/**
+ * Hide upload progress
+ */
+function hideUploadProgress() {
+    const progress = document.getElementById('upload-progress');
+    const uploadBtn = document.getElementById('upload-btn');
+    
+    progress.style.display = 'none';
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = '📁 Загрузить документ';
 }
 
 /**
@@ -491,10 +820,63 @@ function closeModal() {
 }
 
 /**
+ * Show test search modal
+ */
+function showTestSearchModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🔍 Тестовый поиск в базе знаний</h3>
+                    <button type="button" class="close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="test-query">Поисковый запрос</label>
+                        <input type="text" id="test-query" class="form-control" 
+                               placeholder="Например: цитаты о любви">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="test-limit">Количество результатов</label>
+                            <select id="test-limit" class="form-control">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>
+                                <input type="checkbox" id="test-chunks" checked>
+                                Показать чанки
+                            </label>
+                        </div>
+                    </div>
+                    <div id="test-results"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Закрыть</button>
+                    <button type="button" class="btn btn-primary" onclick="testSearch()">
+                        🔍 Выполнить поиск
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Фокус на поле поиска
+    document.getElementById('test-query').focus();
+}
+
+/**
  * Test search functionality
  */
 async function testSearch() {
-    const modal = document.getElementById('test-search-modal');
     const queryInput = document.getElementById('test-query');
     const limitSelect = document.getElementById('test-limit');
     const chunksCheckbox = document.getElementById('test-chunks');
@@ -515,7 +897,7 @@ async function testSearch() {
             method: 'POST',
             body: JSON.stringify({
                 query: query,
-                limit: parseInt(limitSelect.value) || 5,
+                limit: parseInt(limitSelect.value) || 10,
                 returnChunks: chunksCheckbox.checked
             })
         });
@@ -534,54 +916,57 @@ async function testSearch() {
 /**
  * Render documents list
  */
-function renderDocuments(documents, isSearchResult = false, searchQuery = '') {
-    const container = document.getElementById('document-list');
-    if (!container) return;
+function renderDocuments(documents) {
+    const tableBody = document.querySelector('#documents-table tbody');
+    const emptyState = document.getElementById('empty-state');
+    
+    if (!tableBody) return;
 
     if (!documents || documents.length === 0) {
-        container.innerHTML = isSearchResult ? 
-            `<div class="no-data">Документы по запросу "${searchQuery}" не найдены</div>` :
-            '<div class="no-data">Документы не найдены</div>';
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Документы не найдены</td></tr>';
+        if (emptyState) emptyState.style.display = 'block';
         return;
     }
 
+    if (emptyState) emptyState.style.display = 'none';
+
     const documentsHTML = documents.map(doc => `
-        <div class="document-card" data-id="${doc._id || doc.id}">
-            <div class="document-header">
-                <h4 class="document-title">${escapeHtml(doc.title)}</h4>
-                <div class="document-actions">
-                    <button class="btn btn-sm btn-outline" onclick="viewDocument('${doc._id || doc.id}')">
-                        👁️ Просмотр
+        <tr data-id="${doc._id || doc.id}">
+            <td class="col-title">
+                <div class="document-title">${escapeHtml(doc.title)}</div>
+                <small class="text-muted">${escapeHtml((doc.content || '').substring(0, 100))}${(doc.content || '').length > 100 ? '...' : ''}</small>
+            </td>
+            <td class="col-category">
+                <span class="badge badge-primary">${escapeHtml(doc.category || 'general')}</span>
+            </td>
+            <td class="col-language">${escapeHtml(doc.language || 'auto')}</td>
+            <td class="col-tags">
+                ${doc.tags && doc.tags.length > 0 ? 
+                    doc.tags.slice(0, 3).map(tag => `<span class="badge badge-secondary badge-sm">${escapeHtml(tag)}</span>`).join(' ') +
+                    (doc.tags.length > 3 ? ` <span class="text-muted">+${doc.tags.length - 3}</span>` : '')
+                    : '<span class="text-muted">—</span>'
+                }
+            </td>
+            <td class="col-status">
+                <span class="badge badge-${doc.status === 'published' ? 'success' : 'warning'}">${doc.status === 'published' ? 'Опубликован' : 'Черновик'}</span>
+            </td>
+            <td class="col-actions">
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="viewDocument('${doc._id || doc.id}')" title="Просмотр">
+                        👁️
                     </button>
-                    <button class="btn btn-sm btn-outline" onclick="editDocument('${doc._id || doc.id}')">
-                        ✏️ Редактировать
+                    <button class="btn btn-outline-secondary" onclick="editDocument('${doc._id || doc.id}')" title="Редактировать">
+                        ✏️
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc._id || doc.id}')">
-                        🗑️ Удалить
+                    <button class="btn btn-outline-danger" onclick="deleteDocument('${doc._id || doc.id}')" title="Удалить">
+                        🗑️
                     </button>
                 </div>
-            </div>
-            <div class="document-meta">
-                <span class="badge badge-primary">${escapeHtml(doc.category || 'Без категории')}</span>
-                <span class="badge badge-secondary">${escapeHtml(doc.language || 'auto')}</span>
-                ${doc.status ? `<span class="badge badge-${doc.status === 'published' ? 'success' : 'warning'}">${doc.status}</span>` : ''}
-                ${isSearchResult && doc.score ? `<span class="badge badge-info">Релевантность: ${(doc.score * 100).toFixed(1)}%</span>` : ''}
-            </div>
-            <div class="document-content">
-                ${escapeHtml((doc.content || '').substring(0, 200))}${(doc.content || '').length > 200 ? '...' : ''}
-            </div>
-            <div class="document-footer">
-                <small class="text-muted">
-                    ${doc.tags && doc.tags.length > 0 ? `Теги: ${doc.tags.map(tag => escapeHtml(tag)).join(', ')}` : 'Без тегов'}
-                </small>
-                <small class="text-muted">
-                    Обновлено: ${new Date(doc.updatedAt || doc.createdAt).toLocaleDateString('ru-RU')}
-                </small>
-            </div>
-        </div>
+            </td>
+        </tr>
     `).join('');
 
-    container.innerHTML = documentsHTML;
+    tableBody.innerHTML = documentsHTML;
 }
 
 /**
@@ -589,43 +974,35 @@ function renderDocuments(documents, isSearchResult = false, searchQuery = '') {
  */
 function renderRAGStats(stats) {
     // Update main stats
-    updateStatElement('total-documents', stats.total || 0);
-    updateStatElement('published-documents', stats.published || 0);
-    updateStatElement('draft-documents', stats.draft || 0);
+    updateStatElement('total-docs', stats.total || 0);
+    updateStatElement('published-docs', stats.published || 0);
+    updateStatElement('draft-docs', stats.draft || 0);
     
     // Vector store stats
     if (stats.vectorStore) {
-        updateStatElement('vector-documents', stats.vectorStore.documentsCount || 0);
-        updateStatElement('vector-chunks', stats.vectorStore.chunksCount || 0);
-        
-        const statusElement = document.getElementById('vector-status');
-        if (statusElement) {
-            const status = stats.vectorStore.status || 'unknown';
-            statusElement.textContent = getVectorStatusText(status);
-            statusElement.className = `status status-${status}`;
+        const vectorStoreStatus = document.getElementById('vector-store-stats');
+        if (vectorStoreStatus) {
+            vectorStoreStatus.textContent = `${stats.vectorStore.documentsCount || 0} документов, ${stats.vectorStore.chunksCount || 0} чанков`;
         }
     }
 
     // Chunking status
-    const chunkingElement = document.getElementById('chunking-status');
-    if (chunkingElement) {
+    const chunkingStatus = document.getElementById('chunking-status');
+    if (chunkingStatus) {
         const isEnabled = stats.chunkingEnabled || false;
-        chunkingElement.textContent = isEnabled ? 'Включен' : 'Выключен';
-        chunkingElement.className = `status status-${isEnabled ? 'ok' : 'warning'}`;
+        chunkingStatus.textContent = isEnabled ? 'Включен' : 'Выключен';
+        chunkingStatus.className = `badge badge-${isEnabled ? 'success' : 'warning'}`;
     }
 
     // Language distribution
     renderLanguageStats(stats.byLanguage || []);
 
-    // Category distribution  
-    renderCategoryStats(stats.byCategory || []);
-
-    // Recent updates
-    renderRecentUpdates(stats.recentlyUpdated || []);
-
-    // Error indicator
-    if (stats.error) {
-        showWarning(`Частичная ошибка статистики: ${stats.error}`);
+    // Recent updates info
+    const lastUpdated = document.getElementById('rag-last-indexed');
+    if (lastUpdated) {
+        lastUpdated.textContent = stats.lastUpdated ? 
+            new Date(stats.lastUpdated).toLocaleString('ru-RU') : 
+            'Неизвестно';
     }
 
     console.log('📖 RAG statistics rendered successfully');
@@ -639,13 +1016,19 @@ function updatePagination(pagination) {
     currentPage = pagination.currentPage || 1;
 
     const paginationContainer = document.getElementById('pagination');
+    const resultsInfo = document.getElementById('results-info');
+    
+    if (resultsInfo) {
+        resultsInfo.textContent = `Показано ${pagination.startDoc || 1}-${pagination.endDoc || pagination.totalDocs} из ${pagination.totalDocs || 0} документов`;
+    }
+
     if (!paginationContainer) return;
 
     let paginationHTML = '';
 
     // Previous button
     if (currentPage > 1) {
-        paginationHTML += `<button class="btn btn-sm btn-outline" onclick="changePage(${currentPage - 1})">← Предыдущая</button>`;
+        paginationHTML += `<li class="page-item"><button class="page-link" onclick="changePage(${currentPage - 1})">‹ Назад</button></li>`;
     }
 
     // Page numbers
@@ -654,13 +1037,14 @@ function updatePagination(pagination) {
 
     for (let i = startPage; i <= endPage; i++) {
         const isActive = i === currentPage;
-        paginationHTML += `<button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline'}" 
-                          onclick="changePage(${i})" ${isActive ? 'disabled' : ''}>${i}</button>`;
+        paginationHTML += `<li class="page-item ${isActive ? 'active' : ''}">
+            <button class="page-link" onclick="changePage(${i})">${i}</button>
+        </li>`;
     }
 
     // Next button
     if (currentPage < totalPages) {
-        paginationHTML += `<button class="btn btn-sm btn-outline" onclick="changePage(${currentPage + 1})">Следующая →</button>`;
+        paginationHTML += `<li class="page-item"><button class="page-link" onclick="changePage(${currentPage + 1})">Вперед ›</button></li>`;
     }
 
     paginationContainer.innerHTML = paginationHTML;
@@ -739,79 +1123,27 @@ function updateStatElement(elementId, value) {
     }
 }
 
-function getVectorStatusText(status) {
-    const statusMap = {
-        'ok': 'Активен',
-        'connected': 'Подключен',
-        'error': 'Ошибка',
-        'disconnected': 'Отключен',
-        'unknown': 'Неизвестно'
-    };
-    return statusMap[status] || status;
-}
-
 function renderLanguageStats(languages) {
     const container = document.getElementById('language-stats');
-    if (!container || !languages.length) return;
+    if (!container || !languages.length) {
+        if (container) container.innerHTML = '<div class="text-muted">Нет данных</div>';
+        return;
+    }
 
     const statsHTML = languages.slice(0, 5).map(lang => `
         <div class="stat-item">
             <span class="stat-label">${escapeHtml(lang._id || 'Неизвестно')}</span>
-            <span class="stat-value">${lang.count}</span>
+            <span class="stat-value badge badge-secondary">${lang.count}</span>
         </div>
     `).join('');
 
     container.innerHTML = statsHTML;
-}
-
-function renderCategoryStats(categories) {
-    const container = document.getElementById('category-stats');
-    if (!container || !categories.length) return;
-
-    const statsHTML = categories.slice(0, 5).map(cat => `
-        <div class="stat-item">
-            <span class="stat-label">${escapeHtml(cat._id || 'Без категории')}</span>
-            <span class="stat-value">${cat.count}</span>
-        </div>
-    `).join('');
-
-    container.innerHTML = statsHTML;
-}
-
-function renderRecentUpdates(updates) {
-    const container = document.getElementById('recent-updates');
-    if (!container) return;
-
-    if (!updates.length) {
-        container.innerHTML = '<div class="no-data">Нет недавних обновлений</div>';
-        return;
-    }
-
-    const updatesHTML = updates.map(doc => `
-        <div class="recent-item">
-            <div class="recent-title">${escapeHtml(doc.title)}</div>
-            <div class="recent-meta">
-                <span class="badge badge-primary">${escapeHtml(doc.category)}</span>
-                <small class="text-muted">${new Date(doc.updatedAt).toLocaleDateString('ru-RU')}</small>
-            </div>
-        </div>
-    `).join('');
-
-    container.innerHTML = updatesHTML;
 }
 
 function showLoading(containerId, message = 'Загрузка...') {
     const container = document.getElementById(containerId);
     if (container) {
-        container.innerHTML = `<div class="loading-spinner">${message}</div>`;
-    }
-}
-
-function updateSearchResults(count, query) {
-    const resultsInfo = document.getElementById('search-results-info');
-    if (resultsInfo) {
-        resultsInfo.textContent = `Найдено ${count} результатов по запросу "${query}"`;
-        resultsInfo.style.display = 'block';
+        container.innerHTML = `<div class="text-center text-muted py-4">${message}</div>`;
     }
 }
 
@@ -831,10 +1163,26 @@ function showError(message) {
     }
 }
 
-function showWarning(message) {
-    console.warn('📖 Warning:', message);
-    if (typeof showNotification === 'function') {
-        showNotification('warning', message);
+function showNotification(type, message) {
+    // Use existing notification system or fallback
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(type, message);
+    } else {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+        `;
+        
+        const container = document.getElementById('notification-container') || document.body;
+        container.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
     }
 }
 
@@ -859,28 +1207,27 @@ function renderTestResults(data) {
     if (!container) return;
 
     if (!data.results || data.results.length === 0) {
-        container.innerHTML = '<div class="no-data">Результаты не найдены</div>';
+        container.innerHTML = '<div class="alert alert-info">Результаты не найдены</div>';
         return;
     }
 
     const resultsHTML = `
         <div class="test-results-summary">
-            <h4>Результаты тестового поиска</h4>
-            <p>Запрос: <strong>${escapeHtml(data.query)}</strong></p>
-            <p>Найдено: <strong>${data.totalFound}</strong> результатов</p>
-            <p>Тип поиска: <strong>${data.searchType}</strong></p>
-            <p>Чанкинг: <strong>${data.chunkingUsed ? 'используется' : 'не используется'}</strong></p>
+            <h5>Результаты тестового поиска</h5>
+            <p><strong>Запрос:</strong> ${escapeHtml(data.query)}</p>
+            <p><strong>Найдено:</strong> ${data.totalFound} результатов</p>
+            <p><strong>Тип поиска:</strong> ${data.searchType}</p>
         </div>
         <div class="test-results-list">
             ${data.results.map((result, index) => `
-                <div class="test-result-item">
-                    <h5>${index + 1}. ${escapeHtml(result.title)}</h5>
-                    <div class="result-meta">
+                <div class="test-result-item border-bottom py-2">
+                    <h6>${index + 1}. ${escapeHtml(result.title)}</h6>
+                    <div class="mb-2">
                         <span class="badge badge-info">Релевантность: ${(result.score * 100).toFixed(1)}%</span>
                         <span class="badge badge-secondary">${escapeHtml(result.category)}</span>
                         ${result.isChunk ? '<span class="badge badge-warning">Чанк</span>' : ''}
                     </div>
-                    <div class="result-content">
+                    <div class="result-content text-muted">
                         ${escapeHtml(result.content.substring(0, 300))}...
                     </div>
                 </div>
