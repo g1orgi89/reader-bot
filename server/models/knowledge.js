@@ -1,5 +1,5 @@
 /**
- * Knowledge Document MongoDB Model - Fixed regex validation and search
+ * Knowledge Document MongoDB Model - Reader Bot Categories Support
  * @file server/models/knowledge.js
  */
 
@@ -24,12 +24,29 @@ const knowledgeSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['general', 'user-guide', 'tokenomics', 'technical', 'troubleshooting', 'prompts', 'telegram'],
+    // 📖 ОБНОВЛЕНО: Категории для Reader Bot
+    enum: [
+      'general', 
+      'books', 
+      'psychology', 
+      'self-development', 
+      'relationships', 
+      'productivity', 
+      'mindfulness', 
+      'creativity',
+      // Legacy категории из Shrooms для совместимости
+      'user-guide', 
+      'tokenomics', 
+      'technical', 
+      'troubleshooting', 
+      'prompts', 
+      'telegram'
+    ],
     index: true
   },
   language: {
     type: String,
-    default: 'none', // Изменено с 'auto' на 'none' для совместимости с text index
+    default: 'ru', // 📖 ИЗМЕНЕНО: русский как основной для Reader Bot
     index: true
   },
   tags: [{
@@ -40,7 +57,8 @@ const knowledgeSchema = new mongoose.Schema({
   }],
   authorId: {
     type: String,
-    trim: true
+    trim: true,
+    default: 'admin'
   },
   status: {
     type: String,
@@ -159,7 +177,7 @@ knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
   let escapedQuery;
   try {
     // Escape special regex characters
-    escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    escapedQuery = searchQuery.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
     
     // Test if the regex is valid before using it
     new RegExp(escapedQuery, 'i');
@@ -168,10 +186,10 @@ knowledgeSchema.statics.searchRegex = function(searchQuery, options = {}) {
     console.warn('Regex validation failed, using alternative approach:', error.message);
     
     // Alternative: split into words and search for each word
-    const words = searchQuery.split(/\s+/).filter(word => word.length > 0);
+    const words = searchQuery.split(/\\s+/).filter(word => word.length > 0);
     const wordQueries = words.map(word => {
       // Escape special characters for each word
-      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escaped = word.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
       return {
         $or: [
           { title: { $regex: escaped, $options: 'i' } },
