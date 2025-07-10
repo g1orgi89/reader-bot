@@ -3,6 +3,7 @@
  * @file server/api/knowledge.js
  * 📖 ДОБАВЛЕНО: Функционал загрузки документов для Reader Bot
  * 🔍 ПОДДЕРЖКА: PDF, TXT, DOCX, XLS/XLSX файлов
+ * 🛠 ИСПРАВЛЕНО: Добавлены недостающие CRUD endpoints
  */
 
 console.log('🔍 [KNOWLEDGE] Starting knowledge.js file loading...');
@@ -197,10 +198,10 @@ async function extractTextFromFile(buffer, filename, mimetype) {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
-            allText += `\\n=== ${sheetName} ===\\n`;
+            allText += `\n=== ${sheetName} ===\n`;
             jsonData.forEach(row => {
               if (row.length > 0) {
-                allText += row.filter(cell => cell !== null && cell !== undefined).join(' | ') + '\\n';
+                allText += row.filter(cell => cell !== null && cell !== undefined).join(' | ') + '\n';
               }
             });
           });
@@ -216,7 +217,7 @@ async function extractTextFromFile(buffer, filename, mimetype) {
         try {
           // 🔧 ИСПРАВЛЕНО: Убрали проблемное использование pdf-extract
           // Теперь возвращаем placeholder с инструкцией для ручного ввода
-          return `[PDF Document: ${filename}]\\n\\nПримечание: Автоматическое извлечение текста из PDF файлов требует дополнительной настройки. Пожалуйста, добавьте содержимое вручную или конвертируйте PDF в текстовый формат.`;
+          return `[PDF Document: ${filename}]\n\nПримечание: Автоматическое извлечение текста из PDF файлов требует дополнительной настройки. Пожалуйста, добавьте содержимое вручную или конвертируйте PDF в текстовый формат.`;
         } catch (error) {
           console.error('❌ [KNOWLEDGE] PDF extraction failed:', error.message);
           throw new Error('Извлечение текста из PDF временно недоступно: ' + error.message);
@@ -278,7 +279,7 @@ function detectDocumentCategory(filename, content) {
 function generateDocumentTitle(filename) {
   return path.basename(filename, path.extname(filename))
     .replace(/[-_]/g, ' ')
-    .replace(/\\b\\w/g, l => l.toUpperCase());
+    .replace(/\b\w/g, l => l.toUpperCase());
 }
 
 /**
@@ -453,6 +454,106 @@ router.post('/upload', upload.single('document'), async (req, res) => {
       error: 'Ошибка загрузки документа: ' + error.message,
       errorCode: 'UPLOAD_FAILED',
       details: error.message
+    });
+  }
+});
+
+/**
+ * @route POST /api/reader/knowledge
+ * @desc Create new document manually
+ * @access Admin
+ */
+router.post('/', async (req, res) => {
+  console.log('📝 [KNOWLEDGE] POST / endpoint called - Create document');
+  logger.info('📝 Knowledge API - Creating document manually');
+
+  try {
+    const { title, content, category, language = 'ru', tags = [], status = 'published' } = req.body;
+
+    // Validation
+    if (!title || !content || !category) {
+      return res.status(400).json({
+        success: false,
+        error: 'Поля title, content и category обязательны',
+        errorCode: 'MISSING_REQUIRED_FIELDS'
+      });
+    }
+
+    if (content.length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'Содержание должно быть минимум 10 символов',
+        errorCode: 'CONTENT_TOO_SHORT'
+      });
+    }
+
+    // Prepare document data
+    const documentData = {
+      title: title.substring(0, 200),
+      content: content.substring(0, 50000), // Increased limit for manual entries
+      category,
+      language,
+      tags: Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []),
+      status,
+      authorId: req.user?.id || 'admin',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    console.log('📝 [KNOWLEDGE] Creating document with data:', {
+      title: documentData.title,
+      category: documentData.category,
+      language: documentData.language,
+      tagsCount: documentData.tags.length,
+      contentLength: documentData.content.length
+    });
+
+    // Save document
+    let savedDocument;
+    
+    if (knowledgeService && typeof knowledgeService.createDocument === 'function') {
+      const result = await knowledgeService.createDocument(documentData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save document via service');
+      }
+      savedDocument = result.data;
+    } else if (KnowledgeDocument) {
+      savedDocument = new KnowledgeDocument(documentData);
+      await savedDocument.save();
+    } else {
+      throw new Error('Neither knowledgeService nor KnowledgeDocument model available');
+    }
+
+    console.log('✅ [KNOWLEDGE] Document created successfully:', savedDocument._id);
+
+    res.status(201).json({
+      success: true,
+      message: 'Документ успешно создан',
+      data: {
+        id: savedDocument._id,
+        title: savedDocument.title,
+        category: savedDocument.category,
+        language: savedDocument.language,
+        tags: savedDocument.tags,
+        status: savedDocument.status,
+        contentLength: savedDocument.content.length,
+        createdAt: savedDocument.createdAt
+      }
+    });
+
+    logger.info(`📝 Manual document created: ${savedDocument.title}`, {
+      documentId: savedDocument._id,
+      category: savedDocument.category
+    });
+
+  } catch (error) {
+    console.error('❌ [KNOWLEDGE] Create document error:', error.message);
+    logger.error(`Document creation failed: ${error.message}`);
+
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка создания документа: ' + error.message,
+      errorCode: 'CREATION_FAILED'
     });
   }
 });
@@ -789,45 +890,11 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// Добавляем базовые endpoints для остальных методов
-router.get('/search', async (req, res) => {
-  console.log('🔍 [KNOWLEDGE] GET /search endpoint called');
-  res.json({
-    success: true,
-    data: [],
-    message: 'Search endpoint temporarily disabled - under development'
-  });
-});
-
-// Остальные сложные endpoints временно отключены для диагностики
-router.get('/vector-search', (req, res) => {
-  console.log('🔍 [KNOWLEDGE] GET /vector-search endpoint called');
-  res.json({
-    success: false,
-    error: 'Vector search temporarily disabled',
-    message: 'This endpoint is temporarily disabled for diagnostics'
-  });
-});
-
-router.post('/test-search', (req, res) => {
-  console.log('🔍 [KNOWLEDGE] POST /test-search endpoint called');
-  res.json({
-    success: false,
-    error: 'Test search temporarily disabled',
-    message: 'This endpoint is temporarily disabled for diagnostics'
-  });
-});
-
-router.get('/diagnose', (req, res) => {
-  console.log('🔍 [KNOWLEDGE] GET /diagnose endpoint called');
-  res.json({
-    success: false,
-    error: 'Diagnose temporarily disabled',
-    message: 'This endpoint is temporarily disabled for diagnostics'
-  });
-});
-
-// Простые endpoints для GET /api/reader/knowledge/:id
+/**
+ * @route GET /api/reader/knowledge/:id
+ * @desc Get specific document by ID
+ * @access Public
+ */
 router.get('/:id', async (req, res) => {
   console.log('🔍 [KNOWLEDGE] GET /:id endpoint called with id:', req.params.id);
   
@@ -874,6 +941,223 @@ router.get('/:id', async (req, res) => {
       errorCode: 'RETRIEVAL_ERROR'
     });
   }
+});
+
+/**
+ * @route PUT /api/reader/knowledge/:id
+ * @desc Update existing document
+ * @access Admin
+ */
+router.put('/:id', async (req, res) => {
+  console.log('✏️ [KNOWLEDGE] PUT /:id endpoint called - Update document:', req.params.id);
+  logger.info('✏️ Knowledge API - Updating document:', req.params.id);
+
+  try {
+    const { title, content, category, language, tags, status } = req.body;
+    const documentId = req.params.id;
+
+    // Validation
+    if (!title || !content || !category) {
+      return res.status(400).json({
+        success: false,
+        error: 'Поля title, content и category обязательны',
+        errorCode: 'MISSING_REQUIRED_FIELDS'
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      title: title.substring(0, 200),
+      content: content.substring(0, 50000),
+      category,
+      language: language || 'ru',
+      tags: Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []),
+      status: status || 'published',
+      updatedAt: new Date()
+    };
+
+    console.log('✏️ [KNOWLEDGE] Updating document with data:', {
+      id: documentId,
+      title: updateData.title,
+      category: updateData.category,
+      contentLength: updateData.content.length
+    });
+
+    let updatedDocument;
+
+    if (knowledgeService && typeof knowledgeService.updateDocument === 'function') {
+      const result = await knowledgeService.updateDocument(documentId, updateData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update document via service');
+      }
+      updatedDocument = result.data;
+    } else if (KnowledgeDocument) {
+      updatedDocument = await KnowledgeDocument.findByIdAndUpdate(
+        documentId,
+        updateData,
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedDocument) {
+        return res.status(404).json({
+          success: false,
+          error: 'Документ не найден',
+          errorCode: 'DOCUMENT_NOT_FOUND'
+        });
+      }
+    } else {
+      throw new Error('Neither knowledgeService nor KnowledgeDocument model available');
+    }
+
+    console.log('✅ [KNOWLEDGE] Document updated successfully:', updatedDocument._id);
+
+    res.json({
+      success: true,
+      message: 'Документ успешно обновлен',
+      data: {
+        id: updatedDocument._id,
+        title: updatedDocument.title,
+        category: updatedDocument.category,
+        language: updatedDocument.language,
+        tags: updatedDocument.tags,
+        status: updatedDocument.status,
+        contentLength: updatedDocument.content.length,
+        updatedAt: updatedDocument.updatedAt
+      }
+    });
+
+    logger.info(`✏️ Document updated: ${updatedDocument.title}`, {
+      documentId: updatedDocument._id
+    });
+
+  } catch (error) {
+    console.error('❌ [KNOWLEDGE] Update document error:', error.message);
+    logger.error(`Document update failed: ${error.message}`);
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Неверный ID документа',
+        errorCode: 'INVALID_ID'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка обновления документа: ' + error.message,
+      errorCode: 'UPDATE_FAILED'
+    });
+  }
+});
+
+/**
+ * @route DELETE /api/reader/knowledge/:id
+ * @desc Delete existing document
+ * @access Admin
+ */
+router.delete('/:id', async (req, res) => {
+  console.log('🗑️ [KNOWLEDGE] DELETE /:id endpoint called - Delete document:', req.params.id);
+  logger.info('🗑️ Knowledge API - Deleting document:', req.params.id);
+
+  try {
+    const documentId = req.params.id;
+
+    console.log('🗑️ [KNOWLEDGE] Deleting document with id:', documentId);
+
+    let deletedDocument;
+
+    if (knowledgeService && typeof knowledgeService.deleteDocument === 'function') {
+      const result = await knowledgeService.deleteDocument(documentId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete document via service');
+      }
+      deletedDocument = result.data;
+    } else if (KnowledgeDocument) {
+      deletedDocument = await KnowledgeDocument.findByIdAndDelete(documentId);
+
+      if (!deletedDocument) {
+        return res.status(404).json({
+          success: false,
+          error: 'Документ не найден',
+          errorCode: 'DOCUMENT_NOT_FOUND'
+        });
+      }
+    } else {
+      throw new Error('Neither knowledgeService nor KnowledgeDocument model available');
+    }
+
+    console.log('✅ [KNOWLEDGE] Document deleted successfully:', documentId);
+
+    res.json({
+      success: true,
+      message: 'Документ успешно удален',
+      data: {
+        id: deletedDocument._id,
+        title: deletedDocument.title,
+        deletedAt: new Date()
+      }
+    });
+
+    logger.info(`🗑️ Document deleted: ${deletedDocument.title}`, {
+      documentId: deletedDocument._id
+    });
+
+  } catch (error) {
+    console.error('❌ [KNOWLEDGE] Delete document error:', error.message);
+    logger.error(`Document deletion failed: ${error.message}`);
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Неверный ID документа',
+        errorCode: 'INVALID_ID'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка удаления документа: ' + error.message,
+      errorCode: 'DELETE_FAILED'
+    });
+  }
+});
+
+// Добавляем базовые endpoints для остальных методов
+router.get('/search', async (req, res) => {
+  console.log('🔍 [KNOWLEDGE] GET /search endpoint called');
+  res.json({
+    success: true,
+    data: [],
+    message: 'Search endpoint temporarily disabled - under development'
+  });
+});
+
+// Остальные сложные endpoints временно отключены для диагностики
+router.get('/vector-search', (req, res) => {
+  console.log('🔍 [KNOWLEDGE] GET /vector-search endpoint called');
+  res.json({
+    success: false,
+    error: 'Vector search temporarily disabled',
+    message: 'This endpoint is temporarily disabled for diagnostics'
+  });
+});
+
+router.post('/test-search', (req, res) => {
+  console.log('🔍 [KNOWLEDGE] POST /test-search endpoint called');
+  res.json({
+    success: false,
+    error: 'Test search temporarily disabled',
+    message: 'This endpoint is temporarily disabled for diagnostics'
+  });
+});
+
+router.get('/diagnose', (req, res) => {
+  console.log('🔍 [KNOWLEDGE] GET /diagnose endpoint called');
+  res.json({
+    success: false,
+    error: 'Diagnose temporarily disabled',
+    message: 'This endpoint is temporarily disabled for diagnostics'
+  });
 });
 
 console.log('✅ [KNOWLEDGE] All routes setup complete');
