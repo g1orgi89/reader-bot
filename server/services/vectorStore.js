@@ -3,6 +3,7 @@
  * Предоставляет методы для добавления, поиска и удаления документов
  * ОБНОВЛЕНО: Добавлена поддержка автоматического чанкинга документов
  * 🍄 УПРОЩЕНО: Универсальный поиск без языковых ограничений
+ * 🔧 ИСПРАВЛЕНО: Добавлен timeout для embeddings API для предотвращения зависаний
  */
 
 const { QdrantClient } = require("@qdrant/js-client-rest");
@@ -62,10 +63,14 @@ class VectorStoreService {
    */
   constructor() {
     this.initialized = false;
-    this.collectionName = process.env.VECTOR_COLLECTION_NAME || 'shrooms_knowledge';
+    this.collectionName = process.env.VECTOR_COLLECTION_NAME || 'reader_knowledge';
     this.url = process.env.VECTOR_DB_URL || 'http://localhost:6333';
     this.embeddingModel = process.env.EMBEDDING_MODEL || 'text-embedding-ada-002';
     this.vectorDimension = 1536; // Размерность для text-embedding-ada-002
+    
+    // 🔧 ИСПРАВЛЕНО: Добавлены таймауты для предотвращения зависаний
+    this.embeddingTimeout = 30000; // 30 секунд timeout для embeddings
+    this.maxRetries = 2; // Максимум попыток создания embedding
     
     // Настройки чанкинга по умолчанию
     this.defaultChunkingOptions = {
@@ -86,6 +91,8 @@ class VectorStoreService {
     // Кэш для embeddings для оптимизации запросов
     this.embeddingCache = new Map();
     this.maxCacheSize = 100;
+    
+    logger.info(`🔧 [VECTOR] Embedding timeout configured: ${this.embeddingTimeout}ms`);
   }
 
   /**
@@ -265,30 +272,34 @@ class VectorStoreService {
       
       // Подготовка точек для Qdrant
       const points = [];
+      let successfulChunks = 0;
+      let failedChunks = 0;
       
       for (const chunk of allChunks) {
         try {
           // Проверка наличия обязательных полей
           if (!chunk.id || !chunk.content) {
             logger.warn(`🍄 Chunk missing required fields (id, content): ${JSON.stringify(chunk)}`);
+            failedChunks++;
             continue;
           }
           
           // Добавляем подробное логирование для отслеживания процесса
-          logger.debug(`🍄 Processing chunk ID: ${chunk.id}, content length: ${chunk.content.length} characters`);
+          logger.info(`🍄 Processing chunk ${successfulChunks + 1}/${allChunks.length}: ${chunk.id}, content length: ${chunk.content.length} characters`);
           
           // Создание числового ID из строкового ID (Qdrant требует уникальные числовые ID)
           const pointId = this._createNumericalId(chunk.id.toString());
           
-          // Создание embedding для текста чанка
-          const embedding = await this._createEmbedding(chunk.content);
+          // 🔧 ИСПРАВЛЕНО: Создание embedding с timeout защитой
+          const embedding = await this._createEmbeddingWithTimeout(chunk.content);
           
           if (!embedding || !Array.isArray(embedding) || embedding.length !== 1536) {
             logger.error(`🍄 Invalid embedding for chunk ${chunk.id}: ${embedding ? 'Length: ' + embedding.length : 'null'}`);
+            failedChunks++;
             continue;
           }
           
-          logger.debug(`🍄 Created embedding for chunk ${chunk.id}, embedding size: ${embedding.length}`);
+          logger.info(`🍄 ✅ Successfully created embedding for chunk ${chunk.id}, embedding size: ${embedding.length}`);
           
           // Формирование точки для Qdrant с правильной структурой
           points.push({
@@ -313,17 +324,18 @@ class VectorStoreService {
             }
           });
           
-          logger.debug(`🍄 Successfully processed chunk ${chunk.id} with point ID ${pointId}`);
+          successfulChunks++;
+          logger.info(`🍄 ✅ Successfully processed chunk ${chunk.id} with point ID ${pointId} (${successfulChunks}/${allChunks.length})`);
         } catch (chunkError) {
           logger.error(`🍄 Error processing chunk ${chunk.id}: ${chunkError.message}`);
-          // Продолжаем с другими чанками
+          failedChunks++;
+          // Продолжаем с другими чанками вместо полного прерывания
         }
       }
       
       // Добавление точек в Qdrant
       if (points.length > 0) {
-        // Подробное логирование для отладки
-        logger.debug(`🍄 First point structure sample: ${JSON.stringify(points[0], null, 2).substring(0, 300)}...`);
+        logger.info(`🍄 Successfully processed ${successfulChunks} chunks, failed: ${failedChunks}`);
         logger.info(`🍄 Upserting ${points.length} chunks to Qdrant collection ${this.collectionName}`);
         
         try {
@@ -331,7 +343,7 @@ class VectorStoreService {
           await this.client.upsert(this.collectionName, {
             points: points
           });
-          logger.info(`🍄 Successfully added ${points.length} chunks to vector store (from ${documents.length} documents)`);
+          logger.info(`🍄 ✅ Successfully added ${points.length} chunks to vector store (from ${documents.length} documents)`);
           return true;
         } catch (upsertError) {
           logger.error(`🍄 Upsert error: ${upsertError.message}`);
@@ -449,7 +461,7 @@ class VectorStoreService {
       })}`);
       
       // Создание embedding для запроса
-      const embedding = await this._createEmbedding(query);
+      const embedding = await this._createEmbeddingWithTimeout(query);
       logger.debug(`Created embedding for search query, embedding size: ${embedding.length}`);
       
       // Подготовка фильтра (без language)
@@ -655,7 +667,7 @@ class VectorStoreService {
         collection: {
           name: this.collectionName,
           vectorCount: collectionInfo.points_count || 0,
-          vectorDimension: this.vectorDimension
+          vectorDimension: this.vectorDimension,
         },
         universalThreshold: this.defaultThreshold, // 🍄 ИЗМЕНЕНО: убрали languageThresholds
         chunkingConfig: this.defaultChunkingOptions
@@ -774,12 +786,12 @@ class VectorStoreService {
   }
   
   /**
-   * Создает embedding для текста с использованием кэша
+   * 🔧 ИСПРАВЛЕНО: Создает embedding для текста с timeout защитой и кэшем
    * @private
    * @param {string} text - Текст для создания embedding
    * @returns {Promise<number[]>} Embedding вектор
    */
-  async _createEmbedding(text) {
+  async _createEmbeddingWithTimeout(text) {
     // Очистка и нормализация текста
     const normalizedText = text.trim().toLowerCase();
     
@@ -790,11 +802,15 @@ class VectorStoreService {
     }
     
     try {
-      // Создание нового embedding
-      logger.debug(`Generating new embedding for text (length: ${normalizedText.length})`);
+      // Создание нового embedding с timeout защитой
+      logger.info(`🔧 Creating embedding with timeout ${this.embeddingTimeout}ms for text (length: ${normalizedText.length})`);
       
-      // Попробуем использовать прямой вызов API OpenAI для эмбеддингов
-      const embedding = await this.embeddings.embedQuery(normalizedText);
+      const embedding = await Promise.race([
+        this._createEmbedding(normalizedText),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Embedding timeout after ${this.embeddingTimeout}ms`)), this.embeddingTimeout)
+        )
+      ]);
       
       if (!embedding || !Array.isArray(embedding)) {
         throw new Error('Invalid embedding returned: not an array');
@@ -812,6 +828,33 @@ class VectorStoreService {
         logger.debug('Embedding cache limit reached, removing oldest entry');
       }
       this.embeddingCache.set(normalizedText, embedding);
+      
+      logger.info(`🔧 ✅ Successfully created embedding, dimension: ${embedding.length}`);
+      return embedding;
+    } catch (error) {
+      logger.error(`🔧 ❌ Error creating embedding with timeout: ${error.message}`);
+      throw error;
+    }
+  }
+  
+  /**
+   * Создает embedding для текста с использованием кэша (базовый метод)
+   * @private
+   * @param {string} text - Текст для создания embedding
+   * @returns {Promise<number[]>} Embedding вектор
+   */
+  async _createEmbedding(text) {
+    try {
+      // Попробуем использовать прямой вызов API OpenAI для эмбеддингов
+      const embedding = await this.embeddings.embedQuery(text);
+      
+      if (!embedding || !Array.isArray(embedding)) {
+        throw new Error('Invalid embedding returned: not an array');
+      }
+      
+      if (embedding.length !== this.vectorDimension) {
+        throw new Error(`Unexpected embedding dimension: got ${embedding.length}, expected ${this.vectorDimension}`);
+      }
       
       return embedding;
     } catch (error) {
@@ -845,7 +888,7 @@ class VectorStoreService {
       const testThreshold = this._getThreshold(threshold);
       
       // Создание embedding для запроса
-      const embedding = await this._createEmbedding(query);
+      const embedding = await this._createEmbeddingWithTimeout(query);
       
       // Выполнение поиска с различными порогами для сравнения
       const thresholds = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1];
@@ -945,7 +988,7 @@ class VectorStoreService {
       // Проверка создания эмбеддингов
       let embeddingStatus = { status: 'unknown' };
       try {
-        const testEmbedding = await this._createEmbedding('test embedding for diagnostics');
+        const testEmbedding = await this._createEmbeddingWithTimeout('test embedding for diagnostics');
         embeddingStatus = {
           status: 'ok',
           message: 'Embedding creation works',
@@ -998,6 +1041,7 @@ class VectorStoreService {
           url: this.url,
           collectionName: this.collectionName,
           embeddingModel: this.embeddingModel,
+          embeddingTimeout: this.embeddingTimeout,
           cacheSize: this.embeddingCache.size,
           maxCacheSize: this.maxCacheSize,
           universalThreshold: this.defaultThreshold, // 🍄 ИЗМЕНЕНО
