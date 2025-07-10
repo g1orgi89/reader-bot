@@ -1249,3 +1249,359 @@ document.addEventListener('DOMContentLoaded', function() {
         initKnowledgePage();
     }
 });
+
+// ========================================
+// УЛУЧШЕННЫЕ ФУНКЦИИ ДЛЯ НОВОГО UI/UX
+// ========================================
+
+/**
+ * Get category display name with emoji
+ */
+function getCategoryDisplayName(category) {
+    const categories = {
+        'books': '📚 Книги',
+        'psychology': '🧠 Психология',
+        'self-development': '✨ Саморазвитие',
+        'relationships': '💕 Отношения',
+        'productivity': '⚡ Продуктивность',
+        'mindfulness': '🧘 Осознанность',
+        'creativity': '🎨 Творчество',
+        'general': '📖 Общие'
+    };
+    return categories[category] || 'Неизвестно';
+}
+
+/**
+ * Get status display name
+ */
+function getStatusDisplayName(status) {
+    return status === 'published' ? 'Опубликован' : 'Черновик';
+}
+
+/**
+ * Get language display name
+ */
+function getLanguageDisplayName(language) {
+    const languages = {
+        'ru': 'Русский',
+        'en': 'English',
+        'auto': 'Авто'
+    };
+    return languages[language] || 'Неизвестно';
+}
+
+/**
+ * Render tags with limit
+ */
+function renderTags(tags) {
+    if (!tags || tags.length === 0) return '<span class="text-muted">—</span>';
+    
+    const visibleTags = tags.slice(0, 3);
+    const hiddenCount = tags.length - 3;
+    
+    let html = visibleTags.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('');
+    
+    if (hiddenCount > 0) {
+        html += `<span class="text-muted">+${hiddenCount}</span>`;
+    }
+    
+    return html;
+}
+
+/**
+ * Show table loading state
+ */
+function showTableLoading() {
+    const tableBody = document.querySelector('#documents-table tbody');
+    if (tableBody) {
+        tableBody.innerHTML = `
+            <tr class="table-loading">
+                <td colspan="7">
+                    <div class="loading-spinner"></div>
+                    📚 Загрузка документов...
+                </td>
+            </tr>
+        `;
+    }
+}
+
+/**
+ * Show table error state
+ */
+function showTableError(message) {
+    const tableBody = document.querySelector('#documents-table tbody');
+    if (tableBody) {
+        tableBody.innerHTML = `
+            <tr class="table-error">
+                <td colspan="7" class="text-center">
+                    ❌ ${message}
+                    <br>
+                    <button class="btn btn-secondary" onclick="loadDocuments()">🔄 Повторить</button>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+/**
+ * Enhanced modal management
+ */
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeModal() {
+    const activeModal = document.querySelector('.modal-overlay.active');
+    if (activeModal) {
+        activeModal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+/**
+ * Enhanced debounce function
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/**
+ * Switch upload tabs in modal
+ */
+function switchUploadTab(tabName) {
+    const fileTab = document.getElementById('file-upload-tab');
+    const manualTab = document.getElementById('manual-upload-tab');
+    const fileTabBtn = document.querySelector('.tab-button:first-child');
+    const manualTabBtn = document.querySelector('.tab-button:last-child');
+    const uploadBtn = document.getElementById('upload-btn');
+
+    if (tabName === 'file') {
+        if (fileTab) fileTab.style.display = 'block';
+        if (manualTab) manualTab.style.display = 'none';
+        if (fileTabBtn) fileTabBtn.classList.add('active');
+        if (manualTabBtn) manualTabBtn.classList.remove('active');
+        if (uploadBtn) uploadBtn.textContent = '📁 Загрузить документ';
+    } else {
+        if (fileTab) fileTab.style.display = 'none';
+        if (manualTab) manualTab.style.display = 'block';
+        if (fileTabBtn) fileTabBtn.classList.remove('active');
+        if (manualTabBtn) manualTabBtn.classList.add('active');
+        if (uploadBtn) uploadBtn.textContent = '💾 Создать документ';
+    }
+}
+
+/**
+ * Enhanced file upload setup
+ */
+function setupFileUploadEvents() {
+    const fileInput = document.getElementById('document-file');
+    const uploadArea = document.getElementById('file-upload-area');
+    const fileInfo = document.getElementById('file-info');
+
+    if (!fileInput || !uploadArea) return;
+
+    // File input change event
+    fileInput.addEventListener('change', handleFileSelect);
+
+    // Drag and drop events
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+
+    uploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect();
+        }
+    });
+
+    // Click to select file
+    uploadArea.addEventListener('click', (e) => {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+}
+
+/**
+ * Handle file selection and validation
+ */
+function handleFileSelect() {
+    const fileInput = document.getElementById('document-file');
+    const fileInfo = document.getElementById('file-info');
+    const titleInput = document.getElementById('doc-title');
+    
+    if (!fileInput || fileInput.files.length === 0) {
+        if (fileInfo) fileInfo.style.display = 'none';
+        return;
+    }
+
+    const file = fileInput.files[0];
+    
+    // File validation
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = [
+        'text/plain',
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+    ];
+
+    if (file.size > maxSize) {
+        showError('Файл слишком большой. Максимальный размер: 10MB');
+        fileInput.value = '';
+        if (fileInfo) fileInfo.style.display = 'none';
+        return;
+    }
+
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    const allowedExtensions = ['txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls'];
+    
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+        showError('Неподдерживаемый тип файла. Разрешены: PDF, TXT, DOCX, XLS/XLSX');
+        fileInput.value = '';
+        if (fileInfo) fileInfo.style.display = 'none';
+        return;
+    }
+
+    // Auto-fill title if empty
+    if (titleInput && !titleInput.value.trim()) {
+        const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+        titleInput.value = fileName.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Show file info
+    if (fileInfo) {
+        fileInfo.innerHTML = `
+            <div class="selected-file">
+                <div class="file-icon">${getFileIcon(fileExtension)}</div>
+                <div class="file-details">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${formatFileSize(file.size)}</div>
+                </div>
+                <button type="button" class="remove-file" onclick="removeSelectedFile()">×</button>
+            </div>
+        `;
+        fileInfo.style.display = 'block';
+    }
+}
+
+/**
+ * Remove selected file
+ */
+function removeSelectedFile() {
+    const fileInput = document.getElementById('document-file');
+    const fileInfo = document.getElementById('file-info');
+    
+    if (fileInput) fileInput.value = '';
+    if (fileInfo) fileInfo.style.display = 'none';
+}
+
+/**
+ * Get file icon based on extension
+ */
+function getFileIcon(extension) {
+    const icons = {
+        'pdf': '📄',
+        'txt': '📝',
+        'docx': '📘',
+        'doc': '📘',
+        'xlsx': '📊',
+        'xls': '📊'
+    };
+    return icons[extension] || '📄';
+}
+
+/**
+ * Format file size for display
+ */
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Upload document (enhanced version)
+ */
+async function uploadDocument() {
+    const activeTab = document.querySelector('.upload-tab-content[style*="block"], .upload-tab-content.active');
+    const isFileUpload = activeTab && activeTab.id === 'file-upload-tab';
+    
+    if (isFileUpload) {
+        await uploadFileDocument();
+    } else {
+        await uploadManualDocument();
+    }
+}
+
+/**
+ * Show upload progress
+ */
+function showUploadProgress(message) {
+    const progress = document.getElementById('upload-progress');
+    const progressText = document.getElementById('progress-text');
+    const uploadBtn = document.getElementById('upload-btn');
+    
+    if (progress) progress.style.display = 'block';
+    if (progressText) progressText.textContent = message;
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Загрузка...';
+    }
+    
+    updateUploadProgress(10, message);
+}
+
+/**
+ * Update upload progress
+ */
+function updateUploadProgress(percent, message) {
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    
+    if (progressFill) progressFill.style.width = percent + '%';
+    if (message && progressText) progressText.textContent = message;
+}
+
+/**
+ * Hide upload progress
+ */
+function hideUploadProgress() {
+    const progress = document.getElementById('upload-progress');
+    const uploadBtn = document.getElementById('upload-btn');
+    
+    if (progress) progress.style.display = 'none';
+    if (uploadBtn) {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = '📁 Загрузить документ';
+    }
+}
+
+console.log('📚 Enhanced UI/UX functions loaded successfully');
