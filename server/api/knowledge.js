@@ -1065,6 +1065,7 @@ router.delete('/:id', async (req, res) => {
     console.log('🗑️ [KNOWLEDGE] Deleting document with id:', documentId);
 
     let deletedDocument;
+    let documentInfo = { id: documentId, title: 'Неизвестно' }; // Default info
 
     if (knowledgeService && typeof knowledgeService.deleteDocument === 'function') {
       const result = await knowledgeService.deleteDocument(documentId);
@@ -1072,6 +1073,20 @@ router.delete('/:id', async (req, res) => {
         throw new Error(result.error || 'Failed to delete document via service');
       }
       deletedDocument = result.data;
+      
+      // 🔧 ИСПРАВЛЕНО: Проверяем что deletedDocument существует и имеет _id
+      if (deletedDocument && deletedDocument._id) {
+        documentInfo = {
+          id: deletedDocument._id,
+          title: deletedDocument.title || 'Документ удален'
+        };
+      } else {
+        // Если deletedDocument не содержит _id, используем ID из параметров
+        documentInfo = {
+          id: documentId,
+          title: deletedDocument?.title || 'Документ удален'
+        };
+      }
     } else if (KnowledgeDocument) {
       deletedDocument = await KnowledgeDocument.findByIdAndDelete(documentId);
 
@@ -1082,6 +1097,11 @@ router.delete('/:id', async (req, res) => {
           errorCode: 'DOCUMENT_NOT_FOUND'
         });
       }
+
+      documentInfo = {
+        id: deletedDocument._id,
+        title: deletedDocument.title
+      };
     } else {
       throw new Error('Neither knowledgeService nor KnowledgeDocument model available');
     }
@@ -1092,14 +1112,14 @@ router.delete('/:id', async (req, res) => {
       success: true,
       message: 'Документ успешно удален',
       data: {
-        id: deletedDocument._id,
-        title: deletedDocument.title,
+        id: documentInfo.id,
+        title: documentInfo.title,
         deletedAt: new Date()
       }
     });
 
-    logger.info(`🗑️ Document deleted: ${deletedDocument.title}`, {
-      documentId: deletedDocument._id
+    logger.info(`🗑️ Document deleted: ${documentInfo.title}`, {
+      documentId: documentInfo.id
     });
 
   } catch (error) {
