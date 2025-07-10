@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📚 База Знаний - Читатель Админ</title>
+    <title>📚 База знаний - Читатель Админ</title>
     <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/knowledge.css">
     <meta name="description" content="База знаний для проекта 'Читатель' - книги, разборы и психологические материалы">
     <!-- Подключение шрифтов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +32,7 @@
                     <li><a href="reports.html">📈 Отчеты</a></li>
                     <li><a href="tickets.html">🎫 Обращения</a></li>
                     <li><a href="knowledge.html" class="active">📚 База знаний</a></li>
-                    <li><a href="prompts.html">💭 Промпты</a></li>
+                    <li><a href="prompts.html">🤖 Промпты</a></li>
                 </ul>
             </nav>
             
@@ -44,11 +43,29 @@
         </header>
         
         <!-- Main content -->
-        <main class="admin-content knowledge-content">
-            <div class="knowledge-header">
-                <h2>📚 База Знаний "Читателя"</h2>
-                <div class="knowledge-actions">
-                    <div class="filter-group">
+        <main class="admin-content">
+            <div class="dashboard-header">
+                <h2>📚 База знаний "Читателя"</h2>
+                <div class="dashboard-controls">
+                    <button id="refresh-knowledge" class="btn btn-secondary">
+                        🔄 Обновить
+                    </button>
+                    <button id="new-document-btn" class="btn btn-primary">
+                        📝 Новый документ
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Фильтры и поиск -->
+            <div class="glow-card mb-4">
+                <h3>🔍 Поиск и фильтры</h3>
+                <div class="filters-grid">
+                    <div class="form-group">
+                        <label for="search-input">Поиск в документах:</label>
+                        <input type="text" id="search-input" class="form-control" placeholder="🔍 Поиск по названию или содержимому...">
+                    </div>
+                    <div class="form-group">
+                        <label for="category-filter">Категория:</label>
                         <select id="category-filter" class="select-glow">
                             <option value="">Все категории</option>
                             <option value="books">📚 Книги</option>
@@ -60,162 +77,193 @@
                             <option value="creativity">🎨 Творчество</option>
                             <option value="general">📖 Общие</option>
                         </select>
-                        
-                        <input type="text" id="tags-filter" placeholder="🏷️ Фильтр по тегам..." class="search-input">
-                        
-                        <input type="text" id="search-input" placeholder="🔍 Поиск в базе знаний..." class="search-input">
                     </div>
-                    
-                    <div class="action-buttons">
-                        <button id="search-btn" class="btn btn-secondary btn-glow">
-                            <span class="btn-text">🔍 Поиск</span>
-                        </button>
-                        
-                        <button id="reset-search-btn" class="btn btn-secondary btn-glow">
-                            <span class="btn-text">🔄 Сброс</span>
-                        </button>
-                        
-                        <button id="new-document-btn" class="btn btn-primary btn-glow">
-                            <span class="btn-text">📝 Новый документ</span>
-                            <span class="btn-icon">📚</span>
-                        </button>
+                    <div class="form-group">
+                        <label for="status-filter">Статус:</label>
+                        <select id="status-filter" class="select-glow">
+                            <option value="">Все статусы</option>
+                            <option value="published">Опубликовано</option>
+                            <option value="draft">Черновик</option>
+                        </select>
                     </div>
+                    <div class="form-group">
+                        <label for="tags-filter">Теги:</label>
+                        <input type="text" id="tags-filter" class="form-control" placeholder="🏷️ Фильтр по тегам...">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button id="search-btn" class="btn btn-primary">🔍 Поиск</button>
+                    <button id="reset-search-btn" class="btn btn-secondary">🔄 Сброс</button>
                 </div>
             </div>
             
-            <!-- Loading indicator -->
-            <div id="loading-indicator" class="loading-indicator" style="display: none;">
-                📚 Загрузка...
+            <!-- Статистика базы знаний -->
+            <div class="stats-cards">
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>📚 Всего документов</h3>
+                        <div class="stat-icon">📊</div>
+                    </div>
+                    <div class="stat-value" id="total-docs">—</div>
+                    <div class="stat-change neutral" id="docs-change">База знаний</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>✅ Опубликовано</h3>
+                        <div class="stat-icon">🌟</div>
+                    </div>
+                    <div class="stat-value" id="published-docs">—</div>
+                    <div class="stat-change positive" id="published-change">Доступно боту</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>📝 Черновики</h3>
+                        <div class="stat-icon">⏳</div>
+                    </div>
+                    <div class="stat-value" id="draft-docs">—</div>
+                    <div class="stat-change warning" id="draft-change">В работе</div>
+                </div>
+                
+                <div class="stat-card glow-card">
+                    <div class="stat-header">
+                        <h3>🤖 AI индексация</h3>
+                        <div class="stat-icon">🔗</div>
+                    </div>
+                    <div class="stat-value" id="vector-store-stats">—</div>
+                    <div class="stat-change neutral" id="vector-change">Векторное хранилище</div>
+                </div>
             </div>
             
-            <!-- Knowledge base documents -->
-            <div class="knowledge-container glow-card">
-                <div class="table-container">
-                    <div class="empty-state" id="empty-state" style="display: none;">
-                        <div class="empty-state-icon">📚</div>
-                        <h3>Пока нет материалов в библиотеке</h3>
-                        <p>Добавьте первый материал в базу знаний "Читателя"</p>
-                        <button class="btn btn-primary btn-glow" onclick="createNewDocument()">
-                            <span class="btn-text">📝 Добавить Материал</span>
-                        </button>
+            <!-- Список документов -->
+            <div class="glow-card">
+                <div class="section-header">
+                    <h3>📋 Список документов</h3>
+                    <div class="table-controls">
+                        <span class="results-count">Найдено: <span id="results-count">0</span> документов</span>
                     </div>
-                    
+                </div>
+                
+                <div class="table-container">
                     <table class="data-table" id="documents-table">
                         <thead>
                             <tr>
-                                <th class="col-title">Название</th>
-                                <th class="col-category">Категория</th>
-                                <th class="col-language">Язык</th>
-                                <th class="col-tags">Теги</th>
-                                <th class="col-status">Статус</th>
-                                <th class="col-actions">Действия</th>
+                                <th>Название</th>
+                                <th>Категория</th>
+                                <th>Язык</th>
+                                <th>Теги</th>
+                                <th>Статус</th>
+                                <th>Обновлен</th>
+                                <th>Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="table-loading">
-                                <td colspan="6">📚 Загрузка документов...</td>
+                                <td colspan="7">
+                                    <div class="loading-spinner"></div>
+                                    📚 Загрузка документов...
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 
-                <!-- Pagination -->
-                <div class="pagination-container">
-                    <div class="pagination-info">
-                        <span id="results-info">Загрузка...</span>
-                    </div>
-                    <div class="pagination-controls">
-                        <ul class="pagination" id="pagination">
-                            <!-- Pagination will be inserted here -->
-                        </ul>
-                    </div>
+                <!-- Пагинация -->
+                <div class="pagination" id="knowledge-pagination">
+                    <!-- Будет заполнено JavaScript -->
                 </div>
             </div>
             
-            <!-- RAG Index controls -->
-            <div class="rag-index-container glow-card">
+            <!-- Управление AI индексом -->
+            <div class="glow-card">
                 <div class="section-header">
-                    <h3>🔍 Управление AI Индексом</h3>
-                    <div class="last-updated">Последняя индексация: <span id="rag-last-indexed">--</span></div>
-                </div>
-                
-                <div class="rag-stats">
-                    <div class="rag-stat">
-                        <label>📚 Всего документов:</label>
-                        <span id="total-docs">--</span>
-                    </div>
-                    
-                    <div class="rag-stat">
-                        <label>✅ Опубликовано:</label>
-                        <span id="published-docs">--</span>
-                    </div>
-                    
-                    <div class="rag-stat">
-                        <label>📝 Черновиков:</label>
-                        <span id="draft-docs">--</span>
-                    </div>
-                    
-                    <div class="rag-stat">
-                        <label>🗃️ Векторное хранилище:</label>
-                        <span id="vector-store-stats">--</span>
-                    </div>
-                    
-                    <div class="rag-stat">
-                        <label>🔧 Чанкинг:</label>
-                        <span id="chunking-status">--</span>
+                    <h3>🤖 Управление AI индексом</h3>
+                    <div class="last-updated">
+                        <span class="text-muted">Последняя синхронизация: </span>
+                        <span id="rag-last-indexed">—</span>
                     </div>
                 </div>
                 
-                <div class="language-stats">
-                    <h4>📊 Статистика по языкам:</h4>
-                    <div id="language-stats">
-                        <div class="text-muted">Загрузка...</div>
-                    </div>
-                </div>
-                
-                <div class="rag-actions">
-                    <button id="sync-vector-btn" class="btn btn-primary btn-subtle">
-                        <span class="btn-text">🔄 Синхронизировать с Vector Store</span>
+                <div class="ai-actions">
+                    <button id="sync-vector-btn" class="btn btn-primary">
+                        🔄 Синхронизировать с AI
                     </button>
-                    
-                    <button id="test-rag-btn" class="btn btn-secondary btn-subtle">
-                        <span class="btn-text">🧪 Тестировать RAG Поиск</span>
+                    <button id="test-rag-btn" class="btn btn-secondary">
+                        🧪 Тестировать поиск
                     </button>
-                    
-                    <button id="diagnose-rag" class="btn btn-secondary btn-subtle">
-                        <span class="btn-text">🩺 Диагностика</span>
+                    <button id="diagnose-rag" class="btn btn-secondary">
+                        🩺 Диагностика
                     </button>
                 </div>
                 
-                <div class="rag-info">
-                    <p>💡 <strong>Совет от Анны:</strong> Регулярно синхронизируйте материалы с AI индексом для более точных рекомендаций книг и анализа цитат!</p>
+                <div class="ai-info">
+                    <div class="alert alert-info">
+                        <strong>💡 Совет от Анны:</strong> Регулярно синхронизируйте материалы с AI индексом для более точных рекомендаций книг и анализа цитат!
+                    </div>
                 </div>
             </div>
         </main>
         
         <!-- Footer -->
         <footer class="admin-footer">
-            <p>📚 "Читатель" - База Знаний для Анализа Цитат и Рекомендаций</p>
+            <p>📚 "Читатель" - База знаний для анализа цитат и рекомендаций</p>
             <p class="copyright">© 2025 Анна Бусел. Все права защищены.</p>
         </footer>
     </div>
     
-    <!-- Document Modal -->
-    <div class="modal fade" id="document-modal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Документ</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <!-- Content will be inserted here -->
-                </div>
-                <div class="modal-footer">
-                    <!-- Footer buttons will be inserted here -->
-                </div>
+    <!-- Модальные окна -->
+    
+    <!-- Модальное окно просмотра документа -->
+    <div class="modal-overlay" id="document-view-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📄 Просмотр документа</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="document-view-content">
+                <div class="loading-spinner"></div>
+                Загрузка документа...
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно редактирования документа -->
+    <div class="modal-overlay" id="document-edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Редактирование документа</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="document-edit-content">
+                <div class="loading-spinner"></div>
+                Загрузка формы редактирования...
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно загрузки документа -->
+    <div class="modal-overlay" id="document-upload-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📁 Загрузить документ</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="document-upload-content">
+                <!-- Будет заполнено JavaScript -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно тестирования поиска -->
+    <div class="modal-overlay" id="test-search-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔍 Тестирование поиска</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="test-search-content">
+                <!-- Будет заполнено JavaScript -->
             </div>
         </div>
     </div>
@@ -224,20 +272,14 @@
     <div class="notification-container" id="notification-container"></div>
     
     <!-- Scripts -->
-    <!-- ВАЖНО: Загружаем auth.js ПЕРВЫМ (как в рабочих примерах) -->
     <script src="js/auth.js"></script>
-    <!-- Затем main.js -->
     <script src="js/main.js"></script>
-    <!-- jQuery and Bootstrap -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <!-- ЗАТЕМ загружаем knowledge.js -->
     <script src="js/knowledge.js"></script>
     
     <script>
         /**
          * 📖 Инициализация страницы управления базой знаний "Читатель"
-         * УПРОЩЕНО: Используем паттерн из dashboard.html и users.html
+         * В стиле других страниц админ-панели
          */
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📚 Инициализация страницы базы знаний...');
@@ -259,7 +301,68 @@
             if (typeof initReaderMatrix === 'function') {
                 initReaderMatrix(true);
             }
+            
+            // Дополнительные обработчики для улучшенного UI
+            setupAdditionalEventListeners();
         });
+        
+        /**
+         * Дополнительные обработчики событий для улучшенного UI
+         */
+        function setupAdditionalEventListeners() {
+            // Обработчики для модальных окон
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-close') || e.target.classList.contains('modal-overlay')) {
+                    closeModal();
+                }
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+            
+            // Обработчики для фильтров
+            document.getElementById('status-filter')?.addEventListener('change', applyFilters);
+            document.getElementById('tags-filter')?.addEventListener('input', debounce(applyFilters, 500));
+            
+            // Обработчик для обновления данных
+            document.getElementById('refresh-knowledge')?.addEventListener('click', refreshKnowledgeData);
+            
+            console.log('📚 Дополнительные обработчики событий настроены');
+        }
+        
+        /**
+         * Применение фильтров
+         */
+        function applyFilters() {
+            if (typeof loadDocuments === 'function') {
+                loadDocuments();
+            }
+        }
+        
+        /**
+         * Обновление данных страницы
+         */
+        async function refreshKnowledgeData() {
+            try {
+                showNotification('info', 'Обновление данных...');
+                
+                if (typeof loadDocuments === 'function') {
+                    await loadDocuments();
+                }
+                
+                if (typeof loadRAGStats === 'function') {
+                    await loadRAGStats();
+                }
+                
+                showNotification('success', 'Данные обновлены');
+            } catch (error) {
+                console.error('❌ Ошибка обновления данных:', error);
+                showNotification('error', 'Ошибка обновления данных');
+            }
+        }
         
         /**
          * Функция показа уведомлений (fallback как в index.html)
@@ -275,7 +378,7 @@
             notification.className = `notification notification-${type}`;
             notification.innerHTML = `
                 <div class="notification-content">
-                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : '📖'}</span>
+                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '📖'}</span>
                     <span class="notification-message">${message}</span>
                 </div>
                 <button class="notification-close" onclick="this.parentElement.remove()">×</button>
@@ -290,6 +393,349 @@
                 }
             }, 5000);
         }
+        
+        /**
+         * Закрытие модального окна
+         */
+        function closeModal() {
+            const activeModal = document.querySelector('.modal-overlay.active');
+            if (activeModal) {
+                activeModal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+        
+        /**
+         * Открытие модального окна
+         */
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        
+        /**
+         * Debounce функция
+         */
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        /**
+         * Глобальные функции для документов (расширяем knowledge.js)
+         */
+        window.viewDocument = function(documentId) {
+            console.log('📄 Просмотр документа:', documentId);
+            
+            const modalContent = document.getElementById('document-view-content');
+            modalContent.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    📖 Загрузка документа...
+                </div>
+            `;
+            
+            openModal('document-view-modal');
+            
+            // Тут должна быть загрузка документа через API
+            // Для примера показываем заглушку
+            setTimeout(() => {
+                modalContent.innerHTML = `
+                    <div class="document-content">
+                        <h4>📄 Документ #${documentId}</h4>
+                        <p>Содержимое документа будет загружено из API...</p>
+                        <div class="document-actions">
+                            <button class="btn btn-primary" onclick="editDocument('${documentId}')">✏️ Редактировать</button>
+                            <button class="btn btn-danger" onclick="deleteDocument('${documentId}')">🗑️ Удалить</button>
+                        </div>
+                    </div>
+                `;
+            }, 1000);
+        };
+        
+        window.editDocument = function(documentId) {
+            console.log('✏️ Редактирование документа:', documentId);
+            
+            closeModal(); // Закрываем предыдущее модальное окно
+            
+            const modalContent = document.getElementById('document-edit-content');
+            modalContent.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    📝 Загрузка формы редактирования...
+                </div>
+            `;
+            
+            openModal('document-edit-modal');
+            
+            // Тут должна быть загрузка формы редактирования через API
+            setTimeout(() => {
+                modalContent.innerHTML = `
+                    <form id="edit-document-form">
+                        <div class="form-group">
+                            <label for="edit-title">Название документа:</label>
+                            <input type="text" id="edit-title" class="form-control" value="Пример названия">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-category">Категория:</label>
+                            <select id="edit-category" class="select-glow">
+                                <option value="psychology">🧠 Психология</option>
+                                <option value="books">📚 Книги</option>
+                                <option value="self-development">✨ Саморазвитие</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-status">Статус:</label>
+                            <select id="edit-status" class="select-glow">
+                                <option value="published">Опубликован</option>
+                                <option value="draft">Черновик</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-tags">Теги:</label>
+                            <input type="text" id="edit-tags" class="form-control" placeholder="теги через запятую">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">💾 Сохранить изменения</button>
+                        </div>
+                    </form>
+                `;
+            }, 1000);
+        };
+        
+        window.deleteDocument = function(documentId) {
+            console.log('🗑️ Удаление документа:', documentId);
+            
+            if (confirm('Вы уверены, что хотите удалить этот документ? Это действие нельзя отменить.')) {
+                showNotification('info', 'Удаление документа...');
+                
+                // Тут должно быть удаление через API
+                setTimeout(() => {
+                    showNotification('success', 'Документ успешно удален');
+                    closeModal();
+                    refreshKnowledgeData(); // Обновляем список
+                }, 1000);
+            }
+        };
+        
+        /**
+         * Создание нового документа
+         */
+        window.createNewDocument = function() {
+            console.log('📝 Создание нового документа');
+            
+            // Используем существующую функцию из knowledge.js
+            if (typeof showUploadDocumentModal === 'function') {
+                showUploadDocumentModal();
+            } else {
+                showNotification('error', 'Функция загрузки документов не найдена');
+            }
+        };
     </script>
+    
+    <style>
+        /* Дополнительные стили для улучшенного UI страницы базы знаний */
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+        
+        .table-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .results-count {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .ai-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .ai-info {
+            margin-top: 1rem;
+        }
+        
+        .document-content {
+            padding: 1rem;
+        }
+        
+        .document-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .loading-container {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+        
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--reader-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .category-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .category-books { background: var(--reader-gold); color: var(--dark-bg); }
+        .category-psychology { background: #9b59b6; color: var(--text-white); }
+        .category-self-development { background: #e67e22; color: var(--text-white); }
+        .category-relationships { background: #e91e63; color: var(--text-white); }
+        .category-productivity { background: #3498db; color: var(--text-white); }
+        .category-mindfulness { background: #1abc9c; color: var(--text-white); }
+        .category-creativity { background: #f39c12; color: var(--dark-bg); }
+        .category-general { background: var(--reader-brown); color: var(--text-white); }
+        
+        .status-published { background: var(--success-color); color: var(--text-white); }
+        .status-draft { background: var(--warning-color); color: var(--dark-bg); }
+        
+        .tag-badge {
+            display: inline-block;
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid var(--reader-gold);
+            color: var(--reader-gold);
+            padding: 0.1rem 0.4rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-right: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .table-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .last-updated {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .pagination button {
+            min-width: 40px;
+            height: 40px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-light);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .pagination button:hover {
+            background: var(--hover-bg);
+            border-color: var(--reader-gold);
+            color: var(--reader-gold);
+        }
+        
+        .pagination button.active {
+            background: var(--reader-gold);
+            border-color: var(--reader-gold);
+            color: var(--dark-bg);
+            font-weight: 600;
+        }
+        
+        .data-table tr {
+            cursor: pointer;
+            transition: background-color var(--transition-fast);
+        }
+        
+        .data-table tr:hover {
+            background: rgba(212, 175, 55, 0.05);
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+        }
+        
+        .alert-info {
+            background: rgba(52, 152, 219, 0.1);
+            border-left-color: var(--info-color);
+            color: var(--text-light);
+        }
+        
+        @media (max-width: 768px) {
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .ai-actions {
+                flex-direction: column;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .table-actions {
+                flex-direction: column;
+            }
+            
+            .dashboard-controls {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
 </body>
 </html>
