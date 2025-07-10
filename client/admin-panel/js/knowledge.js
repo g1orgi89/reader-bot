@@ -1376,8 +1376,6 @@ async function deleteDocument(documentId) {
         showError('Ошибка удаления: ' + error.message);
     }
 }
-    }
-}
 
 function renderTestResults(data) {
     const container = document.getElementById('test-results');
