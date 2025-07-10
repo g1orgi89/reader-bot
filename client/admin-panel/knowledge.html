@@ -245,30 +245,35 @@
     <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
     <script src="js/knowledge.js"></script>
-    <script src="js/knowledge-patch.js"></script> <!-- ПАТЧ ДЛЯ ИСПРАВЛЕНИЯ ПРОБЛЕМ -->
+    <script src="js/knowledge-debug-patch.js"></script> <!-- 🔧 ПАТЧ ДЛЯ ИСПРАВЛЕНИЯ ПРОБЛЕМ -->
     
     <script>
         /**
          * 📖 Инициализация страницы управления базой знаний "Читатель"
-         * ИСПРАВЛЕНО: Убрана рекурсия в showNotification + подключен патч
+         * 🔧 ОБНОВЛЕНО: Подключен новый debug патч для исправления загрузки документов
          */
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('📚 Инициализация страницы базы знаний...');
+            console.log('📚 Инициализация страницы базы знаний с debug патчем...');
             
-            // Ждем загрузки всех скриптов
+            // Ждем загрузки всех скриптов включая патч
             setTimeout(() => {
                 // Проверка авторизации
                 if (typeof checkAuthStatus === 'function') {
                     checkAuthStatus();
                 }
                 
-                // Инициализация страницы
+                // Инициализация страницы - теперь с патчем
                 if (typeof initKnowledgePage === 'function') {
-                    console.log('📚 Вызов initKnowledgePage...');
+                    console.log('📚 Вызов оригинального initKnowledgePage...');
                     initKnowledgePage();
                 } else {
-                    console.error('📚 Функция initKnowledgePage не найдена');
-                    showKnowledgeNotification('error', 'Ошибка загрузки страницы базы знаний');
+                    console.log('📚 Оригинальный initKnowledgePage не найден, используем патч...');
+                }
+                
+                // Принудительно загружаем документы через патч
+                console.log('📚 Принудительная загрузка документов через патч...');
+                if (typeof window.loadDocuments === 'function') {
+                    window.loadDocuments();
                 }
                 
                 // Инициализируем книжную анимацию
@@ -277,7 +282,7 @@
                 }
                 
                 setupAdditionalEventListeners();
-            }, 100);
+            }, 200); // Увеличили время ожидания для загрузки патча
         });
         
         /**
@@ -286,6 +291,28 @@
         function setupAdditionalEventListeners() {
             // Обработчик для обновления данных
             document.getElementById('refresh-knowledge')?.addEventListener('click', refreshKnowledgeData);
+            
+            // Добавим кнопку для тестирования API
+            const debugBtn = document.createElement('button');
+            debugBtn.textContent = '🔍 Тест API';
+            debugBtn.className = 'btn btn-secondary';
+            debugBtn.onclick = async () => {
+                console.log('📚 Тестируем API...');
+                try {
+                    const response = await fetch('/api/reader/knowledge/stats');
+                    const data = await response.json();
+                    console.log('📚 Ответ API:', data);
+                    alert('API работает! Проверьте консоль для деталей.');
+                } catch (error) {
+                    console.error('📚 Ошибка API:', error);
+                    alert('Ошибка API: ' + error.message);
+                }
+            };
+            
+            const dashboardControls = document.querySelector('.dashboard-controls');
+            if (dashboardControls) {
+                dashboardControls.appendChild(debugBtn);
+            }
             
             console.log('📚 Дополнительные обработчики событий настроены');
         }
@@ -297,7 +324,10 @@
             try {
                 showKnowledgeNotification('info', 'Обновление данных...');
                 
-                if (typeof loadDocuments === 'function') {
+                // Используем функцию из патча
+                if (typeof window.loadDocuments === 'function') {
+                    await window.loadDocuments();
+                } else if (typeof loadDocuments === 'function') {
                     await loadDocuments();
                 }
                 
@@ -308,12 +338,12 @@
                 showKnowledgeNotification('success', 'Данные обновлены');
             } catch (error) {
                 console.error('❌ Ошибка обновления данных:', error);
-                showKnowledgeNotification('error', 'Ошибка обновления данных');
+                showKnowledgeNotification('error', 'Ошибка обновления данных: ' + error.message);
             }
         }
         
         /**
-         * ИСПРАВЛЕНО: Уникальная функция уведомлений без рекурсии
+         * 🔧 ИСПРАВЛЕНО: Уникальная функция уведомлений без рекурсии
          */
         function showKnowledgeNotification(type, message) {
             const container = document.getElementById('notification-container');
