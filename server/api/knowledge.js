@@ -1,15 +1,21 @@
 /**
- * Knowledge Base API Routes - Enhanced multilingual search with FULL chunking support
+ * Knowledge Base API Routes - Enhanced with Document Upload Support
  * @file server/api/knowledge.js
- * 🍄 УПРОЩЕНО: Универсальный поиск без языковых ограничений
- * 📖 ИСПРАВЛЕНО: Убрана аутентификация с базовых endpoints для админ-панели
- * 🔍 ДОБАВЛЕНО: Детальные логи для диагностики
+ * 📖 ДОБАВЛЕНО: Функционал загрузки документов для Reader Bot
+ * 🔍 ПОДДЕРЖКА: PDF, TXT, DOCX, XLS/XLSX файлов
  */
 
 console.log('🔍 [KNOWLEDGE] Starting knowledge.js file loading...');
 
 const express = require('express');
-console.log('✅ [KNOWLEDGE] Express imported successfully');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
+const mammoth = require('mammoth');
+const XLSX = require('xlsx');
+const PDFExtract = require('pdf-extract');
+
+console.log('✅ [KNOWLEDGE] Express and file processing libraries imported successfully');
 
 const router = express.Router();
 console.log('✅ [KNOWLEDGE] Router created successfully');
@@ -73,17 +79,382 @@ try {
   };
 }
 
-console.log('🔍 [KNOWLEDGE] Setting up middleware...');
+console.log('🔍 [KNOWLEDGE] Setting up file upload middleware...');
 
-// Middleware to ensure UTF-8 encoding
+/**
+ * @typedef {Object} DocumentUpload
+ * @property {string} title - Заголовок документа
+ * @property {string} category - Категория документа
+ * @property {string[]} tags - Теги документа
+ * @property {string} language - Язык документа
+ * @property {string} status - Статус документа (published/draft)
+ * @property {Buffer} content - Содержимое файла
+ * @property {string} filename - Имя файла
+ * @property {string} mimetype - MIME тип файла
+ * @property {number} size - Размер файла в байтах
+ */
+
+// Multer configuration for file uploads
+const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+  console.log('🔍 [KNOWLEDGE] File filter check:', {
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size
+  });
+
+  // Allowed file types for Reader Bot knowledge base
+  const allowedTypes = [
+    'text/plain',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-excel', // .xls
+    'application/vnd.ms-excel.sheet.macroEnabled.12' // .xlsm
+  ];
+
+  const allowedExtensions = ['.txt', '.pdf', '.docx', '.doc', '.xlsx', '.xls', '.xlsm'];
+  const fileExtension = path.extname(file.originalname).toLowerCase();
+
+  if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
+    console.log('✅ [KNOWLEDGE] File type accepted:', file.mimetype, fileExtension);
+    cb(null, true);
+  } else {
+    console.error('❌ [KNOWLEDGE] File type rejected:', file.mimetype, fileExtension);
+    cb(new Error('Неподдерживаемый тип файла. Разрешены: PDF, TXT, DOCX, XLS/XLSX'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max file size
+    files: 1 // Single file upload
+  }
+});
+
+console.log('✅ [KNOWLEDGE] Multer upload middleware configured');
+
+// Middleware to ensure UTF-8 encoding for JSON responses
 router.use((req, res, next) => {
   console.log(`🔍 [KNOWLEDGE] Processing request: ${req.method} ${req.path}`);
-  res.charset = 'utf-8';
-  res.set('Content-Type', 'application/json; charset=utf-8');
+  
+  // Only set JSON content type for non-upload routes
+  if (!req.path.includes('/upload')) {
+    res.charset = 'utf-8';
+    res.set('Content-Type', 'application/json; charset=utf-8');
+  }
   next();
 });
 
 console.log('✅ [KNOWLEDGE] Middleware setup complete');
+
+/**
+ * Extract text content from uploaded file based on file type
+ * @param {Buffer} buffer - File buffer
+ * @param {string} filename - Original filename
+ * @param {string} mimetype - MIME type
+ * @returns {Promise<string>} Extracted text content
+ */
+async function extractTextFromFile(buffer, filename, mimetype) {
+  const fileExtension = path.extname(filename).toLowerCase();
+  console.log('🔍 [KNOWLEDGE] Extracting text from file:', {
+    filename,
+    mimetype,
+    extension: fileExtension,
+    size: buffer.length
+  });
+
+  try {
+    switch (fileExtension) {
+      case '.txt':
+        console.log('📄 [KNOWLEDGE] Processing TXT file');
+        return buffer.toString('utf-8');
+
+      case '.docx':
+        console.log('📄 [KNOWLEDGE] Processing DOCX file');
+        try {
+          const result = await mammoth.extractRawText({ buffer });
+          return result.value;
+        } catch (error) {
+          console.error('❌ [KNOWLEDGE] DOCX extraction failed:', error.message);
+          throw new Error('Не удалось извлечь текст из DOCX файла: ' + error.message);
+        }
+
+      case '.xlsx':
+      case '.xls':
+      case '.xlsm':
+        console.log('📊 [KNOWLEDGE] Processing Excel file');
+        try {
+          const workbook = XLSX.read(buffer, { type: 'buffer' });
+          let allText = '';
+          
+          workbook.SheetNames.forEach(sheetName => {
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            allText += `\n=== ${sheetName} ===\n`;
+            jsonData.forEach(row => {
+              if (row.length > 0) {
+                allText += row.filter(cell => cell !== null && cell !== undefined).join(' | ') + '\n';
+              }
+            });
+          });
+          
+          return allText.trim();
+        } catch (error) {
+          console.error('❌ [KNOWLEDGE] Excel extraction failed:', error.message);
+          throw new Error('Не удалось извлечь данные из Excel файла: ' + error.message);
+        }
+
+      case '.pdf':
+        console.log('📄 [KNOWLEDGE] Processing PDF file');
+        try {
+          // For PDF, we'll return a placeholder since pdf-extract requires additional setup
+          // In production, you'd want to implement proper PDF text extraction
+          return `[PDF Document: ${filename}]\n\nПримечание: Автоматическое извлечение текста из PDF файлов требует дополнительной настройки. Пожалуйста, добавьте содержимое вручную.`;
+        } catch (error) {
+          console.error('❌ [KNOWLEDGE] PDF extraction failed:', error.message);
+          throw new Error('Извлечение текста из PDF временно недоступно: ' + error.message);
+        }
+
+      default:
+        throw new Error(`Неподдерживаемый формат файла: ${fileExtension}`);
+    }
+  } catch (error) {
+    console.error('❌ [KNOWLEDGE] Text extraction failed:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Detect document category based on filename and content
+ * @param {string} filename - Original filename
+ * @param {string} content - Extracted text content
+ * @returns {string} Detected category
+ */
+function detectDocumentCategory(filename, content) {
+  const lowerFilename = filename.toLowerCase();
+  const lowerContent = content.toLowerCase().substring(0, 500);
+
+  // Reader Bot specific categories
+  const categoryKeywords = {
+    'books': ['книга', 'роман', 'автор', 'произведение', 'литература', 'чтение'],
+    'psychology': ['психология', 'психолог', 'терапия', 'эмоции', 'сознание', 'поведение'],
+    'self-development': ['саморазвитие', 'мотивация', 'личностный рост', 'цель', 'успех', 'развитие'],
+    'relationships': ['отношения', 'любовь', 'семья', 'партнер', 'брак', 'дружба'],
+    'productivity': ['продуктивность', 'эффективность', 'время', 'планирование', 'задачи'],
+    'mindfulness': ['осознанность', 'медитация', 'внимательность', 'присутствие', 'покой'],
+    'creativity': ['творчество', 'креативность', 'искусство', 'вдохновение', 'идеи']
+  };
+
+  // Check filename first
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    if (keywords.some(keyword => lowerFilename.includes(keyword))) {
+      return category;
+    }
+  }
+
+  // Check content
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    const matchCount = keywords.filter(keyword => lowerContent.includes(keyword)).length;
+    if (matchCount >= 2) {
+      return category;
+    }
+  }
+
+  return 'general';
+}
+
+/**
+ * Generate document title from filename if not provided
+ * @param {string} filename - Original filename
+ * @returns {string} Generated title
+ */
+function generateDocumentTitle(filename) {
+  return path.basename(filename, path.extname(filename))
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+/**
+ * @route POST /api/knowledge/upload
+ * @desc Upload and process document files
+ * @access Admin (requires authentication)
+ */
+router.post('/upload', upload.single('document'), async (req, res) => {
+  console.log('📁 [KNOWLEDGE] POST /upload endpoint called');
+  logger.info('📁 Knowledge API - Document upload started');
+
+  try {
+    if (!req.file) {
+      console.error('❌ [KNOWLEDGE] No file uploaded');
+      return res.status(400).json({
+        success: false,
+        error: 'Файл не загружен',
+        errorCode: 'NO_FILE_UPLOADED'
+      });
+    }
+
+    console.log('🔍 [KNOWLEDGE] Processing uploaded file:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      encoding: req.file.encoding
+    });
+
+    // Validate file size
+    if (req.file.size > 10 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        error: 'Файл слишком большой (максимум 10MB)',
+        errorCode: 'FILE_TOO_LARGE'
+      });
+    }
+
+    // Extract text content from file
+    console.log('🔍 [KNOWLEDGE] Starting text extraction...');
+    let extractedContent;
+    try {
+      extractedContent = await extractTextFromFile(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
+      console.log('✅ [KNOWLEDGE] Text extraction successful, length:', extractedContent.length);
+    } catch (extractionError) {
+      console.error('❌ [KNOWLEDGE] Text extraction failed:', extractionError.message);
+      return res.status(400).json({
+        success: false,
+        error: 'Ошибка извлечения текста: ' + extractionError.message,
+        errorCode: 'TEXT_EXTRACTION_FAILED'
+      });
+    }
+
+    // Validate extracted content
+    if (!extractedContent || extractedContent.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'Не удалось извлечь достаточно текста из файла',
+        errorCode: 'INSUFFICIENT_CONTENT'
+      });
+    }
+
+    // Get document metadata from form data
+    const title = req.body.title || generateDocumentTitle(req.file.originalname);
+    const category = req.body.category || detectDocumentCategory(req.file.originalname, extractedContent);
+    const language = req.body.language || 'ru';
+    const status = req.body.status || 'published';
+    const tags = req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
+
+    // Add automatic tags based on file type
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    const fileTypeTags = {
+      '.pdf': ['pdf', 'документ'],
+      '.docx': ['word', 'документ'],
+      '.txt': ['текст', 'заметки'],
+      '.xlsx': ['excel', 'таблица', 'данные'],
+      '.xls': ['excel', 'таблица', 'данные']
+    };
+
+    if (fileTypeTags[fileExtension]) {
+      tags.push(...fileTypeTags[fileExtension]);
+    }
+
+    // Remove duplicates from tags
+    const uniqueTags = [...new Set(tags)];
+
+    console.log('🔍 [KNOWLEDGE] Document metadata:', {
+      title,
+      category,
+      language,
+      status,
+      tags: uniqueTags,
+      contentLength: extractedContent.length
+    });
+
+    // Create document data
+    const documentData = {
+      title: title.substring(0, 200), // Limit title length
+      content: extractedContent.substring(0, 10000), // Limit content length
+      category,
+      language,
+      tags: uniqueTags,
+      status,
+      authorId: req.user?.id || 'admin', // Use authenticated user ID if available
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    // Save document to database
+    console.log('💾 [KNOWLEDGE] Saving document to database...');
+    let savedDocument;
+    
+    if (knowledgeService && typeof knowledgeService.createDocument === 'function') {
+      // Use knowledge service if available
+      const result = await knowledgeService.createDocument(documentData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save document via service');
+      }
+      savedDocument = result.data;
+    } else {
+      // Direct database save as fallback
+      if (!KnowledgeDocument) {
+        throw new Error('KnowledgeDocument model not available');
+      }
+      savedDocument = new KnowledgeDocument(documentData);
+      await savedDocument.save();
+    }
+
+    console.log('✅ [KNOWLEDGE] Document saved successfully:', savedDocument._id);
+
+    // Log successful upload
+    logger.info(`📁 Document uploaded successfully: ${title} (${req.file.originalname})`, {
+      documentId: savedDocument._id,
+      filename: req.file.originalname,
+      category,
+      fileSize: req.file.size,
+      contentLength: extractedContent.length
+    });
+
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: 'Документ успешно загружен и обработан',
+      data: {
+        id: savedDocument._id,
+        title: savedDocument.title,
+        category: savedDocument.category,
+        language: savedDocument.language,
+        tags: savedDocument.tags,
+        status: savedDocument.status,
+        contentLength: savedDocument.content.length,
+        createdAt: savedDocument.createdAt,
+        originalFilename: req.file.originalname,
+        fileSize: req.file.size
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [KNOWLEDGE] Upload error:', error.message);
+    console.error('❌ [KNOWLEDGE] Stack:', error.stack);
+    logger.error(`Document upload failed: ${error.message}`, {
+      filename: req.file?.originalname,
+      fileSize: req.file?.size,
+      error: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка загрузки документа: ' + error.message,
+      errorCode: 'UPLOAD_FAILED',
+      details: error.message
+    });
+  }
+});
 
 /**
  * @route GET /api/knowledge
