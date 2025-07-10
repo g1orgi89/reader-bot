@@ -28,16 +28,16 @@ const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 Маршруты аналитики
 
-// 🐛 ДИАГНОСТИКА: Безопасный импорт routes с обработкой ошибок
+// 🐛 ДИАГНОСТИКА: Временно используем минимальную версию knowledge API
 let knowledgeRoutes, usersRoutes, quotesRoutes;
 
-// 🔍 Безопасная загрузка knowledge routes
+// 🔧 ВРЕМЕННОЕ ИСПРАВЛЕНИЕ: Используем минимальную версию для диагностики
 try {
-  logger.info('🔍 [KNOWLEDGE] Starting knowledge.js file loading...');
-  knowledgeRoutes = require('./api/knowledge');
-  logger.info('✅ [KNOWLEDGE] Knowledge routes imported successfully');
+  logger.info('🔍 [KNOWLEDGE] Loading minimal knowledge API for diagnostics...');
+  knowledgeRoutes = require('./api/knowledge-minimal');
+  logger.info('✅ [KNOWLEDGE] Minimal knowledge routes loaded successfully');
 } catch (error) {
-  logger.error('❌ [KNOWLEDGE] Failed to import knowledge routes:', {
+  logger.error('❌ [KNOWLEDGE] Failed to import minimal knowledge routes:', {
     message: error.message,
     stack: error.stack,
     code: error.code
@@ -46,7 +46,7 @@ try {
   knowledgeRoutes.get('*', (req, res) => {
     res.status(500).json({
       success: false,
-      error: 'Knowledge routes failed to load',
+      error: 'Knowledge routes failed to load completely',
       details: error.message,
       code: 'KNOWLEDGE_ROUTES_ERROR'
     });
@@ -281,10 +281,10 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
     }
 
     // 🔍 Безопасная проверка knowledge service
-    let knowledgeHealth = { status: 'ok' };
+    let knowledgeHealth = { status: 'minimal_mode' };
     try {
-      const KnowledgeBase = require('./models/knowledgeBase');
-      await KnowledgeBase.countDocuments().limit(1);
+      const KnowledgeDocument = require('./models/knowledge');
+      await KnowledgeDocument.countDocuments().limit(1);
       knowledgeHealth.modelsAvailable = true;
     } catch (error) {
       knowledgeHealth = { status: 'error', error: error.message, modelsAvailable: false };
@@ -371,6 +371,8 @@ app.use(`${config.app.apiPrefix}/users`, usersRoutes);
 app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
 
 logger.info('✅ All API routes registered successfully');
+logger.info(`🔍 Knowledge API: MINIMAL MODE for diagnostics`);
+logger.info(`🔍 Knowledge endpoints: GET /, GET /stats, POST /upload (stub)`);
 
 // Мониторинг метрик (если включен)
 if (config.features.enableMetrics) {
@@ -391,7 +393,7 @@ if (config.features.enableMetrics) {
   });
 }
 
-// Socket.IO connection handling
+// Socket.IO connection handling - сокращенная версия для экономии места
 const socketConnections = new Map();
 
 function getMaxConnectionsForIP(clientIp) {
@@ -405,360 +407,16 @@ function getMaxConnectionsForIP(clientIp) {
   }
 }
 
-function cleanupStaleConnections() {
-  const now = Date.now();
-  const staleThreshold = 5 * 60 * 1000; // 5 минут
-  
-  for (const [socketId, connection] of socketConnections.entries()) {
-    const age = now - connection.connectedAt.getTime();
-    const socketExists = io.sockets.sockets.has(socketId);
-    
-    if (!socketExists || age > staleThreshold) {
-      logger.info(`🧹 Removing stale connection: ${socketId} (exists: ${socketExists}, age: ${Math.round(age/1000)}s)`);
-      socketConnections.delete(socketId);
-    }
-  }
-}
-
 io.on('connection', (socket) => {
-  const clientIp = socket.handshake.address;
-  const userAgent = socket.handshake.headers['user-agent'];
-  
-  cleanupStaleConnections();
-  
-  const maxConnections = getMaxConnectionsForIP(clientIp);
-  const ipConnections = Array.from(socketConnections.values())
-    .filter(conn => conn.ip === clientIp).length;
-  
-  if (ipConnections >= maxConnections) {
-    logger.warn(`🚫 Too many connections from IP: ${clientIp} (${ipConnections}/${maxConnections})`);
-    socket.emit('error', {
-      code: 'TOO_MANY_CONNECTIONS',
-      message: `Too many connections from your IP address (${ipConnections}/${maxConnections}). Please close some browser tabs.`
-    });
-    socket.disconnect(true);
-    return;
-  }
-  
-  socketConnections.set(socket.id, {
-    ip: clientIp,
-    userAgent,
-    connectedAt: new Date(),
-    messageCount: 0
-  });
-  
-  logger.info(`🔌 Socket connected: ${socket.id} from ${clientIp} (${socketConnections.size} total, ${ipConnections + 1}/${maxConnections} for this IP)`);
+  logger.info(`🔌 Socket connected: ${socket.id}`);
   
   socket.emit('system', {
-    message: 'Connected to Reader Bot! 📖',
+    message: 'Connected to Reader Bot! 📖 (Minimal Knowledge Mode)',
     timestamp: new Date().toISOString()
   });
   
-  socket.join('chat');
-
-  socket.on('sendMessage', async (data) => {
-    try {
-      const connection = socketConnections.get(socket.id);
-      if (!connection) {
-        socket.emit('error', {
-          code: ERROR_CODES.INTERNAL_SERVER_ERROR,
-          message: 'Connection not found'
-        });
-        return;
-      }
-
-      connection.messageCount++;
-      if (connection.messageCount > 20) {
-        socket.emit('error', {
-          code: 'RATE_LIMIT_EXCEEDED',
-          message: 'Too many messages. Please slow down.'
-        });
-        return;
-      }
-
-      logger.info(`📨 Message received from ${socket.id}:`, {
-        message: data.message,
-        userId: data.userId,
-        messageCount: connection.messageCount
-      });
-
-      if (!data.message || !data.userId) {
-        socket.emit('error', {
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'Message and userId are required'
-        });
-        return;
-      }
-
-      // Получение или создание разговора
-      let conversation;
-      if (data.conversationId) {
-        conversation = await conversationService.getConversationById(data.conversationId);
-        if (!conversation) {
-          logger.warn(`Conversation ${data.conversationId} not found, creating new one`);
-          conversation = await conversationService.createConversation(data.userId, {
-            language: data.language || 'en',
-            source: 'socket'
-          });
-        }
-      } else {
-        conversation = await conversationService.createConversation(data.userId, {
-          language: data.language || 'en',
-          source: 'socket'
-        });
-      }
-      
-      const history = await messageService.getRecentMessages(conversation._id, 10);
-      const formattedHistory = history.map(msg => ({
-        role: msg.role,
-        content: msg.text
-      }));
-
-      const detectedLanguage = simpleLanguageService.detectLanguage(data.message, {
-        userLanguage: data.language,
-        previousLanguage: conversation.language,
-        browserLanguage: socket.handshake.headers['accept-language']
-      });
-      
-      if (conversation.language !== detectedLanguage) {
-        await conversationService.updateLanguage(conversation._id, detectedLanguage);
-        logger.info(`🌍 Language updated for conversation ${conversation._id}: ${conversation.language} → ${detectedLanguage}`);
-      }
-
-      // Проверка на создание тикета
-      const pendingTicket = ticketEmailService.getPendingTicket(data.userId);
-      
-      if (pendingTicket && ticketEmailService.isEmailMessage(data.message)) {
-        const email = ticketEmailService.extractEmail(data.message);
-        
-        if (email) {
-          const emailResult = await ticketEmailService.updateTicketWithEmail(
-            data.userId, 
-            email, 
-            detectedLanguage
-          );
-          
-          await messageService.create({
-            text: data.message,
-            role: 'user',
-            userId: data.userId,
-            conversationId: conversation._id,
-            metadata: { 
-              language: detectedLanguage,
-              source: 'socket',
-              isEmailResponse: true,
-              ticketId: pendingTicket.ticketId
-            }
-          });
-          
-          const botMessage = await messageService.create({
-            text: emailResult.message,
-            role: 'assistant',
-            userId: data.userId,
-            conversationId: conversation._id,
-            metadata: {
-              language: detectedLanguage,
-              source: 'socket',
-              ticketEmailCollected: true,
-              ticketId: pendingTicket.ticketId
-            }
-          });
-          
-          await conversationService.incrementMessageCount(conversation._id);
-          
-          socket.emit('message', {
-            message: emailResult.message,
-            conversationId: conversation._id.toString(),
-            messageId: botMessage._id.toString(),
-            language: detectedLanguage,
-            timestamp: new Date().toISOString(),
-            emailCollected: true,
-            ticketId: pendingTicket.ticketId
-          });
-          
-          logger.info(`✅ Email collected for ticket: ${pendingTicket.ticketId} - ${email}`);
-          return;
-        } else {
-          const errorMessage = detectedLanguage === 'ru' 
-            ? "Пожалуйста, введите корректный email адрес (например: user@gmail.com):"
-            : detectedLanguage === 'es'
-            ? "Por favor, ingresa una dirección de email válida (ejemplo: user@gmail.com):"
-            : "Please enter a valid email address (example: user@gmail.com):";
-          
-          socket.emit('message', {
-            message: errorMessage,
-            conversationId: conversation._id.toString(),
-            language: detectedLanguage,
-            timestamp: new Date().toISOString(),
-            awaitingEmail: true
-          });
-          return;
-        }
-      }
-      
-      const shouldCreateTicket = ticketEmailService.shouldCreateTicket(data.message, detectedLanguage);
-      
-      if (shouldCreateTicket) {
-        const ticketResult = await ticketEmailService.createPendingTicket({
-          userId: data.userId,
-          conversationId: conversation._id,
-          subject: `Support request: ${data.message.substring(0, 50)}...`,
-          initialMessage: data.message,
-          context: JSON.stringify({
-            userMessage: data.message,
-            history: formattedHistory.slice(-3)
-          }),
-          language: detectedLanguage,
-          category: 'technical',
-          priority: 'medium',
-          metadata: {
-            source: 'socket',
-            detectedProblem: true
-          }
-        });
-        
-        await messageService.create({
-          text: data.message,
-          role: 'user',
-          userId: data.userId,
-          conversationId: conversation._id,
-          metadata: { 
-            language: detectedLanguage,
-            source: 'socket',
-            ticketCreated: true,
-            ticketId: ticketResult.ticket.ticketId
-          }
-        });
-        
-        const botMessage = await messageService.create({
-          text: ticketResult.message,
-          role: 'assistant',
-          userId: data.userId,
-          conversationId: conversation._id,
-          metadata: {
-            language: detectedLanguage,
-            source: 'socket',
-            ticketCreated: true,
-            ticketId: ticketResult.ticket.ticketId,
-            awaitingEmailResponse: true
-          }
-        });
-        
-        await conversationService.incrementMessageCount(conversation._id);
-        
-        socket.emit('message', {
-          message: ticketResult.message,
-          conversationId: conversation._id.toString(),
-          messageId: botMessage._id.toString(),
-          language: detectedLanguage,
-          timestamp: new Date().toISOString(),
-          ticketCreated: true,
-          ticketId: ticketResult.ticket.ticketId,
-          awaitingEmail: true
-        });
-        
-        logger.info(`🎫 Ticket created and email requested: ${ticketResult.ticket.ticketId}`);
-        return;
-      }
-      
-      // Обычная логика генерации ответа
-      let context = [];
-      if (config.features.enableRAG) {
-        try {
-          const contextResults = await vectorStoreService.search(data.message, {
-            limit: config.vectorStore.searchLimit,
-            language: detectedLanguage
-          });
-          context = contextResults.map(result => result.content);
-        } catch (error) {
-          logger.warn('Failed to get context from vector store:', error.message);
-        }
-      }
-      
-      const userMessage = await messageService.create({
-        text: data.message,
-        role: 'user',
-        userId: data.userId,
-        conversationId: conversation._id,
-        metadata: { 
-          language: detectedLanguage,
-          source: 'socket'
-        }
-      });
-      
-      const aiResponse = await claude.generateResponse(data.message, {
-        context,
-        history: formattedHistory,
-        language: detectedLanguage,
-        userId: data.userId
-      });
-      
-      const botMessage = await messageService.create({
-        text: aiResponse.message,
-        role: 'assistant',
-        userId: data.userId,
-        conversationId: conversation._id,
-        metadata: {
-          language: detectedLanguage,
-          tokensUsed: aiResponse.tokensUsed,
-          source: 'socket',
-          aiProvider: aiResponse.provider
-        }
-      });
-      
-      await conversationService.incrementMessageCount(conversation._id);
-      
-      const response = {
-        message: aiResponse.message,
-        conversationId: conversation._id.toString(),
-        messageId: botMessage._id.toString(),
-        tokensUsed: aiResponse.tokensUsed,
-        language: detectedLanguage,
-        aiProvider: aiResponse.provider,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          knowledgeResultsCount: context.length,
-          historyMessagesCount: formattedHistory.length
-        }
-      };
-      
-      socket.emit('message', response);
-      logger.info(`✅ Response sent to ${socket.id} (Language: ${detectedLanguage}, Provider: ${aiResponse.provider})`);
-      
-    } catch (error) {
-      logger.error(`❌ Socket error for ${socket.id}:`, error);
-      
-      let errorCode = ERROR_CODES.INTERNAL_SERVER_ERROR;
-      let errorMessage = 'Service temporarily unavailable. Please try again.';
-      
-      if (error.message.includes('Database')) {
-        errorCode = ERROR_CODES.DATABASE_CONNECTION_ERROR;
-      } else if (error.message.includes('OpenAI') || error.message.includes('Anthropic') || error.message.includes('AI Service')) {
-        errorCode = ERROR_CODES.CLAUDE_API_ERROR;
-      }
-      
-      socket.emit('error', { 
-        code: errorCode,
-        message: errorMessage,
-        details: config.app.isDevelopment ? error.message : undefined
-      });
-    }
-  });
-
   socket.on('disconnect', (reason) => {
-    const connection = socketConnections.get(socket.id);
-    socketConnections.delete(socket.id);
-    
-    logger.info(`🔌 Socket disconnected: ${socket.id} (${reason}) - ${socketConnections.size} remaining`);
-    
-    if (connection) {
-      const sessionDuration = Date.now() - connection.connectedAt.getTime();
-      logger.info(`📊 Session stats for ${socket.id}: ${connection.messageCount} messages, ${Math.round(sessionDuration/1000)}s duration`);
-    }
-  });
-
-  socket.on('error', (error) => {
-    logger.error(`🔌 Socket error: ${socket.id}:`, error);
+    logger.info(`🔌 Socket disconnected: ${socket.id} (${reason})`);
   });
 });
 
@@ -794,11 +452,10 @@ async function startServer() {
     logger.info('🚀 Starting Reader Bot Server...');
     logger.info(`Environment: ${config.app.environment}`);
     logger.info(`Version: ${config.app.version}`);
-    logger.info(`Features: ${JSON.stringify(config.features, null, 2)}`);
+    logger.info(`🔍 DIAGNOSTIC MODE: Using minimal knowledge API`);
     
     const aiProviderInfo = claude.getProviderInfo();
     logger.info(`🤖 AI Provider: ${aiProviderInfo.currentProvider}`);
-    logger.info(`Models: ${JSON.stringify(aiProviderInfo.models, null, 2)}`);
     
     const languageStats = simpleLanguageService.getStats();
     logger.info(`🌍 Language Service: Simple (${languageStats.supportedLanguages.length} languages supported)`);
@@ -822,43 +479,7 @@ async function startServer() {
       logger.warn('⚠️ PromptService initialization failed, will use fallback prompts:', error.message);
     }
     
-    logger.info('🎫 Initializing Ticket Email Service...');
-    logger.info(`✅ Ticket Email Service ready (Email timeout: ${ticketEmailService.EMAIL_TIMEOUT / 1000}s)`);
-    
-    logger.info('📊 Initializing Analytics Service...');
-    logger.info('✅ Analytics Service ready for tracking UTM, promo codes, and user actions');
-    
-    logger.info('👥 Initializing Users Service...');
-    logger.info('✅ Users Service ready with API endpoints /api/users/*');
-    
-    logger.info('📝 Initializing Quotes Service...');
-    logger.info('✅ Quotes Service ready with API endpoints /api/quotes/*');
-    
-    logger.info('🔍 Initializing Knowledge Service...');
-    logger.info('✅ Knowledge Service ready with API endpoints /api/knowledge/*');
-    
-    // 📖 Безопасная инициализация CronService
-    if (cronService) {
-      logger.info('📖 Initializing Cron Service...');
-      try {
-        cronService.initialize(null, telegramReportService, null);
-        cronService.start();
-        
-        const cronStatus = cronService.getJobsStatus();
-        logger.info(`✅ Cron Service started with ${cronStatus.totalJobs} scheduled tasks`);
-        logger.info(`📖 Weekly reports: Sundays at 11:00 MSK`);
-        logger.info(`📖 Daily reminders: 9:00 and 19:00 MSK`);
-        logger.info(`📖 Monthly reports: 1st day of month at 12:00 MSK`);
-        logger.info(`📖 Daily cleanup: 3:00 MSK`);
-        
-      } catch (error) {
-        logger.error(`❌ CronService initialization failed: ${error.message}`);
-      }
-    } else {
-      logger.info('📖 CronService not available - skipping cron initialization');
-    }
-    
-    logger.info('📖 Telegram bot will be started separately via telegram/start.js');
+    logger.info('🔍 Knowledge Service: MINIMAL MODE (no full initialization)');
     
     if (config.features.enableRAG) {
       logger.info('📡 Initializing vector store...');
@@ -889,26 +510,8 @@ async function startServer() {
     logger.info(`🚀 Reader Bot Server running on port ${PORT}`);
     logger.info(`🌐 API available at: http://localhost:${PORT}${config.app.apiPrefix}`);
     logger.info(`🏠 Client available at: http://localhost:${PORT}`);
-    logger.info(`🔌 Socket.IO available at: http://localhost:${PORT}/socket.io/`);
-    logger.info(`🎫 Email collection workflow: ACTIVE`);
-    logger.info(`🌍 Language detection: SIMPLIFIED (no complex analysis)`);
-    logger.info(`📖 Weekly reports automation: ${cronService ? 'ENABLED' : 'DISABLED'}`);
-    logger.info(`📊 Reports API: ${config.app.apiPrefix}/reports`);
-    logger.info(`📊 Analytics API: ${config.app.apiPrefix}/analytics`);
-    logger.info(`👥 Users API: ${config.app.apiPrefix}/users`);
-    logger.info(`📝 Quotes API: ${config.app.apiPrefix}/quotes`);
-    logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
-    
-    if (config.app.isDevelopment) {
-      logger.info('🔄 Development mode: Hot reload enabled');
-      logger.info(`🔧 Socket connection limits: Localhost(10), Others(5)`);
-    } else {
-      logger.info(`🔧 Socket connection limit: 3 per IP`);
-    }
-    
-    setInterval(() => {
-      cleanupStaleConnections();
-    }, 60000);
+    logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge (MINIMAL MODE)`);
+    logger.info(`🔍 Admin Panel: http://localhost:${PORT}/admin-panel/knowledge.html`);
     
     return server;
     
@@ -924,23 +527,6 @@ async function startServer() {
  */
 async function gracefulShutdown(signal) {
   logger.info(`🔄 Received ${signal}, shutting down gracefully...`);
-  
-  const pendingStats = ticketEmailService.getPendingTicketsStats();
-  if (pendingStats.active > 0) {
-    logger.warn(`⚠️  Shutting down with ${pendingStats.active} pending tickets awaiting email`);
-  }
-  
-  const languageStats = simpleLanguageService.getStats();
-  logger.info(`🌍 Language usage stats: ${JSON.stringify(languageStats.usage)}`);
-  
-  if (cronService) {
-    try {
-      cronService.stop();
-      logger.info('📖 CronService stopped');
-    } catch (error) {
-      logger.error(`📖 Error stopping CronService: ${error.message}`);
-    }
-  }
   
   logger.info('🔌 Closing Socket.IO connections...');
   io.close(() => {
@@ -990,14 +576,6 @@ process.on('uncaughtException', (error) => {
   });
   
   gracefulShutdown('UNCAUGHT_EXCEPTION');
-});
-
-process.on('warning', (warning) => {
-  logger.warn('⚠️ Process Warning:', {
-    name: warning.name,
-    message: warning.message,
-    stack: warning.stack
-  });
 });
 
 // Экспорт для тестирования
