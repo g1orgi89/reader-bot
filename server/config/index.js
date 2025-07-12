@@ -154,7 +154,7 @@ const config = {
 
   // Флаги функций
   features: {
-    enableRAG: process.env.ENABLE_RAG !== 'false',
+    enableRAG: process.env.ENABLE_RAG === 'true', // 🔧 ИСПРАВЛЕНО: правильная логика для enableRAG
     enableAnalytics: process.env.ENABLE_ANALYTICS === 'true',
     enableCaching: process.env.ENABLE_CACHING === 'true',
     enableHealthChecks: process.env.ENABLE_HEALTH_CHECKS !== 'false',
@@ -245,6 +245,13 @@ function validateConfig() {
 
   if (!config.database.uri) {
     errors.push('MONGODB_URI is required');
+  }
+
+  // 🔧 НОВОЕ: Валидация векторного хранилища если RAG включен
+  if (config.features.enableRAG) {
+    if (!config.openai.apiKey) {
+      errors.push('OPENAI_API_KEY is required when RAG is enabled');
+    }
   }
 
   // Валидация численных значений
