@@ -126,7 +126,8 @@ const promptsState = {
  * @returns {Promise<any>} Response data
  */
 async function makeAuthenticatedRequest(endpoint, options = {}) {
-    try {\n        // Создаем полный URL с API prefix
+    try {
+        // Создаем полный URL с API prefix
         const url = `${API_PREFIX}${endpoint}`;
         
         // 🔧 ИСПРАВЛЕНО: API промптов ВСЕГДА требует аутентификации
