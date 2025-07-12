@@ -143,7 +143,27 @@ async function loadPrompts() {
 
         const response = await makeAuthenticatedRequest(`/prompts?${params}`);
         
-        console.log('🤖 Prompts response:', response);
+        // 🔍 ДЕТАЛЬНОЕ ЛОГИРОВАНИЕ ОТВЕТА СЕРВЕРА
+        console.log('🔍 === ДЕТАЛЬНЫЙ АНАЛИЗ ОТВЕТА СЕРВЕРА ===');
+        console.log('🤖 Full server response:', response);
+        console.log('🤖 Response success:', response.success);
+        console.log('🤖 Response data type:', typeof response.data);
+        console.log('🤖 Response data:', response.data);
+        
+        if (Array.isArray(response.data)) {
+            console.log('🤖 Data is array with length:', response.data.length);
+            if (response.data.length > 0) {
+                console.log('🤖 First item structure:', Object.keys(response.data[0]));
+                console.log('🤖 First item:', response.data[0]);
+            }
+        } else {
+            console.log('🤖 Data is NOT array, type:', typeof response.data);
+        }
+        
+        if (response.pagination) {
+            console.log('🤖 Pagination info:', response.pagination);
+        }
+        console.log('🔍 === КОНЕЦ АНАЛИЗА ОТВЕТА ===');
         
         if (response.success) {
             renderPrompts(response.data || []);
@@ -598,6 +618,7 @@ async function testPrompt() {
  * 🔧 ИСПРАВЛЕНО: Render prompts list - переписано по образцу renderDocuments из knowledge.js
  */
 function renderPrompts(prompts) {
+    console.log('🤖 === НАЧАЛО renderPrompts ===');
     console.log('🤖 Rendering prompts:', prompts);
     console.log(`🤖 Rendering ${prompts ? prompts.length : 0} prompts`);
     
@@ -622,8 +643,8 @@ function renderPrompts(prompts) {
     if (emptyState) emptyState.style.display = 'none';
 
     // 🔧 ГЛАВНОЕ ИСПРАВЛЕНИЕ: Переписываем renderPrompts по образцу renderDocuments
-    const promptsHTML = prompts.map(prompt => {
-        console.log('🤖 Rendering prompt:', prompt.name, prompt.category);
+    const promptsHTML = prompts.map((prompt, index) => {
+        console.log(`🤖 Rendering prompt ${index}:`, prompt.name, prompt.category);
         
         // Убеждаемся, что у нас есть ID
         const promptId = prompt._id || prompt.id;
@@ -631,7 +652,7 @@ function renderPrompts(prompts) {
             console.warn('🤖 Prompt without ID:', prompt);
         }
         
-        return `
+        const html = `
         <tr data-id="${promptId}">
             <td class="col-name">
                 <div class="prompt-name">${escapeHtml(prompt.name || 'Без названия')}</div>
@@ -668,10 +689,17 @@ function renderPrompts(prompts) {
             </td>
         </tr>
     `;
+        console.log(`🤖 Generated HTML for prompt ${index} (length: ${html.length})`);
+        return html;
     }).join('');
 
+    console.log(`🤖 Final HTML length: ${promptsHTML.length}`);
+    console.log(`🤖 Setting innerHTML...`);
+    
     tableBody.innerHTML = promptsHTML;
+    
     console.log('✅ Prompts rendered successfully');
+    console.log('🤖 === КОНЕЦ renderPrompts ===');
 }
 
 /**
