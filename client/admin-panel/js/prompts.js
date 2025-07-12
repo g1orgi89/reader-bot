@@ -130,12 +130,9 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
         // Создаем полный URL с API prefix
         const url = `${API_PREFIX}${endpoint}`;
         
-        // Определяем, является ли это публичным endpoint
-        const isPublicEndpoint = endpoint.includes('/prompts') && 
-                                 !endpoint.includes('/test') && 
-                                 !endpoint.includes('/backup') && 
-                                 !endpoint.includes('/restore') &&
-                                 (!options.method || options.method === 'GET');
+        // 🔧 ИСПРАВЛЕНО: API промптов ВСЕГДА требует аутентификации
+        // В отличие от knowledge API, все endpoints промптов приватные
+        const isPublicEndpoint = false; // Все промпты требуют аутентификации
 
         // Не устанавливаем Content-Type для FormData (multipart/form-data)
         const headers = {
@@ -147,18 +144,17 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             headers['Content-Type'] = 'application/json';
         }
 
-        // Добавляем аутентификацию только для приватных endpoints
-        if (!isPublicEndpoint) {
-            const token = localStorage.getItem('reader_admin_token');
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            } else {
-                // Fallback на Basic Auth как в knowledge.js
-                headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-            }
+        // Всегда добавляем аутентификацию для API промптов
+        const token = localStorage.getItem('reader_admin_token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            // Fallback на Basic Auth как в knowledge.js
+            headers['Authorization'] = 'Basic ' + btoa('admin:password123');
         }
 
         console.log(`📚 Making request to: ${url}`);
+        console.log(`📚 Auth header: ${headers['Authorization']?.substring(0, 20)}...`);
         
         const response = await fetch(url, {
             ...options,
@@ -203,7 +199,7 @@ function initPromptsPage() {
       return;
     }
     
-    console.log('📚 Аутентификация прошла успешно');
+    console.log('📚 Аутентификация прошла успешно, токен найден');
     
     // Инициализируем компоненты интерфейса
     initPromptsFilters();
