@@ -595,10 +595,11 @@ async function testPrompt() {
 }
 
 /**
- * Render prompts list - ИСПРАВЛЕНО: улучшена логика отображения
+ * 🔧 ИСПРАВЛЕНО: Render prompts list - переписано по образцу renderDocuments из knowledge.js
  */
 function renderPrompts(prompts) {
     console.log('🤖 Rendering prompts:', prompts);
+    console.log(`🤖 Rendering ${prompts ? prompts.length : 0} prompts`);
     
     const tableBody = document.querySelector('#prompts-table tbody');
     const emptyState = document.getElementById('empty-state');
@@ -620,12 +621,20 @@ function renderPrompts(prompts) {
     
     if (emptyState) emptyState.style.display = 'none';
 
+    // 🔧 ГЛАВНОЕ ИСПРАВЛЕНИЕ: Переписываем renderPrompts по образцу renderDocuments
     const promptsHTML = prompts.map(prompt => {
         console.log('🤖 Rendering prompt:', prompt.name, prompt.category);
+        
+        // Убеждаемся, что у нас есть ID
+        const promptId = prompt._id || prompt.id;
+        if (!promptId) {
+            console.warn('🤖 Prompt without ID:', prompt);
+        }
+        
         return `
-        <tr data-id="${prompt._id || prompt.id}">
+        <tr data-id="${promptId}">
             <td class="col-name">
-                <div class="prompt-name">${escapeHtml(prompt.name)}</div>
+                <div class="prompt-name">${escapeHtml(prompt.name || 'Без названия')}</div>
                 <small class="text-muted">${escapeHtml((prompt.description || '').substring(0, 80))}${(prompt.description || '').length > 80 ? '...' : ''}</small>
             </td>
             <td class="col-category">
@@ -633,11 +642,7 @@ function renderPrompts(prompts) {
             </td>
             <td class="col-language">${getLanguageDisplayName(prompt.language)}</td>
             <td class="col-variables">
-                ${prompt.variables && prompt.variables.length > 0 ? 
-                    prompt.variables.slice(0, 2).map(variable => `<span class="badge badge-secondary badge-sm">${escapeHtml(variable)}</span>`).join(' ') +
-                    (prompt.variables.length > 2 ? ` <span class="text-muted">+${prompt.variables.length - 2}</span>` : '')
-                    : '<span class="text-muted">—</span>'
-                }
+                ${renderVariables(prompt.variables)}
             </td>
             <td class="col-status">
                 <span class="badge badge-${getStatusBadgeClass(prompt.status)}">${getStatusDisplayName(prompt.status)}</span>
@@ -647,16 +652,16 @@ function renderPrompts(prompts) {
             </td>
             <td class="col-actions">
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary" onclick="viewPrompt('${prompt._id || prompt.id}')" title="Просмотр">
+                    <button class="btn btn-outline-primary" onclick="viewPrompt('${promptId}')" title="Просмотр">
                         👁️
                     </button>
-                    <button class="btn btn-outline-secondary" onclick="editPrompt('${prompt._id || prompt.id}')" title="Редактировать">
+                    <button class="btn btn-outline-secondary" onclick="editPrompt('${promptId}')" title="Редактировать">
                         ✏️
                     </button>
-                    <button class="btn btn-outline-success" onclick="testPromptById('${prompt._id || prompt.id}')" title="Тестировать">
+                    <button class="btn btn-outline-success" onclick="testPromptById('${promptId}')" title="Тестировать">
                         🧪
                     </button>
-                    <button class="btn btn-outline-danger" onclick="deletePrompt('${prompt._id || prompt.id}')" title="Удалить">
+                    <button class="btn btn-outline-danger" onclick="deletePrompt('${promptId}')" title="Удалить">
                         🗑️
                     </button>
                 </div>
@@ -667,6 +672,38 @@ function renderPrompts(prompts) {
 
     tableBody.innerHTML = promptsHTML;
     console.log('✅ Prompts rendered successfully');
+}
+
+/**
+ * 🔧 ДОБАВЛЕНО: Render variables helper function
+ */
+function renderVariables(variables) {
+    if (!variables || (Array.isArray(variables) && variables.length === 0)) {
+        return '<span class="text-muted">—</span>';
+    }
+    
+    // Если variables это строка, преобразуем в массив
+    if (typeof variables === 'string') {
+        variables = variables.split(',').map(v => v.trim()).filter(v => v);
+    }
+    
+    // Если variables не массив, возвращаем пустое значение
+    if (!Array.isArray(variables)) {
+        return '<span class="text-muted">—</span>';
+    }
+    
+    const visibleVariables = variables.slice(0, 2);
+    const hiddenCount = variables.length - 2;
+    
+    let html = visibleVariables.map(variable => 
+        `<span class="badge badge-secondary badge-sm">${escapeHtml(variable)}</span>`
+    ).join(' ');
+    
+    if (hiddenCount > 0) {
+        html += ` <span class="text-muted">+${hiddenCount}</span>`;
+    }
+    
+    return html;
 }
 
 /**
