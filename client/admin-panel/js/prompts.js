@@ -126,12 +126,28 @@ function initPromptsPage() {
   console.log('📚 Инициализация управления промптами "Читатель"...');
   
   try {
-    // Проверяем аутентификацию
-    if (!window.authManager || !window.authManager.isAuthenticated()) {
+    // 🔧 УЛУЧШЕННАЯ ПРОВЕРКА АУТЕНТИФИКАЦИИ
+    if (!window.authManager) {
+      console.error('📚 AuthManager не найден, ждем инициализации...');
+      // Ждем немного и пробуем снова
+      setTimeout(() => {
+        if (window.authManager) {
+          initPromptsPage();
+        } else {
+          console.error('📚 AuthManager недоступен, перенаправление на login');
+          window.location.href = 'login.html';
+        }
+      }, 1000);
+      return;
+    }
+    
+    if (!window.authManager.isAuthenticated()) {
       console.error('📚 Пользователь не авторизован');
       window.location.href = 'login.html';
       return;
     }
+    
+    console.log('📚 Аутентификация прошла успешно');
     
     // Инициализируем компоненты интерфейса
     initPromptsFilters();
@@ -140,9 +156,11 @@ function initPromptsPage() {
     initImportExport();
     initPagination();
     
-    // Загружаем начальные данные
-    loadPrompts();
-    loadPromptsStats();
+    // Загружаем начальные данные с задержкой
+    setTimeout(() => {
+      loadPrompts();
+      loadPromptsStats();
+    }, 500);
     
     console.log('📚 Управление промптами "Читатель" готово к работе!');
   } catch (error) {
@@ -236,14 +254,14 @@ async function loadPrompts() {
       params.append('q', promptsState.currentFilters.search);
       const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/search?${params}`);
       
-      if (response.success) {
+      if (response && response.success) {
         promptsState.prompts = response.data || [];
         promptsState.totalPrompts = response.count || 0;
         renderPromptsTable();
         updatePaginationInfo();
         console.log(`📚 Найдено ${promptsState.prompts.length} промптов по запросу "${promptsState.currentFilters.search}"`);
       } else {
-        throw new Error(response.error || 'Не удалось найти промпты');
+        throw new Error(response?.error || 'Не удалось найти промпты');
       }
     } else {
       // Обычный запрос с пагинацией
@@ -252,14 +270,14 @@ async function loadPrompts() {
       
       const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}?${params}`);
       
-      if (response.success) {
+      if (response && response.success) {
         promptsState.prompts = response.data || [];
         promptsState.totalPrompts = response.pagination?.total || 0;
         renderPromptsTable();
         updatePaginationInfo();
         console.log(`📚 Загружено ${promptsState.prompts.length} промптов из ${promptsState.totalPrompts} общих`);
       } else {
-        throw new Error(response.error || 'Не удалось загрузить промпты');
+        throw new Error(response?.error || 'Не удалось загрузить промпты');
       }
     }
     
@@ -446,7 +464,8 @@ function initPromptEditor() {
   // Закрытие по Escape
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      if (document.getElementById('prompt-editor-overlay').style.display === 'flex') {
+      const editorOverlay = document.getElementById('prompt-editor-overlay');
+      if (editorOverlay && editorOverlay.style.display === 'flex') {
         hidePromptEditor();
       }
     }
@@ -481,7 +500,8 @@ function showPromptEditor(promptId = null) {
     
     // Очищаем форму
     form.reset();
-    document.getElementById('prompt-id').value = '';
+    const promptIdField = document.getElementById('prompt-id');
+    if (promptIdField) promptIdField.value = '';
     updateTokenCount();
   }
   
@@ -517,25 +537,32 @@ async function loadPromptForEditing(promptId) {
   try {
     const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/${promptId}`);
     
-    if (response.success) {
+    if (response && response.success) {
       const prompt = response.data;
       
       // Заполняем форму данными промпта
-      document.getElementById('prompt-id').value = prompt.id;
-      document.getElementById('prompt-name').value = prompt.name;
-      document.getElementById('prompt-type').value = prompt.type;
-      document.getElementById('prompt-category').value = prompt.category;
-      document.getElementById('prompt-language').value = prompt.language;
-      document.getElementById('prompt-max-tokens').value = prompt.maxTokens || 1000;
-      document.getElementById('prompt-description').value = prompt.description || '';
-      document.getElementById('prompt-content').value = prompt.content;
-      document.getElementById('prompt-tags').value = prompt.tags ? prompt.tags.join(', ') : '';
+      const fields = {
+        'prompt-id': prompt.id,
+        'prompt-name': prompt.name,
+        'prompt-type': prompt.type,
+        'prompt-category': prompt.category,
+        'prompt-language': prompt.language,
+        'prompt-max-tokens': prompt.maxTokens || 1000,
+        'prompt-description': prompt.description || '',
+        'prompt-content': prompt.content,
+        'prompt-tags': prompt.tags ? prompt.tags.join(', ') : ''
+      };
+      
+      Object.entries(fields).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.value = value;
+      });
       
       updateTokenCount();
       
       console.log('📚 Промпт загружен для редактирования');
     } else {
-      throw new Error(response.error || 'Не удалось загрузить промпт');
+      throw new Error(response?.error || 'Не удалось загрузить промпт');
     }
   } catch (error) {
     console.error('📚 Ошибка загрузки промпта для редактирования:', error);
@@ -560,7 +587,8 @@ function updateTokenCount() {
   tokenCountSpan.textContent = estimatedTokens;
   
   // Цветовая индикация
-  const maxTokens = parseInt(document.getElementById('prompt-max-tokens')?.value || '1000');
+  const maxTokensField = document.getElementById('prompt-max-tokens');
+  const maxTokens = parseInt(maxTokensField?.value || '1000');
   if (estimatedTokens > maxTokens) {
     tokenCountSpan.style.color = 'var(--color-error)';
   } else if (estimatedTokens > maxTokens * 0.8) {
@@ -633,7 +661,7 @@ async function handlePromptSave(event) {
       });
     }
     
-    if (response.success) {
+    if (response && response.success) {
       const action = promptId ? 'обновлен' : 'создан';
       showNotification('success', `📚 Промпт успешно ${action}!`);
       
@@ -642,7 +670,7 @@ async function handlePromptSave(event) {
       
       console.log(`📚 Промпт ${action}: ${promptData.name}`);
     } else {
-      throw new Error(response.error || 'Не удалось сохранить промпт');
+      throw new Error(response?.error || 'Не удалось сохранить промпт');
     }
   } catch (error) {
     console.error('📚 Ошибка сохранения промпта:', error);
@@ -736,7 +764,9 @@ function hidePromptTestModal() {
  * Тестирует текущий промпт в редакторе
  */
 function testCurrentPrompt() {
-  const content = document.getElementById('prompt-content').value.trim();
+  const contentField = document.getElementById('prompt-content');
+  const content = contentField ? contentField.value.trim() : '';
+  
   if (!content) {
     showNotification('warning', '📚 Заполните содержимое промпта для тестирования');
     return;
@@ -799,7 +829,7 @@ async function runPromptTest() {
     const endTime = performance.now();
     const executionTime = Math.round(endTime - startTime);
     
-    if (response.success && response.data) {
+    if (response && response.success && response.data) {
       const result = response.data;
       
       resultsDiv.innerHTML = `
@@ -823,15 +853,20 @@ async function runPromptTest() {
       
       // Показываем метаданные
       if (metadataDiv) {
-        document.getElementById('test-tokens-used').textContent = result.tokensUsed || '--';
-        document.getElementById('test-execution-time').textContent = `${executionTime}ms`;
-        document.getElementById('test-ai-provider').textContent = result.provider || 'Claude';
+        const tokensUsedEl = document.getElementById('test-tokens-used');
+        const executionTimeEl = document.getElementById('test-execution-time');
+        const providerEl = document.getElementById('test-ai-provider');
+        
+        if (tokensUsedEl) tokensUsedEl.textContent = result.tokensUsed || '--';
+        if (executionTimeEl) executionTimeEl.textContent = `${executionTime}ms`;
+        if (providerEl) providerEl.textContent = result.provider || 'Claude';
+        
         metadataDiv.style.display = 'block';
       }
       
       console.log('📚 Тест промпта завершен успешно');
     } else {
-      throw new Error(response.error || 'Не удалось выполнить тест');
+      throw new Error(response?.error || 'Не удалось выполнить тест');
     }
   } catch (error) {
     console.error('📚 Ошибка теста промпта:', error);
@@ -1048,7 +1083,7 @@ async function importPrompts() {
       body: JSON.stringify({ backup })
     });
     
-    if (response.success) {
+    if (response && response.success) {
       const { total, imported, errors } = response.data;
       
       let message = `📚 Импорт завершен: ${imported}/${total} промптов`;
@@ -1063,7 +1098,7 @@ async function importPrompts() {
       
       console.log('📚 Импорт промптов завершен');
     } else {
-      throw new Error(response.error || 'Не удалось импортировать промпты');
+      throw new Error(response?.error || 'Не удалось импортировать промпты');
     }
   } catch (error) {
     console.error('📚 Ошибка импорта промптов:', error);
@@ -1112,14 +1147,14 @@ async function deletePrompt(promptId) {
       method: 'DELETE'
     });
     
-    if (response.success) {
+    if (response && response.success) {
       showNotification('success', '📚 Промпт удален');
       
       loadPrompts(); // Перезагружаем список промптов
       
       console.log('📚 Промпт успешно удален');
     } else {
-      throw new Error(response.error || 'Не удалось удалить промпт');
+      throw new Error(response?.error || 'Не удалось удалить промпт');
     }
   } catch (error) {
     console.error('📚 Ошибка удаления промпта:', error);
@@ -1136,11 +1171,11 @@ async function loadPromptsStats() {
     
     const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/stats`);
     
-    if (response.success) {
+    if (response && response.success) {
       promptsState.stats = response.data;
       console.log('📚 Статистика промптов загружена');
     } else {
-      console.warn('📚 Не удалось загрузить статистику промптов:', response.error);
+      console.warn('📚 Не удалось загрузить статистику промптов:', response?.error);
     }
   } catch (error) {
     console.error('📚 Ошибка загрузки статистики промптов:', error);
@@ -1212,24 +1247,52 @@ function updatePaginationInfo() {
  * Выполняет аутентифицированный запрос к API
  * @param {string} url - URL для запроса
  * @param {RequestInit} [options] - Дополнительные опции запроса
- * @returns {Promise<Object>} Ответ API
+ * @returns {Promise<Object|null>} Ответ API или null при ошибке
  */
 async function makeAuthenticatedRequest(url, options = {}) {
-  if (!window.authManager) {
-    throw new Error('AuthManager не найден');
-  }
-  
   try {
+    // 🔧 УЛУЧШЕННАЯ ПРОВЕРКА authManager
+    if (!window.authManager) {
+      console.error('📚 AuthManager не найден');
+      throw new Error('Система аутентификации недоступна');
+    }
+    
+    if (!window.authManager.isAuthenticated()) {
+      console.error('📚 Пользователь не авторизован');
+      throw new Error('Требуется авторизация');
+    }
+    
     const response = await window.authManager.authenticatedFetch(url, options);
     
     if (!response) {
       throw new Error('Нет ответа от сервера');
     }
     
+    // Проверяем статус ответа
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData;
+      
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText || `HTTP ${response.status}` };
+      }
+      
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
     const result = await response.json();
     return result;
   } catch (error) {
     console.error('📚 Ошибка API запроса:', error);
+    
+    // Если ошибка связана с аутентификацией, перенаправляем на login
+    if (error.message.includes('401') || error.message.includes('Требуется авторизация')) {
+      window.location.href = 'login.html';
+      return null;
+    }
+    
     throw error;
   }
 }
@@ -1288,6 +1351,27 @@ function showNotification(type, message, duration = 5000) {
     }, 300);
   }, duration);
 }
+
+// 🔧 ИНИЦИАЛИЗАЦИЯ С ПРОВЕРКОЙ ГОТОВНОСТИ DOM И authManager
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('📚 DOM загружен, проверяем готовность authManager...');
+  
+  // Проверяем, что мы на странице промптов
+  if (window.location.pathname.includes('prompts.html')) {
+    // Ждем готовности authManager
+    const checkAuthManager = () => {
+      if (window.authManager) {
+        console.log('📚 AuthManager готов, инициализируем промпты...');
+        initPromptsPage();
+      } else {
+        console.log('📚 Ждем authManager...');
+        setTimeout(checkAuthManager, 100);
+      }
+    };
+    
+    checkAuthManager();
+  }
+});
 
 // Экспорт основной функции для использования в HTML
 window.initPromptsPage = initPromptsPage;
