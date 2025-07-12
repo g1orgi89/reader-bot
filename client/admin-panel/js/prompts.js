@@ -1,126 +1,87 @@
 /**
- * prompts.js - управление промптами для Reader Bot с ПРИНУДИТЕЛЬНЫМ Basic Auth
- * 
- * 🔐 ИСПРАВЛЕНО: ВСЕГДА используется Basic Auth, Bearer токен игнорируется
- * ✅ Полностью рабочая система управления промптами
- * ✅ Подробное логирование всех операций
- * 
- * @fileoverview Управление промптами для AI помощника Анны Бусел
+ * Prompts Management JavaScript for Reader Bot
+ * @file client/admin-panel/js/prompts.js
+ * 🤖 Управление промптами для Reader Bot
+ * 📖 Создано на базе рабочего модуля knowledge.js
  */
 
-// Конфигурация
-const API_PREFIX = '/api/reader';
-const DEBUG_MODE = true; // Включить детальное логирование
+// API configuration - использование правильного prefix
+const API_PREFIX = '/api/reader'; // 📖 Правильный prefix для Reader Bot
 
-// Глобальные переменные
+// Global variables
 let currentPage = 1;
 let totalPages = 1;
 let isLoading = false;
 let searchTimeout = null;
 
 /**
- * Логирование с префиксом
- */
-function log(level, message, ...args) {
-    if (!DEBUG_MODE && level === 'debug') return;
-    
-    const timestamp = new Date().toISOString().substr(11, 12);
-    const prefix = `[${timestamp}] 💭 PROMPTS:`;
-    
-    switch (level) {
-        case 'error':
-            console.error(prefix, message, ...args);
-            break;
-        case 'warn':
-            console.warn(prefix, message, ...args);
-            break;
-        case 'debug':
-            console.log(prefix, '[DEBUG]', message, ...args);
-            break;
-        default:
-            console.log(prefix, message, ...args);
-    }
-}
-
-/**
  * Initialize prompts management page
  */
 async function initPromptsPage() {
-    log('info', 'Initializing prompts management page...');
+    console.log('🤖 Initializing prompts management page...');
     
     try {
-        log('debug', 'Starting initialization sequence');
-        
-        // ОЧИЩАЕМ НЕПРАВИЛЬНЫЙ ТОКЕН
-        log('debug', 'Clearing localStorage adminToken to force Basic Auth');
-        localStorage.removeItem('adminToken');
-        
-        // Проверяем наличие необходимых элементов
-        const requiredElements = [
-            'prompts-table',
-            'search-prompts', 
-            'add-prompt'
-        ];
-        
-        const missingElements = requiredElements.filter(id => !document.getElementById(id));
-        if (missingElements.length > 0) {
-            throw new Error(`Missing required elements: ${missingElements.join(', ')}`);
-        }
-        
-        log('debug', 'Required elements found');
-        
-        // Загружаем данные
-        log('debug', 'Loading initial data...');
+        // Load initial data
         await Promise.all([
             loadPrompts(),
             loadPromptsStats()
         ]);
         
-        // Настраиваем обработчики событий
-        log('debug', 'Setting up event listeners...');
+        // Setup event listeners
         setupEventListeners();
         
-        log('info', '✅ Prompts page initialized successfully');
-        
+        console.log('✅ Prompts page initialized successfully');
     } catch (error) {
-        log('error', 'Failed to initialize prompts page:', error);
-        showSimpleError('Ошибка инициализации страницы: ' + error.message);
+        console.error('❌ Failed to initialize prompts page:', error);
+        showError('Ошибка инициализации страницы: ' + error.message);
     }
 }
 
 /**
- * Выполнить аутентифицированный запрос - ПРИНУДИТЕЛЬНЫЙ Basic Auth
+ * Make authenticated request with error handling
+ * @param {string} endpoint - API endpoint (without prefix)
+ * @param {Object} options - Fetch options
+ * @returns {Promise<any>} Response data
  */
 async function makeAuthenticatedRequest(endpoint, options = {}) {
-    const requestId = Math.random().toString(36).substr(2, 9);
-    log('debug', `[${requestId}] Starting request to: ${endpoint}`);
-    
     try {
+        // Создаем полный URL с API prefix
         const url = `${API_PREFIX}${endpoint}`;
         
+        // Базовые endpoints больше не требуют аутентификации
+        const isPublicEndpoint = endpoint.includes('/prompts') && 
+                                 !endpoint.includes('/stats') && 
+                                 (!options.method || options.method === 'GET');
+
+        // Не устанавливаем Content-Type для FormData (multipart/form-data)
         const headers = {
             ...options.headers
         };
 
-        // Устанавливаем Content-Type только для не-FormData запросов
+        // Only set Content-Type for non-FormData requests
         if (!(options.body instanceof FormData)) {
             headers['Content-Type'] = 'application/json';
         }
 
-        // ПРИНУДИТЕЛЬНО используем Basic Auth - ИГНОРИРУЕМ localStorage
-        headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-        log('debug', `[${requestId}] FORCED Basic auth: admin:password123`);
+        // Добавляем аутентификацию только для приватных endpoints
+        if (!isPublicEndpoint) {
+            const token = localStorage.getItem('adminToken');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            } else {
+                // Fallback на Basic Auth
+                headers['Authorization'] = 'Basic ' + btoa('admin:password123');
+            }
+        }
 
-        log('debug', `[${requestId}] Final headers:`, Object.keys(headers));
-        log('debug', `[${requestId}] Authorization header:`, headers['Authorization']);
-        log('debug', `[${requestId}] Making request to: ${url}`);
+        console.log(`🤖 Making request to: ${url}`);
         
         const response = await fetch(url, {
             ...options,
             headers
         });
 
-        log('debug', `[${requestId}] Response status: ${response.status}`);
+        console.log(`🤖 Response status: ${response.status}`);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -128,68 +89,56 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             
             try {
                 errorData = JSON.parse(errorText);
-                log('error', `[${requestId}] Parsed error response:`, errorData);
             } catch {
                 errorData = { error: errorText || `HTTP ${response.status}` };
-                log('error', `[${requestId}] Raw error response: ${errorText}`);
             }
             
             throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
         }
 
-        const responseData = await response.json();
-        log('debug', `[${requestId}] Request successful, response:`, responseData);
-        
-        return responseData;
-        
+        return await response.json();
     } catch (error) {
-        log('error', `[${requestId}] Request error:`, error);
+        console.error('🤖 Request failed:', error);
         throw error;
     }
 }
 
 /**
- * Загрузить список промптов
+ * Load prompts with pagination
  */
 async function loadPrompts() {
-    if (isLoading) {
-        log('debug', 'Load prompts skipped - already loading');
-        return;
-    }
-    
-    log('debug', 'Loading prompts...');
+    if (isLoading) return;
     
     try {
         isLoading = true;
-        showTableLoading('prompts-table', 'Загрузка промптов...');
+        showLoading('prompts-table', 'Загрузка промптов...');
 
         const params = new URLSearchParams({
             page: currentPage,
             limit: 10
         });
 
-        // Добавляем фильтры
-        const filters = [
-            { id: 'search-prompts', param: 'q' },
-            { id: 'category-filter', param: 'category' },
-            { id: 'type-filter', param: 'type' },
-            { id: 'language-filter', param: 'language' }
-        ];
+        // Add search filter if exists
+        const searchInput = document.getElementById('search-input');
+        if (searchInput && searchInput.value.trim()) {
+            params.append('q', searchInput.value.trim());
+        }
 
-        filters.forEach(filter => {
-            const element = document.getElementById(filter.id);
-            if (element && element.value && element.value.trim() && element.value !== 'all') {
-                params.append(filter.param, element.value.trim());
-                log('debug', `Added filter ${filter.param}: ${element.value}`);
-            }
-        });
+        // Add category filter if exists
+        const categoryFilter = document.getElementById('category-filter');
+        if (categoryFilter && categoryFilter.value) {
+            params.append('category', categoryFilter.value);
+        }
 
-        log('debug', 'Request params:', params.toString());
+        // Add language filter if exists
+        const languageFilter = document.getElementById('language-filter');
+        if (languageFilter && languageFilter.value) {
+            params.append('language', languageFilter.value);
+        }
 
         const response = await makeAuthenticatedRequest(`/prompts?${params}`);
         
         if (response.success) {
-            log('debug', 'Prompts loaded successfully:', response.data.length);
             renderPrompts(response.data);
             
             if (response.pagination) {
@@ -198,76 +147,55 @@ async function loadPrompts() {
         } else {
             throw new Error(response.error || 'Не удалось загрузить промпты');
         }
-        
     } catch (error) {
-        log('error', 'Error loading prompts:', error);
-        showSimpleError('Ошибка загрузки промптов: ' + error.message);
-        showTableError('prompts-table', 'Не удалось загрузить промпты');
+        console.error('🤖 Ошибка загрузки промптов:', error);
+        showError('Ошибка загрузки промптов: ' + error.message);
+        const tableBody = document.querySelector('#prompts-table tbody');
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Не удалось загрузить промпты</td></tr>';
+        }
     } finally {
         isLoading = false;
-        log('debug', 'Load prompts finished');
     }
 }
 
 /**
- * Загрузить статистику промптов
+ * Load prompts statistics
  */
 async function loadPromptsStats() {
-    log('debug', 'Loading prompts statistics...');
-    
     try {
+        console.log('🤖 Loading prompts statistics...');
         const response = await makeAuthenticatedRequest('/prompts/stats');
         
         if (response.success) {
-            log('debug', 'Statistics loaded successfully:', response.data);
             renderPromptsStats(response.data);
+            console.log('✅ Prompts statistics loaded successfully');
         } else {
             throw new Error(response.error || 'Не удалось загрузить статистику');
         }
-        
     } catch (error) {
-        log('warn', 'Error loading statistics (non-critical):', error);
+        console.error('🤖 Ошибка загрузки статистики промптов:', error);
         // Показываем fallback статистику
         renderPromptsStats({
             total: 0,
-            by_category: [],
-            by_type: [],
-            by_language: [],
+            active: 0,
+            draft: 0,
+            byLanguage: [],
+            byCategory: [],
+            recentlyUpdated: [],
             error: error.message
         });
     }
 }
 
 /**
- * Настроить обработчики событий
+ * Setup event listeners
  */
 function setupEventListeners() {
-    log('debug', 'Setting up event listeners...');
-    
-    const handlers = [
-        { id: 'search-prompts', event: 'input', handler: handleSearch },
-        { id: 'category-filter', event: 'change', handler: () => { currentPage = 1; loadPrompts(); } },
-        { id: 'type-filter', event: 'change', handler: () => { currentPage = 1; loadPrompts(); } },
-        { id: 'language-filter', event: 'change', handler: () => { currentPage = 1; loadPrompts(); } },
-        { id: 'add-prompt', event: 'click', handler: () => showPromptEditor() },
-        { id: 'test-prompts', event: 'click', handler: showPromptTestModal },
-        { id: 'export-prompts', event: 'click', handler: () => showImportExportModal('export') },
-        { id: 'import-prompts', event: 'click', handler: () => showImportExportModal('import') }
-    ];
-
-    handlers.forEach(({ id, event, handler }) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener(event, handler);
-            log('debug', `Event listener added: ${id} -> ${event}`);
-        } else {
-            log('warn', `Element not found for event listener: ${id}`);
-        }
-    });
-
-    // Обработчик Enter для поиска
-    const searchInput = document.getElementById('search-prompts');
+    // Search functionality
+    const searchInput = document.getElementById('search-input');
     if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 handleSearch();
@@ -275,749 +203,557 @@ function setupEventListeners() {
         });
     }
 
-    log('debug', 'Event listeners setup completed');
+    // Category filter
+    const categoryFilter = document.getElementById('category-filter');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', () => {
+            currentPage = 1;
+            loadPrompts();
+        });
+    }
+
+    // Language filter
+    const languageFilter = document.getElementById('language-filter');
+    if (languageFilter) {
+        languageFilter.addEventListener('change', () => {
+            currentPage = 1;
+            loadPrompts();
+        });
+    }
+
+    // New prompt button
+    const newPromptButton = document.getElementById('new-prompt-btn');
+    if (newPromptButton) {
+        newPromptButton.addEventListener('click', showCreatePromptModal);
+    }
+
+    // Reset search button
+    const resetSearchBtn = document.getElementById('reset-search-btn');
+    if (resetSearchBtn) {
+        resetSearchBtn.addEventListener('click', resetSearch);
+    }
+
+    // Search button
+    const searchBtn = document.getElementById('search-btn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', handleSearch);
+    }
+
+    // Test prompt button
+    const testPromptBtn = document.getElementById('test-prompt-btn');
+    if (testPromptBtn) {
+        testPromptBtn.addEventListener('click', showTestPromptModal);
+    }
+
+    console.log('🤖 Event listeners setup completed');
 }
 
 /**
- * Обработчик поиска с debounce
+ * Handle search input
  */
 function handleSearch() {
-    log('debug', 'Search triggered');
-    
-    const searchInput = document.getElementById('search-prompts');
+    const searchInput = document.getElementById('search-input');
     if (!searchInput) return;
 
     const query = searchInput.value.trim();
-    log('debug', 'Search query:', query);
     
-    // Очищаем предыдущий timeout
+    // Clear previous timeout
     if (searchTimeout) {
         clearTimeout(searchTimeout);
     }
 
-    // Debounce поиск
+    // Debounce search
     searchTimeout = setTimeout(() => {
-        log('debug', 'Executing search after debounce');
         currentPage = 1;
         loadPrompts();
     }, 300);
 }
 
 /**
- * Показать редактор промпта
+ * Reset search filters
  */
-function showPromptEditor(promptId = null) {
-    log('debug', 'Opening prompt editor:', { promptId, mode: promptId ? 'edit' : 'create' });
-    
-    const modal = createModal('prompt-editor-modal', {
-        title: promptId ? '✏️ Редактировать Промпт' : '✨ Создать Промпт',
-        size: 'lg',
-        body: getPromptEditorHTML(promptId),
-        footer: `
-            <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
-            <button type="button" class="btn btn-primary" onclick="savePrompt()">
-                ${promptId ? '💾 Сохранить' : '✨ Создать'}
-            </button>
-        `
-    });
+function resetSearch() {
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    const languageFilter = document.getElementById('language-filter');
+
+    if (searchInput) searchInput.value = '';
+    if (categoryFilter) categoryFilter.value = '';
+    if (languageFilter) languageFilter.value = '';
+
+    currentPage = 1;
+    loadPrompts();
+}
+
+/**
+ * Show create prompt modal
+ */
+function showCreatePromptModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'create-prompt-modal';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">🤖 Создать новый промпт</h3>
+                    <button type="button" class="close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="create-prompt-form">
+                        <div class="form-group">
+                            <label for="prompt-name">Название промпта *</label>
+                            <input type="text" id="prompt-name" name="name" class="form-control" required 
+                                   placeholder="Например: Анализ цитат для отчетов">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="prompt-category">Категория *</label>
+                                <select id="prompt-category" name="category" class="select-glow" required>
+                                    <option value="">Выберите категорию</option>
+                                    <option value="onboarding">🎯 Онбординг</option>
+                                    <option value="quote_analysis">📝 Анализ цитат</option>
+                                    <option value="weekly_reports">📊 Еженедельные отчеты</option>
+                                    <option value="monthly_reports">📈 Месячные отчеты</option>
+                                    <option value="book_recommendations">📚 Рекомендации книг</option>
+                                    <option value="user_interaction">💬 Взаимодействие с пользователем</option>
+                                    <option value="system">⚙️ Системные</option>
+                                    <option value="other">📖 Другое</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="prompt-language">Язык</label>
+                                <select id="prompt-language" name="language" class="select-glow">
+                                    <option value="ru">Русский</option>
+                                    <option value="en">English</option>
+                                    <option value="none">Нет языка</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="prompt-content">Содержание промпта *</label>
+                            <textarea id="prompt-content" name="content" class="form-control" rows="8" required
+                                      placeholder="Введите текст промпта для Claude AI..."></textarea>
+                            <small class="form-text text-muted">
+                                Используйте переменные в формате {variable_name} для динамических значений
+                            </small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="prompt-variables">Переменные (через запятую)</label>
+                            <input type="text" id="prompt-variables" name="variables" class="form-control"
+                                   placeholder="user_name, quote_text, analysis_type">
+                            <small class="form-text text-muted">
+                                Переменные, которые будут заменяться в промпте
+                            </small>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="prompt-status">Статус</label>
+                                <select id="prompt-status" name="status" class="select-glow">
+                                    <option value="active">Активный</option>
+                                    <option value="draft">Черновик</option>
+                                    <option value="archived">Архивный</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="prompt-priority">Приоритет</label>
+                                <select id="prompt-priority" name="priority" class="select-glow">
+                                    <option value="normal">Обычный</option>
+                                    <option value="high">Высокий</option>
+                                    <option value="low">Низкий</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="prompt-description">Описание (опционально)</label>
+                            <textarea id="prompt-description" name="description" class="form-control" rows="3"
+                                      placeholder="Краткое описание назначения промпта..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="createPrompt()">
+                        🤖 Создать промпт
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
 
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     
-    // Загружаем данные промпта если редактируем
-    if (promptId) {
-        loadPromptForEditing(promptId);
+    // Фокус на первое поле
+    document.getElementById('prompt-name').focus();
+}
+
+/**
+ * Create new prompt
+ */
+async function createPrompt() {
+    const form = document.getElementById('create-prompt-form');
+    const formData = new FormData(form);
+    
+    // Validation
+    const name = formData.get('name').trim();
+    const category = formData.get('category');
+    const content = formData.get('content').trim();
+    
+    if (!name || !category || !content) {
+        showError('Заполните все обязательные поля');
+        return;
     }
     
-    // Фокус на поле названия
-    setTimeout(() => {
-        const nameField = document.getElementById('edit-prompt-name');
-        if (nameField) nameField.focus();
-    }, 100);
+    if (content.length < 10) {
+        showError('Содержание промпта должно быть минимум 10 символов');
+        return;
+    }
 
-    log('debug', 'Prompt editor opened');
-}
-
-/**
- * Получить HTML для редактора промпта
- */
-function getPromptEditorHTML(promptId) {
-    return `
-        <form id="prompt-editor-form">
-            <input type="hidden" id="edit-prompt-id" value="${promptId || ''}">
-            
-            <div class="form-group">
-                <label for="edit-prompt-name">Название промпта *</label>
-                <input type="text" id="edit-prompt-name" class="form-control" required 
-                       placeholder="Например: Анализ цитат Анны Бусел">
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label for="edit-prompt-category">Категория *</label>
-                    <select id="edit-prompt-category" class="form-control" required>
-                        <option value="system">🎯 Системная</option>
-                        <option value="analysis">💭 Анализ цитат</option>
-                        <option value="psychology">🧠 Психологическая</option>
-                        <option value="recommendations">📚 Рекомендации</option>
-                        <option value="reports">📈 Отчеты</option>
-                        <option value="custom">✨ Пользовательская</option>
-                    </select>
-                </div>
-                <div class="form-group col-md-6">
-                    <label for="edit-prompt-type">Тип *</label>
-                    <select id="edit-prompt-type" class="form-control" required>
-                        <option value="basic">Базовый</option>
-                        <option value="rag">RAG</option>
-                        <option value="quote_analysis">Анализ цитат</option>
-                        <option value="book_recommendation">Рекомендации книг</option>
-                        <option value="weekly_report">Еженедельные отчеты</option>
-                        <option value="monthly_report">Месячные отчеты</option>
-                        <option value="onboarding">Онбординг</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label for="edit-prompt-language">Язык</label>
-                    <select id="edit-prompt-language" class="form-control">
-                        <option value="none">🤖 Универсальный</option>
-                        <option value="ru">🇷🇺 Русский</option>
-                        <option value="en">🇺🇸 English</option>
-                    </select>
-                </div>
-                <div class="form-group col-md-6">
-                    <label for="edit-prompt-max-tokens">Макс. токены</label>
-                    <input type="number" id="edit-prompt-max-tokens" class="form-control" 
-                           min="100" max="4000" value="1000">
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit-prompt-description">Описание</label>
-                <input type="text" id="edit-prompt-description" class="form-control" 
-                       placeholder="Краткое описание назначения промпта">
-            </div>
-            
-            <div class="form-group">
-                <label for="edit-prompt-content">Содержимое промпта *</label>
-                <textarea id="edit-prompt-content" class="form-control" rows="10" required
-                          placeholder="Ты - психолог Анна Бусел, создатель проекта 'Читатель'..."></textarea>
-                <small class="form-text text-muted">
-                    💡 Используйте переменные: {quote_text}, {quote_author}, {user_profile}, {user_name}
-                </small>
-                <div id="token-counter" class="text-muted mt-1"></div>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit-prompt-tags">Теги (через запятую)</label>
-                <input type="text" id="edit-prompt-tags" class="form-control" 
-                       placeholder="анна бусел, читатель, психология, книги">
-            </div>
-        </form>
-    `;
-}
-
-/**
- * Загрузить промпт для редактирования
- */
-async function loadPromptForEditing(promptId) {
-    log('debug', 'Loading prompt for editing:', promptId);
-    
     try {
-        const response = await makeAuthenticatedRequest(`/prompts/${promptId}`);
+        // Prepare prompt data
+        const variables = formData.get('variables') ? 
+            formData.get('variables').split(',').map(v => v.trim()).filter(v => v) : [];
+
+        const promptData = {
+            name: name,
+            category: category,
+            content: content,
+            variables: variables,
+            language: formData.get('language') || 'ru',
+            status: formData.get('status') || 'active',
+            priority: formData.get('priority') || 'normal',
+            description: formData.get('description') ? formData.get('description').trim() : ''
+        };
+
+        console.log('🤖 Creating prompt:', promptData);
+
+        const response = await makeAuthenticatedRequest('/prompts', {
+            method: 'POST',
+            body: JSON.stringify(promptData)
+        });
+
+        if (response.success) {
+            showNotification('success', 'Промпт успешно создан!');
+            closeModal();
+            
+            // Refresh prompts list
+            currentPage = 1;
+            await loadPrompts();
+            await loadPromptsStats();
+        } else {
+            throw new Error(response.error || 'Не удалось создать промпт');
+        }
+    } catch (error) {
+        console.error('🤖 Prompt creation error:', error);
+        showError('Ошибка создания промпта: ' + error.message);
+    }
+}
+
+/**
+ * Show test prompt modal
+ */
+function showTestPromptModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🧪 Тестирование промпта</h3>
+                    <button type="button" class="close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="test-prompt-select">Выберите промпт для тестирования</label>
+                        <select id="test-prompt-select" class="form-control">
+                            <option value="">Загрузка промптов...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="test-variables">Переменные (JSON формат)</label>
+                        <textarea id="test-variables" class="form-control" rows="4"
+                                  placeholder='{"user_name": "Мария", "quote_text": "Жизнь прекрасна"}'></textarea>
+                    </div>
+                    <div id="test-results"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Закрыть</button>
+                    <button type="button" class="btn btn-primary" onclick="testPrompt()">
+                        🧪 Тестировать
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Load prompts for testing
+    loadPromptsForTesting();
+}
+
+/**
+ * Load prompts for testing dropdown
+ */
+async function loadPromptsForTesting() {
+    try {
+        const response = await makeAuthenticatedRequest('/prompts?limit=100');
+        const select = document.getElementById('test-prompt-select');
         
         if (response.success && response.data) {
-            const prompt = response.data;
-            log('debug', 'Prompt data loaded:', prompt);
-            
-            // Заполняем форму
-            const fields = [
-                { id: 'edit-prompt-name', value: prompt.name || '' },
-                { id: 'edit-prompt-category', value: prompt.category || 'custom' },
-                { id: 'edit-prompt-type', value: prompt.type || 'basic' },
-                { id: 'edit-prompt-language', value: prompt.language || 'none' },
-                { id: 'edit-prompt-max-tokens', value: prompt.maxTokens || 1000 },
-                { id: 'edit-prompt-description', value: prompt.description || '' },
-                { id: 'edit-prompt-content', value: prompt.content || '' },
-                { id: 'edit-prompt-tags', value: prompt.tags ? prompt.tags.join(', ') : '' }
-            ];
-
-            fields.forEach(field => {
-                const element = document.getElementById(field.id);
-                if (element) {
-                    element.value = field.value;
-                    log('debug', `Set field ${field.id}:`, field.value);
-                } else {
-                    log('warn', `Field not found: ${field.id}`);
-                }
-            });
-            
-            updateTokenCount();
-            
+            select.innerHTML = '<option value="">Выберите промпт</option>' +
+                response.data.map(prompt => 
+                    `<option value="${prompt.id || prompt._id}">${prompt.name} (${prompt.category})</option>`
+                ).join('');
         } else {
-            throw new Error(response.error || 'Не удалось загрузить промпт');
+            select.innerHTML = '<option value="">Нет доступных промптов</option>';
         }
-        
     } catch (error) {
-        log('error', 'Error loading prompt for editing:', error);
-        showSimpleError('Ошибка загрузки промпта: ' + error.message);
+        const select = document.getElementById('test-prompt-select');
+        select.innerHTML = '<option value="">Ошибка загрузки промптов</option>';
     }
 }
 
 /**
- * Сохранить промпт
+ * Test prompt functionality
  */
-async function savePrompt() {
-    log('debug', 'Saving prompt...');
+async function testPrompt() {
+    const promptSelect = document.getElementById('test-prompt-select');
+    const variablesInput = document.getElementById('test-variables');
+    const resultsContainer = document.getElementById('test-results');
     
-    const promptId = document.getElementById('edit-prompt-id').value;
-    
-    const promptData = {
-        name: getValue('edit-prompt-name'),
-        category: getValue('edit-prompt-category'),
-        type: getValue('edit-prompt-type'),
-        language: getValue('edit-prompt-language') || 'none',
-        maxTokens: parseInt(getValue('edit-prompt-max-tokens')) || 1000,
-        description: getValue('edit-prompt-description'),
-        content: getValue('edit-prompt-content'),
-        tags: getValue('edit-prompt-tags')
-            .split(',')
-            .map(tag => tag.trim())
-            .filter(tag => tag)
-    };
-    
-    log('debug', 'Prompt data to save:', promptData);
-    
-    // Валидация
-    if (!promptData.name) {
-        showSimpleError('Заполните название промпта');
+    if (!promptSelect || !resultsContainer) return;
+
+    const promptId = promptSelect.value;
+    if (!promptId) {
+        showError('Выберите промпт для тестирования');
         return;
     }
-    
-    if (!promptData.content) {
-        showSimpleError('Заполните содержимое промпта');
-        return;
-    }
-    
+
+    let variables = {};
     try {
-        let response;
-        
-        if (promptId) {
-            log('debug', 'Updating existing prompt:', promptId);
-            response = await makeAuthenticatedRequest(`/prompts/${promptId}`, {
-                method: 'PUT',
-                body: JSON.stringify(promptData)
-            });
-        } else {
-            log('debug', 'Creating new prompt');
-            response = await makeAuthenticatedRequest('/prompts', {
-                method: 'POST',
-                body: JSON.stringify(promptData)
-            });
+        if (variablesInput.value.trim()) {
+            variables = JSON.parse(variablesInput.value);
         }
-        
-        if (response.success) {
-            const action = promptId ? 'обновлен' : 'создан';
-            log('info', `Prompt ${action} successfully:`, response.data);
-            showSimpleSuccess(`Промпт успешно ${action}!`);
-            
-            closeModal();
-            loadPrompts();
-            
-        } else {
-            throw new Error(response.error || 'Не удалось сохранить промпт');
-        }
-        
     } catch (error) {
-        log('error', 'Error saving prompt:', error);
-        showSimpleError('Ошибка сохранения промпта: ' + error.message);
-    }
-}
-
-/**
- * Обновить счетчик токенов
- */
-function updateTokenCount() {
-    const contentTextarea = document.getElementById('edit-prompt-content');
-    const counter = document.getElementById('token-counter');
-    
-    if (!contentTextarea || !counter) return;
-    
-    const content = contentTextarea.value;
-    const estimatedTokens = Math.ceil(content.length / 4);
-    
-    counter.textContent = `Примерно ${estimatedTokens} токенов`;
-    
-    if (estimatedTokens > 3000) {
-        counter.className = 'text-danger mt-1';
-    } else if (estimatedTokens > 2000) {
-        counter.className = 'text-warning mt-1';
-    } else {
-        counter.className = 'text-muted mt-1';
-    }
-}
-
-/**
- * Показать модальное окно тестирования
- */
-function showPromptTestModal() {
-    log('debug', 'Opening prompt test modal');
-    
-    const modal = createModal('prompt-test-modal', {
-        title: '🧪 Тестирование Промпта',
-        size: 'lg',
-        body: `
-            <div class="form-group">
-                <label for="test-prompt-message">Тестовое сообщение</label>
-                <textarea id="test-prompt-message" class="form-control" rows="3"
-                          placeholder="Введите цитату для тестирования, например: 'В каждом слове — целая жизнь (Марина Цветаева)'"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label for="test-prompt-language">Язык</label>
-                    <select id="test-prompt-language" class="form-control">
-                        <option value="none">🤖 Универсальный</option>
-                        <option value="ru" selected>🇷🇺 Русский</option>
-                        <option value="en">🇺🇸 English</option>
-                    </select>
-                </div>
-            </div>
-            <div id="test-prompt-results"></div>
-        `,
-        footer: `
-            <button type="button" class="btn btn-secondary" onclick="closeModal()">Закрыть</button>
-            <button type="button" class="btn btn-primary" onclick="runPromptTest()">
-                🚀 Выполнить Тест
-            </button>
-        `
-    });
-
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
-    
-    // Фокус на поле сообщения
-    setTimeout(() => {
-        const messageField = document.getElementById('test-prompt-message');
-        if (messageField) messageField.focus();
-    }, 100);
-
-    log('debug', 'Prompt test modal opened');
-}
-
-/**
- * Выполнить тест промпта
- */
-async function runPromptTest() {
-    log('debug', 'Running prompt test...');
-    
-    const messageInput = document.getElementById('test-prompt-message');
-    const languageSelect = document.getElementById('test-prompt-language');
-    const resultsDiv = document.getElementById('test-prompt-results');
-    
-    if (!messageInput || !resultsDiv) {
-        log('error', 'Test elements not found');
+        showError('Неверный формат JSON для переменных');
         return;
     }
-    
-    const testMessage = messageInput.value.trim();
-    const language = languageSelect?.value || 'ru';
-    
-    if (!testMessage) {
-        showSimpleError('Введите тестовое сообщение');
-        return;
-    }
-    
-    // Получаем содержимое промпта
-    let promptContent = '';
-    const promptEditor = document.getElementById('edit-prompt-content');
-    if (promptEditor) {
-        promptContent = promptEditor.value.trim();
-    }
-    
-    if (!promptContent) {
-        showSimpleError('Нет промпта для тестирования');
-        return;
-    }
-    
-    log('debug', 'Test parameters:', { testMessage, language, promptLength: promptContent.length });
-    
+
     try {
-        resultsDiv.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm"></div> Тестирование...</div>';
-        
+        showLoading('test-results', 'Тестирование промпта...');
+
         const response = await makeAuthenticatedRequest('/prompts/test', {
             method: 'POST',
             body: JSON.stringify({
-                prompt: promptContent,
-                testMessage,
-                language
+                promptId: promptId,
+                variables: variables
             })
         });
-        
-        if (response.success && response.data) {
-            const result = response.data;
-            log('debug', 'Test result received:', result);
-            
-            resultsDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <h5>📋 Результат тестирования</h5>
-                    <p><strong>Входное сообщение:</strong> ${escapeHtml(result.input)}</p>
-                    <p><strong>Ответ от Claude:</strong></p>
-                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 4px; margin-top: 0.5rem;">
-                        ${escapeHtml(result.output)}
-                    </div>
-                </div>
-            `;
-        } else {
-            throw new Error(response.error || 'Не удалось выполнить тест');
-        }
-        
-    } catch (error) {
-        log('error', 'Test error:', error);
-        resultsDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <h5>⚠️ Ошибка тестирования</h5>
-                <p>${escapeHtml(error.message)}</p>
-            </div>
-        `;
-    }
-}
 
-/**
- * Показать модальное окно импорта/экспорта
- */
-function showImportExportModal(mode) {
-    log('debug', 'Opening import/export modal:', mode);
-    
-    const modal = createModal('import-export-modal', {
-        title: mode === 'export' ? '📤 Экспорт Промптов' : '📥 Импорт Промптов',
-        body: mode === 'export' ? `
-            <p>Экспорт всех промптов в файл JSON для резервного копирования.</p>
-            <button class="btn btn-primary" onclick="downloadPromptsBackup()">
-                💾 Скачать Резервную Копию
-            </button>
-        ` : `
-            <p>Импорт промптов из JSON файла.</p>
-            <div class="form-group">
-                <input type="file" id="import-prompts-file" accept=".json" class="form-control">
-            </div>
-            <button class="btn btn-primary" onclick="importPrompts()">
-                📥 Импортировать
-            </button>
-        `,
-        footer: `
-            <button type="button" class="btn btn-secondary" onclick="closeModal()">Закрыть</button>
-        `
-    });
-
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
-
-    log('debug', 'Import/export modal opened');
-}
-
-/**
- * Скачать резервную копию промптов
- */
-async function downloadPromptsBackup() {
-    log('debug', 'Downloading prompts backup...');
-    
-    try {
-        const response = await makeAuthenticatedRequest('/prompts/backup');
-        
-        if (response) {
-            const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `reader-prompts-backup-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            log('info', 'Backup downloaded successfully');
-            showSimpleSuccess('Резервная копия промптов скачана!');
-        }
-        
-    } catch (error) {
-        log('error', 'Backup error:', error);
-        showSimpleError('Ошибка создания резервной копии: ' + error.message);
-    }
-}
-
-/**
- * Импортировать промпты из файла
- */
-async function importPrompts() {
-    log('debug', 'Importing prompts...');
-    
-    const fileInput = document.getElementById('import-prompts-file');
-    const file = fileInput?.files[0];
-    
-    if (!file) {
-        showSimpleError('Выберите файл для импорта');
-        return;
-    }
-    
-    try {
-        const text = await file.text();
-        const backup = JSON.parse(text);
-        
-        log('debug', 'Backup file parsed, importing...');
-        
-        const response = await makeAuthenticatedRequest('/prompts/restore', {
-            method: 'POST',
-            body: JSON.stringify({ backup })
-        });
-        
         if (response.success) {
-            log('info', 'Prompts imported successfully');
-            showSimpleSuccess('Промпты успешно импортированы!');
-            closeModal();
-            loadPrompts();
+            renderTestResults(response.data);
         } else {
-            throw new Error(response.error || 'Не удалось импортировать промпты');
+            throw new Error(response.error || 'Ошибка тестирования промпта');
         }
-        
     } catch (error) {
-        log('error', 'Import error:', error);
-        showSimpleError('Ошибка импорта: ' + error.message);
+        console.error('🤖 Ошибка тестирования промпта:', error);
+        resultsContainer.innerHTML = `<div class="alert alert-danger">Ошибка: ${error.message}</div>`;
     }
 }
 
 /**
- * Отрендерить таблицу промптов
+ * Render prompts list
  */
 function renderPrompts(prompts) {
-    log('debug', 'Rendering prompts table:', prompts.length);
-    
     const tableBody = document.querySelector('#prompts-table tbody');
     const emptyState = document.getElementById('empty-state');
     
-    if (!tableBody) {
-        log('error', 'Prompts table body not found');
-        return;
-    }
+    if (!tableBody) return;
 
     if (!prompts || prompts.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">Промпты не найдены</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Промпты не найдены</td></tr>';
         if (emptyState) emptyState.style.display = 'block';
         return;
     }
 
     if (emptyState) emptyState.style.display = 'none';
 
-    const promptsHTML = prompts.map(prompt => {
-        const promptId = prompt.id || prompt._id;
-        return `
-            <tr data-id="${promptId}">
-                <td class="col-id">${(promptId || '').substring(0, 8)}...</td>
-                <td class="col-name">
-                    <div class="prompt-name">${escapeHtml(prompt.name)}</div>
-                    ${prompt.isDefault ? '<span class="badge badge-warning">Системный</span>' : ''}
-                </td>
-                <td class="col-category">
-                    <span class="badge badge-primary">${getCategoryLabel(prompt.category)}</span>
-                </td>
-                <td class="col-type">
-                    <span class="badge badge-info">${getTypeLabel(prompt.type)}</span>
-                </td>
-                <td class="col-language">
-                    <span class="badge badge-secondary">${getLanguageLabel(prompt.language)}</span>
-                </td>
-                <td class="col-status">
-                    <span class="badge badge-${prompt.active !== false ? 'success' : 'warning'}">
-                        ${prompt.active !== false ? 'Активный' : 'Неактивный'}
-                    </span>
-                </td>
-                <td class="col-tokens">${prompt.maxTokens || '--'}</td>
-                <td class="col-version">v${prompt.version || '1.0'}</td>
-                <td class="col-actions">
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary" onclick="viewPrompt('${promptId}')" title="Просмотр">
-                            👁️
-                        </button>
-                        <button class="btn btn-outline-secondary" onclick="editPrompt('${promptId}')" title="Редактировать">
-                            ✏️
-                        </button>
-                        ${!prompt.isDefault ? `
-                            <button class="btn btn-outline-danger" onclick="deletePrompt('${promptId}')" title="Удалить">
-                                🗑️
-                            </button>
-                        ` : ''}
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
+    const promptsHTML = prompts.map(prompt => `
+        <tr data-id="${prompt._id || prompt.id}">
+            <td class="col-name">
+                <div class="prompt-name">${escapeHtml(prompt.name)}</div>
+                <small class="text-muted">${escapeHtml((prompt.description || '').substring(0, 80))}${(prompt.description || '').length > 80 ? '...' : ''}</small>
+            </td>
+            <td class="col-category">
+                <span class="badge badge-primary">${getCategoryDisplayName(prompt.category)}</span>
+            </td>
+            <td class="col-language">${getLanguageDisplayName(prompt.language)}</td>
+            <td class="col-variables">
+                ${prompt.variables && prompt.variables.length > 0 ? 
+                    prompt.variables.slice(0, 2).map(variable => `<span class="badge badge-secondary badge-sm">${escapeHtml(variable)}</span>`).join(' ') +
+                    (prompt.variables.length > 2 ? ` <span class="text-muted">+${prompt.variables.length - 2}</span>` : '')
+                    : '<span class="text-muted">—</span>'
+                }
+            </td>
+            <td class="col-status">
+                <span class="badge badge-${getStatusBadgeClass(prompt.status)}">${getStatusDisplayName(prompt.status)}</span>
+            </td>
+            <td class="col-priority">
+                <span class="priority priority-${prompt.priority || 'normal'}">${getPriorityDisplayName(prompt.priority)}</span>
+            </td>
+            <td class="col-actions">
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="viewPrompt('${prompt._id || prompt.id}')" title="Просмотр">
+                        👁️
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="editPrompt('${prompt._id || prompt.id}')" title="Редактировать">
+                        ✏️
+                    </button>
+                    <button class="btn btn-outline-success" onclick="testPromptById('${prompt._id || prompt.id}')" title="Тестировать">
+                        🧪
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deletePrompt('${prompt._id || prompt.id}')" title="Удалить">
+                        🗑️
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
 
     tableBody.innerHTML = promptsHTML;
-    log('debug', 'Prompts table rendered successfully');
 }
 
 /**
- * Отрендерить статистику промптов
+ * Render prompts statistics
  */
 function renderPromptsStats(stats) {
-    log('debug', 'Rendering prompts stats:', stats);
-    // Здесь можно добавить отображение статистики если нужно
+    // Update main stats
+    updateStatElement('total-prompts', stats.total || 0);
+    updateStatElement('active-prompts', stats.active || 0);
+    updateStatElement('draft-prompts', stats.draft || 0);
+    updateStatElement('archived-prompts', stats.archived || 0);
+    
+    // Category distribution
+    renderCategoryStats(stats.byCategory || []);
+
+    // Language distribution
+    renderLanguageStats(stats.byLanguage || []);
+
+    console.log('🤖 Prompts statistics rendered successfully');
 }
 
 /**
- * Обновить пагинацию
+ * Update pagination
  */
 function updatePagination(pagination) {
-    log('debug', 'Updating pagination:', pagination);
-    
     totalPages = pagination.totalPages || 1;
     currentPage = pagination.currentPage || 1;
 
-    const paginationInfo = document.querySelector('.pagination-info');
-    if (paginationInfo) {
-        paginationInfo.innerHTML = `Показано ${pagination.startDoc || 1}-${pagination.endDoc || pagination.totalDocs} из ${pagination.totalDocs || 0} промптов`;
+    const paginationContainer = document.getElementById('pagination');
+    const resultsInfo = document.getElementById('results-info');
+    
+    if (resultsInfo) {
+        resultsInfo.textContent = `Показано ${pagination.startDoc || 1}-${pagination.endDoc || pagination.totalDocs} из ${pagination.totalDocs || 0} промптов`;
     }
 
-    // Обновляем кнопки пагинации
-    const prevBtn = document.getElementById('prev-page');
-    const nextBtn = document.getElementById('next-page');
-    const currentSpan = document.getElementById('pagination-current');
-    
-    if (prevBtn) prevBtn.disabled = currentPage <= 1;
-    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
-    if (currentSpan) currentSpan.textContent = `Страница ${currentPage} из ${totalPages}`;
+    if (!paginationContainer) return;
+
+    let paginationHTML = '';
+
+    // Previous button
+    if (currentPage > 1) {
+        paginationHTML += `<li class="page-item"><button class="page-link" onclick="changePage(${currentPage - 1})">‹ Назад</button></li>`;
+    }
+
+    // Page numbers
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+
+    for (let i = startPage; i <= endPage; i++) {
+        const isActive = i === currentPage;
+        paginationHTML += `<li class="page-item ${isActive ? 'active' : ''}">
+            <button class="page-link" onclick="changePage(${i})">${i}</button>
+        </li>`;
+    }
+
+    // Next button
+    if (currentPage < totalPages) {
+        paginationHTML += `<li class="page-item"><button class="page-link" onclick="changePage(${currentPage + 1})">Вперед ›</button></li>`;
+    }
+
+    paginationContainer.innerHTML = paginationHTML;
 }
 
 /**
- * Изменить страницу
+ * Change page
  */
 function changePage(page) {
     if (page < 1 || page > totalPages || page === currentPage) return;
     
-    log('debug', 'Changing page to:', page);
     currentPage = page;
     loadPrompts();
 }
 
 /**
- * Просмотреть промпт
+ * Utility functions
  */
-function viewPrompt(promptId) {
-    log('debug', 'Viewing prompt:', promptId);
-    editPrompt(promptId);
-}
 
-/**
- * Редактировать промпт
- */
-function editPrompt(promptId) {
-    log('debug', 'Editing prompt:', promptId);
-    showPromptEditor(promptId);
-}
-
-/**
- * Удалить промпт
- */
-async function deletePrompt(promptId) {
-    log('debug', 'Deleting prompt:', promptId);
-    
-    const confirmed = confirm('Вы уверены, что хотите удалить этот промпт?');
-    if (!confirmed) return;
-    
-    try {
-        const response = await makeAuthenticatedRequest(`/prompts/${promptId}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.success) {
-            log('info', 'Prompt deleted successfully:', promptId);
-            showSimpleSuccess('Промпт удален');
-            loadPrompts();
-        } else {
-            throw new Error(response.error || 'Не удалось удалить промпт');
-        }
-        
-    } catch (error) {
-        log('error', 'Delete error:', error);
-        showSimpleError('Ошибка удаления промпта: ' + error.message);
+function updateStatElement(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = value;
     }
 }
 
-// ================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ================================
+function renderCategoryStats(categories) {
+    const container = document.getElementById('category-stats');
+    if (!container || !categories.length) {
+        if (container) container.innerHTML = '<div class="text-muted">Нет данных</div>';
+        return;
+    }
 
-/**
- * Создать модальное окно
- */
-function createModal(id, { title, body, footer, size = '' }) {
-    const modal = document.createElement('div');
-    modal.className = 'modal fade';
-    modal.id = id;
-    modal.innerHTML = `
-        <div class="modal-dialog ${size ? 'modal-' + size : ''}">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 class="modal-title">${title}</h3>
-                    <button type="button" class="close" onclick="closeModal()">&times;</button>
-                </div>
-                <div class="modal-body">${body}</div>
-                ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
-            </div>
+    const statsHTML = categories.slice(0, 5).map(cat => `
+        <div class="stat-item">
+            <span class="stat-label">${getCategoryDisplayName(cat._id || cat.category)}</span>
+            <span class="stat-value badge badge-secondary">${cat.count}</span>
         </div>
-    `;
-    return modal;
+    `).join('');
+
+    container.innerHTML = statsHTML;
 }
 
-/**
- * Закрыть модальное окно
- */
-function closeModal() {
-    log('debug', 'Closing modal');
-    const modal = document.querySelector('.modal');
-    if (modal) {
-        modal.remove();
+function renderLanguageStats(languages) {
+    const container = document.getElementById('language-stats');
+    if (!container || !languages.length) {
+        if (container) container.innerHTML = '<div class="text-muted">Нет данных</div>';
+        return;
+    }
+
+    const statsHTML = languages.slice(0, 5).map(lang => `
+        <div class="stat-item">
+            <span class="stat-label">${getLanguageDisplayName(lang._id || lang.language)}</span>
+            <span class="stat-value badge badge-secondary">${lang.count}</span>
+        </div>
+    `).join('');
+
+    container.innerHTML = statsHTML;
+}
+
+function showLoading(containerId, message = 'Загрузка...') {
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.innerHTML = `<div class="text-center text-muted py-4">${message}</div>`;
     }
 }
 
-/**
- * Получить значение поля формы
- */
-function getValue(id) {
-    const element = document.getElementById(id);
-    return element ? element.value.trim() : '';
-}
-
-/**
- * Показать загрузку в таблице
- */
-function showTableLoading(tableId, message = 'Загрузка...') {
-    const table = document.getElementById(tableId);
-    if (table) {
-        const tbody = table.querySelector('tbody');
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">${message}</td></tr>`;
-        }
-    }
-}
-
-/**
- * Показать ошибку в таблице
- */
-function showTableError(tableId, message) {
-    const table = document.getElementById(tableId);
-    if (table) {
-        const tbody = table.querySelector('tbody');
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${message}</td></tr>`;
-        }
-    }
-}
-
-/**
- * Безопасное экранирование HTML
- */
 function escapeHtml(text) {
     if (typeof text !== 'string') return '';
     const div = document.createElement('div');
@@ -1025,89 +761,213 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-/**
- * Простое показ ошибки
- */
-function showSimpleError(message) {
-    log('error', 'Showing error:', message);
-    alert('Ошибка: ' + message);
+function showError(message) {
+    console.error('🤖 Error:', message);
+    if (typeof showNotification === 'function') {
+        showNotification('error', message);
+    } else {
+        alert('Ошибка: ' + message);
+    }
+}
+
+function showNotification(type, message) {
+    // Use existing notification system or fallback
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(type, message);
+    } else {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+        `;
+        
+        const container = document.getElementById('notification-container') || document.body;
+        container.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
 }
 
 /**
- * Простой показ успеха
+ * Get category display name with emoji
  */
-function showSimpleSuccess(message) {
-    log('info', 'Showing success:', message);
-    // Можно заменить на toast уведомление
-    alert(message);
-}
-
-/**
- * Получить лейбл категории
- */
-function getCategoryLabel(category) {
-    const labels = {
-        'system': '🎯 Системная',
-        'analysis': '💭 Анализ',
-        'psychology': '🧠 Психология',
-        'recommendations': '📚 Рекомендации',
-        'reports': '📈 Отчеты',
-        'custom': '✨ Пользовательская'
+function getCategoryDisplayName(category) {
+    const categories = {
+        'onboarding': '🎯 Онбординг',
+        'quote_analysis': '📝 Анализ цитат',
+        'weekly_reports': '📊 Еженедельные отчеты',
+        'monthly_reports': '📈 Месячные отчеты',
+        'book_recommendations': '📚 Рекомендации книг',
+        'user_interaction': '💬 Взаимодействие',
+        'system': '⚙️ Системные',
+        'other': '📖 Другое'
     };
-    return labels[category] || category;
+    return categories[category] || category || 'Неизвестно';
 }
 
 /**
- * Получить лейбл типа
+ * Get status display name
  */
-function getTypeLabel(type) {
-    const labels = {
-        'basic': 'Базовый',
-        'rag': 'RAG',
-        'quote_analysis': 'Анализ цитат',
-        'book_recommendation': 'Рекомендации книг',
-        'weekly_report': 'Еженедельные отчеты',
-        'monthly_report': 'Месячные отчеты',
-        'onboarding': 'Онбординг'
+function getStatusDisplayName(status) {
+    const statuses = {
+        'active': 'Активный',
+        'draft': 'Черновик',
+        'archived': 'Архивный'
     };
-    return labels[type] || type;
+    return statuses[status] || status || 'Неизвестно';
 }
 
 /**
- * Получить лейбл языка
+ * Get status badge class
  */
-function getLanguageLabel(language) {
-    const labels = {
-        'none': '🤖 Универсальный',
-        'ru': '🇷🇺 Русский',
-        'en': '🇺🇸 English'
+function getStatusBadgeClass(status) {
+    const classes = {
+        'active': 'success',
+        'draft': 'warning',
+        'archived': 'secondary'
     };
-    return labels[language] || language;
+    return classes[status] || 'secondary';
 }
 
-// ================================
-// ИНИЦИАЛИЗАЦИЯ
-// ================================
+/**
+ * Get priority display name
+ */
+function getPriorityDisplayName(priority) {
+    const priorities = {
+        'high': 'Высокий',
+        'normal': 'Обычный',
+        'low': 'Низкий'
+    };
+    return priorities[priority] || priority || 'Обычный';
+}
 
-// Инициализация при загрузке DOM
+/**
+ * Get language display name
+ */
+function getLanguageDisplayName(language) {
+    const languages = {
+        'ru': 'Русский',
+        'en': 'English',
+        'none': 'Нет языка'
+    };
+    return languages[language] || language || 'Неизвестно';
+}
+
+/**
+ * Close modal
+ */
+function closeModal() {
+    const modal = document.querySelector('.modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Prompt management functions
+async function viewPrompt(promptId) {
+    try {
+        console.log('👁️ Просмотр промпта:', promptId);
+        // Implementation for viewing prompt
+        showNotification('info', 'Функция просмотра промпта будет добавлена');
+    } catch (error) {
+        console.error('❌ Ошибка просмотра промпта:', error);
+        showError('Ошибка просмотра: ' + error.message);
+    }
+}
+
+async function editPrompt(promptId) {
+    try {
+        console.log('✏️ Редактирование промпта:', promptId);
+        // Implementation for editing prompt
+        showNotification('info', 'Функция редактирования промпта будет добавлена');
+    } catch (error) {
+        console.error('❌ Ошибка редактирования промпта:', error);
+        showError('Ошибка редактирования: ' + error.message);
+    }
+}
+
+async function testPromptById(promptId) {
+    try {
+        console.log('🧪 Тестирование промпта:', promptId);
+        showTestPromptModal();
+        // Auto-select the prompt in the modal
+        setTimeout(() => {
+            const select = document.getElementById('test-prompt-select');
+            if (select) {
+                select.value = promptId;
+            }
+        }, 100);
+    } catch (error) {
+        console.error('❌ Ошибка тестирования промпта:', error);
+        showError('Ошибка тестирования: ' + error.message);
+    }
+}
+
+async function deletePrompt(promptId) {
+    const confirmation = confirm('Вы уверены, что хотите удалить этот промпт? Это действие нельзя отменить.');
+    if (!confirmation) return;
+    
+    try {
+        console.log('🗑️ Удаление промпта:', promptId);
+        
+        const response = await makeAuthenticatedRequest(`/prompts/${promptId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.success) {
+            showNotification('success', 'Промпт успешно удален');
+            await loadPrompts();
+            await loadPromptsStats();
+        } else {
+            throw new Error(response.error || 'Ошибка удаления');
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка удаления промпта:', error);
+        showError('Ошибка удаления: ' + error.message);
+    }
+}
+
+function renderTestResults(data) {
+    const container = document.getElementById('test-results');
+    if (!container) return;
+
+    const resultsHTML = `
+        <div class="test-results-summary">
+            <h5>Результаты тестирования промпта</h5>
+            <div class="alert alert-info">
+                <strong>Статус:</strong> ${data.success ? 'Успешно' : 'Ошибка'}<br>
+                <strong>Время выполнения:</strong> ${data.executionTime || 'N/A'}<br>
+                <strong>Обработанный промпт:</strong><br>
+                <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px;">${escapeHtml(data.processedPrompt || '')}</pre>
+            </div>
+            ${data.result ? `
+                <div class="alert alert-success">
+                    <strong>Результат:</strong><br>
+                    <pre style="background: #e8f5e8; padding: 10px; border-radius: 4px;">${escapeHtml(data.result)}</pre>
+                </div>
+            ` : ''}
+            ${data.error ? `
+                <div class="alert alert-danger">
+                    <strong>Ошибка:</strong> ${escapeHtml(data.error)}
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    container.innerHTML = resultsHTML;
+}
+
+// Initialize page when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     if (window.location.pathname.includes('prompts.html')) {
-        log('info', 'DOM loaded, initializing prompts page...');
         initPromptsPage();
     }
 });
 
-// Экспорт функций для использования в HTML
-window.initPromptsPage = initPromptsPage;
-window.showPromptEditor = showPromptEditor;
-window.editPrompt = editPrompt;
-window.deletePrompt = deletePrompt;
-window.viewPrompt = viewPrompt;
-window.savePrompt = savePrompt;
-window.runPromptTest = runPromptTest;
-window.downloadPromptsBackup = downloadPromptsBackup;
-window.importPrompts = importPrompts;
-window.closeModal = closeModal;
-window.changePage = changePage;
-
-log('info', '💭 Prompts.js loaded with FORCED Basic Auth - localStorage cleared on init');
+console.log('🤖 Prompts management module loaded successfully');
