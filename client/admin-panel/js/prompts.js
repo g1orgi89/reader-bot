@@ -1,7 +1,7 @@
 /**
- * prompts.js - управление промптами для Reader Bot с подробным логированием
+ * prompts.js - управление промптами для Reader Bot с правильной аутентификацией
  * 
- * 🔧 ИСПРАВЛЕНО: убрана рекурсия, добавлено детальное логирование
+ * 🔐 ИСПРАВЛЕНО: Аутентификация работает как в knowledge.js - Basic Auth по умолчанию
  * ✅ Полностью рабочая система управления промптами
  * ✅ Подробное логирование всех операций
  * 
@@ -85,7 +85,7 @@ async function initPromptsPage() {
 }
 
 /**
- * Выполнить аутентифицированный запрос
+ * Выполнить аутентифицированный запрос - ТА ЖЕ ЛОГИКА ЧТО В KNOWLEDGE.JS
  */
 async function makeAuthenticatedRequest(endpoint, options = {}) {
     const requestId = Math.random().toString(36).substr(2, 9);
@@ -94,6 +94,13 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
     try {
         const url = `${API_PREFIX}${endpoint}`;
         
+        // Проверяем, является ли endpoint публичным
+        const isPublicEndpoint = endpoint.includes('/prompts') && 
+                                 !endpoint.includes('/test') && 
+                                 !endpoint.includes('/backup') &&
+                                 !endpoint.includes('/restore') &&
+                                 (!options.method || options.method === 'GET');
+
         const headers = {
             ...options.headers
         };
@@ -103,14 +110,19 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             headers['Content-Type'] = 'application/json';
         }
 
-        // Аутентификация
-        const token = localStorage.getItem('adminToken');
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-            log('debug', `[${requestId}] Using Bearer token`);
+        // Добавляем аутентификацию - ТОЧНО КАК В KNOWLEDGE.JS
+        if (!isPublicEndpoint) {
+            const token = localStorage.getItem('adminToken');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+                log('debug', `[${requestId}] Using Bearer token`);
+            } else {
+                // Fallback на Basic Auth - КАК В KNOWLEDGE.JS
+                headers['Authorization'] = 'Basic ' + btoa('admin:password123');
+                log('debug', `[${requestId}] Using Basic auth fallback`);
+            }
         } else {
-            headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-            log('debug', `[${requestId}] Using Basic auth`);
+            log('debug', `[${requestId}] Public endpoint, no auth needed`);
         }
 
         log('debug', `[${requestId}] Making request to: ${url}`);
@@ -1109,4 +1121,4 @@ window.importPrompts = importPrompts;
 window.closeModal = closeModal;
 window.changePage = changePage;
 
-log('info', '💭 Prompts.js loaded successfully - ready for Reader Bot prompts management!');
+log('info', '💭 Prompts.js loaded successfully with proper authentication - ready for Reader Bot prompts management!');
