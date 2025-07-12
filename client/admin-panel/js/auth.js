@@ -5,6 +5,7 @@
 
 /**
  * Конфигурация аутентификации
+ * 🔧 ИСПРАВЛЕНО: Унифицированы ключи localStorage с knowledge.js и prompts.js
  */
 const AUTH_CONFIG = {
     // Демо-логин для тестирования
@@ -13,9 +14,9 @@ const AUTH_CONFIG = {
         password: 'reader2025'
     },
     
-    // Ключи для localStorage
+    // Ключи для localStorage - УНИФИЦИРОВАНЫ с остальными модулями
     STORAGE_KEYS: {
-        TOKEN: 'reader_admin_token',
+        TOKEN: 'adminToken',        // 🔧 ИСПРАВЛЕНО: Изменено с 'reader_admin_token' на 'adminToken'
         USER: 'reader_admin_user',
         EXPIRES: 'reader_admin_expires'
     },
