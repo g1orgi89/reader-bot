@@ -46,14 +46,14 @@
  * @property {boolean} successful - Успешность теста
  */
 
-// 🔧 ИСПРАВЛЕНИЕ: Используем правильный API prefix как в knowledge.js
+// API configuration - используем тот же prefix что и в knowledge.js
 const API_PREFIX = '/api/reader'; // Правильный prefix для Reader Bot
 
 /**
  * Конфигурация модуля управления промптами для "Читателя"
  */
 const PROMPTS_CONFIG = {
-  /** @type {string} Базовый URL для API запросов - ИСПРАВЛЕНО */
+  /** @type {string} Базовый URL для API запросов */
   API_BASE: `${API_PREFIX}/prompts`,
   
   /** @type {number} Количество промптов на странице по умолчанию */
@@ -119,6 +119,75 @@ const promptsState = {
 };
 
 /**
+ * Make authenticated request with error handling
+ * Используем ту же схему аутентификации, что и в knowledge.js
+ * @param {string} endpoint - API endpoint (without prefix)
+ * @param {Object} options - Fetch options
+ * @returns {Promise<any>} Response data
+ */
+async function makeAuthenticatedRequest(endpoint, options = {}) {
+    try {
+        // Создаем полный URL с API prefix
+        const url = `${API_PREFIX}${endpoint}`;
+        
+        // Определяем, является ли это публичным endpoint
+        const isPublicEndpoint = endpoint.includes('/prompts') && 
+                                 !endpoint.includes('/test') && 
+                                 !endpoint.includes('/backup') && 
+                                 !endpoint.includes('/restore') &&
+                                 (!options.method || options.method === 'GET');
+
+        // Не устанавливаем Content-Type для FormData (multipart/form-data)
+        const headers = {
+            ...options.headers
+        };
+
+        // Only set Content-Type for non-FormData requests
+        if (!(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        // Добавляем аутентификацию только для приватных endpoints
+        if (!isPublicEndpoint) {
+            const token = localStorage.getItem('reader_admin_token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            } else {
+                // Fallback на Basic Auth как в knowledge.js
+                headers['Authorization'] = 'Basic ' + btoa('admin:password123');
+            }
+        }
+
+        console.log(`📚 Making request to: ${url}`);
+        
+        const response = await fetch(url, {
+            ...options,
+            headers
+        });
+
+        console.log(`📚 Response status: ${response.status}`);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorData;
+            
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { error: errorText || `HTTP ${response.status}` };
+            }
+            
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('📚 Request failed:', error);
+        throw error;
+    }
+}
+
+/**
  * Инициализация страницы управления промптами
  * Основная точка входа после проверки аутентификации
  */
@@ -126,22 +195,9 @@ function initPromptsPage() {
   console.log('📚 Инициализация управления промптами "Читатель"...');
   
   try {
-    // 🔧 УЛУЧШЕННАЯ ПРОВЕРКА АУТЕНТИФИКАЦИИ
-    if (!window.authManager) {
-      console.error('📚 AuthManager не найден, ждем инициализации...');
-      // Ждем немного и пробуем снова
-      setTimeout(() => {
-        if (window.authManager) {
-          initPromptsPage();
-        } else {
-          console.error('📚 AuthManager недоступен, перенаправление на login');
-          window.location.href = 'login.html';
-        }
-      }, 1000);
-      return;
-    }
-    
-    if (!window.authManager.isAuthenticated()) {
+    // Упрощенная проверка аутентификации как в knowledge.js
+    const token = localStorage.getItem('reader_admin_token');
+    if (!token) {
       console.error('📚 Пользователь не авторизован');
       window.location.href = 'login.html';
       return;
@@ -252,7 +308,7 @@ async function loadPrompts() {
     if (promptsState.currentFilters.search) {
       // Используем search endpoint
       params.append('q', promptsState.currentFilters.search);
-      const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/search?${params}`);
+      const response = await makeAuthenticatedRequest(`/prompts/search?${params}`);
       
       if (response && response.success) {
         promptsState.prompts = response.data || [];
@@ -268,7 +324,7 @@ async function loadPrompts() {
       params.append('page', promptsState.currentFilters.page.toString());
       params.append('limit', promptsState.currentFilters.limit.toString());
       
-      const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}?${params}`);
+      const response = await makeAuthenticatedRequest(`/prompts?${params}`);
       
       if (response && response.success) {
         promptsState.prompts = response.data || [];
@@ -535,7 +591,7 @@ function hidePromptEditor() {
  */
 async function loadPromptForEditing(promptId) {
   try {
-    const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/${promptId}`);
+    const response = await makeAuthenticatedRequest(`/prompts/${promptId}`);
     
     if (response && response.success) {
       const prompt = response.data;
@@ -647,14 +703,14 @@ async function handlePromptSave(event) {
     let response;
     if (promptId) {
       // Обновляем существующий промпт
-      response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/${promptId}`, {
+      response = await makeAuthenticatedRequest(`/prompts/${promptId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(promptData)
       });
     } else {
       // Создаем новый промпт
-      response = await makeAuthenticatedRequest(PROMPTS_CONFIG.API_BASE, {
+      response = await makeAuthenticatedRequest('/prompts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(promptData)
@@ -816,7 +872,7 @@ async function runPromptTest() {
     
     const startTime = performance.now();
     
-    const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/test`, {
+    const response = await makeAuthenticatedRequest('/prompts/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1000,7 +1056,7 @@ async function downloadPromptsBackup() {
     console.log('📚 Создание резервной копии промптов...');
     showNotification('info', '📚 Создание резервной копии...');
     
-    const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/backup`);
+    const response = await makeAuthenticatedRequest('/prompts/backup');
     
     if (response) {
       // Создаем blob и скачиваем файл
@@ -1077,7 +1133,7 @@ async function importPrompts() {
     const backup = JSON.parse(text);
     
     // Отправляем на сервер
-    const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/restore`, {
+    const response = await makeAuthenticatedRequest('/prompts/restore', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ backup })
@@ -1143,7 +1199,7 @@ async function deletePrompt(promptId) {
   try {
     console.log('📚 Удаление промпта:', promptId);
     
-    const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/${promptId}`, {
+    const response = await makeAuthenticatedRequest(`/prompts/${promptId}`, {
       method: 'DELETE'
     });
     
@@ -1169,7 +1225,7 @@ async function loadPromptsStats() {
   try {
     console.log('📚 Загрузка статистики промптов...');
     
-    const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/stats`);
+    const response = await makeAuthenticatedRequest('/prompts/stats');
     
     if (response && response.success) {
       promptsState.stats = response.data;
@@ -1244,60 +1300,6 @@ function updatePaginationInfo() {
 // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 
 /**
- * Выполняет аутентифицированный запрос к API
- * @param {string} url - URL для запроса
- * @param {RequestInit} [options] - Дополнительные опции запроса
- * @returns {Promise<Object|null>} Ответ API или null при ошибке
- */
-async function makeAuthenticatedRequest(url, options = {}) {
-  try {
-    // 🔧 УЛУЧШЕННАЯ ПРОВЕРКА authManager
-    if (!window.authManager) {
-      console.error('📚 AuthManager не найден');
-      throw new Error('Система аутентификации недоступна');
-    }
-    
-    if (!window.authManager.isAuthenticated()) {
-      console.error('📚 Пользователь не авторизован');
-      throw new Error('Требуется авторизация');
-    }
-    
-    const response = await window.authManager.authenticatedFetch(url, options);
-    
-    if (!response) {
-      throw new Error('Нет ответа от сервера');
-    }
-    
-    // Проверяем статус ответа
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: errorText || `HTTP ${response.status}` };
-      }
-      
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('📚 Ошибка API запроса:', error);
-    
-    // Если ошибка связана с аутентификацией, перенаправляем на login
-    if (error.message.includes('401') || error.message.includes('Требуется авторизация')) {
-      window.location.href = 'login.html';
-      return null;
-    }
-    
-    throw error;
-  }
-}
-
-/**
  * Экранирует HTML в строке
  * @param {string} str - Строка для экранирования
  * @returns {string} Экранированная строка
@@ -1352,24 +1354,17 @@ function showNotification(type, message, duration = 5000) {
   }, duration);
 }
 
-// 🔧 ИНИЦИАЛИЗАЦИЯ С ПРОВЕРКОЙ ГОТОВНОСТИ DOM И authManager
+// Инициализация страницы
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('📚 DOM загружен, проверяем готовность authManager...');
+  console.log('📚 DOM загружен, проверяем готовность...');
   
   // Проверяем, что мы на странице промптов
   if (window.location.pathname.includes('prompts.html')) {
-    // Ждем готовности authManager
-    const checkAuthManager = () => {
-      if (window.authManager) {
-        console.log('📚 AuthManager готов, инициализируем промпты...');
-        initPromptsPage();
-      } else {
-        console.log('📚 Ждем authManager...');
-        setTimeout(checkAuthManager, 100);
-      }
-    };
-    
-    checkAuthManager();
+    // Небольшая задержка для загрузки других скриптов
+    setTimeout(() => {
+      console.log('📚 Инициализируем промпты...');
+      initPromptsPage();
+    }, 500);
   }
 });
 
