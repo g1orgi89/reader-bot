@@ -413,4 +413,107 @@ router.post('/validate-all', async (req, res) => {
             limit: 1000 // Получаем все промпты
         });
 
-        let
+        let validCount = 0;
+        let invalidCount = 0;
+        const validationResults = [];
+
+        for (const prompt of allPrompts) {
+            try {
+                // Базовая валидация
+                const isValid = prompt.name && 
+                               prompt.content && 
+                               prompt.content.length >= 10 &&
+                               prompt.category;
+
+                if (isValid) {
+                    validCount++;
+                } else {
+                    invalidCount++;
+                    validationResults.push({
+                        id: prompt.id,
+                        name: prompt.name,
+                        errors: [
+                            !prompt.name ? 'Отсутствует название' : null,
+                            !prompt.content ? 'Отсутствует содержание' : null,
+                            prompt.content && prompt.content.length < 10 ? 'Содержание слишком короткое' : null,
+                            !prompt.category ? 'Отсутствует категория' : null
+                        ].filter(Boolean)
+                    });
+                }
+            } catch (error) {
+                invalidCount++;
+                validationResults.push({
+                    id: prompt.id,
+                    name: prompt.name,
+                    errors: [`Ошибка валидации: ${error.message}`]
+                });
+            }
+        }
+
+        console.log(`✅ Валидация завершена: ${validCount}/${allPrompts.length} валидны`);
+
+        res.json({
+            success: true,
+            total: allPrompts.length,
+            valid: validCount,
+            invalid: invalidCount,
+            validationResults: invalidCount > 0 ? validationResults : []
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка валидации промптов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка валидации промптов: ' + error.message
+        });
+    }
+});
+
+/**
+ * 📤 GET /api/reader/prompts/export - Экспорт всех промптов в JSON
+ */
+router.get('/export', async (req, res) => {
+    try {
+        console.log('🤖 GET /prompts/export - экспорт промптов');
+
+        const { prompts } = await promptService.getPrompts({
+            filters: {},
+            page: 1,
+            limit: 10000 // Получаем все промпты
+        });
+
+        // Подготовка данных для экспорта
+        const exportData = {
+            exportDate: new Date().toISOString(),
+            totalPrompts: prompts.length,
+            prompts: prompts.map(prompt => ({
+                id: prompt.id,
+                name: prompt.name,
+                category: prompt.category,
+                content: prompt.content,
+                variables: prompt.variables,
+                language: prompt.language,
+                status: prompt.status,
+                priority: prompt.priority,
+                description: prompt.description,
+                createdAt: prompt.createdAt,
+                updatedAt: prompt.updatedAt
+            }))
+        };
+
+        console.log(`✅ Экспорт готов: ${prompts.length} промптов`);
+
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="reader-prompts-${new Date().toISOString().split('T')[0]}.json"`);
+        res.json(exportData);
+
+    } catch (error) {
+        console.error('❌ Ошибка экспорта промптов:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Ошибка экспорта промптов: ' + error.message
+        });
+    }
+});
+
+module.exports = router;
