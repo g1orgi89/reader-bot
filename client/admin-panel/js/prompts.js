@@ -48,10 +48,9 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
         // Создаем полный URL с API prefix
         const url = `${API_PREFIX}${endpoint}`;
         
-        // Базовые endpoints больше не требуют аутентификации
-        const isPublicEndpoint = endpoint.includes('/prompts') && 
-                                 !endpoint.includes('/stats') && 
-                                 (!options.method || options.method === 'GET');
+        // 🔧 ИСПРАВЛЕНО: ВСЕ промпты требуют аутентификацию!
+        // Сервер требует авторизацию для ВСЕХ endpoints /api/reader/prompts/*
+        const isPublicEndpoint = false; // Больше НЕТ публичных промпт endpoints!
 
         // Не устанавливаем Content-Type для FormData (multipart/form-data)
         const headers = {
@@ -63,15 +62,13 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             headers['Content-Type'] = 'application/json';
         }
 
-        // Добавляем аутентификацию только для приватных endpoints
-        if (!isPublicEndpoint) {
-            const token = localStorage.getItem('adminToken');
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            } else {
-                // Fallback на Basic Auth
-                headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-            }
+        // 🔧 ИСПРАВЛЕНО: ВСЕГДА добавляем аутентификацию для всех промпт запросов
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            // Fallback на Basic Auth
+            headers['Authorization'] = 'Basic ' + btoa('admin:password123');
         }
 
         console.log(`🤖 Making request to: ${url}`);
