@@ -1,7 +1,7 @@
 /**
  * Prompts API Routes - Управление промптами для Reader Bot
  * @file server/api/prompts.js
- * 🔧 ИСПРАВЛЕНО: Убрана аутентификация для совместимости с админ-панелью
+ * 🔧 ИСПРАВЛЕНО: Обновлена логика под новые поля модели промптов
  */
 
 const express = require('express');
@@ -10,8 +10,6 @@ const Prompt = require('../models/prompt');
 const claude = require('../services/claude');
 const promptService = require('../services/promptService');
 const logger = require('../utils/logger');
-// 🔧 ИСПРАВЛЕНО: Убираем requireAdminAuth для совместимости с knowledge.js
-// const { requireAdminAuth } = require('../middleware/adminAuth');
 
 // Middleware для UTF-8 кодировки
 router.use((req, res, next) => {
@@ -23,11 +21,12 @@ router.use((req, res, next) => {
 /**
  * @route GET /api/reader/prompts
  * @desc Получить список промптов с фильтрацией
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для админ-панели)
+ * @access Public
  * @param {string} [category] - Фильтр по категории
  * @param {string} [type] - Фильтр по типу
  * @param {string} [language] - Фильтр по языку
- * @param {boolean} [activeOnly=true] - Только активные промпты
+ * @param {string} [status] - Фильтр по статусу (active, draft, archived)
+ * @param {string} [q] - Поисковый запрос
  * @param {number} [page=1] - Номер страницы
  * @param {number} [limit=20] - Результатов на странице
  */
@@ -37,7 +36,8 @@ router.get('/', async (req, res) => {
       category,
       type,
       language,
-      activeOnly = 'true',
+      status,
+      q: searchQuery,
       page = 1,
       limit = 20
     } = req.query;
@@ -46,17 +46,38 @@ router.get('/', async (req, res) => {
     const query = {};
     if (category) query.category = category;
     if (type) query.type = type;
-    if (language && language !== 'all') query.language = { $in: [language, 'all'] };
-    if (activeOnly === 'true') query.active = true;
+    if (language && language !== 'all') query.language = { $in: [language, 'none'] };
+    if (status && status !== 'all') query.status = status;
 
-    // Подсчет общего количества
-    const totalCount = await Prompt.countDocuments(query);
-    
-    // Получение промптов с пагинацией
-    const prompts = await Prompt.find(query)
-      .sort({ isDefault: -1, type: 1, name: 1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    let prompts;
+    let totalCount;
+
+    // Если есть поисковый запрос - используем текстовый поиск
+    if (searchQuery && searchQuery.trim()) {
+      const searchOptions = {
+        category,
+        type,
+        language,
+        status,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      };
+      
+      prompts = await Prompt.searchText(searchQuery.trim(), searchOptions);
+      // Для поиска считаем общее количество через отдельный запрос
+      totalCount = await Prompt.countDocuments({
+        ...query,
+        $text: { $search: searchQuery.trim() }
+      });
+    } else {
+      // Обычный запрос с фильтрами
+      totalCount = await Prompt.countDocuments(query);
+      
+      prompts = await Prompt.find(query)
+        .sort({ isDefault: -1, priority: 1, type: 1, name: 1 })
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+    }
 
     // Форматирование для фронтенда
     const formattedPrompts = prompts.map(prompt => prompt.toPublicJSON());
@@ -65,16 +86,18 @@ router.get('/', async (req, res) => {
       success: true,
       data: formattedPrompts,
       pagination: {
-        page: parseInt(page),
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount / limit),
+        totalDocs: totalCount,
         limit: parseInt(limit),
-        total: totalCount,
-        pages: Math.ceil(totalCount / limit)
+        startDoc: ((page - 1) * limit) + 1,
+        endDoc: Math.min(page * limit, totalCount)
       }
     });
 
     logger.info(`Prompts retrieved: ${formattedPrompts.length}/${totalCount}`);
   } catch (error) {
-    logger.error(`Error retrieving prompts: ${error.message}`);
+    logger.error(`Error retrieving prompts: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Не удалось получить список промптов',
@@ -84,80 +107,23 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * @route GET /api/reader/prompts/search
- * @desc Поиск промптов по тексту
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация)
- * @param {string} q - Поисковый запрос
- * @param {string} [category] - Фильтр по категории
- * @param {string} [type] - Фильтр по типу
- * @param {string} [language] - Фильтр по языку
- * @param {number} [page=1] - Номер страницы
- * @param {number} [limit=10] - Результатов на странице
- */
-router.get('/search', async (req, res) => {
-  try {
-    const {
-      q: searchQuery,
-      category,
-      type,
-      language,
-      page = 1,
-      limit = 10
-    } = req.query;
-
-    if (!searchQuery || searchQuery.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Поисковый запрос обязателен',
-        errorCode: 'MISSING_SEARCH_QUERY'
-      });
-    }
-
-    const prompts = await Prompt.searchText(searchQuery, {
-      category,
-      type,
-      language,
-      page: parseInt(page),
-      limit: parseInt(limit)
-    });
-
-    const formattedPrompts = prompts.map(prompt => prompt.toPublicJSON());
-
-    res.json({
-      success: true,
-      data: formattedPrompts,
-      query: searchQuery,
-      count: formattedPrompts.length
-    });
-
-    logger.info(`Prompt search performed: "${searchQuery}" - ${formattedPrompts.length} results`);
-  } catch (error) {
-    logger.error(`Error searching prompts: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Поиск промптов не удался',
-      errorCode: 'SEARCH_ERROR'
-    });
-  }
-});
-
-/**
  * @route GET /api/reader/prompts/stats
- * @desc Получить статистику промптов
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация)
+ * @desc Получить статистику промптов для Reader Bot
+ * @access Public
  */
 router.get('/stats', async (req, res) => {
   try {
-    const stats = await Prompt.getStats();
+    // Используем обновленный метод для Reader Bot
+    const stats = await Prompt.getReaderStats();
     
     res.json({
       success: true,
       data: stats
     });
 
-    logger.info(`Prompt statistics retrieved`);
+    logger.info(`Reader prompt statistics retrieved`);
   } catch (error) {
-    logger.error(`Error retrieving prompt statistics: ${error.message}`);
+    logger.error(`Error retrieving prompt statistics: ${error.message}`, error);
     res.status(500).json({
       success: false,
       error: 'Не удалось получить статистику',
@@ -168,54 +134,96 @@ router.get('/stats', async (req, res) => {
 
 /**
  * @route POST /api/reader/prompts/test
- * @desc Тестировать промпт с Claude API
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для тестирования)
- * @body {string} prompt - Промпт для тестирования
- * @body {string} testMessage - Тестовое сообщение
- * @body {string} [language=en] - Язык тестирования
+ * @desc Тестировать промпт с переменными
+ * @access Public
+ * @body {string} promptId - ID промпта для тестирования
+ * @body {Object} variables - Переменные для подстановки
  */
 router.post('/test', async (req, res) => {
   try {
-    const { prompt, testMessage, language = 'en' } = req.body;
+    const { promptId, variables = {} } = req.body;
 
-    if (!prompt || !testMessage) {
+    if (!promptId) {
       return res.status(400).json({
         success: false,
-        error: 'Промпт и тестовое сообщение обязательны',
-        errorCode: 'MISSING_REQUIRED_FIELDS'
+        error: 'ID промпта обязателен',
+        errorCode: 'MISSING_PROMPT_ID'
       });
     }
 
-    logger.info(`Testing prompt with Claude API`);
+    // Получаем промпт
+    const prompt = await Prompt.findById(promptId);
+    if (!prompt) {
+      return res.status(404).json({
+        success: false,
+        error: 'Промпт не найден',
+        errorCode: 'PROMPT_NOT_FOUND'
+      });
+    }
 
-    // Тестируем промпт через Claude
-    const testResult = await claude.testPrompt(prompt, testMessage, { language });
+    logger.info(`Testing prompt: ${prompt.name}`);
+
+    // Подставляем переменные в промпт
+    let processedPrompt = prompt.content;
+    Object.entries(variables).forEach(([key, value]) => {
+      const regex = new RegExp(`{${key}}`, 'g');
+      processedPrompt = processedPrompt.replace(regex, value);
+    });
+
+    // Тестируем через Claude
+    const startTime = Date.now();
+    const testResult = await claude.generateResponse(processedPrompt, {
+      platform: 'test',
+      userId: 'test_user'
+    });
+    const executionTime = Date.now() - startTime;
+
+    // Сохраняем результат тестирования
+    await prompt.addTestResult({
+      input: processedPrompt,
+      output: testResult.message,
+      tokensUsed: testResult.tokensUsed || 0,
+      successful: true
+    });
 
     res.json({
       success: true,
       data: {
-        input: testMessage,
-        output: testResult.message,
+        promptName: prompt.name,
+        processedPrompt,
+        result: testResult.message,
         tokensUsed: testResult.tokensUsed,
-        provider: testResult.provider,
-        testedAt: new Date().toISOString(),
-        successful: true
+        executionTime: `${executionTime}ms`,
+        variables
       }
     });
 
-    logger.info(`Prompt test completed successfully`);
+    logger.info(`Prompt test completed: ${prompt.name} - ${executionTime}ms`);
   } catch (error) {
-    logger.error(`Error testing prompt: ${error.message}`);
+    logger.error(`Error testing prompt: ${error.message}`, error);
     
-    // Возвращаем результат тестирования даже если произошла ошибка
+    // Сохраняем результат с ошибкой
+    if (req.body.promptId) {
+      try {
+        const prompt = await Prompt.findById(req.body.promptId);
+        if (prompt) {
+          await prompt.addTestResult({
+            input: req.body.variables || {},
+            output: null,
+            error: error.message,
+            successful: false
+          });
+        }
+      } catch (saveError) {
+        logger.error(`Error saving test result: ${saveError.message}`);
+      }
+    }
+    
     res.json({
       success: false,
       data: {
-        input: req.body.testMessage,
-        output: null,
         error: error.message,
-        testedAt: new Date().toISOString(),
-        successful: false
+        variables: req.body.variables || {}
       },
       error: 'Ошибка при тестировании промпта',
       errorCode: 'TEST_ERROR'
@@ -224,108 +232,103 @@ router.post('/test', async (req, res) => {
 });
 
 /**
- * @route GET /api/reader/prompts/backup
- * @desc Экспорт всех промптов в JSON
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для бэкапа)
+ * @route POST /api/reader/prompts
+ * @desc Создать новый промпт Reader Bot
+ * @access Public
+ * @body {string} name - Название промпта
+ * @body {string} category - Категория (onboarding, quote_analysis, etc.)
+ * @body {string} language - Язык (ru, en, none)
+ * @body {string} content - Содержимое промпта
+ * @body {string[]} [variables] - Переменные
+ * @body {string} [status=active] - Статус
+ * @body {string} [priority=normal] - Приоритет
+ * @body {string} [description] - Описание
  */
-router.get('/backup', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const prompts = await Prompt.find().sort({ type: 1, language: 1, name: 1 });
-    
-    const backup = {
-      version: '1.0.0',
-      exportedAt: new Date().toISOString(),
-      exportedBy: 'admin', // Fallback если нет req.admin
-      count: prompts.length,
-      prompts: prompts.map(prompt => prompt.toPublicJSON())
-    };
+    const {
+      name,
+      category,
+      language = 'ru',
+      content,
+      variables = [],
+      status = 'active',
+      priority = 'normal',
+      description = ''
+    } = req.body;
 
-    res.setHeader('Content-Disposition', `attachment; filename="reader-prompts-backup-${Date.now()}.json"`);
-    res.json(backup);
-
-    logger.info(`Prompts backup exported: ${prompts.length} prompts`);
-  } catch (error) {
-    logger.error(`Error exporting prompts: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      error: 'Не удалось экспортировать промпты',
-      errorCode: 'EXPORT_ERROR'
-    });
-  }
-});
-
-/**
- * @route POST /api/reader/prompts/restore
- * @desc Импорт промптов из JSON
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для восстановления)
- * @body {Object} backup - Бэкап промптов
- */
-router.post('/restore', async (req, res) => {
-  try {
-    const { backup } = req.body;
-
-    if (!backup || !backup.prompts || !Array.isArray(backup.prompts)) {
+    // Валидация обязательных полей
+    if (!name || !category || !content) {
       return res.status(400).json({
         success: false,
-        error: 'Неверный формат бэкапа',
-        errorCode: 'INVALID_BACKUP_FORMAT'
+        error: 'Название, категория и содержимое обязательны',
+        errorCode: 'MISSING_REQUIRED_FIELDS'
       });
     }
 
-    let importedCount = 0;
-    let errorCount = 0;
-    const errors = [];
-
-    for (const promptData of backup.prompts) {
-      try {
-        // Проверяем, существует ли промпт с таким именем
-        const existingPrompt = await Prompt.findOne({ name: promptData.name });
-        
-        if (existingPrompt && existingPrompt.isDefault) {
-          // Не перезаписываем системные промпты
-          continue;
-        }
-
-        if (existingPrompt) {
-          // Обновляем существующий промпт (без векторной синхронизации)
-          await promptService.updatePromptMongoOnly(existingPrompt._id, promptData);
-        } else {
-          // Создаем новый промпт (без векторной синхронизации)
-          await promptService.addPromptMongoOnly({
-            ...promptData,
-            authorId: 'admin', // Fallback если нет req.admin
-            isDefault: false // Импортированные промпты не могут быть системными
-          });
-        }
-        
-        importedCount++;
-      } catch (promptError) {
-        errorCount++;
-        errors.push({
-          prompt: promptData.name,
-          error: promptError.message
-        });
-      }
+    // Проверка уникальности названия
+    const existingPrompt = await Prompt.findOne({ name: name.trim() });
+    if (existingPrompt) {
+      return res.status(400).json({
+        success: false,
+        error: 'Промпт с таким названием уже существует',
+        errorCode: 'DUPLICATE_NAME'
+      });
     }
 
-    res.json({
+    // Определяем тип на основе категории
+    const typeMapping = {
+      'onboarding': 'reader_onboarding',
+      'quote_analysis': 'reader_analysis',
+      'weekly_reports': 'reader_reports',
+      'monthly_reports': 'reader_reports',
+      'book_recommendations': 'reader_recommendations',
+      'user_interaction': 'basic',
+      'system': 'basic',
+      'other': 'basic'
+    };
+
+    const promptData = {
+      name: name.trim(),
+      type: typeMapping[category] || 'basic',
+      category,
+      language,
+      content: content.trim(),
+      variables: Array.isArray(variables) ? variables : [],
+      status,
+      priority,
+      description: description.trim(),
+      authorId: 'admin',
+      isDefault: false
+    };
+
+    // Создаем промпт
+    const newPrompt = new Prompt(promptData);
+    await newPrompt.save();
+
+    res.status(201).json({
       success: true,
-      data: {
-        total: backup.prompts.length,
-        imported: importedCount,
-        errors: errorCount,
-        errorDetails: errors
-      },
-      message: `Импортировано ${importedCount} промптов из ${backup.prompts.length}`
+      data: newPrompt.toPublicJSON(),
+      message: 'Промпт успешно создан'
     });
 
-    logger.info(`Prompts restore completed: ${importedCount}/${backup.prompts.length}`);
+    logger.info(`Prompt created: ${newPrompt._id} - "${name}"`);
   } catch (error) {
-    logger.error(`Error restoring prompts: ${error.message}`);
+    logger.error(`Error creating prompt: ${error.message}`, error);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Ошибка валидации данных',
+        details: Object.values(error.errors).map(err => err.message),
+        errorCode: 'VALIDATION_ERROR'
+      });
+    }
+
     res.status(500).json({
       success: false,
-      error: 'Не удалось импортировать промпты',
-      errorCode: 'IMPORT_ERROR'
+      error: 'Не удалось создать промпт',
+      errorCode: 'CREATION_ERROR'
     });
   }
 });
@@ -333,7 +336,7 @@ router.post('/restore', async (req, res) => {
 /**
  * @route GET /api/reader/prompts/:id
  * @desc Получить конкретный промпт
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация)
+ * @access Public
  * @param {string} id - ID промпта
  */
 router.get('/:id', async (req, res) => {
@@ -357,7 +360,7 @@ router.get('/:id', async (req, res) => {
 
     logger.info(`Prompt retrieved: ${id}`);
   } catch (error) {
-    logger.error(`Error retrieving prompt: ${error.message}`);
+    logger.error(`Error retrieving prompt: ${error.message}`, error);
     
     if (error.name === 'CastError') {
       return res.status(400).json({
@@ -376,95 +379,9 @@ router.get('/:id', async (req, res) => {
 });
 
 /**
- * @route POST /api/reader/prompts
- * @desc Создать новый промпт (только MongoDB, без векторной синхронизации)
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для создания)
- * @body {string} name - Название промпта
- * @body {string} type - Тип промпта
- * @body {string} category - Категория
- * @body {string} language - Язык
- * @body {string} content - Содержимое промпта
- * @body {string} [description] - Описание
- * @body {number} [maxTokens=1000] - Максимум токенов
- * @body {string[]} [tags] - Теги
- */
-router.post('/', async (req, res) => {
-  try {
-    const {
-      name,
-      type,
-      category,
-      language,
-      content,
-      description,
-      maxTokens = 1000,
-      tags = []
-    } = req.body;
-
-    // Валидация обязательных полей
-    if (!name || !type || !category || !language || !content) {
-      return res.status(400).json({
-        success: false,
-        error: 'Название, тип, категория, язык и содержимое обязательны',
-        errorCode: 'MISSING_REQUIRED_FIELDS'
-      });
-    }
-
-    // Проверка уникальности названия
-    const existingPrompt = await Prompt.findOne({ name: name.trim() });
-    if (existingPrompt) {
-      return res.status(400).json({
-        success: false,
-        error: 'Промпт с таким названием уже существует',
-        errorCode: 'DUPLICATE_NAME'
-      });
-    }
-
-    // Создаем промпт только в MongoDB (без векторной синхронизации)
-    const result = await promptService.addPromptMongoOnly({
-      name: name.trim(),
-      type,
-      category,
-      language,
-      content: content.trim(),
-      description: description?.trim(),
-      maxTokens: parseInt(maxTokens),
-      tags: Array.isArray(tags) ? tags : [],
-      authorId: 'admin', // Fallback если нет req.admin
-      isDefault: false // Пользовательские промпты не могут быть системными
-    });
-
-    res.status(201).json({
-      success: true,
-      data: result.prompt,
-      message: 'Промпт успешно создан в MongoDB'
-    });
-
-    logger.info(`Prompt created: ${result.prompt._id} - "${name}"`);
-  } catch (error) {
-    logger.error(`Error creating prompt: ${error.message}`);
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        error: 'Ошибка валидации',
-        details: Object.values(error.errors).map(err => err.message),
-        errorCode: 'VALIDATION_ERROR'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: 'Не удалось создать промпт',
-      errorCode: 'CREATION_ERROR'
-    });
-  }
-});
-
-/**
  * @route PUT /api/reader/prompts/:id
- * @desc Обновить промпт (только MongoDB, без векторной синхронизации)
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для обновления)
+ * @desc Обновить промпт
+ * @access Public
  * @param {string} id - ID промпта
  * @body Поля для обновления
  */
@@ -477,6 +394,7 @@ router.put('/:id', async (req, res) => {
     delete updateData._id;
     delete updateData.createdAt;
     delete updateData.metadata;
+    delete updateData.isDefault; // Защита системных промптов
 
     const prompt = await Prompt.findById(id);
 
@@ -490,8 +408,7 @@ router.put('/:id', async (req, res) => {
 
     // Системные промпты можно редактировать только частично
     if (prompt.isDefault) {
-      // Разрешаем изменять только активность и максимум токенов
-      const allowedFields = ['active', 'maxTokens'];
+      const allowedFields = ['status', 'maxTokens', 'priority'];
       Object.keys(updateData).forEach(key => {
         if (!allowedFields.includes(key)) {
           delete updateData[key];
@@ -515,18 +432,37 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    // Обновляем промпт только в MongoDB (без векторной синхронизации)
-    const result = await promptService.updatePromptMongoOnly(id, updateData);
+    // Обновляем тип на основе категории, если категория изменилась
+    if (updateData.category && updateData.category !== prompt.category) {
+      const typeMapping = {
+        'onboarding': 'reader_onboarding',
+        'quote_analysis': 'reader_analysis',
+        'weekly_reports': 'reader_reports',
+        'monthly_reports': 'reader_reports',
+        'book_recommendations': 'reader_recommendations',
+        'user_interaction': 'basic',
+        'system': 'basic',
+        'other': 'basic'
+      };
+      updateData.type = typeMapping[updateData.category] || 'basic';
+    }
+
+    // Обновляем промпт
+    const updatedPrompt = await Prompt.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
 
     res.json({
       success: true,
-      data: result.prompt,
-      message: 'Промпт успешно обновлен в MongoDB'
+      data: updatedPrompt.toPublicJSON(),
+      message: 'Промпт успешно обновлен'
     });
 
     logger.info(`Prompt updated: ${id}`);
   } catch (error) {
-    logger.error(`Error updating prompt: ${error.message}`);
+    logger.error(`Error updating prompt: ${error.message}`, error);
     
     if (error.name === 'CastError') {
       return res.status(400).json({
@@ -555,8 +491,8 @@ router.put('/:id', async (req, res) => {
 
 /**
  * @route DELETE /api/reader/prompts/:id
- * @desc Удалить промпт (только из MongoDB, без векторной синхронизации)
- * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для удаления)
+ * @desc Удалить промпт
+ * @access Public
  * @param {string} id - ID промпта
  */
 router.delete('/:id', async (req, res) => {
@@ -582,17 +518,16 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // Удаляем промпт только из MongoDB (без векторной синхронизации)
-    const result = await promptService.deletePromptMongoOnly(id);
+    await Prompt.findByIdAndDelete(id);
 
     res.json({
       success: true,
-      message: 'Промпт успешно удален из MongoDB'
+      message: 'Промпт успешно удален'
     });
 
     logger.info(`Prompt deleted: ${id} - "${prompt.name}"`);
   } catch (error) {
-    logger.error(`Error deleting prompt: ${error.message}`);
+    logger.error(`Error deleting prompt: ${error.message}`, error);
     
     if (error.name === 'CastError') {
       return res.status(400).json({
@@ -602,18 +537,53 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    if (error.code === 'SYSTEM_PROMPT_PROTECTED') {
-      return res.status(403).json({
-        success: false,
-        error: error.message,
-        errorCode: 'SYSTEM_PROMPT_PROTECTED'
-      });
-    }
-
     res.status(500).json({
       success: false,
       error: 'Не удалось удалить промпт',
       errorCode: 'DELETION_ERROR'
+    });
+  }
+});
+
+/**
+ * @route GET /api/reader/prompts/export
+ * @desc Экспорт всех промптов в JSON для бэкапа
+ * @access Public
+ */
+router.get('/export', async (req, res) => {
+  try {
+    const prompts = await Prompt.find().sort({ category: 1, name: 1 });
+    
+    const exportData = {
+      version: '1.0.0',
+      exportedAt: new Date().toISOString(),
+      source: 'Reader Bot',
+      count: prompts.length,
+      prompts: prompts.map(prompt => ({
+        name: prompt.name,
+        type: prompt.type,
+        category: prompt.category,
+        language: prompt.language,
+        content: prompt.content,
+        variables: prompt.variables || [],
+        status: prompt.status,
+        priority: prompt.priority,
+        description: prompt.description,
+        tags: prompt.tags || [],
+        isDefault: prompt.isDefault
+      }))
+    };
+
+    res.setHeader('Content-Disposition', `attachment; filename="reader-prompts-${Date.now()}.json"`);
+    res.json(exportData);
+
+    logger.info(`Prompts exported: ${prompts.length} prompts`);
+  } catch (error) {
+    logger.error(`Error exporting prompts: ${error.message}`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Не удалось экспортировать промпты',
+      errorCode: 'EXPORT_ERROR'
     });
   }
 });
