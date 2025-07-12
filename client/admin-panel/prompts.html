@@ -57,33 +57,6 @@
                 </div>
             </div>
             
-            <!-- 🧪 ТЕСТОВАЯ ПАНЕЛЬ ДЛЯ ДИАГНОСТИКИ -->
-            <div class="glow-card" style="border-left: 4px solid #28a745; background: #f8fff8;">
-                <h3>🧪 Тестовая панель диагностики</h3>
-                <div class="diagnostic-controls">
-                    <button onclick="checkRenderPromptsFunction()" class="btn btn-success">🔍 Проверить renderPrompts</button>
-                    <button onclick="forceRenderTest()" class="btn btn-warning">🎯 Принудительный рендеринг</button>
-                    <button onclick="location.reload(true)" class="btn btn-info">🔄 Жесткая перезагрузка</button>
-                </div>
-                <div style="margin-top: 10px; padding: 10px; background: #e8f5e8; border-radius: 4px; font-family: monospace; font-size: 12px;">
-                    📝 Откройте консоль (F12) для просмотра результатов диагностики
-                </div>
-            </div>
-            
-            <!-- Диагностическая панель (временная) -->
-            <div class="glow-card" style="border-left: 4px solid #ff6b6b; background: #fff5f5;">
-                <h3>🛠️ Диагностическая панель</h3>
-                <div class="diagnostic-controls">
-                    <button id="analyze-auth-btn" class="btn btn-secondary">🔍 Анализ аутентификации</button>
-                    <button id="test-api-btn" class="btn btn-secondary">🧪 Тест API</button>
-                    <button id="export-debug-btn" class="btn btn-secondary">📊 Экспорт отладки</button>
-                    <button id="reset-debug-btn" class="btn btn-secondary">🔄 Сброс счетчиков</button>
-                </div>
-                <div id="diagnostic-output" style="margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 4px;">
-                    📊 Результаты диагностики появятся здесь...
-                </div>
-            </div>
-            
             <!-- Фильтры и поиск -->
             <div class="glow-card mb-4">
                 <h3>🔍 Поиск и фильтры</h3>
@@ -277,8 +250,6 @@
     <!-- Scripts -->
     <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/prompts-test.js"></script><!-- 🧪 ТЕСТОВЫЙ МОДУЛЬ ЗАГРУЖАЕТСЯ ПЕРВЫМ -->
-    <script src="js/prompts-debug.js"></script><!-- 🛠️ ДИАГНОСТИЧЕСКИЙ СКРИПТ ПОДКЛЮЧЕН ПЕРВЫМ -->
     <script src="js/prompts.js"></script>
     
     <script>
@@ -309,70 +280,8 @@
                 }
                 
                 setupAdditionalEventListeners();
-                setupDiagnosticControls(); // 🛠️ НОВАЯ ФУНКЦИЯ ДЛЯ ДИАГНОСТИКИ
             }, 200);
         });
-        
-        /**
-         * 🛠️ Настройка диагностических контролов
-         */
-        function setupDiagnosticControls() {
-            // Анализ аутентификации
-            document.getElementById('analyze-auth-btn')?.addEventListener('click', () => {
-                if (typeof window.debugPrompts?.analyzeAuthState === 'function') {
-                    const result = window.debugPrompts.analyzeAuthState();
-                    updateDiagnosticOutput('Анализ аутентификации:', result);
-                } else {
-                    updateDiagnosticOutput('❌ Диагностический модуль не загружен');
-                }
-            });
-            
-            // Тест API
-            document.getElementById('test-api-btn')?.addEventListener('click', () => {
-                if (typeof window.debugPrompts?.testApiEndpoints === 'function') {
-                    updateDiagnosticOutput('🧪 Запуск тестирования API...');
-                    window.debugPrompts.testApiEndpoints();
-                } else {
-                    updateDiagnosticOutput('❌ Диагностический модуль не загружен');
-                }
-            });
-            
-            // Экспорт отладки
-            document.getElementById('export-debug-btn')?.addEventListener('click', () => {
-                if (typeof window.debugPrompts?.exportDebugData === 'function') {
-                    const data = window.debugPrompts.exportDebugData();
-                    updateDiagnosticOutput('📊 Данные отладки экспортированы в консоль');
-                } else {
-                    updateDiagnosticOutput('❌ Диагностический модуль не загружен');
-                }
-            });
-            
-            // Сброс счетчиков
-            document.getElementById('reset-debug-btn')?.addEventListener('click', () => {
-                if (typeof window.debugPrompts?.resetDebugData === 'function') {
-                    window.debugPrompts.resetDebugData();
-                    updateDiagnosticOutput('🔄 Счетчики диагностики сброшены');
-                } else {
-                    updateDiagnosticOutput('❌ Диагностический модуль не загружен');
-                }
-            });
-        }
-        
-        /**
-         * 🛠️ Обновление вывода диагностики
-         */
-        function updateDiagnosticOutput(title, data = null) {
-            const output = document.getElementById('diagnostic-output');
-            if (!output) return;
-            
-            const timestamp = new Date().toLocaleTimeString();
-            const entry = data ? 
-                `[${timestamp}] ${title}\n${JSON.stringify(data, null, 2)}\n\n` :
-                `[${timestamp}] ${title}\n\n`;
-            
-            output.textContent = entry + output.textContent;
-            output.scrollTop = 0;
-        }
         
         /**
          * Дополнительные обработчики событий
