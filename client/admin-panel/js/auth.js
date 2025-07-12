@@ -1,6 +1,6 @@
 /**
  * Модуль аутентификации для админ-панели "Читатель"
- * 🔧 ИСПРАВЛЕНО: Используем правильные учетные данные для авторизации на сервере
+ * 🔧 ВРЕМЕННОЕ ИСПРАВЛЕНИЕ: Используем Basic auth для отладки
  */
 
 /**
@@ -43,7 +43,7 @@ class AuthManager {
     constructor() {
         this.currentUser = null;
         this.token = null;
-        this.authMethod = 'bearer'; // 'bearer' или 'basic'
+        this.authMethod = 'basic'; // 🔧 ВРЕМЕННО: Используем basic auth
         this.init();
     }
 
@@ -80,7 +80,7 @@ class AuthManager {
             const token = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.TOKEN);
             const user = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER);
             const expires = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.EXPIRES);
-            const authMethod = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.AUTH_METHOD) || 'bearer';
+            const authMethod = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.AUTH_METHOD) || 'basic';
 
             if (token && user && expires) {
                 const expirationTime = parseInt(expires, 10);
@@ -122,14 +122,12 @@ class AuthManager {
                     permissions: ['read', 'write', 'admin']
                 };
                 
-                // 🔧 ИСПРАВЛЕНО: Используем правильную аутентификацию
-                // Вариант 1: Bearer token (рекомендуется)
-                const authMethod = 'bearer';
-                const token = AUTH_CONFIG.SERVER_CREDENTIALS.token;
+                // 🔧 ВРЕМЕННОЕ ИСПРАВЛЕНИЕ: Используем Basic auth
+                const authMethod = 'basic';
+                const token = btoa(`${AUTH_CONFIG.SERVER_CREDENTIALS.username}:${AUTH_CONFIG.SERVER_CREDENTIALS.password}`);
                 
-                // Вариант 2: Basic auth (альтернатива)
-                // const authMethod = 'basic';
-                // const token = btoa(`${AUTH_CONFIG.SERVER_CREDENTIALS.username}:${AUTH_CONFIG.SERVER_CREDENTIALS.password}`);
+                console.log('📖 Сгенерированный Basic auth токен:', token);
+                console.log('📖 Учетные данные:', AUTH_CONFIG.SERVER_CREDENTIALS.username, ':', AUTH_CONFIG.SERVER_CREDENTIALS.password);
                 
                 const expires = Date.now() + AUTH_CONFIG.SESSION_DURATION;
                 
@@ -189,7 +187,7 @@ class AuthManager {
     /**
      * Сохранение сессии
      */
-    saveSession(token, user, expires, authMethod = 'bearer') {
+    saveSession(token, user, expires, authMethod = 'basic') {
         try {
             localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.TOKEN, token);
             localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.USER, JSON.stringify(user));
@@ -215,7 +213,7 @@ class AuthManager {
         
         this.token = null;
         this.currentUser = null;
-        this.authMethod = 'bearer';
+        this.authMethod = 'basic';
     }
 
     /**
@@ -250,7 +248,7 @@ class AuthManager {
 
     /**
      * Получение заголовков для API запросов
-     * 🔧 ИСПРАВЛЕНО: Используем правильный формат Authorization header
+     * 🔧 ВРЕМЕННО: Используем Basic auth
      */
     getApiHeaders() {
         const headers = {
