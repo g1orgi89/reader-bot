@@ -120,14 +120,13 @@ const promptsState = {
 
 /**
  * Make authenticated request with error handling
- * Используем ту же схему аутентификации, что и в knowledge.js
+ * 🔧 ИСПРАВЛЕНО: Унифицировано с knowledge.js для consistent аутентификации
  * @param {string} endpoint - API endpoint (without prefix)
  * @param {Object} options - Fetch options
  * @returns {Promise<any>} Response data
  */
 async function makeAuthenticatedRequest(endpoint, options = {}) {
-    try {
-        // Создаем полный URL с API prefix
+    try {\n        // Создаем полный URL с API prefix
         const url = `${API_PREFIX}${endpoint}`;
         
         // 🔧 ИСПРАВЛЕНО: API промптов ВСЕГДА требует аутентификации
@@ -144,8 +143,9 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             headers['Content-Type'] = 'application/json';
         }
 
+        // 🔧 ИСПРАВЛЕНО: Используем 'adminToken' как в knowledge.js (было 'reader_admin_token')
         // Всегда добавляем аутентификацию для API промптов
-        const token = localStorage.getItem('reader_admin_token');
+        const token = localStorage.getItem('adminToken'); // Изменено с 'reader_admin_token' на 'adminToken'
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         } else {
@@ -191,8 +191,9 @@ function initPromptsPage() {
   console.log('📚 Инициализация управления промптами "Читатель"...');
   
   try {
+    // 🔧 ИСПРАВЛЕНО: Используем 'adminToken' как в knowledge.js (было 'reader_admin_token')
     // Упрощенная проверка аутентификации как в knowledge.js
-    const token = localStorage.getItem('reader_admin_token');
+    const token = localStorage.getItem('adminToken'); // Изменено с 'reader_admin_token' на 'adminToken'
     if (!token) {
       console.error('📚 Пользователь не авторизован');
       window.location.href = 'login.html';
