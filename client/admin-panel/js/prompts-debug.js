@@ -124,35 +124,28 @@ function diagnoseApiRequest(endpoint, options = {}) {
     
     debugLog('API_REQUEST', 'Заголовки до модификации', headers);
     
-    // Проверяем логику аутентификации
-    const isPublicEndpoint = endpoint.includes('/prompts') && 
-                             !endpoint.includes('/stats') && 
-                             (!options.method || options.method === 'GET');
+    // 🔧 ИСПРАВЛЕНО: ВСЕ промпты требуют аутентификацию!
+    const isPublicEndpoint = false; // НЕТ публичных промпт endpoints!
     
     debugLog('API_REQUEST', 'Логика аутентификации', {
-        isPublicEndpoint,
-        endpointCheck: endpoint.includes('/prompts'),
-        notStatsCheck: !endpoint.includes('/stats'),
-        methodCheck: !options.method || options.method === 'GET'
+        isPublicEndpoint: false,
+        note: '🔧 ВСЕ промпты требуют аутентификацию'
     });
     
-    if (!isPublicEndpoint) {
-        DEBUG_COUNTERS.authAttempts++;
-        debugLog('AUTH_ATTEMPT', `Попытка аутентификации #${DEBUG_COUNTERS.authAttempts}`);
-        
-        const token = localStorage.getItem('adminToken');
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-            debugLog('AUTH_ATTEMPT', 'Добавлен Bearer токен', {
-                tokenPrefix: token.substring(0, 20) + '...',
-                headerSet: true
-            });
-        } else {
-            headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-            debugLog('AUTH_ATTEMPT', 'Используется Basic Auth fallback');
-        }
+    // 🔧 ВСЕГДА добавляем аутентификацию
+    DEBUG_COUNTERS.authAttempts++;
+    debugLog('AUTH_ATTEMPT', `Попытка аутентификации #${DEBUG_COUNTERS.authAttempts}`);
+    
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        debugLog('AUTH_ATTEMPT', 'Добавлен Bearer токен', {
+            tokenPrefix: token.substring(0, 20) + '...',
+            headerSet: true
+        });
     } else {
-        debugLog('API_REQUEST', 'Публичный endpoint - аутентификация не требуется');
+        headers['Authorization'] = 'Basic ' + btoa('admin:password123');
+        debugLog('AUTH_ATTEMPT', 'Используется Basic Auth fallback');
     }
     
     // Content-Type логика
@@ -170,7 +163,7 @@ function diagnoseApiRequest(endpoint, options = {}) {
         headers,
         finalOptions: { ...options, headers },
         metadata: {
-            isPublic: isPublicEndpoint,
+            isPublic: false,
             hasAuth: !!headers['Authorization'],
             authType: headers['Authorization'] ? headers['Authorization'].split(' ')[0] : 'none'
         }
@@ -334,12 +327,8 @@ function initPromptsDiagnostics() {
     // Анализируем начальное состояние
     analyzeAuthState();
     
-    // Заменяем оригинальную функцию на диагностическую версию
-    if (typeof window.makeAuthenticatedRequest === 'function') {
-        window.originalMakeAuthenticatedRequest = window.makeAuthenticatedRequest;
-        window.makeAuthenticatedRequest = debugMakeAuthenticatedRequest;
-        debugLog('INIT', 'makeAuthenticatedRequest перехвачена для диагностики');
-    }
+    // 🔧 НЕ ЗАМЕНЯЕМ функцию - позволяем использовать исправленную версию
+    debugLog('INIT', '🔧 Диагностика работает в пассивном режиме - НЕ перехватывает makeAuthenticatedRequest');
     
     // Экспортируем диагностические функции
     window.debugPrompts = {
