@@ -1,24 +1,32 @@
 /**
  * Модуль аутентификации для админ-панели "Читатель"
- * Упрощенная аутентификация для демонстрации
+ * 🔧 ИСПРАВЛЕНО: Используем правильные учетные данные для авторизации на сервере
  */
 
 /**
  * Конфигурация аутентификации
- * 🔧 ИСПРАВЛЕНО: Унифицированы ключи localStorage с knowledge.js и prompts.js
  */
 const AUTH_CONFIG = {
-    // Демо-логин для тестирования
+    // Учетные данные - ДОЛЖНЫ СОВПАДАТЬ с серверной конфигурацией
+    SERVER_CREDENTIALS: {
+        // Эти значения должны совпадать с process.env.ADMIN_USERNAME и ADMIN_PASSWORD
+        username: 'admin',      // или process.env.ADMIN_USERNAME
+        password: 'password123', // или process.env.ADMIN_PASSWORD
+        token: 'default-admin-token' // или process.env.ADMIN_TOKEN
+    },
+    
+    // Демо-логин для фронтенда (пользователь вводит эти данные)
     DEMO_CREDENTIALS: {
         username: 'anna',
         password: 'reader2025'
     },
     
-    // Ключи для localStorage - УНИФИЦИРОВАНЫ с остальными модулями
+    // Ключи для localStorage
     STORAGE_KEYS: {
-        TOKEN: 'adminToken',        // 🔧 ИСПРАВЛЕНО: Изменено с 'reader_admin_token' на 'adminToken'
+        TOKEN: 'adminToken',
         USER: 'reader_admin_user',
-        EXPIRES: 'reader_admin_expires'
+        EXPIRES: 'reader_admin_expires',
+        AUTH_METHOD: 'reader_auth_method' // bearer или basic
     },
     
     // Время жизни сессии (24 часа)
@@ -35,6 +43,7 @@ class AuthManager {
     constructor() {
         this.currentUser = null;
         this.token = null;
+        this.authMethod = 'bearer'; // 'bearer' или 'basic'
         this.init();
     }
 
@@ -71,6 +80,7 @@ class AuthManager {
             const token = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.TOKEN);
             const user = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.USER);
             const expires = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.EXPIRES);
+            const authMethod = localStorage.getItem(AUTH_CONFIG.STORAGE_KEYS.AUTH_METHOD) || 'bearer';
 
             if (token && user && expires) {
                 const expirationTime = parseInt(expires, 10);
@@ -79,6 +89,7 @@ class AuthManager {
                 if (Date.now() < expirationTime) {
                     this.token = token;
                     this.currentUser = JSON.parse(user);
+                    this.authMethod = authMethod;
                     console.log('📖 Сессия восстановлена:', this.currentUser.username);
                     return true;
                 } else {
@@ -103,7 +114,7 @@ class AuthManager {
             
             // Демо-проверка (в реальном приложении - запрос к серверу)
             if (this.validateDemoCredentials(username, password)) {
-                // Создаем пользователя и токен
+                // Создаем пользователя
                 const user = {
                     username: username,
                     displayName: 'Анна Бусел',
@@ -111,11 +122,19 @@ class AuthManager {
                     permissions: ['read', 'write', 'admin']
                 };
                 
-                const token = this.generateToken(user);
+                // 🔧 ИСПРАВЛЕНО: Используем правильную аутентификацию
+                // Вариант 1: Bearer token (рекомендуется)
+                const authMethod = 'bearer';
+                const token = AUTH_CONFIG.SERVER_CREDENTIALS.token;
+                
+                // Вариант 2: Basic auth (альтернатива)
+                // const authMethod = 'basic';
+                // const token = btoa(`${AUTH_CONFIG.SERVER_CREDENTIALS.username}:${AUTH_CONFIG.SERVER_CREDENTIALS.password}`);
+                
                 const expires = Date.now() + AUTH_CONFIG.SESSION_DURATION;
                 
                 // Сохраняем сессию
-                this.saveSession(token, user, expires);
+                this.saveSession(token, user, expires, authMethod);
                 
                 console.log('📖 Успешная авторизация:', user.displayName);
                 return { success: true, user };
@@ -168,25 +187,18 @@ class AuthManager {
     }
 
     /**
-     * Генерация токена (демо-реализация)
-     */
-    generateToken(user) {
-        const timestamp = Date.now();
-        const randomStr = Math.random().toString(36).substring(2);
-        return `reader_${timestamp}_${randomStr}`;
-    }
-
-    /**
      * Сохранение сессии
      */
-    saveSession(token, user, expires) {
+    saveSession(token, user, expires, authMethod = 'bearer') {
         try {
             localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.TOKEN, token);
             localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.USER, JSON.stringify(user));
             localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.EXPIRES, expires.toString());
+            localStorage.setItem(AUTH_CONFIG.STORAGE_KEYS.AUTH_METHOD, authMethod);
             
             this.token = token;
             this.currentUser = user;
+            this.authMethod = authMethod;
         } catch (error) {
             console.error('📖 Ошибка сохранения сессии:', error);
         }
@@ -199,9 +211,11 @@ class AuthManager {
         localStorage.removeItem(AUTH_CONFIG.STORAGE_KEYS.TOKEN);
         localStorage.removeItem(AUTH_CONFIG.STORAGE_KEYS.USER);
         localStorage.removeItem(AUTH_CONFIG.STORAGE_KEYS.EXPIRES);
+        localStorage.removeItem(AUTH_CONFIG.STORAGE_KEYS.AUTH_METHOD);
         
         this.token = null;
         this.currentUser = null;
+        this.authMethod = 'bearer';
     }
 
     /**
@@ -236,6 +250,7 @@ class AuthManager {
 
     /**
      * Получение заголовков для API запросов
+     * 🔧 ИСПРАВЛЕНО: Используем правильный формат Authorization header
      */
     getApiHeaders() {
         const headers = {
@@ -243,7 +258,13 @@ class AuthManager {
         };
         
         if (this.token) {
-            headers['Authorization'] = `Bearer ${this.token}`;
+            if (this.authMethod === 'bearer') {
+                // Bearer token аутентификация
+                headers['Authorization'] = `Bearer ${this.token}`;
+            } else if (this.authMethod === 'basic') {
+                // Basic аутентификация
+                headers['Authorization'] = `Basic ${this.token}`;
+            }
         }
         
         return headers;
@@ -259,11 +280,13 @@ class AuthManager {
         };
 
         try {
+            console.log('📖 API запрос:', url, 'с заголовками:', defaultOptions.headers);
+            
             const response = await fetch(url, defaultOptions);
             
             // Если получили 401, значит токен истек
             if (response.status === 401) {
-                console.log('📖 Токен истек, требуется повторная авторизация');
+                console.log('📖 Получен 401, токен истек или неверный, требуется повторная авторизация');
                 this.clearSession();
                 this.redirectToLogin();
                 return null;
@@ -273,6 +296,28 @@ class AuthManager {
         } catch (error) {
             console.error('📖 Ошибка API запроса:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Тестирование соединения с сервером
+     */
+    async testConnection() {
+        try {
+            console.log('📖 Тестирование соединения с сервером...');
+            const response = await this.authenticatedFetch('/api/reader/health');
+            
+            if (response && response.ok) {
+                const data = await response.json();
+                console.log('📖 Соединение с сервером успешно:', data);
+                return true;
+            } else {
+                console.log('📖 Сервер недоступен:', response ? response.status : 'no response');
+                return false;
+            }
+        } catch (error) {
+            console.error('📖 Ошибка соединения с сервером:', error);
+            return false;
         }
     }
 }
