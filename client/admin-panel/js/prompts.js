@@ -133,10 +133,20 @@ async function loadPrompts() {
             params.append('language', languageFilter.value);
         }
 
+        // Add status filter if exists
+        const statusFilter = document.getElementById('status-filter');
+        if (statusFilter && statusFilter.value) {
+            params.append('status', statusFilter.value);
+        }
+
+        console.log('🤖 Loading prompts with params:', params.toString());
+
         const response = await makeAuthenticatedRequest(`/prompts?${params}`);
         
+        console.log('🤖 Prompts response:', response);
+        
         if (response.success) {
-            renderPrompts(response.data);
+            renderPrompts(response.data || []);
             
             if (response.pagination) {
                 updatePagination(response.pagination);
@@ -164,6 +174,8 @@ async function loadPromptsStats() {
         console.log('🤖 Loading prompts statistics...');
         const response = await makeAuthenticatedRequest('/prompts/stats');
         
+        console.log('🤖 Stats response:', response);
+        
         if (response.success) {
             renderPromptsStats(response.data);
             console.log('✅ Prompts statistics loaded successfully');
@@ -177,6 +189,7 @@ async function loadPromptsStats() {
             total: 0,
             active: 0,
             draft: 0,
+            archived: 0,
             byLanguage: [],
             byCategory: [],
             recentlyUpdated: [],
@@ -213,6 +226,15 @@ function setupEventListeners() {
     const languageFilter = document.getElementById('language-filter');
     if (languageFilter) {
         languageFilter.addEventListener('change', () => {
+            currentPage = 1;
+            loadPrompts();
+        });
+    }
+
+    // Status filter
+    const statusFilter = document.getElementById('status-filter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', () => {
             currentPage = 1;
             loadPrompts();
         });
@@ -273,10 +295,12 @@ function resetSearch() {
     const searchInput = document.getElementById('search-input');
     const categoryFilter = document.getElementById('category-filter');
     const languageFilter = document.getElementById('language-filter');
+    const statusFilter = document.getElementById('status-filter');
 
     if (searchInput) searchInput.value = '';
     if (categoryFilter) categoryFilter.value = '';
     if (languageFilter) languageFilter.value = '';
+    if (statusFilter) statusFilter.value = '';
 
     currentPage = 1;
     loadPrompts();
@@ -435,14 +459,18 @@ async function createPrompt() {
             body: JSON.stringify(promptData)
         });
 
+        console.log('🤖 Create response:', response);
+
         if (response.success) {
             showNotification('success', 'Промпт успешно создан!');
             closeModal();
             
-            // Refresh prompts list
-            currentPage = 1;
-            await loadPrompts();
-            await loadPromptsStats();
+            // 🔑 КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Обновляем список как в knowledge.js
+            currentPage = 1; // Возвращаемся на первую страницу
+            await loadPrompts(); // Перезагружаем список промптов
+            await loadPromptsStats(); // Обновляем статистику
+            
+            console.log('✅ Prompts list refreshed after creation');
         } else {
             throw new Error(response.error || 'Не удалось создать промпт');
         }
@@ -567,23 +595,34 @@ async function testPrompt() {
 }
 
 /**
- * Render prompts list
+ * Render prompts list - ИСПРАВЛЕНО: улучшена логика отображения
  */
 function renderPrompts(prompts) {
+    console.log('🤖 Rendering prompts:', prompts);
+    
     const tableBody = document.querySelector('#prompts-table tbody');
     const emptyState = document.getElementById('empty-state');
     
-    if (!tableBody) return;
+    if (!tableBody) {
+        console.error('🤖 Table body not found!');
+        return;
+    }
 
+    // Проверяем наличие промптов
     if (!prompts || prompts.length === 0) {
+        console.log('🤖 No prompts to display');
         tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Промпты не найдены</td></tr>';
         if (emptyState) emptyState.style.display = 'block';
         return;
     }
 
+    console.log(`🤖 Rendering ${prompts.length} prompts`);
+    
     if (emptyState) emptyState.style.display = 'none';
 
-    const promptsHTML = prompts.map(prompt => `
+    const promptsHTML = prompts.map(prompt => {
+        console.log('🤖 Rendering prompt:', prompt.name, prompt.category);
+        return `
         <tr data-id="${prompt._id || prompt.id}">
             <td class="col-name">
                 <div class="prompt-name">${escapeHtml(prompt.name)}</div>
@@ -623,15 +662,19 @@ function renderPrompts(prompts) {
                 </div>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 
     tableBody.innerHTML = promptsHTML;
+    console.log('✅ Prompts rendered successfully');
 }
 
 /**
  * Render prompts statistics
  */
 function renderPromptsStats(stats) {
+    console.log('🤖 Rendering stats:', stats);
+    
     // Update main stats
     updateStatElement('total-prompts', stats.total || 0);
     updateStatElement('active-prompts', stats.active || 0);
@@ -918,6 +961,7 @@ async function deletePrompt(promptId) {
         
         if (response.success) {
             showNotification('success', 'Промпт успешно удален');
+            // 🔑 КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Обновляем список после удаления
             await loadPrompts();
             await loadPromptsStats();
         } else {
