@@ -1,7 +1,7 @@
 /**
- * prompts.js - управление промптами для Reader Bot с исправленной аутентификацией
+ * prompts.js - управление промптами для Reader Bot с ПРИНУДИТЕЛЬНЫМ Basic Auth
  * 
- * 🔐 ИСПРАВЛЕНО: Убрана логика публичных endpoints - всегда отправляем Basic Auth
+ * 🔐 ИСПРАВЛЕНО: ВСЕГДА используется Basic Auth, Bearer токен игнорируется
  * ✅ Полностью рабочая система управления промптами
  * ✅ Подробное логирование всех операций
  * 
@@ -51,6 +51,10 @@ async function initPromptsPage() {
     try {
         log('debug', 'Starting initialization sequence');
         
+        // ОЧИЩАЕМ НЕПРАВИЛЬНЫЙ ТОКЕН
+        log('debug', 'Clearing localStorage adminToken to force Basic Auth');
+        localStorage.removeItem('adminToken');
+        
         // Проверяем наличие необходимых элементов
         const requiredElements = [
             'prompts-table',
@@ -85,7 +89,7 @@ async function initPromptsPage() {
 }
 
 /**
- * Выполнить аутентифицированный запрос - УПРОЩЕННАЯ ВЕРСИЯ
+ * Выполнить аутентифицированный запрос - ПРИНУДИТЕЛЬНЫЙ Basic Auth
  */
 async function makeAuthenticatedRequest(endpoint, options = {}) {
     const requestId = Math.random().toString(36).substr(2, 9);
@@ -103,18 +107,12 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             headers['Content-Type'] = 'application/json';
         }
 
-        // ВСЕГДА добавляем аутентификацию - никаких исключений
-        const token = localStorage.getItem('adminToken');
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-            log('debug', `[${requestId}] Using Bearer token: ${token.substring(0, 10)}...`);
-        } else {
-            // Basic Auth как основной способ
-            headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-            log('debug', `[${requestId}] Using Basic auth: admin:password123`);
-        }
+        // ПРИНУДИТЕЛЬНО используем Basic Auth - ИГНОРИРУЕМ localStorage
+        headers['Authorization'] = 'Basic ' + btoa('admin:password123');
+        log('debug', `[${requestId}] FORCED Basic auth: admin:password123`);
 
         log('debug', `[${requestId}] Final headers:`, Object.keys(headers));
+        log('debug', `[${requestId}] Authorization header:`, headers['Authorization']);
         log('debug', `[${requestId}] Making request to: ${url}`);
         
         const response = await fetch(url, {
@@ -1112,4 +1110,4 @@ window.importPrompts = importPrompts;
 window.closeModal = closeModal;
 window.changePage = changePage;
 
-log('info', '💭 Prompts.js loaded with ALWAYS AUTH - no public endpoints logic');
+log('info', '💭 Prompts.js loaded with FORCED Basic Auth - localStorage cleared on init');
