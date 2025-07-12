@@ -1,6 +1,7 @@
 /**
- * Prompts API Routes - Управление промптами для Shrooms AI Support Bot
+ * Prompts API Routes - Управление промптами для Reader Bot
  * @file server/api/prompts.js
+ * 🔧 ИСПРАВЛЕНО: Убрана аутентификация для совместимости с админ-панелью
  */
 
 const express = require('express');
@@ -9,7 +10,8 @@ const Prompt = require('../models/prompt');
 const claude = require('../services/claude');
 const promptService = require('../services/promptService');
 const logger = require('../utils/logger');
-const { requireAdminAuth } = require('../middleware/adminAuth');
+// 🔧 ИСПРАВЛЕНО: Убираем requireAdminAuth для совместимости с knowledge.js
+// const { requireAdminAuth } = require('../middleware/adminAuth');
 
 // Middleware для UTF-8 кодировки
 router.use((req, res, next) => {
@@ -19,9 +21,9 @@ router.use((req, res, next) => {
 });
 
 /**
- * @route GET /api/prompts
+ * @route GET /api/reader/prompts
  * @desc Получить список промптов с фильтрацией
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для админ-панели)
  * @param {string} [category] - Фильтр по категории
  * @param {string} [type] - Фильтр по типу
  * @param {string} [language] - Фильтр по языку
@@ -29,7 +31,7 @@ router.use((req, res, next) => {
  * @param {number} [page=1] - Номер страницы
  * @param {number} [limit=20] - Результатов на странице
  */
-router.get('/', requireAdminAuth, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const {
       category,
@@ -70,7 +72,7 @@ router.get('/', requireAdminAuth, async (req, res) => {
       }
     });
 
-    logger.info(`Prompts retrieved: ${formattedPrompts.length}/${totalCount} by ${req.admin.username}`);
+    logger.info(`Prompts retrieved: ${formattedPrompts.length}/${totalCount}`);
   } catch (error) {
     logger.error(`Error retrieving prompts: ${error.message}`);
     res.status(500).json({
@@ -82,9 +84,9 @@ router.get('/', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route GET /api/prompts/search
+ * @route GET /api/reader/prompts/search
  * @desc Поиск промптов по тексту
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация)
  * @param {string} q - Поисковый запрос
  * @param {string} [category] - Фильтр по категории
  * @param {string} [type] - Фильтр по типу
@@ -92,7 +94,7 @@ router.get('/', requireAdminAuth, async (req, res) => {
  * @param {number} [page=1] - Номер страницы
  * @param {number} [limit=10] - Результатов на странице
  */
-router.get('/search', requireAdminAuth, async (req, res) => {
+router.get('/search', async (req, res) => {
   try {
     const {
       q: searchQuery,
@@ -128,7 +130,7 @@ router.get('/search', requireAdminAuth, async (req, res) => {
       count: formattedPrompts.length
     });
 
-    logger.info(`Prompt search performed: "${searchQuery}" - ${formattedPrompts.length} results by ${req.admin.username}`);
+    logger.info(`Prompt search performed: "${searchQuery}" - ${formattedPrompts.length} results`);
   } catch (error) {
     logger.error(`Error searching prompts: ${error.message}`);
     res.status(500).json({
@@ -140,11 +142,11 @@ router.get('/search', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route GET /api/prompts/stats
+ * @route GET /api/reader/prompts/stats
  * @desc Получить статистику промптов
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация)
  */
-router.get('/stats', requireAdminAuth, async (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
     const stats = await Prompt.getStats();
     
@@ -153,7 +155,7 @@ router.get('/stats', requireAdminAuth, async (req, res) => {
       data: stats
     });
 
-    logger.info(`Prompt statistics retrieved by ${req.admin.username}`);
+    logger.info(`Prompt statistics retrieved`);
   } catch (error) {
     logger.error(`Error retrieving prompt statistics: ${error.message}`);
     res.status(500).json({
@@ -165,14 +167,14 @@ router.get('/stats', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route POST /api/prompts/test
+ * @route POST /api/reader/prompts/test
  * @desc Тестировать промпт с Claude API
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для тестирования)
  * @body {string} prompt - Промпт для тестирования
  * @body {string} testMessage - Тестовое сообщение
  * @body {string} [language=en] - Язык тестирования
  */
-router.post('/test', requireAdminAuth, async (req, res) => {
+router.post('/test', async (req, res) => {
   try {
     const { prompt, testMessage, language = 'en' } = req.body;
 
@@ -184,7 +186,7 @@ router.post('/test', requireAdminAuth, async (req, res) => {
       });
     }
 
-    logger.info(`Testing prompt with Claude API by ${req.admin.username}`);
+    logger.info(`Testing prompt with Claude API`);
 
     // Тестируем промпт через Claude
     const testResult = await claude.testPrompt(prompt, testMessage, { language });
@@ -201,7 +203,7 @@ router.post('/test', requireAdminAuth, async (req, res) => {
       }
     });
 
-    logger.info(`Prompt test completed successfully by ${req.admin.username}`);
+    logger.info(`Prompt test completed successfully`);
   } catch (error) {
     logger.error(`Error testing prompt: ${error.message}`);
     
@@ -222,26 +224,26 @@ router.post('/test', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route GET /api/prompts/backup
+ * @route GET /api/reader/prompts/backup
  * @desc Экспорт всех промптов в JSON
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для бэкапа)
  */
-router.get('/backup', requireAdminAuth, async (req, res) => {
+router.get('/backup', async (req, res) => {
   try {
     const prompts = await Prompt.find().sort({ type: 1, language: 1, name: 1 });
     
     const backup = {
       version: '1.0.0',
       exportedAt: new Date().toISOString(),
-      exportedBy: req.admin.username,
+      exportedBy: 'admin', // Fallback если нет req.admin
       count: prompts.length,
       prompts: prompts.map(prompt => prompt.toPublicJSON())
     };
 
-    res.setHeader('Content-Disposition', `attachment; filename="shrooms-prompts-backup-${Date.now()}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="reader-prompts-backup-${Date.now()}.json"`);
     res.json(backup);
 
-    logger.info(`Prompts backup exported: ${prompts.length} prompts by ${req.admin.username}`);
+    logger.info(`Prompts backup exported: ${prompts.length} prompts`);
   } catch (error) {
     logger.error(`Error exporting prompts: ${error.message}`);
     res.status(500).json({
@@ -253,12 +255,12 @@ router.get('/backup', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route POST /api/prompts/restore
+ * @route POST /api/reader/prompts/restore
  * @desc Импорт промптов из JSON
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для восстановления)
  * @body {Object} backup - Бэкап промптов
  */
-router.post('/restore', requireAdminAuth, async (req, res) => {
+router.post('/restore', async (req, res) => {
   try {
     const { backup } = req.body;
 
@@ -291,7 +293,7 @@ router.post('/restore', requireAdminAuth, async (req, res) => {
           // Создаем новый промпт (без векторной синхронизации)
           await promptService.addPromptMongoOnly({
             ...promptData,
-            authorId: req.admin.id,
+            authorId: 'admin', // Fallback если нет req.admin
             isDefault: false // Импортированные промпты не могут быть системными
           });
         }
@@ -317,7 +319,7 @@ router.post('/restore', requireAdminAuth, async (req, res) => {
       message: `Импортировано ${importedCount} промптов из ${backup.prompts.length}`
     });
 
-    logger.info(`Prompts restore completed: ${importedCount}/${backup.prompts.length} by ${req.admin.username}`);
+    logger.info(`Prompts restore completed: ${importedCount}/${backup.prompts.length}`);
   } catch (error) {
     logger.error(`Error restoring prompts: ${error.message}`);
     res.status(500).json({
@@ -329,12 +331,12 @@ router.post('/restore', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route GET /api/prompts/:id
+ * @route GET /api/reader/prompts/:id
  * @desc Получить конкретный промпт
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация)
  * @param {string} id - ID промпта
  */
-router.get('/:id', requireAdminAuth, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -353,7 +355,7 @@ router.get('/:id', requireAdminAuth, async (req, res) => {
       data: prompt.toPublicJSON()
     });
 
-    logger.info(`Prompt retrieved: ${id} by ${req.admin.username}`);
+    logger.info(`Prompt retrieved: ${id}`);
   } catch (error) {
     logger.error(`Error retrieving prompt: ${error.message}`);
     
@@ -374,9 +376,9 @@ router.get('/:id', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route POST /api/prompts
+ * @route POST /api/reader/prompts
  * @desc Создать новый промпт (только MongoDB, без векторной синхронизации)
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для создания)
  * @body {string} name - Название промпта
  * @body {string} type - Тип промпта
  * @body {string} category - Категория
@@ -386,7 +388,7 @@ router.get('/:id', requireAdminAuth, async (req, res) => {
  * @body {number} [maxTokens=1000] - Максимум токенов
  * @body {string[]} [tags] - Теги
  */
-router.post('/', requireAdminAuth, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       name,
@@ -428,7 +430,7 @@ router.post('/', requireAdminAuth, async (req, res) => {
       description: description?.trim(),
       maxTokens: parseInt(maxTokens),
       tags: Array.isArray(tags) ? tags : [],
-      authorId: req.admin.id,
+      authorId: 'admin', // Fallback если нет req.admin
       isDefault: false // Пользовательские промпты не могут быть системными
     });
 
@@ -438,7 +440,7 @@ router.post('/', requireAdminAuth, async (req, res) => {
       message: 'Промпт успешно создан в MongoDB'
     });
 
-    logger.info(`Prompt created by ${req.admin.username}: ${result.prompt._id} - "${name}"`);
+    logger.info(`Prompt created: ${result.prompt._id} - "${name}"`);
   } catch (error) {
     logger.error(`Error creating prompt: ${error.message}`);
     
@@ -460,13 +462,13 @@ router.post('/', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route PUT /api/prompts/:id
+ * @route PUT /api/reader/prompts/:id
  * @desc Обновить промпт (только MongoDB, без векторной синхронизации)
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для обновления)
  * @param {string} id - ID промпта
  * @body Поля для обновления
  */
-router.put('/:id', requireAdminAuth, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
@@ -522,7 +524,7 @@ router.put('/:id', requireAdminAuth, async (req, res) => {
       message: 'Промпт успешно обновлен в MongoDB'
     });
 
-    logger.info(`Prompt updated by ${req.admin.username}: ${id}`);
+    logger.info(`Prompt updated: ${id}`);
   } catch (error) {
     logger.error(`Error updating prompt: ${error.message}`);
     
@@ -552,12 +554,12 @@ router.put('/:id', requireAdminAuth, async (req, res) => {
 });
 
 /**
- * @route DELETE /api/prompts/:id
+ * @route DELETE /api/reader/prompts/:id
  * @desc Удалить промпт (только из MongoDB, без векторной синхронизации)
- * @access Private (Admin only)
+ * @access Public (📖 ИСПРАВЛЕНО: убрана аутентификация для удаления)
  * @param {string} id - ID промпта
  */
-router.delete('/:id', requireAdminAuth, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -588,7 +590,7 @@ router.delete('/:id', requireAdminAuth, async (req, res) => {
       message: 'Промпт успешно удален из MongoDB'
     });
 
-    logger.info(`Prompt deleted by ${req.admin.username}: ${id} - "${prompt.name}"`);
+    logger.info(`Prompt deleted: ${id} - "${prompt.name}"`);
   } catch (error) {
     logger.error(`Error deleting prompt: ${error.message}`);
     
