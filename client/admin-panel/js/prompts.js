@@ -1,7 +1,7 @@
 /**
- * prompts.js - управление промптами для Reader Bot с правильной аутентификацией
+ * prompts.js - управление промптами для Reader Bot с исправленной аутентификацией
  * 
- * 🔐 ИСПРАВЛЕНО: Аутентификация работает как в knowledge.js - Basic Auth по умолчанию
+ * 🔐 ИСПРАВЛЕНО: Убрана логика публичных endpoints - всегда отправляем Basic Auth
  * ✅ Полностью рабочая система управления промптами
  * ✅ Подробное логирование всех операций
  * 
@@ -85,22 +85,15 @@ async function initPromptsPage() {
 }
 
 /**
- * Выполнить аутентифицированный запрос - ТА ЖЕ ЛОГИКА ЧТО В KNOWLEDGE.JS
+ * Выполнить аутентифицированный запрос - УПРОЩЕННАЯ ВЕРСИЯ
  */
 async function makeAuthenticatedRequest(endpoint, options = {}) {
     const requestId = Math.random().toString(36).substr(2, 9);
-    log('debug', `[${requestId}] Starting request to: ${endpoint}`, options);
+    log('debug', `[${requestId}] Starting request to: ${endpoint}`);
     
     try {
         const url = `${API_PREFIX}${endpoint}`;
         
-        // Проверяем, является ли endpoint публичным
-        const isPublicEndpoint = endpoint.includes('/prompts') && 
-                                 !endpoint.includes('/test') && 
-                                 !endpoint.includes('/backup') &&
-                                 !endpoint.includes('/restore') &&
-                                 (!options.method || options.method === 'GET');
-
         const headers = {
             ...options.headers
         };
@@ -110,21 +103,18 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             headers['Content-Type'] = 'application/json';
         }
 
-        // Добавляем аутентификацию - ТОЧНО КАК В KNOWLEDGE.JS
-        if (!isPublicEndpoint) {
-            const token = localStorage.getItem('adminToken');
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-                log('debug', `[${requestId}] Using Bearer token`);
-            } else {
-                // Fallback на Basic Auth - КАК В KNOWLEDGE.JS
-                headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-                log('debug', `[${requestId}] Using Basic auth fallback`);
-            }
+        // ВСЕГДА добавляем аутентификацию - никаких исключений
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+            log('debug', `[${requestId}] Using Bearer token: ${token.substring(0, 10)}...`);
         } else {
-            log('debug', `[${requestId}] Public endpoint, no auth needed`);
+            // Basic Auth как основной способ
+            headers['Authorization'] = 'Basic ' + btoa('admin:password123');
+            log('debug', `[${requestId}] Using Basic auth: admin:password123`);
         }
 
+        log('debug', `[${requestId}] Final headers:`, Object.keys(headers));
         log('debug', `[${requestId}] Making request to: ${url}`);
         
         const response = await fetch(url, {
@@ -140,16 +130,17 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             
             try {
                 errorData = JSON.parse(errorText);
+                log('error', `[${requestId}] Parsed error response:`, errorData);
             } catch {
                 errorData = { error: errorText || `HTTP ${response.status}` };
+                log('error', `[${requestId}] Raw error response: ${errorText}`);
             }
             
-            log('error', `[${requestId}] Request failed:`, errorData);
             throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
         }
 
         const responseData = await response.json();
-        log('debug', `[${requestId}] Request successful:`, responseData);
+        log('debug', `[${requestId}] Request successful, response:`, responseData);
         
         return responseData;
         
@@ -1121,4 +1112,4 @@ window.importPrompts = importPrompts;
 window.closeModal = closeModal;
 window.changePage = changePage;
 
-log('info', '💭 Prompts.js loaded successfully with proper authentication - ready for Reader Bot prompts management!');
+log('info', '💭 Prompts.js loaded with ALWAYS AUTH - no public endpoints logic');
