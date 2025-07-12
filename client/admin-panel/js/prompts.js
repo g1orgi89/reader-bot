@@ -1,20 +1,20 @@
 /**
- * prompts.js - система управления промптами для Shrooms AI Support Bot
+ * prompts.js - система управления промптами для Reader Bot "Читатель"
  * 
  * Этот модуль отвечает за взаимодействие с API промптов,
  * управление промптами и тестирование через Claude API.
  * 
- * @fileoverview Управление грибными промптами для AI ассистента (только MongoDB)
- * @author Shrooms Development Team
+ * @fileoverview Управление промптами для AI помощника Анны Бусел
+ * @author Reader Bot Development Team
  */
 
 /**
  * @typedef {Object} PromptData
  * @property {string} [id] - Уникальный идентификатор промпта
  * @property {string} name - Название промпта
- * @property {string} type - Тип промпта (basic|rag|ticket_detection|categorization|subject)
- * @property {string} category - Категория (system|safety|language|custom)
- * @property {string} language - Язык (none|en|ru|es|fr|de|zh|ja)
+ * @property {string} type - Тип промпта (basic|rag|quote_analysis|book_recommendation|weekly_report|monthly_report|onboarding)
+ * @property {string} category - Категория (system|analysis|psychology|recommendations|reports|custom)
+ * @property {string} language - Язык (none|ru|en)
  * @property {string} content - Содержимое промпта
  * @property {string} [description] - Описание промпта
  * @property {number} [maxTokens] - Максимальное количество токенов
@@ -47,7 +47,7 @@
  */
 
 /**
- * Конфигурация модуля управления промптами
+ * Конфигурация модуля управления промптами для "Читателя"
  */
 const PROMPTS_CONFIG = {
   /** @type {string} Базовый URL для API запросов */
@@ -59,34 +59,32 @@ const PROMPTS_CONFIG = {
   /** @type {number} Максимальный размер промпта в символах */
   MAX_PROMPT_SIZE: 10000,
   
-  /** @type {Object<string, string>} Переводы категорий */
+  /** @type {Object<string, string>} Переводы категорий для "Читателя" */
   CATEGORY_LABELS: {
-    'system': 'Системная',
-    'safety': 'Безопасность',
-    'language': 'Языковая',
-    'custom': 'Пользовательская'
+    'system': '🎯 Системная',
+    'analysis': '💭 Анализ цитат',
+    'psychology': '🧠 Психологическая',
+    'recommendations': '📚 Рекомендации',
+    'reports': '📈 Отчеты',
+    'custom': '✨ Пользовательская'
   },
   
-  /** @type {Object<string, string>} Переводы типов */
+  /** @type {Object<string, string>} Переводы типов для "Читателя" */
   TYPE_LABELS: {
     'basic': 'Базовый',
     'rag': 'RAG',
-    'ticket_detection': 'Детекция тикетов',
-    'categorization': 'Категоризация',
-    'subject': 'Темы'
+    'quote_analysis': 'Анализ цитат',
+    'book_recommendation': 'Рекомендации книг',
+    'weekly_report': 'Еженедельные отчеты',
+    'monthly_report': 'Месячные отчеты',
+    'onboarding': 'Онбординг'
   },
   
-  /** @type {Object<string, string>} Упрощенные переводы языков */
+  /** @type {Object<string, string>} Переводы языков */
   LANGUAGE_LABELS: {
-    'none': 'Универсальный',
-    'en': 'English',
-    'ru': 'Русский',
-    'es': 'Español',
-    'fr': 'Français',
-    'de': 'Deutsch',
-    'zh': '中文',
-    'ja': '日本語',
-    'other': 'Другой'
+    'none': '🤖 Универсальный',
+    'ru': '🇷🇺 Русский',
+    'en': '🇺🇸 English'
   }
 };
 
@@ -122,9 +120,16 @@ const promptsState = {
  * Основная точка входа после проверки аутентификации
  */
 function initPromptsPage() {
-  console.log('🍄 Инициализация управления грибными промптами (MongoDB-only)...');
+  console.log('📚 Инициализация управления промптами "Читатель"...');
   
   try {
+    // Проверяем аутентификацию
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+      console.error('📚 Пользователь не авторизован');
+      window.location.href = 'login.html';
+      return;
+    }
+    
     // Инициализируем компоненты интерфейса
     initPromptsFilters();
     initPromptEditor();
@@ -136,10 +141,10 @@ function initPromptsPage() {
     loadPrompts();
     loadPromptsStats();
     
-    console.log('🍄 Управление промптами готово к созданию мудрости (без векторной синхронизации)!');
+    console.log('📚 Управление промптами "Читатель" готово к работе!');
   } catch (error) {
-    console.error('🍄 Ошибка инициализации управления промптами:', error);
-    showNotification('error', '🍄 Не удалось инициализировать управление промптами');
+    console.error('📚 Ошибка инициализации управления промптами:', error);
+    showNotification('error', '📚 Не удалось инициализировать управление промптами');
   }
 }
 
@@ -147,7 +152,7 @@ function initPromptsPage() {
  * Инициализация фильтров и поиска
  */
 function initPromptsFilters() {
-  console.log('🍄 Настройка фильтров грибных промптов...');
+  console.log('📚 Настройка фильтров промптов...');
   
   const categoryFilter = document.getElementById('category-filter');
   const typeFilter = document.getElementById('type-filter');
@@ -202,7 +207,7 @@ function initPromptsFilters() {
 async function loadPrompts() {
   if (promptsState.isLoading) return;
   
-  console.log('🍄 Загрузка промптов из грибного хранилища MongoDB...');
+  console.log('📚 Загрузка промптов из API...');
   
   try {
     promptsState.isLoading = true;
@@ -233,9 +238,9 @@ async function loadPrompts() {
         promptsState.totalPrompts = response.count || 0;
         renderPromptsTable();
         updatePaginationInfo();
-        console.log(`🍄 Найдено ${promptsState.prompts.length} промптов по запросу "${promptsState.currentFilters.search}"`);
+        console.log(`📚 Найдено ${promptsState.prompts.length} промптов по запросу "${promptsState.currentFilters.search}"`);
       } else {
-        throw new Error(response.error?.message || 'Не удалось найти промпты');
+        throw new Error(response.error || 'Не удалось найти промпты');
       }
     } else {
       // Обычный запрос с пагинацией
@@ -249,14 +254,26 @@ async function loadPrompts() {
         promptsState.totalPrompts = response.pagination?.total || 0;
         renderPromptsTable();
         updatePaginationInfo();
-        console.log(`🍄 Загружено ${promptsState.prompts.length} промптов из ${promptsState.totalPrompts} общих`);
+        console.log(`📚 Загружено ${promptsState.prompts.length} промптов из ${promptsState.totalPrompts} общих`);
       } else {
-        throw new Error(response.error?.message || 'Не удалось загрузить промпты');
+        throw new Error(response.error || 'Не удалось загрузить промпты');
       }
     }
+    
+    // Показываем/скрываем empty state
+    const emptyState = document.getElementById('empty-state');
+    const table = document.getElementById('prompts-table');
+    if (promptsState.prompts.length === 0) {
+      if (emptyState) emptyState.style.display = 'block';
+      if (table) table.style.display = 'none';
+    } else {
+      if (emptyState) emptyState.style.display = 'none';
+      if (table) table.style.display = 'table';
+    }
+    
   } catch (error) {
-    console.error('🍄 Ошибка загрузки промптов:', error);
-    showNotification('error', `🍄 Не удалось загрузить промпты: ${error.message}`);
+    console.error('📚 Ошибка загрузки промптов:', error);
+    showNotification('error', `📚 Не удалось загрузить промпты: ${error.message}`);
     renderEmptyPromptsTable();
   } finally {
     promptsState.isLoading = false;
@@ -277,7 +294,7 @@ function updateLoadingState(isLoading) {
       <tr class="table-loading">
         <td colspan="9" style="text-align: center; padding: var(--spacing-lg);">
           <div class="loading-spinner"></div>
-          🍄 Споры мудрости прорастают в промпты из MongoDB...
+          📚 Загрузка промптов "Читателя"...
         </td>
       </tr>
     `;
@@ -296,9 +313,14 @@ function renderPromptsTable() {
     return;
   }
   
-  tbody.innerHTML = promptsState.prompts.map(prompt => `
+  tbody.innerHTML = promptsState.prompts.map(prompt => {
+    const isActive = prompt.active !== false; // default to true if not specified
+    const maxTokens = prompt.maxTokens || '--';
+    const version = prompt.version || '1.0';
+    
+    return `
     <tr class="prompt-row" onclick="viewPrompt('${prompt.id}')">
-      <td class="col-id">${prompt.id.substring(0, 8)}...</td>
+      <td class="col-id">${prompt.id ? prompt.id.substring(0, 8) + '...' : '--'}</td>
       <td class="col-name">
         <div class="prompt-name">${escapeHtml(prompt.name)}</div>
         ${prompt.isDefault ? '<span class="status-badge status-system">Системный</span>' : ''}
@@ -319,12 +341,12 @@ function renderPromptsTable() {
         </span>
       </td>
       <td class="col-status">
-        <span class="status-badge ${prompt.active ? 'status-active' : 'status-inactive'}">
-          ${prompt.active ? 'Активный' : 'Неактивный'}
+        <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">
+          ${isActive ? 'Активный' : 'Неактивный'}
         </span>
       </td>
-      <td class="col-tokens">${prompt.maxTokens || '--'}</td>
-      <td class="col-version">v${prompt.version || '1.0'}</td>
+      <td class="col-tokens">${maxTokens}</td>
+      <td class="col-version">v${version}</td>
       <td class="col-actions">
         <div class="action-buttons">
           <button class="action-test" onclick="testPrompt('${prompt.id}'); event.stopPropagation();" 
@@ -344,7 +366,8 @@ function renderPromptsTable() {
         </div>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 /**
@@ -358,12 +381,12 @@ function renderEmptyPromptsTable() {
     <tr class="table-empty">
       <td colspan="9" style="text-align: center; padding: var(--spacing-xl);">
         <div class="empty-state">
-          <div class="empty-icon">🧠</div>
-          <div class="empty-title">Пока нет промптов в этой части мицелия</div>
+          <div class="empty-icon">💭</div>
+          <div class="empty-title">Пока нет промптов в библиотеке "Читателя"</div>
           <div class="empty-subtitle">
             ${promptsState.currentFilters.search ? 
               `По запросу "${promptsState.currentFilters.search}" ничего не найдено` :
-              'Создайте первый промпт для грибного ИИ'}
+              'Создайте первый промпт для AI помощника Анны Бусел'}
           </div>
           <button class="btn btn-primary btn-glow" onclick="showPromptEditor()">
             ✨ Создать Промпт
@@ -378,16 +401,13 @@ function renderEmptyPromptsTable() {
  * Инициализация редактора промптов
  */
 function initPromptEditor() {
-  console.log('🍄 Настройка редактора грибных промптов (MongoDB-only)...');
+  console.log('📚 Настройка редактора промптов...');
   
   // Кнопка добавления промпта
   const addPromptBtn = document.getElementById('add-prompt');
   if (addPromptBtn) {
     addPromptBtn.addEventListener('click', () => showPromptEditor());
   }
-  
-  // 🍄 УДАЛЕНО: Кнопка синхронизации с Qdrant больше не используется
-  // Промпты теперь хранятся только в MongoDB
   
   // Кнопки закрытия модальных окон
   const closeEditorBtn = document.getElementById('close-prompt-editor');
@@ -435,7 +455,7 @@ function initPromptEditor() {
  * @param {string|null} promptId - ID промпта для редактирования (null для создания нового)
  */
 function showPromptEditor(promptId = null) {
-  console.log('🍄 Открытие редактора промптов:', promptId ? 'редактирование' : 'создание');
+  console.log('📚 Открытие редактора промптов:', promptId ? 'редактирование' : 'создание');
   
   const overlay = document.getElementById('prompt-editor-overlay');
   const title = document.getElementById('editor-title');
@@ -510,13 +530,13 @@ async function loadPromptForEditing(promptId) {
       
       updateTokenCount();
       
-      console.log('🍄 Промпт загружен для редактирования из MongoDB');
+      console.log('📚 Промпт загружен для редактирования');
     } else {
-      throw new Error(response.error?.message || 'Не удалось загрузить промпт');
+      throw new Error(response.error || 'Не удалось загрузить промпт');
     }
   } catch (error) {
-    console.error('🍄 Ошибка загрузки промпта для редактирования:', error);
-    showNotification('error', `🍄 Не удалось загрузить промпт: ${error.message}`);
+    console.error('📚 Ошибка загрузки промпта для редактирования:', error);
+    showNotification('error', `📚 Не удалось загрузить промпт: ${error.message}`);
     hidePromptEditor();
   }
 }
@@ -548,7 +568,7 @@ function updateTokenCount() {
 }
 
 /**
- * Обработчик сохранения промпта (только MongoDB)
+ * Обработчик сохранения промпта
  * @param {Event} event - Событие отправки формы
  */
 async function handlePromptSave(event) {
@@ -571,17 +591,17 @@ async function handlePromptSave(event) {
   
   // Валидация
   if (!promptData.name) {
-    showNotification('error', '🍄 Заполните название промпта');
+    showNotification('error', '📚 Заполните название промпта');
     return;
   }
   
   if (!promptData.content) {
-    showNotification('error', '🍄 Заполните содержимое промпта');
+    showNotification('error', '📚 Заполните содержимое промпта');
     return;
   }
   
   if (promptData.content.length > PROMPTS_CONFIG.MAX_PROMPT_SIZE) {
-    showNotification('error', `🍄 Промпт слишком большой (максимум ${PROMPTS_CONFIG.MAX_PROMPT_SIZE} символов)`);
+    showNotification('error', `📚 Промпт слишком большой (максимум ${PROMPTS_CONFIG.MAX_PROMPT_SIZE} символов)`);
     return;
   }
   
@@ -595,14 +615,14 @@ async function handlePromptSave(event) {
     
     let response;
     if (promptId) {
-      // Обновляем существующий промпт в MongoDB
+      // Обновляем существующий промпт
       response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/${promptId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(promptData)
       });
     } else {
-      // Создаем новый промпт в MongoDB
+      // Создаем новый промпт
       response = await makeAuthenticatedRequest(PROMPTS_CONFIG.API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -612,18 +632,18 @@ async function handlePromptSave(event) {
     
     if (response.success) {
       const action = promptId ? 'обновлен' : 'создан';
-      showNotification('success', `🍄 Промпт успешно ${action} в грибном хранилище MongoDB!`);
+      showNotification('success', `📚 Промпт успешно ${action}!`);
       
       hidePromptEditor();
       loadPrompts(); // Перезагружаем список промптов
       
-      console.log(`🍄 Промпт ${action} в MongoDB: ${promptData.name}`);
+      console.log(`📚 Промпт ${action}: ${promptData.name}`);
     } else {
-      throw new Error(response.error?.message || 'Не удалось сохранить промпт');
+      throw new Error(response.error || 'Не удалось сохранить промпт');
     }
   } catch (error) {
-    console.error('🍄 Ошибка сохранения промпта:', error);
-    showNotification('error', `🍄 Не удалось сохранить промпт: ${error.message}`);
+    console.error('📚 Ошибка сохранения промпта:', error);
+    showNotification('error', `📚 Не удалось сохранить промпт: ${error.message}`);
   } finally {
     // Восстанавливаем кнопку
     const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -640,7 +660,7 @@ async function handlePromptSave(event) {
  * Инициализация тестирования промптов
  */
 function initPromptTesting() {
-  console.log('🍄 Настройка тестирования грибных промптов...');
+  console.log('📚 Настройка тестирования промптов...');
   
   // Кнопка общего тестирования
   const testPromptsBtn = document.getElementById('test-prompts');
@@ -715,7 +735,7 @@ function hidePromptTestModal() {
 function testCurrentPrompt() {
   const content = document.getElementById('prompt-content').value.trim();
   if (!content) {
-    showNotification('warning', '🍄 Заполните содержимое промпта для тестирования');
+    showNotification('warning', '📚 Заполните содержимое промпта для тестирования');
     return;
   }
   
@@ -738,7 +758,7 @@ async function runPromptTest() {
   const language = languageSelect?.value || 'none';
   
   if (!testMessage) {
-    showNotification('warning', '🍄 Введите тестовое сообщение');
+    showNotification('warning', '📚 Введите тестовое сообщение');
     messageInput.focus();
     return;
   }
@@ -751,14 +771,14 @@ async function runPromptTest() {
     // Тестируем промпт из редактора
     promptContent = promptEditor.value.trim();
   } else {
-    showNotification('warning', '🍄 Нет промпта для тестирования');
+    showNotification('warning', '📚 Нет промпта для тестирования');
     return;
   }
   
   try {
-    console.log('🍄 Выполнение теста промпта...');
+    console.log('📚 Выполнение теста промпта...');
     
-    resultsDiv.innerHTML = '<div class="loading">🍄 Тестирование грибной мудрости...</div>';
+    resultsDiv.innerHTML = '<div class="loading">📚 Тестирование через Claude...</div>';
     if (metadataDiv) metadataDiv.style.display = 'none';
     
     const startTime = performance.now();
@@ -806,12 +826,12 @@ async function runPromptTest() {
         metadataDiv.style.display = 'block';
       }
       
-      console.log('🍄 Тест промпта завершен успешно');
+      console.log('📚 Тест промпта завершен успешно');
     } else {
-      throw new Error(response.error?.message || 'Не удалось выполнить тест');
+      throw new Error(response.error || 'Не удалось выполнить тест');
     }
   } catch (error) {
-    console.error('🍄 Ошибка теста промпта:', error);
+    console.error('📚 Ошибка теста промпта:', error);
     resultsDiv.innerHTML = `
       <div class="test-result-error">
         <div class="result-header">
@@ -833,14 +853,14 @@ async function runPromptTest() {
  * @param {string} promptId - ID промпта
  */
 function testPrompt(promptId) {
-  console.log('🍄 Тестирование промпта:', promptId);
+  console.log('📚 Тестирование промпта:', promptId);
   
   // Загружаем промпт в редактор для тестирования
   loadPromptForEditing(promptId).then(() => {
     showPromptTestModal();
   }).catch(error => {
-    console.error('🍄 Ошибка загрузки промпта для тестирования:', error);
-    showNotification('error', '🍄 Не удалось загрузить промпт для тестирования');
+    console.error('📚 Ошибка загрузки промпта для тестирования:', error);
+    showNotification('error', '📚 Не удалось загрузить промпт для тестирования');
   });
 }
 
@@ -848,7 +868,7 @@ function testPrompt(promptId) {
  * Инициализация импорта/экспорта
  */
 function initImportExport() {
-  console.log('🍄 Настройка импорта/экспорта промптов...');
+  console.log('📚 Настройка импорта/экспорта промптов...');
   
   // Кнопки экспорта и импорта
   const exportBtn = document.getElementById('export-prompts');
@@ -939,8 +959,8 @@ function hideImportExportModal() {
  */
 async function downloadPromptsBackup() {
   try {
-    console.log('🍄 Создание резервной копии промптов из MongoDB...');
-    showNotification('info', '🍄 Создание резервной копии...');
+    console.log('📚 Создание резервной копии промптов...');
+    showNotification('info', '📚 Создание резервной копии...');
     
     const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/backup`);
     
@@ -950,20 +970,20 @@ async function downloadPromptsBackup() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `shrooms-prompts-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `reader-prompts-backup-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      showNotification('success', '🍄 Резервная копия промптов скачана!');
-      console.log('🍄 Резервная копия создана успешно');
+      showNotification('success', '📚 Резервная копия промптов скачана!');
+      console.log('📚 Резервная копия создана успешно');
     } else {
       throw new Error('Не удалось создать резервную копию');
     }
   } catch (error) {
-    console.error('🍄 Ошибка создания резервной копии:', error);
-    showNotification('error', `🍄 Ошибка создания резервной копии: ${error.message}`);
+    console.error('📚 Ошибка создания резервной копии:', error);
+    showNotification('error', `📚 Ошибка создания резервной копии: ${error.message}`);
   }
 }
 
@@ -979,7 +999,7 @@ function handleFileSelection(event) {
   if (!file) return;
   
   if (file.type !== 'application/json') {
-    showNotification('error', '🍄 Выберите JSON файл');
+    showNotification('error', '📚 Выберите JSON файл');
     return;
   }
   
@@ -1006,13 +1026,13 @@ async function importPrompts() {
   const file = fileInput?.files[0];
   
   if (!file) {
-    showNotification('error', '🍄 Выберите файл для импорта');
+    showNotification('error', '📚 Выберите файл для импорта');
     return;
   }
   
   try {
-    console.log('🍄 Импорт промптов из файла в MongoDB...');
-    showNotification('info', '🍄 Импорт промптов...');
+    console.log('📚 Импорт промптов из файла...');
+    showNotification('info', '📚 Импорт промптов...');
     
     // Читаем файл
     const text = await file.text();
@@ -1028,7 +1048,7 @@ async function importPrompts() {
     if (response.success) {
       const { total, imported, errors } = response.data;
       
-      let message = `🍄 Импорт завершен: ${imported}/${total} промптов`;
+      let message = `📚 Импорт завершен: ${imported}/${total} промптов`;
       if (errors > 0) {
         message += ` (${errors} ошибок)`;
       }
@@ -1038,13 +1058,13 @@ async function importPrompts() {
       hideImportExportModal();
       loadPrompts(); // Перезагружаем список промптов
       
-      console.log('🍄 Импорт промптов завершен');
+      console.log('📚 Импорт промптов завершен');
     } else {
-      throw new Error(response.error?.message || 'Не удалось импортировать промпты');
+      throw new Error(response.error || 'Не удалось импортировать промпты');
     }
   } catch (error) {
-    console.error('🍄 Ошибка импорта промптов:', error);
-    showNotification('error', `🍄 Ошибка импорта: ${error.message}`);
+    console.error('📚 Ошибка импорта промптов:', error);
+    showNotification('error', `📚 Ошибка импорта: ${error.message}`);
   }
 }
 
@@ -1053,7 +1073,7 @@ async function importPrompts() {
  * @param {string} promptId - ID промпта
  */
 function viewPrompt(promptId) {
-  console.log('🍄 Просмотр промпта:', promptId);
+  console.log('📚 Просмотр промпта:', promptId);
   editPrompt(promptId);
 }
 
@@ -1062,7 +1082,7 @@ function viewPrompt(promptId) {
  * @param {string} promptId - ID промпта
  */
 function editPrompt(promptId) {
-  console.log('🍄 Редактирование промпта:', promptId);
+  console.log('📚 Редактирование промпта:', promptId);
   showPromptEditor(promptId);
 }
 
@@ -1076,31 +1096,31 @@ async function deletePrompt(promptId) {
   const promptName = prompt ? prompt.name : promptId;
   
   const confirmed = confirm(
-    `🍄 Вы уверены, что хотите удалить промпт "${promptName}" из грибного хранилища мудрости?\n\n` +
+    `📚 Вы уверены, что хотите удалить промпт "${promptName}"?\n\n` +
     'Это действие нельзя отменить!'
   );
   
   if (!confirmed) return;
   
   try {
-    console.log('🍄 Удаление промпта из MongoDB:', promptId);
+    console.log('📚 Удаление промпта:', promptId);
     
     const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/${promptId}`, {
       method: 'DELETE'
     });
     
     if (response.success) {
-      showNotification('success', '🍄 Промпт удален из грибного хранилища MongoDB');
+      showNotification('success', '📚 Промпт удален');
       
       loadPrompts(); // Перезагружаем список промптов
       
-      console.log('🍄 Промпт успешно удален из MongoDB');
+      console.log('📚 Промпт успешно удален');
     } else {
-      throw new Error(response.error?.message || 'Не удалось удалить промпт');
+      throw new Error(response.error || 'Не удалось удалить промпт');
     }
   } catch (error) {
-    console.error('🍄 Ошибка удаления промпта:', error);
-    showNotification('error', `🍄 Не удалось удалить промпт: ${error.message}`);
+    console.error('📚 Ошибка удаления промпта:', error);
+    showNotification('error', `📚 Не удалось удалить промпт: ${error.message}`);
   }
 }
 
@@ -1109,18 +1129,18 @@ async function deletePrompt(promptId) {
  */
 async function loadPromptsStats() {
   try {
-    console.log('🍄 Загрузка статистики промптов...');
+    console.log('📚 Загрузка статистики промптов...');
     
     const response = await makeAuthenticatedRequest(`${PROMPTS_CONFIG.API_BASE}/stats`);
     
     if (response.success) {
       promptsState.stats = response.data;
-      console.log('🍄 Статистика промптов загружена');
+      console.log('📚 Статистика промптов загружена');
     } else {
-      console.warn('🍄 Не удалось загрузить статистику промптов:', response.error?.message);
+      console.warn('📚 Не удалось загрузить статистику промптов:', response.error);
     }
   } catch (error) {
-    console.error('🍄 Ошибка загрузки статистики промптов:', error);
+    console.error('📚 Ошибка загрузки статистики промптов:', error);
   }
 }
 
@@ -1192,31 +1212,23 @@ function updatePaginationInfo() {
  * @returns {Promise<Object>} Ответ API
  */
 async function makeAuthenticatedRequest(url, options = {}) {
-  const token = localStorage.getItem('adminToken');
-  if (!token) {
-    throw new Error('Токен аутентификации не найден');
+  if (!window.authManager) {
+    throw new Error('AuthManager не найден');
   }
   
-  const headers = {
-    'Authorization': `Bearer ${token}`,
-    ...options.headers
-  };
-  
-  const response = await fetch(url, {
-    ...options,
-    headers
-  });
-  
-  // Проверяем авторизацию
-  if (response.status === 401 || response.status === 403) {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUsername');
-    window.location.href = 'login.html';
-    throw new Error('Сессия истекла, требуется повторная авторизация');
+  try {
+    const response = await window.authManager.authenticatedFetch(url, options);
+    
+    if (!response) {
+      throw new Error('Нет ответа от сервера');
+    }
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('📚 Ошибка API запроса:', error);
+    throw error;
   }
-  
-  const result = await response.json();
-  return result;
 }
 
 /**
@@ -1225,36 +1237,10 @@ async function makeAuthenticatedRequest(url, options = {}) {
  * @returns {string} Экранированная строка
  */
 function escapeHtml(str) {
+  if (typeof str !== 'string') return str;
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
-}
-
-/**
- * Форматирует время в относительном формате
- * @param {string} dateString - Строка даты в ISO формате
- * @returns {string} Относительное время
- */
-function formatRelativeTime(dateString) {
-  if (!dateString) return 'Неизвестно';
-  
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffMinutes < 1) return 'только что';
-    if (diffMinutes < 60) return `${diffMinutes} мин назад`;
-    if (diffHours < 24) return `${diffHours} ч назад`;
-    if (diffDays < 7) return `${diffDays} дн назад`;
-    
-    return date.toLocaleDateString('ru-RU');
-  } catch (error) {
-    return 'Неизвестно';
-  }
 }
 
 /**
@@ -1277,11 +1263,11 @@ function showNotification(type, message, duration = 5000) {
     success: '✅',
     error: '❌',
     warning: '⚠️',
-    info: 'ℹ️'
+    info: '📚'
   };
   
   notification.innerHTML = `
-    <div class="notification-icon">${icons[type] || '🍄'}</div>
+    <div class="notification-icon">${icons[type] || '📚'}</div>
     <div class="notification-message">${escapeHtml(message)}</div>
     <button class="notification-close" onclick="this.parentElement.remove()">×</button>
   `;
