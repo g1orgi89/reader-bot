@@ -9,7 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const TargetAudience = require('../models/TargetAudience');
-const { adminAuth } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/adminAuth');
 
 /**
  * @typedef {Object} TargetAudienceData
