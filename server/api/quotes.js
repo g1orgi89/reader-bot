@@ -178,6 +178,88 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * POST /api/quotes - Создание новой цитаты
+ */
+router.post('/', async (req, res) => {
+    try {
+        const { text, author, source, userId = 'demo-user' } = req.body;
+
+        logger.info('📝 Создание новой цитаты:', { text, author, source, userId });
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        // Валидация
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Текст цитаты не может быть пустым'
+            });
+        }
+
+        if (text.length > 1000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Текст цитаты не может превышать 1000 символов'
+            });
+        }
+
+        // Определяем номера недели и месяца
+        const now = new Date();
+        const weekNumber = getWeekOfYear(now);
+        const monthNumber = now.getMonth() + 1;
+        const yearNumber = now.getFullYear();
+
+        // Создаем новую цитату
+        const newQuote = new Quote({
+            userId: userId,
+            text: text.trim(),
+            author: author?.trim() || null,
+            source: source?.trim() || null,
+            category: 'Другое', // По умолчанию, может быть изменено AI анализом
+            sentiment: 'neutral', // По умолчанию
+            themes: [],
+            weekNumber,
+            monthNumber,
+            yearNumber,
+            createdAt: now,
+            isEdited: false
+        });
+
+        // Сохраняем в базу данных
+        const savedQuote = await newQuote.save();
+
+        // TODO: Здесь можно добавить AI анализ цитаты
+        // const claudeService = require('../services/claudeService');
+        // await claudeService.analyzeQuote(savedQuote._id);
+
+        res.status(201).json({
+            success: true,
+            message: 'Цитата успешно создана',
+            data: {
+                id: savedQuote._id.toString(),
+                text: savedQuote.text,
+                author: savedQuote.author,
+                source: savedQuote.source,
+                category: savedQuote.category,
+                sentiment: savedQuote.sentiment,
+                themes: savedQuote.themes,
+                createdAt: savedQuote.createdAt,
+                weekNumber: savedQuote.weekNumber,
+                monthNumber: savedQuote.monthNumber
+            }
+        });
+
+    } catch (error) {
+        logger.error('❌ Ошибка создания цитаты:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Ошибка создания цитаты',
+            error: error.message
+        });
+    }
+});
+
+/**
  * GET /api/quotes/statistics - Получение статистики цитат
  */
 router.get('/statistics', async (req, res) => {
@@ -797,6 +879,18 @@ async function getStatisticsForPeriod(period) {
 
     const stats = await Quote.getQuoteStats(period);
     return stats;
+}
+
+/**
+ * Получение номера недели в году
+ * @param {Date} date - Дата
+ * @returns {number} Номер недели
+ */
+function getWeekOfYear(date) {
+    const start = new Date(date.getFullYear(), 0, 1);
+    const diff = date - start;
+    const oneWeek = 1000 * 60 * 60 * 24 * 7;
+    return Math.floor(diff / oneWeek) + 1;
 }
 
 module.exports = router;
