@@ -361,8 +361,10 @@ async function startServer() {
     }
     
     const PORT = config.app.port;
+    
+    // 🔧 ИСПРАВЛЕНИЕ: Явно указываем что сервер должен слушать на всех интерфейсах
     await new Promise((resolve, reject) => {
-      server.listen(PORT, (error) => {
+      server.listen(PORT, '0.0.0.0', (error) => {
         if (error) {
           reject(error);
         } else {
@@ -372,6 +374,7 @@ async function startServer() {
     });
 
     logger.info(`🚀 Reader Bot Server running on port ${PORT}`);
+    logger.info(`🌐 Server listening on all interfaces (0.0.0.0:${PORT})`);
     logger.info(`🌐 API available at: http://localhost:${PORT}${config.app.apiPrefix}`);
     logger.info(`🏠 Client available at: http://localhost:${PORT}`);
     logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
