@@ -193,5 +193,7 @@ function parseBasicAuth(authHeader) {
 module.exports = {
   requireAdminAuth,
   optionalAdminAuth,
-  parseBasicAuth
+  parseBasicAuth,
+  // Add alias for backward compatibility
+  adminAuth: requireAdminAuth
 };
