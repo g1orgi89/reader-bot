@@ -199,9 +199,13 @@ function createSpecificRateLimit(maxRequests, windowMs) {
   });
 }
 
+// Alias for basicAdminAuth to match imports in other files
+const adminAuth = basicAdminAuth;
+
 module.exports = {
   authenticateToken,
   basicAdminAuth,
+  adminAuth,  // ✅ ИСПРАВЛЕНО: Добавлен отсутствующий экспорт
   requireAdmin,
   authenticateApiKey,
   createSpecificRateLimit
