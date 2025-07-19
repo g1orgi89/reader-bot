@@ -1,0 +1,633 @@
+/* =============================================================================
+   Читатель Mini App - Дополнительные UI компоненты  
+   ============================================================================= */
+
+/* =============================================================================
+   Empty States & Placeholders
+   ============================================================================= */
+
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-md);
+  color: var(--app-text-secondary);
+}
+
+.empty-state p {
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-md);
+}
+
+.empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+/* =============================================================================
+   Progress Indicators
+   ============================================================================= */
+
+.progress {
+  position: relative;
+  background: var(--app-surface);
+  border-radius: var(--radius-sm);
+  height: 8px;
+  overflow: hidden;
+  margin: var(--spacing-sm) 0;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--app-primary), #4CAF50);
+  border-radius: var(--radius-sm);
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+.progress-text {
+  font-size: var(--font-size-xs);
+  color: var(--app-text-secondary);
+  margin-top: var(--spacing-xs);
+  text-align: center;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* =============================================================================
+   Achievement Cards
+   ============================================================================= */
+
+.achievement-card {
+  background: var(--app-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  text-align: center;
+  position: relative;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.achievement-card.unlocked {
+  border-color: #4CAF50;
+  background: linear-gradient(135deg, #4CAF50, #8BC34A);
+  color: white;
+}
+
+.achievement-card.unlocked .achievement-icon {
+  animation: bounce 0.6s ease;
+}
+
+.achievement-card.locked {
+  opacity: 0.6;
+  filter: grayscale(0.8);
+}
+
+.achievement-icon {
+  font-size: 32px;
+  margin-bottom: var(--spacing-sm);
+  display: block;
+}
+
+.achievement-card h3 {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+}
+
+.achievement-card p {
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+  margin-bottom: var(--spacing-sm);
+}
+
+.unlocked-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #4CAF50;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* =============================================================================
+   Recommendation Cards
+   ============================================================================= */
+
+.recommendations {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--app-surface);
+}
+
+.recommendations h4 {
+  font-size: var(--font-size-md);
+  color: var(--app-text);
+  margin-bottom: var(--spacing-sm);
+}
+
+.recommendation {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+}
+
+.recommendation strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* =============================================================================
+   Quote Items
+   ============================================================================= */
+
+.quote-item {
+  position: relative;
+  background: var(--app-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  border-left: 4px solid var(--app-primary);
+  transition: all 0.2s ease;
+}
+
+.quote-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.quote-text {
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  color: var(--app-text);
+  margin-bottom: var(--spacing-xs);
+  position: relative;
+}
+
+.quote-text::before {
+  content: '"';
+  font-size: 24px;
+  color: var(--app-primary);
+  position: absolute;
+  left: -10px;
+  top: -5px;
+  font-weight: bold;
+}
+
+.quote-text::after {
+  content: '"';
+  font-size: 24px;
+  color: var(--app-primary);
+  font-weight: bold;
+}
+
+.quote-author {
+  font-size: var(--font-size-sm);
+  color: var(--app-text-secondary);
+  font-style: italic;
+  text-align: right;
+}
+
+.quote-author::before {
+  content: '— ';
+}
+
+.quote-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--app-text-secondary);
+}
+
+.quote-category {
+  background: var(--app-primary);
+  color: white;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+/* =============================================================================
+   Stats Grid Enhancements
+   ============================================================================= */
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--app-primary), #4CAF50);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.stat-trend {
+  font-size: var(--font-size-xs);
+  color: #4CAF50;
+  margin-top: var(--spacing-xs);
+}
+
+.stat-trend.negative {
+  color: #F44336;
+}
+
+.stat-trend::before {
+  content: '↗ ';
+}
+
+.stat-trend.negative::before {
+  content: '↘ ';
+}
+
+/* =============================================================================
+   Form Enhancements
+   ============================================================================= */
+
+.form-group {
+  position: relative;
+}
+
+.form-group.has-error input,
+.form-group.has-error textarea {
+  border-color: #F44336;
+  background-color: rgba(244, 67, 54, 0.05);
+}
+
+.form-group.has-success input,
+.form-group.has-success textarea {
+  border-color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.05);
+}
+
+.form-error {
+  color: #F44336;
+  font-size: var(--font-size-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.form-success {
+  color: #4CAF50;
+  font-size: var(--font-size-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.input-counter {
+  position: absolute;
+  bottom: -20px;
+  right: 0;
+  font-size: var(--font-size-xs);
+  color: var(--app-text-secondary);
+}
+
+.input-counter.near-limit {
+  color: #FF9800;
+}
+
+.input-counter.at-limit {
+  color: #F44336;
+}
+
+/* =============================================================================
+   Button Enhancements
+   ============================================================================= */
+
+.btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.btn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.btn.loading .btn-text {
+  opacity: 0;
+}
+
+.btn.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* =============================================================================
+   Navigation Enhancements
+   ============================================================================= */
+
+.nav-item {
+  position: relative;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--app-primary);
+  transform: translateX(-50%);
+  transition: width 0.3s ease;
+}
+
+.nav-item.active::before {
+  width: 80%;
+}
+
+.nav-item:active {
+  transform: scale(0.95);
+}
+
+/* =============================================================================
+   Modal & Overlay Components
+   ============================================================================= */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  background: var(--app-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  transform: scale(0.8);
+  transition: transform 0.3s ease;
+}
+
+.modal-overlay.show .modal {
+  transform: scale(1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--app-surface);
+}
+
+.modal-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: 50%;
+  transition: background 0.2s ease;
+}
+
+.modal-close:hover {
+  background: var(--app-surface);
+}
+
+/* =============================================================================
+   Floating Action Button
+   ============================================================================= */
+
+.fab {
+  position: fixed;
+  bottom: calc(80px + var(--spacing-md) + env(safe-area-inset-bottom));
+  right: var(--spacing-md);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--app-primary);
+  color: white;
+  border: none;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+.fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* =============================================================================
+   Swipe Actions
+   ============================================================================= */
+
+.swipe-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+
+.swipe-item.swiped .swipe-actions {
+  transform: translateX(0);
+}
+
+.swipe-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.swipe-action.edit {
+  background: #2196F3;
+}
+
+.swipe-action.delete {
+  background: #F44336;
+}
+
+.swipe-action.share {
+  background: #4CAF50;
+}
+
+/* =============================================================================
+   Pull to Refresh
+   ============================================================================= */
+
+.pull-to-refresh {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-md);
+  color: var(--app-text-secondary);
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+}
+
+.pull-to-refresh.visible {
+  transform: translateY(0);
+}
+
+.pull-to-refresh.loading .refresh-icon {
+  animation: rotate 1s linear infinite;
+}
+
+.refresh-text {
+  margin-left: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+/* =============================================================================
+   Accessibility Improvements
+   ============================================================================= */
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .btn {
+    border: 2px solid currentColor;
+  }
+  
+  .card, .stat-card, .quote-item {
+    border: 1px solid var(--app-text);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .btn::before {
+    display: none;
+  }
+}
