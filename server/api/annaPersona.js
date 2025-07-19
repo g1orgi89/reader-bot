@@ -9,8 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const AnnaPersona = require('../models/AnnaPersona');
-const { authenticateAdmin } = require('../middleware/auth');
-const { validateRequest } = require('../middleware/validation');
+const { adminAuth } = require('../middleware/adminAuth');
 
 /**
  * @typedef {Object} AnnaPersonaData
@@ -27,7 +26,7 @@ const { validateRequest } = require('../middleware/validation');
  * GET /api/reader/anna-persona
  * Получение списка персон Анны с пагинацией и фильтрацией
  */
-router.get('/', authenticateAdmin, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const { 
             page = 1, 
@@ -99,7 +98,7 @@ router.get('/', authenticateAdmin, async (req, res) => {
  * GET /api/reader/anna-persona/stats
  * Получение статистики по персонам Анны
  */
-router.get('/stats', authenticateAdmin, async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
     try {
         const [totalCount, activeCount, inactiveCount] = await Promise.all([
             AnnaPersona.countDocuments(),
@@ -199,7 +198,7 @@ router.get('/for-context/:context', async (req, res) => {
  * GET /api/reader/anna-persona/:id
  * Получение конкретной персоны Анны по ID
  */
-router.get('/:id', authenticateAdmin, async (req, res) => {
+router.get('/:id', adminAuth, async (req, res) => {
     try {
         const persona = await AnnaPersona.findById(req.params.id);
         
@@ -229,7 +228,7 @@ router.get('/:id', authenticateAdmin, async (req, res) => {
  * POST /api/reader/anna-persona
  * Создание новой персоны Анны
  */
-router.post('/', authenticateAdmin, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { 
             name, 
@@ -294,7 +293,7 @@ router.post('/', authenticateAdmin, async (req, res) => {
  * PUT /api/reader/anna-persona/:id
  * Обновление персоны Анны
  */
-router.put('/:id', authenticateAdmin, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
     try {
         const { 
             name, 
@@ -364,7 +363,7 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
  * DELETE /api/reader/anna-persona/:id
  * Удаление персоны Анны
  */
-router.delete('/:id', authenticateAdmin, async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
     try {
         const persona = await AnnaPersona.findByIdAndDelete(req.params.id);
 
@@ -493,7 +492,7 @@ router.post('/random-phrase/:id', async (req, res) => {
  * POST /api/reader/anna-persona/toggle/:id
  * Переключение статуса активности персоны
  */
-router.post('/toggle/:id', authenticateAdmin, async (req, res) => {
+router.post('/toggle/:id', adminAuth, async (req, res) => {
     try {
         const persona = await AnnaPersona.findById(req.params.id);
 
@@ -544,7 +543,7 @@ router.post('/toggle/:id', authenticateAdmin, async (req, res) => {
  * POST /api/reader/anna-persona/bulk-action
  * Массовые операции с персонами Анны
  */
-router.post('/bulk-action', authenticateAdmin, async (req, res) => {
+router.post('/bulk-action', adminAuth, async (req, res) => {
     try {
         const { action, personaIds } = req.body;
 
