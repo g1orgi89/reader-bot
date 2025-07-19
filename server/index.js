@@ -28,6 +28,15 @@ const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 Маршруты аналитики
 
+// 📋 НОВЫЕ API ROUTES для системы управления данными
+const bookCatalogRoutes = require('./api/bookCatalog');
+const announcementsRoutes = require('./api/announcements');
+const promoCodesRoutes = require('./api/promoCodes');
+const categoriesRoutes = require('./api/categories');
+const targetAudiencesRoutes = require('./api/targetAudiences');
+const utmTemplatesRoutes = require('./api/utmTemplates');
+const annaPersonaRoutes = require('./api/annaPersona');
+
 // 🔧 ИСПРАВЛЕНИЕ: Возвращаем полный knowledge API с детальным логированием ошибок
 let knowledgeRoutes, usersRoutes, quotesRoutes;
 
@@ -283,6 +292,7 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
 // API Routes
 logger.info('🔧 Registering API routes...');
 
+// Основные API роуты
 app.use(`${config.app.apiPrefix}/chat`, chatRoutes);
 app.use(`${config.app.apiPrefix}/tickets`, ticketRoutes);
 app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
@@ -292,6 +302,16 @@ app.use(`${config.app.apiPrefix}/reports`, reportRoutes);
 app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
 app.use(`${config.app.apiPrefix}/users`, usersRoutes);
 app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
+
+// 📋 НОВЫЕ API РОУТЫ для системы управления данными Reader Bot
+logger.info('📋 Registering Reader Bot data management API routes...');
+app.use(`${config.app.apiPrefix}/book-catalog`, bookCatalogRoutes);
+app.use(`${config.app.apiPrefix}/announcements`, announcementsRoutes);
+app.use(`${config.app.apiPrefix}/promo-codes`, promoCodesRoutes);
+app.use(`${config.app.apiPrefix}/categories`, categoriesRoutes);
+app.use(`${config.app.apiPrefix}/target-audiences`, targetAudiencesRoutes);
+app.use(`${config.app.apiPrefix}/utm-templates`, utmTemplatesRoutes);
+app.use(`${config.app.apiPrefix}/anna-persona`, annaPersonaRoutes);
 
 logger.info('✅ All API routes registered successfully');
 
@@ -355,6 +375,14 @@ async function startServer() {
     logger.info(`🌐 API available at: http://localhost:${PORT}${config.app.apiPrefix}`);
     logger.info(`🏠 Client available at: http://localhost:${PORT}`);
     logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
+    logger.info(`📋 Data Management APIs:`);
+    logger.info(`   📚 Book Catalog: ${config.app.apiPrefix}/book-catalog`);
+    logger.info(`   📢 Announcements: ${config.app.apiPrefix}/announcements`);
+    logger.info(`   🎁 Promo Codes: ${config.app.apiPrefix}/promo-codes`);
+    logger.info(`   📂 Categories: ${config.app.apiPrefix}/categories`);
+    logger.info(`   🎯 Target Audiences: ${config.app.apiPrefix}/target-audiences`);
+    logger.info(`   🔗 UTM Templates: ${config.app.apiPrefix}/utm-templates`);
+    logger.info(`   👩 Anna Persona: ${config.app.apiPrefix}/anna-persona`);
     
     return server;
     
