@@ -6,7 +6,7 @@
 
 const express = require('express');
 const AnnouncementCatalog = require('../models/AnnouncementCatalog');
-const { adminAuth } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
 
 const router = express.Router();
