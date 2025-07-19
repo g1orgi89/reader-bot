@@ -7,7 +7,7 @@
 const express = require('express');
 const BookCatalog = require('../models/BookCatalog');
 const { adminAuth } = require('../middleware/auth');
-const { validateRequest } = require('../middleware/validation');
+// 🔧 FIXED: Removed non-existent validation middleware import
 const logger = require('../utils/logger');
 
 const router = express.Router();
