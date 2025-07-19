@@ -1,6 +1,7 @@
 /**
  * @fileoverview Обработчик цитат с геймификацией для бота "Читатель" (ИСПРАВЛЕННАЯ ВЕРСИЯ)
  * @author g1orgi89
+ * 📋 NEW: Интеграция с БД Category и BookCatalog вместо хардкода
  */
 
 const { Quote, UserProfile } = require('../models');
@@ -29,6 +30,7 @@ class QuoteHandler {
   constructor() {
     this.achievementService = new AchievementService();
     this.dailyQuoteLimit = 10;
+    this.initializeModels();
     
     // Классические авторы для детекции
     this.classicAuthors = [
@@ -40,6 +42,23 @@ class QuoteHandler {
       'гоголь', 'николай гоголь', 'н. гоголь',
       'лермонтов', 'михаил лермонтов', 'м. лермонтов'
     ];
+  }
+
+  /**
+   * 📋 NEW: Инициализация MongoDB моделей
+   * @private
+   */
+  initializeModels() {
+    try {
+      this.Category = require('../models/Category');
+      this.BookCatalog = require('../models/BookCatalog');
+      console.info('📋 QuoteHandler: MongoDB models initialized');
+    } catch (error) {
+      console.error('📋 QuoteHandler: Failed to initialize models:', error.message);
+      // Fallback к хардкоду если модели недоступны
+      this.Category = null;
+      this.BookCatalog = null;
+    }
   }
 
   /**
@@ -147,25 +166,18 @@ class QuoteHandler {
   }
 
   /**
-   * Анализировать цитату через Claude AI
+   * 📋 NEW: Анализировать цитату через Claude AI с использованием БД категорий
    * @param {string} text - Текст цитаты
    * @param {string|null} author - Автор цитаты
    * @returns {Promise<QuoteAnalysis>} Анализ цитаты
    * @private
    */
   async _analyzeQuote(text, author) {
-    const prompt = `Проанализируй эту цитату как психолог Анна Бусел:
+    // Получаем актуальные категории из БД
+    const categories = await this._getAvailableCategories();
+    const categoriesList = categories.map(c => c.name).join(', ');
 
-Цитата: "${text}"
-Автор: ${author || 'Неизвестен'}
-
-Верни JSON с анализом:
-{
-  "category": "одна из: Саморазвитие, Любовь, Философия, Мотивация, Мудрость, Творчество, Отношения, Материнство, Карьера",
-  "themes": ["тема1", "тема2"],
-  "sentiment": "positive/neutral/negative",
-  "insights": "краткий психологический инсайт (1-2 предложения)"
-}`;
+    const prompt = `Проанализируй эту цитату как психолог Анна Бусел:\n\nЦитата: "${text}"\nАвтор: ${author || 'Неизвестен'}\n\nВерни JSON с анализом:\n{\n  "category": "одна из: ${categoriesList}",\n  "themes": ["тема1", "тема2"],\n  "sentiment": "positive/neutral/negative",\n  "insights": "краткий психологический инсайт (1-2 предложения)"\n}`;
 
     try {
       const response = await claudeService.generateResponse(prompt, {
@@ -175,9 +187,9 @@ class QuoteHandler {
       
       const analysis = JSON.parse(response.message);
       
-      // Валидация результата
+      // Валидация результата с БД категориями
       return {
-        category: this._validateCategory(analysis.category),
+        category: await this._validateCategory(analysis.category, text),
         themes: Array.isArray(analysis.themes) ? analysis.themes.slice(0, 3) : ['размышления'],
         sentiment: ['positive', 'neutral', 'negative'].includes(analysis.sentiment) ? analysis.sentiment : 'neutral',
         insights: analysis.insights || 'Интересная мысль для размышления'
@@ -186,9 +198,9 @@ class QuoteHandler {
     } catch (error) {
       console.error('Error analyzing quote:', error);
       
-      // Fallback анализ
+      // Fallback анализ с использованием БД
       return {
-        category: 'Мудрость',
+        category: await this._getFallbackCategory(text),
         themes: ['жизненный опыт'],
         sentiment: 'positive',
         insights: 'Глубокая мысль для размышления'
@@ -197,18 +209,103 @@ class QuoteHandler {
   }
 
   /**
-   * Валидировать категорию цитаты
-   * @param {string} category - Категория от AI
-   * @returns {string} Валидная категория
+   * 📋 NEW: Получить доступные категории из БД
+   * @returns {Promise<Array>} Список категорий
    * @private
    */
-  _validateCategory(category) {
-    const validCategories = [
-      'Саморазвитие', 'Любовь', 'Философия', 'Мотивация', 'Мудрость', 
-      'Творчество', 'Отношения', 'Материнство', 'Карьера', 'Другое'
+  async _getAvailableCategories() {
+    try {
+      if (this.Category) {
+        const categories = await this.Category.getActiveForAI();
+        if (categories && categories.length > 0) {
+          return categories;
+        }
+      }
+      
+      // Fallback к хардкоду
+      return this._getFallbackCategories();
+    } catch (error) {
+      console.error('📋 Error getting categories from database:', error);
+      return this._getFallbackCategories();
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback категории (старая логика)
+   * @returns {Array} Категории
+   * @private
+   */
+  _getFallbackCategories() {
+    return [
+      { name: 'Саморазвитие', keywords: ['саморазвитие', 'рост', 'развитие'] },
+      { name: 'Любовь', keywords: ['любовь', 'сердце', 'чувства'] },
+      { name: 'Философия', keywords: ['жизнь', 'смысл', 'мудрость'] },
+      { name: 'Мотивация', keywords: ['цель', 'успех', 'достижение'] },
+      { name: 'Мудрость', keywords: ['опыт', 'знание', 'понимание'] },
+      { name: 'Творчество', keywords: ['творчество', 'искусство', 'создание'] },
+      { name: 'Отношения', keywords: ['отношения', 'дружба', 'общение'] },
+      { name: 'Материнство', keywords: ['мама', 'дети', 'семья'] },
+      { name: 'Карьера', keywords: ['работа', 'профессия', 'бизнес'] },
+      { name: 'Другое', keywords: [] }
     ];
+  }
+
+  /**
+   * 📋 NEW: Валидировать категорию цитаты с использованием БД
+   * @param {string} category - Категория от AI
+   * @param {string} text - Текст цитаты для fallback
+   * @returns {Promise<string>} Валидная категория
+   * @private
+   */
+  async _validateCategory(category, text) {
+    try {
+      if (this.Category) {
+        // Проверяем, есть ли такая категория в БД
+        const validCategory = await this.Category.validateAICategory(category);
+        if (validCategory) {
+          return validCategory;
+        }
+        
+        // Если нет - используем fallback поиск по тексту
+        const foundCategory = await this.Category.findByText(text);
+        if (foundCategory) {
+          return foundCategory.name;
+        }
+      }
+      
+      // Fallback к старой логике
+      const categories = await this._getAvailableCategories();
+      const validCategories = categories.map(c => c.name);
+      return validCategories.includes(category) ? category : 'Другое';
+      
+    } catch (error) {
+      console.error('📋 Error validating category:', error);
+      return await this._getFallbackCategory(text);
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback определение категории по тексту
+   * @param {string} text - Текст цитаты
+   * @returns {Promise<string>} Категория
+   * @private
+   */
+  async _getFallbackCategory(text) {
+    const textLower = text.toLowerCase();
+    const categories = await this._getAvailableCategories();
     
-    return validCategories.includes(category) ? category : 'Другое';
+    for (const category of categories) {
+      if (category.keywords) {
+        const hasKeyword = category.keywords.some(keyword => 
+          textLower.includes(keyword.toLowerCase())
+        );
+        if (hasKeyword) {
+          return category.name;
+        }
+      }
+    }
+    
+    return 'Другое';
   }
 
   /**
@@ -248,7 +345,7 @@ class QuoteHandler {
   }
 
   /**
-   * Генерировать ответ в стиле Анны Бусел
+   * 📋 NEW: Генерировать ответ в стиле Анны Бусел с рекомендациями из БД
    * @param {ParsedQuote} parsedQuote - Распарсенная цитата
    * @param {QuoteAnalysis} analysis - Анализ цитаты
    * @param {number} todayCount - Количество цитат сегодня
@@ -283,9 +380,9 @@ class QuoteHandler {
     
     let fullResponse = `${baseResponse}\n\nСохранил в ваш личный дневник 📖\nЦитат на этой неделе: ${weekQuotes}`;
 
-    // Добавляем рекомендацию (30% вероятность)
+    // 📋 NEW: Добавляем рекомендацию из БД (30% вероятность)
     if (Math.random() < 0.3) {
-      const recommendation = this._getBookRecommendation(analysis.category, isClassicAuthor);
+      const recommendation = await this._getBookRecommendation(analysis.category, isClassicAuthor);
       if (recommendation) {
         fullResponse += `\n\n💡 ${recommendation}`;
       }
@@ -348,13 +445,41 @@ class QuoteHandler {
   }
 
   /**
-   * Получить рекомендацию книги на основе категории
+   * 📋 NEW: Получить рекомендацию книги из БД на основе категории
+   * @param {string} category - Категория цитаты
+   * @param {boolean} isClassic - Является ли автор классиком
+   * @returns {Promise<string|null>} Рекомендация
+   * @private
+   */
+  async _getBookRecommendation(category, isClassic) {
+    try {
+      if (this.BookCatalog) {
+        // Получаем рекомендации из БД по категории
+        const recommendations = await this.BookCatalog.getRecommendationsByThemes([category]);
+        
+        if (recommendations && recommendations.length > 0) {
+          const book = recommendations[0];
+          return `Кстати, если вас привлекает тема "${category}", у Анны есть разбор "${book.title}".`;
+        }
+      }
+      
+      // Fallback к хардкоду
+      return this._getFallbackBookRecommendation(category, isClassic);
+      
+    } catch (error) {
+      console.error('📋 Error getting book recommendation from database:', error);
+      return this._getFallbackBookRecommendation(category, isClassic);
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback рекомендация книги (старая логика)
    * @param {string} category - Категория цитаты
    * @param {boolean} isClassic - Является ли автор классиком
    * @returns {string|null} Рекомендация
    * @private
    */
-  _getBookRecommendation(category, isClassic) {
+  _getFallbackBookRecommendation(category, isClassic) {
     const recommendations = {
       'Саморазвитие': [
         'Кстати, если вас привлекает саморазвитие, у Анны есть разбор "Быть собой".',
