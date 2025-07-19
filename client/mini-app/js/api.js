@@ -448,6 +448,3 @@ class ApiManager {
 
 // Создаем глобальный экземпляр
 window.apiManager = new ApiManager();
-
-// Экспортируем для ES6 модулей
-export default window.apiManager;
