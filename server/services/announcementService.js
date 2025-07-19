@@ -1,6 +1,7 @@
 /**
  * @fileoverview Система анонсов продуктов для проекта "Читатель"
  * @author g1orgi89
+ * 📋 NEW: Интеграция с БД AnnouncementCatalog и UtmTemplate вместо хардкода
  */
 
 const logger = require('../utils/logger');
@@ -30,7 +31,26 @@ const logger = require('../utils/logger');
 class AnnouncementService {
   constructor() {
     this.bot = null;
+    this.initializeModels();
     logger.info('📖 AnnouncementService initialized');
+  }
+
+  /**
+   * 📋 NEW: Инициализация MongoDB моделей
+   * @private
+   */
+  initializeModels() {
+    try {
+      this.AnnouncementCatalog = require('../models/AnnouncementCatalog');
+      this.TargetAudience = require('../models/TargetAudience');
+      this.UtmTemplate = require('../models/UtmTemplate');
+      this.PromoCode = require('../models/PromoCode');
+      logger.info('📋 AnnouncementService: MongoDB models initialized');
+    } catch (error) {
+      logger.error('📋 AnnouncementService: Failed to initialize models:', error.message);
+      // Fallback к хардкоду если модели недоступны
+      this.AnnouncementCatalog = null;
+    }
   }
 
   /**
@@ -62,7 +82,7 @@ class AnnouncementService {
       
       logger.info(`📖 Processing announcements for ${users.length} users`);
 
-      // Получаем доступные анонсы
+      // 📋 NEW: Получаем доступные анонсы из БД
       const announcements = await this.getPersonalizedAnnouncements();
       
       if (announcements.length === 0) {
@@ -73,7 +93,7 @@ class AnnouncementService {
       for (const user of users) {
         try {
           // Выбираем персонализированный анонс для пользователя
-          const selectedAnnouncement = this.selectAnnouncementForUser(user, announcements);
+          const selectedAnnouncement = await this.selectAnnouncementForUser(user, announcements);
           
           if (selectedAnnouncement) {
             await this.sendAnnouncementToUser(user.userId, selectedAnnouncement);
@@ -126,16 +146,51 @@ class AnnouncementService {
   }
 
   /**
-   * Выбор подходящего анонса для пользователя на основе персонализации
+   * 📋 NEW: Выбор подходящего анонса для пользователя на основе БД
    * @param {Object} user - Пользователь
    * @param {AnnouncementData[]} announcements - Доступные анонсы
-   * @returns {AnnouncementData|null} Выбранный анонс
+   * @returns {Promise<AnnouncementData|null>} Выбранный анонс
    */
-  selectAnnouncementForUser(user, announcements) {
+  async selectAnnouncementForUser(user, announcements) {
     if (!announcements || announcements.length === 0) {
       return null;
     }
 
+    try {
+      if (this.TargetAudience) {
+        // Определяем подходящие аудитории для пользователя через БД
+        const userAudiences = await this.TargetAudience.getForUser(user);
+        
+        if (userAudiences && userAudiences.length > 0) {
+          // Ищем анонс для самой приоритетной аудитории
+          for (const audience of userAudiences) {
+            const matchingAnnouncement = announcements.find(a => 
+              a.targetAudience.includes(audience.slug)
+            );
+            if (matchingAnnouncement) {
+              logger.info(`📋 Selected announcement for user ${user.userId} based on audience: ${audience.name}`);
+              return matchingAnnouncement;
+            }
+          }
+        }
+      }
+      
+      // Fallback к старой логике персонализации
+      return this.selectAnnouncementFallback(user, announcements);
+      
+    } catch (error) {
+      logger.error(`📋 Error selecting announcement from database: ${error.message}`);
+      return this.selectAnnouncementFallback(user, announcements);
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback логика выбора анонса (старая логика)
+   * @param {Object} user - Пользователь
+   * @param {AnnouncementData[]} announcements - Доступные анонсы
+   * @returns {AnnouncementData|null} Выбранный анонс
+   */
+  selectAnnouncementFallback(user, announcements) {
     const userPreferences = user.preferences?.mainThemes || [];
     const testResults = user.testResults || {};
 
@@ -144,7 +199,7 @@ class AnnouncementService {
     // 1. Для мам - специальные курсы о материнстве
     if (testResults.lifestyle?.includes('мама')) {
       const mothersAnnouncement = announcements.find(a => 
-        a.targetAudience.includes('mothers')
+        a.targetAudience.includes('mothers') || a.targetAudience.includes('mothers')
       );
       if (mothersAnnouncement) return mothersAnnouncement;
     }
@@ -152,7 +207,7 @@ class AnnouncementService {
     // 2. Для саморазвития
     if (userPreferences.includes('Саморазвитие') || userPreferences.includes('Мудрость')) {
       const selfDevAnnouncement = announcements.find(a => 
-        a.targetAudience.includes('self_development')
+        a.targetAudience.includes('self_development') || a.targetAudience.includes('samorazvitie')
       );
       if (selfDevAnnouncement) return selfDevAnnouncement;
     }
@@ -160,7 +215,7 @@ class AnnouncementService {
     // 3. Для тем любви и отношений
     if (userPreferences.includes('Любовь') || userPreferences.includes('Отношения')) {
       const relationshipsAnnouncement = announcements.find(a => 
-        a.targetAudience.includes('relationships')
+        a.targetAudience.includes('relationships') || a.targetAudience.includes('otnosheniya')
       );
       if (relationshipsAnnouncement) return relationshipsAnnouncement;
     }
@@ -168,7 +223,7 @@ class AnnouncementService {
     // 4. Для женственности (если есть соответствующие темы)
     if (testResults.priorities?.includes('баланс') || testResults.priorities?.includes('нежность')) {
       const womenAnnouncement = announcements.find(a => 
-        a.targetAudience.includes('women')
+        a.targetAudience.includes('women') || a.targetAudience.includes('zhenshchiny')
       );
       if (womenAnnouncement) return womenAnnouncement;
     }
@@ -178,13 +233,49 @@ class AnnouncementService {
   }
 
   /**
-   * Получение доступных анонсов на текущий месяц
+   * 📋 NEW: Получение доступных анонсов из БД на текущий месяц
    * @returns {Promise<AnnouncementData[]>} Массив анонсов
    */
   async getPersonalizedAnnouncements() {
-    // В реальном проекте это может загружаться из базы данных
-    // Пока используем статический набор с ротацией по месяцам
-    
+    try {
+      const currentMonth = new Date().getMonth() + 1;
+      
+      if (this.AnnouncementCatalog) {
+        // Получаем анонсы из БД для текущего месяца
+        const announcements = await this.AnnouncementCatalog.getForMonth(currentMonth);
+        
+        if (announcements && announcements.length > 0) {
+          // Форматируем анонсы для совместимости
+          const formattedAnnouncements = announcements.map(a => ({
+            id: a.announcementSlug,
+            title: a.title,
+            description: a.description,
+            price: `$${a.price}`,
+            targetAudience: a.targetAudience,
+            launchDate: this.getMonthName(currentMonth) + ' ' + new Date().getFullYear(),
+            utmCampaign: a.announcementSlug
+          }));
+          
+          logger.info(`📋 Generated ${formattedAnnouncements.length} announcements from database`);
+          return formattedAnnouncements;
+        }
+      }
+      
+      // Fallback к хардкоду если БД недоступна
+      logger.warn('📋 Database not available, using fallback announcements');
+      return this.getFallbackAnnouncements();
+      
+    } catch (error) {
+      logger.error(`📋 Error getting announcements from database: ${error.message}`);
+      return this.getFallbackAnnouncements();
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback анонсы (старая логика)
+   * @returns {AnnouncementData[]} Массив анонсов
+   */
+  getFallbackAnnouncements() {
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
     
@@ -236,35 +327,24 @@ class AnnouncementService {
       selectedAnnouncements.push(...baseAnnouncements.slice(0, 2 - selectedAnnouncements.length));
     }
 
-    logger.info(`📖 Generated ${selectedAnnouncements.length} announcements for ${this.getMonthName(currentMonth)}`);
+    logger.info(`📖 Generated ${selectedAnnouncements.length} fallback announcements for ${this.getMonthName(currentMonth)}`);
     return selectedAnnouncements;
   }
 
   /**
-   * Отправка анонса пользователю
+   * 📋 NEW: Отправка анонса пользователю с интеграцией БД
    * @param {string} userId - ID пользователя
    * @param {AnnouncementData} announcement - Данные анонса
    * @returns {Promise<void>}
    */
   async sendAnnouncementToUser(userId, announcement) {
-    const utmLink = this.generateUTMLink(announcement.utmCampaign, userId);
+    // 📋 NEW: Генерируем UTM ссылку из БД или используем fallback
+    const utmLink = await this.generateUTMLink(announcement.utmCampaign, userId);
     
-    const message = `🎉 *Специальный анонс от Анны Бусел*
-
-📚 *${announcement.title}*
-
-${announcement.description}
-
-💰 Стоимость: ${announcement.price}
-🗓 Старт: ${announcement.launchDate}
-
-🎁 *Для подписчиков "Читателя" скидка 15%*
-Промокод: READER15
-
-[Узнать подробности и записаться](${utmLink})
-
----
-_Анонсы приходят только раз в месяц с важными новостями от Анны_`;
+    // 📋 NEW: Получаем актуальный промокод из БД
+    const promoCode = await this.getAnnouncementPromoCode();
+    
+    const message = `🎉 *Специальный анонс от Анны Бусел*\n\n📚 *${announcement.title}*\n\n${announcement.description}\n\n💰 Стоимость: ${announcement.price}\n🗓 Старт: ${announcement.launchDate}\n\n🎁 *Для подписчиков "Читателя" скидка ${promoCode.discount}%*\nПромокод: ${promoCode.code}\n\n[Узнать подробности и записаться](${utmLink})\n\n---\n_Анонсы приходят только раз в месяц с важными новостями от Анны_`;
 
     try {
       await this.bot.telegram.sendMessage(userId, message, {
@@ -285,12 +365,75 @@ _Анонсы приходят только раз в месяц с важным
   }
 
   /**
-   * Генерация UTM ссылки для анонса
+   * 📋 NEW: Получение промокода для анонсов из БД
+   * @returns {Promise<Object>} Промокод
+   */
+  async getAnnouncementPromoCode() {
+    try {
+      if (this.PromoCode) {
+        const promoCode = await this.PromoCode.getRandomForContext('monthly_announcement');
+        
+        if (promoCode) {
+          logger.info(`📋 Using promo code from database: ${promoCode.code}`);
+          return {
+            code: promoCode.code,
+            discount: promoCode.discount
+          };
+        }
+      }
+      
+      // Fallback к хардкоду
+      logger.warn('📋 Database not available, using fallback promo code');
+      return { code: 'READER15', discount: 15 };
+      
+    } catch (error) {
+      logger.error(`📋 Error getting promo code from database: ${error.message}`);
+      return { code: 'READER15', discount: 15 };
+    }
+  }
+
+  /**
+   * 📋 NEW: Генерация UTM ссылки из БД шаблонов
+   * @param {string} campaign - Название кампании
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<string>} UTM ссылка
+   */
+  async generateUTMLink(campaign, userId) {
+    try {
+      if (this.UtmTemplate) {
+        // Получаем шаблон для месячных анонсов
+        const templates = await this.UtmTemplate.getByContext('monthly_announcement');
+        
+        if (templates && templates.length > 0) {
+          const template = templates[0];
+          const variables = {
+            campaignSlug: campaign,
+            userId: userId,
+            context: 'monthly_announcement'
+          };
+          
+          const utmLink = template.generateLink(variables);
+          logger.info(`📋 Generated UTM link from database template: ${template.name}`);
+          return utmLink;
+        }
+      }
+      
+      // Fallback к старой логике
+      return this.generateFallbackUTMLink(campaign, userId);
+      
+    } catch (error) {
+      logger.error(`📋 Error generating UTM link from database: ${error.message}`);
+      return this.generateFallbackUTMLink(campaign, userId);
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback UTM ссылка (старая логика)
    * @param {string} campaign - Название кампании
    * @param {string} userId - ID пользователя
    * @returns {string} UTM ссылка
    */
-  generateUTMLink(campaign, userId) {
+  generateFallbackUTMLink(campaign, userId) {
     const baseUrl = process.env.ANNA_WEBSITE_URL || "https://anna-busel.com/courses";
     const utmParams = new URLSearchParams({
       utm_source: 'telegram_bot',
@@ -353,7 +496,7 @@ _Анонсы приходят только раз в месяц с важным
       }
 
       const announcements = await this.getPersonalizedAnnouncements();
-      const selectedAnnouncement = this.selectAnnouncementForUser(user, announcements);
+      const selectedAnnouncement = await this.selectAnnouncementForUser(user, announcements);
       
       if (!selectedAnnouncement) {
         logger.error(`📖 No announcement selected for user ${userId}`);
@@ -472,6 +615,7 @@ _Анонсы приходят только раз в месяц с важным
   getDiagnostics() {
     return {
       initialized: !!this.bot,
+      databaseAvailable: !!this.AnnouncementCatalog,
       nextAnnouncementDate: this.getNextAnnouncementDate(),
       shouldSendToday: this.shouldSendAnnouncementsToday(),
       currentMonth: this.getMonthName(new Date().getMonth() + 1),
