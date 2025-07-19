@@ -9,8 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const UtmTemplate = require('../models/UtmTemplate');
-const { authenticateAdmin } = require('../middleware/auth');
-const { validateRequest } = require('../middleware/validation');
+const { adminAuth } = require('../middleware/auth');
 
 /**
  * @typedef {Object} UtmTemplateData
@@ -28,7 +27,7 @@ const { validateRequest } = require('../middleware/validation');
  * GET /api/reader/utm-templates
  * Получение списка UTM шаблонов с пагинацией и фильтрацией
  */
-router.get('/', authenticateAdmin, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const { 
             page = 1, 
@@ -101,7 +100,7 @@ router.get('/', authenticateAdmin, async (req, res) => {
  * GET /api/reader/utm-templates/stats
  * Получение статистики по UTM шаблонам
  */
-router.get('/stats', authenticateAdmin, async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
     try {
         const [totalCount, activeCount, inactiveCount] = await Promise.all([
             UtmTemplate.countDocuments(),
@@ -197,7 +196,7 @@ router.get('/by-context/:context', async (req, res) => {
  * GET /api/reader/utm-templates/:id
  * Получение конкретного UTM шаблона по ID
  */
-router.get('/:id', authenticateAdmin, async (req, res) => {
+router.get('/:id', adminAuth, async (req, res) => {
     try {
         const template = await UtmTemplate.findById(req.params.id);
         
@@ -227,7 +226,7 @@ router.get('/:id', authenticateAdmin, async (req, res) => {
  * POST /api/reader/utm-templates
  * Создание нового UTM шаблона
  */
-router.post('/', authenticateAdmin, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { 
             name, 
@@ -291,7 +290,7 @@ router.post('/', authenticateAdmin, async (req, res) => {
  * PUT /api/reader/utm-templates/:id
  * Обновление UTM шаблона
  */
-router.put('/:id', authenticateAdmin, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
     try {
         const { 
             name, 
@@ -359,7 +358,7 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
  * DELETE /api/reader/utm-templates/:id
  * Удаление UTM шаблона
  */
-router.delete('/:id', authenticateAdmin, async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
     try {
         const template = await UtmTemplate.findByIdAndDelete(req.params.id);
 
@@ -446,7 +445,7 @@ router.post('/generate-link', async (req, res) => {
  * POST /api/reader/utm-templates/toggle/:id
  * Переключение статуса активности шаблона
  */
-router.post('/toggle/:id', authenticateAdmin, async (req, res) => {
+router.post('/toggle/:id', adminAuth, async (req, res) => {
     try {
         const template = await UtmTemplate.findById(req.params.id);
 
@@ -481,7 +480,7 @@ router.post('/toggle/:id', authenticateAdmin, async (req, res) => {
  * POST /api/reader/utm-templates/test/:id
  * Тестирование UTM шаблона с тестовыми переменными
  */
-router.post('/test/:id', authenticateAdmin, async (req, res) => {
+router.post('/test/:id', adminAuth, async (req, res) => {
     try {
         const { variables = {} } = req.body;
         
@@ -531,7 +530,7 @@ router.post('/test/:id', authenticateAdmin, async (req, res) => {
  * POST /api/reader/utm-templates/bulk-action
  * Массовые операции с UTM шаблонами
  */
-router.post('/bulk-action', authenticateAdmin, async (req, res) => {
+router.post('/bulk-action', adminAuth, async (req, res) => {
     try {
         const { action, templateIds } = req.body;
 
