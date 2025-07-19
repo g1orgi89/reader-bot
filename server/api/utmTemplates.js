@@ -9,7 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const UtmTemplate = require('../models/UtmTemplate');
-const { adminAuth } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/adminAuth');
 
 /**
  * @typedef {Object} UtmTemplateData
