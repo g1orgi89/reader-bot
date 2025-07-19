@@ -5,6 +5,7 @@
  * 🔧 FIX: Используем прямой API вызов без системного промпта для JSON анализа
  * 🔧 FIX: Добавлена валидация и очистка JSON ответов
  * 🔧 FIX: Добавлено поле reasoning в рекомендации
+ * 🔧 NEW: Интеграция с API для BookCatalog и PromoCode вместо хардкода
  */
 
 const logger = require('../utils/logger');
@@ -46,6 +47,28 @@ class WeeklyReportService {
     // Получаем прямой доступ к Claude API для JSON анализа
     this.anthropic = null;
     this.initializeAnthropicClient();
+    
+    // 📋 NEW: Инициализация моделей для работы с БД
+    this.initializeModels();
+  }
+
+  /**
+   * 📋 NEW: Инициализация MongoDB моделей
+   * @private
+   */
+  initializeModels() {
+    try {
+      this.BookCatalog = require('../models/BookCatalog');
+      this.PromoCode = require('../models/PromoCode');
+      this.UtmTemplate = require('../models/UtmTemplate');
+      this.TargetAudience = require('../models/TargetAudience');
+      logger.info('📋 WeeklyReportService: MongoDB models initialized');
+    } catch (error) {
+      logger.error('📋 WeeklyReportService: Failed to initialize models:', error.message);
+      // Fallback к хардкоду если модели недоступны
+      this.BookCatalog = null;
+      this.PromoCode = null;
+    }
   }
 
   /**
@@ -278,11 +301,11 @@ class WeeklyReportService {
       // Получаем AI-анализ цитат
       const analysis = await this.analyzeWeeklyQuotes(quotes, userProfile);
       
-      // Генерируем рекомендации книг (можно добавить AI позже)
-      const recommendations = this.getBookRecommendations(analysis);
+      // 📋 NEW: Генерируем рекомендации книг из БД
+      const recommendations = await this.getBookRecommendations(analysis, userProfile);
       
-      // Создаем промокод
-      const promoCode = this.generatePromoCode();
+      // 📋 NEW: Создаем промокод из БД
+      const promoCode = await this.generatePromoCode();
       
       const report = {
         userId,
@@ -305,11 +328,54 @@ class WeeklyReportService {
   }
 
   /**
-   * 🔧 FIX: Получает рекомендации книг на основе анализа с полем reasoning
+   * 📋 NEW: Получает рекомендации книг из БД на основе анализа
+   * @param {WeeklyAnalysis} analysis - Анализ недели
+   * @param {UserProfile} userProfile - Профиль пользователя
+   * @returns {Promise<Array<Object>>} Рекомендации книг
+   */
+  async getBookRecommendations(analysis, userProfile) {
+    try {
+      if (this.BookCatalog && this.UtmTemplate) {
+        // Получаем рекомендации из БД на основе анализа
+        const recommendations = await this.BookCatalog.getRecommendationsByThemes(analysis.dominantThemes);
+        
+        if (recommendations && recommendations.length > 0) {
+          // Форматируем рекомендации с UTM ссылками
+          const formattedRecommendations = await Promise.all(
+            recommendations.slice(0, 2).map(async (book) => {
+              const utmLink = await this.generateUTMLink(book.bookSlug, 'weekly_report');
+              
+              return {
+                title: book.title,
+                price: `$${book.price}`,
+                description: book.description,
+                reasoning: book.reasoning || `Рекомендуется на основе ваших интересов к теме: ${analysis.dominantThemes.join(', ')}`,
+                link: utmLink
+              };
+            })
+          );
+          
+          logger.info(`📋 Generated ${formattedRecommendations.length} book recommendations from database`);
+          return formattedRecommendations;
+        }
+      }
+      
+      // Fallback к хардкоду если БД недоступна
+      logger.warn('📋 Database not available, using fallback book recommendations');
+      return this.getFallbackBookRecommendations(analysis);
+      
+    } catch (error) {
+      logger.error(`📋 Error getting book recommendations from database: ${error.message}`);
+      return this.getFallbackBookRecommendations(analysis);
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback рекомендации книг (старая логика)
    * @param {WeeklyAnalysis} analysis - Анализ недели
    * @returns {Array<Object>} Рекомендации книг
    */
-  getBookRecommendations(analysis) {
+  getFallbackBookRecommendations(analysis) {
     const recommendations = [];
     
     // Базовая логика рекомендаций на основе тем
@@ -319,7 +385,7 @@ class WeeklyReportService {
         price: '$8',
         description: 'О построении здоровых отношений с собой и миром',
         reasoning: 'Ваши цитаты показывают интерес к теме любви и отношений',
-        link: this.generateUTMLink('art_of_loving')
+        link: this.generateFallbackUTMLink('art_of_loving')
       });
     }
     
@@ -329,7 +395,7 @@ class WeeklyReportService {
         price: '$8',
         description: 'О творчестве, самопознании и поиске своего пути',
         reasoning: 'Судя по вашим цитатам, вас привлекает философский взгляд на жизнь',
-        link: this.generateUTMLink('letters_to_young_poet')
+        link: this.generateFallbackUTMLink('letters_to_young_poet')
       });
     }
     
@@ -339,7 +405,7 @@ class WeeklyReportService {
         price: '$12',
         description: 'О самопринятии и аутентичности',
         reasoning: 'Ваш выбор цитат говорит о стремлении к личностному росту',
-        link: this.generateUTMLink('be_yourself_course')
+        link: this.generateFallbackUTMLink('be_yourself_course')
       });
     }
 
@@ -349,7 +415,7 @@ class WeeklyReportService {
         price: '$20',
         description: 'Как сохранить себя в материнстве и воспитать счастливых детей',
         reasoning: 'Ваши цитаты отражают интерес к семейным ценностям',
-        link: this.generateUTMLink('wise_mother_course')
+        link: this.generateFallbackUTMLink('wise_mother_course')
       });
     }
 
@@ -359,7 +425,7 @@ class WeeklyReportService {
         price: '$6',
         description: 'О простых истинах жизни и важности человеческих связей',
         reasoning: 'Ваши цитаты показывают поиск простого счастья в жизни',
-        link: this.generateUTMLink('little_prince')
+        link: this.generateFallbackUTMLink('little_prince')
       });
     }
 
@@ -370,7 +436,7 @@ class WeeklyReportService {
         price: '$6',
         description: 'О простых истинах жизни и важности человеческих связей',
         reasoning: 'Универсальная книга для размышлений о жизни и ценностях',
-        link: this.generateUTMLink('little_prince')
+        link: this.generateFallbackUTMLink('little_prince')
       });
     }
 
@@ -378,10 +444,41 @@ class WeeklyReportService {
   }
 
   /**
-   * Генерирует промокод для скидки
+   * 📋 NEW: Генерирует промокод из БД
+   * @returns {Promise<Object>} Информация о промокоде
+   */
+  async generatePromoCode() {
+    try {
+      if (this.PromoCode) {
+        // Получаем активный промокод для еженедельных отчетов
+        const promoCode = await this.PromoCode.getRandomForContext('weekly_report');
+        
+        if (promoCode) {
+          logger.info(`📋 Generated promo code from database: ${promoCode.code}`);
+          return {
+            code: promoCode.code,
+            discount: promoCode.discount,
+            validUntil: promoCode.validUntil,
+            description: promoCode.description
+          };
+        }
+      }
+      
+      // Fallback к хардкоду если БД недоступна
+      logger.warn('📋 Database not available, using fallback promo code');
+      return this.getFallbackPromoCode();
+      
+    } catch (error) {
+      logger.error(`📋 Error getting promo code from database: ${error.message}`);
+      return this.getFallbackPromoCode();
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback промокод (старая логика)
    * @returns {Object} Информация о промокоде
    */
-  generatePromoCode() {
+  getFallbackPromoCode() {
     const codes = ['READER20', 'WISDOM20', 'QUOTES20', 'BOOKS20'];
     const randomCode = codes[Math.floor(Math.random() * codes.length)];
     
@@ -394,11 +491,46 @@ class WeeklyReportService {
   }
 
   /**
-   * Генерирует UTM ссылку для отслеживания
+   * 📋 NEW: Генерирует UTM ссылку из БД шаблонов
+   * @param {string} bookSlug - Идентификатор книги
+   * @param {string} context - Контекст использования
+   * @returns {Promise<string>} UTM ссылка
+   */
+  async generateUTMLink(bookSlug, context = 'weekly_report') {
+    try {
+      if (this.UtmTemplate) {
+        // Получаем шаблон для данного контекста
+        const templates = await this.UtmTemplate.getByContext(context);
+        
+        if (templates && templates.length > 0) {
+          const template = templates[0];
+          const variables = {
+            bookSlug: bookSlug,
+            userId: 'user_weekly',
+            context: context
+          };
+          
+          const utmLink = template.generateLink(variables);
+          logger.info(`📋 Generated UTM link from database template: ${template.name}`);
+          return utmLink;
+        }
+      }
+      
+      // Fallback к старой логике
+      return this.generateFallbackUTMLink(bookSlug);
+      
+    } catch (error) {
+      logger.error(`📋 Error generating UTM link from database: ${error.message}`);
+      return this.generateFallbackUTMLink(bookSlug);
+    }
+  }
+
+  /**
+   * 📋 NEW: Fallback UTM ссылка (старая логика)
    * @param {string} bookSlug - Идентификатор книги
    * @returns {string} UTM ссылка
    */
-  generateUTMLink(bookSlug) {
+  generateFallbackUTMLink(bookSlug) {
     const baseUrl = "https://anna-busel.com/books";
     const utmParams = new URLSearchParams({
       utm_source: 'telegram_bot',
