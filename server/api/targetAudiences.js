@@ -9,8 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const TargetAudience = require('../models/TargetAudience');
-const { authenticateAdmin } = require('../middleware/auth');
-const { validateRequest } = require('../middleware/validation');
+const { adminAuth } = require('../middleware/auth');
 
 /**
  * @typedef {Object} TargetAudienceData
@@ -26,7 +25,7 @@ const { validateRequest } = require('../middleware/validation');
  * GET /api/reader/target-audiences
  * Получение списка целевых аудиторий с пагинацией и фильтрацией
  */
-router.get('/', authenticateAdmin, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const { 
             page = 1, 
@@ -93,7 +92,7 @@ router.get('/', authenticateAdmin, async (req, res) => {
  * GET /api/reader/target-audiences/stats
  * Получение статистики по целевым аудиториям
  */
-router.get('/stats', authenticateAdmin, async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
     try {
         const [totalCount, activeCount, inactiveCount] = await Promise.all([
             TargetAudience.countDocuments(),
@@ -158,7 +157,7 @@ router.get('/active', async (req, res) => {
  * GET /api/reader/target-audiences/:id
  * Получение конкретной целевой аудитории по ID
  */
-router.get('/:id', authenticateAdmin, async (req, res) => {
+router.get('/:id', adminAuth, async (req, res) => {
     try {
         const audience = await TargetAudience.findById(req.params.id);
         
@@ -188,7 +187,7 @@ router.get('/:id', authenticateAdmin, async (req, res) => {
  * POST /api/reader/target-audiences
  * Создание новой целевой аудитории
  */
-router.post('/', authenticateAdmin, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { name, description, slug, criteria, isActive = true, priority = 1 } = req.body;
 
@@ -240,7 +239,7 @@ router.post('/', authenticateAdmin, async (req, res) => {
  * PUT /api/reader/target-audiences/:id
  * Обновление целевой аудитории
  */
-router.put('/:id', authenticateAdmin, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
     try {
         const { name, description, slug, criteria, isActive, priority } = req.body;
 
@@ -300,7 +299,7 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
  * DELETE /api/reader/target-audiences/:id
  * Удаление целевой аудитории
  */
-router.delete('/:id', authenticateAdmin, async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
     try {
         const audience = await TargetAudience.findByIdAndDelete(req.params.id);
 
@@ -363,7 +362,7 @@ router.post('/match-user', async (req, res) => {
  * POST /api/reader/target-audiences/toggle/:id
  * Переключение статуса активности аудитории
  */
-router.post('/toggle/:id', authenticateAdmin, async (req, res) => {
+router.post('/toggle/:id', adminAuth, async (req, res) => {
     try {
         const audience = await TargetAudience.findById(req.params.id);
 
@@ -398,7 +397,7 @@ router.post('/toggle/:id', authenticateAdmin, async (req, res) => {
  * POST /api/reader/target-audiences/bulk-action
  * Массовые операции с аудиториями
  */
-router.post('/bulk-action', authenticateAdmin, async (req, res) => {
+router.post('/bulk-action', adminAuth, async (req, res) => {
     try {
         const { action, audienceIds } = req.body;
 
