@@ -1,121 +1,125 @@
 {
-  "name": "Читатель — Персональный дневник цитат",
+  "name": "Читатель — Дневник цитат",
   "short_name": "Читатель",
-  "description": "Ваш персональный дневник цитат с ИИ анализом от Анны Бусел",
+  "description": "Персональный дневник цитат с AI анализом от Анны Бусел",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "theme_color": "#6366f1",
-  "background_color": "#ffffff",
-  "scope": "/",
+  "orientation": "portrait",
+  "theme_color": "#d4af37",
+  "background_color": "#fefef8",
+  "categories": ["books", "education", "lifestyle", "productivity"],
   "lang": "ru",
-  "categories": ["productivity", "lifestyle", "education"],
+  "scope": "/",
+  
   "icons": [
     {
-      "src": "./assets/icon-72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "src": "./assets/icon-16.svg",
+      "sizes": "16x16",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "./assets/icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "src": "./assets/icon-32.svg", 
+      "sizes": "32x32",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "./assets/icon-128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "src": "./assets/icon-144.svg",
+      "sizes": "144x144", 
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "./assets/icon-144.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "./assets/icon-152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "./assets/icon-192.png",
+      "src": "./assets/icon-192.svg",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
-      "src": "./assets/icon-384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "./assets/icon-512.png",
+      "src": "./assets/icon-512.svg",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ],
+  
   "screenshots": [
     {
       "src": "./assets/screenshot-1.png",
-      "sizes": "390x844",
+      "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Главная страница с быстрым добавлением цитат"
+      "label": "Главная страница дневника цитат"
     },
     {
-      "src": "./assets/screenshot-2.png",
-      "sizes": "390x844",
+      "src": "./assets/screenshot-2.png", 
+      "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Детальные еженедельные отчеты"
+      "label": "Дневник с перелистыванием страниц"
     }
   ],
+  
   "shortcuts": [
     {
       "name": "Добавить цитату",
       "short_name": "Добавить",
-      "description": "Быстро добавить новую цитату",
-      "url": "/?shortcut=add-quote",
+      "description": "Быстро добавить новую цитату в дневник",
+      "url": "/?page=diary",
       "icons": [
         {
-          "src": "./assets/shortcut-add.png",
-          "sizes": "96x96"
+          "src": "./assets/icon-144.svg",
+          "sizes": "144x144"
         }
       ]
     },
     {
-      "name": "Мои отчеты",
-      "short_name": "Отчеты",
-      "description": "Просмотреть еженедельные отчеты",
-      "url": "/?shortcut=reports",
+      "name": "Открыть дневник",
+      "short_name": "Дневник", 
+      "description": "Открыть дневник с перелистыванием страниц",
+      "url": "/?page=diary",
       "icons": [
         {
-          "src": "./assets/shortcut-reports.png",
-          "sizes": "96x96"
+          "src": "./assets/icon-144.svg",
+          "sizes": "144x144"
         }
       ]
     }
   ],
-  "related_applications": [
+  
+  "share_target": {
+    "action": "/?share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  
+  "protocol_handlers": [
     {
-      "platform": "webapp",
-      "url": "https://annabusel.org"
+      "protocol": "web+reader",
+      "url": "/?quote=%s"
     }
   ],
-  "prefer_related_applications": false,
-  "dir": "ltr",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  
   "edge_side_panel": {
     "preferred_width": 400
   },
-  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
-  "launch_handler": {
-    "client_mode": "navigate-existing"
-  }
+  
+  "prefer_related_applications": false,
+  
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.annabusel.reader"
+    }
+  ]
 }
