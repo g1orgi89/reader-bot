@@ -1,6 +1,7 @@
 /**
  * DIARY.CSS - Стили для дневника цитат с перелистыванием страниц
  * Вдохновлено дизайном annabusel.org и реалистичным эффектом книги
+ * ОБНОВЛЕНО: улучшен рукописный шрифт, добавлены анимации написания
  */
 
 /* ===== ПЕРЕМЕННЫЕ ДНЕВНИКА ===== */
@@ -16,7 +17,7 @@
   --paper-color: #fefef8;
   --paper-shadow: rgba(0,0,0,0.15);
   --ink-color: #2c2c2c;
-  --handwriting-color: #4a4a4a;
+  --handwriting-color: #1a1a1a; /* Сделали темнее для лучшей видимости */
   --pencil-color: #8b6914;
   
   /* Размеры книги */
@@ -259,15 +260,19 @@
   }
 }
 
+/* УЛУЧШЕННЫЙ РУКОПИСНЫЙ СТИЛЬ */
 .quote-text {
-  font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
-  font-size: 1.4rem;
-  line-height: 2;
-  color: var(--handwriting-color);
+  font-family: 'Brush Script MT', 'Lucida Handwriting', 'Segoe Print', cursive;
+  font-size: 1.5rem; /* Увеличили размер */
+  line-height: 2.2; /* Увеличили межстрочный интервал */
+  color: var(--handwriting-color); /* Теперь темнее */
+  font-weight: 600; /* Добавили жирность */
   position: relative;
   padding-left: 1.5rem;
   margin-bottom: 1rem;
   text-align: left;
+  text-shadow: 0.5px 0.5px 1px rgba(0,0,0,0.1); /* Добавили тень для четкости */
+  letter-spacing: 0.5px; /* Немного увеличили расстояние между буквами */
 }
 
 /* Красивые кавычки */
@@ -276,18 +281,22 @@
   position: absolute;
   left: 0;
   top: -0.2em;
-  font-size: 2.5rem;
+  font-size: 2.8rem; /* Увеличили размер кавычек */
   color: var(--anna-accent);
   font-family: 'Georgia', serif;
   line-height: 1;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
 }
 
 .quote-text::after {
   content: '"';
-  font-size: 2rem;
+  font-size: 2.2rem;
   color: var(--anna-accent);
   font-family: 'Georgia', serif;
   margin-left: 0.2em;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
 }
 
 .quote-author {
@@ -298,11 +307,13 @@
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
   position: relative;
+  font-weight: 500; /* Добавили немного жирности */
 }
 
 .quote-author::before {
   content: '— ';
   color: var(--anna-accent);
+  font-weight: bold;
 }
 
 .quote-date {
@@ -311,6 +322,38 @@
   text-align: right;
   font-family: var(--font-secondary);
   margin-top: 0.5rem;
+}
+
+/* ===== АНИМАЦИЯ НАПИСАНИЯ ЦИТАТЫ ===== */
+.quote-entry.new {
+  animation: newQuoteAppear 1.2s ease-out;
+}
+
+@keyframes newQuoteAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Анимация печатания текста */
+.quote-text.typing {
+  overflow: hidden;
+  border-right: 2px solid var(--anna-accent);
+  animation: blink-caret 1s step-end infinite;
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent; }
+  50% { border-color: var(--anna-accent); }
 }
 
 /* ===== ФОРМА ДОБАВЛЕНИЯ ЦИТАТЫ ===== */
@@ -370,9 +413,10 @@
 .diary-form-group textarea {
   resize: vertical;
   min-height: 120px;
-  font-family: 'Brush Script MT', cursive;
-  font-size: 1.3rem;
+  font-family: 'Brush Script MT', 'Segoe Print', cursive;
+  font-size: 1.4rem; /* Увеличили размер в форме */
   line-height: 1.8;
+  font-weight: 600; /* Жирнее в форме тоже */
 }
 
 .diary-submit-btn {
@@ -467,8 +511,8 @@
   }
   
   .quote-text {
-    font-size: 1.2rem;
-    line-height: 1.8;
+    font-size: 1.3rem;
+    line-height: 2;
   }
   
   .add-quote-section {
@@ -506,16 +550,20 @@
   }
   
   .quote-text {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     padding-left: 1rem;
   }
   
   .quote-text::before {
-    font-size: 2rem;
+    font-size: 2.2rem;
   }
   
   .add-quote-section {
     padding: 1rem;
+  }
+  
+  .diary-form-group textarea {
+    font-size: 1.2rem;
   }
 }
 
@@ -567,22 +615,63 @@
   opacity: 0.5;
 }
 
-/* Анимация появления новой цитаты */
+/* Улучшенная анимация появления новой цитаты */
 .quote-entry.new {
-  animation: newQuoteAppear 1s ease-out;
+  animation: newQuoteWrite 2s ease-out;
 }
 
-@keyframes newQuoteAppear {
+@keyframes newQuoteWrite {
   0% {
     opacity: 0;
     transform: scale(0.8) translateY(20px);
   }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.05) translateY(0);
+  30% {
+    opacity: 0.5;
+    transform: scale(1.02) translateY(0);
+  }
+  60% {
+    opacity: 0.8;
+    transform: scale(1) translateY(0);
   }
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
   }
+}
+
+/* Эффект чернильного пятна при добавлении цитаты */
+.quote-entry.new .quote-text::before {
+  animation: inkDrop 0.8s ease-out 0.5s both;
+}
+
+@keyframes inkDrop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Эффект мерцания при печатании */
+.quote-text.writing {
+  position: relative;
+}
+
+.quote-text.writing::after {
+  content: '|';
+  animation: blink 1s infinite;
+  color: var(--anna-accent);
+  font-weight: normal;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
