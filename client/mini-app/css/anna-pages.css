@@ -1,0 +1,607 @@
+/**
+ * ANNA-PAGES.CSS - Стили для всех страниц кроме дневника
+ * Стиль: точная адаптация дизайна annabusel.org
+ * 
+ * ПРИМЕНЕНИЕ:
+ * - Главная страница (статистика)
+ * - Каталог книг 
+ * - Достижения
+ * - Отчеты
+ * - Настройки
+ * 
+ * НЕ ПРИМЕНЯЕТСЯ К:
+ * - Дневнику (использует diary.css)
+ */
+
+/* ===== БАЗОВЫЕ ПЕРЕМЕННЫЕ ANNABUSEL.ORG ===== */
+:root {
+  /* Цветовая палитра с сайта Анны */
+  --anna-black: #000000;
+  --anna-white: #ffffff;
+  --anna-gray: #666666;
+  --anna-light-gray: #f5f5f5;
+  --anna-border: #e5e5e5;
+  --anna-accent: #d4af37; /* Золотистый акцент минимально */
+  
+  /* Типографика как на сайте */
+  --anna-font-primary: 'Georgia', 'Times New Roman', serif;
+  --anna-font-secondary: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --anna-font-size-h1: 28px;
+  --anna-font-size-h2: 24px;
+  --anna-font-size-h3: 20px;
+  --anna-font-size-body: 16px;
+  --anna-font-size-small: 14px;
+  
+  /* Отступы и размеры */
+  --anna-spacing-xs: 8px;
+  --anna-spacing-sm: 16px;
+  --anna-spacing-md: 24px;
+  --anna-spacing-lg: 32px;
+  --anna-spacing-xl: 48px;
+  
+  /* Компоненты */
+  --anna-border-radius: 8px;
+  --anna-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --anna-shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== БАЗОВЫЕ СТИЛИ СТРАНИЦ (КРОМЕ ДНЕВНИКА) ===== */
+.page-content:not(#page-diary) {
+  background: var(--anna-white);
+  color: var(--anna-black);
+  font-family: var(--anna-font-secondary);
+  line-height: 1.6;
+  padding: var(--anna-spacing-md);
+  min-height: 100vh;
+}
+
+/* ===== ТИПОГРАФИКА В СТИЛЕ ANNABUSEL.ORG ===== */
+
+/* Заголовки - крупные, четкие, черные */
+.anna-h1,
+.page-content:not(#page-diary) h1 {
+  font-family: var(--anna-font-primary);
+  font-size: var(--anna-font-size-h1);
+  font-weight: 400; /* Georgia не нужна жирность */
+  color: var(--anna-black);
+  line-height: 1.2;
+  margin: 0 0 var(--anna-spacing-md) 0;
+  letter-spacing: -0.02em;
+}
+
+.anna-h2,
+.page-content:not(#page-diary) h2 {
+  font-family: var(--anna-font-primary);
+  font-size: var(--anna-font-size-h2);
+  font-weight: 400;
+  color: var(--anna-black);
+  line-height: 1.3;
+  margin: var(--anna-spacing-lg) 0 var(--anna-spacing-sm) 0;
+  letter-spacing: -0.01em;
+}
+
+.anna-h3,
+.page-content:not(#page-diary) h3 {
+  font-family: var(--anna-font-primary);
+  font-size: var(--anna-font-size-h3);
+  font-weight: 400;
+  color: var(--anna-black);
+  line-height: 1.4;
+  margin: var(--anna-spacing-md) 0 var(--anna-spacing-sm) 0;
+}
+
+/* Основной текст - читаемый, достаточные отступы */
+.anna-text,
+.page-content:not(#page-diary) p {
+  font-family: var(--anna-font-secondary);
+  font-size: var(--anna-font-size-body);
+  color: var(--anna-black);
+  line-height: 1.6;
+  margin: 0 0 var(--anna-spacing-sm) 0;
+}
+
+/* Серый текст для дополнительной информации */
+.anna-text-gray,
+.anna-caption {
+  color: var(--anna-gray);
+  font-size: var(--anna-font-size-small);
+  line-height: 1.5;
+}
+
+/* ===== СПИСКИ КАК "5 ПРИЧИН ПОЧЕМУ..." ===== */
+.anna-list,
+.reasons-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--anna-spacing-md) 0;
+}
+
+.anna-list li,
+.reasons-list li {
+  background: var(--anna-light-gray);
+  padding: var(--anna-spacing-sm);
+  margin-bottom: var(--anna-spacing-sm);
+  border-radius: var(--anna-border-radius);
+  border-left: 3px solid var(--anna-black);
+}
+
+.anna-list li:last-child,
+.reasons-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Нумерация для списков */
+.anna-list.numbered {
+  counter-reset: anna-counter;
+}
+
+.anna-list.numbered li {
+  counter-increment: anna-counter;
+  position: relative;
+  padding-left: var(--anna-spacing-xl);
+}
+
+.anna-list.numbered li::before {
+  content: counter(anna-counter) '.';
+  position: absolute;
+  left: var(--anna-spacing-sm);
+  top: var(--anna-spacing-sm);
+  font-family: var(--anna-font-primary);
+  font-size: var(--anna-font-size-h3);
+  font-weight: 600;
+  color: var(--anna-black);
+  line-height: 1;
+}
+
+/* ===== КАРТОЧКИ С ЧЕТКИМИ ГРАНИЦАМИ И ВОЗДУХОМ ===== */
+.anna-card {
+  background: var(--anna-white);
+  border: 1px solid var(--anna-border);
+  border-radius: var(--anna-border-radius);
+  padding: var(--anna-spacing-md);
+  margin-bottom: var(--anna-spacing-sm);
+  box-shadow: var(--anna-shadow-light);
+  
+  /* Много воздуха внутри */
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.anna-card:hover {
+  box-shadow: var(--anna-shadow-medium);
+  transition: box-shadow 0.2s ease;
+}
+
+.anna-card h3 {
+  margin-top: 0;
+  margin-bottom: var(--anna-spacing-xs);
+}
+
+.anna-card p {
+  margin-bottom: 0;
+}
+
+/* Специальные карточки статистики */
+.anna-stat-card {
+  text-align: center;
+  background: var(--anna-light-gray);
+  border: none;
+  padding: var(--anna-spacing-lg);
+}
+
+.anna-stat-card .stat-number {
+  font-family: var(--anna-font-primary);
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--anna-black);
+  line-height: 1;
+  margin-bottom: var(--anna-spacing-xs);
+  display: block;
+}
+
+.anna-stat-card .stat-label {
+  color: var(--anna-gray);
+  font-size: var(--anna-font-size-small);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ===== КНОПКИ В СТИЛЕ САЙТА АННЫ ===== */
+.anna-button {
+  background: var(--anna-black);
+  color: var(--anna-white);
+  border: none;
+  border-radius: var(--anna-border-radius);
+  padding: var(--anna-spacing-sm) var(--anna-spacing-md);
+  font-family: var(--anna-font-secondary);
+  font-size: var(--anna-font-size-body);
+  font-weight: 500;
+  cursor: pointer;
+  
+  /* Плоский дизайн без излишеств */
+  box-shadow: none;
+  transition: all 0.2s ease;
+  
+  /* Touch friendly */
+  min-height: 44px;
+  min-width: 120px;
+}
+
+.anna-button:hover {
+  background: #333333;
+  transform: translateY(-1px);
+}
+
+.anna-button:active {
+  transform: translateY(0);
+  background: #1a1a1a;
+}
+
+/* Вторичная кнопка */
+.anna-button.secondary {
+  background: transparent;
+  color: var(--anna-black);
+  border: 1px solid var(--anna-border);
+}
+
+.anna-button.secondary:hover {
+  background: var(--anna-light-gray);
+  border-color: var(--anna-black);
+}
+
+/* Большая кнопка для основных действий */
+.anna-button.large {
+  padding: var(--anna-spacing-md) var(--anna-spacing-lg);
+  font-size: var(--anna-font-size-h3);
+  min-height: 56px;
+  width: 100%;
+  margin: var(--anna-spacing-md) 0;
+}
+
+/* ===== ФОРМЫ ПРОСТЫЕ БЕЗ ИЗЛИШЕСТВ ===== */
+.anna-form {
+  margin: var(--anna-spacing-md) 0;
+}
+
+.anna-form-group {
+  margin-bottom: var(--anna-spacing-md);
+}
+
+.anna-label {
+  display: block;
+  font-family: var(--anna-font-secondary);
+  font-size: var(--anna-font-size-small);
+  font-weight: 500;
+  color: var(--anna-black);
+  margin-bottom: var(--anna-spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.anna-input,
+.anna-textarea {
+  width: 100%;
+  padding: var(--anna-spacing-sm);
+  border: 1px solid var(--anna-border);
+  border-radius: var(--anna-border-radius);
+  font-family: var(--anna-font-secondary);
+  font-size: var(--anna-font-size-body);
+  background: var(--anna-white);
+  color: var(--anna-black);
+  
+  /* Убираем лишние тени и эффекты */
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+  
+  /* Touch friendly */
+  min-height: 44px;
+}
+
+.anna-input:focus,
+.anna-textarea:focus {
+  outline: none;
+  border-color: var(--anna-black);
+  box-shadow: 0 0 0 1px var(--anna-black);
+}
+
+.anna-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* ===== СЕТКИ И ЛЕЙАУТЫ ===== */
+.anna-grid {
+  display: grid;
+  gap: var(--anna-spacing-sm);
+  margin: var(--anna-spacing-md) 0;
+}
+
+.anna-grid.cols-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.anna-grid.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Адаптивные сетки */
+@media (max-width: 480px) {
+  .anna-grid.cols-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  .anna-grid.cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== РАЗДЕЛИТЕЛИ И ОТСТУПЫ ===== */
+.anna-divider {
+  height: 1px;
+  background: var(--anna-border);
+  margin: var(--anna-spacing-lg) 0;
+  border: none;
+}
+
+.anna-spacer {
+  height: var(--anna-spacing-md);
+}
+
+.anna-spacer.large {
+  height: var(--anna-spacing-xl);
+}
+
+/* ===== СПЕЦИАЛЬНЫЕ БЛОКИ ДЛЯ КОНТЕНТА ===== */
+
+/* Блок с цитатой в стиле Анны */
+.anna-quote-block {
+  background: var(--anna-light-gray);
+  border-left: 4px solid var(--anna-black);
+  padding: var(--anna-spacing-md);
+  margin: var(--anna-spacing-lg) 0;
+  font-style: italic;
+}
+
+.anna-quote-block .quote-text {
+  font-family: var(--anna-font-primary);
+  font-size: var(--anna-font-size-h3);
+  line-height: 1.4;
+  color: var(--anna-black);
+  margin-bottom: var(--anna-spacing-xs);
+}
+
+.anna-quote-block .quote-author {
+  font-family: var(--anna-font-secondary);
+  font-size: var(--anna-font-size-small);
+  color: var(--anna-gray);
+  text-align: right;
+  font-style: normal;
+}
+
+/* Информационный блок */
+.anna-info-block {
+  background: var(--anna-light-gray);
+  border-radius: var(--anna-border-radius);
+  padding: var(--anna-spacing-md);
+  margin: var(--anna-spacing-md) 0;
+}
+
+.anna-info-block.warning {
+  border-left: 4px solid #ff9500;
+}
+
+.anna-info-block.success {
+  border-left: 4px solid #34c759;
+}
+
+.anna-info-block.error {
+  border-left: 4px solid #ff3b30;
+}
+
+/* ===== БЕЙДЖИ И МЕТКИ ===== */
+.anna-badge {
+  display: inline-block;
+  background: var(--anna-black);
+  color: var(--anna-white);
+  font-size: var(--anna-font-size-small);
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.anna-badge.gray {
+  background: var(--anna-gray);
+}
+
+.anna-badge.light {
+  background: var(--anna-light-gray);
+  color: var(--anna-black);
+}
+
+/* ===== ПРОГРЕСС БАРЫ ===== */
+.anna-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--anna-light-gray);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: var(--anna-spacing-sm) 0;
+}
+
+.anna-progress-bar {
+  height: 100%;
+  background: var(--anna-black);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.anna-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--anna-font-size-small);
+  color: var(--anna-gray);
+  margin-bottom: var(--anna-spacing-xs);
+}
+
+/* ===== АДАПТАЦИЯ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА ===== */
+@media (max-width: 480px) {
+  :root {
+    --anna-font-size-h1: 24px;
+    --anna-font-size-h2: 20px;
+    --anna-font-size-h3: 18px;
+    --anna-spacing-lg: 24px;
+    --anna-spacing-xl: 32px;
+  }
+  
+  .page-content:not(#page-diary) {
+    padding: var(--anna-spacing-sm);
+  }
+  
+  .anna-card {
+    padding: var(--anna-spacing-sm);
+  }
+  
+  .anna-stat-card {
+    padding: var(--anna-spacing-md);
+  }
+  
+  .anna-stat-card .stat-number {
+    font-size: 28px;
+  }
+}
+
+/* ===== ТЕМНАЯ ТЕМА (ЕСЛИ НУЖНО) ===== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --anna-black: #ffffff;
+    --anna-white: #000000;
+    --anna-gray: #999999;
+    --anna-light-gray: #1a1a1a;
+    --anna-border: #333333;
+  }
+  
+  .anna-button {
+    background: var(--anna-white);
+    color: var(--anna-black);
+  }
+  
+  .anna-button:hover {
+    background: #e5e5e5;
+  }
+  
+  .anna-input,
+  .anna-textarea {
+    background: var(--anna-white);
+    color: var(--anna-black);
+    border-color: var(--anna-border);
+  }
+}
+
+/* ===== СПЕЦИАЛИЗИРОВАННЫЕ КОМПОНЕНТЫ ===== */
+
+/* Компонент для промокодов */
+.anna-promo-code {
+  display: inline-block;
+  background: var(--anna-black);
+  color: var(--anna-white);
+  font-family: 'Courier New', monospace;
+  font-size: var(--anna-font-size-body);
+  font-weight: bold;
+  padding: var(--anna-spacing-xs) var(--anna-spacing-sm);
+  border-radius: var(--anna-border-radius);
+  border: 2px dashed var(--anna-white);
+  margin: 0 var(--anna-spacing-xs);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.anna-promo-code:hover {
+  background: #333333;
+  transform: scale(1.05);
+}
+
+/* Компонент для книжных карточек */
+.anna-book-card {
+  display: flex;
+  background: var(--anna-white);
+  border: 1px solid var(--anna-border);
+  border-radius: var(--anna-border-radius);
+  padding: var(--anna-spacing-sm);
+  margin-bottom: var(--anna-spacing-sm);
+  box-shadow: var(--anna-shadow-light);
+}
+
+.anna-book-card .book-cover {
+  width: 60px;
+  height: 80px;
+  background: var(--anna-light-gray);
+  border-radius: 4px;
+  margin-right: var(--anna-spacing-sm);
+  flex-shrink: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.anna-book-card .book-info {
+  flex: 1;
+}
+
+.anna-book-card .book-title {
+  font-family: var(--anna-font-primary);
+  font-size: var(--anna-font-size-body);
+  font-weight: 400;
+  color: var(--anna-black);
+  margin: 0 0 var(--anna-spacing-xs) 0;
+  line-height: 1.3;
+}
+
+.anna-book-card .book-author {
+  color: var(--anna-gray);
+  font-size: var(--anna-font-size-small);
+  margin: 0 0 var(--anna-spacing-xs) 0;
+}
+
+.anna-book-card .book-price {
+  font-weight: 600;
+  color: var(--anna-black);
+}
+
+/* ===== АНИМАЦИИ ===== */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anna-fade-in {
+  animation: fadeInUp 0.3s ease;
+}
+
+/* ===== УТИЛИТЫ ===== */
+.anna-text-center { text-align: center; }
+.anna-text-left { text-align: left; }
+.anna-text-right { text-align: right; }
+
+.anna-mt-0 { margin-top: 0; }
+.anna-mt-sm { margin-top: var(--anna-spacing-sm); }
+.anna-mt-md { margin-top: var(--anna-spacing-md); }
+.anna-mt-lg { margin-top: var(--anna-spacing-lg); }
+
+.anna-mb-0 { margin-bottom: 0; }
+.anna-mb-sm { margin-bottom: var(--anna-spacing-sm); }
+.anna-mb-md { margin-bottom: var(--anna-spacing-md); }
+.anna-mb-lg { margin-bottom: var(--anna-spacing-lg); }
+
+.anna-hidden { display: none; }
+.anna-visible { display: block; }
