@@ -90,9 +90,10 @@ class ApiManager {
      */
     saveAuthToken(token) {
         try {
-            localStorage.setItem('reader_auth_token', token);
+            // В Mini App нет localStorage, используем переменную
+            this.storedToken = token;
         } catch (error) {
-            console.warn('Не удалось сохранить токен в localStorage:', error);
+            console.warn('Не удалось сохранить токен:', error);
         }
     }
     
@@ -101,14 +102,13 @@ class ApiManager {
      */
     loadAuthToken() {
         try {
-            const token = localStorage.getItem('reader_auth_token');
-            if (token) {
-                this.authToken = token;
+            if (this.storedToken) {
+                this.authToken = this.storedToken;
                 this.isAuthenticated = true;
-                return token;
+                return this.storedToken;
             }
         } catch (error) {
-            console.warn('Не удалось загрузить токен из localStorage:', error);
+            console.warn('Не удалось загрузить токен:', error);
         }
         return null;
     }
@@ -240,6 +240,84 @@ class ApiManager {
             }
         }
         
+        // НОВОЕ: Mock данные для каталога
+        if (endpoint.includes('/catalog') || endpoint.includes('/books')) {
+            return {
+                success: true,
+                data: {
+                    books: [
+                        {
+                            id: 1,
+                            title: "Искусство любить",
+                            author: "Эрих Фромм",
+                            price: 1200,
+                            discountedPrice: 960,
+                            cover: null,
+                            category: "psychology",
+                            description: "Классическая работа о природе любви и человеческих отношений",
+                            recommendation: "Ваши цитаты о любви говорят о поиске глубокого понимания отношений",
+                            utm: "?utm_source=mini_app&utm_medium=catalog&utm_campaign=reader_bot&utm_content=fromm_art_of_loving",
+                            tags: ["любовь", "отношения", "психология"]
+                        },
+                        {
+                            id: 2,
+                            title: "Письма к молодому поэту",
+                            author: "Райнер Мария Рильке",
+                            price: 800,
+                            discountedPrice: 680,
+                            cover: null,
+                            category: "philosophy",
+                            description: "Мудрые советы великого поэта о творчестве и жизни",
+                            recommendation: "Созвучно вашим записям о внутреннем мире и творчестве",
+                            utm: "?utm_source=mini_app&utm_medium=catalog&utm_campaign=reader_bot&utm_content=rilke_letters",
+                            tags: ["творчество", "философия", "поэзия"]
+                        },
+                        {
+                            id: 3,
+                            title: "Быть собой",
+                            author: "Анна Бусел",
+                            price: 1500,
+                            discountedPrice: 1200,
+                            cover: null,
+                            category: "selfdevelopment",
+                            description: "Практическое руководство по самопознанию и аутентичности",
+                            recommendation: "Для углубления в тему самопознания и аутентичности",
+                            utm: "?utm_source=mini_app&utm_medium=catalog&utm_campaign=reader_bot&utm_content=busel_be_yourself",
+                            tags: ["самопознание", "аутентичность", "саморазвитие"]
+                        }
+                    ],
+                    categories: [
+                        { id: 'psychology', name: 'Психология', count: 1 },
+                        { id: 'philosophy', name: 'Философия', count: 1 },
+                        { id: 'selfdevelopment', name: 'Саморазвитие', count: 1 }
+                    ]
+                }
+            };
+        }
+        
+        // НОВОЕ: Mock данные для промокодов
+        if (endpoint.includes('/promocodes')) {
+            return {
+                success: true,
+                data: [
+                    {
+                        code: 'READER20',
+                        discount: 20,
+                        description: '20% скидка для читателей',
+                        isActive: true,
+                        validUntil: new Date(Date.now() + 30 * 86400000).toISOString()
+                    },
+                    {
+                        code: 'PHIL15',
+                        discount: 15,
+                        description: '15% скидка на философию',
+                        isActive: true,
+                        validUntil: new Date(Date.now() + 14 * 86400000).toISOString()
+                    }
+                ]
+            };
+        }
+        
         if (endpoint.includes('/stats')) {
             return {
                 success: true,
@@ -307,6 +385,27 @@ class ApiManager {
                 ]
             };
         }
+
+        // НОВОЕ: Mock профиль пользователя
+        if (endpoint.includes('/profile')) {
+            return {
+                success: true,
+                data: {
+                    id: 12345678,
+                    name: 'Марина',
+                    username: 'marina_reader',
+                    email: 'marina@example.com',
+                    interests: ['саморазвитие', 'психология', 'философия'],
+                    recentQuoteTopics: ['любовь', 'самопознание', 'отношения'],
+                    joinedAt: new Date(Date.now() - 90 * 86400000).toISOString(),
+                    settings: {
+                        notifications: true,
+                        reminderTimes: ['09:00', '19:00'],
+                        theme: 'auto'
+                    }
+                }
+            };
+        }
         
         // Дефолтный ответ
         return {
@@ -344,6 +443,72 @@ class ApiManager {
         return await this.request('/quotes/analyze', {
             method: 'POST',
             body: { text, author }
+        });
+    }
+    
+    // === НОВЫЕ МЕТОДЫ ДЛЯ КАТАЛОГА ===
+    
+    /**
+     * Получить каталог книг
+     */
+    async getCatalog(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        const endpoint = `/catalog${query ? '?' + query : ''}`;
+        return await this.request(endpoint);
+    }
+    
+    /**
+     * Получить персональные рекомендации книг
+     */
+    async getPersonalizedBooks() {
+        return await this.request('/books/personalized');
+    }
+    
+    /**
+     * Получить рекомендации книг на основе AI анализа цитаты
+     */
+    async getBookRecommendations(quoteText) {
+        return await this.request('/books/recommendations', {
+            method: 'POST',
+            body: { quote: quoteText }
+        });
+    }
+    
+    /**
+     * Получить детали книги
+     */
+    async getBookDetails(bookId) {
+        return await this.request(`/books/${bookId}`);
+    }
+    
+    /**
+     * Получить промокоды пользователя
+     */
+    async getPromoCodes() {
+        return await this.request('/promocodes');
+    }
+    
+    /**
+     * Применить промокод
+     */
+    async applyPromoCode(code, bookId) {
+        return await this.request('/promocodes/apply', {
+            method: 'POST',
+            body: { code, bookId }
+        });
+    }
+    
+    /**
+     * Трекинг событий (клики, покупки, etc.)
+     */
+    async trackEvent(eventType, eventData) {
+        return await this.request('/analytics/track', {
+            method: 'POST',
+            body: {
+                type: eventType,
+                data: eventData,
+                timestamp: new Date().toISOString()
+            }
         });
     }
     
@@ -428,12 +593,7 @@ class ApiManager {
     logout() {
         this.authToken = null;
         this.isAuthenticated = false;
-        
-        try {
-            localStorage.removeItem('reader_auth_token');
-        } catch (error) {
-            console.warn('Не удалось удалить токен из localStorage:', error);
-        }
+        this.storedToken = null;
         
         console.log('👋 Выход из системы');
     }
