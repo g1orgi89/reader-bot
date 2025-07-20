@@ -7,8 +7,8 @@
 
 class DiaryManager {
     constructor() {
+        this.quotes = []; // 🐛 FIX: Инициализация массива цитат
         this.currentPageIndex = 0;
-        this.quotes = [];
         this.quotesPerPage = 6; // 5-7 цитат на страницу
         this.isAnimating = false;
         
