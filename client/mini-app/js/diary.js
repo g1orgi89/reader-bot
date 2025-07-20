@@ -1,18 +1,18 @@
 /**
- * DIARY.JS - Логика дневника цитат с перелистыванием страниц
- * Реалистичная анимация перелистывания через уголок страницы
- * ИСПРАВЛЕНА: ошибка с this.quotes.sort и добавление анимации написания
+ * DIARY.JS - Логика дневника с цельными страницами и хронологическим порядком
+ * ПЕРЕДЕЛАН: убрано разделение пополам, 5-7 цитат на страницу, точечная навигация
+ * Интегрированная форма добавления, маленькие даты под цитатами
  */
 
 class DiaryManager {
     constructor() {
         this.currentPageIndex = 0;
-        this.quotes = []; // Убеждаемся что это массив
-        this.quotesPerPage = 3; // Максимум цитат на одной странице
+        this.quotes = [];
+        this.quotesPerPage = 6; // 5-7 цитат на страницу
         this.isAnimating = false;
         
-        // Группировка цитат по неделям
-        this.weeklyPages = [];
+        // Страницы с цитатами (хронологический порядок)
+        this.pages = [];
         
         this.init();
     }
@@ -20,13 +20,11 @@ class DiaryManager {
     init() {
         this.loadQuotes();
         this.setupEventListeners();
-        // Отрисовка будет вызвана после загрузки данных
     }
 
     // ===== ЗАГРУЗКА ДАННЫХ =====
     async loadQuotes() {
         try {
-            // Инициализируем как пустой массив
             this.quotes = [];
             
             // Пытаемся загрузить данные из API
@@ -47,97 +45,86 @@ class DiaryManager {
             this.loadMockData();
         }
         
-        // Убеждаемся что quotes это массив
         if (!Array.isArray(this.quotes)) {
             console.warn('quotes не является массивом, создаем пустой массив');
             this.quotes = [];
             this.loadMockData();
         }
         
-        this.groupQuotesByWeeks();
+        this.createPages();
         this.renderCurrentPage();
     }
 
     loadMockData() {
         this.quotes = [
             {
-                text: "В каждом слове — целая жизнь. Каждая фраза несет в себе историю, эмоции и смыслы, которые могут изменить наш взгляд на мир.",
+                text: "В каждом слове — целая жизнь. Каждая фраза несет в себе историю, эмоции и смыслы.",
                 author: "Марина Цветаева",
                 date: "2025-07-15T10:30:00Z",
                 createdAt: "2025-07-15T10:30:00Z"
             },
             {
-                text: "Любовь — это решение любить. Это выбор, который мы делаем каждый день, а не просто чувство, которое приходит и уходит.",
+                text: "Любовь — это решение любить. Это выбор, который мы делаем каждый день.",
                 author: "Эрих Фромм",
                 date: "2025-07-16T14:20:00Z",
                 createdAt: "2025-07-16T14:20:00Z"
             },
             {
-                text: "Счастье не приходит к нам готовым. Мы создаем его своими руками, своими мыслями и поступками каждый день.",
+                text: "Счастье не приходит к нам готовым. Мы создаем его своими руками, своими мыслями.",
                 author: "Далай-лама",
                 date: "2025-07-17T09:15:00Z",
                 createdAt: "2025-07-17T09:15:00Z"
             },
             {
-                text: "Чтение - это окно в тысячи жизней. Книги позволяют нам прожить множество судеб и обогатить свою собственную.",
+                text: "Чтение - это окно в тысячи жизней. Книги позволяют нам прожить множество судеб.",
                 author: "Джордж Мартин",
                 date: "2025-07-18T16:45:00Z",
                 createdAt: "2025-07-18T16:45:00Z"
             },
             {
-                text: "Мудрость начинается с удивления. Способность удивляться простым вещам - ключ к глубокому пониманию жизни.",
+                text: "Мудрость начинается с удивления. Способность удивляться — ключ к пониманию жизни.",
                 author: "Сократ",
                 date: "2025-07-19T11:00:00Z",
                 createdAt: "2025-07-19T11:00:00Z"
             },
             {
-                text: "Время - самый ценный ресурс. Мы можем потратить его или инвестировать, но никогда не сможем вернуть обратно.",
+                text: "Время - самый ценный ресурс. Мы можем потратить его или инвестировать.",
                 author: "",
                 date: "2025-07-20T13:30:00Z",
                 createdAt: "2025-07-20T13:30:00Z"
+            },
+            {
+                text: "Знание — сила, но мудрость — умение правильно её использовать.",
+                author: "Конфуций",
+                date: "2025-07-20T15:00:00Z",
+                createdAt: "2025-07-20T15:00:00Z"
             }
         ];
     }
 
-    // ===== ГРУППИРОВКА ПО НЕДЕЛЯМ =====
-    groupQuotesByWeeks() {
-        // Проверяем что quotes это массив
+    // ===== СОЗДАНИЕ СТРАНИЦ (ХРОНОЛОГИЧЕСКИЙ ПОРЯДОК) =====
+    createPages() {
         if (!Array.isArray(this.quotes)) {
-            console.error('quotes не является массивом:', this.quotes);
             this.quotes = [];
         }
         
-        // Сортируем цитаты по дате
+        // Сортируем цитаты по дате (от старых к новым)
         this.quotes.sort((a, b) => new Date(a.createdAt || a.date) - new Date(b.createdAt || b.date));
         
-        // Группируем по неделям
-        this.weeklyPages = [];
-        let currentWeek = [];
-        let weekNumber = 1;
-        
-        this.quotes.forEach((quote, index) => {
-            currentWeek.push(quote);
-            
-            // Если достигли лимита цитат на странице или это последняя цитата
-            if (currentWeek.length >= this.quotesPerPage || index === this.quotes.length - 1) {
-                this.weeklyPages.push({
-                    weekNumber: weekNumber,
-                    quotes: [...currentWeek],
-                    startDate: currentWeek[0].createdAt || currentWeek[0].date,
-                    endDate: currentWeek[currentWeek.length - 1].createdAt || currentWeek[currentWeek.length - 1].date
-                });
-                currentWeek = [];
-                weekNumber++;
-            }
-        });
+        // Разбиваем на страницы по quotesPerPage цитат
+        this.pages = [];
+        for (let i = 0; i < this.quotes.length; i += this.quotesPerPage) {
+            this.pages.push({
+                quotes: this.quotes.slice(i, i + this.quotesPerPage),
+                pageNumber: this.pages.length + 1
+            });
+        }
         
         // Если нет цитат, создаем пустую первую страницу
-        if (this.weeklyPages.length === 0) {
-            this.weeklyPages.push({
-                weekNumber: 1,
+        if (this.pages.length === 0) {
+            this.pages.push({
                 quotes: [],
-                startDate: new Date().toISOString(),
-                endDate: new Date().toISOString()
+                pageNumber: 1
             });
         }
     }
@@ -151,10 +138,20 @@ class DiaryManager {
         // Форма добавления цитаты
         document.getElementById('diary-quote-form')?.addEventListener('submit', (e) => this.handleQuoteSubmit(e));
         
-        // Клик по уголку страницы для перелистывания
+        // Клик по краю страницы для перелистывания
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('page-corner')) {
                 this.nextPage();
+            }
+        });
+        
+        // Клик по точкам навигации
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('page-dot')) {
+                const pageIndex = parseInt(e.target.dataset.page);
+                if (!isNaN(pageIndex)) {
+                    this.goToPage(pageIndex);
+                }
             }
         });
         
@@ -201,35 +198,36 @@ class DiaryManager {
 
     // ===== НАВИГАЦИЯ СТРАНИЦ =====
     async nextPage() {
-        if (this.isAnimating) return;
+        if (this.isAnimating || this.currentPageIndex >= this.pages.length - 1) return;
         
-        if (this.currentPageIndex < this.weeklyPages.length - 1) {
-            await this.animatePageTurn('next');
-            this.currentPageIndex++;
-            this.renderCurrentPage();
-            this.updateNavigation();
-        }
+        await this.animatePageTurn('next');
+        this.currentPageIndex++;
+        this.renderCurrentPage();
     }
 
     async previousPage() {
-        if (this.isAnimating) return;
+        if (this.isAnimating || this.currentPageIndex <= 0) return;
         
-        if (this.currentPageIndex > 0) {
-            await this.animatePageTurn('prev');
-            this.currentPageIndex--;
-            this.renderCurrentPage();
-            this.updateNavigation();
-        }
+        await this.animatePageTurn('prev');
+        this.currentPageIndex--;
+        this.renderCurrentPage();
+    }
+
+    async goToPage(pageIndex) {
+        if (this.isAnimating || pageIndex === this.currentPageIndex || 
+            pageIndex < 0 || pageIndex >= this.pages.length) return;
+        
+        await this.animatePageTurn(pageIndex > this.currentPageIndex ? 'next' : 'prev');
+        this.currentPageIndex = pageIndex;
+        this.renderCurrentPage();
     }
 
     // ===== АНИМАЦИИ ПЕРЕЛИСТЫВАНИЯ =====
     async animatePageTurn(direction) {
         this.isAnimating = true;
         
-        const leftPage = document.querySelector('.book-page.left');
-        const rightPage = document.querySelector('.book-page.right');
-        
-        if (!leftPage || !rightPage) {
+        const currentPage = document.querySelector('.book-page');
+        if (!currentPage) {
             this.isAnimating = false;
             return;
         }
@@ -239,26 +237,14 @@ class DiaryManager {
             window.TelegramManager.vibrate('light');
         }
         
-        if (direction === 'next') {
-            // Анимация перелистывания вперед
-            rightPage.classList.add('turning');
-            
-            await this.delay(100);
-            rightPage.classList.add('turned');
-            
-            await this.delay(800);
-            rightPage.classList.remove('turning', 'turned');
-        } else {
-            // Анимация перелистывания назад
-            leftPage.classList.add('turning');
-            
-            await this.delay(100);
-            leftPage.style.transform = 'rotateY(0deg)';
-            
-            await this.delay(800);
-            leftPage.classList.remove('turning');
-            leftPage.style.transform = '';
-        }
+        // Анимация перелистывания
+        currentPage.classList.add('turning');
+        
+        await this.delay(100);
+        currentPage.classList.add('turned');
+        
+        await this.delay(800);
+        currentPage.classList.remove('turning', 'turned');
         
         this.isAnimating = false;
     }
@@ -267,57 +253,30 @@ class DiaryManager {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // ===== ОТРИСОВКА СТРАНИЦ =====
+    // ===== ОТРИСОВКА СТРАНИЦЫ =====
     renderCurrentPage() {
-        this.renderLeftPage();
-        this.renderRightPage();
+        this.renderPage();
         this.updateNavigation();
     }
 
-    renderLeftPage() {
-        const leftPage = document.getElementById('left-page-content');
-        if (!leftPage) return;
+    renderPage() {
+        const pageContent = document.getElementById('page-content');
+        if (!pageContent) return;
         
-        const currentPage = this.weeklyPages[this.currentPageIndex];
+        const currentPage = this.pages[this.currentPageIndex];
         if (!currentPage) return;
         
-        leftPage.innerHTML = `
-            <div class="page-header">
-                <div class="page-date">${this.formatPageDate(currentPage.startDate)}</div>
-                <div class="page-week">Неделя ${currentPage.weekNumber}</div>
-            </div>
+        const isLastPage = this.currentPageIndex === this.pages.length - 1;
+        
+        pageContent.innerHTML = `
             <div class="quotes-container">
-                ${this.renderQuotes(currentPage.quotes.slice(0, Math.ceil(currentPage.quotes.length / 2)))}
+                ${currentPage.quotes.length > 0 ? this.renderQuotes(currentPage.quotes) : this.renderEmptyPage()}
             </div>
-        `;
-    }
-
-    renderRightPage() {
-        const rightPage = document.getElementById('right-page-content');
-        if (!rightPage) return;
-        
-        const currentPage = this.weeklyPages[this.currentPageIndex];
-        if (!currentPage) return;
-        
-        const rightQuotes = currentPage.quotes.slice(Math.ceil(currentPage.quotes.length / 2));
-        
-        rightPage.innerHTML = `
-            <div class="page-header">
-                <div class="page-date">${this.formatPageDate(currentPage.endDate)}</div>
-                <div class="page-week">Продолжение недели ${currentPage.weekNumber}</div>
-            </div>
-            <div class="quotes-container">
-                ${rightQuotes.length > 0 ? this.renderQuotes(rightQuotes) : '<div class="empty-page"><div class="empty-page-icon">✍️</div><p>Место для новых цитат...</p></div>'}
-            </div>
-            <div class="page-corner"></div>
+            ${isLastPage ? this.renderAddQuoteForm() : ''}
         `;
     }
 
     renderQuotes(quotes) {
-        if (!quotes || quotes.length === 0) {
-            return '<div class="empty-page"><div class="empty-page-icon">📝</div><p>Пока нет цитат на этой странице</p></div>';
-        }
-        
         return quotes.map((quote, index) => `
             <div class="quote-entry" data-quote-index="${index}">
                 <div class="quote-text">${this.escapeHtml(quote.text)}</div>
@@ -327,42 +286,44 @@ class DiaryManager {
         `).join('');
     }
 
-    // ===== АНИМАЦИЯ НАПИСАНИЯ ЦИТАТЫ =====
-    async animateQuoteWriting(quoteElement, text) {
-        const quoteTextElement = quoteElement.querySelector('.quote-text');
-        if (!quoteTextElement) return;
-        
-        // Очищаем текст
-        quoteTextElement.innerHTML = '"';
-        
-        // Анимация печатания
-        for (let i = 0; i < text.length; i++) {
-            await this.delay(50); // Задержка между символами
-            quoteTextElement.innerHTML = '"' + text.substring(0, i + 1);
-        }
-        
-        // Добавляем закрывающую кавычку
-        quoteTextElement.innerHTML = '"' + text + '"';
-        
-        // Показываем автора с анимацией
-        const authorElement = quoteElement.querySelector('.quote-author');
-        const dateElement = quoteElement.querySelector('.quote-date');
-        
-        if (authorElement) {
-            authorElement.style.opacity = '0';
-            setTimeout(() => {
-                authorElement.style.transition = 'opacity 0.5s ease';
-                authorElement.style.opacity = '1';
-            }, 200);
-        }
-        
-        if (dateElement) {
-            dateElement.style.opacity = '0';
-            setTimeout(() => {
-                dateElement.style.transition = 'opacity 0.5s ease';
-                dateElement.style.opacity = '1';
-            }, 400);
-        }
+    renderEmptyPage() {
+        return `
+            <div class="empty-page">
+                <div class="empty-page-icon">📝</div>
+                <p>Здесь будут ваши цитаты...</p>
+            </div>
+        `;
+    }
+
+    renderAddQuoteForm() {
+        return `
+            <div class="add-quote-section">
+                <h3 class="add-quote-title">✍️ Добавить новую цитату</h3>
+                <form id="diary-quote-form">
+                    <div class="diary-form-group">
+                        <label for="diary-quote-text">Текст цитаты:</label>
+                        <textarea 
+                            id="diary-quote-text" 
+                            name="quote-text" 
+                            placeholder="Введите цитату или мудрую мысль..."
+                            required
+                        ></textarea>
+                    </div>
+                    <div class="diary-form-group">
+                        <label for="diary-quote-author">Автор (необязательно):</label>
+                        <input 
+                            type="text" 
+                            id="diary-quote-author" 
+                            name="quote-author" 
+                            placeholder="Имя автора"
+                        />
+                    </div>
+                    <button type="submit" class="diary-submit-btn">
+                        ✍️ Добавить в дневник
+                    </button>
+                </form>
+            </div>
+        `;
     }
 
     // ===== ДОБАВЛЕНИЕ ЦИТАТЫ =====
@@ -386,7 +347,6 @@ class DiaryManager {
         };
         
         try {
-            // Убеждаемся что quotes это массив
             if (!Array.isArray(this.quotes)) {
                 this.quotes = [];
             }
@@ -405,22 +365,19 @@ class DiaryManager {
             
             // Добавляем цитату локально
             this.quotes.push(newQuote);
-            this.groupQuotesByWeeks();
+            this.createPages();
             
             // Переходим на последнюю страницу
-            this.currentPageIndex = this.weeklyPages.length - 1;
+            this.currentPageIndex = this.pages.length - 1;
             this.renderCurrentPage();
             
-            // Находим последнюю добавленную цитату и анимируем её
-            setTimeout(async () => {
+            // Анимируем появление новой цитаты
+            setTimeout(() => {
                 const quoteElements = document.querySelectorAll('.quote-entry');
                 const lastQuoteElement = quoteElements[quoteElements.length - 1];
                 
                 if (lastQuoteElement) {
                     lastQuoteElement.classList.add('new');
-                    
-                    // Анимация написания
-                    await this.animateQuoteWriting(lastQuoteElement, quoteText);
                 }
             }, 100);
             
@@ -445,7 +402,6 @@ class DiaryManager {
 
     // ===== ОБНОВЛЕНИЕ СТАТИСТИКИ НА ГЛАВНОЙ =====
     updateMainPageStats() {
-        // Обновляем счетчики на главной странице
         const totalQuotesElement = document.getElementById('total-quotes');
         const weekQuotesElement = document.getElementById('week-quotes');
         const recentQuotesElement = document.getElementById('recent-quotes-list');
@@ -455,7 +411,6 @@ class DiaryManager {
         }
         
         if (weekQuotesElement) {
-            // Считаем цитаты за последнюю неделю
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
             const weekQuotes = this.quotes.filter(quote => 
@@ -465,7 +420,6 @@ class DiaryManager {
         }
         
         if (recentQuotesElement) {
-            // Показываем последние 3 цитаты
             const recentQuotes = this.quotes.slice(-3).reverse();
             recentQuotesElement.innerHTML = recentQuotes.map(quote => `
                 <div class="quote-item">
@@ -478,40 +432,81 @@ class DiaryManager {
 
     // ===== НАВИГАЦИЯ И UI =====
     updateNavigation() {
+        this.updateButtons();
+        this.updatePageIndicator();
+        this.updatePageDots();
+    }
+
+    updateButtons() {
         const prevBtn = document.getElementById('prev-page');
         const nextBtn = document.getElementById('next-page');
-        const indicator = document.getElementById('page-indicator');
         
         if (prevBtn) {
             prevBtn.disabled = this.currentPageIndex === 0;
         }
         
         if (nextBtn) {
-            nextBtn.disabled = this.currentPageIndex >= this.weeklyPages.length - 1;
+            nextBtn.disabled = this.currentPageIndex >= this.pages.length - 1;
+        }
+    }
+
+    updatePageIndicator() {
+        const indicator = document.getElementById('page-indicator');
+        if (indicator) {
+            indicator.textContent = `Страница ${this.currentPageIndex + 1} из ${this.pages.length}`;
+        }
+    }
+
+    updatePageDots() {
+        let dotsContainer = document.querySelector('.page-dots');
+        
+        // Создаем контейнер для точек если его нет
+        if (!dotsContainer) {
+            const navigation = document.querySelector('.page-navigation');
+            if (navigation) {
+                dotsContainer = document.createElement('div');
+                dotsContainer.className = 'page-dots';
+                navigation.appendChild(dotsContainer);
+            }
         }
         
-        if (indicator) {
-            indicator.textContent = `Страница ${this.currentPageIndex + 1} из ${this.weeklyPages.length}`;
+        if (!dotsContainer) return;
+        
+        // Ограничиваем количество точек (максимум 10)
+        const maxDots = 10;
+        const totalPages = this.pages.length;
+        const showDots = Math.min(totalPages, maxDots);
+        
+        let dotsHTML = '';
+        
+        if (totalPages <= maxDots) {
+            // Показываем все точки
+            for (let i = 0; i < totalPages; i++) {
+                const isActive = i === this.currentPageIndex;
+                dotsHTML += `<div class="page-dot ${isActive ? 'active' : ''}" data-page="${i}"></div>`;
+            }
+        } else {
+            // Показываем сокращенный вариант с "..."
+            const current = this.currentPageIndex;
+            const start = Math.max(0, current - 3);
+            const end = Math.min(totalPages - 1, current + 3);
+            
+            for (let i = start; i <= end; i++) {
+                const isActive = i === this.currentPageIndex;
+                dotsHTML += `<div class="page-dot ${isActive ? 'active' : ''}" data-page="${i}"></div>`;
+            }
         }
+        
+        dotsContainer.innerHTML = dotsHTML;
     }
 
     // ===== УТИЛИТЫ =====
-    formatPageDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        });
-    }
-
     formatQuoteDate(dateString) {
         const date = new Date(dateString);
         return date.toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit'
         });
     }
 
@@ -522,14 +517,11 @@ class DiaryManager {
     }
 
     showToast(message, type = 'info') {
-        // Используем существующую систему toast уведомлений
         if (window.app && window.app.showToast) {
             window.app.showToast(message, type);
         } else {
-            // Fallback для отладки
             console.log(`Toast (${type}): ${message}`);
             
-            // Простое уведомление
             const toast = document.createElement('div');
             toast.style.cssText = `
                 position: fixed;
@@ -553,7 +545,6 @@ class DiaryManager {
 
     // ===== ПУБЛИЧНЫЕ МЕТОДЫ =====
     
-    // Добавить цитату программно
     addQuote(text, author = '') {
         const newQuote = {
             text,
@@ -567,27 +558,26 @@ class DiaryManager {
         }
         
         this.quotes.push(newQuote);
-        this.groupQuotesByWeeks();
-        this.currentPageIndex = this.weeklyPages.length - 1;
+        this.createPages();
+        this.currentPageIndex = this.pages.length - 1;
         this.renderCurrentPage();
         this.updateMainPageStats();
     }
     
-    // Получить статистику
     getStats() {
         return {
             totalQuotes: this.quotes.length,
-            totalPages: this.weeklyPages.length,
+            totalPages: this.pages.length,
             currentPage: this.currentPageIndex + 1,
+            quotesPerPage: this.quotesPerPage,
             lastQuoteDate: this.quotes.length > 0 ? this.quotes[this.quotes.length - 1].createdAt : null
         };
     }
     
-    // Экспорт данных
     exportQuotes() {
         return {
             quotes: this.quotes,
-            weeklyPages: this.weeklyPages,
+            pages: this.pages,
             exportDate: new Date().toISOString()
         };
     }
@@ -598,7 +588,6 @@ window.DiaryManager = DiaryManager;
 
 // Автоинициализация при загрузке DOM
 document.addEventListener('DOMContentLoaded', function() {
-    // Инициализируем дневник только если мы на странице дневника
     if (document.getElementById('page-diary')) {
         window.diaryManager = new DiaryManager();
     }
