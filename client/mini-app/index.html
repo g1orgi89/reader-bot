@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Читатель — Персональный дневник цитат</title>
+    <title>Читатель — Главная</title>
     
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -21,14 +21,11 @@
     <link rel="icon" type="image/svg+xml" sizes="16x16" href="./assets/icon-16.svg">
     <link rel="manifest" href="./manifest.json">
     
-    <!-- НОВАЯ ДИЗАЙН-СИСТЕМА V2.0 -->
-    <link rel="stylesheet" href="./css/design-system-v2.css">    <!-- Основа: палитра, типографика, компоненты -->
-    <link rel="stylesheet" href="./css/components-v2.css">        <!-- Современные компоненты с AI анализом -->
-    <link rel="stylesheet" href="./css/diary-v2.css">            <!-- Тетрадный дневник с управлением сверху -->
-    <link rel="stylesheet" href="./css/navigation-v2.css">       <!-- Плавающая навигация с glassmorphism -->
-    <link rel="stylesheet" href="./css/telegram-themes.css">     <!-- Адаптация под Telegram темы -->
-    
-    <!-- LEGACY стили для совместимости (пока не переписаны все JS) -->
+    <!-- Стили -->
+    <link rel="stylesheet" href="./css/design-system-v2.css">
+    <link rel="stylesheet" href="./css/components-v2.css">
+    <link rel="stylesheet" href="./css/navigation-v2.css">
+    <link rel="stylesheet" href="./css/telegram-themes.css">
     <link rel="stylesheet" href="./css/anna-pages.css">
 </head>
 <body>
@@ -41,30 +38,29 @@
     <!-- Main App Container -->
     <div id="app" class="app-container" style="display: none;">
         
-        <!-- СОВРЕМЕННАЯ НИЖНЯЯ НАВИГАЦИЯ V2.0 -->
+        <!-- НИЖНЯЯ НАВИГАЦИЯ -->
         <nav class="bottom-navigation" id="navigation">
             <div class="nav-container">
                 <div class="nav-bar">
-                    <!-- Индикатор активной страницы -->
                     <div class="nav-indicator" id="nav-indicator"></div>
                     
-                    <a href="#" class="nav-item active" data-page="home">
+                    <a href="./index.html" class="nav-item active">
                         <div class="nav-icon home"></div>
                         <div class="nav-label">Главная</div>
                     </a>
-                    <a href="#" class="nav-item" data-page="catalog">
+                    <a href="./catalog.html" class="nav-item">
                         <div class="nav-icon">🛒</div>
                         <div class="nav-label">Каталог</div>
                     </a>
-                    <a href="#" class="nav-item" data-page="diary">
+                    <a href="./diary.html" class="nav-item">
                         <div class="nav-icon diary"></div>
                         <div class="nav-label">Дневник</div>
                     </a>
-                    <a href="#" class="nav-item" data-page="achievements">
+                    <a href="./achievements.html" class="nav-item">
                         <div class="nav-icon">🏆</div>
                         <div class="nav-label">Достижения</div>
                     </a>
-                    <a href="#" class="nav-item" data-page="settings">
+                    <a href="./settings.html" class="nav-item">
                         <div class="nav-icon settings"></div>
                         <div class="nav-label">Настройки</div>
                     </a>
@@ -72,12 +68,12 @@
             </div>
         </nav>
 
-        <!-- Page: Home - СОВРЕМЕННАЯ ГЛАВНАЯ С AI АНАЛИЗОМ -->
-        <div id="page-home" class="page active">
+        <!-- ГЛАВНАЯ СТРАНИЦА -->
+        <div class="page active">
             <div class="home-container">
                 <!-- Приветствие -->
                 <div class="welcome-section">
-                    <h1 class="welcome-title">Добро пожаловать, <span class="user-name" id="user-name">Марина</span>!</h1>
+                    <h1 class="welcome-title">Добро пожаловать, <span class="user-name" id="user-name">Читатель</span>!</h1>
                     <p class="welcome-subtitle">Ваше путешествие в мир мудрых мыслей продолжается</p>
                 </div>
 
@@ -129,369 +125,77 @@
                     </div>
                 </div>
 
-                <!-- Последняя цитата с AI анализом -->
-                <div class="latest-quote-section" id="latest-quote-section" style="display: none;">
-                    <h2 class="section-title">Ваша последняя запись</h2>
-                    <div class="latest-quote-card">
-                        <div class="quote-display" id="latest-quote-display">
-                            <!-- Динамически заполняется -->
+                <!-- Последние цитаты -->
+                <div class="latest-quote-section" id="latest-quote-section">
+                    <h2 class="section-title">Последние записи</h2>
+                    <div class="recent-quotes-list" id="recent-quotes-list">
+                        <!-- Динамически заполняется -->
+                        <div class="quote-item">
+                            <div class="quote-text">"В каждом слове — целая жизнь"</div>
+                            <div class="quote-author">— Марина Цветаева</div>
+                            <div class="quote-date">19 июл</div>
                         </div>
-                        
-                        <!-- AI АНАЛИЗ ТОЛЬКО ЗДЕСЬ -->
-                        <div class="ai-analysis-section" id="ai-analysis-section">
-                            <div class="ai-header">
-                                <div class="ai-icon-large">🤖</div>
-                                <div>
-                                    <h3 class="ai-title">Анализ от ИИ</h3>
-                                    <p class="ai-subtitle">Ваша мысль через призму психологии</p>
-                                </div>
-                            </div>
-                            
-                            <div class="ai-analysis-content" id="ai-analysis-home">
-                                <!-- Динамически заполняется -->
-                            </div>
-                            
-                            <div class="ai-comment" id="ai-comment-home">
-                                <!-- Динамически заполняется -->
-                            </div>
-                            
-                            <button class="view-more-btn" onclick="app.showDetailedAnalysis()">
-                                Подробный анализ
-                            </button>
+                        <div class="quote-item">
+                            <div class="quote-text">"Любовь — это решение любить"</div>
+                            <div class="quote-author">— Эрих Фромм</div>
+                            <div class="quote-date">18 июл</div>
                         </div>
+                    </div>
+                    
+                    <div class="view-all-btn-container">
+                        <a href="./diary.html" class="view-all-btn">
+                            📖 Открыть дневник
+                        </a>
                     </div>
                 </div>
 
                 <!-- Рекомендации книг -->
-                <div class="book-recommendations-section" id="book-recommendations-section" style="display: none;">
+                <div class="book-recommendations-section">
                     <h2 class="section-title">Рекомендации от Анны</h2>
                     <div class="recommendations-card">
-                        <div class="book-recommendation" id="book-recommendation-home">
-                            <!-- Динамически заполняется -->
+                        <div class="book-recommendation">
+                            <div class="book-title">Письма к молодому поэту</div>
+                            <div class="book-author">Райнер Мария Рильке</div>
+                            <div class="book-reason">На основе ваших цитат о силе слов</div>
+                            <a href="./catalog.html" class="book-link-btn">
+                                📚 Посмотреть в каталоге
+                            </a>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Page: Catalog -->
-        <div id="page-catalog" class="page">
-            <div class="home-container">
-                <div class="welcome-section">
-                    <h1 class="welcome-title">Рекомендации для вас</h1>
-                    <p class="welcome-subtitle">На основе ваших записей о саморазвитии</p>
-                </div>
-
-                <div class="quick-add-card" style="margin-bottom: var(--space-xl);">
-                    <div style="text-align: center; padding: var(--space-4);">
-                        🎁 <strong>Ваши скидки:</strong><br>
-                        <span class="badge badge-warning" style="margin: var(--space-1); cursor: pointer;" onclick="navigator.clipboard.writeText('READER20')">READER20 (20%)</span>
-                        <span class="badge badge-info" style="margin: var(--space-1); cursor: pointer;" onclick="navigator.clipboard.writeText('PHIL15')">PHIL15 (15%)</span>
-                    </div>
-                </div>
-
-                <div id="books-list" class="stats-grid">
-                    <!-- Динамически загружается -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Page: Diary - НОВЫЙ ТЕТРАДНЫЙ ДИЗАЙН -->
-        <div id="page-diary" class="page">
-            <div class="diary-container">
-                <!-- Заголовок -->
-                <div class="diary-header">
-                    <h1 class="diary-title">Мой дневник цитат</h1>
-                    <p class="diary-subtitle">Место для хранения мудрых мыслей и вдохновения</p>
-                </div>
-
-                <!-- УПРАВЛЕНИЕ СВЕРХУ -->
-                <div class="diary-controls">
-                    <div class="diary-controls-left">
-                        <button class="control-btn btn-add" title="Добавить цитату" onclick="app.showAddQuoteForm()">
-                            ✏️
-                        </button>
-                        <button class="control-btn btn-delete" title="Удалить выбранные" onclick="app.toggleDeleteMode()" disabled>
-                            🗑️
-                        </button>
-                    </div>
-                    
-                    <div class="diary-controls-right">
-                        <button class="pagination-btn" id="diary-prev-page" onclick="app.diaryPrevPage()">
-                            ◀
-                        </button>
-                        <div class="page-indicator" id="diary-page-indicator">
-                            1 / 1
-                        </div>
-                        <button class="pagination-btn" id="diary-next-page" onclick="app.diaryNextPage()">
-                            ▶
-                        </button>
-                    </div>
-                </div>
-
-                <!-- ТЕТРАДЬ -->
-                <div class="notebook-container" id="notebook-container">
-                    <!-- Переплет -->
-                    <div class="notebook-binding">
-                        <div class="binding-holes">
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                            <div class="binding-hole"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Страница -->
-                    <div class="notebook-page">
-                        <div class="notebook-content">
-                            <div class="quote-list" id="diary-quotes-list">
-                                <!-- Динамически заполняется -->
-                            </div>
-                            
-                            <!-- Форма добавления в дневнике -->
-                            <div class="add-quote-form" id="diary-add-form" style="display: none;">
-                                <h3 class="add-quote-title">Новая запись</h3>
-                                <form id="diary-quote-form">
-                                    <div class="form-group">
-                                        <label>Цитата или мысль</label>
-                                        <textarea class="textarea" id="diary-quote-text" placeholder="Введите цитату или свою мысль..." maxlength="500" required></textarea>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Автор (если есть)</label>
-                                        <input type="text" class="input" id="diary-quote-author" placeholder="Имя автора">
-                                    </div>
-                                    <button type="submit" class="submit-quote-btn" id="diary-submit-btn">
-                                        ✨ Сохранить в дневник
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Пустая страница -->
-                <div class="empty-page" id="diary-empty-page" style="display: none;">
-                    <div class="empty-page-icon">📖</div>
-                    <div class="empty-page-text">Ваш дневник пока пуст</div>
-                    <div class="empty-page-hint">Нажмите ✏️ выше, чтобы добавить первую запись</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Page: Achievements -->
-        <div id="page-achievements" class="page">
-            <div class="home-container">
-                <div class="welcome-section">
-                    <h1 class="welcome-title">Ваши достижения</h1>
-                    <p class="welcome-subtitle">Путь саморазвития через чтение</p>
-                </div>
-                
-                <div class="stats-section">
-                    <div class="latest-quote-card">
-                        <div class="ai-analysis-section">
-                            <div class="ai-header">
-                                <div class="ai-icon-large">🏆</div>
-                                <div>
-                                    <h3 class="ai-title">Постоянный читатель</h3>
-                                    <p class="ai-subtitle">5 дней подряд записываете мысли</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon">🏆</div>
-                        <div class="stat-number">3</div>
-                        <div class="stat-label">заработано</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">🔒</div>
-                        <div class="stat-number">2</div>
-                        <div class="stat-label">осталось</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">📈</div>
-                        <div class="stat-number">42%</div>
-                        <div class="stat-label">прогресс</div>
-                    </div>
-                </div>
-
-                <div class="quick-add-card">
-                    <h3 style="margin-bottom: var(--space-4); text-align: center;">Ваши награды</h3>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4);">
-                        <div style="text-align: center; padding: var(--space-3); background: var(--anna-sage-light); border-radius: var(--radius-xl);">
-                            <div style="font-size: 2rem; margin-bottom: var(--space-2);">🏆</div>
-                            <div style="font-size: var(--text-sm); font-weight: var(--weight-semibold);">Первая мысль</div>
-                        </div>
-                        <div style="text-align: center; padding: var(--space-3); background: var(--anna-gold-light); border-radius: var(--radius-xl);">
-                            <div style="font-size: 2rem; margin-bottom: var(--space-2);">🥈</div>
-                            <div style="font-size: var(--text-sm); font-weight: var(--weight-semibold);">Неделя</div>
-                        </div>
-                        <div style="text-align: center; padding: var(--space-3); background: var(--anna-gray-200); border-radius: var(--radius-xl); opacity: 0.6;">
-                            <div style="font-size: 2rem; margin-bottom: var(--space-2);">🔒</div>
-                            <div style="font-size: var(--text-sm); font-weight: var(--weight-semibold);">Философ</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Page: Settings -->
-        <div id="page-settings" class="page">
-            <div class="home-container">
-                <div class="welcome-section">
-                    <h1 class="welcome-title">Настройки</h1>
-                    <p class="welcome-subtitle">Персонализация вашего опыта</p>
-                </div>
-
-                <div class="latest-quote-card" style="margin-bottom: var(--space-xl);">
-                    <div class="ai-header" style="margin-bottom: var(--space-4);">
-                        <div style="width: 60px; height: 60px; background: var(--gradient-gold); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-size: var(--text-2xl);">👤</div>
-                        <div>
-                            <h3 style="font-family: var(--font-serif); font-size: var(--text-xl); margin: 0;" id="settings-user-name">Марина</h3>
-                            <p style="color: var(--anna-gray-600); margin: 0;">Постоянный читатель</p>
-                        </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); text-align: center;">
-                        <div>
-                            <div style="font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--anna-gold);" id="settings-total-quotes">25</div>
-                            <div style="font-size: var(--text-sm); color: var(--anna-gray-600);">цитат</div>
-                        </div>
-                        <div>
-                            <div style="font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--anna-sage);" id="settings-streak">5</div>
-                            <div style="font-size: var(--text-sm); color: var(--anna-gray-600);">дней подряд</div>
-                        </div>
-                        <div>
-                            <div style="font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--anna-lavender);" id="settings-authors">7</div>
-                            <div style="font-size: var(--text-sm); color: var(--anna-gray-600);">авторов</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="quick-add-card">
-                    <h3 style="margin-bottom: var(--space-5); text-align: center;">Настройки аккаунта</h3>
-                    <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); background: var(--anna-cream); border-radius: var(--radius-lg);">
-                            <div>
-                                <div style="font-weight: var(--weight-semibold);">📧 Email</div>
-                                <div style="font-size: var(--text-sm); color: var(--anna-gray-600);">marina@example.com</div>
-                            </div>
-                            <button class="btn-secondary btn-sm">Изменить</button>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); background: var(--anna-cream); border-radius: var(--radius-lg);">
-                            <div>
-                                <div style="font-weight: var(--weight-semibold);">🔔 Напоминания</div>
-                                <div style="font-size: var(--text-sm); color: var(--anna-gray-600);">9:00 и 19:00</div>
-                            </div>
-                            <button class="btn-secondary btn-sm">Настроить</button>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); background: var(--anna-cream); border-radius: var(--radius-lg);">
-                            <div>
-                                <div style="font-weight: var(--weight-semibold);">💬 Связаться с Анной</div>
-                                <div style="font-size: var(--text-sm); color: var(--anna-gray-600);">Поддержка и вопросы</div>
-                            </div>
-                            <button class="btn-primary btn-sm">Написать</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="text-align: center; padding: var(--space-6); color: var(--anna-gray-500); font-size: var(--text-sm);">
-                    Reader Bot v2.0 (с поддержкой тем)<br>
-                    Современный дизайн • Тетрадный дневник
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notifications Container -->
+    <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
-
-    <!-- Модальное окно для подробного AI анализа -->
-    <div id="ai-analysis-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Подробный анализ</h3>
-                <button class="modal-close" onclick="app.closeAIModal()">✕</button>
-            </div>
-            <div class="modal-body" id="detailed-analysis-content">
-                <!-- Динамически заполняется -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Режим удаления -->
-    <div class="delete-mode-overlay" id="delete-mode-overlay">
-        <div class="delete-actions">
-            <button class="delete-cancel-btn" onclick="app.cancelDeleteMode()">
-                Отмена
-            </button>
-            <button class="delete-confirm-btn" onclick="app.confirmDelete()">
-                Удалить выбранные
-            </button>
-        </div>
-    </div>
 
     <!-- Scripts -->
     <script src="./js/telegram-v2.js"></script>
     <script src="./js/api.js"></script>
-    <script src="./js/catalog.js"></script>              
-    <script src="./js/diary.js"></script>
     <script src="./js/app.js"></script>
 
-    <!-- Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js')
-                .then(registration => console.log('SW registered:', registration))
-                .catch(error => console.log('SW registration failed:', error));
-        }
-    </script>
-
-    <!-- App Initialization -->
+    <!-- Initialization -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Инициализация Telegram Web App v2.0
+            // Инициализация Telegram
             if (window.TelegramManager) {
                 const userData = window.TelegramManager.init();
-                console.log('🎨 TelegramManager v2.0 with modern design initialized:', userData);
-                
-                // Подписываемся на изменения темы
-                window.TelegramManager.on('onThemeChange', (themeParams, colorScheme) => {
-                    console.log('🎨 Theme changed to modern design:', colorScheme, themeParams);
-                });
+                console.log('✅ Telegram initialized:', userData);
             }
             
-            // Инициализация современного приложения
+            // Инициализация приложения
             if (window.ReaderApp) {
                 window.app = new ReaderApp();
                 window.app.init();
-                console.log('🎨 Modern Reader App v2.0 initialized');
+                console.log('✅ App initialized');
             }
-            
-            // Инициализация навигации v2.0
-            app.initNavigation();
             
             // Скрытие loader
             setTimeout(() => {
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
-                
-                // Логируем информацию о современной теме
-                if (window.TelegramManager) {
-                    const themeInfo = window.TelegramManager.getCurrentTheme();
-                    console.log('🎨 Modern theme loaded:', themeInfo);
-                }
-                
-                console.log('🎨 Modern UI v2.0 ready!');
+                console.log('✅ App ready!');
             }, 1000);
         });
     </script>
