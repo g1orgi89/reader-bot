@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Читатель — Дневник цитат</title>
+    
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Meta для PWA -->
+    <meta name="theme-color" content="#d4af37">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Читатель">
+    
+    <!-- Иконки -->
+    <link rel="apple-touch-icon" href="./assets/icon-192.svg">
+    <link rel="icon" type="image/svg+xml" sizes="192x192" href="./assets/icon-192.svg">
+    <link rel="icon" type="image/svg+xml" sizes="32x32" href="./assets/icon-32.svg">
+    <link rel="icon" type="image/svg+xml" sizes="16x16" href="./assets/icon-16.svg">
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Стили -->
+    <link rel="stylesheet" href="./css/design-system-v2.css">
+    <link rel="stylesheet" href="./css/components-v2.css">
+    <link rel="stylesheet" href="./css/diary-v2.css">
+    <link rel="stylesheet" href="./css/navigation-v2.css">
+    <link rel="stylesheet" href="./css/telegram-themes.css">
+    <link rel="stylesheet" href="./css/anna-pages.css">
+</head>
+<body>
+    <!-- Loader -->
+    <div id="loader" class="loader">
+        <div class="loading-spinner"></div>
+        <p>Загружаем дневник цитат...</p>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app" class="app-container" style="display: none;">
+        
+        <!-- НИЖНЯЯ НАВИГАЦИЯ -->
+        <nav class="bottom-navigation" id="navigation">
+            <div class="nav-container">
+                <div class="nav-bar">
+                    <div class="nav-indicator" id="nav-indicator"></div>
+                    
+                    <a href="./index.html" class="nav-item">
+                        <div class="nav-icon home"></div>
+                        <div class="nav-label">Главная</div>
+                    </a>
+                    <a href="./catalog.html" class="nav-item">
+                        <div class="nav-icon">🛒</div>
+                        <div class="nav-label">Каталог</div>
+                    </a>
+                    <a href="./diary.html" class="nav-item active">
+                        <div class="nav-icon diary"></div>
+                        <div class="nav-label">Дневник</div>
+                    </a>
+                    <a href="./achievements.html" class="nav-item">
+                        <div class="nav-icon">🏆</div>
+                        <div class="nav-label">Достижения</div>
+                    </a>
+                    <a href="./settings.html" class="nav-item">
+                        <div class="nav-icon settings"></div>
+                        <div class="nav-label">Настройки</div>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- СТРАНИЦА ДНЕВНИКА -->
+        <div id="page-diary" class="page active">
+            <div class="diary-container">
+                <!-- Заголовок -->
+                <div class="diary-header">
+                    <h1 class="diary-title">Мой дневник цитат</h1>
+                    <p class="diary-subtitle">Место для хранения мудрых мыслей и вдохновения</p>
+                </div>
+
+                <!-- УПРАВЛЕНИЕ СВЕРХУ -->
+                <div class="diary-controls">
+                    <div class="diary-controls-left">
+                        <button class="control-btn btn-add" id="btn-add-quote" title="Добавить цитату">
+                            ✏️
+                        </button>
+                        <button class="control-btn btn-delete" id="btn-delete-mode" title="Удалить выбранные" disabled>
+                            🗑️
+                        </button>
+                    </div>
+                    
+                    <div class="diary-controls-right">
+                        <button class="pagination-btn" id="prev-page">
+                            ◀
+                        </button>
+                        <div class="page-indicator" id="page-indicator">
+                            1 / 1
+                        </div>
+                        <button class="pagination-btn" id="next-page">
+                            ▶
+                        </button>
+                    </div>
+                </div>
+
+                <!-- КНИГА/ДНЕВНИК -->
+                <div class="book-container" id="book-container">
+                    <!-- Переплет -->
+                    <div class="book-spine">
+                        <div class="binding-holes">
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                            <div class="binding-hole"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Страница дневника -->
+                    <div class="book-page">
+                        <div class="page-content" id="page-content">
+                            <!-- Динамически заполняется через diary.js -->
+                        </div>
+                        
+                        <!-- Уголок для перелистывания -->
+                        <div class="page-corner"></div>
+                    </div>
+                </div>
+
+                <!-- Навигация точками -->
+                <div class="page-navigation">
+                    <div class="page-dots" id="page-dots">
+                        <!-- Динамически создается -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Модальное окно добавления цитаты -->
+    <div id="add-quote-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Добавить новую цитату</h3>
+                <button class="modal-close" onclick="closeAddQuoteModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="diary-quote-form">
+                    <div class="form-group">
+                        <label for="diary-quote-text">Цитата или мысль:</label>
+                        <textarea 
+                            id="diary-quote-text" 
+                            class="textarea" 
+                            placeholder="Введите цитату или свою мысль..." 
+                            maxlength="500" 
+                            required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="diary-quote-author">Автор (если есть):</label>
+                        <input 
+                            type="text" 
+                            id="diary-quote-author" 
+                            class="input" 
+                            placeholder="Имя автора">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeAddQuoteModal()">
+                            Отмена
+                        </button>
+                        <button type="submit" class="btn-primary">
+                            ✨ Сохранить в дневник
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="./js/telegram-v2.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/diary.js"></script>
+
+    <!-- Diary Page Scripts -->
+    <script>
+        // Функции для модального окна
+        function showAddQuoteModal() {
+            document.getElementById('add-quote-modal').style.display = 'flex';
+            document.getElementById('diary-quote-text').focus();
+        }
+        
+        function closeAddQuoteModal() {
+            document.getElementById('add-quote-modal').style.display = 'none';
+            document.getElementById('diary-quote-form').reset();
+        }
+        
+        // Обработчики событий
+        document.addEventListener('DOMContentLoaded', function() {
+            // Инициализация Telegram
+            if (window.TelegramManager) {
+                const userData = window.TelegramManager.init();
+                console.log('✅ Telegram initialized:', userData);
+            }
+            
+            // Инициализация дневника
+            if (window.DiaryManager) {
+                window.diaryManager = new DiaryManager();
+                console.log('✅ Diary initialized');
+            }
+            
+            // Обработчики кнопок
+            document.getElementById('btn-add-quote')?.addEventListener('click', showAddQuoteModal);
+            
+            // Закрытие модалки по клику вне её
+            document.getElementById('add-quote-modal')?.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeAddQuoteModal();
+                }
+            });
+            
+            // Закрытие модалки по Escape
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeAddQuoteModal();
+                }
+            });
+            
+            // Скрытие loader
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                console.log('✅ Diary ready!');
+            }, 1000);
+        });
+    </script>
+    
+    <!-- Modal Styles -->
+    <style>
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        
+        .modal-content {
+            background: var(--tg-bg-color);
+            border-radius: 16px;
+            padding: 0;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--tg-section-separator-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            color: var(--tg-text-color);
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--tg-hint-color);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: var(--theme-transition);
+        }
+        
+        .modal-close:hover {
+            background: var(--tg-secondary-bg-color);
+            color: var(--tg-text-color);
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--tg-text-color);
+            font-weight: 500;
+        }
+        
+        .textarea, .input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--tg-section-separator-color);
+            border-radius: 8px;
+            background: var(--tg-secondary-bg-color);
+            color: var(--tg-text-color);
+            font-family: inherit;
+            transition: var(--theme-transition);
+        }
+        
+        .textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .textarea:focus, .input:focus {
+            outline: none;
+            border-color: var(--tg-accent-text-color);
+            box-shadow: 0 0 0 3px rgba(106, 178, 242, 0.1);
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .btn-primary, .btn-secondary {
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--theme-transition);
+            border: none;
+        }
+        
+        .btn-primary {
+            background: var(--tg-button-color);
+            color: var(--tg-button-text-color);
+        }
+        
+        .btn-primary:hover {
+            background: color-mix(in srgb, var(--tg-button-color) 80%, var(--tg-text-color) 20%);
+        }
+        
+        .btn-secondary {
+            background: var(--tg-secondary-bg-color);
+            color: var(--tg-text-color);
+            border: 1px solid var(--tg-section-separator-color);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--tg-bg-hover);
+        }
+    </style>
+
+    <!-- Initialization -->
+    <script>
+        console.log('📖 Diary page loaded');
+    </script>
+</body>
+</html>
