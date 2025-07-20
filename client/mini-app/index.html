@@ -21,13 +21,14 @@
     <link rel="icon" type="image/svg+xml" sizes="16x16" href="./assets/icon-16.svg">
     <link rel="manifest" href="./manifest.json">
     
-    <!-- НОВЫЕ СТИЛИ В ПОРЯДКЕ ПРИОРИТЕТА -->
+    <!-- ОБНОВЛЕННЫЕ СТИЛИ В ПОРЯДКЕ ПРИОРИТЕТА -->
     <link rel="stylesheet" href="./css/main.css">
-    <link rel="stylesheet" href="./css/anna-pages.css">        <!-- Стили в духе annabusel.org -->
-    <link rel="stylesheet" href="./css/navigation.css">       <!-- Новая крупная навигация -->
-    <link rel="stylesheet" href="./css/components.css">       <!-- Обновленные компоненты -->
-    <link rel="stylesheet" href="./css/diary.css">            <!-- Дневник остается как есть -->
-    <link rel="stylesheet" href="./css/mobile.css">           <!-- Мобильная адаптация последней -->
+    <link rel="stylesheet" href="./css/telegram-themes.css">    <!-- НОВОЕ: Полная адаптация тем -->
+    <link rel="stylesheet" href="./css/anna-pages.css">         <!-- Стили в духе annabusel.org -->
+    <link rel="stylesheet" href="./css/navigation.css">         <!-- Крупная навигация -->
+    <link rel="stylesheet" href="./css/components.css">         <!-- Обновленные компоненты -->
+    <link rel="stylesheet" href="./css/diary.css">              <!-- Дневник с AI и адаптацией тем -->
+    <link rel="stylesheet" href="./css/mobile.css">             <!-- Мобильная адаптация последней -->
 </head>
 <body>
     <!-- Loader -->
@@ -310,7 +311,7 @@
                     <div class="settings-item">
                         <div class="settings-item-info">
                             <div class="settings-item-label">📖 Reader Bot</div>
-                            <div class="settings-item-value">v1.0</div>
+                            <div class="settings-item-value">v2.0 (с поддержкой тем)</div>
                         </div>
                     </div>
                 </div>
@@ -353,9 +354,9 @@
     </div>
 
     <!-- Scripts -->
-    <script src="./js/telegram.js"></script>
+    <script src="./js/telegram-v2.js"></script>              <!-- НОВОЕ: TelegramManager v2.0 -->
     <script src="./js/api.js"></script>
-    <script src="./js/catalog.js"></script>              <!-- НОВОЕ: Каталог -->
+    <script src="./js/catalog.js"></script>              
     <script src="./js/diary.js"></script>
     <script src="./js/app.js"></script>
 
@@ -371,9 +372,16 @@
     <!-- App Initialization -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Инициализация Telegram Web App
+            // НОВОЕ: Инициализация Telegram Web App v2.0 с полной поддержкой тем
             if (window.TelegramManager) {
-                window.TelegramManager.init();
+                const userData = window.TelegramManager.init();
+                console.log('TelegramManager v2.0 initialized:', userData);
+                
+                // Подписываемся на изменения темы
+                window.TelegramManager.on('onThemeChange', (themeParams, colorScheme) => {
+                    console.log('Theme changed:', colorScheme, themeParams);
+                    // Можно добавить дополнительную логику при смене темы
+                });
             }
             
             // Инициализация основного приложения
@@ -386,6 +394,12 @@
             setTimeout(() => {
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
+                
+                // НОВОЕ: Логируем информацию о теме для отладки
+                if (window.TelegramManager) {
+                    const themeInfo = window.TelegramManager.getCurrentTheme();
+                    console.log('Current theme on startup:', themeInfo);
+                }
             }, 1000);
         });
     </script>
