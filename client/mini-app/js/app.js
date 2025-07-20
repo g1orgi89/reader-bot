@@ -37,6 +37,13 @@ class ReaderApp {
     }
     
     /**
+     * Инициализация навигации - алиас для setupNavigation для совместимости
+     */
+    initNavigation() {
+        return this.setupNavigation();
+    }
+    
+    /**
      * Настройка навигации
      */
     setupNavigation() {
