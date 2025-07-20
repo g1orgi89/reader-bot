@@ -1,12 +1,13 @@
 /**
  * DIARY.JS - Логика дневника цитат с перелистыванием страниц
  * Реалистичная анимация перелистывания через уголок страницы
+ * ИСПРАВЛЕНА: ошибка с this.quotes.sort и добавление анимации написания
  */
 
 class DiaryManager {
     constructor() {
         this.currentPageIndex = 0;
-        this.quotes = [];
+        this.quotes = []; // Убеждаемся что это массив
         this.quotesPerPage = 3; // Максимум цитат на одной странице
         this.isAnimating = false;
         
@@ -19,25 +20,37 @@ class DiaryManager {
     init() {
         this.loadQuotes();
         this.setupEventListeners();
-        this.renderCurrentPage();
+        // Отрисовка будет вызвана после загрузки данных
     }
 
     // ===== ЗАГРУЗКА ДАННЫХ =====
     async loadQuotes() {
         try {
+            // Инициализируем как пустой массив
+            this.quotes = [];
+            
             // Пытаемся загрузить данные из API
             if (window.apiManager) {
                 const response = await window.apiManager.getQuotes();
-                if (response.success) {
+                if (response && response.success && Array.isArray(response.data)) {
                     this.quotes = response.data;
                 } else {
+                    console.log('API не вернул массив, загружаем демо-данные');
                     this.loadMockData();
                 }
             } else {
+                console.log('API Manager недоступен, загружаем демо-данные');
                 this.loadMockData();
             }
         } catch (error) {
-            console.log('Загружаем демо-данные:', error);
+            console.log('Ошибка загрузки данных, используем демо-данные:', error);
+            this.loadMockData();
+        }
+        
+        // Убеждаемся что quotes это массив
+        if (!Array.isArray(this.quotes)) {
+            console.warn('quotes не является массивом, создаем пустой массив');
+            this.quotes = [];
             this.loadMockData();
         }
         
@@ -88,8 +101,14 @@ class DiaryManager {
 
     // ===== ГРУППИРОВКА ПО НЕДЕЛЯМ =====
     groupQuotesByWeeks() {
+        // Проверяем что quotes это массив
+        if (!Array.isArray(this.quotes)) {
+            console.error('quotes не является массивом:', this.quotes);
+            this.quotes = [];
+        }
+        
         // Сортируем цитаты по дате
-        this.quotes.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        this.quotes.sort((a, b) => new Date(a.createdAt || a.date) - new Date(b.createdAt || b.date));
         
         // Группируем по неделям
         this.weeklyPages = [];
@@ -104,8 +123,8 @@ class DiaryManager {
                 this.weeklyPages.push({
                     weekNumber: weekNumber,
                     quotes: [...currentWeek],
-                    startDate: currentWeek[0].createdAt,
-                    endDate: currentWeek[currentWeek.length - 1].createdAt
+                    startDate: currentWeek[0].createdAt || currentWeek[0].date,
+                    endDate: currentWeek[currentWeek.length - 1].createdAt || currentWeek[currentWeek.length - 1].date
                 });
                 currentWeek = [];
                 weekNumber++;
@@ -299,13 +318,51 @@ class DiaryManager {
             return '<div class="empty-page"><div class="empty-page-icon">📝</div><p>Пока нет цитат на этой странице</p></div>';
         }
         
-        return quotes.map(quote => `
-            <div class="quote-entry">
+        return quotes.map((quote, index) => `
+            <div class="quote-entry" data-quote-index="${index}">
                 <div class="quote-text">${this.escapeHtml(quote.text)}</div>
                 <div class="quote-author">${quote.author || 'Собственная мысль'}</div>
-                <div class="quote-date">${this.formatQuoteDate(quote.createdAt)}</div>
+                <div class="quote-date">${this.formatQuoteDate(quote.createdAt || quote.date)}</div>
             </div>
         `).join('');
+    }
+
+    // ===== АНИМАЦИЯ НАПИСАНИЯ ЦИТАТЫ =====
+    async animateQuoteWriting(quoteElement, text) {
+        const quoteTextElement = quoteElement.querySelector('.quote-text');
+        if (!quoteTextElement) return;
+        
+        // Очищаем текст
+        quoteTextElement.innerHTML = '"';
+        
+        // Анимация печатания
+        for (let i = 0; i < text.length; i++) {
+            await this.delay(50); // Задержка между символами
+            quoteTextElement.innerHTML = '"' + text.substring(0, i + 1);
+        }
+        
+        // Добавляем закрывающую кавычку
+        quoteTextElement.innerHTML = '"' + text + '"';
+        
+        // Показываем автора с анимацией
+        const authorElement = quoteElement.querySelector('.quote-author');
+        const dateElement = quoteElement.querySelector('.quote-date');
+        
+        if (authorElement) {
+            authorElement.style.opacity = '0';
+            setTimeout(() => {
+                authorElement.style.transition = 'opacity 0.5s ease';
+                authorElement.style.opacity = '1';
+            }, 200);
+        }
+        
+        if (dateElement) {
+            dateElement.style.opacity = '0';
+            setTimeout(() => {
+                dateElement.style.transition = 'opacity 0.5s ease';
+                dateElement.style.opacity = '1';
+            }, 400);
+        }
     }
 
     // ===== ДОБАВЛЕНИЕ ЦИТАТЫ =====
@@ -329,11 +386,20 @@ class DiaryManager {
         };
         
         try {
+            // Убеждаемся что quotes это массив
+            if (!Array.isArray(this.quotes)) {
+                this.quotes = [];
+            }
+            
             // Пытаемся сохранить через API
             if (window.apiManager) {
-                const response = await window.apiManager.addQuote(newQuote);
-                if (!response.success) {
-                    throw new Error('API не доступен');
+                try {
+                    const response = await window.apiManager.addQuote(newQuote);
+                    if (!response || !response.success) {
+                        console.log('API вернул ошибку, сохраняем локально');
+                    }
+                } catch (apiError) {
+                    console.log('API недоступен, сохраняем локально:', apiError);
                 }
             }
             
@@ -345,13 +411,21 @@ class DiaryManager {
             this.currentPageIndex = this.weeklyPages.length - 1;
             this.renderCurrentPage();
             
-            // Анимация появления новой цитаты
-            setTimeout(() => {
-                const newQuoteElement = document.querySelector('.quote-entry:last-child');
-                if (newQuoteElement) {
-                    newQuoteElement.classList.add('new');
+            // Находим последнюю добавленную цитату и анимируем её
+            setTimeout(async () => {
+                const quoteElements = document.querySelectorAll('.quote-entry');
+                const lastQuoteElement = quoteElements[quoteElements.length - 1];
+                
+                if (lastQuoteElement) {
+                    lastQuoteElement.classList.add('new');
+                    
+                    // Анимация написания
+                    await this.animateQuoteWriting(lastQuoteElement, quoteText);
                 }
             }, 100);
+            
+            // Обновляем статистику на главной странице
+            this.updateMainPageStats();
             
             // Очищаем форму
             e.target.reset();
@@ -366,6 +440,39 @@ class DiaryManager {
         } catch (error) {
             console.error('Ошибка при добавлении цитаты:', error);
             this.showToast('Ошибка при сохранении цитаты', 'error');
+        }
+    }
+
+    // ===== ОБНОВЛЕНИЕ СТАТИСТИКИ НА ГЛАВНОЙ =====
+    updateMainPageStats() {
+        // Обновляем счетчики на главной странице
+        const totalQuotesElement = document.getElementById('total-quotes');
+        const weekQuotesElement = document.getElementById('week-quotes');
+        const recentQuotesElement = document.getElementById('recent-quotes-list');
+        
+        if (totalQuotesElement) {
+            totalQuotesElement.textContent = this.quotes.length;
+        }
+        
+        if (weekQuotesElement) {
+            // Считаем цитаты за последнюю неделю
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const weekQuotes = this.quotes.filter(quote => 
+                new Date(quote.createdAt || quote.date) >= weekAgo
+            );
+            weekQuotesElement.textContent = weekQuotes.length;
+        }
+        
+        if (recentQuotesElement) {
+            // Показываем последние 3 цитаты
+            const recentQuotes = this.quotes.slice(-3).reverse();
+            recentQuotesElement.innerHTML = recentQuotes.map(quote => `
+                <div class="quote-item">
+                    <div class="quote-text">${this.escapeHtml(quote.text)}</div>
+                    <div class="quote-author">${quote.author || 'Собственная мысль'}</div>
+                </div>
+            `).join('');
         }
     }
 
@@ -421,6 +528,26 @@ class DiaryManager {
         } else {
             // Fallback для отладки
             console.log(`Toast (${type}): ${message}`);
+            
+            // Простое уведомление
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#6366f1'};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
         }
     }
 
@@ -435,10 +562,15 @@ class DiaryManager {
             createdAt: new Date().toISOString()
         };
         
+        if (!Array.isArray(this.quotes)) {
+            this.quotes = [];
+        }
+        
         this.quotes.push(newQuote);
         this.groupQuotesByWeeks();
         this.currentPageIndex = this.weeklyPages.length - 1;
         this.renderCurrentPage();
+        this.updateMainPageStats();
     }
     
     // Получить статистику
