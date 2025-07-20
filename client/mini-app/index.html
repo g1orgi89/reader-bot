@@ -105,38 +105,8 @@
             </div>
         </div>
 
-        <!-- Page: Diary -->
+        <!-- Page: Diary - ОБНОВЛЕНО для цельных страниц -->
         <div id="page-diary" class="page">
-            <!-- Секция добавления цитаты -->
-            <div class="add-quote-section">
-                <h2 class="add-quote-title">Добавить новую цитату в дневник</h2>
-                <form id="diary-quote-form">
-                    <div class="diary-form-group">
-                        <label for="quote-text">Текст цитаты:</label>
-                        <textarea 
-                            id="quote-text" 
-                            name="quote-text"
-                            placeholder="Введите вашу цитату или мысль..." 
-                            required
-                            maxlength="1000">
-                        </textarea>
-                    </div>
-                    <div class="diary-form-group">
-                        <label for="quote-author">Автор (необязательно):</label>
-                        <input 
-                            type="text" 
-                            id="quote-author" 
-                            name="quote-author"
-                            placeholder="Автор цитаты"
-                            maxlength="100">
-                    </div>
-                    <button type="submit" class="diary-submit-btn">
-                        ✍️ Добавить в дневник
-                    </button>
-                </form>
-            </div>
-
-            <!-- Дневник с перелистыванием -->
             <div class="diary-container">
                 <div class="diary-header">
                     <h1 class="diary-title">Мой дневник цитат</h1>
@@ -147,29 +117,31 @@
                     <!-- Переплет книги -->
                     <div class="book-spine"></div>
                     
-                    <!-- Левая страница -->
-                    <div class="book-page left">
-                        <div class="page-content" id="left-page-content">
+                    <!-- Цельная страница -->
+                    <div class="book-page">
+                        <div class="page-content" id="page-content">
                             <div class="page-loading">Загружаем страницы дневника...</div>
                         </div>
-                    </div>
-
-                    <!-- Правая страница -->
-                    <div class="book-page right">
-                        <div class="page-content" id="right-page-content">
-                            <div class="page-loading">Загружаем страницы дневника...</div>
-                        </div>
+                        <!-- Кликабельный край для перелистывания -->
+                        <div class="page-corner"></div>
                     </div>
                 </div>
 
-                <!-- Навигация страниц -->
+                <!-- Навигация страниц с точками -->
                 <div class="page-navigation">
                     <button class="nav-btn" id="prev-page">
                         ◀ Назад
                     </button>
+                    
+                    <!-- Контейнер для точек будет создан динамически -->
+                    <div class="page-dots">
+                        <!-- Точки навигации создаются JS -->
+                    </div>
+                    
                     <div class="page-indicator" id="page-indicator">
                         Страница 1 из 1
                     </div>
+                    
                     <button class="nav-btn" id="next-page">
                         Вперед ▶
                     </button>
