@@ -1,7 +1,7 @@
 /**
  * TELEGRAM.JS - Интеграция с Telegram Web App SDK v2.0
- * НОВОЕ: Полная поддержка всех themeParams из Telegram Mini Apps API
- * Плавные переходы между темами, автоматическая адаптация, расширенный mock режим
+ * ИСПРАВЛЕНО: Автоматическое чтение темы от Telegram без mock режима
+ * Полная поддержка всех themeParams из Telegram Mini Apps API
  */
 
 class TelegramManager {
@@ -17,7 +17,7 @@ class TelegramManager {
             onViewportChange: []
         };
         
-        // НОВОЕ: Полная поддержка всех Telegram themeParams
+        // Полная поддержка всех Telegram themeParams
         this.supportedThemeParams = [
             'accent_text_color',
             'bg_color', 
@@ -36,52 +36,49 @@ class TelegramManager {
             'section_separator_color'
         ];
         
-        console.log('TelegramManager v2.0: Constructor initialized with full theme support');
+        console.log('TelegramManager v2.1: Constructor initialized with auto theme detection');
     }
     
     /**
      * Инициализация Telegram Web App
      */
     init() {
-        console.log('TelegramManager v2.0: Starting initialization...');
+        console.log('TelegramManager v2.1: Starting initialization...');
         
         try {
-            // Проверяем доступность Telegram Web App
+            // ИСПРАВЛЕНО: Всегда пытаемся подключиться к Telegram
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
                 this.tg = window.Telegram.WebApp;
                 this.mockMode = false;
-                console.log('TelegramManager: Telegram Web App detected');
-            } else {
-                console.warn('TelegramManager: Telegram Web App not detected, using mock mode');
-                this.mockMode = true;
-                this.initMockData();
-            }
-            
-            if (!this.mockMode) {
+                console.log('✅ TelegramManager: Real Telegram Web App detected');
                 this.initTelegramApp();
+            } else {
+                console.warn('⚠️ TelegramManager: Telegram Web App not available, fallback mode');
+                this.mockMode = true;
+                this.initFallbackMode();
             }
             
             this.setupUser();
-            this.setupThemes();
+            this.setupThemes(); // ← КЛЮЧЕВОЙ МЕТОД ДЛЯ ТЕМ
             this.setupUI();
             this.setupEventListeners();
             
             this.isInitialized = true;
-            console.log('TelegramManager v2.0: Initialization completed');
+            console.log('✅ TelegramManager v2.1: Initialization completed');
             
             return this.getUserData();
             
         } catch (error) {
-            console.error('TelegramManager: Initialization failed:', error);
+            console.error('❌ TelegramManager: Initialization failed:', error);
             this.mockMode = true;
-            this.initMockData();
+            this.initFallbackMode();
             this.isInitialized = true;
             return this.getUserData();
         }
     }
     
     /**
-     * Инициализация Telegram Web App
+     * Инициализация реального Telegram Web App
      */
     initTelegramApp() {
         try {
@@ -91,37 +88,154 @@ class TelegramManager {
             // Расширяем viewport
             this.tg.expand();
             
-            // Настраиваем главную кнопку
+            // Настраиваем кнопки
             this.tg.MainButton.setText('Готово');
             this.tg.MainButton.hide();
             
-            // Показываем кнопку назад если нужно
             if (this.tg.BackButton) {
                 this.tg.BackButton.hide();
             }
             
-            // Включаем закрытие при свайпе вниз
-            this.tg.enableClosingConfirmation();
+            // Включаем закрытие при свайпе
+            if (this.tg.enableClosingConfirmation) {
+                this.tg.enableClosingConfirmation();
+            }
             
-            console.log('TelegramManager: Telegram app initialized');
+            console.log('✅ Telegram app initialized:', {
+                version: this.tg.version,
+                platform: this.tg.platform,
+                colorScheme: this.tg.colorScheme,
+                themeParams: Object.keys(this.tg.themeParams || {}).length
+            });
             
         } catch (error) {
-            console.error('TelegramManager: Failed to initialize Telegram app:', error);
+            console.error('❌ Failed to initialize Telegram app:', error);
         }
     }
     
     /**
-     * НОВОЕ: Расширенная инициализация mock данных с поддержкой всех тем
+     * НОВОЕ: Fallback режим для тестирования
      */
-    initMockData() {
-        // Определяем случайную тему для тестирования
-        const themes = ['light', 'dark', 'custom'];
-        const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+    initFallbackMode() {
+        // Создаем минимальный mock объект
+        this.tg = {
+            ready: () => {},
+            expand: () => {},
+            close: () => console.log('Mock: App closed'),
+            MainButton: {
+                setText: (text) => console.log('Mock MainButton text:', text),
+                show: () => {},
+                hide: () => {},
+                onClick: () => {},
+                offClick: () => {}
+            },
+            BackButton: {
+                show: () => {},
+                hide: () => {},
+                onClick: () => {},
+                offClick: () => {}
+            },
+            HapticFeedback: {
+                impactOccurred: (style) => console.log('Mock haptic:', style),
+                notificationOccurred: (type) => console.log('Mock notification:', type),
+                selectionChanged: () => console.log('Mock selection changed')
+            },
+            initData: 'fallback_mode',
+            initDataUnsafe: {
+                user: {
+                    id: 999999,
+                    first_name: 'Читатель',
+                    last_name: '',
+                    username: 'reader_user',
+                    language_code: 'ru',
+                    is_premium: false
+                }
+            },
+            version: '6.0',
+            platform: 'web',
+            // ВАЖНО: Пустые значения для автоопределения
+            colorScheme: 'light', 
+            themeParams: {},
+            isExpanded: true,
+            viewportHeight: 600,
+            viewportStableHeight: 600
+        };
         
-        this.currentTheme = randomTheme;
+        console.log('⚠️ Fallback mode initialized');
+    }
+    
+    /**
+     * Настройка пользователя
+     */
+    setupUser() {
+        this.user = this.tg.initDataUnsafe?.user || null;
         
-        // НОВОЕ: Расширенные mock themeParams для всех типов тем
-        const mockThemes = {
+        if (this.user) {
+            console.log('✅ User data loaded:', {
+                id: this.user.id,
+                name: `${this.user.first_name} ${this.user.last_name || ''}`.trim(),
+                username: this.user.username
+            });
+        } else {
+            console.warn('⚠️ No user data available');
+        }
+        
+        // Уведомляем подписчиков
+        this.callbacks.onUserChange.forEach(callback => {
+            try {
+                callback(this.user);
+            } catch (error) {
+                console.error('❌ User callback error:', error);
+            }
+        });
+    }
+    
+    /**
+     * ИСПРАВЛЕНО: Автоматическая настройка тем
+     */
+    setupThemes() {
+        console.log('🎨 Setting up themes...');
+        
+        // АВТООПРЕДЕЛЕНИЕ ТЕМЫ
+        let themeParams = {};
+        let colorScheme = 'light';
+        
+        if (!this.mockMode && this.tg.themeParams) {
+            // Реальные данные от Telegram
+            themeParams = this.tg.themeParams;
+            colorScheme = this.tg.colorScheme || 'light';
+            console.log('✅ Using real Telegram theme:', colorScheme, themeParams);
+        } else {
+            // Определяем тему из системы браузера
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            colorScheme = prefersDark ? 'dark' : 'light';
+            
+            // Устанавливаем базовые цвета
+            themeParams = this.getDefaultThemeParams(colorScheme);
+            console.log('🔧 Using auto-detected theme:', colorScheme);
+        }
+        
+        // ПРИМЕНЯЕМ ТЕМУ
+        this.applyTelegramTheme(themeParams, colorScheme);
+        this.showThemeIndicator(colorScheme);
+        
+        console.log('✅ Theme applied successfully:', colorScheme);
+        
+        // Уведомляем подписчиков
+        this.callbacks.onThemeChange.forEach(callback => {
+            try {
+                callback(themeParams, colorScheme);
+            } catch (error) {
+                console.error('❌ Theme callback error:', error);
+            }
+        });
+    }
+    
+    /**
+     * НОВОЕ: Получение дефолтных параметров темы
+     */
+    getDefaultThemeParams(colorScheme) {
+        const defaultThemes = {
             light: {
                 accent_text_color: '#6ab2f2',
                 bg_color: '#ffffff',
@@ -155,145 +269,14 @@ class TelegramManager {
                 subtitle_text_color: '#708499',
                 text_color: '#f5f5f5',
                 section_separator_color: '#2a3441'
-            },
-            custom: {
-                accent_text_color: '#d4af37', // Золотистый как у Анны
-                bg_color: '#1a1a1a',
-                button_color: '#d4af37',
-                button_text_color: '#ffffff',
-                bottom_bar_bg_color: '#1a1a1a',
-                destructive_text_color: '#ff4757',
-                header_bg_color: '#1a1a1a',
-                hint_color: '#888888',
-                link_color: '#d4af37',
-                secondary_bg_color: '#2c2c2c',
-                section_bg_color: '#1a1a1a',
-                section_header_text_color: '#d4af37',
-                subtitle_text_color: '#888888',
-                text_color: '#ffffff',
-                section_separator_color: '#444444'
             }
         };
         
-        this.tg = {
-            ready: () => {},
-            expand: () => {},
-            close: () => console.log('Mock: App closed'),
-            MainButton: {
-                setText: (text) => console.log('Mock MainButton text:', text),
-                show: () => console.log('Mock MainButton shown'),
-                hide: () => console.log('Mock MainButton hidden'),
-                onClick: (callback) => console.log('Mock MainButton callback set'),
-                offClick: (callback) => console.log('Mock MainButton callback removed')
-            },
-            BackButton: {
-                show: () => console.log('Mock BackButton shown'),
-                hide: () => console.log('Mock BackButton hidden'),
-                onClick: (callback) => console.log('Mock BackButton callback set'),
-                offClick: (callback) => console.log('Mock BackButton callback removed')
-            },
-            HapticFeedback: {
-                impactOccurred: (style) => console.log('Mock haptic:', style),
-                notificationOccurred: (type) => console.log('Mock notification:', type),
-                selectionChanged: () => console.log('Mock selection changed')
-            },
-            initData: 'mock_init_data',
-            initDataUnsafe: {
-                user: {
-                    id: 12345,
-                    first_name: 'Тестовый',
-                    last_name: 'Пользователь',
-                    username: 'test_user',
-                    language_code: 'ru',
-                    is_premium: false
-                },
-                chat_type: 'private',
-                start_param: null
-            },
-            version: '6.0',
-            platform: 'web',
-            colorScheme: randomTheme === 'light' ? 'light' : 'dark',
-            themeParams: mockThemes[randomTheme],
-            isExpanded: true,
-            viewportHeight: 600,
-            viewportStableHeight: 600,
-            // НОВОЕ: Mock методы для работы с темами
-            onEvent: (eventName, callback) => {
-                console.log(`Mock: Event listener set for ${eventName}`);
-                // Симулируем смену темы через 5 секунд для тестирования
-                if (eventName === 'themeChanged') {
-                    setTimeout(() => {
-                        const newTheme = this.currentTheme === 'light' ? 'dark' : 'light';
-                        this.currentTheme = newTheme;
-                        this.tg.colorScheme = newTheme;
-                        this.tg.themeParams = mockThemes[newTheme];
-                        console.log(`Mock: Theme changed to ${newTheme}`);
-                        callback();
-                    }, 5000);
-                }
-            }
-        };
-        
-        console.log(`TelegramManager: Mock data initialized with ${randomTheme} theme`);
+        return defaultThemes[colorScheme] || defaultThemes.light;
     }
     
     /**
-     * Настройка пользователя
-     */
-    setupUser() {
-        if (this.mockMode) {
-            this.user = this.tg.initDataUnsafe.user;
-        } else {
-            this.user = this.tg.initDataUnsafe?.user || null;
-        }
-        
-        if (this.user) {
-            console.log('TelegramManager: User data loaded:', {
-                id: this.user.id,
-                name: `${this.user.first_name} ${this.user.last_name || ''}`.trim(),
-                username: this.user.username
-            });
-        } else {
-            console.warn('TelegramManager: No user data available');
-        }
-        
-        // Уведомляем подписчиков
-        this.callbacks.onUserChange.forEach(callback => {
-            try {
-                callback(this.user);
-            } catch (error) {
-                console.error('TelegramManager: User callback error:', error);
-            }
-        });
-    }
-    
-    /**
-     * НОВОЕ: Расширенная настройка тем с поддержкой всех themeParams
-     */
-    setupThemes() {
-        const themeParams = this.tg.themeParams || {};
-        const colorScheme = this.tg.colorScheme || 'light';
-        
-        // Применяем CSS переменные Telegram
-        this.applyTelegramTheme(themeParams, colorScheme);
-        
-        // НОВОЕ: Показываем индикатор смены темы
-        this.showThemeIndicator(colorScheme);
-        
-        console.log('TelegramManager v2.0: Theme applied:', colorScheme, themeParams);
-        
-        // Уведомляем подписчиков
-        this.callbacks.onThemeChange.forEach(callback => {
-            try {
-                callback(themeParams, colorScheme);
-            } catch (error) {
-                console.error('TelegramManager: Theme callback error:', error);
-            }
-        });
-    }
-    
-    /**
-     * НОВОЕ: Полное применение всех Telegram themeParams к CSS
+     * Применение темы к CSS
      */
     applyTelegramTheme(themeParams, colorScheme) {
         const root = document.documentElement;
@@ -301,22 +284,23 @@ class TelegramManager {
         // Устанавливаем атрибут темы
         root.setAttribute('data-theme', colorScheme);
         
-        // НОВОЕ: Применяем все поддерживаемые themeParams
+        // Применяем все themeParams как CSS переменные
         this.supportedThemeParams.forEach(param => {
             const cssVar = `--tg-${param.replace(/_/g, '-')}`;
             if (themeParams[param]) {
                 root.style.setProperty(cssVar, themeParams[param]);
-                console.log(`Applied ${cssVar}: ${themeParams[param]}`);
             }
         });
         
-        // Устанавливаем основные переменные для совместимости
+        // ДОПОЛНИТЕЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ СОВМЕСТИМОСТИ
         if (themeParams.bg_color) {
             root.style.setProperty('--bg-primary', themeParams.bg_color);
+            document.body.style.backgroundColor = themeParams.bg_color;
         }
         
         if (themeParams.text_color) {
             root.style.setProperty('--text-primary', themeParams.text_color);
+            document.body.style.color = themeParams.text_color;
         }
         
         if (themeParams.hint_color) {
@@ -331,15 +315,19 @@ class TelegramManager {
             root.style.setProperty('--bg-secondary', themeParams.secondary_bg_color);
         }
         
-        // НОВОЕ: Добавляем плавную анимацию перехода
+        console.log('🎨 CSS variables applied:', {
+            bgColor: themeParams.bg_color,
+            textColor: themeParams.text_color,
+            colorScheme: colorScheme
+        });
+        
         this.animateThemeTransition();
     }
     
     /**
-     * НОВОЕ: Анимация перехода между темами
+     * Анимация перехода между темами
      */
     animateThemeTransition() {
-        // Создаем overlay для плавного перехода
         let overlay = document.querySelector('.theme-transition-overlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -347,20 +335,14 @@ class TelegramManager {
             document.body.appendChild(overlay);
         }
         
-        // Показываем overlay
         overlay.classList.add('active');
-        
-        // Скрываем через короткое время
-        setTimeout(() => {
-            overlay.classList.remove('active');
-        }, 300);
+        setTimeout(() => overlay.classList.remove('active'), 300);
     }
     
     /**
-     * НОВОЕ: Показ индикатора смены темы
+     * Показ индикатора смены темы
      */
     showThemeIndicator(colorScheme) {
-        // Создаем или находим индикатор
         let indicator = document.querySelector('.theme-indicator');
         if (!indicator) {
             indicator = document.createElement('div');
@@ -368,31 +350,23 @@ class TelegramManager {
             document.body.appendChild(indicator);
         }
         
-        // Устанавливаем текст
         const themeNames = {
             light: '☀️ Светлая тема',
             dark: '🌙 Темная тема'
         };
         
-        indicator.textContent = themeNames[colorScheme] || `🎨 ${colorScheme.charAt(0).toUpperCase() + colorScheme.slice(1)} тема`;
-        
-        // Показываем индикатор
+        indicator.textContent = themeNames[colorScheme] || `🎨 Тема: ${colorScheme}`;
         indicator.classList.add('show');
         
-        // Скрываем через 2 секунды
-        setTimeout(() => {
-            indicator.classList.remove('show');
-        }, 2000);
+        setTimeout(() => indicator.classList.remove('show'), 2000);
     }
     
     /**
      * Настройка UI элементов
      */
     setupUI() {
-        // Настраиваем viewport
         this.updateViewport();
         
-        // Настраиваем кнопки если не в mock режиме
         if (!this.mockMode) {
             // Слушаем изменения viewport
             if (this.tg.onEvent) {
@@ -402,27 +376,27 @@ class TelegramManager {
                         try {
                             callback(this.tg.viewportHeight, this.tg.viewportStableHeight);
                         } catch (error) {
-                            console.error('TelegramManager: Viewport callback error:', error);
+                            console.error('❌ Viewport callback error:', error);
                         }
                     });
                 });
                 
-                // НОВОЕ: Слушаем изменения темы
+                // ВАЖНО: Слушаем изменения темы
                 this.tg.onEvent('themeChanged', () => {
-                    console.log('TelegramManager: Theme change event received');
-                    this.setupThemes();
+                    console.log('🎨 Telegram theme change event received');
+                    this.setupThemes(); // Перенастраиваем темы
                 });
             }
         }
         
-        // НОВОЕ: Добавляем отладочную информацию о теме
+        // Добавляем debug панель в fallback режиме
         if (this.mockMode) {
             this.addDebugThemeInfo();
         }
     }
     
     /**
-     * НОВОЕ: Добавление отладочной информации о теме
+     * Добавление debug панели
      */
     addDebugThemeInfo() {
         let debugInfo = document.querySelector('.debug-theme-info');
@@ -432,101 +406,39 @@ class TelegramManager {
             document.body.appendChild(debugInfo);
         }
         
-        const themeParams = this.tg.themeParams || {};
-        const colorScheme = this.tg.colorScheme || 'unknown';
+        const colorScheme = this.getCurrentTheme().colorScheme;
         
         debugInfo.innerHTML = `
+            <div>Mode: ${this.mockMode ? 'Fallback' : 'Telegram'}</div>
             <div>Theme: ${colorScheme}</div>
-            <div>Params: ${Object.keys(themeParams).length}</div>
-            <div>Mock: ${this.mockMode ? 'Yes' : 'No'}</div>
+            <div>Auto-detect: ${window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'Dark' : 'Light'}</div>
             <div style="margin-top: 4px; font-size: 0.6rem;">
-                Click to toggle theme (mock)
+                ${this.mockMode ? 'Click to toggle theme' : 'Theme from Telegram'}
             </div>
         `;
         
-        // В mock режиме позволяем переключать тему кликом
         if (this.mockMode) {
             debugInfo.style.cursor = 'pointer';
-            debugInfo.onclick = () => {
-                this.toggleMockTheme();
-            };
+            debugInfo.onclick = () => this.toggleMockTheme();
         }
     }
     
     /**
-     * НОВОЕ: Переключение темы в mock режиме для тестирования
+     * Переключение темы в fallback режиме
      */
     toggleMockTheme() {
         if (!this.mockMode) return;
         
-        const themes = ['light', 'dark', 'custom'];
-        const currentIndex = themes.indexOf(this.currentTheme);
-        const nextIndex = (currentIndex + 1) % themes.length;
-        const newTheme = themes[nextIndex];
+        const currentScheme = this.getCurrentTheme().colorScheme;
+        const newScheme = currentScheme === 'light' ? 'dark' : 'light';
         
-        this.currentTheme = newTheme;
-        this.tg.colorScheme = newTheme === 'light' ? 'light' : 'dark';
+        // Обновляем тему
+        this.tg.colorScheme = newScheme;
+        this.tg.themeParams = this.getDefaultThemeParams(newScheme);
         
-        // Обновляем mock themeParams
-        const mockThemes = {
-            light: {
-                accent_text_color: '#6ab2f2',
-                bg_color: '#ffffff',
-                button_color: '#5288c1',
-                button_text_color: '#ffffff',
-                bottom_bar_bg_color: '#ffffff',
-                destructive_text_color: '#ec3942',
-                header_bg_color: '#ffffff',
-                hint_color: '#999999',
-                link_color: '#6ab3f3',
-                secondary_bg_color: '#f4f4f5',
-                section_bg_color: '#ffffff',
-                section_header_text_color: '#6ab3f3',
-                subtitle_text_color: '#999999',
-                text_color: '#000000',
-                section_separator_color: '#e7e8ea'
-            },
-            dark: {
-                accent_text_color: '#6ab2f2',
-                bg_color: '#17212b',
-                button_color: '#5288c1',
-                button_text_color: '#ffffff',
-                bottom_bar_bg_color: '#17212b',
-                destructive_text_color: '#ec3942',
-                header_bg_color: '#17212b',
-                hint_color: '#708499',
-                link_color: '#6ab3f3',
-                secondary_bg_color: '#232e3c',
-                section_bg_color: '#17212b',
-                section_header_text_color: '#6ab3f3',
-                subtitle_text_color: '#708499',
-                text_color: '#f5f5f5',
-                section_separator_color: '#2a3441'
-            },
-            custom: {
-                accent_text_color: '#d4af37',
-                bg_color: '#1a1a1a',
-                button_color: '#d4af37',
-                button_text_color: '#ffffff',
-                bottom_bar_bg_color: '#1a1a1a',
-                destructive_text_color: '#ff4757',
-                header_bg_color: '#1a1a1a',
-                hint_color: '#888888',
-                link_color: '#d4af37',
-                secondary_bg_color: '#2c2c2c',
-                section_bg_color: '#1a1a1a',
-                section_header_text_color: '#d4af37',
-                subtitle_text_color: '#888888',
-                text_color: '#ffffff',
-                section_separator_color: '#444444'
-            }
-        };
-        
-        this.tg.themeParams = mockThemes[newTheme];
-        
-        console.log(`Mock: Theme switched to ${newTheme}`);
+        console.log(`🔄 Mock theme switched to: ${newScheme}`);
         this.setupThemes();
-        this.addDebugThemeInfo(); // Обновляем отладочную информацию
+        this.addDebugThemeInfo();
     }
     
     /**
@@ -538,8 +450,6 @@ class TelegramManager {
         
         document.documentElement.style.setProperty('--viewport-height', `${height}px`);
         document.documentElement.style.setProperty('--viewport-stable-height', `${stableHeight}px`);
-        
-        console.log('TelegramManager: Viewport updated:', { height, stableHeight });
     }
     
     /**
@@ -550,7 +460,6 @@ class TelegramManager {
         if (this.tg.MainButton && !this.mockMode) {
             this.tg.MainButton.onClick(() => {
                 this.hapticFeedback('light');
-                console.log('TelegramManager: Main button clicked');
             });
         }
         
@@ -558,10 +467,23 @@ class TelegramManager {
         if (this.tg.BackButton && !this.mockMode) {
             this.tg.BackButton.onClick(() => {
                 this.hapticFeedback('light');
-                console.log('TelegramManager: Back button clicked');
-                // По умолчанию переходим на главную страницу
                 if (window.app && window.app.showPage) {
                     window.app.showPage('home');
+                }
+            });
+        }
+        
+        // НОВОЕ: Слушаем изменения системной темы браузера
+        if (window.matchMedia) {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            mediaQuery.addListener((e) => {
+                if (this.mockMode) {
+                    console.log('🔄 System theme changed:', e.matches ? 'dark' : 'light');
+                    // В fallback режиме реагируем на системную тему
+                    const newScheme = e.matches ? 'dark' : 'light';
+                    this.tg.colorScheme = newScheme;
+                    this.tg.themeParams = this.getDefaultThemeParams(newScheme);
+                    this.setupThemes();
                 }
             });
         }
@@ -573,21 +495,20 @@ class TelegramManager {
     getUserData() {
         return {
             id: this.user?.id || null,
-            firstName: this.user?.first_name || 'Пользователь',
+            firstName: this.user?.first_name || 'Читатель',
             lastName: this.user?.last_name || '',
             username: this.user?.username || null,
             languageCode: this.user?.language_code || 'ru',
             isPremium: this.user?.is_premium || false,
             initData: this.tg.initData || '',
             startParam: this.tg.initDataUnsafe?.start_param || null,
-            // НОВОЕ: Информация о теме
             colorScheme: this.tg.colorScheme || 'light',
             themeParams: this.tg.themeParams || {}
         };
     }
     
     /**
-     * НОВОЕ: Получение текущей темы
+     * Получение текущей темы
      */
     getCurrentTheme() {
         return {
@@ -612,9 +533,16 @@ class TelegramManager {
                     this.tg.HapticFeedback.impactOccurred(style);
                 }
             } catch (error) {
-                console.error('TelegramManager: Haptic feedback error:', error);
+                console.error('❌ Haptic feedback error:', error);
             }
         }
+    }
+    
+    /**
+     * Вибрация - алиас для hapticFeedback для совместимости
+     */
+    vibrate(style = 'light') {
+        return this.hapticFeedback(style);
     }
     
     /**
@@ -628,8 +556,6 @@ class TelegramManager {
             if (callback && !this.mockMode) {
                 this.tg.MainButton.onClick(callback);
             }
-            
-            console.log('TelegramManager: Main button shown:', text);
         }
     }
     
@@ -639,7 +565,6 @@ class TelegramManager {
     hideMainButton() {
         if (this.tg.MainButton) {
             this.tg.MainButton.hide();
-            console.log('TelegramManager: Main button hidden');
         }
     }
     
@@ -649,12 +574,9 @@ class TelegramManager {
     showBackButton(callback) {
         if (this.tg.BackButton) {
             this.tg.BackButton.show();
-            
             if (callback && !this.mockMode) {
                 this.tg.BackButton.onClick(callback);
             }
-            
-            console.log('TelegramManager: Back button shown');
         }
     }
     
@@ -664,7 +586,6 @@ class TelegramManager {
     hideBackButton() {
         if (this.tg.BackButton) {
             this.tg.BackButton.hide();
-            console.log('TelegramManager: Back button hidden');
         }
     }
     
@@ -674,8 +595,6 @@ class TelegramManager {
     close() {
         if (this.tg.close) {
             this.tg.close();
-        } else {
-            console.log('TelegramManager: Close requested but not available');
         }
     }
     
@@ -685,8 +604,6 @@ class TelegramManager {
     on(event, callback) {
         if (this.callbacks[event]) {
             this.callbacks[event].push(callback);
-        } else {
-            console.warn('TelegramManager: Unknown event:', event);
         }
     }
     
@@ -713,7 +630,6 @@ class TelegramManager {
             isExpanded: this.tg.isExpanded || false,
             viewportHeight: this.tg.viewportHeight || window.innerHeight,
             isMock: this.mockMode,
-            // НОВОЕ: Информация о поддерживаемых параметрах темы
             supportedThemeParams: this.supportedThemeParams,
             activeThemeParams: Object.keys(this.tg.themeParams || {})
         };
@@ -727,9 +643,6 @@ class TelegramManager {
             mainButton: !!this.tg.MainButton,
             backButton: !!this.tg.BackButton,
             hapticFeedback: !!this.tg.HapticFeedback,
-            cloudStorage: !!this.tg.CloudStorage,
-            biometricAuth: !!this.tg.BiometricManager,
-            // НОВОЕ: Проверка поддержки тем
             themeParams: !!this.tg.themeParams,
             themeEvents: !this.mockMode && !!this.tg.onEvent
         };
@@ -738,21 +651,21 @@ class TelegramManager {
     }
     
     /**
-     * НОВОЕ: Получение конкретного параметра темы
+     * Получение конкретного параметра темы
      */
     getThemeParam(paramName) {
         return this.tg.themeParams?.[paramName] || null;
     }
     
     /**
-     * НОВОЕ: Проверка поддержки параметра темы
+     * Проверка поддержки параметра темы
      */
     isThemeParamSupported(paramName) {
         return this.supportedThemeParams.includes(paramName);
     }
     
     /**
-     * НОВОЕ: Получение CSS переменной для параметра темы
+     * Получение CSS переменной для параметра темы
      */
     getThemeParamCSSVar(paramName) {
         if (this.isThemeParamSupported(paramName)) {
@@ -762,22 +675,22 @@ class TelegramManager {
     }
     
     /**
-     * НОВОЕ: Форсированное обновление темы (для отладки)
+     * Форсированное обновление темы
      */
     forceThemeUpdate() {
-        console.log('TelegramManager: Force theme update requested');
+        console.log('🔄 Force theme update requested');
         this.setupThemes();
     }
     
     /**
-     * НОВОЕ: Экспорт текущей темы
+     * Экспорт текущей темы
      */
     exportCurrentTheme() {
         return {
             colorScheme: this.tg.colorScheme,
             themeParams: { ...this.tg.themeParams },
             timestamp: Date.now(),
-            version: '2.0'
+            version: '2.1'
         };
     }
 }
@@ -785,9 +698,4 @@ class TelegramManager {
 // Создаем глобальный экземпляр
 window.TelegramManager = new TelegramManager();
 
-// Экспортируем для совместимости
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = TelegramManager;
-}
-
-console.log('TelegramManager v2.0: Module loaded with full theme support');
+console.log('✅ TelegramManager v2.1: Module loaded with automatic theme detection');
