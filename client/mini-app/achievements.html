@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Читатель — Достижения</title>
+    
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Meta для PWA -->
+    <meta name="theme-color" content="#d4af37">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Читатель">
+    
+    <!-- Иконки -->
+    <link rel="apple-touch-icon" href="./assets/icon-192.svg">
+    <link rel="icon" type="image/svg+xml" sizes="192x192" href="./assets/icon-192.svg">
+    <link rel="icon" type="image/svg+xml" sizes="32x32" href="./assets/icon-32.svg">
+    <link rel="icon" type="image/svg+xml" sizes="16x16" href="./assets/icon-16.svg">
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Стили -->
+    <link rel="stylesheet" href="./css/design-system-v2.css">
+    <link rel="stylesheet" href="./css/components-v2.css">
+    <link rel="stylesheet" href="./css/navigation-v2.css">
+    <link rel="stylesheet" href="./css/telegram-themes.css">
+    <link rel="stylesheet" href="./css/anna-pages.css">
+</head>
+<body>
+    <!-- Loader -->
+    <div id="loader" class="loader">
+        <div class="loading-spinner"></div>
+        <p>Загружаем ваши достижения...</p>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app" class="app-container" style="display: none;">
+        
+        <!-- НИЖНЯЯ НАВИГАЦИЯ -->
+        <nav class="bottom-navigation" id="navigation">
+            <div class="nav-container">
+                <div class="nav-bar">
+                    <div class="nav-indicator" id="nav-indicator"></div>
+                    
+                    <a href="./index.html" class="nav-item">
+                        <div class="nav-icon home"></div>
+                        <div class="nav-label">Главная</div>
+                    </a>
+                    <a href="./catalog.html" class="nav-item">
+                        <div class="nav-icon">🛒</div>
+                        <div class="nav-label">Каталог</div>
+                    </a>
+                    <a href="./diary.html" class="nav-item">
+                        <div class="nav-icon diary"></div>
+                        <div class="nav-label">Дневник</div>
+                    </a>
+                    <a href="./achievements.html" class="nav-item active">
+                        <div class="nav-icon">🏆</div>
+                        <div class="nav-label">Достижения</div>
+                    </a>
+                    <a href="./settings.html" class="nav-item">
+                        <div class="nav-icon settings"></div>
+                        <div class="nav-label">Настройки</div>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- СТРАНИЦА ДОСТИЖЕНИЙ -->
+        <div class="page active">
+            <div class="home-container">
+                <!-- Заголовок -->
+                <div class="welcome-section">
+                    <h1 class="welcome-title">Ваши достижения</h1>
+                    <p class="welcome-subtitle">Путь саморазвития через чтение</p>
+                </div>
+                
+                <!-- Текущий прогресс -->
+                <div class="stats-section">
+                    <div class="latest-quote-card">
+                        <div class="ai-analysis-section">
+                            <div class="ai-header">
+                                <div class="ai-icon-large">🏆</div>
+                                <div>
+                                    <h3 class="ai-title">Постоянный читатель</h3>
+                                    <p class="ai-subtitle">5 дней подряд записываете мысли</p>
+                                </div>
+                            </div>
+                            
+                            <div class="current-streak">
+                                <div class="streak-info">
+                                    <div class="streak-number">5</div>
+                                    <div class="streak-label">дней подряд</div>
+                                </div>
+                                <div class="streak-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 71%;"></div>
+                                    </div>
+                                    <div class="progress-text">5/7 дней до следующего уровня</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Статистика достижений -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-number">3</div>
+                        <div class="stat-label">заработано</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔒</div>
+                        <div class="stat-number">4</div>
+                        <div class="stat-label">осталось</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-number">43%</div>
+                        <div class="stat-label">прогресс</div>
+                    </div>
+                </div>
+
+                <!-- Список достижений -->
+                <div class="achievements-section">
+                    <h2 class="section-title">Ваши награды</h2>
+                    
+                    <!-- Полученные достижения -->
+                    <div class="achievements-group">
+                        <h3 class="group-title">✅ Получено</h3>
+                        
+                        <div class="achievement-card completed">
+                            <div class="achievement-icon">📝</div>
+                            <div class="achievement-info">
+                                <h4 class="achievement-title">Первая мысль</h4>
+                                <p class="achievement-description">Добавили первую цитату в дневник</p>
+                                <div class="achievement-date">Получено: 15 июля 2025</div>
+                            </div>
+                            <div class="achievement-badge">✅</div>
+                        </div>
+                        
+                        <div class="achievement-card completed">
+                            <div class="achievement-icon">🔥</div>
+                            <div class="achievement-info">
+                                <h4 class="achievement-title">Три дня подряд</h4>
+                                <p class="achievement-description">Записывали мысли 3 дня подряд</p>
+                                <div class="achievement-date">Получено: 17 июля 2025</div>
+                            </div>
+                            <div class="achievement-badge">✅</div>
+                        </div>
+                        
+                        <div class="achievement-card completed">
+                            <div class="achievement-icon">📚</div>
+                            <div class="achievement-info">
+                                <h4 class="achievement-title">Коллекционер мудрости</h4>
+                                <p class="achievement-description">Собрали 25 цитат в дневнике</p>
+                                <div class="achievement-date">Получено: 19 июля 2025</div>
+                            </div>
+                            <div class="achievement-badge">✅</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Достижения в процессе -->
+                    <div class="achievements-group">
+                        <h3 class="group-title">🔄 В процессе</h3>
+                        
+                        <div class="achievement-card in-progress">
+                            <div class="achievement-icon">🎯</div>
+                            <div class="achievement-info">
+                                <h4 class="achievement-title">Неделя мудрости</h4>
+                                <p class="achievement-description">Записывайте мысли 7 дней подряд</p>
+                                <div class="achievement-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 71%;"></div>
+                                    </div>
+                                    <div class="progress-text">5/7 дней</div>
+                                </div>
+                            </div>
+                            <div class="achievement-badge">🔄</div>
+                        </div>
+                        
+                        <div class="achievement-card in-progress">
+                            <div class="achievement-icon">✍️</div>
+                            <div class="achievement-info">
+                                <h4 class="achievement-title">Собственные мысли</h4>
+                                <p class="achievement-description">Добавьте 10 собственных мыслей</p>
+                                <div class="achievement-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 20%;"></div>
+                                    </div>
+                                    <div class="progress-text">2/10 мыслей</div>
+                                </div>
+                            </div>
+                            <div class="achievement-badge">🔄</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Заблокированные достижения -->
+                    <div class="achievements-group">
+                        <h3 class="group-title">🔒 Предстоящие</h3>
+                        
+                        <div class="achievement-card locked">
+                            <div class="achievement-icon">🌟</div>
+                            <div class="achievement-info">
+                                <h4 class="achievement-title">Философ</h4>
+                                <p class="achievement-description">Записывайте мысли 30 дней подряд</p>
+                                <div class="achievement-requirement">Требуется: "Неделя мудрости"</div>
+                            </div>
+                            <div class="achievement-badge">🔒</div>
+                        </div>
+                        
+                        <div class="achievement-card locked">
+                            <div class="achievement-icon">💎</div>
+                            <div class="achievement-info">
+                                <h4 class="achievement-title">Мастер цитат</h4>
+                                <p class="achievement-description">Соберите 100 цитат в дневнике</p>
+                                <div class="achievement-requirement">Требуется: 100 цитат</div>
+                            </div>
+                            <div class="achievement-badge">🔒</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Мотивационная секция -->
+                <div class="motivation-section">
+                    <div class="quick-add-card">
+                        <h3 style="text-align: center; margin-bottom: var(--space-4);">💪 Продолжайте читать!</h3>
+                        <p style="text-align: center; color: var(--tg-subtitle-text-color); margin-bottom: var(--space-4);">
+                            Каждая цитата приближает вас к новому достижению
+                        </p>
+                        <div style="text-align: center;">
+                            <a href="./diary.html" class="btn-primary">
+                                ✍️ Добавить цитату
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="./js/telegram-v2.js"></script>
+
+    <!-- Achievement Styles -->
+    <style>
+        .achievements-section {
+            margin-top: 2rem;
+        }
+        
+        .achievements-group {
+            margin-bottom: 2rem;
+        }
+        
+        .group-title {
+            color: var(--tg-text-color);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-left: 0.5rem;
+        }
+        
+        .achievement-card {
+            display: flex;
+            align-items: center;
+            padding: 1.5rem;
+            background: var(--tg-secondary-bg-color);
+            border: 1px solid var(--tg-section-separator-color);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            transition: var(--theme-transition);
+        }
+        
+        .achievement-card.completed {
+            background: linear-gradient(135deg, 
+                color-mix(in srgb, var(--tg-accent-text-color) 10%, var(--tg-secondary-bg-color) 90%) 0%,
+                var(--tg-secondary-bg-color) 100%
+            );
+            border-color: var(--tg-accent-text-color);
+        }
+        
+        .achievement-card.in-progress {
+            background: linear-gradient(135deg, 
+                color-mix(in srgb, #fbbf24 10%, var(--tg-secondary-bg-color) 90%) 0%,
+                var(--tg-secondary-bg-color) 100%
+            );
+            border-color: #fbbf24;
+        }
+        
+        .achievement-card.locked {
+            opacity: 0.6;
+        }
+        
+        .achievement-icon {
+            font-size: 2.5rem;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .achievement-info {
+            flex: 1;
+        }
+        
+        .achievement-title {
+            color: var(--tg-text-color);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .achievement-description {
+            color: var(--tg-subtitle-text-color);
+            font-size: 0.9rem;
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .achievement-date {
+            color: var(--tg-hint-color);
+            font-size: 0.8rem;
+        }
+        
+        .achievement-requirement {
+            color: var(--tg-hint-color);
+            font-size: 0.8rem;
+            font-style: italic;
+        }
+        
+        .achievement-progress {
+            margin-top: 0.5rem;
+        }
+        
+        .achievement-badge {
+            font-size: 1.5rem;
+            margin-left: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .current-streak {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .streak-info {
+            text-align: center;
+        }
+        
+        .streak-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--tg-accent-text-color);
+            line-height: 1;
+        }
+        
+        .streak-label {
+            color: var(--tg-subtitle-text-color);
+            font-size: 0.9rem;
+        }
+        
+        .streak-progress {
+            flex: 1;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--tg-section-separator-color);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--tg-accent-text-color);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 0.8rem;
+            color: var(--tg-hint-color);
+        }
+        
+        .motivation-section {
+            margin-top: 2rem;
+        }
+        
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .ai-icon-large {
+            font-size: 3rem;
+            flex-shrink: 0;
+        }
+        
+        .ai-title {
+            color: var(--tg-text-color);
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .ai-subtitle {
+            color: var(--tg-subtitle-text-color);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+    </style>
+
+    <!-- Initialization -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Инициализация Telegram
+            if (window.TelegramManager) {
+                const userData = window.TelegramManager.init();
+                console.log('✅ Telegram initialized:', userData);
+            }
+            
+            // Скрытие loader
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                console.log('✅ Achievements ready!');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
