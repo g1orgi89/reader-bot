@@ -2,6 +2,7 @@
  * DIARY.CSS - Стили для дневника цитат с цельными страницами
  * Переделан: убрано разделение пополам, 5-7 цитат на страницу, маленькие даты
  * Вдохновлено дизайном annabusel.org и реалистичным эффектом книги
+ * НОВОЕ: Стили для AI комментариев и анализа цитат
  */
 
 /* ===== ПЕРЕМЕННЫЕ ДНЕВНИКА ===== */
@@ -19,6 +20,13 @@
   --ink-color: #2c2c2c;
   --handwriting-color: #1a1a1a;
   --pencil-color: #8b6914;
+  
+  /* НОВОЕ: Цвета для AI */
+  --ai-primary: #4f46e5;
+  --ai-secondary: #8b5cf6;
+  --ai-accent: #06b6d4;
+  --ai-bg: rgba(79, 70, 229, 0.1);
+  --ai-border: rgba(79, 70, 229, 0.2);
   
   /* Размеры книги - ОБНОВЛЕНО для цельных страниц */
   --book-width: 100%;
@@ -287,6 +295,317 @@
   opacity: 0.7;
 }
 
+/* ===== НОВОЕ: AI ИКОНКА В ЦИТАТЕ ===== */
+.ai-icon {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: 50%;
+  background: var(--ai-bg);
+  border: 1px solid var(--ai-border);
+  transition: all 0.3s ease;
+  z-index: 10;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-icon:hover {
+  background: var(--ai-primary);
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+/* ===== НОВОЕ: БЫСТРЫЙ AI ОТКЛИК ===== */
+.ai-quick-response {
+  background: linear-gradient(135deg, var(--ai-bg) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border: 1px solid var(--ai-border);
+  border-radius: 12px;
+  margin-top: 1rem;
+  padding: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.1);
+  backdrop-filter: blur(5px);
+}
+
+.ai-quick-response.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ai-quick-response.hide {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.ai-quick-response-content {
+  padding: 1rem;
+  font-family: var(--font-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--anna-black);
+  position: relative;
+}
+
+.ai-learn-more {
+  background: var(--ai-primary);
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.8rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.ai-learn-more:hover {
+  background: var(--ai-secondary);
+  transform: translateY(-1px);
+}
+
+/* ===== НОВОЕ: МОДАЛЬНОЕ ОКНО AI АНАЛИЗА ===== */
+.ai-analysis-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.ai-analysis-modal.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  cursor: pointer;
+}
+
+.modal-content {
+  position: relative;
+  background: var(--anna-white);
+  border-radius: 16px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90%;
+  overflow-y: auto;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 10px 30px rgba(0, 0, 0, 0.2);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.ai-analysis-modal.show .modal-content {
+  transform: scale(1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.modal-header h3 {
+  font-family: 'Georgia', serif;
+  font-size: 1.3rem;
+  color: var(--anna-black);
+  margin: 0;
+  font-weight: 300;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--anna-gray);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  background: var(--anna-light-gray);
+  color: var(--anna-black);
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+/* Превью цитаты в модалке */
+.quote-preview {
+  background: var(--anna-light-gray);
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid var(--anna-accent);
+}
+
+.quote-text-preview {
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--anna-black);
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.quote-author-preview {
+  text-align: right;
+  font-family: var(--font-secondary);
+  color: var(--anna-gray);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Секция анализа */
+.analysis-section {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.analysis-mood,
+.analysis-category {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.8rem;
+  background: var(--ai-bg);
+  border-radius: 8px;
+  font-family: var(--font-secondary);
+  font-size: 0.9rem;
+}
+
+.analysis-mood strong,
+.analysis-category strong {
+  color: var(--ai-primary);
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+/* Комментарий AI */
+.ai-comment-section {
+  margin-bottom: 1.5rem;
+}
+
+.ai-comment-section h4 {
+  font-family: 'Georgia', serif;
+  color: var(--anna-black);
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
+  font-weight: 400;
+}
+
+.ai-comment-section p {
+  font-family: var(--font-secondary);
+  line-height: 1.6;
+  color: var(--anna-black);
+  margin: 0;
+}
+
+/* Рекомендация книги */
+.book-recommendation-section {
+  background: linear-gradient(135deg, var(--anna-light-gray) 0%, rgba(212, 175, 55, 0.1) 100%);
+  padding: 1.2rem;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.book-recommendation-section h4 {
+  font-family: 'Georgia', serif;
+  color: var(--anna-black);
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  font-weight: 400;
+}
+
+.book-card {
+  background: var(--anna-white);
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.book-title {
+  font-family: 'Georgia', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--anna-black);
+  margin-bottom: 0.3rem;
+}
+
+.book-author {
+  font-family: var(--font-secondary);
+  color: var(--anna-gray);
+  font-size: 0.9rem;
+  margin-bottom: 0.8rem;
+  font-style: italic;
+}
+
+.book-reason {
+  font-family: var(--font-secondary);
+  color: var(--anna-black);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.book-link-btn {
+  background: var(--anna-accent);
+  color: white;
+  border: none;
+  padding: 0.7rem 1.2rem;
+  border-radius: 8px;
+  font-family: var(--font-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.book-link-btn:hover {
+  background: #b8941f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+}
+
 /* ===== ФОРМА ДОБАВЛЕНИЯ В ДНЕВНИКЕ ===== */
 .add-quote-section {
   background: rgba(255, 255, 255, 0.9);
@@ -484,6 +803,29 @@
   .page-corner {
     width: 35px;
   }
+
+  /* НОВОЕ: Адаптивность для AI модалки */
+  .modal-content {
+    width: 95%;
+    max-height: 95%;
+  }
+  
+  .modal-header,
+  .modal-body {
+    padding: 1rem;
+  }
+  
+  .analysis-section {
+    flex-direction: column;
+  }
+  
+  .ai-icon {
+    top: 0.3rem;
+    right: 0.3rem;
+    width: 1.8rem;
+    height: 1.8rem;
+    font-size: 1rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -525,6 +867,30 @@
     min-width: 70px;
     padding: 0.5rem 1rem;
     font-size: 0.85rem;
+  }
+
+  /* НОВОЕ: Мобильная адаптивность AI элементов */
+  .ai-quick-response-content {
+    padding: 0.8rem;
+    font-size: 0.85rem;
+  }
+  
+  .ai-learn-more {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+  
+  .modal-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .quote-text-preview {
+    font-size: 1rem;
+  }
+  
+  .book-link-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
   }
 }
 
@@ -619,4 +985,34 @@
 
 .quotes-container::-webkit-scrollbar-thumb:hover {
   background: #b8941f;
+}
+
+/* НОВОЕ: Анимация появления AI иконки */
+.ai-icon {
+  animation: aiIconAppear 0.6s ease-out 0.3s both;
+}
+
+@keyframes aiIconAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.5) rotate(180deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* НОВОЕ: Пульсация AI иконки для привлечения внимания */
+.ai-icon:not(:hover) {
+  animation: aiPulse 3s ease-in-out infinite;
+}
+
+@keyframes aiPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--ai-border);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
 }
