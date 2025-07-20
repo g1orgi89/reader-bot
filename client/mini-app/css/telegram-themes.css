@@ -1,0 +1,827 @@
+/**
+ * TELEGRAM-THEMES.CSS - Полная адаптация под все темы Telegram
+ * Поддержка всех themeParams из Telegram Mini Apps API
+ * Плавные переходы между темами, адаптация дневника и AI компонентов
+ */
+
+/* ===== БАЗОВЫЕ CSS ПЕРЕМЕННЫЕ ДЛЯ TELEGRAM ИНТЕГРАЦИИ ===== */
+:root {
+  /* Значения по умолчанию (светлая тема) */
+  --tg-accent-text-color: #6ab2f2;
+  --tg-bg-color: #ffffff;
+  --tg-button-color: #5288c1;
+  --tg-button-text-color: #ffffff;
+  --tg-bottom-bar-bg-color: #ffffff;
+  --tg-destructive-text-color: #ec3942;
+  --tg-header-bg-color: #ffffff;
+  --tg-hint-color: #999999;
+  --tg-link-color: #6ab3f3;
+  --tg-secondary-bg-color: #f4f4f5;
+  --tg-section-bg-color: #ffffff;
+  --tg-section-header-text-color: #6ab3f3;
+  --tg-subtitle-text-color: #999999;
+  --tg-text-color: #000000;
+  --tg-section-separator-color: #e7e8ea;
+  
+  /* Дополнительные вычисляемые цвета */
+  --tg-bg-hover: color-mix(in srgb, var(--tg-bg-color) 85%, var(--tg-text-color) 15%);
+  --tg-border-color: color-mix(in srgb, var(--tg-bg-color) 80%, var(--tg-text-color) 20%);
+  --tg-shadow-color: color-mix(in srgb, var(--tg-text-color) 10%, transparent 90%);
+  
+  /* Плавные переходы для всех изменений темы */
+  --theme-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== ТЕМНАЯ ТЕМА (значения по умолчанию) ===== */
+[data-theme="dark"] {
+  --tg-accent-text-color: #6ab2f2;
+  --tg-bg-color: #17212b;
+  --tg-button-color: #5288c1;
+  --tg-button-text-color: #ffffff;
+  --tg-bottom-bar-bg-color: #17212b;
+  --tg-destructive-text-color: #ec3942;
+  --tg-header-bg-color: #17212b;
+  --tg-hint-color: #708499;
+  --tg-link-color: #6ab3f3;
+  --tg-secondary-bg-color: #232e3c;
+  --tg-section-bg-color: #17212b;
+  --tg-section-header-text-color: #6ab3f3;
+  --tg-subtitle-text-color: #708499;
+  --tg-text-color: #f5f5f5;
+  --tg-section-separator-color: #2a3441;
+}
+
+/* ===== ПРИМЕНЕНИЕ TELEGRAM ПЕРЕМЕННЫХ К ОСНОВНЫМ ЭЛЕМЕНТАМ ===== */
+
+/* Основной фон приложения */
+body,
+.app-container {
+  background-color: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Навигация */
+.bottom-nav {
+  background-color: var(--tg-bottom-bar-bg-color);
+  border-top-color: var(--tg-section-separator-color);
+  backdrop-filter: blur(20px);
+  transition: var(--theme-transition);
+}
+
+.nav-item {
+  color: var(--tg-hint-color);
+  transition: var(--theme-transition);
+}
+
+.nav-item:hover,
+.nav-item.active {
+  color: var(--tg-accent-text-color);
+}
+
+/* Основные страницы */
+.page-header h1 {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.page-header p {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Формы */
+.form-group input,
+.form-group textarea {
+  background-color: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  border-color: var(--tg-section-separator-color);
+  transition: var(--theme-transition);
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--tg-accent-text-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tg-accent-text-color) 20%, transparent 80%);
+}
+
+.form-group label {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Кнопки */
+.btn-primary {
+  background-color: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  transition: var(--theme-transition);
+}
+
+.btn-primary:hover {
+  background-color: color-mix(in srgb, var(--tg-button-color) 80%, var(--tg-text-color) 20%);
+}
+
+.btn-secondary {
+  background-color: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  border-color: var(--tg-section-separator-color);
+  transition: var(--theme-transition);
+}
+
+.btn-secondary:hover {
+  background-color: var(--tg-bg-hover);
+}
+
+/* Статистика */
+.stat-card {
+  background-color: var(--tg-secondary-bg-color);
+  border-color: var(--tg-section-separator-color);
+  transition: var(--theme-transition);
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 20px var(--tg-shadow-color);
+}
+
+.stat-number {
+  color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+.stat-label {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Цитаты */
+.quote-item {
+  background-color: var(--tg-secondary-bg-color);
+  border-color: var(--tg-section-separator-color);
+  transition: var(--theme-transition);
+}
+
+.quote-item:hover {
+  box-shadow: 0 2px 10px var(--tg-shadow-color);
+}
+
+.quote-text {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.quote-author {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+.quote-meta {
+  color: var(--tg-hint-color);
+  transition: var(--theme-transition);
+}
+
+/* Модальные окна */
+.modal-overlay {
+  background-color: color-mix(in srgb, var(--tg-bg-color) 50%, transparent 50%);
+  transition: var(--theme-transition);
+}
+
+.modal-content {
+  background-color: var(--tg-bg-color);
+  transition: var(--theme-transition);
+}
+
+/* Toast уведомления */
+.toast {
+  background-color: var(--tg-secondary-bg-color);
+  border-color: var(--tg-section-separator-color);
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.toast.success {
+  border-color: var(--tg-accent-text-color);
+  background-color: color-mix(in srgb, var(--tg-accent-text-color) 10%, var(--tg-secondary-bg-color) 90%);
+}
+
+.toast.error {
+  border-color: var(--tg-destructive-text-color);
+  background-color: color-mix(in srgb, var(--tg-destructive-text-color) 10%, var(--tg-secondary-bg-color) 90%);
+}
+
+/* ===== АДАПТАЦИЯ ДНЕВНИКА ПОД ТЕМЫ ===== */
+
+/* Заголовки дневника */
+.diary-title {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.diary-subtitle {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Книга и переплет */
+.book-spine {
+  /* Адаптируем переплет под тему */
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--tg-text-color) 60%, var(--tg-bg-color) 40%) 0%,
+    color-mix(in srgb, var(--tg-text-color) 40%, var(--tg-bg-color) 60%) 50%,
+    color-mix(in srgb, var(--tg-text-color) 60%, var(--tg-bg-color) 40%) 100%
+  );
+  box-shadow: 
+    inset 2px 0 4px color-mix(in srgb, var(--tg-text-color) 30%, transparent 70%),
+    2px 0 8px color-mix(in srgb, var(--tg-text-color) 20%, transparent 80%);
+  transition: var(--theme-transition);
+}
+
+/* Страницы дневника */
+.book-page {
+  background-color: var(--tg-bg-color);
+  border-color: var(--tg-section-separator-color);
+  box-shadow: 
+    0 4px 20px color-mix(in srgb, var(--tg-text-color) 15%, transparent 85%),
+    inset 0 0 60px color-mix(in srgb, var(--tg-accent-text-color) 3%, transparent 97%);
+  transition: var(--theme-transition);
+}
+
+/* Линованная бумага */
+.page-content::before {
+  background-image: 
+    linear-gradient(90deg, 
+      transparent 1.5rem, 
+      var(--tg-section-separator-color) 1.5rem, 
+      var(--tg-section-separator-color) calc(1.5rem + 1px), 
+      transparent calc(1.5rem + 1px)
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--tg-hint-color) 15%, transparent 85%) 0.1em, 
+      transparent 0.1em
+    );
+  transition: var(--theme-transition);
+}
+
+/* Клик уголок */
+.page-corner {
+  background: linear-gradient(
+    to left,
+    color-mix(in srgb, var(--tg-accent-text-color) 10%, transparent 90%) 0%,
+    transparent 100%
+  );
+  transition: var(--theme-transition);
+}
+
+.page-corner:hover {
+  background: linear-gradient(
+    to left,
+    color-mix(in srgb, var(--tg-accent-text-color) 20%, transparent 80%) 0%,
+    transparent 100%
+  );
+}
+
+.page-corner::after {
+  color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Цитаты в дневнике */
+.quote-entry {
+  border-bottom-color: color-mix(in srgb, var(--tg-hint-color) 20%, transparent 80%);
+  transition: var(--theme-transition);
+}
+
+.quote-text {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.quote-text::before,
+.quote-text::after {
+  color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+.quote-author {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+.quote-author::before {
+  color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+.quote-date {
+  color: var(--tg-hint-color);
+  transition: var(--theme-transition);
+}
+
+/* ===== АДАПТАЦИЯ AI КОМПОНЕНТОВ ПОД ТЕМЫ ===== */
+
+/* AI иконка */
+.ai-icon {
+  background-color: color-mix(in srgb, var(--tg-accent-text-color) 10%, var(--tg-bg-color) 90%);
+  border-color: color-mix(in srgb, var(--tg-accent-text-color) 20%, transparent 80%);
+  color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+.ai-icon:hover {
+  background-color: var(--tg-accent-text-color);
+  color: var(--tg-button-text-color);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--tg-accent-text-color) 30%, transparent 70%);
+}
+
+/* Быстрый AI отклик */
+.ai-quick-response {
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--tg-accent-text-color) 10%, var(--tg-bg-color) 90%) 0%, 
+    color-mix(in srgb, var(--tg-accent-text-color) 5%, var(--tg-bg-color) 95%) 100%
+  );
+  border-color: color-mix(in srgb, var(--tg-accent-text-color) 20%, transparent 80%);
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--tg-accent-text-color) 10%, transparent 90%);
+  transition: var(--theme-transition);
+}
+
+.ai-quick-response-content {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.ai-learn-more {
+  background-color: var(--tg-accent-text-color);
+  color: var(--tg-button-text-color);
+  transition: var(--theme-transition);
+}
+
+.ai-learn-more:hover {
+  background-color: color-mix(in srgb, var(--tg-accent-text-color) 80%, var(--tg-text-color) 20%);
+}
+
+/* AI модальное окно */
+.ai-analysis-modal .modal-backdrop {
+  background-color: color-mix(in srgb, var(--tg-bg-color) 50%, transparent 50%);
+  transition: var(--theme-transition);
+}
+
+.ai-analysis-modal .modal-content {
+  background-color: var(--tg-bg-color);
+  transition: var(--theme-transition);
+}
+
+.modal-header {
+  border-bottom-color: var(--tg-section-separator-color);
+  transition: var(--theme-transition);
+}
+
+.modal-header h3 {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.modal-close {
+  color: var(--tg-hint-color);
+  transition: var(--theme-transition);
+}
+
+.modal-close:hover {
+  background-color: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+}
+
+/* Превью цитаты в модалке */
+.quote-preview {
+  background-color: var(--tg-secondary-bg-color);
+  border-left-color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+.quote-text-preview {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.quote-author-preview {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Секция анализа */
+.analysis-mood,
+.analysis-category {
+  background-color: color-mix(in srgb, var(--tg-accent-text-color) 10%, var(--tg-bg-color) 90%);
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.analysis-mood strong,
+.analysis-category strong {
+  color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Комментарий AI */
+.ai-comment-section h4 {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.ai-comment-section p {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+/* Рекомендация книги */
+.book-recommendation-section {
+  background: linear-gradient(135deg, 
+    var(--tg-secondary-bg-color) 0%, 
+    color-mix(in srgb, var(--tg-accent-text-color) 10%, var(--tg-secondary-bg-color) 90%) 100%
+  );
+  border-color: color-mix(in srgb, var(--tg-accent-text-color) 20%, transparent 80%);
+  transition: var(--theme-transition);
+}
+
+.book-recommendation-section h4 {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.book-card {
+  background-color: var(--tg-bg-color);
+  border-color: color-mix(in srgb, var(--tg-accent-text-color) 30%, transparent 70%);
+  transition: var(--theme-transition);
+}
+
+.book-title {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.book-author {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+.book-reason {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.book-link-btn {
+  background-color: var(--tg-accent-text-color);
+  color: var(--tg-button-text-color);
+  transition: var(--theme-transition);
+}
+
+.book-link-btn:hover {
+  background-color: color-mix(in srgb, var(--tg-accent-text-color) 80%, var(--tg-text-color) 20%);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--tg-accent-text-color) 40%, transparent 60%);
+}
+
+/* ===== ФОРМА ДОБАВЛЕНИЯ В ДНЕВНИКЕ ===== */
+.add-quote-section {
+  background-color: color-mix(in srgb, var(--tg-bg-color) 90%, var(--tg-secondary-bg-color) 10%);
+  border-color: color-mix(in srgb, var(--tg-accent-text-color) 15%, transparent 85%);
+  transition: var(--theme-transition);
+}
+
+.add-quote-title {
+  color: var(--tg-text-color);
+  transition: var(--theme-transition);
+}
+
+.diary-form-group label {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+.diary-form-group textarea,
+.diary-form-group input {
+  background-color: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  border-color: var(--tg-section-separator-color);
+  transition: var(--theme-transition);
+}
+
+.diary-form-group textarea:focus,
+.diary-form-group input:focus {
+  border-color: var(--tg-accent-text-color);
+  background-color: var(--tg-bg-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tg-accent-text-color) 10%, transparent 90%);
+}
+
+.diary-submit-btn {
+  background-color: var(--tg-accent-text-color);
+  color: var(--tg-button-text-color);
+  transition: var(--theme-transition);
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--tg-accent-text-color) 30%, transparent 70%);
+}
+
+.diary-submit-btn:hover {
+  background-color: color-mix(in srgb, var(--tg-accent-text-color) 80%, var(--tg-text-color) 20%);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--tg-accent-text-color) 40%, transparent 60%);
+}
+
+/* ===== НАВИГАЦИЯ ДНЕВНИКА ===== */
+.page-navigation {
+  transition: var(--theme-transition);
+}
+
+.page-dot {
+  background-color: var(--tg-hint-color);
+  transition: var(--theme-transition);
+}
+
+.page-dot.active {
+  background-color: var(--tg-accent-text-color);
+}
+
+.page-dot:hover {
+  background-color: var(--tg-subtitle-text-color);
+}
+
+.nav-btn {
+  background-color: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  transition: var(--theme-transition);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--tg-text-color) 20%, transparent 80%);
+}
+
+.nav-btn:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--tg-button-color) 80%, var(--tg-text-color) 20%);
+  box-shadow: 0 5px 15px color-mix(in srgb, var(--tg-text-color) 30%, transparent 70%);
+}
+
+.nav-btn:disabled {
+  background-color: var(--tg-hint-color);
+  color: color-mix(in srgb, var(--tg-button-text-color) 60%, transparent 40%);
+}
+
+.page-indicator {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+/* ===== СКРОЛЛБАР ===== */
+.quotes-container::-webkit-scrollbar-track {
+  background-color: color-mix(in srgb, var(--tg-hint-color) 10%, transparent 90%);
+}
+
+.quotes-container::-webkit-scrollbar-thumb {
+  background-color: var(--tg-accent-text-color);
+}
+
+.quotes-container::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--tg-accent-text-color) 80%, var(--tg-text-color) 20%);
+}
+
+/* ===== ДЕСТРУКТИВНЫЕ ДЕЙСТВИЯ ===== */
+.btn-danger,
+.delete-btn {
+  background-color: var(--tg-destructive-text-color);
+  color: var(--tg-button-text-color);
+  transition: var(--theme-transition);
+}
+
+.btn-danger:hover,
+.delete-btn:hover {
+  background-color: color-mix(in srgb, var(--tg-destructive-text-color) 80%, var(--tg-text-color) 20%);
+}
+
+/* ===== ССЫЛКИ ===== */
+a,
+.link {
+  color: var(--tg-link-color);
+  transition: var(--theme-transition);
+}
+
+a:hover,
+.link:hover {
+  color: color-mix(in srgb, var(--tg-link-color) 80%, var(--tg-text-color) 20%);
+}
+
+/* ===== ЛОАДЕР ===== */
+.loader {
+  background-color: var(--tg-bg-color);
+  transition: var(--theme-transition);
+}
+
+.loader-spinner {
+  border-color: var(--tg-section-separator-color);
+  border-top-color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+.loader p {
+  color: var(--tg-subtitle-text-color);
+  transition: var(--theme-transition);
+}
+
+/* ===== ДОСТИЖЕНИЯ И СТАТИСТИКА ===== */
+.achievement-card {
+  background-color: var(--tg-secondary-bg-color);
+  border-color: var(--tg-section-separator-color);
+  transition: var(--theme-transition);
+}
+
+.achievement-card.completed {
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--tg-accent-text-color) 10%, var(--tg-secondary-bg-color) 90%) 0%,
+    var(--tg-secondary-bg-color) 100%
+  );
+  border-color: var(--tg-accent-text-color);
+}
+
+.progress-bar {
+  background-color: var(--tg-section-separator-color);
+  transition: var(--theme-transition);
+}
+
+.progress-fill {
+  background-color: var(--tg-accent-text-color);
+  transition: var(--theme-transition);
+}
+
+/* ===== ПУСТЫЕ СОСТОЯНИЯ ===== */
+.empty-state {
+  color: var(--tg-hint-color);
+  transition: var(--theme-transition);
+}
+
+.empty-page {
+  color: var(--tg-hint-color);
+  transition: var(--theme-transition);
+}
+
+.empty-page-icon {
+  opacity: 0.5;
+  transition: var(--theme-transition);
+}
+
+/* ===== СПЕЦИАЛЬНЫЕ ЭФФЕКТЫ ДЛЯ ТЁМНОЙ ТЕМЫ ===== */
+
+/* В темной теме убираем лишние тени */
+[data-theme="dark"] .book-page {
+  box-shadow: 
+    0 4px 20px color-mix(in srgb, #000000 40%, transparent 60%),
+    inset 0 0 60px color-mix(in srgb, var(--tg-accent-text-color) 2%, transparent 98%);
+}
+
+[data-theme="dark"] .book-spine {
+  box-shadow: 
+    inset 2px 0 4px color-mix(in srgb, #000000 50%, transparent 50%),
+    2px 0 8px color-mix(in srgb, #000000 30%, transparent 70%);
+}
+
+/* В темной теме делаем переплет более контрастным */
+[data-theme="dark"] .book-spine {
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--tg-text-color) 40%, var(--tg-bg-color) 60%) 0%,
+    color-mix(in srgb, var(--tg-text-color) 60%, var(--tg-bg-color) 40%) 50%,
+    color-mix(in srgb, var(--tg-text-color) 40%, var(--tg-bg-color) 60%) 100%
+  );
+}
+
+/* Улучшенная читаемость в темной теме */
+[data-theme="dark"] .quote-text {
+  text-shadow: 0.5px 0.5px 1px color-mix(in srgb, #000000 30%, transparent 70%);
+}
+
+/* ===== АНИМАЦИИ СМЕНЫ ТЕМЫ ===== */
+
+/* Плавная смена фона */
+.theme-transition-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  background: var(--tg-bg-color);
+  transition: opacity 0.3s ease;
+}
+
+.theme-transition-overlay.active {
+  opacity: 0.8;
+}
+
+/* Индикатор смены темы */
+.theme-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  padding: 1rem 1.5rem;
+  border-radius: 25px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--tg-text-color) 20%, transparent 80%);
+  z-index: 10000;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.theme-indicator.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.theme-indicator::before {
+  content: '';
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--tg-accent-text-color);
+  animation: pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; transform: translateY(-50%) scale(0.8); }
+  100% { opacity: 1; transform: translateY(-50%) scale(1.2); }
+}
+
+/* ===== ОТЛАДКА (только в development) ===== */
+.debug-theme-info {
+  position: fixed;
+  bottom: 100px;
+  right: 10px;
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-family: monospace;
+  border: 1px solid var(--tg-section-separator-color);
+  z-index: 1000;
+  max-width: 200px;
+  opacity: 0.8;
+  transition: var(--theme-transition);
+}
+
+.debug-theme-info:hover {
+  opacity: 1;
+}
+
+/* ===== РЕСПОНСИВНОСТЬ ===== */
+@media (max-width: 768px) {
+  /* Увеличиваем размеры touch элементов в темной теме */
+  [data-theme="dark"] .ai-icon {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+  
+  [data-theme="dark"] .page-corner {
+    width: 45px; /* Больше область для клика */
+  }
+  
+  /* Более контрастные границы на мобильных */
+  [data-theme="dark"] .form-group input,
+  [data-theme="dark"] .form-group textarea {
+    border-width: 1.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Упрощаем эффекты на слабых устройствах */
+  .book-page,
+  .ai-quick-response,
+  .modal-content {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  
+  /* Убираем сложные градиенты на мобильных */
+  [data-theme="dark"] .ai-quick-response {
+    background: var(--tg-secondary-bg-color);
+  }
+  
+  [data-theme="dark"] .book-recommendation-section {
+    background: var(--tg-secondary-bg-color);
+  }
+}
+
+/* ===== FALLBACK ДЛЯ СТАРЫХ БРАУЗЕРОВ ===== */
+@supports not (color: color-mix(in srgb, red 50%, blue 50%)) {
+  /* Fallback для браузеров без поддержки color-mix */
+  :root {
+    --tg-bg-hover: rgba(0, 0, 0, 0.05);
+    --tg-border-color: rgba(0, 0, 0, 0.1);
+    --tg-shadow-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  [data-theme="dark"] {
+    --tg-bg-hover: rgba(255, 255, 255, 0.05);
+    --tg-border-color: rgba(255, 255, 255, 0.1);
+    --tg-shadow-color: rgba(0, 0, 0, 0.3);
+  }
+}
