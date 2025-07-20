@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./css/mobile.css">
     <link rel="stylesheet" href="./css/components.css">
+    <link rel="stylesheet" href="./css/diary.css">
 </head>
 <body>
     <!-- Loader -->
@@ -40,9 +41,9 @@
                 <span class="nav-icon">🏠</span>
                 <span class="nav-label">Главная</span>
             </button>
-            <button class="nav-item" data-page="add-quote">
-                <span class="nav-icon">📝</span>
-                <span class="nav-label">Добавить</span>
+            <button class="nav-item" data-page="diary">
+                <span class="nav-icon">📖</span>
+                <span class="nav-label">Дневник</span>
             </button>
             <button class="nav-item" data-page="reports">
                 <span class="nav-icon">📊</span>
@@ -90,99 +91,86 @@
                 </div>
             </div>
 
-            <!-- Quick Add -->
-            <div class="quick-add-section">
-                <h2>Быстрое добавление</h2>
-                <form id="quick-add-form" class="quick-add-form">
-                    <textarea 
-                        id="quick-quote-text" 
-                        placeholder="Введите цитату или мысль..."
-                        rows="3"
-                        maxlength="500"
-                    ></textarea>
-                    <input 
-                        type="text" 
-                        id="quick-quote-author" 
-                        placeholder="Автор (необязательно)"
-                        maxlength="100"
-                    >
-                    <button type="submit" class="btn-primary">
-                        <span class="btn-icon">💾</span>
-                        Сохранить
-                    </button>
-                </form>
-            </div>
-
             <!-- Recent Quotes -->
             <div class="recent-quotes-section">
                 <h2>Последние цитаты</h2>
                 <div id="recent-quotes-list" class="quotes-list">
                     <!-- Динамически загружается -->
                 </div>
-                <button class="btn-secondary" onclick="app.showPage('add-quote')">
-                    Посмотреть все цитаты
+                <button class="btn-primary" onclick="app.showPage('diary')">
+                    📖 Открыть дневник
                 </button>
             </div>
         </div>
 
-        <!-- Page: Add Quote -->
-        <div id="page-add-quote" class="page">
-            <header class="page-header">
-                <h1>Добавить цитату</h1>
-                <p>Сохраните важную мысль или цитату</p>
-            </header>
+        <!-- Page: Diary -->
+        <div id="page-diary" class="page">
+            <!-- Секция добавления цитаты -->
+            <div class="add-quote-section">
+                <h2 class="add-quote-title">Добавить новую цитату в дневник</h2>
+                <form id="diary-quote-form">
+                    <div class="diary-form-group">
+                        <label for="quote-text">Текст цитаты:</label>
+                        <textarea 
+                            id="quote-text" 
+                            name="quote-text"
+                            placeholder="Введите вашу цитату или мысль..." 
+                            required
+                            maxlength="1000">
+                        </textarea>
+                    </div>
+                    <div class="diary-form-group">
+                        <label for="quote-author">Автор (необязательно):</label>
+                        <input 
+                            type="text" 
+                            id="quote-author" 
+                            name="quote-author"
+                            placeholder="Автор цитаты"
+                            maxlength="100">
+                    </div>
+                    <button type="submit" class="diary-submit-btn">
+                        ✍️ Добавить в дневник
+                    </button>
+                </form>
+            </div>
 
-            <form id="add-quote-form" class="quote-form">
-                <div class="form-group">
-                    <label for="quote-text">Текст цитаты *</label>
-                    <textarea 
-                        id="quote-text" 
-                        placeholder="Введите цитату или собственную мысль..."
-                        rows="5"
-                        required
-                        maxlength="1000"
-                    ></textarea>
-                    <div class="char-counter">
-                        <span id="quote-char-count">0</span>/1000
+            <!-- Дневник с перелистыванием -->
+            <div class="diary-container">
+                <div class="diary-header">
+                    <h1 class="diary-title">Мой дневник цитат</h1>
+                    <p class="diary-subtitle">Место для хранения мудрых мыслей и вдохновения</p>
+                </div>
+
+                <div class="book-container" id="book-container">
+                    <!-- Переплет книги -->
+                    <div class="book-spine"></div>
+                    
+                    <!-- Левая страница -->
+                    <div class="book-page left">
+                        <div class="page-content" id="left-page-content">
+                            <div class="page-loading">Загружаем страницы дневника...</div>
+                        </div>
+                    </div>
+
+                    <!-- Правая страница -->
+                    <div class="book-page right">
+                        <div class="page-content" id="right-page-content">
+                            <div class="page-loading">Загружаем страницы дневника...</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="quote-author">Автор</label>
-                    <input 
-                        type="text" 
-                        id="quote-author" 
-                        placeholder="Имя автора (оставьте пустым для собственных мыслей)"
-                        maxlength="100"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="quote-source">Источник</label>
-                    <input 
-                        type="text" 
-                        id="quote-source" 
-                        placeholder="Название книги, статьи или другого источника"
-                        maxlength="200"
-                    >
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" onclick="app.showPage('home')">
-                        Отмена
+                <!-- Навигация страниц -->
+                <div class="page-navigation">
+                    <button class="nav-btn" id="prev-page">
+                        ◀ Назад
                     </button>
-                    <button type="submit" class="btn-primary">
-                        <span class="btn-icon">🔍</span>
-                        Анализировать и сохранить
+                    <div class="page-indicator" id="page-indicator">
+                        Страница 1 из 1
+                    </div>
+                    <button class="nav-btn" id="next-page">
+                        Вперед ▶
                     </button>
-                </div>
-            </form>
-
-            <!-- AI Analysis Results -->
-            <div id="ai-analysis-result" class="ai-analysis-section" style="display: none;">
-                <h3>🤖 Анализ от ИИ</h3>
-                <div id="ai-analysis-content" class="ai-content">
-                    <!-- Результат анализа -->
                 </div>
             </div>
         </div>
@@ -314,9 +302,10 @@
         </div>
     </div>
 
-    <!-- Scripts - УБИРАЕМ ES6 МОДУЛИ, ВОЗВРАЩАЕМ ОБЫЧНЫЕ -->
+    <!-- Scripts -->
     <script src="./js/telegram.js"></script>
     <script src="./js/api.js"></script>
+    <script src="./js/diary.js"></script>
     <script src="./js/app.js"></script>
 
     <!-- Service Worker Registration -->
