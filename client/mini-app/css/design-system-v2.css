@@ -1,0 +1,625 @@
+/**
+ * DESIGN SYSTEM V2.0 - Современная дизайн-система для Reader Bot
+ * Создана: 20.07.2025
+ * 
+ * КОНЦЕПЦИЯ:
+ * - Палитра цветов с сайта annabusel.org (теплые, психологичные тона)
+ * - Современные тренды 2025: скругленные углы, мягкие тени, плавные анимации
+ * - Вдохновение: Day One, Notion, Bear, Readwise
+ * - Градиенты вместо плоских цветов
+ * - Микроанимации для живого интерфейса
+ */
+
+/* ===== ПАЛИТРА АННЫ БУСЕЛ ===== */
+:root {
+  /* ОСНОВНАЯ ПАЛИТРА - вдохновлена annabusel.org */
+  --anna-cream: #faf8f5;           /* Основной фон - теплый кремовый */
+  --anna-warm-white: #fefdfb;      /* Чистый белый с теплотой */
+  --anna-pearl: #f5f3f0;           /* Жемчужный - для карточек */
+  --anna-beige: #f0ede8;           /* Бежевый - для второстепенных элементов */
+  
+  --anna-gold: #d4af37;            /* Золотистый акцент - главный */
+  --anna-gold-light: #e6c758;      /* Светлое золото */
+  --anna-gold-dark: #b8941f;       /* Темное золото */
+  --anna-bronze: #cd7f32;          /* Бронзовый - дополнительный акцент */
+  
+  --anna-brown: #8b6f47;           /* Коричневый - текст */
+  --anna-brown-light: #a0896b;     /* Светлый коричневый */
+  --anna-brown-dark: #6b5635;      /* Темный коричневый */
+  
+  --anna-sage: #9caf88;            /* Шалфей - успокаивающий зеленый */
+  --anna-sage-light: #b8c7a6;      /* Светлый шалфей */
+  --anna-sage-dark: #7a8f6b;       /* Темный шалфей */
+  
+  --anna-lavender: #b8a9c9;        /* Лаванда - психологический акцент */
+  --anna-lavender-light: #d1c7db;   /* Светлая лаванда */
+  --anna-lavender-dark: #9e8db1;    /* Темная лаванда */
+  
+  --anna-terracotta: #c47b6a;      /* Терракота - теплый акцент */
+  --anna-terracotta-light: #d19688; /* Светлая терракота */
+  --anna-terracotta-dark: #a85e4c;  /* Темная терракота */
+
+  /* ОТТЕНКИ СЕРОГО - теплые, не холодные */
+  --anna-gray-50: #faf9f7;
+  --anna-gray-100: #f5f3f0;
+  --anna-gray-200: #e8e5e0;
+  --anna-gray-300: #d4cfc5;
+  --anna-gray-400: #a8a098;
+  --anna-gray-500: #857b70;
+  --anna-gray-600: #6b5f56;
+  --anna-gray-700: #574d46;
+  --anna-gray-800: #453c37;
+  --anna-gray-900: #332a26;
+
+  /* ГРАДИЕНТЫ - современные, мягкие */
+  --gradient-gold: linear-gradient(135deg, var(--anna-gold-light) 0%, var(--anna-gold) 50%, var(--anna-gold-dark) 100%);
+  --gradient-warm: linear-gradient(135deg, var(--anna-cream) 0%, var(--anna-pearl) 100%);
+  --gradient-sage: linear-gradient(135deg, var(--anna-sage-light) 0%, var(--anna-sage) 100%);
+  --gradient-lavender: linear-gradient(135deg, var(--anna-lavender-light) 0%, var(--anna-lavender) 100%);
+  --gradient-terracotta: linear-gradient(135deg, var(--anna-terracotta-light) 0%, var(--anna-terracotta) 100%);
+  
+  /* ГРАДИЕНТЫ ДЛЯ КАРТОЧЕК */
+  --gradient-card: linear-gradient(135deg, var(--anna-warm-white) 0%, var(--anna-pearl) 100%);
+  --gradient-card-hover: linear-gradient(135deg, var(--anna-pearl) 0%, var(--anna-beige) 100%);
+  
+  /* СЕМАНТИЧЕСКИЕ ЦВЕТА */
+  --success-color: var(--anna-sage);
+  --success-bg: color-mix(in srgb, var(--anna-sage) 10%, var(--anna-cream) 90%);
+  --warning-color: var(--anna-gold);
+  --warning-bg: color-mix(in srgb, var(--anna-gold) 10%, var(--anna-cream) 90%);
+  --error-color: var(--anna-terracotta);
+  --error-bg: color-mix(in srgb, var(--anna-terracotta) 10%, var(--anna-cream) 90%);
+  --info-color: var(--anna-lavender);
+  --info-bg: color-mix(in srgb, var(--anna-lavender) 10%, var(--anna-cream) 90%);
+}
+
+/* ===== TYPOGRAPHY 2025 ===== */
+:root {
+  /* ШРИФТОВАЯ СИСТЕМА - иерархичная, читаемая */
+  --font-primary: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  --font-secondary: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+  --font-handwriting: 'Brush Script MT', 'Segoe Print', 'Lucida Handwriting', cursive;
+  --font-serif: 'New York', 'Times New Roman', 'Georgia', serif;
+
+  /* РАЗМЕРЫ - Модульная шкала (1.25 ratio) */
+  --text-xs: 0.64rem;    /* 10.24px */
+  --text-sm: 0.8rem;     /* 12.8px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.25rem;    /* 20px */
+  --text-xl: 1.563rem;   /* 25px */
+  --text-2xl: 1.953rem;  /* 31.25px */
+  --text-3xl: 2.441rem;  /* 39px */
+  --text-4xl: 3.052rem;  /* 48.8px */
+
+  /* ВЕСА ШРИФТОВ */
+  --weight-light: 300;
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 900;
+
+  /* ВЫСОТА СТРОК */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* ТРЕКИНГ (letter-spacing) */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+}
+
+/* ===== SPACING SYSTEM 2025 ===== */
+:root {
+  /* СИСТЕМА ОТСТУПОВ - 8px базовая единица */
+  --space-0: 0;
+  --space-1: 0.25rem;    /* 4px */
+  --space-2: 0.5rem;     /* 8px */
+  --space-3: 0.75rem;    /* 12px */
+  --space-4: 1rem;       /* 16px */
+  --space-5: 1.25rem;    /* 20px */
+  --space-6: 1.5rem;     /* 24px */
+  --space-8: 2rem;       /* 32px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-12: 3rem;      /* 48px */
+  --space-16: 4rem;      /* 64px */
+  --space-20: 5rem;      /* 80px */
+  --space-24: 6rem;      /* 96px */
+  --space-32: 8rem;      /* 128px */
+
+  /* СЕМАНТИЧЕСКИЕ ОТСТУПЫ */
+  --space-xs: var(--space-2);
+  --space-sm: var(--space-4);
+  --space-md: var(--space-6);
+  --space-lg: var(--space-8);
+  --space-xl: var(--space-12);
+  --space-2xl: var(--space-16);
+}
+
+/* ===== MODERN RADIUS SYSTEM ===== */
+:root {
+  /* РАДИУСЫ СКРУГЛЕНИЯ - тренд 2025 */
+  --radius-none: 0;
+  --radius-sm: 0.375rem;   /* 6px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px */
+  --radius-xl: 1rem;       /* 16px */
+  --radius-2xl: 1.5rem;    /* 24px */
+  --radius-3xl: 2rem;      /* 32px */
+  --radius-full: 9999px;   /* Полное скругление */
+
+  /* СЕМАНТИЧЕСКИЕ РАДИУСЫ */
+  --radius-button: var(--radius-xl);      /* Кнопки */
+  --radius-card: var(--radius-2xl);       /* Карточки */
+  --radius-modal: var(--radius-3xl);      /* Модальные окна */
+  --radius-input: var(--radius-lg);       /* Поля ввода */
+}
+
+/* ===== SHADOWS 2025 - МЯГКИЕ И ЕСТЕСТВЕННЫЕ ===== */
+:root {
+  /* ТЕНИ - вдохновлены Material Design 3.0 */
+  --shadow-sm: 
+    0 1px 2px color-mix(in srgb, var(--anna-brown) 5%, transparent 95%),
+    0 1px 3px color-mix(in srgb, var(--anna-brown) 10%, transparent 90%);
+  
+  --shadow-md: 
+    0 4px 6px color-mix(in srgb, var(--anna-brown) 7%, transparent 93%),
+    0 2px 4px color-mix(in srgb, var(--anna-brown) 6%, transparent 94%);
+  
+  --shadow-lg: 
+    0 10px 15px color-mix(in srgb, var(--anna-brown) 10%, transparent 90%),
+    0 4px 6px color-mix(in srgb, var(--anna-brown) 5%, transparent 95%);
+  
+  --shadow-xl: 
+    0 20px 25px color-mix(in srgb, var(--anna-brown) 15%, transparent 85%),
+    0 10px 10px color-mix(in srgb, var(--anna-brown) 4%, transparent 96%);
+  
+  --shadow-2xl: 
+    0 25px 50px color-mix(in srgb, var(--anna-brown) 25%, transparent 75%);
+
+  /* ВНУТРЕННИЕ ТЕНИ */
+  --shadow-inner: 
+    inset 0 2px 4px color-mix(in srgb, var(--anna-brown) 6%, transparent 94%);
+
+  /* ЦВЕТНЫЕ ТЕНИ ДЛЯ АКЦЕНТОВ */
+  --shadow-gold: 
+    0 8px 25px color-mix(in srgb, var(--anna-gold) 20%, transparent 80%),
+    0 4px 12px color-mix(in srgb, var(--anna-gold) 15%, transparent 85%);
+  
+  --shadow-sage: 
+    0 8px 25px color-mix(in srgb, var(--anna-sage) 20%, transparent 80%);
+  
+  --shadow-lavender: 
+    0 8px 25px color-mix(in srgb, var(--anna-lavender) 20%, transparent 80%);
+}
+
+/* ===== ANIMATION SYSTEM 2025 ===== */
+:root {
+  /* КРИВЫЕ АНИМАЦИИ - естественные, responsive */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0.0, 1, 1);
+  --ease-out: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-back: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ДЛИТЕЛЬНОСТИ */
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
+  --duration-slower: 500ms;
+  --duration-slowest: 750ms;
+
+  /* СЕМАНТИЧЕСКИЕ АНИМАЦИИ */
+  --transition-micro: var(--duration-fast) var(--ease-out);       /* Микроинтеракции */
+  --transition-quick: var(--duration-normal) var(--ease-out);     /* Быстрые переходы */
+  --transition-smooth: var(--duration-slow) var(--ease-in-out);   /* Плавные переходы */
+  --transition-bounce: var(--duration-slower) var(--ease-bounce); /* С отскоком */
+}
+
+/* ===== Z-INDEX SYSTEM ===== */
+:root {
+  --z-hide: -1;
+  --z-auto: auto;
+  --z-base: 0;
+  --z-docked: 10;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-banner: 1200;
+  --z-overlay: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-skiplink: 1600;
+  --z-toast: 1700;
+  --z-tooltip: 1800;
+}
+
+/* ===== COMPONENTS BASE STYLES ===== */
+
+/* КНОПКИ 2025 - большие touch areas, градиенты, анимации */
+.btn {
+  /* Базовые стили для всех кнопок */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  
+  /* Доступность */
+  min-height: 44px; /* iOS guidelines */
+  min-width: 44px;
+  
+  /* Отступы */
+  padding: var(--space-3) var(--space-6);
+  
+  /* Границы */
+  border: none;
+  border-radius: var(--radius-button);
+  
+  /* Типографика */
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-decoration: none;
+  white-space: nowrap;
+  
+  /* Интерактивность */
+  cursor: pointer;
+  user-select: none;
+  
+  /* Анимации */
+  transition: all var(--transition-quick);
+  transform: translateY(0);
+  
+  /* Фокус */
+  outline: none;
+  
+  /* Состояния */
+  &:hover {
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+    transition-duration: var(--duration-fast);
+  }
+  
+  &:focus-visible {
+    outline: 2px solid var(--anna-gold);
+    outline-offset: 2px;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+/* ВАРИАНТЫ КНОПОК */
+.btn-primary {
+  background: var(--gradient-gold);
+  color: white;
+  box-shadow: var(--shadow-md);
+  
+  &:hover:not(:disabled) {
+    box-shadow: var(--shadow-gold);
+    filter: brightness(1.05);
+  }
+  
+  &:active {
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+.btn-secondary {
+  background: var(--gradient-card);
+  color: var(--anna-brown);
+  border: 1px solid var(--anna-gray-200);
+  box-shadow: var(--shadow-sm);
+  
+  &:hover:not(:disabled) {
+    background: var(--gradient-card-hover);
+    border-color: var(--anna-gray-300);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--anna-brown);
+  
+  &:hover:not(:disabled) {
+    background: var(--anna-gray-100);
+  }
+}
+
+.btn-sage {
+  background: var(--gradient-sage);
+  color: white;
+  box-shadow: var(--shadow-md);
+  
+  &:hover:not(:disabled) {
+    box-shadow: var(--shadow-sage);
+  }
+}
+
+.btn-lavender {
+  background: var(--gradient-lavender);
+  color: white;
+  box-shadow: var(--shadow-md);
+  
+  &:hover:not(:disabled) {
+    box-shadow: var(--shadow-lavender);
+  }
+}
+
+/* РАЗМЕРЫ КНОПОК */
+.btn-sm {
+  min-height: 36px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.btn-lg {
+  min-height: 52px;
+  padding: var(--space-4) var(--space-8);
+  font-size: var(--text-lg);
+}
+
+/* КАРТОЧКИ 2025 - мягкие, с глубиной */
+.card {
+  background: var(--gradient-card);
+  border: 1px solid var(--anna-gray-200);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: all var(--transition-smooth);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--anna-gray-300);
+  }
+}
+
+.card-header {
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--anna-gray-200);
+  background: var(--anna-warm-white);
+}
+
+.card-body {
+  padding: var(--space-6);
+}
+
+.card-footer {
+  padding: var(--space-6);
+  border-top: 1px solid var(--anna-gray-200);
+  background: var(--anna-gray-50);
+}
+
+/* ПОЛЯ ВВОДА 2025 - большие, удобные */
+.input {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  
+  /* Стили */
+  background: var(--anna-warm-white);
+  border: 2px solid var(--anna-gray-200);
+  border-radius: var(--radius-input);
+  
+  /* Типографика */
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  color: var(--anna-brown);
+  
+  /* Анимации */
+  transition: all var(--transition-quick);
+  
+  /* Placeholder */
+  &::placeholder {
+    color: var(--anna-gray-400);
+  }
+  
+  /* Состояния */
+  &:focus {
+    outline: none;
+    border-color: var(--anna-gold);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--anna-gold) 20%, transparent 80%);
+    background: white;
+  }
+  
+  &:invalid {
+    border-color: var(--anna-terracotta);
+  }
+}
+
+.textarea {
+  @extend .input;
+  min-height: 120px;
+  resize: vertical;
+  font-family: var(--font-handwriting);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+}
+
+/* ЛЕЙБЛЫ */
+.label {
+  display: block;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--anna-brown-dark);
+  margin-bottom: var(--space-2);
+  letter-spacing: var(--tracking-wide);
+}
+
+/* ЗНАЧКИ И ИКОНКИ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.badge-success {
+  background: var(--success-bg);
+  color: var(--anna-sage-dark);
+}
+
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--anna-gold-dark);
+}
+
+.badge-error {
+  background: var(--error-bg);
+  color: var(--anna-terracotta-dark);
+}
+
+.badge-info {
+  background: var(--info-bg);
+  color: var(--anna-lavender-dark);
+}
+
+/* МИКРОАНИМАЦИИ */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0; 
+    transform: scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0,0,0);
+  }
+  40%, 43% {
+    transform: translate3d(0,-8px,0);
+  }
+  70% {
+    transform: translate3d(0,-4px,0);
+  }
+  90% {
+    transform: translate3d(0,-2px,0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--anna-gold) 40%, transparent 60%);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* КЛАССЫ АНИМАЦИЙ */
+.animate-fade-in {
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+.animate-slide-up {
+  animation: slideUp var(--duration-normal) var(--ease-out);
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--duration-normal) var(--ease-out);
+}
+
+.animate-bounce {
+  animation: bounce var(--duration-slower) var(--ease-out);
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* UTILITY CLASSES */
+.text-gold { color: var(--anna-gold); }
+.text-sage { color: var(--anna-sage); }
+.text-lavender { color: var(--anna-lavender); }
+.text-terracotta { color: var(--anna-terracotta); }
+
+.bg-gold { background: var(--anna-gold); }
+.bg-sage { background: var(--anna-sage); }
+.bg-lavender { background: var(--anna-lavender); }
+.bg-terracotta { background: var(--anna-terracotta); }
+
+.gradient-gold { background: var(--gradient-gold); }
+.gradient-sage { background: var(--gradient-sage); }
+.gradient-lavender { background: var(--gradient-lavender); }
+.gradient-terracotta { background: var(--gradient-terracotta); }
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 768px) {
+  .btn {
+    min-height: 48px; /* Больше на мобильных */
+  }
+  
+  .card {
+    border-radius: var(--radius-xl); /* Меньше скругления на маленьких экранах */
+  }
+}
+
+@media (max-width: 480px) {
+  .btn {
+    width: 100%; /* Полная ширина на очень маленьких экранах */
+  }
+  
+  .card-header,
+  .card-body,
+  .card-footer {
+    padding: var(--space-4);
+  }
+}
+
+/* DARK MODE SUPPORT (для будущего расширения) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --anna-cream: #1a1611;
+    --anna-warm-white: #201c17;
+    --anna-brown: #d4c4a0;
+    /* Остальные цвета будут адаптированы позже */
+  }
+}
