@@ -1,0 +1,588 @@
+/**
+ * DIARY.CSS - Стили для дневника цитат с перелистыванием страниц
+ * Вдохновлено дизайном annabusel.org и реалистичным эффектом книги
+ */
+
+/* ===== ПЕРЕМЕННЫЕ ДНЕВНИКА ===== */
+:root {
+  /* Цвета в стиле annabusel.org */
+  --anna-black: #1a1a1a;
+  --anna-white: #ffffff;
+  --anna-gray: #666666;
+  --anna-light-gray: #f5f5f5;
+  --anna-accent: #d4af37; /* золотистый */
+  
+  /* Цвета бумаги и чернил */
+  --paper-color: #fefef8;
+  --paper-shadow: rgba(0,0,0,0.15);
+  --ink-color: #2c2c2c;
+  --handwriting-color: #4a4a4a;
+  --pencil-color: #8b6914;
+  
+  /* Размеры книги */
+  --book-width: 100%;
+  --book-height: 600px;
+  --page-thickness: 0.1rem;
+  --binding-width: 0.8rem;
+}
+
+/* ===== КОНТЕЙНЕР ДНЕВНИКА ===== */
+.diary-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+  perspective: 2000px;
+}
+
+.diary-header {
+  text-align: center;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.diary-title {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 2.5rem;
+  color: var(--anna-black);
+  margin-bottom: var(--spacing-sm);
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+
+.diary-subtitle {
+  font-size: 1.1rem;
+  color: var(--anna-gray);
+  font-style: italic;
+  font-weight: 300;
+}
+
+/* ===== КНИГА С 3D ЭФФЕКТОМ ===== */
+.book-container {
+  position: relative;
+  width: 100%;
+  height: var(--book-height);
+  margin: 0 auto var(--spacing-2xl);
+  transform-style: preserve-3d;
+  transition: transform 0.6s ease;
+}
+
+.book-spine {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: var(--binding-width);
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    #8b4513 0%,
+    #a0522d 20%,
+    #d2691e 50%,
+    #a0522d 80%,
+    #8b4513 100%
+  );
+  transform: translateX(-50%);
+  z-index: 100;
+  box-shadow: 
+    inset 2px 0 4px rgba(0,0,0,0.3),
+    inset -2px 0 4px rgba(0,0,0,0.3),
+    0 0 20px rgba(0,0,0,0.2);
+  border-radius: 2px;
+}
+
+.book-spine::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  width: 2px;
+  height: 80%;
+  background: rgba(0,0,0,0.4);
+  transform: translateX(-50%);
+}
+
+/* ===== СТРАНИЦЫ КНИГИ ===== */
+.book-page {
+  position: absolute;
+  width: calc(50% - var(--binding-width) / 2);
+  height: 100%;
+  background: var(--paper-color);
+  border: 1px solid #e8e8e0;
+  box-shadow: 
+    0 4px 20px var(--paper-shadow),
+    inset 0 0 60px rgba(139, 105, 20, 0.03);
+  transform-origin: right center;
+  transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  backface-visibility: hidden;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.book-page.left {
+  left: 0;
+  border-radius: 8px 0 0 8px;
+  transform-origin: right center;
+}
+
+.book-page.right {
+  right: 0;
+  border-radius: 0 8px 8px 0;
+  transform-origin: left center;
+}
+
+/* Анимация перелистывания */
+.book-page.turning {
+  transform: rotateY(-25deg);
+  z-index: 50;
+}
+
+.book-page.turned {
+  transform: rotateY(-180deg);
+  z-index: 5;
+}
+
+/* Эффект загнутого уголка */
+.page-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(
+    -45deg,
+    transparent 0%,
+    rgba(0,0,0,0.05) 50%,
+    rgba(0,0,0,0.1) 100%
+  );
+  cursor: pointer;
+  border-radius: 0 8px 0 30px;
+  transition: all 0.3s ease;
+  z-index: 20;
+}
+
+.page-corner:hover {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(
+    -45deg,
+    transparent 0%,
+    rgba(212, 175, 55, 0.1) 50%,
+    rgba(212, 175, 55, 0.2) 100%
+  );
+}
+
+.page-corner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-left: 30px solid var(--paper-color);
+  border-top: 30px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.page-corner:hover::after {
+  border-left-width: 40px;
+  border-top-width: 40px;
+}
+
+/* ===== СОДЕРЖИМОЕ СТРАНИЦ ===== */
+.page-content {
+  height: 100%;
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+}
+
+/* Эффект линованной бумаги */
+.page-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(90deg, transparent 2.5rem, rgba(139, 105, 20, 0.2) 2.5rem, rgba(139, 105, 20, 0.2) calc(2.5rem + 1px), transparent calc(2.5rem + 1px)),
+    linear-gradient(rgba(139, 105, 20, 0.1) 0.1em, transparent 0.1em);
+  background-size: 100% 1.8em;
+  z-index: -1;
+  opacity: 0.6;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--anna-accent);
+}
+
+.page-date {
+  font-family: 'Georgia', serif;
+  font-size: 1.4rem;
+  color: var(--anna-gray);
+  font-weight: 300;
+  letter-spacing: 0.5px;
+}
+
+.page-week {
+  font-size: 0.9rem;
+  color: var(--anna-gray);
+  margin-top: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ===== СТИЛИ ЦИТАТ (РУКОПИСНЫЕ) ===== */
+.quotes-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.quote-entry {
+  margin-bottom: 2.5rem;
+  position: relative;
+  animation: fadeInQuote 0.8s ease-out;
+}
+
+@keyframes fadeInQuote {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.quote-text {
+  font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
+  font-size: 1.4rem;
+  line-height: 2;
+  color: var(--handwriting-color);
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+/* Красивые кавычки */
+.quote-text::before {
+  content: '"';
+  position: absolute;
+  left: 0;
+  top: -0.2em;
+  font-size: 2.5rem;
+  color: var(--anna-accent);
+  font-family: 'Georgia', serif;
+  line-height: 1;
+}
+
+.quote-text::after {
+  content: '"';
+  font-size: 2rem;
+  color: var(--anna-accent);
+  font-family: 'Georgia', serif;
+  margin-left: 0.2em;
+}
+
+.quote-author {
+  text-align: right;
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  color: var(--anna-gray);
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.quote-author::before {
+  content: '— ';
+  color: var(--anna-accent);
+}
+
+.quote-date {
+  font-size: 0.85rem;
+  color: var(--anna-gray);
+  text-align: right;
+  font-family: var(--font-secondary);
+  margin-top: 0.5rem;
+}
+
+/* ===== ФОРМА ДОБАВЛЕНИЯ ЦИТАТЫ ===== */
+.add-quote-section {
+  background: var(--anna-white);
+  border-radius: 15px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 
+    0 10px 40px rgba(0,0,0,0.1),
+    0 4px 20px rgba(0,0,0,0.05);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.add-quote-title {
+  font-family: 'Georgia', serif;
+  font-size: 1.8rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--anna-black);
+  font-weight: 300;
+}
+
+.diary-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.diary-form-group label {
+  display: block;
+  font-family: var(--font-secondary);
+  font-weight: 500;
+  color: var(--anna-gray);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.diary-form-group textarea,
+.diary-form-group input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e8e8e8;
+  border-radius: 8px;
+  font-family: var(--font-secondary);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: var(--paper-color);
+}
+
+.diary-form-group textarea:focus,
+.diary-form-group input:focus {
+  outline: none;
+  border-color: var(--anna-accent);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+  background: var(--anna-white);
+}
+
+.diary-form-group textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: 'Brush Script MT', cursive;
+  font-size: 1.3rem;
+  line-height: 1.8;
+}
+
+.diary-submit-btn {
+  width: 100%;
+  background: var(--anna-accent);
+  color: var(--anna-white);
+  border: none;
+  padding: 1rem;
+  border-radius: 8px;
+  font-family: var(--font-secondary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+}
+
+.diary-submit-btn:hover {
+  background: #b8941f;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.4);
+}
+
+.diary-submit-btn:active {
+  transform: translateY(0);
+}
+
+/* ===== НАВИГАЦИЯ СТРАНИЦ ===== */
+.page-navigation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.nav-btn {
+  background: var(--anna-black);
+  color: var(--anna-white);
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 25px;
+  font-family: var(--font-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  min-width: 120px;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: var(--anna-gray);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.nav-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.6;
+}
+
+.page-indicator {
+  font-family: 'Georgia', serif;
+  color: var(--anna-gray);
+  font-size: 1rem;
+  text-align: center;
+  min-width: 150px;
+}
+
+/* ===== АДАПТИВНОСТЬ ===== */
+@media (max-width: 768px) {
+  .diary-container {
+    padding: var(--spacing-md);
+  }
+  
+  .book-container {
+    height: 500px;
+  }
+  
+  .page-content {
+    padding: 1.5rem 1rem;
+  }
+  
+  .diary-title {
+    font-size: 2rem;
+  }
+  
+  .quote-text {
+    font-size: 1.2rem;
+    line-height: 1.8;
+  }
+  
+  .add-quote-section {
+    padding: 1.5rem;
+  }
+  
+  .page-navigation {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .nav-btn {
+    min-width: 100px;
+    padding: 0.7rem 1.2rem;
+  }
+  
+  .page-corner {
+    width: 25px;
+    height: 25px;
+  }
+  
+  .page-corner:hover {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .book-container {
+    height: 450px;
+  }
+  
+  .page-content {
+    padding: 1rem 0.8rem;
+  }
+  
+  .quote-text {
+    font-size: 1.1rem;
+    padding-left: 1rem;
+  }
+  
+  .quote-text::before {
+    font-size: 2rem;
+  }
+  
+  .add-quote-section {
+    padding: 1rem;
+  }
+}
+
+/* ===== ДОПОЛНИТЕЛЬНЫЕ ЭФФЕКТЫ ===== */
+
+/* Тень при перелистывании */
+.book-page.turning::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to left,
+    transparent 0%,
+    rgba(0,0,0,0.1) 50%,
+    rgba(0,0,0,0.2) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Анимация загрузки страницы */
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--anna-gray);
+  font-style: italic;
+}
+
+/* Пустая страница */
+.empty-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--anna-gray);
+  text-align: center;
+  font-style: italic;
+}
+
+.empty-page-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Анимация появления новой цитаты */
+.quote-entry.new {
+  animation: newQuoteAppear 1s ease-out;
+}
+
+@keyframes newQuoteAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
