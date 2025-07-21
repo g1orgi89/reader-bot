@@ -48,6 +48,9 @@ class ReaderApp {
             // Настройка счетчика символов
             this.setupCharCounter();
             
+            // ДОБАВЛЕНО: iOS клавиатура фиксы
+            this.setupIOSKeyboardFixes();
+            
             // Загрузка начальных данных
             await this.loadInitialData();
             
@@ -56,6 +59,64 @@ class ReaderApp {
             console.error('❌ Ошибка инициализации:', error);
             this.showError('Ошибка загрузки приложения');
         }
+    }
+
+    /**
+     * ДОБАВЛЕНО: Настройка фиксов для iOS клавиатуры
+     */
+    setupIOSKeyboardFixes() {
+        // Определяем iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (!isIOS) return;
+        
+        console.log('🍎 Настройка iOS фиксов клавиатуры');
+        
+        // Все поля ввода
+        const inputs = document.querySelectorAll('input, textarea');
+        
+        inputs.forEach(input => {
+            // Когда клавиатура появляется
+            input.addEventListener('focus', () => {
+                console.log('⌨️ iOS: клавиатура открыта');
+                document.body.classList.add('keyboard-open');
+                
+                // Небольшой скролл чтобы поле было видно
+                setTimeout(() => {
+                    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            });
+            
+            // Когда клавиатура скрывается
+            input.addEventListener('blur', () => {
+                console.log('⌨️ iOS: клавиатура закрыта');
+                document.body.classList.remove('keyboard-open');
+                
+                // Принудительно "чиним" viewport через небольшую задержку
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                    
+                    // Дополнительная попытка через 100мс
+                    setTimeout(() => {
+                        if (window.Telegram?.WebApp?.expand) {
+                            window.Telegram.WebApp.expand();
+                        }
+                    }, 100);
+                }, 50);
+            });
+        });
+        
+        // Общий обработчик изменения размера
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                console.log('📱 iOS: resize завершен');
+                // Если нет активного поля - убираем класс клавиатуры
+                if (!document.querySelector('input:focus, textarea:focus')) {
+                    document.body.classList.remove('keyboard-open');
+                }
+            }, 150);
+        });
     }
 
     /**
@@ -1584,4 +1645,41 @@ document.addEventListener('DOMContentLoaded', () => {
     window.app = app; // Для отладки
 });
 
-console.log('📱 Reader Bot Mini App v2.4 скрипт загружен - Main Button удалена');
+// ДОБАВЛЕНО: iOS клавиатура - дополнительные фиксы для надежности
+window.addEventListener('load', () => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (!isIOS) return;
+    
+    console.log('🍎 Дополнительные iOS фиксы загружены');
+    
+    // Фикс для странного поведения viewport на iOS
+    let viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            const currentHeight = window.visualViewport.height;
+            const heightDiff = viewportHeight - currentHeight;
+            
+            console.log(`📱 Viewport: ${viewportHeight} → ${currentHeight} (diff: ${heightDiff})`);
+            
+            // Если высота уменьшилась значительно - клавиатура открыта
+            if (heightDiff > 150) {
+                document.body.classList.add('keyboard-open');
+            } 
+            // Если высота восстановилась - клавиатура закрыта
+            else if (heightDiff < 50) {
+                document.body.classList.remove('keyboard-open');
+                
+                // Дополнительная попытка "починить" viewport
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                    if (window.Telegram?.WebApp?.expand) {
+                        window.Telegram.WebApp.expand();
+                    }
+                }, 100);
+            }
+        });
+    }
+});
+
+console.log('📱 Reader Bot Mini App v2.4 + iOS фиксы загружены');
