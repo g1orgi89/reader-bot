@@ -1,6 +1,6 @@
 /**
- * TELEGRAM.JS - Интеграция с Telegram Web App SDK v2.0
- * ИСПРАВЛЕНО: Автоматическое чтение темы от Telegram без mock режима
+ * TELEGRAM.JS - Интеграция с Telegram Web App SDK v2.1
+ * ИСПРАВЛЕНО: Убраны уведомления о смене темы для iOS
  * Полная поддержка всех themeParams из Telegram Mini Apps API
  */
 
@@ -191,7 +191,7 @@ class TelegramManager {
     }
     
     /**
-     * ИСПРАВЛЕНО: Автоматическая настройка тем
+     * ИСПРАВЛЕНО: Автоматическая настройка тем БЕЗ уведомлений
      */
     setupThemes() {
         console.log('🎨 Setting up themes...');
@@ -215,11 +215,11 @@ class TelegramManager {
             console.log('🔧 Using auto-detected theme:', colorScheme);
         }
         
-        // ПРИМЕНЯЕМ ТЕМУ
+        // ПРИМЕНЯЕМ ТЕМУ БЕЗ УВЕДОМЛЕНИЙ
         this.applyTelegramTheme(themeParams, colorScheme);
-        this.showThemeIndicator(colorScheme);
+        // УБРАНО: this.showThemeIndicator(colorScheme); ← Отключено для iOS
         
-        console.log('✅ Theme applied successfully:', colorScheme);
+        console.log('✅ Theme applied silently:', colorScheme);
         
         // Уведомляем подписчиков
         this.callbacks.onThemeChange.forEach(callback => {
@@ -321,44 +321,17 @@ class TelegramManager {
             colorScheme: colorScheme
         });
         
-        this.animateThemeTransition();
+        // УБРАНО: Анимация перехода может вызывать проблемы на iOS
+        // this.animateThemeTransition();
     }
     
     /**
-     * Анимация перехода между темами
-     */
-    animateThemeTransition() {
-        let overlay = document.querySelector('.theme-transition-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.className = 'theme-transition-overlay';
-            document.body.appendChild(overlay);
-        }
-        
-        overlay.classList.add('active');
-        setTimeout(() => overlay.classList.remove('active'), 300);
-    }
-    
-    /**
-     * Показ индикатора смены темы
+     * ОТКЛЮЧЕНО: Показ индикатора смены темы (убрано для iOS)
      */
     showThemeIndicator(colorScheme) {
-        let indicator = document.querySelector('.theme-indicator');
-        if (!indicator) {
-            indicator = document.createElement('div');
-            indicator.className = 'theme-indicator';
-            document.body.appendChild(indicator);
-        }
-        
-        const themeNames = {
-            light: '☀️ Светлая тема',
-            dark: '🌙 Темная тема'
-        };
-        
-        indicator.textContent = themeNames[colorScheme] || `🎨 Тема: ${colorScheme}`;
-        indicator.classList.add('show');
-        
-        setTimeout(() => indicator.classList.remove('show'), 2000);
+        // Отключено для предотвращения показа "Темная тема" на iOS
+        console.log('🔇 Theme indicator disabled for iOS compatibility');
+        return;
     }
     
     /**
@@ -381,10 +354,10 @@ class TelegramManager {
                     });
                 });
                 
-                // ВАЖНО: Слушаем изменения темы
+                // ВАЖНО: Слушаем изменения темы БЕЗ уведомлений
                 this.tg.onEvent('themeChanged', () => {
-                    console.log('🎨 Telegram theme change event received');
-                    this.setupThemes(); // Перенастраиваем темы
+                    console.log('🎨 Telegram theme change event received - silent update');
+                    this.setupThemes(); // Перенастраиваем темы тихо
                 });
             }
         }
@@ -473,13 +446,13 @@ class TelegramManager {
             });
         }
         
-        // НОВОЕ: Слушаем изменения системной темы браузера
+        // НОВОЕ: Слушаем изменения системной темы браузера ТИХО
         if (window.matchMedia) {
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
             mediaQuery.addListener((e) => {
                 if (this.mockMode) {
-                    console.log('🔄 System theme changed:', e.matches ? 'dark' : 'light');
-                    // В fallback режиме реагируем на системную тему
+                    console.log('🔄 System theme changed silently:', e.matches ? 'dark' : 'light');
+                    // В fallback режиме реагируем на системную тему БЕЗ уведомлений
                     const newScheme = e.matches ? 'dark' : 'light';
                     this.tg.colorScheme = newScheme;
                     this.tg.themeParams = this.getDefaultThemeParams(newScheme);
@@ -675,10 +648,10 @@ class TelegramManager {
     }
     
     /**
-     * Форсированное обновление темы
+     * Форсированное обновление темы БЕЗ уведомлений
      */
     forceThemeUpdate() {
-        console.log('🔄 Force theme update requested');
+        console.log('🔄 Force theme update requested - silent mode');
         this.setupThemes();
     }
     
@@ -698,4 +671,4 @@ class TelegramManager {
 // Создаем глобальный экземпляр
 window.TelegramManager = new TelegramManager();
 
-console.log('✅ TelegramManager v2.1: Module loaded with automatic theme detection');
+console.log('✅ TelegramManager v2.1: Module loaded with silent theme switching');
