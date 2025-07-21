@@ -375,9 +375,57 @@
         </div>
     </div>
 
-    <!-- Подключение JavaScript -->
+    <!-- ===================== 
+         JAVASCRIPT - ПРАВИЛЬНЫЙ ПОРЯДОК ЗАГРУЗКИ
+    ===================== -->
+    
+    <!-- 1. Telegram WebApp Manager (должен быть первым) -->
     <script src="./js/telegram-v2.js"></script>
+    
+    <!-- 2. API Manager (базовые функции API) -->
     <script src="./js/api.js"></script>
+    
+    <!-- 3. API Integration Layer (адаптер между API и App) -->
+    <script src="./js/api-integration.js"></script>
+    
+    <!-- 4. Main Application (основное приложение) -->
     <script src="./js/app.js"></script>
+    
+    <!-- Debug информация для разработки -->
+    <script>
+        // Показ информации о загрузке в консоли
+        console.log('🚀 Reader Bot Mini App v2.1');
+        console.log('📍 Порядок загрузки скриптов:');
+        console.log('  1. ✅ telegram-v2.js - Telegram WebApp SDK');
+        console.log('  2. ✅ api.js - API Manager');
+        console.log('  3. ✅ api-integration.js - Integration Layer'); 
+        console.log('  4. ✅ app.js - Main Application');
+        
+        // Debug функция для проверки готовности
+        window.checkIntegration = function() {
+            const status = {
+                telegram: !!window.TelegramManager,
+                apiManager: !!window.apiManager,
+                readerAPI: !!window.ReaderAPI,
+                readerAPIInstance: !!window.readerAPI,
+                app: !!window.app
+            };
+            
+            console.log('🔍 Статус интеграции:', status);
+            
+            if (window.app?.getDebugInfo) {
+                console.log('📊 Debug информация приложения:', window.app.getDebugInfo());
+            }
+            
+            return status;
+        };
+        
+        // Автоматическая проверка через 3 секунды после загрузки
+        setTimeout(() => {
+            if (typeof window.checkIntegration === 'function') {
+                window.checkIntegration();
+            }
+        }, 3000);
+    </script>
 </body>
 </html>
