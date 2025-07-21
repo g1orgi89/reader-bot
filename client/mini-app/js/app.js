@@ -1,8 +1,8 @@
 /**
- * Reader Bot Mini App - Основной модуль приложения
- * Управление навигацией, пользовательским интерфейсом и взаимодействием с API
+ * Reader Bot Mini App - Основной модуль приложения v2.1
+ * ОБНОВЛЕНО: Интеграция с ReaderAPI через api-integration.js
  * 
- * @version 2.0
+ * @version 2.1
  * @author Reader Bot Team
  */
 
@@ -30,14 +30,14 @@ class ReaderApp {
      * Инициализация приложения
      */
     async init() {
-        console.log('🚀 Инициализация Reader Bot Mini App v2.0');
+        console.log('🚀 Инициализация Reader Bot Mini App v2.1');
         
         try {
             // Инициализация Telegram WebApp
             await this.initTelegram();
             
-            // Инициализация API клиента
-            this.initAPI();
+            // Инициализация API клиента (ждем готовности)
+            await this.initAPI();
             
             // Настройка обработчиков событий
             this.setupEventListeners();
@@ -59,34 +59,103 @@ class ReaderApp {
      * Инициализация Telegram WebApp
      */
     async initTelegram() {
+        // Ждем загрузки TelegramManager
+        await this.waitForTelegramManager();
+        
         if (window.TelegramManager) {
+            // Инициализируем TelegramManager
+            const userData = window.TelegramManager.init();
             this.telegramManager = window.TelegramManager;
+            this.currentUser = userData;
             
             // Настройка событий Telegram
-            this.telegramManager.on('ready', (user) => {
+            this.telegramManager.on('userChange', (user) => {
                 this.currentUser = user;
                 this.updateUserInfo(user);
-                console.log('👤 Пользователь Telegram:', user);
+                console.log('👤 Пользователь Telegram обновлен:', user);
             });
 
-            this.telegramManager.on('themeChanged', (themeParams, colorScheme) => {
+            this.telegramManager.on('themeChange', (themeParams, colorScheme) => {
                 console.log('🎨 Тема изменена:', colorScheme);
-                this.updateTheme(colorScheme);
             });
 
             // Настройка основной кнопки
             this.setupMainButton();
+            
+            // Обновление UI с данными пользователя
+            this.updateUserInfo(userData);
         }
     }
 
     /**
-     * Инициализация API клиента
+     * Ожидание загрузки TelegramManager
      */
-    initAPI() {
-        if (window.ReaderAPI) {
-            this.apiClient = new window.ReaderAPI();
-            console.log('🔗 API клиент инициализирован');
-        }
+    async waitForTelegramManager() {
+        return new Promise((resolve) => {
+            if (window.TelegramManager) {
+                resolve();
+                return;
+            }
+            
+            // Ждем событие загрузки или таймаут
+            const checkTelegram = () => {
+                if (window.TelegramManager) {
+                    resolve();
+                } else {
+                    setTimeout(checkTelegram, 100);
+                }
+            };
+            
+            checkTelegram();
+        });
+    }
+
+    /**
+     * Инициализация API клиента - ОБНОВЛЕНО
+     */
+    async initAPI() {
+        console.log('🔗 Инициализация API клиента...');
+        
+        return new Promise((resolve, reject) => {
+            const initWithReaderAPI = () => {
+                if (window.readerAPI) {
+                    this.apiClient = window.readerAPI;
+                    console.log('✅ ReaderAPI подключен:', this.apiClient.getConnectionInfo());
+                    resolve();
+                } else if (window.ReaderAPI) {
+                    // Fallback - создаем экземпляр вручную
+                    try {
+                        this.apiClient = new window.ReaderAPI();
+                        console.log('✅ ReaderAPI создан вручную');
+                        resolve();
+                    } catch (error) {
+                        console.error('❌ Ошибка создания ReaderAPI:', error);
+                        reject(error);
+                    }
+                } else {
+                    console.warn('⏳ Ожидание готовности ReaderAPI...');
+                    setTimeout(initWithReaderAPI, 100);
+                }
+            };
+            
+            // Слушаем событие готовности API
+            window.addEventListener('readerAPIReady', (event) => {
+                this.apiClient = event.detail.readerAPI;
+                console.log('✅ ReaderAPI готов через событие');
+                resolve();
+            });
+            
+            // Запускаем инициализацию
+            initWithReaderAPI();
+            
+            // Таймаут безопасности
+            setTimeout(() => {
+                if (!this.apiClient) {
+                    console.warn('⚠️ API клиент не готов, продолжаем без него');
+                    resolve();
+                }
+            }, 3000);
+        });
     }
 
     /**
@@ -195,17 +264,28 @@ class ReaderApp {
         this.showLoading(true);
 
         try {
-            // Загрузка статистики пользователя
-            await this.loadUserStats();
-            
-            // Загрузка последних цитат
-            await this.loadRecentQuotes();
-            
-            // Загрузка каталога книг
-            await this.loadBookCatalog();
+            // Аутентификация с Telegram (если доступна)
+            if (this.apiClient && this.currentUser) {
+                try {
+                    await this.apiClient.authenticateWithTelegram(
+                        this.telegramManager?.tg?.initData || '',
+                        this.currentUser
+                    );
+                    console.log('✅ Аутентификация прошла успешно');
+                } catch (authError) {
+                    console.warn('⚠️ Ошибка аутентификации, продолжаем без нее:', authError);
+                }
+            }
+
+            // Загрузка данных параллельно
+            await Promise.allSettled([
+                this.loadUserStats(),
+                this.loadRecentQuotes(),
+                this.loadBookCatalog()
+            ]);
 
         } catch (error) {
-            console.error('Ошибка загрузки данных:', error);
+            console.error('❌ Ошибка загрузки данных:', error);
         } finally {
             this.showLoading(false);
         }
@@ -218,18 +298,23 @@ class ReaderApp {
         try {
             if (!this.apiClient) return;
 
+            console.log('📊 Загрузка статистики...');
             const stats = await this.apiClient.getUserStats();
             this.state.stats = stats;
             
             // Обновление UI
             const totalQuotesEl = document.getElementById('totalQuotes');
             const streakDaysEl = document.getElementById('streakDays');
+            const weekQuotesEl = document.getElementById('weekQuotes');
             
             if (totalQuotesEl) totalQuotesEl.textContent = stats.totalQuotes || 0;
             if (streakDaysEl) streakDaysEl.textContent = stats.streakDays || 0;
+            if (weekQuotesEl) weekQuotesEl.textContent = stats.weekQuotes || 0;
+            
+            console.log('✅ Статистика загружена:', stats);
             
         } catch (error) {
-            console.error('Ошибка загрузки статистики:', error);
+            console.error('❌ Ошибка загрузки статистики:', error);
         }
     }
 
@@ -240,11 +325,14 @@ class ReaderApp {
         try {
             if (!this.apiClient) return;
 
+            console.log('📝 Загрузка недавних цитат...');
             const quotes = await this.apiClient.getRecentQuotes(3);
             this.renderRecentQuotes(quotes);
             
+            console.log('✅ Недавние цитаты загружены:', quotes.length);
+            
         } catch (error) {
-            console.error('Ошибка загрузки цитат:', error);
+            console.error('❌ Ошибка загрузки цитат:', error);
         }
     }
 
@@ -255,11 +343,14 @@ class ReaderApp {
         try {
             if (!this.apiClient) return;
 
+            console.log('📚 Загрузка каталога...');
             const books = await this.apiClient.getBookCatalog();
             this.renderBooks(books);
             
+            console.log('✅ Каталог загружен:', books.length);
+            
         } catch (error) {
-            console.error('Ошибка загрузки каталога:', error);
+            console.error('❌ Ошибка загрузки каталога:', error);
         }
     }
 
@@ -311,7 +402,7 @@ class ReaderApp {
         }
 
         container.innerHTML = books.map(book => `
-            <div class="book-card" onclick="window.open('${book.link}', '_blank')">
+            <div class="book-card" onclick="this.openBookLink('${book.link}')">
                 <div class="book-header">
                     <div class="book-cover ${book.category}">
                         ${this.getBookIcon(book.category)}
@@ -327,9 +418,16 @@ class ReaderApp {
                 <p class="book-description">
                     ${this.escapeHtml(book.description || '')}
                 </p>
+                ${book.recommendation ? `
+                    <div class="book-recommendation">
+                        💡 ${this.escapeHtml(book.recommendation)}
+                    </div>
+                ` : ''}
                 <div class="book-footer">
                     <div class="book-price">${book.price || 'Цена уточняется'}</div>
-                    <button class="buy-btn" onclick="event.stopPropagation()">Купить</button>
+                    <button class="buy-btn" onclick="event.stopPropagation(); this.trackBookClick('${book.id}', '${book.title}')">
+                        Купить
+                    </button>
                 </div>
             </div>
         `).join('');
@@ -342,11 +440,43 @@ class ReaderApp {
         const icons = {
             psychology: '🧠',
             philosophy: '🤔',
-            'self-development': '🚀',
+            selfdevelopment: '🚀',
             classic: '📖',
             relationship: '❤️'
         };
         return icons[category] || '📚';
+    }
+
+    /**
+     * Открытие ссылки на книгу
+     */
+    openBookLink(link) {
+        if (this.telegramManager?.tg?.openLink) {
+            this.telegramManager.tg.openLink(link);
+        } else {
+            window.open(link, '_blank');
+        }
+        
+        // Haptic feedback
+        this.triggerHaptic('light');
+    }
+
+    /**
+     * Трекинг клика по книге
+     */
+    async trackBookClick(bookId, bookTitle) {
+        try {
+            if (this.apiClient && this.apiClient.trackEvent) {
+                await this.apiClient.trackEvent('book_click', {
+                    bookId: bookId,
+                    bookTitle: bookTitle,
+                    source: 'mini_app_catalog',
+                    userId: this.currentUser?.id
+                });
+            }
+        } catch (error) {
+            console.warn('⚠️ Не удалось отследить клик:', error);
+        }
     }
 
     /**
@@ -356,25 +486,13 @@ class ReaderApp {
         const avatarEl = document.getElementById('userAvatar');
         const nameEl = document.getElementById('userName');
         
-        if (avatarEl && user.first_name) {
-            avatarEl.textContent = user.first_name.charAt(0).toUpperCase();
+        if (avatarEl && user.firstName) {
+            avatarEl.textContent = user.firstName.charAt(0).toUpperCase();
         }
         
-        if (nameEl && user.first_name) {
-            nameEl.textContent = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
-        }
-    }
-
-    /**
-     * Обновление темы приложения
-     */
-    updateTheme(colorScheme) {
-        document.body.classList.remove('light-theme', 'dark-theme');
-        
-        if (colorScheme === 'dark') {
-            document.body.classList.add('dark-theme');
-        } else {
-            document.body.classList.add('light-theme');
+        if (nameEl) {
+            const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Читатель';
+            nameEl.textContent = fullName;
         }
     }
 
@@ -415,7 +533,7 @@ class ReaderApp {
             item.classList.remove('active');
         });
         
-        const activeNav = document.querySelector(`[data-page="${pageId}"]`);
+        const activeNav = document.querySelector(`[data-page=\"${pageId}\"]`);
         if (activeNav) {
             activeNav.classList.add('active');
         }
@@ -435,6 +553,9 @@ class ReaderApp {
             case 'catalog':
                 await this.loadBookCatalog();
                 break;
+            case 'achievements':
+                await this.loadAchievements();
+                break;
         }
     }
 
@@ -445,6 +566,7 @@ class ReaderApp {
         try {
             if (!this.apiClient) return;
 
+            console.log('📖 Загрузка всех цитат...');
             const quotes = await this.apiClient.getAllQuotes();
             this.state.quotes = quotes;
             this.renderQuotesList(quotes);
@@ -455,8 +577,46 @@ class ReaderApp {
                 subtitle.textContent = `${quotes.length} записей о мудрости`;
             }
             
+            console.log('✅ Все цитаты загружены:', quotes.length);
+            
         } catch (error) {
-            console.error('Ошибка загрузки цитат:', error);
+            console.error('❌ Ошибка загрузки цитат:', error);
+        }
+    }
+
+    /**
+     * Загрузка отчетов
+     */
+    async loadReports() {
+        try {
+            if (!this.apiClient) return;
+
+            console.log('📊 Загрузка отчетов...');
+            const reports = await this.apiClient.getReports();
+            this.renderReports(reports);
+            
+            console.log('✅ Отчеты загружены:', reports.length);
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки отчетов:', error);
+        }
+    }
+
+    /**
+     * Загрузка достижений
+     */
+    async loadAchievements() {
+        try {
+            if (!this.apiClient) return;
+
+            console.log('🏆 Загрузка достижений...');
+            const achievements = await this.apiClient.getAchievements();
+            this.renderAchievements(achievements);
+            
+            console.log('✅ Достижения загружены:', achievements.length);
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки достижений:', error);
         }
     }
 
@@ -481,7 +641,7 @@ class ReaderApp {
         container.innerHTML = quotes.map(quote => `
             <div class="quote-card">
                 <div class="quote-actions">
-                    <button class="action-btn" onclick="event.stopPropagation(); app.showQuoteActions('${quote._id}')">⋯</button>
+                    <button class="action-btn" onclick="event.stopPropagation(); app.showQuoteActions('${quote._id || quote.id}')">⋯</button>
                 </div>
                 <div class="quote-full-text">${this.escapeHtml(quote.text)}</div>
                 <div class="quote-author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
@@ -489,12 +649,20 @@ class ReaderApp {
                     <span>${this.formatDate(quote.createdAt)}</span>
                     <span>${quote.isFavorite ? '❤️ Избранное' : ''}</span>
                 </div>
+                ${quote.analysis ? `
+                    <div class="quote-analysis">
+                        <div class="analysis-tags">
+                            <span class="mood-tag">${quote.analysis.mood}</span>
+                            <span class="category-tag">${quote.analysis.category}</span>
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         `).join('');
     }
 
     /**
-     * Сохранение цитаты
+     * Сохранение цитаты - ОБНОВЛЕНО
      */
     async saveQuote() {
         const textEl = document.getElementById('quoteText');
@@ -507,11 +675,24 @@ class ReaderApp {
             return;
         }
 
+        // Валидация через API
+        if (this.apiClient?.validateQuote) {
+            const validation = this.apiClient.validateQuote({
+                text: textEl.value,
+                author: authorEl?.value || ''
+            });
+            
+            if (!validation.isValid) {
+                this.showError(validation.errors.join('\n'));
+                return;
+            }
+        }
+
         try {
             // Блокировка кнопки
             if (saveBtn) {
                 saveBtn.disabled = true;
-                saveBtn.textContent = 'Сохранение...';
+                saveBtn.textContent = 'Анализ AI...';
             }
 
             const quoteData = {
@@ -521,38 +702,60 @@ class ReaderApp {
             };
 
             if (this.apiClient) {
+                console.log('💾 Сохранение цитаты:', quoteData);
+                
                 const result = await this.apiClient.saveQuote(quoteData);
                 
-                // Показ AI анализа
-                if (result.aiAnalysis) {
-                    this.showAIInsight(result.aiAnalysis);
+                if (result.success) {
+                    // Показ AI анализа
+                    if (result.aiAnalysis) {
+                        this.showAIInsight(result.aiAnalysis);
+                    }
+                    
+                    // Очистка формы
+                    textEl.value = '';
+                    if (authorEl) authorEl.value = '';
+                    if (sourceEl) sourceEl.value = '';
+                    
+                    // Обновление счетчика
+                    const counter = document.querySelector('.char-counter');
+                    if (counter) {
+                        counter.textContent = '0/500';
+                        counter.style.color = 'var(--text-secondary)';
+                    }
+                    
+                    this.showSuccess('Цитата сохранена!');
+                    
+                    // Обновление статистики
+                    await this.loadUserStats();
+                    
+                    // Haptic feedback
+                    this.triggerHaptic('success');
+                    
+                    // Трекинг события
+                    if (this.apiClient.trackEvent) {
+                        await this.apiClient.trackEvent('quote_added', {
+                            hasAuthor: !!quoteData.author,
+                            textLength: quoteData.text.length,
+                            source: 'mini_app'
+                        });
+                    }
+                    
+                    console.log('✅ Цитата успешно сохранена');
+                    
+                } else {
+                    throw new Error(result.error || 'Ошибка сохранения');
                 }
-                
-                // Очистка формы
-                textEl.value = '';
-                if (authorEl) authorEl.value = '';
-                if (sourceEl) sourceEl.value = '';
-                
-                // Обновление счетчика
-                const counter = document.querySelector('.char-counter');
-                if (counter) counter.textContent = '0/500';
-                
-                this.showSuccess('Цитата сохранена!');
-                
-                // Обновление статистики
-                await this.loadUserStats();
-                
-                // Haptic feedback
-                this.triggerHaptic('success');
                 
             } else {
                 // Fallback для демо режима
                 this.showAIInsight('Демо режим: цитата сохранена локально');
+                console.log('⚠️ Демо режим - цитата не сохранена на сервере');
             }
             
         } catch (error) {
-            console.error('Ошибка сохранения цитаты:', error);
-            this.showError('Не удалось сохранить цитату');
+            console.error('❌ Ошибка сохранения цитаты:', error);
+            this.showError('Не удалось сохранить цитату: ' + error.message);
         } finally {
             // Разблокировка кнопки
             if (saveBtn) {
@@ -570,7 +773,7 @@ class ReaderApp {
         const aiAnalysis = document.getElementById('aiAnalysis');
         
         if (aiInsight && aiAnalysis) {
-            aiAnalysis.textContent = analysis;
+            aiAnalysis.innerHTML = this.escapeHtml(analysis).replace(/\n/g, '<br>');
             aiInsight.style.display = 'block';
             
             // Анимация появления
@@ -586,17 +789,81 @@ class ReaderApp {
     }
 
     /**
-     * Обработка ввода в поле цитаты
+     * Обработка ввода в поле цитаты - ОБНОВЛЕНО
      */
-    handleQuoteInput() {
-        // Здесь можно добавить дебаунс для запроса AI анализа в реальном времени
+    async handleQuoteInput() {
+        const textEl = document.getElementById('quoteText');
+        const authorEl = document.getElementById('quoteAuthor');
+        
+        if (!textEl || !this.apiClient?.getLiveAnalysis) return;
+        
+        const text = textEl.value.trim();
+        const author = authorEl?.value.trim() || '';
+        
+        // Дебаунс для избежания частых запросов
+        clearTimeout(this.inputTimeout);
+        this.inputTimeout = setTimeout(async () => {
+            try {
+                const liveAnalysis = await this.apiClient.getLiveAnalysis(text, author);
+                
+                if (liveAnalysis) {
+                    this.showLivePreview(liveAnalysis);
+                }
+            } catch (error) {
+                console.warn('Live analysis failed:', error);
+            }
+        }, 1000);
     }
 
     /**
-     * Поиск по цитатам
+     * Показ превью анализа в реальном времени
      */
-    handleSearch(query) {
+    showLivePreview(analysis) {
+        let preview = document.getElementById('livePreview');
+        if (!preview) {
+            preview = document.createElement('div');
+            preview.id = 'livePreview';
+            preview.className = 'live-preview';
+            
+            const quoteForm = document.querySelector('.quote-form');
+            if (quoteForm) {
+                quoteForm.appendChild(preview);
+            }
+        }
+        
+        preview.innerHTML = `
+            <div class="preview-hint">
+                ${analysis.mood} • ${analysis.category}
+                <br><small>${analysis.hint}</small>
+            </div>
+        `;
+        
+        preview.style.opacity = '1';
+        
+        // Автоскрытие через 5 секунд
+        clearTimeout(this.previewTimeout);
+        this.previewTimeout = setTimeout(() => {
+            preview.style.opacity = '0';
+        }, 5000);
+    }
+
+    /**
+     * Поиск по цитатам - ОБНОВЛЕНО
+     */
+    async handleSearch(query) {
         this.state.searchQuery = query.toLowerCase();
+        
+        if (this.apiClient?.searchQuotes && query.length > 2) {
+            try {
+                const searchResults = await this.apiClient.searchQuotes(query);
+                this.renderQuotesList(searchResults);
+                return;
+            } catch (error) {
+                console.warn('Search API failed, using local filter:', error);
+            }
+        }
+        
+        // Fallback к локальной фильтрации
         this.filterQuotes();
     }
 
@@ -609,7 +876,7 @@ class ReaderApp {
             tab.classList.remove('active');
         });
         
-        const activeTab = document.querySelector(`[data-filter="${filter}"]`);
+        const activeTab = document.querySelector(`[data-filter=\"${filter}\"]`);
         if (activeTab) {
             activeTab.classList.add('active');
         }
@@ -657,7 +924,7 @@ class ReaderApp {
             tab.classList.remove('active');
         });
         
-        const activeTab = document.querySelector(`[data-category="${category}"]`);
+        const activeTab = document.querySelector(`[data-category=\"${category}\"]`);
         if (activeTab) {
             activeTab.classList.add('active');
         }
@@ -692,10 +959,10 @@ class ReaderApp {
         
         switch (action) {
             case 'profile':
-                this.showInfo('👤 Профиль пользователя\n\n• Информация об аккаунте\n• Настройки профиля\n• Статистика');
+                this.showPage('profile');
                 break;
             case 'achievements':
-                this.showInfo('🏆 Достижения\n\n• Бейджи и награды\n• Прогресс целей\n• История достижений');
+                this.showPage('achievements');
                 break;
             case 'settings':
                 this.showInfo('⚙️ Настройки\n\n• Уведомления\n• Тема приложения\n• Приватность');
@@ -711,10 +978,27 @@ class ReaderApp {
                 break;
             case 'logout':
                 if (confirm('🚪 Выйти из аккаунта?\n\nВы уверены?')) {
-                    this.showInfo('Выход выполнен');
+                    this.logout();
                 }
                 break;
         }
+    }
+
+    /**
+     * Выход из системы
+     */
+    logout() {
+        if (this.apiClient && this.apiClient.logout) {
+            this.apiClient.logout();
+        }
+        
+        this.currentUser = null;
+        this.showInfo('Выход выполнен');
+        
+        // Перезагрузка через 1 секунду
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     }
 
     /**
@@ -755,8 +1039,8 @@ class ReaderApp {
     }
 
     triggerHaptic(type = 'light') {
-        if (this.telegramManager?.tg?.HapticFeedback) {
-            this.telegramManager.tg.HapticFeedback.impactOccurred(type);
+        if (this.telegramManager?.hapticFeedback) {
+            this.telegramManager.hapticFeedback(type);
         }
     }
 
@@ -777,6 +1061,7 @@ class ReaderApp {
     }
 
     escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
@@ -793,9 +1078,24 @@ class ReaderApp {
         if (!this.events || !this.events[event]) return;
         this.events[event].forEach(callback => callback(data));
     }
+
+    /**
+     * API для отладки
+     */
+    getDebugInfo() {
+        return {
+            version: '2.1',
+            currentPage: this.currentPage,
+            currentUser: this.currentUser,
+            apiClient: !!this.apiClient,
+            telegramManager: !!this.telegramManager,
+            state: this.state,
+            apiConnection: this.apiClient?.getConnectionInfo?.() || null
+        };
+    }
 }
 
-// Глобальные функции для HTML
+// Глобальные функции для HTML - остаются без изменений
 let app;
 
 function showPage(pageId) {
@@ -824,4 +1124,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.app = app; // Для отладки
 });
 
-console.log('📱 Reader Bot Mini App скрипт загружен');
+console.log('📱 Reader Bot Mini App v2.1 скрипт загружен');
