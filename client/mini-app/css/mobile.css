@@ -496,6 +496,13 @@
     padding: 0 20px calc(env(safe-area-inset-bottom) + 8px) 20px;
     transition: var(--theme-transition);
     z-index: 100;
+    
+    /* iOS ИСПРАВЛЕНИЯ */
+    -webkit-transform: translateX(-50%) translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+    contain: layout style paint;
 }
 
 .nav-item {
@@ -749,5 +756,118 @@
 @media (max-width: 480px) {
     .desktop-only {
         display: none !important;
+    }
+}
+
+/* ========================
+   IOS ИСПРАВЛЕНИЯ
+======================== */
+
+/* ИСПРАВЛЕНИЕ #1: Адаптивные отступы для разных iPhone */
+/* Стандартные iPhone (iPhone 13, 14, 15) */
+@media screen and (max-height: 896px) and (-webkit-min-device-pixel-ratio: 2) {
+    .page-header, .reports-header, .catalog-header, .home-header {
+        padding-top: max(50px, env(safe-area-inset-top) + 15px) !important;
+    }
+}
+
+/* Старые iPhone (iPhone SE, 8, X) */
+@media screen and (max-height: 736px) {
+    .page-header, .reports-header, .catalog-header, .home-header {
+        padding-top: max(40px, env(safe-area-inset-top) + 10px) !important;
+    }
+}
+
+/* iPhone с Dynamic Island */
+@media screen and (min-height: 852px) and (-webkit-min-device-pixel-ratio: 3) {
+    .page-header, .reports-header, .catalog-header, .home-header {
+        padding-top: max(65px, env(safe-area-inset-top) + 25px) !important;
+    }
+}
+
+/* ИСПРАВЛЕНИЕ #2: Анимации - iOS оптимизация */
+/* Отключение проблемных анимаций на iOS */
+@supports (-webkit-touch-callout: none) {
+    .quote-card, .book-card, .analysis-card {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+    
+    /* Замена на простые transitions */
+    .quote-card, .book-card, .analysis-card {
+        transition: transform 0.2s ease, opacity 0.2s ease;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        -webkit-perspective: 1000px;
+        perspective: 1000px;
+        will-change: auto;
+    }
+    
+    .quote-card:active, .book-card:active {
+        transform: scale(0.98);
+    }
+    
+    /* Дополнительная фиксация навигации для iOS Safari */
+    .bottom-nav {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        bottom: 0 !important;
+        padding-bottom: max(calc(env(safe-area-inset-bottom) + 8px), 20px);
+    }
+}
+
+/* ИСПРАВЛЕНИЕ #3: Скрытие системных сообщений */
+.theme-notification,
+.telegram-notification,
+.system-toast,
+[class*="theme-switch"],
+[class*="theme-toggle"] {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* ИСПРАВЛЕНИЕ #4: Предотвращение bounce эффекта iOS */
+body {
+    position: fixed;
+    overflow: hidden;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    height: 100vh;
+}
+
+.app {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ИСПРАВЛЕНИЕ #5: Оптимизация производительности для iOS */
+.page {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* ИСПРАВЛЕНИЕ #6: Input focus на iOS */
+.form-textarea:focus,
+.form-input:focus {
+    -webkit-user-select: text;
+    user-select: text;
+    zoom: 1;
+}
+
+/* Предотвращение зума при focus input на iOS */
+@media screen and (max-width: 480px) {
+    .form-textarea,
+    .form-input,
+    .search-input {
+        font-size: 16px !important;
+        transform: scale(1);
     }
 }
