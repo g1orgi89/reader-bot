@@ -76,7 +76,8 @@
              ДОБАВИТЬ ЦИТАТУ
         ===================== -->
         <div class="page" id="add">
-            <div class="page-header">
+            <!-- ИСПРАВЛЕНО: Центрирование заголовков -->
+            <div class="page-header centered-header">
                 <h1 class="page-title">Новая цитата</h1>
                 <p class="page-subtitle">Поделитесь вдохновляющими словами</p>
             </div>
@@ -103,14 +104,7 @@
                         >
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Источник</label>
-                        <input 
-                            class="form-input" 
-                            placeholder="Книга, фильм, беседа... (необязательно)"
-                            id="quoteSource"
-                        >
-                    </div>
+                    <!-- ИСПРАВЛЕНО: Убрано поле источника -->
 
                     <div class="ai-insight" id="aiInsight" style="display: none;">
                         <div class="ai-title">
@@ -121,6 +115,7 @@
                         </div>
                     </div>
 
+                    <!-- ИСПРАВЛЕНО: Единственная кнопка сохранения -->
                     <button class="save-btn" onclick="saveQuote()" id="saveButton">
                         Сохранить в дневник
                     </button>
@@ -322,6 +317,40 @@
                             </svg>
                         </div>
                         <div class="menu-text">Выйти из аккаунта</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== 
+             МОДАЛЬНОЕ ОКНО ДЕЙСТВИЙ ЦИТАТЫ
+        ===================== -->
+        <div class="quote-actions-overlay" id="quoteActionsOverlay" onclick="closeQuoteActions()">
+            <div class="quote-actions-modal" onclick="event.stopPropagation()">
+                <div class="quote-actions-header">
+                    <h3>Действия с цитатой</h3>
+                    <button class="close-btn" onclick="closeQuoteActions()">×</button>
+                </div>
+                <div class="quote-actions-list">
+                    <button class="action-item" onclick="editQuote()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Редактировать
+                    </button>
+                    <button class="action-item" onclick="toggleFavorite()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                        Добавить в избранное
+                    </button>
+                    <button class="action-item danger" onclick="deleteQuote()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3,6 5,6 21,6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        Удалить
                     </button>
                 </div>
             </div>
