@@ -1,8 +1,8 @@
 /**
- * Reader Bot Mini App - Основной модуль приложения v2.3
- * ИСПРАВЛЕНО: Telegram Main Button, длительность AI анализа, редактирование цитат
+ * Reader Bot Mini App - Основной модуль приложения v2.4
+ * ИСПРАВЛЕНО: Полное удаление Telegram Main Button
  * 
- * @version 2.3
+ * @version 2.4
  * @author Reader Bot Team
  */
 
@@ -33,7 +33,7 @@ class ReaderApp {
      * Инициализация приложения
      */
     async init() {
-        console.log('🚀 Инициализация Reader Bot Mini App v2.3');
+        console.log('🚀 Инициализация Reader Bot Mini App v2.4');
         
         try {
             // Инициализация Telegram WebApp
@@ -81,9 +81,6 @@ class ReaderApp {
             this.telegramManager.on('themeChange', (themeParams, colorScheme) => {
                 console.log('🎨 Тема изменена:', colorScheme);
             });
-
-            // ИСПРАВЛЕНО: Правильная настройка Main Button
-            this.setupMainButton();
             
             // Обновление UI с данными пользователя
             this.updateUserInfo(userData);
@@ -235,41 +232,6 @@ class ReaderApp {
                     counter.style.color = 'var(--text-secondary)';
                 }
             });
-        }
-    }
-
-    /**
-     * ИСПРАВЛЕНО: Настройка основной кнопки Telegram
-     */
-    setupMainButton() {
-        if (this.telegramManager && this.telegramManager.tg && this.telegramManager.tg.MainButton) {
-            const mainButton = this.telegramManager.tg.MainButton;
-            
-            // Скрываем кнопку по умолчанию
-            mainButton.hide();
-            
-            // Показываем кнопку только на странице добавления цитаты
-            this.on('pageChanged', (page) => {
-                console.log('📱 Смена страницы:', page);
-                
-                if (page === 'add') {
-                    // Проверяем режим редактирования
-                    if (this.editingQuote) {
-                        mainButton.setText('Обновить цитату');
-                        mainButton.onClick(() => this.updateQuote());
-                    } else {
-                        mainButton.setText('Сохранить цитату');
-                        mainButton.onClick(() => this.saveQuote());
-                    }
-                    mainButton.show();
-                    console.log('📱 Main Button показана');
-                } else {
-                    mainButton.hide();
-                    console.log('📱 Main Button скрыта');
-                }
-            });
-        } else {
-            console.warn('⚠️ Telegram Main Button недоступна');
         }
     }
 
@@ -1052,13 +1014,6 @@ class ReaderApp {
                 saveBtn.onclick = () => this.updateQuote();
             }
             
-            // Обновляем Main Button в Telegram
-            if (this.telegramManager?.tg?.MainButton) {
-                const mainButton = this.telegramManager.tg.MainButton;
-                mainButton.setText('Обновить цитату');
-                mainButton.onClick(() => this.updateQuote());
-            }
-            
             this.triggerHaptic('success');
             
         } catch (error) {
@@ -1151,13 +1106,6 @@ class ReaderApp {
         
         // Сброс режима редактирования
         this.editingQuote = null;
-        
-        // Обновляем Main Button в Telegram
-        if (this.telegramManager?.tg?.MainButton) {
-            const mainButton = this.telegramManager.tg.MainButton;
-            mainButton.setText('Сохранить цитату');
-            mainButton.onClick(() => this.saveQuote());
-        }
         
         this.showSuccess('Цитата обновлена!');
         
@@ -1576,7 +1524,7 @@ class ReaderApp {
      */
     getDebugInfo() {
         return {
-            version: '2.3',
+            version: '2.4',
             currentPage: this.currentPage,
             currentUser: this.currentUser,
             apiClient: !!this.apiClient,
@@ -1636,4 +1584,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.app = app; // Для отладки
 });
 
-console.log('📱 Reader Bot Mini App v2.3 скрипт загружен');
+console.log('📱 Reader Bot Mini App v2.4 скрипт загружен - Main Button удалена');
