@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Reader Bot - Персональный дневник мудрости</title>
+    
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Подключение стилей -->
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="./css/mobile.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">
+    <link rel="apple-touch-icon" href="./assets/icon-192.png">
+    
+    <!-- Мета-теги для PWA -->
+    <meta name="theme-color" content="#D4AF37">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Reader Bot">
+</head>
+<body>
+    <div class="app">
+        <!-- ===================== 
+             ГЛАВНАЯ СТРАНИЦА
+        ===================== -->
+        <div class="page active" id="home">
+            <div class="home-header">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">👤</div>
+                    <div class="user-details">
+                        <h2 id="userName">Загрузка...</h2>
+                        <p>Читатель</p>
+                    </div>
+                </div>
+                <button class="menu-button" onclick="openMenu()">
+                    <div class="menu-dots"></div>
+                </button>
+            </div>
+
+            <div class="hero-section">
+                <h1 class="welcome-text">Добро пожаловать! 👋</h1>
+                <p class="welcome-subtitle">Ваш персональный дневник мудрости</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalQuotes">0</div>
+                        <div class="stat-label">Цитат собрано</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="streakDays">0</div>
+                        <div class="stat-label">Дней подряд</div>
+                    </div>
+                </div>
+                
+                <button class="main-cta" onclick="showPage('add')">
+                    Добавить новую цитату
+                </button>
+            </div>
+
+            <div class="content">
+                <div class="recent-section">
+                    <h2 class="section-title">Последние записи</h2>
+                    <div id="recentQuotes">
+                        <div class="loading-placeholder">Загрузка цитат...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== 
+             ДОБАВИТЬ ЦИТАТУ
+        ===================== -->
+        <div class="page" id="add">
+            <div class="page-header">
+                <h1 class="page-title">Новая цитата</h1>
+                <p class="page-subtitle">Поделитесь вдохновляющими словами</p>
+            </div>
+            
+            <div class="content">
+                <div class="add-form">
+                    <div class="form-group">
+                        <label class="form-label">Текст цитаты</label>
+                        <textarea 
+                            class="form-textarea" 
+                            placeholder="Введите цитату, которая вас вдохновила..."
+                            maxlength="500"
+                            id="quoteText"
+                        ></textarea>
+                        <div class="char-counter">0/500</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Автор</label>
+                        <input 
+                            class="form-input" 
+                            placeholder="Кто автор этих слов?"
+                            id="quoteAuthor"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Источник</label>
+                        <input 
+                            class="form-input" 
+                            placeholder="Книга, фильм, беседа... (необязательно)"
+                            id="quoteSource"
+                        >
+                    </div>
+
+                    <div class="ai-insight" id="aiInsight" style="display: none;">
+                        <div class="ai-title">
+                            ✨ Анализ от Анны
+                        </div>
+                        <div class="ai-text" id="aiAnalysis">
+                            Анализируем вашу цитату...
+                        </div>
+                    </div>
+
+                    <button class="save-btn" onclick="saveQuote()" id="saveButton">
+                        Сохранить в дневник
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== 
+             ДНЕВНИК ЦИТАТ
+        ===================== -->
+        <div class="page" id="diary">
+            <div class="page-header">
+                <h1 class="page-title">Дневник цитат</h1>
+                <p class="page-subtitle" id="diarySubtitle">Загрузка...</p>
+            </div>
+            
+            <div class="content">
+                <div class="search-section">
+                    <div class="search-wrapper">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <input class="search-input" placeholder="Поиск по цитатам и авторам..." id="searchInput">
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all">Все записи</button>
+                <button class="filter-tab" data-filter="favorites">Избранные</button>
+                <button class="filter-tab" data-filter="week">Эта неделя</button>
+                <button class="filter-tab" data-filter="author">По автору</button>
+            </div>
+
+            <div class="quotes-list" id="quotesList">
+                <div class="loading-placeholder">Загрузка цитат...</div>
+            </div>
+        </div>
+
+        <!-- ===================== 
+             ОТЧЕТЫ
+        ===================== -->
+        <div class="page" id="reports">
+            <div class="reports-header">
+                <h1 class="reports-title">Отчет за неделю</h1>
+                <p class="reports-period" id="reportsPeriod">Загрузка...</p>
+                
+                <div class="weekly-stats" id="weeklyStats">
+                    <div class="weekly-stat">
+                        <div class="weekly-stat-number">-</div>
+                        <div class="weekly-stat-label">Цитат</div>
+                    </div>
+                    <div class="weekly-stat">
+                        <div class="weekly-stat-number">-</div>
+                        <div class="weekly-stat-label">Авторов</div>
+                    </div>
+                    <div class="weekly-stat">
+                        <div class="weekly-stat-number">-</div>
+                        <div class="weekly-stat-label">Дней</div>
+                    </div>
+                    <div class="weekly-stat">
+                        <div class="weekly-stat-number">-%</div>
+                        <div class="weekly-stat-label">Цель</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reportsContent">
+                <div class="loading-placeholder">Загрузка отчета...</div>
+            </div>
+        </div>
+
+        <!-- ===================== 
+             КАТАЛОГ КНИГ
+        ===================== -->
+        <div class="page" id="catalog">
+            <div class="catalog-header">
+                <h1 class="catalog-title">Каталог книг</h1>
+                <p class="catalog-subtitle">Персональные рекомендации от Анны Бусел</p>
+            </div>
+            
+            <div class="category-filters">
+                <div class="category-tabs" id="categoryTabs">
+                    <button class="category-tab active" data-category="all">Все книги</button>
+                    <button class="category-tab" data-category="psychology">Психология</button>
+                    <button class="category-tab" data-category="philosophy">Философия</button>
+                    <button class="category-tab" data-category="self-development">Саморазвитие</button>
+                    <button class="category-tab" data-category="relationship">Отношения</button>
+                </div>
+            </div>
+
+            <div class="books-grid" id="booksGrid">
+                <div class="loading-placeholder">Загрузка каталога...</div>
+            </div>
+        </div>
+
+        <!-- ===================== 
+             МОДАЛЬНОЕ МЕНЮ
+        ===================== -->
+        <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()">
+            <div class="menu-modal" onclick="event.stopPropagation()">
+                <div class="menu-header">
+                    <div class="menu-handle"></div>
+                    <h3 class="menu-title">Меню</h3>
+                    <button class="menu-close" onclick="closeMenu()">Готово</button>
+                </div>
+
+                <div class="menu-items">
+                    <button class="menu-item" onclick="handleMenuItem('profile')">
+                        <div class="menu-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <div class="menu-text">Мой профиль</div>
+                        <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"/>
+                        </svg>
+                    </button>
+
+                    <button class="menu-item" onclick="handleMenuItem('achievements')">
+                        <div class="menu-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="8" r="7"/>
+                                <polyline points="8.21,13.89 7,23 12,20 17,23 15.79,13.88"/>
+                            </svg>
+                        </div>
+                        <div class="menu-text">Мои достижения</div>
+                        <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"/>
+                        </svg>
+                    </button>
+
+                    <button class="menu-item" onclick="handleMenuItem('settings')">
+                        <div class="menu-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/>
+                            </svg>
+                        </div>
+                        <div class="menu-text">Настройки</div>
+                        <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"/>
+                        </svg>
+                    </button>
+
+                    <div class="menu-divider"></div>
+
+                    <button class="menu-item" onclick="handleMenuItem('contact')">
+                        <div class="menu-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                            </svg>
+                        </div>
+                        <div class="menu-text">Связаться с Анной</div>
+                        <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"/>
+                        </svg>
+                    </button>
+
+                    <button class="menu-item" onclick="handleMenuItem('help')">
+                        <div class="menu-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                                <point cx="12" cy="17"/>
+                            </svg>
+                        </div>
+                        <div class="menu-text">Помощь</div>
+                        <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"/>
+                        </svg>
+                    </button>
+
+                    <button class="menu-item" onclick="handleMenuItem('about')">
+                        <div class="menu-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="16" x2="12" y2="12"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                        </div>
+                        <div class="menu-text">О приложении</div>
+                        <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"/>
+                        </svg>
+                    </button>
+
+                    <div class="menu-divider"></div>
+
+                    <button class="menu-item danger" onclick="handleMenuItem('logout')">
+                        <div class="menu-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16,17 21,12 16,7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                        </div>
+                        <div class="menu-text">Выйти из аккаунта</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== 
+             НАВИГАЦИЯ
+        ===================== -->
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="showPage('home')" data-page="home">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                </svg>
+                <span class="nav-label">Главная</span>
+            </div>
+            
+            <div class="nav-item" onclick="showPage('add')" data-page="add">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                <span class="nav-label">Добавить</span>
+            </div>
+            
+            <div class="nav-item" onclick="showPage('diary')" data-page="diary">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14,2 14,8 20,8"/>
+                </svg>
+                <span class="nav-label">Дневник</span>
+            </div>
+            
+            <div class="nav-item" onclick="showPage('reports')" data-page="reports">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                </svg>
+                <span class="nav-label">Отчеты</span>
+            </div>
+            
+            <div class="nav-item" onclick="showPage('catalog')" data-page="catalog">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                <span class="nav-label">Каталог</span>
+            </div>
+        </div>
+
+        <!-- Индикатор загрузки -->
+        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <!-- Подключение JavaScript -->
+    <script src="./js/telegram-v2.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/app.js"></script>
+</body>
+</html>
