@@ -1,6 +1,6 @@
 /* ========================
    READER BOT MINI APP - ОСНОВНЫЕ СТИЛИ
-   Версия: 2.0 с поддержкой Telegram тем
+   Версия: 2.1 - iOS Optimized
 ======================== */
 
 * {
@@ -169,12 +169,9 @@ body {
 
 .page.active {
     display: block;
-    animation: fadeInPage 0.3s ease-in-out;
-}
-
-@keyframes fadeInPage {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    /* Упрощенная анимация без проблем на iOS */
+    opacity: 1;
+    transform: none;
 }
 
 .page-header {
@@ -688,27 +685,37 @@ body {
 }
 
 /* ========================
-   АНИМАЦИИ
+   АНИМАЦИИ - iOS ОПТИМИЗИРОВАННЫЕ
 ======================== */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
+/* Убираем проблемные анимации которые вызывают моргание на iOS */
 .quote-card, .book-card, .analysis-card {
-    animation: fadeInUp 0.4s ease forwards;
+    /* Устанавливаем статичные значения вместо анимаций */
+    opacity: 1;
+    transform: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    
+    /* iOS оптимизация производительности */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-perspective: 1000px;
+    perspective: 1000px;
+    will-change: auto;
 }
 
-.quote-card:nth-child(1) { animation-delay: 0.1s; }
-.quote-card:nth-child(2) { animation-delay: 0.2s; }
-.quote-card:nth-child(3) { animation-delay: 0.3s; }
-.quote-card:nth-child(4) { animation-delay: 0.4s; }
+/* Простые активные состояния без задержек */
+.quote-card:active, .book-card:active {
+    transform: scale(0.98);
+}
+
+/* iOS-специфичные исправления */
+@supports (-webkit-touch-callout: none) {
+    .quote-card, .book-card, .analysis-card {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}
 
 /* ========================
    УТИЛИТЫ
@@ -723,4 +730,13 @@ body {
 
 .transition-all {
     transition: var(--theme-transition);
+}
+
+/* Скрытие уведомлений о смене темы */
+.theme-notification,
+.telegram-theme-notification,
+[class*="theme-switch"],
+[class*="theme-toggle"] {
+    display: none !important;
+    visibility: hidden !important;
 }
