@@ -477,13 +477,13 @@
 }
 
 /* ========================
-   НАВИГАЦИЯ
+   НАВИГАЦИЯ - ИСПРАВЛЕНО для iOS
 ======================== */
 .bottom-nav {
     position: fixed;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
     width: 100%;
     max-width: 430px;
     height: calc(80px + env(safe-area-inset-bottom));
@@ -497,12 +497,32 @@
     transition: var(--theme-transition);
     z-index: 100;
     
+    /* Центрирование контейнера приложения */
+    margin: 0 auto;
+    
     /* iOS ИСПРАВЛЕНИЯ */
-    -webkit-transform: translateX(-50%) translateZ(0);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    will-change: transform;
+    will-change: auto;
     contain: layout style paint;
+}
+
+/* iOS-специфичные исправления навигации */
+@supports (-webkit-touch-callout: none) {
+    .bottom-nav {
+        /* Убираем transform который сбивает позицию */
+        transform: none !important;
+        -webkit-transform: none !important;
+        
+        /* Стабильная позиция */
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 50% !important;
+        margin-left: -215px !important; /* Половина от max-width 430px */
+        
+        /* Дополнительные iOS оптимизации */
+        padding-bottom: max(calc(env(safe-area-inset-bottom) + 8px), 20px);
+    }
 }
 
 .nav-item {
@@ -597,6 +617,13 @@
     .book-title {
         font-size: 16px;
     }
+    
+    /* Исправление навигации для очень маленьких экранов */
+    @supports (-webkit-touch-callout: none) {
+        .bottom-nav {
+            margin-left: -160px !important; /* Половина от 320px */
+        }
+    }
 }
 
 /* Стандартные маленькие экраны */
@@ -613,6 +640,13 @@
     
     .stat-card, .weekly-stat {
         padding: 16px 12px;
+    }
+    
+    /* Исправление навигации для iPhone 8/SE */
+    @supports (-webkit-touch-callout: none) {
+        .bottom-nav {
+            margin-left: -187.5px !important; /* Половина от 375px */
+        }
     }
 }
 
@@ -806,14 +840,6 @@
     
     .quote-card:active, .book-card:active {
         transform: scale(0.98);
-    }
-    
-    /* Дополнительная фиксация навигации для iOS Safari */
-    .bottom-nav {
-        position: -webkit-sticky !important;
-        position: sticky !important;
-        bottom: 0 !important;
-        padding-bottom: max(calc(env(safe-area-inset-bottom) + 8px), 20px);
     }
 }
 
