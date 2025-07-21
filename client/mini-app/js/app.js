@@ -1,8 +1,8 @@
 /**
- * Reader Bot Mini App - Основной модуль приложения v2.2
- * ИСПРАВЛЕНО: Дублирование сохранения, анализ без рекомендаций, функции редактирования
+ * Reader Bot Mini App - Основной модуль приложения v2.3
+ * ИСПРАВЛЕНО: Telegram Main Button, длительность AI анализа, редактирование цитат
  * 
- * @version 2.2
+ * @version 2.3
  * @author Reader Bot Team
  */
 
@@ -14,6 +14,7 @@ class ReaderApp {
         this.telegramManager = null;
         this.currentQuoteId = null; // Для действий с цитатой
         this.savingInProgress = false; // Защита от двойного сохранения
+        this.editingQuote = null; // ДОБАВЛЕНО: Цитата в режиме редактирования
         
         // Состояние приложения
         this.state = {
@@ -32,7 +33,7 @@ class ReaderApp {
      * Инициализация приложения
      */
     async init() {
-        console.log('🚀 Инициализация Reader Bot Mini App v2.2');
+        console.log('🚀 Инициализация Reader Bot Mini App v2.3');
         
         try {
             // Инициализация Telegram WebApp
@@ -81,7 +82,7 @@ class ReaderApp {
                 console.log('🎨 Тема изменена:', colorScheme);
             });
 
-            // Настройка основной кнопки
+            // ИСПРАВЛЕНО: Правильная настройка Main Button
             this.setupMainButton();
             
             // Обновление UI с данными пользователя
@@ -238,10 +239,10 @@ class ReaderApp {
     }
 
     /**
-     * Настройка основной кнопки Telegram
+     * ИСПРАВЛЕНО: Настройка основной кнопки Telegram
      */
     setupMainButton() {
-        if (this.telegramManager && this.telegramManager.tg.MainButton) {
+        if (this.telegramManager && this.telegramManager.tg && this.telegramManager.tg.MainButton) {
             const mainButton = this.telegramManager.tg.MainButton;
             
             // Скрываем кнопку по умолчанию
@@ -249,14 +250,26 @@ class ReaderApp {
             
             // Показываем кнопку только на странице добавления цитаты
             this.on('pageChanged', (page) => {
+                console.log('📱 Смена страницы:', page);
+                
                 if (page === 'add') {
-                    mainButton.setText('Сохранить цитату');
+                    // Проверяем режим редактирования
+                    if (this.editingQuote) {
+                        mainButton.setText('Обновить цитату');
+                        mainButton.onClick(() => this.updateQuote());
+                    } else {
+                        mainButton.setText('Сохранить цитату');
+                        mainButton.onClick(() => this.saveQuote());
+                    }
                     mainButton.show();
-                    mainButton.onClick(() => this.saveQuote());
+                    console.log('📱 Main Button показана');
                 } else {
                     mainButton.hide();
+                    console.log('📱 Main Button скрыта');
                 }
             });
+        } else {
+            console.warn('⚠️ Telegram Main Button недоступна');
         }
     }
 
@@ -326,7 +339,25 @@ class ReaderApp {
      */
     async loadRecentQuotes() {
         try {
-            if (!this.apiClient) return;
+            if (!this.apiClient) {
+                // ДЕМО данные для тестирования
+                const demoQuotes = [
+                    {
+                        id: 'demo1',
+                        text: 'Жизнь - это то, что происходит с нами, пока мы строим планы.',
+                        author: 'Джон Леннон',
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 'demo2', 
+                        text: 'Будь собой. Остальные роли уже заняты.',
+                        author: 'Оскар Уайльд',
+                        createdAt: new Date(Date.now() - 86400000).toISOString()
+                    }
+                ];
+                this.renderRecentQuotes(demoQuotes);
+                return;
+            }
 
             console.log('📝 Загрузка недавних цитат...');
             const quotes = await this.apiClient.getRecentQuotes(3);
@@ -567,7 +598,44 @@ class ReaderApp {
      */
     async loadAllQuotes() {
         try {
-            if (!this.apiClient) return;
+            if (!this.apiClient) {
+                // ДЕМО данные для тестирования
+                const demoQuotes = [
+                    {
+                        id: 'demo1',
+                        _id: 'demo1',
+                        text: 'Жизнь - это то, что происходит с нами, пока мы строим планы.',
+                        author: 'Джон Леннон',
+                        createdAt: new Date().toISOString(),
+                        isFavorite: false
+                    },
+                    {
+                        id: 'demo2',
+                        _id: 'demo2', 
+                        text: 'Будь собой. Остальные роли уже заняты.',
+                        author: 'Оскар Уайльд',
+                        createdAt: new Date(Date.now() - 86400000).toISOString(),
+                        isFavorite: true
+                    },
+                    {
+                        id: 'demo3',
+                        _id: 'demo3',
+                        text: 'Единственный способ сделать отличную работу — полюбить то, что вы делаете.',
+                        author: 'Стив Джобс',
+                        createdAt: new Date(Date.now() - 172800000).toISOString(),
+                        isFavorite: false
+                    }
+                ];
+                this.state.quotes = demoQuotes;
+                this.renderQuotesList(demoQuotes);
+                
+                // Обновление счетчика
+                const subtitle = document.getElementById('diarySubtitle');
+                if (subtitle) {
+                    subtitle.textContent = `${demoQuotes.length} записей о мудрости`;
+                }
+                return;
+            }
 
             console.log('📖 Загрузка всех цитат...');
             const quotes = await this.apiClient.getAllQuotes();
@@ -717,7 +785,7 @@ class ReaderApp {
                 const result = await this.apiClient.saveQuote(quoteData);
                 
                 if (result.success) {
-                    // ИСПРАВЛЕНО: Показ AI анализа без рекомендаций книг
+                    // ИСПРАВЛЕНО: Показ AI анализа без рекомендаций
                     if (result.aiAnalysis) {
                         // Фильтруем анализ от рекомендаций
                         const cleanAnalysis = this.filterAnalysisFromRecommendations(result.aiAnalysis);
@@ -735,13 +803,19 @@ class ReaderApp {
                         counter.style.color = 'var(--text-secondary)';
                     }
                     
-                    // Скрытие AI блока через несколько секунд
+                    // ИСПРАВЛЕНО: AI анализ остается дольше (15 секунд)
                     setTimeout(() => {
                         const aiInsight = document.getElementById('aiInsight');
                         if (aiInsight) {
-                            aiInsight.style.display = 'none';
+                            aiInsight.style.transition = 'opacity 1s ease';
+                            aiInsight.style.opacity = '0';
+                            setTimeout(() => {
+                                aiInsight.style.display = 'none';
+                                aiInsight.style.opacity = '1';
+                                aiInsight.style.transition = '';
+                            }, 1000);
                         }
-                    }, 5000);
+                    }, 15000); // Увеличено до 15 секунд
                     
                     this.showSuccess('Цитата сохранена!');
                     
@@ -770,9 +844,55 @@ class ReaderApp {
                 }
                 
             } else {
-                // Fallback для демо режима
-                this.showAIInsight('Демо режим: цитата сохранена локально');
-                console.log('⚠️ Демо режим - цитата не сохранена на сервере');
+                // ДЕМО режим - симуляция сохранения
+                const demoAnalysis = 'Эта цитата отражает философский взгляд на непредсказуемость жизни и важность гибкости в планировании. Она напоминает нам о том, что жизнь полна неожиданностей.';
+                this.showAIInsight(demoAnalysis);
+                
+                // Добавляем в демо данные
+                const newQuote = {
+                    id: 'demo_' + Date.now(),
+                    _id: 'demo_' + Date.now(),
+                    text: quoteData.text,
+                    author: quoteData.author,
+                    createdAt: new Date().toISOString(),
+                    isFavorite: false
+                };
+                
+                // Обновляем демо данные
+                if (!this.state.quotes) this.state.quotes = [];
+                this.state.quotes.unshift(newQuote);
+                
+                // Очистка формы
+                textEl.value = '';
+                if (authorEl) authorEl.value = '';
+                
+                // Обновление счетчика
+                const counter = document.querySelector('.char-counter');
+                if (counter) {
+                    counter.textContent = '0/500';
+                    counter.style.color = 'var(--text-secondary)';
+                }
+                
+                // AI анализ остается дольше
+                setTimeout(() => {
+                    const aiInsight = document.getElementById('aiInsight');
+                    if (aiInsight) {
+                        aiInsight.style.transition = 'opacity 1s ease';
+                        aiInsight.style.opacity = '0';
+                        setTimeout(() => {
+                            aiInsight.style.display = 'none';
+                            aiInsight.style.opacity = '1';
+                            aiInsight.style.transition = '';
+                        }, 1000);
+                    }
+                }, 15000);
+                
+                this.showSuccess('Цитата сохранена!');
+                
+                // Обновление недавних цитат
+                this.loadRecentQuotes();
+                
+                console.log('✅ Демо цитата сохранена');
             }
             
         } catch (error) {
@@ -856,6 +976,8 @@ class ReaderApp {
      */
     showQuoteActions(quoteId) {
         this.currentQuoteId = quoteId;
+        console.log('🔧 Открытие действий для цитаты:', quoteId);
+        
         const overlay = document.getElementById('quoteActionsOverlay');
         if (overlay) {
             overlay.classList.add('show');
@@ -875,19 +997,37 @@ class ReaderApp {
     }
 
     /**
-     * ДОБАВЛЕНО: Редактирование цитаты
+     * ИСПРАВЛЕНО: Редактирование цитаты
      */
     async editQuote() {
-        if (!this.currentQuoteId) return;
+        if (!this.currentQuoteId) {
+            console.error('❌ Нет ID цитаты для редактирования');
+            return;
+        }
         
         this.closeQuoteActions();
         
         try {
-            const quote = this.state.quotes.find(q => (q._id || q.id) === this.currentQuoteId);
+            console.log('✏️ Поиск цитаты для редактирования:', this.currentQuoteId);
+            console.log('📝 Доступные цитаты:', this.state.quotes);
+            
+            // ИСПРАВЛЕНО: Более надежный поиск цитаты
+            const quote = this.state.quotes.find(q => {
+                const quoteId = q._id || q.id;
+                console.log('🔍 Сравнение:', quoteId, '===', this.currentQuoteId);
+                return quoteId === this.currentQuoteId;
+            });
+            
             if (!quote) {
+                console.error('❌ Цитата не найдена:', this.currentQuoteId);
                 this.showError('Цитата не найдена');
                 return;
             }
+            
+            console.log('✅ Найдена цитата для редактирования:', quote);
+            
+            // Сохраняем цитату в режиме редактирования
+            this.editingQuote = quote;
             
             // Переходим на страницу редактирования
             this.showPage('add');
@@ -905,11 +1045,18 @@ class ReaderApp {
                 counter.textContent = `${quote.text.length}/500`;
             }
             
-            // Меняем кнопку на "Обновить"
+            // ИСПРАВЛЕНО: Меняем кнопку на "Обновить"
             const saveBtn = document.getElementById('saveButton');
             if (saveBtn) {
                 saveBtn.textContent = 'Обновить цитату';
                 saveBtn.onclick = () => this.updateQuote();
+            }
+            
+            // Обновляем Main Button в Telegram
+            if (this.telegramManager?.tg?.MainButton) {
+                const mainButton = this.telegramManager.tg.MainButton;
+                mainButton.setText('Обновить цитату');
+                mainButton.onClick(() => this.updateQuote());
             }
             
             this.triggerHaptic('success');
@@ -921,10 +1068,13 @@ class ReaderApp {
     }
 
     /**
-     * ДОБАВЛЕНО: Обновление цитаты
+     * ИСПРАВЛЕНО: Обновление цитаты
      */
     async updateQuote() {
-        if (!this.currentQuoteId) return;
+        if (!this.editingQuote) {
+            console.error('❌ Нет цитаты для обновления');
+            return;
+        }
         
         const textEl = document.getElementById('quoteText');
         const authorEl = document.getElementById('quoteAuthor');
@@ -943,36 +1093,37 @@ class ReaderApp {
             }
 
             const quoteData = {
-                id: this.currentQuoteId,
+                id: this.editingQuote._id || this.editingQuote.id,
                 text: textEl.value.trim(),
                 author: authorEl?.value.trim() || ''
             };
 
             if (this.apiClient) {
+                console.log('🔄 Обновление цитаты через API:', quoteData);
                 const result = await this.apiClient.updateQuote(quoteData);
                 
                 if (result.success) {
-                    // Очистка формы
-                    textEl.value = '';
-                    if (authorEl) authorEl.value = '';
-                    
-                    // Сброс кнопки
-                    saveBtn.textContent = 'Сохранить в дневник';
-                    saveBtn.onclick = () => this.saveQuote();
-                    
-                    this.showSuccess('Цитата обновлена!');
-                    
-                    // Обновление списков
-                    await Promise.all([
-                        this.loadRecentQuotes(),
-                        this.loadAllQuotes()
-                    ]);
-                    
-                    // Переходим на дневник
-                    this.showPage('diary');
-                    
+                    this.handleSuccessfulUpdate(textEl, authorEl, saveBtn);
                 } else {
                     throw new Error(result.error || 'Ошибка обновления');
+                }
+            } else {
+                // ДЕМО режим - обновление в локальных данных
+                console.log('🔄 Демо обновление цитаты:', quoteData);
+                
+                const quoteIndex = this.state.quotes.findIndex(q => 
+                    (q._id || q.id) === (this.editingQuote._id || this.editingQuote.id)
+                );
+                
+                if (quoteIndex !== -1) {
+                    this.state.quotes[quoteIndex] = {
+                        ...this.state.quotes[quoteIndex],
+                        text: quoteData.text,
+                        author: quoteData.author
+                    };
+                    this.handleSuccessfulUpdate(textEl, authorEl, saveBtn);
+                } else {
+                    throw new Error('Не удалось найти цитату для обновления');
                 }
             }
             
@@ -983,12 +1134,45 @@ class ReaderApp {
             if (saveBtn) {
                 saveBtn.disabled = false;
             }
-            this.currentQuoteId = null;
         }
     }
 
     /**
-     * ДОБАВЛЕНО: Переключение избранного
+     * ДОБАВЛЕНО: Обработка успешного обновления
+     */
+    handleSuccessfulUpdate(textEl, authorEl, saveBtn) {
+        // Очистка формы
+        textEl.value = '';
+        if (authorEl) authorEl.value = '';
+        
+        // Сброс кнопки
+        saveBtn.textContent = 'Сохранить в дневник';
+        saveBtn.onclick = () => this.saveQuote();
+        
+        // Сброс режима редактирования
+        this.editingQuote = null;
+        
+        // Обновляем Main Button в Telegram
+        if (this.telegramManager?.tg?.MainButton) {
+            const mainButton = this.telegramManager.tg.MainButton;
+            mainButton.setText('Сохранить цитату');
+            mainButton.onClick(() => this.saveQuote());
+        }
+        
+        this.showSuccess('Цитата обновлена!');
+        
+        // Обновление списков
+        Promise.all([
+            this.loadRecentQuotes(),
+            this.loadAllQuotes()
+        ]);
+        
+        // Переходим на дневник
+        this.showPage('diary');
+    }
+
+    /**
+     * ИСПРАВЛЕНО: Переключение избранного
      */
     async toggleFavorite() {
         if (!this.currentQuoteId) return;
@@ -1001,12 +1185,24 @@ class ReaderApp {
                 
                 if (result.success) {
                     this.showSuccess(result.isFavorite ? 'Добавлено в избранное' : 'Удалено из избранного');
-                    
-                    // Обновление списков
                     await this.loadAllQuotes();
-                    
                 } else {
                     throw new Error(result.error || 'Ошибка изменения статуса');
+                }
+            } else {
+                // ДЕМО режим
+                const quoteIndex = this.state.quotes.findIndex(q => 
+                    (q._id || q.id) === this.currentQuoteId
+                );
+                
+                if (quoteIndex !== -1) {
+                    this.state.quotes[quoteIndex].isFavorite = !this.state.quotes[quoteIndex].isFavorite;
+                    const isFavorite = this.state.quotes[quoteIndex].isFavorite;
+                    
+                    this.showSuccess(isFavorite ? 'Добавлено в избранное' : 'Удалено из избранного');
+                    this.renderQuotesList(this.state.quotes);
+                } else {
+                    throw new Error('Цитата не найдена');
                 }
             }
             
@@ -1017,7 +1213,7 @@ class ReaderApp {
     }
 
     /**
-     * ДОБАВЛЕНО: Удаление цитаты
+     * ИСПРАВЛЕНО: Удаление цитаты
      */
     async deleteQuote() {
         if (!this.currentQuoteId) return;
@@ -1039,7 +1235,7 @@ class ReaderApp {
     }
 
     /**
-     * ДОБАВЛЕНО: Выполнение удаления цитаты
+     * ИСПРАВЛЕНО: Выполнение удаления цитаты
      */
     async performDeleteQuote() {
         try {
@@ -1055,9 +1251,24 @@ class ReaderApp {
                         this.loadRecentQuotes(),
                         this.loadAllQuotes()
                     ]);
-                    
                 } else {
                     throw new Error(result.error || 'Ошибка удаления');
+                }
+            } else {
+                // ДЕМО режим
+                const quoteIndex = this.state.quotes.findIndex(q => 
+                    (q._id || q.id) === this.currentQuoteId
+                );
+                
+                if (quoteIndex !== -1) {
+                    this.state.quotes.splice(quoteIndex, 1);
+                    this.showSuccess('Цитата удалена');
+                    
+                    // Обновление списков
+                    this.loadRecentQuotes();
+                    this.renderQuotesList(this.state.quotes);
+                } else {
+                    throw new Error('Цитата не найдена');
                 }
             }
             
@@ -1365,7 +1576,7 @@ class ReaderApp {
      */
     getDebugInfo() {
         return {
-            version: '2.2',
+            version: '2.3',
             currentPage: this.currentPage,
             currentUser: this.currentUser,
             apiClient: !!this.apiClient,
@@ -1373,7 +1584,8 @@ class ReaderApp {
             state: this.state,
             apiConnection: this.apiClient?.getConnectionInfo?.() || null,
             savingInProgress: this.savingInProgress,
-            currentQuoteId: this.currentQuoteId
+            currentQuoteId: this.currentQuoteId,
+            editingQuote: this.editingQuote
         };
     }
 }
@@ -1424,4 +1636,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.app = app; // Для отладки
 });
 
-console.log('📱 Reader Bot Mini App v2.2 скрипт загружен');
+console.log('📱 Reader Bot Mini App v2.3 скрипт загружен');
