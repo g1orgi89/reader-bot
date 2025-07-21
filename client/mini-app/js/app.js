@@ -1,8 +1,8 @@
 /**
- * Reader Bot Mini App - Основной модуль приложения v2.1
- * ОБНОВЛЕНО: Интеграция с ReaderAPI через api-integration.js
+ * Reader Bot Mini App - Основной модуль приложения v2.2
+ * ИСПРАВЛЕНО: Дублирование сохранения, анализ без рекомендаций, функции редактирования
  * 
- * @version 2.1
+ * @version 2.2
  * @author Reader Bot Team
  */
 
@@ -12,6 +12,8 @@ class ReaderApp {
         this.currentUser = null;
         this.apiClient = null;
         this.telegramManager = null;
+        this.currentQuoteId = null; // Для действий с цитатой
+        this.savingInProgress = false; // Защита от двойного сохранения
         
         // Состояние приложения
         this.state = {
@@ -30,7 +32,7 @@ class ReaderApp {
      * Инициализация приложения
      */
     async init() {
-        console.log('🚀 Инициализация Reader Bot Mini App v2.1');
+        console.log('🚀 Инициализация Reader Bot Mini App v2.2');
         
         try {
             // Инициализация Telegram WebApp
@@ -206,6 +208,7 @@ class ReaderApp {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.closeMenu();
+                this.closeQuoteActions();
             }
         });
     }
@@ -319,7 +322,7 @@ class ReaderApp {
     }
 
     /**
-     * Загрузка последних цитат
+     * Загрузка последних цитат - ИСПРАВЛЕНО: обновление в реальном времени
      */
     async loadRecentQuotes() {
         try {
@@ -533,7 +536,7 @@ class ReaderApp {
             item.classList.remove('active');
         });
         
-        const activeNav = document.querySelector(`[data-page=\"${pageId}\"]`);
+        const activeNav = document.querySelector(`[data-page="${pageId}"]`);
         if (activeNav) {
             activeNav.classList.add('active');
         }
@@ -662,12 +665,17 @@ class ReaderApp {
     }
 
     /**
-     * Сохранение цитаты - ОБНОВЛЕНО
+     * ИСПРАВЛЕНО: Сохранение цитаты с защитой от дублирования
      */
     async saveQuote() {
+        // Защита от двойного нажатия
+        if (this.savingInProgress) {
+            console.log('⚠️ Сохранение уже в процессе');
+            return;
+        }
+
         const textEl = document.getElementById('quoteText');
         const authorEl = document.getElementById('quoteAuthor');
-        const sourceEl = document.getElementById('quoteSource');
         const saveBtn = document.getElementById('saveButton');
         
         if (!textEl || !textEl.value.trim()) {
@@ -689,16 +697,18 @@ class ReaderApp {
         }
 
         try {
+            // ИСПРАВЛЕНО: Блокировка повторного сохранения
+            this.savingInProgress = true;
+            
             // Блокировка кнопки
             if (saveBtn) {
                 saveBtn.disabled = true;
-                saveBtn.textContent = 'Анализ AI...';
+                saveBtn.textContent = 'Анализирую...';
             }
 
             const quoteData = {
                 text: textEl.value.trim(),
-                author: authorEl?.value.trim() || '',
-                source: sourceEl?.value.trim() || ''
+                author: authorEl?.value.trim() || ''
             };
 
             if (this.apiClient) {
@@ -707,15 +717,16 @@ class ReaderApp {
                 const result = await this.apiClient.saveQuote(quoteData);
                 
                 if (result.success) {
-                    // Показ AI анализа
+                    // ИСПРАВЛЕНО: Показ AI анализа без рекомендаций книг
                     if (result.aiAnalysis) {
-                        this.showAIInsight(result.aiAnalysis);
+                        // Фильтруем анализ от рекомендаций
+                        const cleanAnalysis = this.filterAnalysisFromRecommendations(result.aiAnalysis);
+                        this.showAIInsight(cleanAnalysis);
                     }
                     
                     // Очистка формы
                     textEl.value = '';
                     if (authorEl) authorEl.value = '';
-                    if (sourceEl) sourceEl.value = '';
                     
                     // Обновление счетчика
                     const counter = document.querySelector('.char-counter');
@@ -724,10 +735,21 @@ class ReaderApp {
                         counter.style.color = 'var(--text-secondary)';
                     }
                     
+                    // Скрытие AI блока через несколько секунд
+                    setTimeout(() => {
+                        const aiInsight = document.getElementById('aiInsight');
+                        if (aiInsight) {
+                            aiInsight.style.display = 'none';
+                        }
+                    }, 5000);
+                    
                     this.showSuccess('Цитата сохранена!');
                     
-                    // Обновление статистики
-                    await this.loadUserStats();
+                    // ИСПРАВЛЕНО: Обновление статистики и недавних цитат
+                    await Promise.all([
+                        this.loadUserStats(),
+                        this.loadRecentQuotes()
+                    ]);
                     
                     // Haptic feedback
                     this.triggerHaptic('success');
@@ -757,12 +779,53 @@ class ReaderApp {
             console.error('❌ Ошибка сохранения цитаты:', error);
             this.showError('Не удалось сохранить цитату: ' + error.message);
         } finally {
+            // ИСПРАВЛЕНО: Разблокировка только после завершения
+            this.savingInProgress = false;
+            
             // Разблокировка кнопки
             if (saveBtn) {
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Сохранить в дневник';
             }
         }
+    }
+
+    /**
+     * ДОБАВЛЕНО: Фильтрация анализа от рекомендаций книг
+     */
+    filterAnalysisFromRecommendations(analysis) {
+        if (!analysis) return '';
+        
+        // Удаляем секции с рекомендациями книг
+        const lines = analysis.split('\n');
+        const filteredLines = [];
+        
+        let skipRecommendations = false;
+        
+        for (const line of lines) {
+            const lowerLine = line.toLowerCase();
+            
+            // Начинаем пропускать если встречаем рекомендации
+            if (lowerLine.includes('рекомендац') || 
+                lowerLine.includes('книг') || 
+                lowerLine.includes('разбор') ||
+                lowerLine.includes('от анны') ||
+                lowerLine.includes('промокод')) {
+                skipRecommendations = true;
+                continue;
+            }
+            
+            // Прекращаем пропускать на новом параграфе анализа
+            if (skipRecommendations && (lowerLine.includes('анализ') || lowerLine.includes('цитата') || line.trim() === '')) {
+                skipRecommendations = false;
+            }
+            
+            if (!skipRecommendations) {
+                filteredLines.push(line);
+            }
+        }
+        
+        return filteredLines.join('\n').trim();
     }
 
     /**
@@ -785,6 +848,224 @@ class ReaderApp {
                 aiInsight.style.opacity = '1';
                 aiInsight.style.transform = 'translateY(0)';
             }, 100);
+        }
+    }
+
+    /**
+     * ДОБАВЛЕНО: Показ модального окна действий с цитатой
+     */
+    showQuoteActions(quoteId) {
+        this.currentQuoteId = quoteId;
+        const overlay = document.getElementById('quoteActionsOverlay');
+        if (overlay) {
+            overlay.classList.add('show');
+            this.triggerHaptic('light');
+        }
+    }
+
+    /**
+     * ДОБАВЛЕНО: Закрытие модального окна действий
+     */
+    closeQuoteActions() {
+        const overlay = document.getElementById('quoteActionsOverlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+        }
+        this.currentQuoteId = null;
+    }
+
+    /**
+     * ДОБАВЛЕНО: Редактирование цитаты
+     */
+    async editQuote() {
+        if (!this.currentQuoteId) return;
+        
+        this.closeQuoteActions();
+        
+        try {
+            const quote = this.state.quotes.find(q => (q._id || q.id) === this.currentQuoteId);
+            if (!quote) {
+                this.showError('Цитата не найдена');
+                return;
+            }
+            
+            // Переходим на страницу редактирования
+            this.showPage('add');
+            
+            // Заполняем форму данными цитаты
+            const textEl = document.getElementById('quoteText');
+            const authorEl = document.getElementById('quoteAuthor');
+            
+            if (textEl) textEl.value = quote.text;
+            if (authorEl) authorEl.value = quote.author || '';
+            
+            // Обновляем счетчик символов
+            const counter = document.querySelector('.char-counter');
+            if (counter) {
+                counter.textContent = `${quote.text.length}/500`;
+            }
+            
+            // Меняем кнопку на "Обновить"
+            const saveBtn = document.getElementById('saveButton');
+            if (saveBtn) {
+                saveBtn.textContent = 'Обновить цитату';
+                saveBtn.onclick = () => this.updateQuote();
+            }
+            
+            this.triggerHaptic('success');
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки цитаты для редактирования:', error);
+            this.showError('Не удалось загрузить цитату');
+        }
+    }
+
+    /**
+     * ДОБАВЛЕНО: Обновление цитаты
+     */
+    async updateQuote() {
+        if (!this.currentQuoteId) return;
+        
+        const textEl = document.getElementById('quoteText');
+        const authorEl = document.getElementById('quoteAuthor');
+        const saveBtn = document.getElementById('saveButton');
+        
+        if (!textEl || !textEl.value.trim()) {
+            this.showError('Введите текст цитаты');
+            return;
+        }
+
+        try {
+            // Блокировка кнопки
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Обновляю...';
+            }
+
+            const quoteData = {
+                id: this.currentQuoteId,
+                text: textEl.value.trim(),
+                author: authorEl?.value.trim() || ''
+            };
+
+            if (this.apiClient) {
+                const result = await this.apiClient.updateQuote(quoteData);
+                
+                if (result.success) {
+                    // Очистка формы
+                    textEl.value = '';
+                    if (authorEl) authorEl.value = '';
+                    
+                    // Сброс кнопки
+                    saveBtn.textContent = 'Сохранить в дневник';
+                    saveBtn.onclick = () => this.saveQuote();
+                    
+                    this.showSuccess('Цитата обновлена!');
+                    
+                    // Обновление списков
+                    await Promise.all([
+                        this.loadRecentQuotes(),
+                        this.loadAllQuotes()
+                    ]);
+                    
+                    // Переходим на дневник
+                    this.showPage('diary');
+                    
+                } else {
+                    throw new Error(result.error || 'Ошибка обновления');
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка обновления цитаты:', error);
+            this.showError('Не удалось обновить цитату: ' + error.message);
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+            }
+            this.currentQuoteId = null;
+        }
+    }
+
+    /**
+     * ДОБАВЛЕНО: Переключение избранного
+     */
+    async toggleFavorite() {
+        if (!this.currentQuoteId) return;
+        
+        this.closeQuoteActions();
+        
+        try {
+            if (this.apiClient) {
+                const result = await this.apiClient.toggleQuoteFavorite(this.currentQuoteId);
+                
+                if (result.success) {
+                    this.showSuccess(result.isFavorite ? 'Добавлено в избранное' : 'Удалено из избранного');
+                    
+                    // Обновление списков
+                    await this.loadAllQuotes();
+                    
+                } else {
+                    throw new Error(result.error || 'Ошибка изменения статуса');
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка изменения избранного:', error);
+            this.showError('Не удалось изменить статус избранного');
+        }
+    }
+
+    /**
+     * ДОБАВЛЕНО: Удаление цитаты
+     */
+    async deleteQuote() {
+        if (!this.currentQuoteId) return;
+        
+        this.closeQuoteActions();
+        
+        // Подтверждение удаления
+        if (this.telegramManager?.tg?.showConfirm) {
+            this.telegramManager.tg.showConfirm('Удалить цитату?', (confirmed) => {
+                if (confirmed) {
+                    this.performDeleteQuote();
+                }
+            });
+        } else {
+            if (confirm('Вы уверены, что хотите удалить эту цитату?')) {
+                this.performDeleteQuote();
+            }
+        }
+    }
+
+    /**
+     * ДОБАВЛЕНО: Выполнение удаления цитаты
+     */
+    async performDeleteQuote() {
+        try {
+            if (this.apiClient) {
+                const result = await this.apiClient.deleteQuote(this.currentQuoteId);
+                
+                if (result.success) {
+                    this.showSuccess('Цитата удалена');
+                    
+                    // Обновление всех списков
+                    await Promise.all([
+                        this.loadUserStats(),
+                        this.loadRecentQuotes(),
+                        this.loadAllQuotes()
+                    ]);
+                    
+                } else {
+                    throw new Error(result.error || 'Ошибка удаления');
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка удаления цитаты:', error);
+            this.showError('Не удалось удалить цитату');
+        } finally {
+            this.currentQuoteId = null;
         }
     }
 
@@ -825,7 +1106,7 @@ class ReaderApp {
             preview.id = 'livePreview';
             preview.className = 'live-preview';
             
-            const quoteForm = document.querySelector('.quote-form');
+            const quoteForm = document.querySelector('.add-form');
             if (quoteForm) {
                 quoteForm.appendChild(preview);
             }
@@ -876,7 +1157,7 @@ class ReaderApp {
             tab.classList.remove('active');
         });
         
-        const activeTab = document.querySelector(`[data-filter=\"${filter}\"]`);
+        const activeTab = document.querySelector(`[data-filter="${filter}"]`);
         if (activeTab) {
             activeTab.classList.add('active');
         }
@@ -924,7 +1205,7 @@ class ReaderApp {
             tab.classList.remove('active');
         });
         
-        const activeTab = document.querySelector(`[data-category=\"${category}\"]`);
+        const activeTab = document.querySelector(`[data-category="${category}"]`);
         if (activeTab) {
             activeTab.classList.add('active');
         }
@@ -1084,18 +1365,20 @@ class ReaderApp {
      */
     getDebugInfo() {
         return {
-            version: '2.1',
+            version: '2.2',
             currentPage: this.currentPage,
             currentUser: this.currentUser,
             apiClient: !!this.apiClient,
             telegramManager: !!this.telegramManager,
             state: this.state,
-            apiConnection: this.apiClient?.getConnectionInfo?.() || null
+            apiConnection: this.apiClient?.getConnectionInfo?.() || null,
+            savingInProgress: this.savingInProgress,
+            currentQuoteId: this.currentQuoteId
         };
     }
 }
 
-// Глобальные функции для HTML - остаются без изменений
+// Глобальные функции для HTML - ОБНОВЛЕНО
 let app;
 
 function showPage(pageId) {
@@ -1118,10 +1401,27 @@ function saveQuote() {
     if (app) app.saveQuote();
 }
 
+// ДОБАВЛЕНО: Новые глобальные функции
+function closeQuoteActions() {
+    if (app) app.closeQuoteActions();
+}
+
+function editQuote() {
+    if (app) app.editQuote();
+}
+
+function toggleFavorite() {
+    if (app) app.toggleFavorite();
+}
+
+function deleteQuote() {
+    if (app) app.deleteQuote();
+}
+
 // Инициализация при загрузке DOM
 document.addEventListener('DOMContentLoaded', () => {
     app = new ReaderApp();
     window.app = app; // Для отладки
 });
 
-console.log('📱 Reader Bot Mini App v2.1 скрипт загружен');
+console.log('📱 Reader Bot Mini App v2.2 скрипт загружен');
