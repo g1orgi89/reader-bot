@@ -9,13 +9,11 @@
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-    <!-- Подключение стилей В ПРАВИЛЬНОМ ПОРЯДКЕ -->
+    <!-- Подключение стилей -->
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./css/mobile.css">
-    <!-- iOS ФИКС - ПОДКЛЮЧАЕМ ПЕРВЫМ ДЛЯ OVERRIDE -->
+    <!-- iOS ФИКС - ЕДИНСТВЕННЫЙ НУЖНЫЙ -->
     <link rel="stylesheet" href="./css/ios-bottom-nav-fix.css">
-    <!-- Старый фикс оставляем для совместимости -->
-    <link rel="stylesheet" href="./css/telegram-fix.css">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="./manifest.json">
@@ -81,7 +79,6 @@
              ДОБАВИТЬ ЦИТАТУ
         ===================== -->
         <div class="page" id="add">
-            <!-- ИСПРАВЛЕНО: Центрирование заголовков -->
             <div class="page-header centered-header">
                 <h1 class="page-title">Новая цитата</h1>
                 <p class="page-subtitle">Поделитесь вдохновляющими словами</p>
@@ -109,8 +106,6 @@
                         >
                     </div>
 
-                    <!-- ИСПРАВЛЕНО: Убрано поле источника -->
-
                     <div class="ai-insight" id="aiInsight" style="display: none;">
                         <div class="ai-title">
                             ✨ Анализ от Анны
@@ -120,7 +115,6 @@
                         </div>
                     </div>
 
-                    <!-- ИСПРАВЛЕНО: Единственная кнопка сохранения -->
                     <button class="save-btn" onclick="saveQuote()" id="saveButton">
                         Сохранить в дневник
                     </button>
@@ -410,103 +404,58 @@
     </div>
 
     <!-- ===================== 
-         НОВЫЙ ПОРЯДОК СКРИПТОВ v3.0 - iOS ФИКС
+         ЧИСТЫЕ СКРИПТЫ - ТОЛЬКО РАБОЧИЙ ФИКСЕР
     ===================== -->
     
-    <!-- 1. НОВЫЙ iOS Navigation Fixer v3.0 (ПЕРВЫМ!) -->
+    <!-- 1. iOS Navigation Fixer v3.0 (ЕДИНСТВЕННЫЙ ФИКСЕР) -->
     <script src="./js/ios-navigation-fixer-v3.js"></script>
     
-    <!-- 2. Legacy Telegram Fixer для совместимости -->
-    <script src="./js/telegram-nav-fixer.js"></script>
-    
-    <!-- 3. Telegram WebApp Manager -->
+    <!-- 2. Telegram WebApp Manager -->
     <script src="./js/telegram-v2.js"></script>
     
-    <!-- 4. API Manager -->
+    <!-- 3. API Manager -->
     <script src="./js/api.js"></script>
     
-    <!-- 5. API Integration Layer -->
+    <!-- 4. API Integration Layer -->
     <script src="./js/api-integration.js"></script>
     
-    <!-- 6. Main Application -->
+    <!-- 5. Main Application -->
     <script src="./js/app.js"></script>
 
-    <!-- Debug & Integration Check v3.0 -->
+    <!-- Clean Debug v4.0 -->
     <script>
-        // Информация о загрузке
-        console.log('🚀 Reader Bot Mini App v3.0 - iOS NAVIGATION FIXER LOADED');
-        console.log('📍 Новый порядок загрузки скриптов v3.0:');
-        console.log('  1. ✅ ios-navigation-fixer-v3.js - Advanced iOS Navigation Fixer');
-        console.log('  2. ✅ telegram-nav-fixer.js - Legacy Fixer (совместимость)');
-        console.log('  3. ✅ telegram-v2.js - Telegram WebApp SDK');
-        console.log('  4. ✅ api.js - API Manager');
-        console.log('  5. ✅ api-integration.js - Integration Layer'); 
-        console.log('  6. ✅ app.js - Main Application');
+        console.log('🚀 Reader Bot Mini App v4.0 - CLEAN iOS NAVIGATION');
+        console.log('📍 Чистый порядок скриптов:');
+        console.log('  1. ✅ ios-navigation-fixer-v3.js - ЕДИНСТВЕННЫЙ iOS Fixer');
+        console.log('  2. ✅ telegram-v2.js - Telegram WebApp SDK');
+        console.log('  3. ✅ api.js - API Manager');
+        console.log('  4. ✅ api-integration.js - Integration Layer'); 
+        console.log('  5. ✅ app.js - Main Application');
         
-        // Основная debug функция v3.0
-        window.checkIntegration = function() {
+        // Чистые debug функции
+        window.checkNavigation = function() {
             const status = {
-                iosNavFixer: !!window.telegramNavFixer, // v3.0 фиксер
-                legacyNavFixer: !!window.forceNavFix, // старый фиксер
-                telegram: !!window.TelegramManager,
-                apiManager: !!window.apiManager,
-                readerAPI: !!window.ReaderAPI,
-                readerAPIInstance: !!window.readerAPI,
-                app: !!window.app,
-                isTelegramEnv: document.body.classList.contains('telegram-mini-app'),
-                isIOSDevice: document.body.classList.contains('ios-device')
+                iosNavFixer: !!window.telegramNavFixer,
+                navigationElement: !!document.querySelector('.bottom-nav'),
+                isIOSDevice: document.body.classList.contains('ios-device'),
+                isTelegramEnv: document.body.classList.contains('telegram-mini-app')
             };
             
-            console.log('🔍 Статус интеграции v3.0:', status);
+            console.log('🔍 Navigation Status:', status);
             
-            // Статус iOS фиксера v3.0
             if (window.telegramNavFixer?.getStatus) {
-                console.log('📱 iOS Navigation Fixer Status:', window.telegramNavFixer.getStatus());
-            }
-            
-            if (window.app?.getDebugInfo) {
-                console.log('📊 Debug информация приложения:', window.app.getDebugInfo());
+                console.log('📱 iOS Fixer Details:', window.telegramNavFixer.getStatus());
             }
             
             return status;
         };
         
-        // Debug функции для iOS фиксера v3.0
-        window.enableIOSDebug = function() {
-            if (window.telegramNavFixer) {
-                window.telegramNavFixer.enableDebug();
-                console.log('✅ iOS Navigation Debug mode enabled');
-            }
-        };
+        // Упрощенные команды
+        window.enableDebug = () => window.telegramNavFixer?.enableDebug();
+        window.fixNav = () => window.telegramNavFixer?.forceNavigationFix();
         
-        window.disableIOSDebug = function() {
-            if (window.telegramNavFixer) {
-                window.telegramNavFixer.disableDebug();
-                console.log('❌ iOS Navigation Debug mode disabled');
-            }
-        };
-        
-        window.forceIOSNavFix = function() {
-            if (window.telegramNavFixer) {
-                window.telegramNavFixer.forceNavigationFix();
-                console.log('🔧 iOS Navigation manually fixed');
-            } else if (window.forceNavFix) {
-                window.forceNavFix();
-                console.log('🔧 Legacy navigation manually fixed');
-            }
-        };
-        
-        // Legacy совместимость
-        if (!window.forceNavFix && window.telegramNavFixer) {
-            window.forceNavFix = window.forceIOSNavFix;
-        }
-        
-        // Автоматическая проверка через 3 секунды
-        setTimeout(() => {
-            if (typeof window.checkIntegration === 'function') {
-                window.checkIntegration();
-            }
-        }, 3000);
+        // Автопроверка
+        setTimeout(() => window.checkNavigation(), 2000);
     </script>
 </body>
 </html>
