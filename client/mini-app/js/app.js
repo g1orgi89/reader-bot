@@ -1,8 +1,8 @@
 /**
- * Reader Bot Mini App - Основной модуль приложения v2.4
- * ИСПРАВЛЕНО: Полное удаление Telegram Main Button
+ * Reader Bot Mini App - Основной модуль приложения v2.5
+ * УЛУЧШЕНО: Компактные inline кнопки вместо модального окна
  * 
- * @version 2.4
+ * @version 2.5
  * @author Reader Bot Team
  */
 
@@ -15,6 +15,7 @@ class ReaderApp {
         this.currentQuoteId = null; // Для действий с цитатой
         this.savingInProgress = false; // Защита от двойного сохранения
         this.editingQuote = null; // ДОБАВЛЕНО: Цитата в режиме редактирования
+        this.selectedQuoteId = null; // ДОБАВЛЕНО: Выбранная цитата для inline кнопок
         
         // Состояние приложения
         this.state = {
@@ -33,7 +34,7 @@ class ReaderApp {
      * Инициализация приложения
      */
     async init() {
-        console.log('🚀 Инициализация Reader Bot Mini App v2.4');
+        console.log('🚀 Инициализация Reader Bot Mini App v2.5');
         
         try {
             // Инициализация Telegram WebApp
@@ -261,13 +262,18 @@ class ReaderApp {
             if (e.target === menuOverlay) {
                 this.closeMenu();
             }
+            
+            // ДОБАВЛЕНО: Скрытие inline кнопок при клике вне цитаты
+            if (!e.target.closest('.quote-card')) {
+                this.hideAllQuoteActions();
+            }
         });
 
         // Обработка клавиш
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.closeMenu();
-                this.closeQuoteActions();
+                this.hideAllQuoteActions();
             }
         });
     }
@@ -715,7 +721,8 @@ class ReaderApp {
     }
 
     /**
-     * Отображение списка цитат
+     * ✨ НОВОЕ: Отображение списка цитат с Telegram-стилем
+     * Нажатие на цитату показывает inline кнопки действий
      */
     renderQuotesList(quotes) {
         const container = document.getElementById('quotesList');
@@ -732,27 +739,98 @@ class ReaderApp {
             return;
         }
 
-        container.innerHTML = quotes.map(quote => `
-            <div class="quote-card">
-                <div class="quote-actions">
-                    <button class="action-btn" onclick="event.stopPropagation(); app.showQuoteActions('${quote._id || quote.id}')">⋯</button>
-                </div>
-                <div class="quote-full-text">${this.escapeHtml(quote.text)}</div>
-                <div class="quote-author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
-                <div class="quote-meta">
-                    <span>${this.formatDate(quote.createdAt)}</span>
-                    <span>${quote.isFavorite ? '❤️ Избранное' : ''}</span>
-                </div>
-                ${quote.analysis ? `
-                    <div class="quote-analysis">
-                        <div class="analysis-tags">
-                            <span class="mood-tag">${quote.analysis.mood}</span>
-                            <span class="category-tag">${quote.analysis.category}</span>
+        container.innerHTML = quotes.map(quote => {
+            const quoteId = quote._id || quote.id;
+            return `
+                <div class="quote-card" 
+                     data-quote-id="${quoteId}" 
+                     onclick="app.toggleQuoteActions('${quoteId}')">
+                     
+                    <!-- Основной контент цитаты -->
+                    <div class="quote-content">
+                        <div class="quote-full-text">${this.escapeHtml(quote.text)}</div>
+                        <div class="quote-author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
+                        <div class="quote-meta">
+                            <span>${this.formatDate(quote.createdAt)}</span>
+                            ${quote.isFavorite ? '<span>❤️ Избранное</span>' : ''}
                         </div>
+                        ${quote.analysis ? `
+                            <div class="quote-analysis">
+                                <div class="analysis-tags">
+                                    <span class="mood-tag">${quote.analysis.mood}</span>
+                                    <span class="category-tag">${quote.analysis.category}</span>
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
-                ` : ''}
-            </div>
-        `).join('');
+                    
+                    <!-- ✨ НОВЫЕ: Компактные inline кнопки (скрыты по умолчанию) -->
+                    <div class="quote-actions-inline" id="actions-${quoteId}" style="display: none;">
+                        <button class="action-btn edit-btn" 
+                                onclick="event.stopPropagation(); app.editQuote('${quoteId}')" 
+                                title="Редактировать">
+                            ✏️
+                        </button>
+                        <button class="action-btn favorite-btn ${quote.isFavorite ? 'active' : ''}" 
+                                onclick="event.stopPropagation(); app.toggleFavorite('${quoteId}')" 
+                                title="${quote.isFavorite ? 'Убрать из избранного' : 'В избранное'}">
+                            ${quote.isFavorite ? '❤️' : '🤍'}
+                        </button>
+                        <button class="action-btn delete-btn" 
+                                onclick="event.stopPropagation(); app.deleteQuote('${quoteId}')" 
+                                title="Удалить">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * ✨ НОВОЕ: Переключение показа inline кнопок для цитаты (Telegram-стиль)
+     */
+    toggleQuoteActions(quoteId) {
+        console.log('📱 Переключение действий для цитаты:', quoteId);
+        
+        // Скрываем кнопки других цитат
+        this.hideAllQuoteActions();
+        
+        // Переключаем кнопки текущей цитаты
+        const actionsEl = document.getElementById(`actions-${quoteId}`);
+        if (actionsEl) {
+            const isVisible = actionsEl.style.display !== 'none';
+            
+            if (isVisible) {
+                // Скрываем кнопки
+                actionsEl.style.display = 'none';
+                this.selectedQuoteId = null;
+            } else {
+                // Показываем кнопки с анимацией
+                actionsEl.style.display = 'flex';
+                actionsEl.style.opacity = '0';
+                actionsEl.style.transform = 'translateY(-10px)';
+                
+                setTimeout(() => {
+                    actionsEl.style.transition = 'all 0.3s ease';
+                    actionsEl.style.opacity = '1';
+                    actionsEl.style.transform = 'translateY(0)';
+                }, 10);
+                
+                this.selectedQuoteId = quoteId;
+                this.triggerHaptic('light');
+            }
+        }
+    }
+
+    /**
+     * ✨ НОВОЕ: Скрытие всех inline кнопок действий
+     */
+    hideAllQuoteActions() {
+        document.querySelectorAll('.quote-actions-inline').forEach(actionsEl => {
+            actionsEl.style.display = 'none';
+        });
+        this.selectedQuoteId = null;
     }
 
     /**
@@ -995,54 +1073,23 @@ class ReaderApp {
     }
 
     /**
-     * ДОБАВЛЕНО: Показ модального окна действий с цитатой
+     * ✨ ОБНОВЛЕНО: Редактирование цитаты (принимает ID напрямую)
      */
-    showQuoteActions(quoteId) {
-        this.currentQuoteId = quoteId;
-        console.log('🔧 Открытие действий для цитаты:', quoteId);
+    async editQuote(quoteId) {
+        console.log('✏️ Редактирование цитаты:', quoteId);
         
-        const overlay = document.getElementById('quoteActionsOverlay');
-        if (overlay) {
-            overlay.classList.add('show');
-            this.triggerHaptic('light');
-        }
-    }
-
-    /**
-     * ДОБАВЛЕНО: Закрытие модального окна действий
-     */
-    closeQuoteActions() {
-        const overlay = document.getElementById('quoteActionsOverlay');
-        if (overlay) {
-            overlay.classList.remove('show');
-        }
-        this.currentQuoteId = null;
-    }
-
-    /**
-     * ИСПРАВЛЕНО: Редактирование цитаты
-     */
-    async editQuote() {
-        if (!this.currentQuoteId) {
-            console.error('❌ Нет ID цитаты для редактирования');
-            return;
-        }
-        
-        this.closeQuoteActions();
+        // Скрываем inline кнопки
+        this.hideAllQuoteActions();
         
         try {
-            console.log('✏️ Поиск цитаты для редактирования:', this.currentQuoteId);
-            console.log('📝 Доступные цитаты:', this.state.quotes);
-            
-            // ИСПРАВЛЕНО: Более надежный поиск цитаты
+            // Ищем цитату в state
             const quote = this.state.quotes.find(q => {
-                const quoteId = q._id || q.id;
-                console.log('🔍 Сравнение:', quoteId, '===', this.currentQuoteId);
-                return quoteId === this.currentQuoteId;
+                const id = q._id || q.id;
+                return id === quoteId;
             });
             
             if (!quote) {
-                console.error('❌ Цитата не найдена:', this.currentQuoteId);
+                console.error('❌ Цитата не найдена:', quoteId);
                 this.showError('Цитата не найдена');
                 return;
             }
@@ -1068,7 +1115,7 @@ class ReaderApp {
                 counter.textContent = `${quote.text.length}/500`;
             }
             
-            // ИСПРАВЛЕНО: Меняем кнопку на "Обновить"
+            // Меняем кнопку на "Обновить"
             const saveBtn = document.getElementById('saveButton');
             if (saveBtn) {
                 saveBtn.textContent = 'Обновить цитату';
@@ -1078,8 +1125,115 @@ class ReaderApp {
             this.triggerHaptic('success');
             
         } catch (error) {
-            console.error('❌ Ошибка загрузки цитаты для редактирования:', error);
+            console.error('❌ Ошибка редактирования цитаты:', error);
             this.showError('Не удалось загрузить цитату');
+        }
+    }
+
+    /**
+     * ✨ ОБНОВЛЕНО: Переключение избранного (принимает ID напрямую)
+     */
+    async toggleFavorite(quoteId) {
+        console.log('❤️ Переключение избранного:', quoteId);
+        
+        try {
+            if (this.apiClient) {
+                const result = await this.apiClient.toggleQuoteFavorite(quoteId);
+                
+                if (result.success) {
+                    this.showSuccess(result.isFavorite ? 'Добавлено в избранное' : 'Удалено из избранного');
+                    await this.loadAllQuotes();
+                } else {
+                    throw new Error(result.error || 'Ошибка изменения статуса');
+                }
+            } else {
+                // ДЕМО режим
+                const quoteIndex = this.state.quotes.findIndex(q => 
+                    (q._id || q.id) === quoteId
+                );
+                
+                if (quoteIndex !== -1) {
+                    this.state.quotes[quoteIndex].isFavorite = !this.state.quotes[quoteIndex].isFavorite;
+                    const isFavorite = this.state.quotes[quoteIndex].isFavorite;
+                    
+                    this.showSuccess(isFavorite ? 'Добавлено в избранное' : 'Удалено из избранного');
+                    this.renderQuotesList(this.state.quotes);
+                    this.triggerHaptic('success');
+                } else {
+                    throw new Error('Цитата не найдена');
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка изменения избранного:', error);
+            this.showError('Не удалось изменить статус избранного');
+        }
+    }
+
+    /**
+     * ✨ ОБНОВЛЕНО: Удаление цитаты (принимает ID напрямую)
+     */
+    async deleteQuote(quoteId) {
+        console.log('🗑️ Запрос удаления цитаты:', quoteId);
+        
+        // Подтверждение удаления
+        const confirmMessage = 'Вы уверены, что хотите удалить эту цитату?';
+        
+        if (this.telegramManager?.tg?.showConfirm) {
+            this.telegramManager.tg.showConfirm(confirmMessage, (confirmed) => {
+                if (confirmed) {
+                    this.performDeleteQuote(quoteId);
+                }
+            });
+        } else {
+            if (confirm(confirmMessage)) {
+                this.performDeleteQuote(quoteId);
+            }
+        }
+    }
+
+    /**
+     * ✨ ОБНОВЛЕНО: Выполнение удаления цитаты
+     */
+    async performDeleteQuote(quoteId) {
+        try {
+            if (this.apiClient) {
+                const result = await this.apiClient.deleteQuote(quoteId);
+                
+                if (result.success) {
+                    this.showSuccess('Цитата удалена');
+                    
+                    // Обновление всех списков
+                    await Promise.all([
+                        this.loadUserStats(),
+                        this.loadRecentQuotes(),
+                        this.loadAllQuotes()
+                    ]);
+                } else {
+                    throw new Error(result.error || 'Ошибка удаления');
+                }
+            } else {
+                // ДЕМО режим
+                const quoteIndex = this.state.quotes.findIndex(q => 
+                    (q._id || q.id) === quoteId
+                );
+                
+                if (quoteIndex !== -1) {
+                    this.state.quotes.splice(quoteIndex, 1);
+                    this.showSuccess('Цитата удалена');
+                    
+                    // Обновление списков
+                    this.loadRecentQuotes();
+                    this.renderQuotesList(this.state.quotes);
+                    this.triggerHaptic('success');
+                } else {
+                    throw new Error('Цитата не найдена');
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка удаления цитаты:', error);
+            this.showError('Не удалось удалить цитату');
         }
     }
 
@@ -1181,112 +1335,14 @@ class ReaderApp {
     }
 
     /**
-     * ИСПРАВЛЕНО: Переключение избранного
+     * УСТАРЕВШИЕ методы для совместимости (теперь перенаправляют на новые)
      */
-    async toggleFavorite() {
-        if (!this.currentQuoteId) return;
-        
-        this.closeQuoteActions();
-        
-        try {
-            if (this.apiClient) {
-                const result = await this.apiClient.toggleQuoteFavorite(this.currentQuoteId);
-                
-                if (result.success) {
-                    this.showSuccess(result.isFavorite ? 'Добавлено в избранное' : 'Удалено из избранного');
-                    await this.loadAllQuotes();
-                } else {
-                    throw new Error(result.error || 'Ошибка изменения статуса');
-                }
-            } else {
-                // ДЕМО режим
-                const quoteIndex = this.state.quotes.findIndex(q => 
-                    (q._id || q.id) === this.currentQuoteId
-                );
-                
-                if (quoteIndex !== -1) {
-                    this.state.quotes[quoteIndex].isFavorite = !this.state.quotes[quoteIndex].isFavorite;
-                    const isFavorite = this.state.quotes[quoteIndex].isFavorite;
-                    
-                    this.showSuccess(isFavorite ? 'Добавлено в избранное' : 'Удалено из избранного');
-                    this.renderQuotesList(this.state.quotes);
-                } else {
-                    throw new Error('Цитата не найдена');
-                }
-            }
-            
-        } catch (error) {
-            console.error('❌ Ошибка изменения избранного:', error);
-            this.showError('Не удалось изменить статус избранного');
-        }
+    showQuoteActions(quoteId) {
+        this.toggleQuoteActions(quoteId);
     }
 
-    /**
-     * ИСПРАВЛЕНО: Удаление цитаты
-     */
-    async deleteQuote() {
-        if (!this.currentQuoteId) return;
-        
-        this.closeQuoteActions();
-        
-        // Подтверждение удаления
-        if (this.telegramManager?.tg?.showConfirm) {
-            this.telegramManager.tg.showConfirm('Удалить цитату?', (confirmed) => {
-                if (confirmed) {
-                    this.performDeleteQuote();
-                }
-            });
-        } else {
-            if (confirm('Вы уверены, что хотите удалить эту цитату?')) {
-                this.performDeleteQuote();
-            }
-        }
-    }
-
-    /**
-     * ИСПРАВЛЕНО: Выполнение удаления цитаты
-     */
-    async performDeleteQuote() {
-        try {
-            if (this.apiClient) {
-                const result = await this.apiClient.deleteQuote(this.currentQuoteId);
-                
-                if (result.success) {
-                    this.showSuccess('Цитата удалена');
-                    
-                    // Обновление всех списков
-                    await Promise.all([
-                        this.loadUserStats(),
-                        this.loadRecentQuotes(),
-                        this.loadAllQuotes()
-                    ]);
-                } else {
-                    throw new Error(result.error || 'Ошибка удаления');
-                }
-            } else {
-                // ДЕМО режим
-                const quoteIndex = this.state.quotes.findIndex(q => 
-                    (q._id || q.id) === this.currentQuoteId
-                );
-                
-                if (quoteIndex !== -1) {
-                    this.state.quotes.splice(quoteIndex, 1);
-                    this.showSuccess('Цитата удалена');
-                    
-                    // Обновление списков
-                    this.loadRecentQuotes();
-                    this.renderQuotesList(this.state.quotes);
-                } else {
-                    throw new Error('Цитата не найдена');
-                }
-            }
-            
-        } catch (error) {
-            console.error('❌ Ошибка удаления цитаты:', error);
-            this.showError('Не удалось удалить цитату');
-        } finally {
-            this.currentQuoteId = null;
-        }
+    closeQuoteActions() {
+        this.hideAllQuoteActions();
     }
 
     /**
@@ -1585,7 +1641,7 @@ class ReaderApp {
      */
     getDebugInfo() {
         return {
-            version: '2.4',
+            version: '2.5',
             currentPage: this.currentPage,
             currentUser: this.currentUser,
             apiClient: !!this.apiClient,
@@ -1593,7 +1649,7 @@ class ReaderApp {
             state: this.state,
             apiConnection: this.apiClient?.getConnectionInfo?.() || null,
             savingInProgress: this.savingInProgress,
-            currentQuoteId: this.currentQuoteId,
+            selectedQuoteId: this.selectedQuoteId,
             editingQuote: this.editingQuote
         };
     }
@@ -1622,21 +1678,21 @@ function saveQuote() {
     if (app) app.saveQuote();
 }
 
-// ДОБАВЛЕНО: Новые глобальные функции
+// Новые глобальные функции для совместимости
 function closeQuoteActions() {
     if (app) app.closeQuoteActions();
 }
 
-function editQuote() {
-    if (app) app.editQuote();
+function editQuote(quoteId) {
+    if (app) app.editQuote(quoteId);
 }
 
-function toggleFavorite() {
-    if (app) app.toggleFavorite();
+function toggleFavorite(quoteId) {
+    if (app) app.toggleFavorite(quoteId);
 }
 
-function deleteQuote() {
-    if (app) app.deleteQuote();
+function deleteQuote(quoteId) {
+    if (app) app.deleteQuote(quoteId);
 }
 
 // Инициализация при загрузке DOM
@@ -1682,4 +1738,4 @@ window.addEventListener('load', () => {
     }
 });
 
-console.log('📱 Reader Bot Mini App v2.4 + iOS фиксы загружены');
+console.log('📱 Reader Bot Mini App v2.5 + Telegram-стиль UX загружены');
