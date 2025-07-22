@@ -1,315 +1,39 @@
-/**
- * TELEGRAM MINI APP NAVIGATION FIX
- * 
- * ПРОБЛЕМА: В Telegram Mini App нижняя панель "поднимается" при свайпах/скроле
- * ПРИЧИНА: Telegram WebApp меняет viewport и добавляет свои CSS правила
- * РЕШЕНИЕ: ПРИНУДИТЕЛЬНАЯ СТАТИЧНАЯ ПОЗИЦИЯ БЕЗ ВОЗМОЖНОСТИ СДВИГА
- */
+/* ПРОСТОЕ РЕШЕНИЕ ДЛЯ TELEGRAM - БЕЗ ЛИШНЕЙ ХУЙНИ */
 
-/**
- * 1. TELEGRAM MINI APP - АБСОЛЮТНО СТАТИЧНАЯ НАВИГАЦИЯ
- */
-.telegram-mini-app .bottom-nav {
-    /* КРИТИЧНО: Принудительная фиксация на дне экрана */
+.bottom-nav {
     position: fixed !important;
-    bottom: 0px !important;
-    left: 0px !important;
-    right: 0px !important;
-    top: auto !important;
-    
-    /* Полная ширина экрана */
-    width: 100vw !important;
-    max-width: none !important;
-    min-width: 100vw !important;
-    
-    /* Убираем ВСЕ возможные сдвиги */
-    transform: none !important;
-    -webkit-transform: none !important;
-    translate: none !important;
-    margin: 0px !important;
-    padding: 8px 0px calc(env(safe-area-inset-bottom) + 8px) 0px !important;
-    
-    /* Максимальный Z-index */
-    z-index: 2147483647 !important;
-    
-    /* Отключаем backdrop-filter который может глючить */
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    
-    /* Принудительный фон */
-    background: rgba(255, 255, 255, 0.98) !important;
-    border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
-    
-    /* Отключаем все переходы и анимации */
-    transition: none !important;
-    animation: none !important;
-    
-    /* Принудительные размеры */
-    height: calc(80px + env(safe-area-inset-bottom)) !important;
-    min-height: 80px !important;
-    
-    /* Блокируем изменения через JS */
-    pointer-events: auto !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: flex !important;
-    
-    /* Отключаем contain который может мешать */
-    contain: none !important;
-    will-change: auto !important;
-    
-    /* Убираем все возможные CSS-переменные */
-    --nav-bottom: 0px !important;
-    --nav-top: auto !important;
-    --nav-position: fixed !important;
-    --nav-transform: none !important;
-    
-    /* Принудительное центрирование контента */
-    justify-content: space-around !important;
-    align-items: center !important;
-    
-    /* Блокируем touch события которые могут сдвигать */
-    touch-action: none !important;
-    user-select: none !important;
-    -webkit-user-select: none !important;
-    
-    /* Дополнительная защита от сдвигов */
-    overflow: visible !important;
-    box-sizing: border-box !important;
-}
-
-/**
- * 2. ТЕМНАЯ ТЕМА
- */
-.telegram-mini-app.dark-theme .bottom-nav {
-    background: rgba(45, 45, 45, 0.98) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-/**
- * 3. НАВИГАЦИОННЫЕ ЭЛЕМЕНТЫ - СТАТИЧНЫЕ
- */
-.telegram-mini-app .nav-item {
-    /* Убираем все анимации */
-    transition: none !important;
-    animation: none !important;
-    
-    /* Принудительные размеры */
-    min-width: 60px !important;
-    min-height: 60px !important;
-    max-width: 80px !important;
-    
-    /* Исправление кликабельности */
-    pointer-events: auto !important;
-    cursor: pointer !important;
-    
-    /* Блокируем изменения */
-    position: relative !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    
-    /* Отступы */
-    padding: 8px 4px !important;
-    margin: 0px !important;
-    
-    /* Центрирование содержимого */
-    text-align: center !important;
-    
-    /* Блокируем деформации */
-    flex-shrink: 0 !important;
-    flex-grow: 1 !important;
-    flex-basis: 20% !important;
-}
-
-/**
- * 4. ИКОНКИ И ТЕКСТ
- */
-.telegram-mini-app .nav-icon {
-    width: 24px !important;
-    height: 24px !important;
-    stroke-width: 2 !important;
-    display: block !important;
-    margin: 0 auto 2px auto !important;
-}
-
-.telegram-mini-app .nav-label {
-    font-size: 10px !important;
-    font-weight: 600 !important;
-    display: block !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    line-height: 1.2 !important;
-}
-
-/**
- * 5. APP КОНТЕЙНЕР - УБИРАЕМ КОНФЛИКТЫ
- */
-.telegram-mini-app .app {
-    /* Убираем проблемные стили */
-    margin: 0px !important;
-    width: 100vw !important;
-    max-width: none !important;
-    min-width: 100vw !important;
-    
-    /* Правильные размеры */
-    height: 100vh !important;
-    min-height: 100vh !important;
-    
-    /* Убираем центрирование которое мешает навигации */
-    position: relative !important;
-    left: auto !important;
-    right: auto !important;
-    transform: none !important;
-}
-
-/**
- * 6. BODY - УБИРАЕМ ПРОБЛЕМНЫЕ ФИКСЫ
- */
-.telegram-mini-app body {
-    /* Отменяем position: fixed на body */
-    position: static !important;
-    overflow: visible !important;
-    height: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
     width: 100% !important;
-    margin: 0px !important;
-    padding: 0px !important;
+    z-index: 99999 !important;
+    transform: none !important;
+    margin: 0 !important;
 }
 
-/**
- * 7. СТРАНИЦЫ - УВЕЛИЧИВАЕМ PADDING-BOTTOM
- */
-.telegram-mini-app .page {
-    /* Увеличиваем отступ снизу чтобы контент не скрывался */
-    padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important;
-    min-height: 100vh !important;
-}
-
-/**
- * 8. ПРИНУДИТЕЛЬНАЯ ЗАЩИТА ОТ ЛЮБЫХ ИЗМЕНЕНИЙ
- */
-.telegram-mini-app .bottom-nav[style] {
-    /* Сбрасываем ЛЮБЫЕ inline стили */
+/* Принудительно для Telegram */
+body .bottom-nav {
     position: fixed !important;
-    bottom: 0px !important;
-    left: 0px !important;
-    right: 0px !important;
-    top: auto !important;
+    bottom: 0 !important;
+}
+
+/* Если есть класс telegram-mini-app */  
+.telegram-mini-app .bottom-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    z-index: 99999 !important;
     transform: none !important;
     -webkit-transform: none !important;
-    translate: none !important;
-    margin: 0px !important;
-    width: 100vw !important;
-    height: calc(80px + env(safe-area-inset-bottom)) !important;
+    margin: 0 !important;
+    padding: 8px 0 calc(env(safe-area-inset-bottom) + 8px) 0 !important;
 }
 
-/**
- * 9. ЗАЩИТА ОТ СКРЫТИЯ НАВИГАЦИИ
- */
-.telegram-mini-app .bottom-nav.hidden,
-.telegram-mini-app .bottom-nav[style*="display: none"],
-.telegram-mini-app .bottom-nav[style*="visibility: hidden"],
-.telegram-mini-app .bottom-nav[style*="opacity: 0"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/**
- * 10. ЗАЩИТА ОТ КЛАВИАТУРЫ
- */
-.telegram-mini-app.keyboard-open .bottom-nav {
-    /* В Telegram НЕ скрываем навигацию при клавиатуре */
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    transform: none !important;
-    bottom: 0px !important;
+/* Экстренный фикс для любого случая */
+[class*="bottom-nav"] {
     position: fixed !important;
-}
-
-/**
- * 11. VIEWPORT ЗАЩИТА
- */
-.telegram-mini-app {
-    /* Блокируем изменения viewport которые влияют на навигацию */
-    touch-action: pan-y pinch-zoom !important;
-}
-
-/**
- * 12. ФИНАЛЬНАЯ ЗАЩИТА - CSS ANIMATION
- * Заставляем браузер пересчитывать позицию каждый кадр
- */
-.telegram-mini-app .bottom-nav {
-    animation: telegram-nav-keep-bottom 0.1s infinite linear !important;
-}
-
-@keyframes telegram-nav-keep-bottom {
-    0% { 
-        bottom: 0px;
-        position: fixed;
-        left: 0px;
-        right: 0px;
-        top: auto;
-    }
-    100% { 
-        bottom: 0px;
-        position: fixed;
-        left: 0px;
-        right: 0px;
-        top: auto;
-    }
-}
-
-/**
- * 13. ЭКСТРЕМАЛЬНАЯ ЗАЩИТА - ПОКРЫТИЕ ВСЕГО ЭКРАНА
- */
-.telegram-mini-app .bottom-nav::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    height: 10px;
-    background: transparent;
-    pointer-events: none;
-    z-index: -1;
-}
-
-/**
- * 14. ДОПОЛНИТЕЛЬНЫЕ СЕЛЕКТОРЫ НА СЛУЧАЙ ЕСЛИ TELEGRAM МЕНЯЕТ КЛАССЫ
- */
-[class*="telegram"] .bottom-nav,
-body[data-telegram] .bottom-nav,
-html[data-tg-viewport] .bottom-nav {
-    position: fixed !important;
-    bottom: 0px !important;
-    left: 0px !important;
-    right: 0px !important;
-    width: 100vw !important;
-    z-index: 2147483647 !important;
-    transform: none !important;
-    margin: 0px !important;
-}
-
-/**
- * 15. УНИВЕРСАЛЬНЫЙ СЕЛЕКТОР ДЛЯ ЛЮБОГО СЛУЧАЯ
- */
-body .bottom-nav {
-    /* Применяется ко всем .bottom-nav элементам в Telegram окружении */
-    position: fixed !important;
-    bottom: 0px !important;
-    left: 0px !important;
-    right: 0px !important;
-}
-
-/**
- * 16. JAVASCRIPT API ЗАЩИТА
- * На случай если Telegram пытается изменить стили через JS
- */
-.telegram-mini-app .bottom-nav {
-    /* Блокируем JavaScript изменения стилей */
-    -webkit-user-modify: read-only !important;
-    user-modify: read-only !important;
+    bottom: 0 !important;
 }
