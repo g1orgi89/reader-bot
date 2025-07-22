@@ -11,6 +11,8 @@
     <!-- Подключение стилей -->
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./css/mobile.css">
+    <!-- НОВОЕ: Telegram Mini App Fix CSS -->
+    <link rel="stylesheet" href="./css/telegram-fix.css">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="./manifest.json">
@@ -405,49 +407,80 @@
     </div>
 
     <!-- ===================== 
-         JAVASCRIPT - ВОССТАНОВЛЕННЫЙ ПОРЯДОК ЗАГРУЗКИ
+         JAVASCRIPT - НОВЫЙ ПОРЯДОК С TELEGRAM FIXER
     ===================== -->
     
-    <!-- 1. Telegram WebApp Manager (должен быть первым) -->
+    <!-- 1. Telegram Navigation Fixer (ПЕРВЫМ! для раннего определения окружения) -->
+    <script src="./js/telegram-nav-fixer.js"></script>
+    
+    <!-- 2. Telegram WebApp Manager -->
     <script src="./js/telegram-v2.js"></script>
     
-    <!-- 2. API Manager (базовые функции API) -->
+    <!-- 3. API Manager -->
     <script src="./js/api.js"></script>
     
-    <!-- 3. API Integration Layer (адаптер между API и App) -->
+    <!-- 4. API Integration Layer -->
     <script src="./js/api-integration.js"></script>
     
-    <!-- 4. Main Application (основное приложение) -->
+    <!-- 5. Main Application -->
     <script src="./js/app.js"></script>
 
-    <!-- Debug информация для разработки (БЕЗ СЛОМАННОГО ФИКСЕРА) -->
+    <!-- Debug & Integration Check -->
     <script>
         // Показ информации о загрузке в консоли
-        console.log('🚀 Reader Bot Mini App v2.3 - Navigation Fixed');
+        console.log('🚀 Reader Bot Mini App v2.4 - TELEGRAM NAVIGATION FIXED');
         console.log('📍 Порядок загрузки скриптов:');
-        console.log('  1. ✅ telegram-v2.js - Telegram WebApp SDK');
-        console.log('  2. ✅ api.js - API Manager');
-        console.log('  3. ✅ api-integration.js - Integration Layer'); 
-        console.log('  4. ✅ app.js - Main Application');
-        console.log('🔧 Broken bottom-nav-fixer.js was REMOVED');
+        console.log('  1. ✅ telegram-nav-fixer.js - Telegram Environment Detector & Nav Fixer');
+        console.log('  2. ✅ telegram-v2.js - Telegram WebApp SDK');
+        console.log('  3. ✅ api.js - API Manager');
+        console.log('  4. ✅ api-integration.js - Integration Layer'); 
+        console.log('  5. ✅ app.js - Main Application');
         
         // Основная debug функция для проверки готовности
         window.checkIntegration = function() {
             const status = {
+                telegramNavFixer: !!window.telegramNavFixer,
                 telegram: !!window.TelegramManager,
                 apiManager: !!window.apiManager,
                 readerAPI: !!window.ReaderAPI,
                 readerAPIInstance: !!window.readerAPI,
-                app: !!window.app
+                app: !!window.app,
+                isTelegramEnv: document.body.classList.contains('telegram-mini-app')
             };
             
             console.log('🔍 Статус интеграции:', status);
+            
+            if (window.telegramNavFixer?.getStatus) {
+                console.log('📱 Telegram Status:', window.telegramNavFixer.getStatus());
+            }
             
             if (window.app?.getDebugInfo) {
                 console.log('📊 Debug информация приложения:', window.app.getDebugInfo());
             }
             
             return status;
+        };
+        
+        // Debug функции для Telegram фиксера
+        window.enableTelegramDebug = function() {
+            if (window.telegramNavFixer) {
+                window.telegramNavFixer.enableDebug();
+                console.log('✅ Telegram debug mode enabled');
+            }
+        };
+        
+        window.disableTelegramDebug = function() {
+            if (window.telegramNavFixer) {
+                window.telegramNavFixer.disableDebug();
+                console.log('❌ Telegram debug mode disabled');
+            }
+        };
+        
+        window.forceNavFix = function() {
+            if (window.telegramNavFixer) {
+                window.telegramNavFixer.forceNavigationFix();
+                console.log('🔧 Navigation manually fixed');
+            }
         };
         
         // Автоматическая проверка через 3 секунды после загрузки
