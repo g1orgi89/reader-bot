@@ -1,0 +1,230 @@
+/**
+ * TELEGRAM MINI APP NAVIGATION FIX
+ * 
+ * ПРОБЛЕМА: В Telegram Mini App нижняя панель "поднимается" при свайпах/скроле
+ * ПРИЧИНА: Telegram WebApp меняет viewport и добавляет свои CSS правила
+ * РЕШЕНИЕ: Специфичные CSS правила только для Telegram окружения
+ */
+
+/**
+ * 1. ОПРЕДЕЛЯЕМ TELEGRAM MINI APP ОКРУЖЕНИЕ
+ */
+.telegram-mini-app .bottom-nav {
+    /* КРИТИЧНО: Принудительная фиксация для Telegram */
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    
+    /* Убираем все transform и margin которые сбивают позицию */
+    transform: none !important;
+    -webkit-transform: none !important;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    
+    /* Центрирование без margin tricks */
+    width: 100% !important;
+    max-width: 100vw !important;
+    
+    /* Z-index выше чем у Telegram элементов */
+    z-index: 999999 !important;
+    
+    /* Убираем backdrop-filter который может глючить в Telegram */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    
+    /* Принудительный background */
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+    
+    /* Отключаем все transitions которые могут глючить */
+    transition: none !important;
+    
+    /* Принудительное GPU ускорение */
+    will-change: auto !important;
+    -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
+    
+    /* Отключаем contain который может мешать */
+    contain: none !important;
+}
+
+/**
+ * 2. ТЕМНАЯ ТЕМА В TELEGRAM
+ */
+.telegram-mini-app.dark-theme .bottom-nav {
+    background: rgba(45, 45, 45, 0.95) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/**
+ * 3. ИСПРАВЛЕНИЕ ДЛЯ КОНТЕЙНЕРА НАВИГАЦИИ
+ */
+.telegram-mini-app .nav-item {
+    /* Убираем все анимации в Telegram */
+    transition: none !important;
+    animation: none !important;
+    
+    /* Принудительные размеры */
+    min-width: 60px !important;
+    min-height: 60px !important;
+    
+    /* Исправление кликабельности */
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/**
+ * 4. ИСПРАВЛЕНИЕ ДЛЯ APP КОНТЕЙНЕРА
+ */
+.telegram-mini-app .app {
+    /* Убираем проблемные стили которые конфликтуют с Telegram */
+    height: auto !important;
+    min-height: 100vh !important;
+    
+    /* Убираем margin: 0 auto которое может сбивать центрирование навигации */
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+}
+
+/**
+ * 5. ОТКЛЮЧАЕМ ПРОБЛЕМНЫЕ iOS ХАКИ В TELEGRAM
+ */
+.telegram-mini-app body {
+    /* Отменяем position: fixed на body */
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+}
+
+/**
+ * 6. ИСПРАВЛЕНИЕ PADDING BOTTOM ДЛЯ СТРАНИЦ
+ */
+.telegram-mini-app .page {
+    /* Увеличиваем padding-bottom чтобы контент не скрывался под навигацией */
+    padding-bottom: 100px !important;
+}
+
+/**
+ * 7. ПРИНУДИТЕЛЬНОЕ ПОЗИЦИОНИРОВАНИЕ ПРИ ПРОКРУТКЕ
+ * Для случаев когда Telegram все равно сдвигает панель
+ */
+.telegram-mini-app .bottom-nav {
+    /* Дополнительная защита через CSS */
+    top: auto !important;
+    
+    /* На случай если Telegram пытается изменить display */
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    
+    /* Принудительная высота */
+    height: 80px !important;
+    
+    /* Убираем все возможные CSS-переменные которые могут влиять */
+    --nav-bottom: 0px;
+    --nav-transform: none;
+}
+
+/**
+ * 8. ANTI-GLITCH ПРАВИЛА
+ * На случай если что-то пытается скрыть или сдвинуть навигацию
+ */
+.telegram-mini-app .bottom-nav[style*="transform"],
+.telegram-mini-app .bottom-nav[style*="translate"],
+.telegram-mini-app .bottom-nav[style*="bottom"],
+.telegram-mini-app .bottom-nav[style*="position"] {
+    /* Сбрасываем любые inline стили которые могут быть добавлены JS */
+    transform: none !important;
+    -webkit-transform: none !important;
+    translate: none !important;
+    bottom: 0 !important;
+    position: fixed !important;
+}
+
+/**
+ * 9. ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА ДЛЯ СВАЙПОВ
+ */
+.telegram-mini-app {
+    /* Отключаем возможные конфликтующие события */
+    touch-action: pan-y !important;
+}
+
+.telegram-mini-app .bottom-nav {
+    /* Защита от touch событий которые могут сдвигать панель */
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/**
+ * 10. СОВМЕСТИМОСТЬ С РАЗНЫМИ РАЗМЕРАМИ ЭКРАНОВ
+ */
+@media screen and (max-width: 430px) {
+    .telegram-mini-app .bottom-nav {
+        /* На маленьких экранах убираем все возможные отступы */
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+    }
+}
+
+@media screen and (min-width: 431px) {
+    .telegram-mini-app .bottom-nav {
+        /* На больших экранах тоже full width в Telegram */
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+    }
+}
+
+/**
+ * 11. ЗАЩИТА ОТ КЛАВИАТУРЫ В TELEGRAM
+ */
+.telegram-mini-app.keyboard-open .bottom-nav {
+    /* В Telegram не скрываем навигацию при открытой клавиатуре */
+    transform: none !important;
+    opacity: 1 !important;
+    bottom: 0 !important;
+}
+
+/**
+ * 12. ФИНАЛЬНАЯ ЗАЩИТА - ANIMATION FRAME FIX
+ * Если ничего не помогает, этот CSS будет работать каждый кадр
+ */
+.telegram-mini-app .bottom-nav {
+    /* Используем CSS анимацию которая заставляет браузер пересчитывать позицию каждый кадр */
+    animation: telegram-nav-fix 0.1s infinite;
+}
+
+@keyframes telegram-nav-fix {
+    0% { bottom: 0; }
+    100% { bottom: 0; }
+}
+
+/**
+ * 13. DEBUG РЕЖИМ - для проверки что CSS загружен
+ */
+.telegram-mini-app .bottom-nav::after {
+    content: "TG-FIXED";
+    position: absolute;
+    top: -20px;
+    right: 10px;
+    font-size: 8px;
+    color: #00ff00;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2px 4px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 999999;
+    
+    /* Скрываем debug индикатор в production */
+    display: none;
+}
+
+/* Показываем debug только если добавлен класс .debug */
+.telegram-mini-app.debug .bottom-nav::after {
+    display: block;
+}
