@@ -420,81 +420,76 @@ class ReaderApp {
     /**
      * Отображение недавних цитат
      */
-    renderRecentQuotes(quotes) {
-        const container = document.getElementById('recentQuotes');
-        if (!container) return;
+    renderQuotesList(quotes) {
+    const container = document.getElementById('quotesList');
+    if (!container) return;
 
-        if (!quotes || quotes.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">📖</div>
-                    <div class="empty-state-title">Пока нет цитат</div>
-                    <div class="empty-state-text">Добавьте первую цитату, чтобы начать свой дневник мудрости</div>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = quotes.map(quote => `
-            <div class="quote-preview" onclick="showPage('diary')">
-                <div class="quote-text-short">${this.escapeHtml(quote.text)}</div>
-                <div class="quote-meta-short">
-                    <span class="quote-author-short">${this.escapeHtml(quote.author || 'Неизвестный автор')}</span>
-                    <span class="quote-date-short">${this.formatDate(quote.createdAt)}</span>
-                </div>
+    if (!quotes || quotes.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📝</div>
+                <div class="empty-state-title">Дневник пуст</div>
+                <div class="empty-state-text">Добавьте первую цитату, чтобы начать собирать мудрость</div>
             </div>
-        `).join('');
+        `;
+        return;
     }
 
-    /**
-     * Отображение каталога книг
-     */
-    renderBooks(books) {
-        const container = document.getElementById('booksGrid');
-        if (!container) return;
-
-        if (!books || books.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">📚</div>
-                    <div class="empty-state-title">Каталог обновляется</div>
-                    <div class="empty-state-text">Скоро здесь появятся персональные рекомендации от Анны</div>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = books.map(book => `
-            <div class="book-card" onclick="this.openBookLink('${book.link}')">
-                <div class="book-header">
-                    <div class="book-cover ${book.category}">
-                        ${this.getBookIcon(book.category)}
+    container.innerHTML = quotes.map(quote => {
+        const quoteId = quote._id || quote.id;
+        return `
+            <div class="quote-card" data-quote-id="${quoteId}">
+                
+                <!-- 🔧 ИСПРАВЛЕНИЕ: Кнопка меню действий (3 точки) -->
+                <button class="quote-menu-btn" 
+                        onclick="event.stopPropagation(); app.toggleQuoteActions('${quoteId}')" 
+                        title="Действия с цитатой">
+                    ⋮
+                </button>
+                
+                <!-- Основной контент цитаты -->
+                <div class="quote-content" onclick="app.toggleQuoteActions('${quoteId}')">
+                    <div class="quote-full-text">${this.escapeHtml(quote.text)}</div>
+                    <div class="quote-author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
+                    <div class="quote-meta">
+                        <span>${this.formatDate(quote.createdAt)}</span>
+                        ${quote.isFavorite ? '<span>❤️ Избранное</span>' : ''}
                     </div>
-                    <div class="book-info">
-                        <h3 class="book-title">${this.escapeHtml(book.title)}</h3>
-                        <p class="book-author">${this.escapeHtml(book.author)}</p>
-                        <div class="book-rating">
-                            ${book.rating ? `⭐⭐⭐⭐⭐ ${book.rating}` : ''}
+                    ${quote.analysis ? `
+                        <div class="quote-analysis">
+                            <div class="analysis-tags">
+                                <span class="mood-tag">${quote.analysis.mood}</span>
+                                <span class="category-tag">${quote.analysis.category}</span>
+                            </div>
                         </div>
-                    </div>
+                    ` : ''}
                 </div>
-                <p class="book-description">
-                    ${this.escapeHtml(book.description || '')}
-                </p>
-                ${book.recommendation ? `
-                    <div class="book-recommendation">
-                        💡 ${this.escapeHtml(book.recommendation)}
-                    </div>
-                ` : ''}
-                <div class="book-footer">
-                    <div class="book-price">${book.price || 'Цена уточняется'}</div>
-                    <button class="buy-btn" onclick="event.stopPropagation(); this.trackBookClick('${book.id}', '${book.title}')">
-                        Купить
+                
+                <!-- 🔧 ИСПРАВЛЕНИЕ: РАБОЧИЕ inline кнопки действий с иконками и текстом -->
+                <div class="quote-actions-inline" id="actions-${quoteId}" style="display: none;">
+                    <button class="action-btn edit-btn" 
+                            onclick="event.stopPropagation(); app.editQuote('${quoteId}')" 
+                            title="Редактировать цитату">
+                        <span class="btn-icon">✏️</span>
+                        <span class="btn-text">Редактировать</span>
+                    </button>
+                    <button class="action-btn favorite-btn ${quote.isFavorite ? 'active' : ''}" 
+                            onclick="event.stopPropagation(); app.toggleFavorite('${quoteId}')" 
+                            title="${quote.isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}">
+                        <span class="btn-icon">${quote.isFavorite ? '❤️' : '🤍'}</span>
+                        <span class="btn-text">${quote.isFavorite ? 'Избранное' : 'В избранное'}</span>
+                    </button>
+                    <button class="action-btn delete-btn" 
+                            onclick="event.stopPropagation(); app.deleteQuote('${quoteId}')" 
+                            title="Удалить цитату">
+                        <span class="btn-icon">🗑️</span>
+                        <span class="btn-text">Удалить</span>
                     </button>
                 </div>
             </div>
-        `).join('');
-    }
+        `;
+    }).join('');
+}
 
     /**
      * Получение иконки для категории книги
