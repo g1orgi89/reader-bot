@@ -411,29 +411,34 @@
     <!-- 1. Telegram WebApp Manager (должен быть первым) -->
     <script src="./js/telegram-v2.js"></script>
     
-    <!-- 2. API Manager (базовые функции API) -->
+    <!-- 2. Bottom Navigation Fixer (НОВЫЙ ФИКС) -->
+    <script src="./js/bottom-nav-fixer.js"></script>
+    
+    <!-- 3. API Manager (базовые функции API) -->
     <script src="./js/api.js"></script>
     
-    <!-- 3. API Integration Layer (адаптер между API и App) -->
+    <!-- 4. API Integration Layer (адаптер между API и App) -->
     <script src="./js/api-integration.js"></script>
     
-    <!-- 4. Main Application (основное приложение) -->
+    <!-- 5. Main Application (основное приложение) -->
     <script src="./js/app.js"></script>
-    
+
     <!-- Debug информация для разработки -->
     <script>
         // Показ информации о загрузке в консоли
-        console.log('🚀 Reader Bot Mini App v2.1');
+        console.log('🚀 Reader Bot Mini App v2.2 with Bottom Nav Fixer');
         console.log('📍 Порядок загрузки скриптов:');
         console.log('  1. ✅ telegram-v2.js - Telegram WebApp SDK');
-        console.log('  2. ✅ api.js - API Manager');
-        console.log('  3. ✅ api-integration.js - Integration Layer'); 
-        console.log('  4. ✅ app.js - Main Application');
+        console.log('  2. ✅ bottom-nav-fixer.js - Navigation Position Fixer');
+        console.log('  3. ✅ api.js - API Manager');
+        console.log('  4. ✅ api-integration.js - Integration Layer'); 
+        console.log('  5. ✅ app.js - Main Application');
         
         // Debug функция для проверки готовности
         window.checkIntegration = function() {
             const status = {
                 telegram: !!window.TelegramManager,
+                bottomNavFixer: !!window.bottomNavFixer,
                 apiManager: !!window.apiManager,
                 readerAPI: !!window.ReaderAPI,
                 readerAPIInstance: !!window.readerAPI,
@@ -446,7 +451,26 @@
                 console.log('📊 Debug информация приложения:', window.app.getDebugInfo());
             }
             
+            if (window.bottomNavFixer?.getStatus) {
+                console.log('🔧 Статус фиксера навигации:', window.bottomNavFixer.getStatus());
+            }
+            
             return status;
+        };
+        
+        // Дополнительные debug функции
+        window.fixNavigation = function() {
+            if (window.bottomNavFixer) {
+                window.bottomNavFixer.forceUpdate();
+                console.log('🔧 Navigation position manually fixed');
+            }
+        };
+        
+        window.restartNavFixer = function() {
+            if (window.bottomNavFixer) {
+                window.bottomNavFixer.restart();
+                console.log('🔄 Navigation fixer restarted');
+            }
         };
         
         // Автоматическая проверка через 3 секунды после загрузки
