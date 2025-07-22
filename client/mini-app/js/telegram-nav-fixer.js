@@ -1,10 +1,6 @@
 /**
  * TELEGRAM MINI APP NAVIGATION FIXER
- * 
- * Определяет Telegram окружение и применяет специальные CSS классы
- * для исправления проблем с нижней навигацией
- * 
- * ДОБАВЛЕНЫ ВИДИМЫЕ ИНДИКАТОРЫ ДЛЯ ОТЛАДКИ
+ * С АБСОЛЮТНО СТАТИЧНЫМ ИНДИКАТОРОМ ОТЛАДКИ
  */
 
 class TelegramNavigationFixer {
@@ -17,9 +13,6 @@ class TelegramNavigationFixer {
         this.init();
     }
     
-    /**
-     * Инициализация детектора
-     */
     init() {
         // Проверяем Telegram окружение
         this.detectTelegramEnvironment();
@@ -27,8 +20,8 @@ class TelegramNavigationFixer {
         // Применяем CSS классы
         this.applyCSSClasses();
         
-        // Создаем видимый индикатор статуса
-        this.createStatusIndicator();
+        // Создаем АБСОЛЮТНО СТАТИЧНЫЙ индикатор
+        this.createStaticIndicator();
         
         // Настраиваем слушатели
         this.setupEventListeners();
@@ -36,53 +29,98 @@ class TelegramNavigationFixer {
         // Запускаем принудительный фиксер
         this.startNavigationWatcher();
         
-        this.showStatus(`🔧 TG Fixer: ${this.isTelegram ? 'ACTIVE' : 'INACTIVE'}`);
+        this.showStatus(`TG: ${this.isTelegram ? 'YES' : 'NO'}`);
     }
     
     /**
-     * Создаем видимый индикатор статуса
+     * Создаем СТАТИЧНЫЙ индикатор который НЕ ДВИГАЕТСЯ
      */
-    createStatusIndicator() {
+    createStaticIndicator() {
         this.statusIndicator = document.createElement('div');
-        this.statusIndicator.id = 'tg-status';
+        this.statusIndicator.id = 'tg-static-status';
         this.statusIndicator.style.cssText = `
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: ${this.isTelegram ? '#00ff00' : '#ff6600'};
-            color: black;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: bold;
-            z-index: 999999;
-            font-family: monospace;
-            max-width: 200px;
-            word-wrap: break-word;
-            pointer-events: none;
+            position: fixed !important;
+            top: 10px !important;
+            left: 10px !important;
+            background: ${this.isTelegram ? '#00ff00' : '#ff6600'} !important;
+            color: black !important;
+            padding: 3px 6px !important;
+            border-radius: 3px !important;
+            font-size: 9px !important;
+            font-weight: bold !important;
+            z-index: 2147483647 !important;
+            font-family: monospace !important;
+            max-width: 150px !important;
+            word-wrap: break-word !important;
+            line-height: 1.1 !important;
+            pointer-events: auto !important;
+            cursor: pointer !important;
+            
+            /* КРИТИЧНО: Блокируем любое движение */
+            transform: none !important;
+            -webkit-transform: none !important;
+            translate: none !important;
+            margin: 0px !important;
+            
+            /* Блокируем изменения через viewport */
+            width: auto !important;
+            height: auto !important;
+            min-width: 60px !important;
+            min-height: 15px !important;
+            
+            /* Дополнительная защита */
+            transition: none !important;
+            animation: none !important;
+            will-change: auto !important;
+            contain: none !important;
+            
+            /* Блокируем скрытие */
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: block !important;
         `;
         
         document.body.appendChild(this.statusIndicator);
         
-        // Автоматически скрываем через 5 секунд если не debug режим
+        // Событие клика для переключения debug
+        this.statusIndicator.addEventListener('click', () => {
+            this.toggleDebugMode();
+        });
+        
+        // Принудительно держим статичную позицию
+        setInterval(() => {
+            if (this.statusIndicator) {
+                this.statusIndicator.style.position = 'fixed';
+                this.statusIndicator.style.top = '10px';
+                this.statusIndicator.style.left = '10px';
+                this.statusIndicator.style.zIndex = '2147483647';
+                this.statusIndicator.style.visibility = 'visible';
+                this.statusIndicator.style.display = 'block';
+                this.statusIndicator.style.transform = 'none';
+            }
+        }, 500);
+        
+        // Автоматически скрываем через 3 секунды если не debug
         if (!this.debugMode) {
             setTimeout(() => {
-                if (this.statusIndicator) {
+                if (this.statusIndicator && !this.debugMode) {
                     this.statusIndicator.style.display = 'none';
                 }
-            }, 5000);
+            }, 3000);
         }
     }
     
     /**
-     * Показываем статус в индикаторе
+     * Показываем статус в статичном индикаторе
      */
     showStatus(message) {
         if (this.statusIndicator) {
-            this.statusIndicator.textContent = message;
+            // Обрезаем длинные сообщения
+            const shortMessage = message.length > 25 ? message.substring(0, 25) + '...' : message;
+            this.statusIndicator.textContent = shortMessage;
             this.statusIndicator.style.display = 'block';
             
-            // Обновляем цвет в зависимости от статуса
+            // Обновляем цвет
             if (message.includes('ERROR') || message.includes('FAIL')) {
                 this.statusIndicator.style.background = '#ff4444';
                 this.statusIndicator.style.color = 'white';
@@ -93,79 +131,64 @@ class TelegramNavigationFixer {
                 this.statusIndicator.style.background = '#ffaa00';
                 this.statusIndicator.style.color = 'black';
             }
+            
+            // В debug режиме показываем постоянно
+            if (this.debugMode) {
+                this.statusIndicator.style.display = 'block';
+            }
         }
     }
     
-    /**
-     * Определяем Telegram окружение
-     */
     detectTelegramEnvironment() {
-        let detectionMethods = [];
+        let methods = [];
         
-        // Метод 1: Проверка Telegram WebApp API
+        // Метод 1: Telegram WebApp API
         if (window.Telegram?.WebApp) {
             this.isTelegram = true;
-            detectionMethods.push('WebApp API');
+            methods.push('API');
         }
         
-        // Метод 2: Проверка User Agent
-        const userAgent = navigator.userAgent.toLowerCase();
-        if (userAgent.includes('telegram')) {
+        // Метод 2: User Agent
+        const ua = navigator.userAgent.toLowerCase();
+        if (ua.includes('telegram')) {
             this.isTelegram = true;
-            detectionMethods.push('User Agent');
+            methods.push('UA');
         }
         
-        // Метод 3: Проверка параметров URL
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('tgWebAppPlatform') || urlParams.get('tgWebAppVersion')) {
+        // Метод 3: URL параметры
+        const url = new URLSearchParams(window.location.search);
+        if (url.get('tgWebAppPlatform') || url.get('tgWebAppVersion')) {
             this.isTelegram = true;
-            detectionMethods.push('URL params');
+            methods.push('URL');
         }
         
-        // Метод 4: Проверка referrer
+        // Метод 4: Referrer
         if (document.referrer.includes('telegram.org') || document.referrer.includes('t.me')) {
             this.isTelegram = true;
-            detectionMethods.push('Referrer');
+            methods.push('REF');
         }
         
-        // Метод 5: Проверка window размеров (Telegram имеет специфичные размеры)
-        const isTelegramSize = window.innerWidth <= 430 && window.innerHeight >= 600;
-        if (isTelegramSize && (window.Telegram || userAgent.includes('mobile'))) {
-            this.isTelegram = true;
-            detectionMethods.push('Window size');
-        }
-        
-        // Определяем тему
         this.detectTheme();
         
-        // Показываем результат детекции
-        this.showStatus(`🔍 DETECTED: ${this.isTelegram ? 'TELEGRAM' : 'BROWSER'} (${detectionMethods.join(', ') || 'none'})`);
+        // Показываем результат коротко
         setTimeout(() => {
-            this.showStatus(`📱 UA: ${userAgent.substring(0, 50)}...`);
-        }, 2000);
+            this.showStatus(`DET: ${methods.join(',') || 'NONE'}`);
+        }, 1000);
     }
     
-    /**
-     * Определяем тему Telegram
-     */
     detectTheme() {
         if (window.Telegram?.WebApp?.colorScheme) {
             this.isDarkTheme = window.Telegram.WebApp.colorScheme === 'dark';
         } else {
-            // Fallback на системную тему
             this.isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
         }
     }
     
-    /**
-     * Применяем CSS классы
-     */
     applyCSSClasses() {
         const body = document.body;
         
         if (this.isTelegram) {
             body.classList.add('telegram-mini-app');
-            this.showStatus('✅ Applied telegram-mini-app class');
         }
         
         if (this.isDarkTheme) {
@@ -174,80 +197,53 @@ class TelegramNavigationFixer {
             body.classList.add('light-theme');
         }
         
-        // Debug режим (можно включить нажатием на индикатор)
         if (localStorage.getItem('telegram-debug') === 'true') {
             body.classList.add('debug');
             this.debugMode = true;
-            this.showStatus('🐛 DEBUG MODE ON');
         }
     }
     
-    /**
-     * Настройка слушателей событий
-     */
     setupEventListeners() {
         if (!this.isTelegram) return;
         
-        // Слушаем изменения темы в Telegram
+        // Telegram события
         if (window.Telegram?.WebApp?.onEvent) {
+            window.Telegram.WebApp.onEvent('viewportChanged', () => {
+                this.showStatus('VP CHANGE');
+                this.forceNavigationFix();
+            });
+            
             window.Telegram.WebApp.onEvent('themeChanged', () => {
-                this.showStatus('🎨 Theme changed');
+                this.showStatus('THEME CHG');
                 this.detectTheme();
                 this.updateThemeClass();
             });
         }
         
-        // Слушаем изменения viewport в Telegram
-        if (window.Telegram?.WebApp?.onEvent) {
-            window.Telegram.WebApp.onEvent('viewportChanged', () => {
-                this.showStatus('📱 Viewport changed');
-                this.forceNavigationFix();
-            });
-        }
-        
-        // Слушаем стандартные события браузера
+        // Стандартные события
         window.addEventListener('resize', () => {
             if (this.isTelegram) {
-                this.showStatus('📐 Window resized');
-                setTimeout(() => this.forceNavigationFix(), 100);
+                this.showStatus('RESIZE');
+                setTimeout(() => this.forceNavigationFix(), 50);
             }
         });
         
-        window.addEventListener('orientationchange', () => {
-            if (this.isTelegram) {
-                this.showStatus('🔄 Orientation changed');
-                setTimeout(() => this.forceNavigationFix(), 300);
-            }
-        });
-        
-        // Слушаем scroll события
-        let scrollTimeout;
+        // Счетчик скроллов
         let scrollCount = 0;
+        let scrollTimeout;
         window.addEventListener('scroll', () => {
             if (!this.isTelegram) return;
             
             scrollCount++;
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(() => {
-                this.showStatus(`📜 Scrolled ${scrollCount} times - fixing nav`);
+                this.showStatus(`SCR: ${scrollCount}`);
                 scrollCount = 0;
                 this.forceNavigationFix();
-            }, 50);
+            }, 100);
         }, { passive: true });
-        
-        // Клик по индикатору для включения debug режима
-        if (this.statusIndicator) {
-            this.statusIndicator.style.pointerEvents = 'auto';
-            this.statusIndicator.style.cursor = 'pointer';
-            this.statusIndicator.addEventListener('click', () => {
-                this.toggleDebugMode();
-            });
-        }
     }
     
-    /**
-     * Переключаем debug режим
-     */
     toggleDebugMode() {
         this.debugMode = !this.debugMode;
         
@@ -255,24 +251,22 @@ class TelegramNavigationFixer {
             localStorage.setItem('telegram-debug', 'true');
             document.body.classList.add('debug');
             this.statusIndicator.style.display = 'block';
-            this.showStatus('🐛 DEBUG MODE ON - Tap to turn off');
+            this.statusIndicator.style.background = '#0099ff';
+            this.showStatus('DEBUG ON');
         } else {
             localStorage.removeItem('telegram-debug');
             document.body.classList.remove('debug');
-            this.showStatus('❌ DEBUG MODE OFF');
+            this.statusIndicator.style.background = this.isTelegram ? '#00ff00' : '#ff6600';
+            this.showStatus('DEBUG OFF');
             
-            // Скрываем индикатор через 3 секунды
             setTimeout(() => {
                 if (!this.debugMode && this.statusIndicator) {
                     this.statusIndicator.style.display = 'none';
                 }
-            }, 3000);
+            }, 2000);
         }
     }
     
-    /**
-     * Обновляем класс темы
-     */
     updateThemeClass() {
         const body = document.body;
         
@@ -285,146 +279,138 @@ class TelegramNavigationFixer {
         }
     }
     
-    /**
-     * Принудительное исправление навигации
-     */
     forceNavigationFix() {
         if (!this.isTelegram) return;
         
         const nav = document.querySelector('.bottom-nav');
         if (!nav) {
-            this.showStatus('❌ ERROR: .bottom-nav not found!');
+            this.showStatus('NAV 404');
             return;
         }
         
-        // Получаем текущую позицию навигации
+        // Получаем позицию
         const rect = nav.getBoundingClientRect();
-        const windowHeight = window.innerHeight;
-        const navBottom = rect.bottom;
-        const diff = Math.abs(navBottom - windowHeight);
+        const winHeight = window.innerHeight;
+        const diff = Math.abs(rect.bottom - winHeight);
         
-        // Показываем текущую позицию
-        this.showStatus(`📍 Nav pos: bottom=${navBottom.toFixed(0)}, win=${windowHeight}, diff=${diff.toFixed(0)}`);
-        
-        // Если навигация не на своем месте - исправляем
         if (diff > 5) {
-            // Сбрасываем все возможные стили
-            nav.style.transform = '';
-            nav.style.webkitTransform = '';
-            nav.style.translate = '';
-            nav.style.bottom = '';
-            nav.style.position = '';
-            nav.style.left = '';
-            nav.style.right = '';
-            nav.style.margin = '';
-            nav.style.marginLeft = '';
-            nav.style.marginRight = '';
-            
-            // Принудительно применяем правильные стили
+            // Сбрасываем все стили
             nav.style.cssText = `
                 position: fixed !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
+                bottom: 0px !important;
+                left: 0px !important;
+                right: 0px !important;
+                top: auto !important;
+                width: 100vw !important;
                 transform: none !important;
-                -webkit-transform: none !important;
-                margin: 0 !important;
-                width: 100% !important;
-                z-index: 999999 !important;
+                margin: 0px !important;
+                z-index: 2147483647 !important;
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
             `;
             
-            this.showStatus('🔧 NAVIGATION FIXED!');
+            this.showStatus(`FIX: ${diff.toFixed(0)}px`);
             
-            // Проверяем результат через 100мс
+            // Проверяем результат
             setTimeout(() => {
                 const newRect = nav.getBoundingClientRect();
                 const newDiff = Math.abs(newRect.bottom - window.innerHeight);
-                this.showStatus(`✅ Result: diff=${newDiff.toFixed(0)} ${newDiff < 5 ? 'SUCCESS' : 'FAIL'}`);
-            }, 100);
+                this.showStatus(`OK: ${newDiff.toFixed(0)}px`);
+            }, 50);
         } else {
-            this.showStatus('✅ Navigation position OK');
+            this.showStatus(`POS: OK`);
         }
     }
     
-    /**
-     * Запускаем наблюдатель за навигацией
-     */
     startNavigationWatcher() {
         if (!this.isTelegram) return;
         
-        // Немедленно исправляем позицию
+        // Немедленное исправление
         setTimeout(() => {
-            this.showStatus('🚀 Starting navigation watcher...');
+            this.showStatus('FIXING...');
             this.forceNavigationFix();
         }, 100);
         
-        // Создаем MutationObserver для отслеживания изменений
+        // MutationObserver
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && 
                     mutation.target.classList.contains('bottom-nav') &&
                     (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
                     
-                    this.showStatus('⚠️ Navigation styles changed - fixing...');
+                    this.showStatus('MUT CHG');
                     setTimeout(() => this.forceNavigationFix(), 10);
                 }
             });
         });
         
-        // Наблюдаем за изменениями в навигации
         const nav = document.querySelector('.bottom-nav');
         if (nav) {
             observer.observe(nav, {
                 attributes: true,
                 attributeFilter: ['style', 'class']
             });
-            this.showStatus('👁️ MutationObserver attached to navigation');
-        } else {
-            this.showStatus('❌ ERROR: Cannot attach observer - nav not found');
+            this.showStatus('OBS SET');
         }
         
-        // Периодическая проверка позиции (каждые 3 секунды)
+        // Периодическая проверка каждые 2 секунды в debug режиме
         setInterval(() => {
             if (this.isTelegram && this.debugMode) {
                 this.checkNavigationPosition();
             }
-        }, 3000);
+        }, 2000);
+        
+        // Экстремальная защита - проверяем каждые 500мс
+        setInterval(() => {
+            if (this.isTelegram) {
+                this.ensureNavigationStatic();
+            }
+        }, 500);
     }
     
-    /**
-     * Проверяем позицию навигации
-     */
+    ensureNavigationStatic() {
+        const nav = document.querySelector('.bottom-nav');
+        if (!nav) return;
+        
+        // Проверяем критические стили
+        const computed = window.getComputedStyle(nav);
+        if (computed.position !== 'fixed' || 
+            computed.bottom !== '0px' || 
+            computed.zIndex < '100') {
+            
+            this.showStatus('DRIFT!');
+            this.forceNavigationFix();
+        }
+    }
+    
     checkNavigationPosition() {
         const nav = document.querySelector('.bottom-nav');
         if (!nav) return;
         
         const rect = nav.getBoundingClientRect();
-        const windowHeight = window.innerHeight;
-        const diff = Math.abs(rect.bottom - windowHeight);
+        const diff = Math.abs(rect.bottom - window.innerHeight);
         
-        // Если навигация сдвинулась - исправляем
         if (diff > 5) {
-            this.showStatus(`⚠️ Navigation drift detected: ${diff.toFixed(0)}px`);
+            this.showStatus(`DRIFT ${diff.toFixed(0)}`);
             this.forceNavigationFix();
         }
     }
     
-    /**
-     * Публичные методы для отладки
-     */
+    // Публичные методы
     enableDebug() {
+        this.debugMode = true;
         localStorage.setItem('telegram-debug', 'true');
         document.body.classList.add('debug');
-        this.debugMode = true;
         this.statusIndicator.style.display = 'block';
-        this.showStatus('🐛 Debug mode enabled');
+        this.showStatus('DEBUG ON');
     }
     
     disableDebug() {
+        this.debugMode = false;
         localStorage.removeItem('telegram-debug');
         document.body.classList.remove('debug');
-        this.debugMode = false;
-        this.showStatus('❌ Debug mode disabled');
+        this.showStatus('DEBUG OFF');
     }
     
     getStatus() {
@@ -451,14 +437,12 @@ class TelegramNavigationFixer {
     }
 }
 
-// Автоматический запуск при загрузке
+// Автоматический запуск
 let telegramNavFixer = null;
 
 function initTelegramFixer() {
     if (!telegramNavFixer) {
         telegramNavFixer = new TelegramNavigationFixer();
-        
-        // Добавляем в window для отладки
         window.telegramNavFixer = telegramNavFixer;
     }
 }
@@ -470,7 +454,7 @@ if (document.readyState === 'loading') {
     initTelegramFixer();
 }
 
-// Дополнительный запуск через Telegram события
+// Дополнительный запуск через Telegram
 if (window.Telegram?.WebApp) {
     window.Telegram.WebApp.ready(() => {
         setTimeout(initTelegramFixer, 100);
