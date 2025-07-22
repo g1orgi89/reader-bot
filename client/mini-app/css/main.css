@@ -1,6 +1,6 @@
 /* ========================
    READER BOT MINI APP - ОСНОВНЫЕ СТИЛИ
-   Версия: 2.5 - iOS Keyboard Fixed
+   Версия: 2.5 - iOS Keyboard Fixed + Inline Actions
 ======================== */
 
 * {
@@ -653,7 +653,7 @@ body.keyboard-open {
 }
 
 /* ========================
-   ДНЕВНИК ЦИТАТ
+   ДНЕВНИК ЦИТАТ + TELEGRAM-СТИЛЬ INLINE КНОПКИ
 ======================== */
 .quotes-list {
     padding: 0 24px;
@@ -668,33 +668,18 @@ body.keyboard-open {
     border: 1px solid var(--border-light);
     position: relative;
     transition: var(--theme-transition);
-}
-
-.quote-actions {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-}
-
-.action-btn {
-    background: var(--bg-input);
-    border: none;
-    border-radius: 8px;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary);
     cursor: pointer;
-    transition: var(--theme-transition);
-    font-size: 16px;
-    font-weight: bold;
+    overflow: hidden;
 }
 
-.action-btn:hover {
-    background: var(--border-strong);
-    color: var(--text-primary);
+.quote-card:active {
+    transform: scale(0.98);
+}
+
+/* ✨ НОВОЕ: Контейнер для основного контента цитаты */
+.quote-content {
+    position: relative;
+    transition: var(--theme-transition);
 }
 
 .quote-full-text {
@@ -702,7 +687,6 @@ body.keyboard-open {
     color: var(--text-primary);
     line-height: 1.6;
     margin-bottom: 12px;
-    margin-right: 40px;
     font-style: italic;
     transition: var(--theme-transition);
 }
@@ -746,8 +730,109 @@ body.keyboard-open {
     transition: var(--theme-transition);
 }
 
+/* ✨ НОВОЕ: Telegram-стиль inline кнопки действий */
+.quote-actions-inline {
+    display: none; /* Скрыты по умолчанию */
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+/* Когда кнопки показаны */
+.quote-actions-inline[style*="flex"] {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Стили для кнопок действий */
+.quote-actions-inline .action-btn {
+    background: var(--bg-input);
+    border: none;
+    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 18px;
+    
+    /* Убираем внешние отступы */
+    margin: 0;
+    flex-shrink: 0;
+    
+    /* Улучшаем touch targets для мобильных */
+    min-width: 40px;
+    min-height: 40px;
+}
+
+.quote-actions-inline .action-btn:hover {
+    background: var(--border-strong);
+    transform: scale(1.05);
+}
+
+.quote-actions-inline .action-btn:active {
+    transform: scale(0.95);
+}
+
+/* Специальные стили для разных кнопок */
+.quote-actions-inline .edit-btn {
+    background: rgba(74, 144, 226, 0.1);
+    color: #4A90E2;
+}
+
+.quote-actions-inline .edit-btn:hover {
+    background: rgba(74, 144, 226, 0.2);
+}
+
+.quote-actions-inline .favorite-btn {
+    background: rgba(255, 107, 107, 0.1);
+    color: #FF6B6B;
+    transition: all 0.3s ease;
+}
+
+.quote-actions-inline .favorite-btn.active {
+    background: rgba(255, 107, 107, 0.2);
+    color: #E74C3C;
+    transform: scale(1.1);
+}
+
+.quote-actions-inline .favorite-btn:hover {
+    background: rgba(255, 107, 107, 0.2);
+}
+
+.quote-actions-inline .delete-btn {
+    background: rgba(220, 53, 69, 0.1);
+    color: var(--text-danger);
+}
+
+.quote-actions-inline .delete-btn:hover {
+    background: rgba(220, 53, 69, 0.2);
+}
+
+/* Адаптация для маленьких экранов */
+@media (max-width: 375px) {
+    .quote-actions-inline .action-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    
+    .quote-actions-inline {
+        gap: 6px;
+    }
+}
+
 /* ========================
-   МОДАЛЬНОЕ ОКНО ДЕЙСТВИЙ С ЦИТАТОЙ
+   МОДАЛЬНОЕ ОКНО ДЕЙСТВИЙ С ЦИТАТОЙ (сохраняется для совместимости)
 ======================== */
 .quote-actions-overlay {
     position: fixed;
