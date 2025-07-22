@@ -477,7 +477,7 @@
 }
 
 /* ========================
-   НАВИГАЦИЯ - ИСПРАВЛЕНО для iOS
+   НАВИГАЦИЯ - БАЗОВЫЕ СТИЛИ (БЕЗ ПРОБЛЕМНЫХ iOS ХАКОВ)
 ======================== */
 .bottom-nav {
     position: fixed;
@@ -500,29 +500,11 @@
     /* Центрирование контейнера приложения */
     margin: 0 auto;
     
-    /* iOS ИСПРАВЛЕНИЯ */
+    /* Базовые iOS оптимизации БЕЗ проблемных transform и margin-left */
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     will-change: auto;
     contain: layout style paint;
-}
-
-/* iOS-специфичные исправления навигации */
-@supports (-webkit-touch-callout: none) {
-    .bottom-nav {
-        /* Убираем transform который сбивает позицию */
-        transform: none !important;
-        -webkit-transform: none !important;
-        
-        /* Стабильная позиция */
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 50% !important;
-        margin-left: -215px !important; /* Половина от max-width 430px */
-        
-        /* Дополнительные iOS оптимизации */
-        padding-bottom: max(calc(env(safe-area-inset-bottom) + 8px), 20px);
-    }
 }
 
 .nav-item {
@@ -617,13 +599,6 @@
     .book-title {
         font-size: 16px;
     }
-    
-    /* Исправление навигации для очень маленьких экранов */
-    @supports (-webkit-touch-callout: none) {
-        .bottom-nav {
-            margin-left: -160px !important; /* Половина от 320px */
-        }
-    }
 }
 
 /* Стандартные маленькие экраны */
@@ -640,13 +615,6 @@
     
     .stat-card, .weekly-stat {
         padding: 16px 12px;
-    }
-    
-    /* Исправление навигации для iPhone 8/SE */
-    @supports (-webkit-touch-callout: none) {
-        .bottom-nav {
-            margin-left: -187.5px !important; /* Половина от 375px */
-        }
     }
 }
 
@@ -794,7 +762,8 @@
 }
 
 /* ========================
-   IOS ИСПРАВЛЕНИЯ
+   ИСПРАВЛЕНИЯ ДЛЯ РАЗЛИЧНЫХ УСТРОЙСТВ
+   (БЕЗ ПРОБЛЕМНЫХ iOS ХАКОВ!)
 ======================== */
 
 /* ИСПРАВЛЕНИЕ #1: Адаптивные отступы для разных iPhone */
@@ -853,26 +822,7 @@
     visibility: hidden !important;
 }
 
-/* ИСПРАВЛЕНИЕ #4: Предотвращение bounce эффекта iOS */
-body {
-    position: fixed;
-    overflow: hidden;
-    -webkit-overflow-scrolling: touch;
-    width: 100%;
-    height: 100vh;
-}
-
-.app {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-/* ИСПРАВЛЕНИЕ #5: Оптимизация производительности для iOS */
+/* ИСПРАВЛЕНИЕ #4: Оптимизация производительности для iOS */
 .page {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
@@ -880,7 +830,7 @@ body {
     backface-visibility: hidden;
 }
 
-/* ИСПРАВЛЕНИЕ #6: Input focus на iOS */
+/* ИСПРАВЛЕНИЕ #5: Input focus на iOS */
 .form-textarea:focus,
 .form-input:focus {
     -webkit-user-select: text;
@@ -897,3 +847,26 @@ body {
         transform: scale(1);
     }
 }
+
+/* ========================
+   ВАЖНО: ОТКЛЮЧАЕМ ПРОБЛЕМНЫЕ iOS ХАКИ ДЛЯ TELEGRAM
+   
+   В предыдущей версии были проблемные правила:
+   - position: fixed на body
+   - отрицательные margin-left
+   - transform tricks которые ломали навигацию в Telegram
+   
+   Эти правила УДАЛЕНЫ и заменены на telegram-fix.css
+======================== */
+
+/* НЕ используем больше эти проблемные правила: */
+/*
+body {
+    position: fixed;           // УДАЛЕНО - ломает Telegram
+    overflow: hidden;          // УДАЛЕНО - ломает скролл 
+}
+
+.bottom-nav {
+    margin-left: -215px !important;  // УДАЛЕНО - сбивает позицию
+}
+*/
