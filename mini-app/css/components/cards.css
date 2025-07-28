@@ -1,1 +1,679 @@
-/* 🃏 КАРТОЧКИ - Карточки статистики/цитат */
+/**
+ * 🃏 CARDS CSS ДЛЯ TELEGRAM MINI APP
+ * Стили карточек статистики, цитат и других компонентов
+ */
+
+/* ============================================================================
+   🃏 БАЗОВЫЕ СТИЛИ КАРТОЧЕК
+   ============================================================================ */
+
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: var(--spacing-md);
+    position: relative;
+    overflow: hidden;
+    transition: all var(--duration-normal) var(--ease-out);
+    border: 1px solid rgba(210, 69, 44, 0.1);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+/* Карточка без отступов */
+.card-no-padding {
+    padding: 0;
+}
+
+/* Карточка с градиентной границей */
+.card-gradient-border {
+    position: relative;
+    background: var(--bg-card);
+    border: none;
+}
+
+.card-gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask-composite: xor;
+}
+
+/* ============================================================================
+   📊 КАРТОЧКИ СТАТИСТИКИ
+   ============================================================================ */
+
+/* Основная карточка статистики */
+.stats-card {
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+    padding: var(--spacing-lg);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+}
+
+.stats-number {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+    line-height: 1;
+    margin-bottom: var(--spacing-xs);
+}
+
+.stats-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-change {
+    font-size: var(--font-size-xs);
+    margin-top: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+}
+
+.stats-change.positive {
+    color: var(--success-color);
+}
+
+.stats-change.negative {
+    color: var(--error-color);
+}
+
+/* Миниатюрная карточка статистики */
+.stats-card-mini {
+    padding: var(--spacing-sm);
+    background: var(--bg-overlay);
+    border-radius: var(--radius-md);
+    text-align: center;
+    min-width: 80px;
+}
+
+.stats-card-mini .stats-number {
+    font-size: var(--font-size-lg);
+    margin-bottom: 2px;
+}
+
+.stats-card-mini .stats-label {
+    font-size: var(--font-size-xs);
+}
+
+/* ============================================================================
+   📖 КАРТОЧКИ ЦИТАТ
+   ============================================================================ */
+
+/* Основная карточка цитаты */
+.quote-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    position: relative;
+    box-shadow: var(--shadow-sm);
+    border-left: 4px solid var(--primary-color);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.quote-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+    border-left-width: 6px;
+}
+
+/* Текст цитаты */
+.quote-text {
+    font-family: var(--font-family-secondary);
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-loose);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+    position: relative;
+}
+
+.quote-text::before {
+    content: '"';
+    font-size: var(--font-size-3xl);
+    color: var(--primary-color);
+    position: absolute;
+    left: -12px;
+    top: -8px;
+    font-family: var(--font-family-secondary);
+    opacity: 0.7;
+}
+
+.quote-text::after {
+    content: '"';
+    font-size: var(--font-size-3xl);
+    color: var(--primary-color);
+    position: absolute;
+    right: -8px;
+    bottom: -16px;
+    font-family: var(--font-family-secondary);
+    opacity: 0.7;
+}
+
+/* Автор цитаты */
+.quote-author {
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    text-align: right;
+    margin-bottom: var(--spacing-sm);
+}
+
+.quote-author::before {
+    content: '— ';
+    color: var(--primary-color);
+}
+
+/* Метаданные цитаты */
+.quote-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--bg-secondary);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.quote-date {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.quote-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+/* Компактная карточка цитаты */
+.quote-card-compact {
+    padding: var(--spacing-md);
+    border-left-width: 3px;
+}
+
+.quote-card-compact .quote-text {
+    font-size: var(--font-size-base);
+    margin-bottom: var(--spacing-sm);
+}
+
+.quote-card-compact .quote-text::before,
+.quote-card-compact .quote-text::after {
+    font-size: var(--font-size-lg);
+}
+
+/* Карточка цитаты с категорией */
+.quote-card-categorized {
+    position: relative;
+}
+
+.quote-category {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Цветовые варианты категорий */
+.quote-category.philosophy { background: #9C27B0; }
+.quote-category.psychology { background: #2196F3; }
+.quote-category.relationships { background: #E91E63; }
+.quote-category.self-development { background: #4CAF50; }
+.quote-category.business { background: #FF9800; }
+.quote-category.literature { background: #795548; }
+
+/* ============================================================================
+   📚 КАРТОЧКИ КНИГ
+   ============================================================================ */
+
+/* Карточка книги */
+.book-card {
+    display: flex;
+    gap: var(--spacing-md);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--duration-normal) var(--ease-out);
+    text-decoration: none;
+    color: inherit;
+}
+
+.book-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    text-decoration: none;
+    color: inherit;
+}
+
+.book-cover {
+    width: 80px;
+    height: 120px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.book-cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+    border-radius: inherit;
+}
+
+.book-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.book-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    line-height: var(--line-height-tight);
+    margin-bottom: var(--spacing-xs);
+}
+
+.book-author {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-medium);
+}
+
+.book-description {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    line-height: var(--line-height-normal);
+    flex: 1;
+    margin-top: var(--spacing-xs);
+}
+
+.book-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: var(--spacing-sm);
+}
+
+.book-price {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+}
+
+.book-rating {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+/* ============================================================================
+   📋 КАРТОЧКИ ОТЧЕТОВ
+   ============================================================================ */
+
+/* Карточка еженедельного отчета */
+.report-card {
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.report-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--accent-color));
+}
+
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.report-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.report-period {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    background: var(--bg-overlay);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+.report-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.report-summary {
+    background: var(--bg-overlay);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    color: var(--text-secondary);
+}
+
+/* ============================================================================
+   🏆 КАРТОЧКИ ДОСТИЖЕНИЙ
+   ============================================================================ */
+
+/* Карточка достижения */
+.achievement-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.achievement-card.unlocked {
+    background: linear-gradient(135deg, var(--success-color), var(--success-light));
+    color: var(--text-inverse);
+    box-shadow: var(--shadow-lg);
+}
+
+.achievement-card.unlocked:hover {
+    transform: translateY(-3px) scale(1.02);
+}
+
+.achievement-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.8;
+}
+
+.achievement-card.unlocked .achievement-icon {
+    opacity: 1;
+    animation: achievementPulse 2s infinite;
+}
+
+@keyframes achievementPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.achievement-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-sm);
+}
+
+.achievement-description {
+    font-size: var(--font-size-sm);
+    opacity: 0.9;
+    line-height: var(--line-height-normal);
+}
+
+.achievement-progress {
+    margin-top: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    height: 6px;
+    overflow: hidden;
+}
+
+.achievement-progress-bar {
+    height: 100%;
+    background: var(--primary-color);
+    border-radius: inherit;
+    transition: width var(--duration-slow) var(--ease-out);
+}
+
+.achievement-card.unlocked .achievement-progress-bar {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+/* ============================================================================
+   📱 СПЕЦИАЛЬНЫЕ КАРТОЧКИ
+   ============================================================================ */
+
+/* Карточка приветствия */
+.welcome-card {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: var(--text-inverse);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.welcome-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: welcomeFloat 6s ease-in-out infinite;
+}
+
+@keyframes welcomeFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-20px, -20px) rotate(5deg); }
+}
+
+.welcome-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-sm);
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-message {
+    font-size: var(--font-size-base);
+    opacity: 0.9;
+    line-height: var(--line-height-normal);
+    position: relative;
+    z-index: 1;
+}
+
+/* Карточка с уведомлением */
+.notification-card {
+    background: var(--bg-card);
+    border-left: 4px solid var(--info-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+}
+
+.notification-card.warning {
+    border-left-color: var(--warning-color);
+}
+
+.notification-card.error {
+    border-left-color: var(--error-color);
+}
+
+.notification-card.success {
+    border-left-color: var(--success-color);
+}
+
+.notification-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-title {
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.notification-message {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: var(--line-height-normal);
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ КАРТОЧЕК
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .card {
+        padding: var(--spacing-sm);
+        border-radius: var(--radius-md);
+    }
+    
+    .stats-card {
+        padding: var(--spacing-md);
+    }
+    
+    .quote-card {
+        padding: var(--spacing-md);
+    }
+    
+    .quote-text {
+        font-size: var(--font-size-base);
+    }
+    
+    .book-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .book-cover {
+        width: 100px;
+        height: 150px;
+        margin: 0 auto;
+    }
+    
+    .report-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-sm);
+    }
+    
+    .welcome-card {
+        padding: var(--spacing-lg);
+    }
+    
+    .welcome-title {
+        font-size: var(--font-size-xl);
+    }
+}
+
+/* ============================================================================
+   🎭 АНИМАЦИИ И ЭФФЕКТЫ
+   ============================================================================ */
+
+/* Появление карточек */
+.card-appear {
+    animation: cardSlideUp var(--duration-normal) var(--ease-out);
+}
+
+@keyframes cardSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Эффект flip для карточек */
+.card-flip {
+    perspective: 1000px;
+}
+
+.card-flip-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+}
+
+.card-flip:hover .card-flip-inner {
+    transform: rotateY(180deg);
+}
+
+.card-flip-front,
+.card-flip-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: inherit;
+}
+
+.card-flip-back {
+    transform: rotateY(180deg);
+}
