@@ -10,7 +10,7 @@
  * 
  * Backend endpoints готовы на 100% ✅
  * Размер: ~8KB согласно архитектуре
- * ВЕРСИЯ: 1.0.3 - ИСПРАВЛЕНА СИНТАКСИЧЕСКАЯ ОШИБКА НА СТРОКЕ 841
+ * ВЕРСИЯ: 1.0.4 - ДОБАВЛЕНЫ НЕДОСТАЮЩИЕ МЕТОДЫ API
  */
 
 class ApiService {
@@ -189,6 +189,7 @@ class ApiService {
 
     /**
      * 🎭 Генерация mock данных для разных endpoint'ов
+     * ОБНОВЛЕНО: Добавлена поддержка популярных книг
      */
     generateMockResponse(endpoint, method, data) {
         this.log(`🎭 Генерируем mock для ${endpoint}`);
@@ -257,6 +258,7 @@ class ApiService {
             return [
                 {
                     id: 1,
+                    _id: 1, // Для совместимости
                     title: "Искусство любить",
                     author: "Эрих Фромм",
                     description: "Классическая работа о природе любви и человеческих отношений",
@@ -266,10 +268,12 @@ class ApiService {
                     reviewsCount: 156,
                     category: "psychology",
                     chaptersCount: 8,
-                    readingTime: "45 минут"
+                    readingTime: "45 минут",
+                    salesCount: 47
                 },
                 {
                     id: 2,
+                    _id: 2,
                     title: "Человек в поисках смысла",
                     author: "Виктор Франкл",
                     description: "Вдохновляющая история о поиске смысла жизни в любых обстоятельствах",
@@ -278,10 +282,12 @@ class ApiService {
                     reviewsCount: 234,
                     category: "psychology",
                     chaptersCount: 6,
-                    readingTime: "60 минут"
+                    readingTime: "60 минут",
+                    salesCount: 31
                 },
                 {
                     id: 3,
+                    _id: 3,
                     title: "Воспоминания, сновидения, размышления",
                     author: "Карл Густав Юнг",
                     description: "Автобиографические записи великого психоаналитика",
@@ -290,7 +296,35 @@ class ApiService {
                     reviewsCount: 89,
                     category: "psychology",
                     chaptersCount: 12,
-                    readingTime: "90 минут"
+                    readingTime: "90 минут",
+                    salesCount: 23
+                }
+            ];
+        }
+
+        // 🆕 НОВЫЙ: Популярные книги для CommunityPage
+        if (endpoint.includes('/community/popular-books') || endpoint.includes('/popular-books')) {
+            return [
+                {
+                    id: 1,
+                    title: "Искусство любить",
+                    author: "Эрих Фромм",
+                    interested: 47,
+                    salesThisWeek: 12
+                },
+                {
+                    id: 2, 
+                    title: "Быть собой",
+                    author: "Анна Бусел",
+                    interested: 31,
+                    salesThisWeek: 8
+                },
+                {
+                    id: 3,
+                    title: "Письма молодому поэту",
+                    author: "Райнер Мария Рильке", 
+                    interested: 23,
+                    salesThisWeek: 5
                 }
             ];
         }
@@ -331,17 +365,22 @@ class ApiService {
                 totalMembers: 1250,
                 activeToday: 89,
                 totalQuotes: 15420,
-                topAuthors: ['Эрих Фромм', 'Виктор Франкл', 'Карл Юнг']
+                topAuthors: ['Эрих Фромм', 'Виктор Франкл', 'Карл Юнг'],
+                activeReaders: 127,
+                newQuotes: 89,
+                totalReaders: 1247,
+                totalAuthors: 342,
+                daysActive: 67
             };
         }
 
         // Рейтинг
         if (endpoint.includes('/community/leaderboard')) {
             return [
-                { name: 'Анна', quotes: 127, position: 1 },
-                { name: 'Мария', quotes: 98, position: 2 },
-                { name: 'Елена', quotes: 76, position: 3 },
-                { name: 'Вы', quotes: 45, position: 8 }
+                { id: '1', name: 'Мария К.', quotes: 127, quotesThisWeek: 23, position: 1, achievement: '🔥 "Коллекционер мудрости"' },
+                { id: '2', name: 'Анна М.', quotes: 98, quotesThisWeek: 18, position: 2, achievement: '📚 "Философ недели"', isCurrentUser: true },
+                { id: '3', name: 'Елена В.', quotes: 76, quotesThisWeek: 15, position: 3, achievement: '💎 "Мыслитель"' },
+                { id: '4', name: 'Вы', quotes: 45, quotesThisWeek: 8, position: 8 }
             ];
         }
 
@@ -352,30 +391,105 @@ class ApiService {
                     text: "Смысл жизни заключается в том, чтобы найти свой дар. Цель жизни — отдать его.",
                     author: "Пабло Пикассо",
                     likes: 42,
+                    addedBy: 23,
                     user: "Анна"
                 },
                 {
                     text: "Будущее принадлежит тем, кто верит в красоту своих мечт.",
                     author: "Элеонора Рузвельт", 
                     likes: 38,
+                    addedBy: 18,
                     user: "Мария"
+                },
+                {
+                    text: "Хорошая жизнь строится, а не дается по умолчанию",
+                    author: "Анна Бусел",
+                    likes: 35,
+                    addedBy: 15,
+                    user: "Елена"
                 }
             ];
         }
 
-        // Еженедельные отчеты
-        if (endpoint.includes('/reports/weekly')) {
-            return [
-                {
-                    id: 1,
-                    weekNumber: 30,
-                    year: 2025,
+        // 🆕 НОВЫЙ: Универсальные отчеты (для совместимости с ReportsPage)
+        if (endpoint.includes('/reports/') || endpoint.includes('/report/')) {
+            const reportData = {
+                id: 1,
+                _id: 1,
+                type: endpoint.includes('monthly') ? 'monthly' : 'weekly',
+                weekNumber: 30,
+                monthNumber: 7,
+                year: 2025,
+                createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+                dateRange: {
+                    start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+                    end: new Date()
+                },
+                statistics: {
                     quotesCount: 8,
-                    analysis: "На этой неделе вас интересовали темы самопознания и личностного роста.",
-                    recommendations: ["Искусство любить - Эрих Фромм", "Быть собой - Анна Бусел"],
-                    promoCode: { code: "READER20", discount: 20 }
+                    quotesChange: 2,
+                    uniqueAuthors: 5,
+                    authorsChange: 1,
+                    activeDays: 6,
+                    topCategories: [
+                        { name: 'Психология', count: 3 },
+                        { name: 'Философия', count: 2 },
+                        { name: 'Саморазвитие', count: 2 }
+                    ],
+                    readingPatterns: {
+                        favoriteTime: 'Вечер (19:00-22:00)',
+                        averageLength: 85,
+                        mostActiveDay: 'Воскресенье'
+                    }
+                },
+                aiAnalysis: {
+                    summary: "На этой неделе вас интересовали темы самопознания и личностного роста. Ваши цитаты показывают стремление к глубокому пониманию человеческой природы.",
+                    insights: [
+                        "Заметен интерес к психологии отношений",
+                        "Растет осознанность в выборе мудрых мыслей",
+                        "Проявляется тяга к философским размышлениям"
+                    ],
+                    mood: {
+                        type: "contemplative",
+                        emoji: "🤔",
+                        description: "Созерцательное настроение, склонность к размышлениям"
+                    }
+                },
+                recommendations: [
+                    {
+                        id: 1,
+                        _id: 1,
+                        title: "Искусство любить",
+                        author: "Эрих Фромм",
+                        recommendationReason: "На основе ваших цитат о любви и отношениях",
+                        price: 1299,
+                        rating: 4.8
+                    },
+                    {
+                        id: 2,
+                        _id: 2,
+                        title: "Быть собой",
+                        author: "Анна Бусел",
+                        recommendationReason: "Подходит для самопознания",
+                        price: 899,
+                        rating: 4.6
+                    }
+                ],
+                promoCode: {
+                    code: "READER20",
+                    discount: 20,
+                    description: "Персональная скидка на разборы книг",
+                    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 дней
                 }
-            ];
+            };
+
+            // Если запрашивается список отчетов, возвращаем массив
+            if (!endpoint.includes('current') && !endpoint.match(/\/\d+$/)) {
+                return [reportData];
+            }
+
+            // Иначе возвращаем один отчет
+            return reportData;
         }
 
         // По умолчанию
@@ -630,6 +744,50 @@ class ApiService {
     }
 
     // ===========================================
+    // 🆕 НОВАЯ СЕКЦИЯ: АЛИАСЫ ДЛЯ СОВМЕСТИМОСТИ
+    // ===========================================
+
+    /**
+     * 📊 Универсальный метод получения отчета (алиас)
+     * НОВЫЙ: Для совместимости с ReportsPage.js
+     */
+    async getReport(type = 'weekly', reportId = 'current') {
+        if (reportId === 'current') {
+            // Возвращаем текущий отчет (последний)
+            const reports = await this.getReports(type, { limit: 1 });
+            return reports && reports.length > 0 ? reports[0] : null;
+        } else {
+            // Возвращаем конкретный отчет
+            return type === 'weekly' ? 
+                this.getWeeklyReport(reportId) : 
+                this.getMonthlyReport(reportId);
+        }
+    }
+
+    /**
+     * 📅 Универсальный метод получения списка отчетов (алиас)
+     * НОВЫЙ: Для совместимости с ReportsPage.js
+     */
+    async getReports(type = 'weekly', options = {}) {
+        return type === 'weekly' ? 
+            this.getWeeklyReports(options) : 
+            this.getMonthlyReports(options);
+    }
+
+    /**
+     * 📊 Получить отчет по ID (универсальный)
+     * НОВЫЙ: Для совместимости с ReportsPage.js
+     */
+    async getReportById(reportId) {
+        // Пытаемся найти в еженедельных, потом в месячных
+        try {
+            return await this.getWeeklyReport(reportId);
+        } catch (error) {
+            return await this.getMonthlyReport(reportId);
+        }
+    }
+
+    // ===========================================
     // 📚 КАТАЛОГ КНИГ
     // ===========================================
 
@@ -725,8 +883,15 @@ class ApiService {
      * 🏆 Получить таблицу лидеров
      * НОВЫЙ: Добавлен недостающий метод для CommunityPage
      */
-    async getLeaderboard(type = 'monthly') {
-        return this.request('GET', `/community/leaderboard?type=${type}`);
+    async getLeaderboard(options = {}) {
+        const params = new URLSearchParams();
+        if (options.type) params.append('type', options.type);
+        if (options.limit) params.append('limit', options.limit);
+
+        const queryString = params.toString();
+        const endpoint = queryString ? `/community/leaderboard?${queryString}` : '/community/leaderboard';
+        
+        return this.request('GET', endpoint);
     }
 
     /**
@@ -740,6 +905,21 @@ class ApiService {
 
         const queryString = params.toString();
         const endpoint = queryString ? `/community/popular?${queryString}` : '/community/popular';
+        
+        return this.request('GET', endpoint);
+    }
+
+    /**
+     * 📚 Получить популярные книги сообщества
+     * НОВЫЙ: Добавлен недостающий метод для CommunityPage
+     */
+    async getPopularBooks(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+        if (options.period) params.append('period', options.period);
+
+        const queryString = params.toString();
+        const endpoint = queryString ? `/community/popular-books?${queryString}` : '/community/popular-books';
         
         return this.request('GET', endpoint);
     }
