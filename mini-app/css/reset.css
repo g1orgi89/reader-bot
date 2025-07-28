@@ -1,1 +1,314 @@
-/* 🔄 CSS RESET - Сброс браузерных стилей */
+/**
+ * 🔄 RESET CSS ДЛЯ TELEGRAM MINI APP
+ * Современный сброс стилей с учетом специфики мобильных устройств
+ */
+
+/* ============================================================================
+   📱 БАЗОВЫЙ СБРОС ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
+   ============================================================================ */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* 🌐 HTML и BODY */
+html {
+    line-height: 1.15;
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 16px; /* Базовый размер для rem */
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* 📱 Telegram Mini App специфика */
+body {
+    /* Предотвращение скроллинга за пределы контента */
+    overscroll-behavior: contain;
+    /* Отключение выделения текста где не нужно */
+    -webkit-user-select: none;
+    user-select: none;
+    /* Отключение масштабирования */
+    touch-action: manipulation;
+}
+
+/* ✏️ Включение выделения текста для контента */
+p, span, div[contenteditable], textarea, input {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* ============================================================================
+   📝 ТИПОГРАФИЧЕСКИЕ ЭЛЕМЕНТЫ
+   ============================================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
+    color: var(--text-primary);
+}
+
+p {
+    margin: 0;
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    background-color: transparent;
+    -webkit-text-decoration-skip: objects;
+}
+
+a:hover,
+a:focus {
+    text-decoration: underline;
+    outline: none;
+}
+
+/* ============================================================================
+   📋 СПИСКИ
+   ============================================================================ */
+
+ul, ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* ============================================================================
+   🖼️ МЕДИА ЭЛЕМЕНТЫ
+   ============================================================================ */
+
+img {
+    max-width: 100%;
+    height: auto;
+    border-style: none;
+    vertical-align: middle;
+}
+
+svg {
+    overflow: hidden;
+    vertical-align: middle;
+}
+
+/* ============================================================================
+   🎛️ ФОРМЫ И ИНТЕРАКТИВНЫЕ ЭЛЕМЕНТЫ
+   ============================================================================ */
+
+button,
+input,
+optgroup,
+select,
+textarea {
+    font-family: inherit;
+    font-size: 100%;
+    line-height: 1.15;
+    margin: 0;
+    color: inherit;
+}
+
+button,
+input {
+    overflow: visible;
+}
+
+button,
+select {
+    text-transform: none;
+}
+
+/* 🎯 Кнопки */
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+button::-moz-focus-inner,
+[type="button"]::-moz-focus-inner,
+[type="reset"]::-moz-focus-inner,
+[type="submit"]::-moz-focus-inner {
+    border-style: none;
+    padding: 0;
+}
+
+/* 📝 Поля ввода */
+input,
+textarea {
+    -webkit-appearance: none;
+    appearance: none;
+    border: none;
+    background: transparent;
+    outline: none;
+}
+
+input[type="search"] {
+    -webkit-appearance: textfield;
+    outline-offset: -2px;
+}
+
+input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+}
+
+textarea {
+    resize: vertical;
+    overflow: auto;
+}
+
+/* 🎛️ Чекбоксы и радиокнопки */
+[type="checkbox"],
+[type="radio"] {
+    box-sizing: border-box;
+    padding: 0;
+}
+
+[type="number"]::-webkit-inner-spin-button,
+[type="number"]::-webkit-outer-spin-button {
+    height: auto;
+}
+
+/* ============================================================================
+   📊 ТАБЛИЦЫ
+   ============================================================================ */
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+td,
+th {
+    padding: 0;
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНЫЕ ФИКСЫ
+   ============================================================================ */
+
+/* iOS Safari фиксы */
+@supports (-webkit-touch-callout: none) {
+    /* Отключение выделения при длительном нажатии */
+    * {
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Включение для полей ввода */
+    input, textarea {
+        -webkit-touch-callout: default;
+    }
+}
+
+/* Android Chrome фиксы */
+@media screen and (-webkit-min-device-pixel-ratio: 1) {
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"] {
+        line-height: 1;
+    }
+}
+
+/* ============================================================================
+   🎯 УТИЛИТАРНЫЕ КЛАССЫ ДЛЯ СБРОСА
+   ============================================================================ */
+
+/* Сброс отступов */
+.reset-margin { margin: 0 !important; }
+.reset-padding { padding: 0 !important; }
+
+/* Сброс границ */
+.reset-border { border: none !important; }
+
+/* Сброс фона */
+.reset-background { background: none !important; }
+
+/* Сброс теней */
+.reset-shadow { box-shadow: none !important; }
+
+/* ============================================================================
+   🔧 СПЕЦИАЛЬНЫЕ ФИКСЫ ДЛЯ TELEGRAM WEB APP
+   ============================================================================ */
+
+/* Предотвращение скроллинга body при открытых модалях */
+body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+}
+
+/* Фикс для viewport height в Telegram */
+.full-height {
+    height: 100vh;
+    height: var(--tg-viewport-height, 100vh);
+}
+
+/* Безопасные зоны для iPhone */
+.safe-area-top {
+    padding-top: var(--safe-area-top);
+}
+
+.safe-area-bottom {
+    padding-bottom: var(--safe-area-bottom);
+}
+
+/* Отключение автозаполнения стилей браузера */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px var(--bg-card) inset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ============================================================================
+   🎭 FOCUS УПРАВЛЕНИЕ
+   ============================================================================ */
+
+/* Скрытие outline для мыши, показ для клавиатуры */
+.js-focus-visible :focus:not(.focus-visible) {
+    outline: none;
+}
+
+.focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ============================================================================
+   🚀 ПРОИЗВОДИТЕЛЬНОСТЬ
+   ============================================================================ */
+
+/* Оптимизация рендеринга для анимаций */
+.will-change-transform { will-change: transform; }
+.will-change-opacity { will-change: opacity; }
+.will-change-scroll { will-change: scroll-position; }
+
+/* Аппаратное ускорение */
+.gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+}
