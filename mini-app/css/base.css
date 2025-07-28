@@ -1,1 +1,477 @@
-/* 🏗️ БАЗОВЫЕ СТИЛИ - Типография, grid */
+/**
+ * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP
+ * Базовая типографика, сетка и общие стили компонентов
+ */
+
+/* ============================================================================
+   ✏️ БАЗОВАЯ ТИПОГРАФИКА
+   ============================================================================ */
+
+body {
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-normal);
+    line-height: var(--line-height-normal);
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+}
+
+/* 📝 Заголовки */
+h1 {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+    margin-bottom: var(--spacing-lg);
+}
+
+h2 {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
+    margin-bottom: var(--spacing-md);
+}
+
+h3 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
+    margin-bottom: var(--spacing-md);
+}
+
+h4 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-normal);
+    margin-bottom: var(--spacing-sm);
+}
+
+h5, h6 {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-normal);
+    margin-bottom: var(--spacing-sm);
+}
+
+/* 📖 Параграфы и текст */
+p {
+    margin-bottom: var(--spacing-md);
+    line-height: var(--line-height-normal);
+}
+
+.text-small {
+    font-size: var(--font-size-sm);
+}
+
+.text-large {
+    font-size: var(--font-size-lg);
+}
+
+.text-muted {
+    color: var(--text-muted);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+.text-primary-color {
+    color: var(--primary-color);
+}
+
+.text-success {
+    color: var(--success-color);
+}
+
+.text-warning {
+    color: var(--warning-color);
+}
+
+.text-error {
+    color: var(--error-color);
+}
+
+/* ✏️ Типографические утилиты */
+.font-light { font-weight: var(--font-weight-light); }
+.font-normal { font-weight: var(--font-weight-normal); }
+.font-medium { font-weight: var(--font-weight-medium); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.font-bold { font-weight: var(--font-weight-bold); }
+
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+.uppercase { text-transform: uppercase; }
+.lowercase { text-transform: lowercase; }
+.capitalize { text-transform: capitalize; }
+
+/* 📖 Специальные текстовые стили для Анны Бусел */
+.quote-text {
+    font-family: var(--font-family-secondary);
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-loose);
+    font-style: italic;
+    color: var(--text-primary);
+}
+
+.author-text {
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ============================================================================
+   📐 СЕТОЧНАЯ СИСТЕМА И LAYOUT
+   ============================================================================ */
+
+/* 📱 Основной контейнер приложения */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: var(--tg-viewport-height, 100vh);
+    background-color: var(--bg-primary);
+    position: relative;
+}
+
+/* 📦 Основной контент */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--header-height);
+    padding-bottom: var(--bottom-nav-height);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* 📄 Страница */
+.page {
+    flex: 1;
+    padding: var(--spacing-md);
+    max-width: 100%;
+    margin: 0 auto;
+    animation: pageSlideIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes pageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 📱 Контейнеры с отступами */
+.container {
+    width: 100%;
+    max-width: 480px; /* Максимальная ширина для больших экранов */
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+}
+
+.container-fluid {
+    width: 100%;
+    padding: 0 var(--spacing-md);
+}
+
+.container-no-padding {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+/* ============================================================================
+   🎯 FLEXBOX УТИЛИТЫ
+   ============================================================================ */
+
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+
+/* Направления */
+.flex-row { flex-direction: row; }
+.flex-col { flex-direction: column; }
+.flex-row-reverse { flex-direction: row-reverse; }
+.flex-col-reverse { flex-direction: column-reverse; }
+
+/* Выравнивание */
+.justify-start { justify-content: flex-start; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+.justify-around { justify-content: space-around; }
+.justify-evenly { justify-content: space-evenly; }
+
+.items-start { align-items: flex-start; }
+.items-center { align-items: center; }
+.items-end { align-items: flex-end; }
+.items-baseline { align-items: baseline; }
+.items-stretch { align-items: stretch; }
+
+.self-start { align-self: flex-start; }
+.self-center { align-self: center; }
+.self-end { align-self: flex-end; }
+.self-stretch { align-self: stretch; }
+
+/* Flex grow/shrink */
+.flex-1 { flex: 1 1 0%; }
+.flex-auto { flex: 1 1 auto; }
+.flex-none { flex: none; }
+
+.flex-grow { flex-grow: 1; }
+.flex-shrink { flex-shrink: 1; }
+.flex-no-wrap { flex-wrap: nowrap; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* ============================================================================
+   📏 ОТСТУПЫ И РАЗМЕРЫ
+   ============================================================================ */
+
+/* Margin утилиты */
+.m-0 { margin: 0; }
+.m-1 { margin: var(--spacing-xs); }
+.m-2 { margin: var(--spacing-sm); }
+.m-3 { margin: var(--spacing-md); }
+.m-4 { margin: var(--spacing-lg); }
+.m-5 { margin: var(--spacing-xl); }
+.m-6 { margin: var(--spacing-2xl); }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+.my-auto { margin-top: auto; margin-bottom: auto; }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: var(--spacing-xs); }
+.mt-2 { margin-top: var(--spacing-sm); }
+.mt-3 { margin-top: var(--spacing-md); }
+.mt-4 { margin-top: var(--spacing-lg); }
+.mt-5 { margin-top: var(--spacing-xl); }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: var(--spacing-xs); }
+.mb-2 { margin-bottom: var(--spacing-sm); }
+.mb-3 { margin-bottom: var(--spacing-md); }
+.mb-4 { margin-bottom: var(--spacing-lg); }
+.mb-5 { margin-bottom: var(--spacing-xl); }
+
+.ml-0 { margin-left: 0; }
+.ml-1 { margin-left: var(--spacing-xs); }
+.ml-2 { margin-left: var(--spacing-sm); }
+.ml-3 { margin-left: var(--spacing-md); }
+
+.mr-0 { margin-right: 0; }
+.mr-1 { margin-right: var(--spacing-xs); }
+.mr-2 { margin-right: var(--spacing-sm); }
+.mr-3 { margin-right: var(--spacing-md); }
+
+/* Padding утилиты */
+.p-0 { padding: 0; }
+.p-1 { padding: var(--spacing-xs); }
+.p-2 { padding: var(--spacing-sm); }
+.p-3 { padding: var(--spacing-md); }
+.p-4 { padding: var(--spacing-lg); }
+.p-5 { padding: var(--spacing-xl); }
+
+.px-0 { padding-left: 0; padding-right: 0; }
+.px-1 { padding-left: var(--spacing-xs); padding-right: var(--spacing-xs); }
+.px-2 { padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
+.px-3 { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }
+.px-4 { padding-left: var(--spacing-lg); padding-right: var(--spacing-lg); }
+
+.py-0 { padding-top: 0; padding-bottom: 0; }
+.py-1 { padding-top: var(--spacing-xs); padding-bottom: var(--spacing-xs); }
+.py-2 { padding-top: var(--spacing-sm); padding-bottom: var(--spacing-sm); }
+.py-3 { padding-top: var(--spacing-md); padding-bottom: var(--spacing-md); }
+.py-4 { padding-top: var(--spacing-lg); padding-bottom: var(--spacing-lg); }
+
+/* ============================================================================
+   📐 РАЗМЕРЫ И ПОЗИЦИОНИРОВАНИЕ
+   ============================================================================ */
+
+/* Ширина */
+.w-full { width: 100%; }
+.w-auto { width: auto; }
+.w-fit { width: fit-content; }
+
+/* Высота */
+.h-full { height: 100%; }
+.h-auto { height: auto; }
+.h-screen { height: 100vh; }
+.h-fit { height: fit-content; }
+
+/* Минимальные размеры */
+.min-h-full { min-height: 100%; }
+.min-h-screen { min-height: 100vh; }
+
+/* Позиционирование */
+.relative { position: relative; }
+.absolute { position: absolute; }
+.fixed { position: fixed; }
+.sticky { position: sticky; }
+
+.top-0 { top: 0; }
+.right-0 { right: 0; }
+.bottom-0 { bottom: 0; }
+.left-0 { left: 0; }
+
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-30 { z-index: 30; }
+.z-40 { z-index: var(--z-index-nav); }
+.z-50 { z-index: var(--z-index-header); }
+
+/* ============================================================================
+   🎨 ВИЗУАЛЬНЫЕ УТИЛИТЫ
+   ============================================================================ */
+
+/* Видимость */
+.visible { visibility: visible; }
+.invisible { visibility: hidden; }
+.hidden { display: none; }
+
+/* Overflow */
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
+.overflow-scroll { overflow: scroll; }
+.overflow-x-hidden { overflow-x: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+
+/* Скругления */
+.rounded-none { border-radius: 0; }
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.rounded-full { border-radius: var(--radius-round); }
+
+/* Тени */
+.shadow-none { box-shadow: none; }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+.shadow-primary { box-shadow: var(--shadow-primary); }
+
+/* Границы */
+.border-0 { border: 0; }
+.border { border: 1px solid var(--text-muted); }
+.border-primary { border: 1px solid var(--primary-color); }
+
+.border-t { border-top: 1px solid var(--text-muted); }
+.border-b { border-bottom: 1px solid var(--text-muted); }
+.border-l { border-left: 1px solid var(--text-muted); }
+.border-r { border-right: 1px solid var(--text-muted); }
+
+/* ============================================================================
+   🎭 ИНТЕРАКТИВНЫЕ СОСТОЯНИЯ
+   ============================================================================ */
+
+/* Курсор */
+.cursor-pointer { cursor: pointer; }
+.cursor-default { cursor: default; }
+.cursor-not-allowed { cursor: not-allowed; }
+
+/* Состояния */
+.opacity-0 { opacity: 0; }
+.opacity-50 { opacity: 0.5; }
+.opacity-75 { opacity: 0.75; }
+.opacity-100 { opacity: 1; }
+
+.disabled {
+    opacity: var(--disabled-opacity);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Hover эффекты */
+@media (hover: hover) {
+    .hover\:opacity-80:hover { opacity: var(--hover-opacity); }
+    .hover\:shadow-lg:hover { box-shadow: var(--shadow-lg); }
+    .hover\:shadow-primary:hover { box-shadow: var(--shadow-primary); }
+}
+
+/* Active состояния */
+.active\:opacity-60:active { opacity: var(--active-opacity); }
+
+/* ============================================================================
+   🔄 АНИМАЦИИ И ПЕРЕХОДЫ
+   ============================================================================ */
+
+.transition { transition: all var(--duration-normal) var(--ease-out); }
+.transition-fast { transition: all var(--duration-fast) var(--ease-out); }
+.transition-slow { transition: all var(--duration-slow) var(--ease-out); }
+
+.transition-colors { transition: color var(--duration-normal) var(--ease-out), 
+                                background-color var(--duration-normal) var(--ease-out); }
+.transition-transform { transition: transform var(--duration-normal) var(--ease-out); }
+.transition-opacity { transition: opacity var(--duration-normal) var(--ease-out); }
+
+/* Трансформации */
+.scale-95 { transform: scale(0.95); }
+.scale-100 { transform: scale(1); }
+.scale-105 { transform: scale(1.05); }
+
+.rotate-180 { transform: rotate(180deg); }
+.rotate-45 { transform: rotate(45deg); }
+
+/* ============================================================================
+   🎯 СПЕЦИАЛЬНЫЕ УТИЛИТЫ ДЛЯ TELEGRAM MINI APP
+   ============================================================================ */
+
+/* Скроллинг с инерцией на iOS */
+.scroll-smooth {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Отключение выделения текста */
+.no-select {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Включение выделения текста */
+.text-select {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Безопасные зоны */
+.safe-top { padding-top: var(--safe-area-top); }
+.safe-bottom { padding-bottom: var(--safe-area-bottom); }
+
+/* Полноэкранные элементы с учетом Telegram */
+.full-viewport {
+    height: 100vh;
+    height: var(--tg-viewport-height, 100vh);
+}
+
+/* Оптимизация производительности */
+.hardware-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* ============================================================================
+   📱 АДАПТИВНЫЕ УТИЛИТЫ
+   ============================================================================ */
+
+/* Показ/скрытие на мобильных */
+@media (max-width: 480px) {
+    .mobile\:hidden { display: none; }
+    .mobile\:block { display: block; }
+    .mobile\:flex { display: flex; }
+    .mobile\:text-sm { font-size: var(--font-size-sm); }
+    .mobile\:px-2 { padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
+}
+
+/* Большие экраны */
+@media (min-width: 481px) {
+    .desktop\:max-w-md { max-width: 480px; }
+    .desktop\:mx-auto { margin-left: auto; margin-right: auto; }
+}
