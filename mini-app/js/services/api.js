@@ -10,7 +10,7 @@
  * 
  * Backend endpoints готовы на 100% ✅
  * Размер: ~8KB согласно архитектуре
- * ВЕРСИЯ: 1.0.1 - ДОБАВЛЕНЫ НЕДОСТАЮЩИЕ МЕТОДЫ
+ * ВЕРСИЯ: 1.0.2 - ИСПРАВЛЕН BASE URL ДЛЯ DEBUG РЕЖИМА
  */
 
 class ApiService {
@@ -33,22 +33,41 @@ class ApiService {
         this.cacheTimeout = 5 * 60 * 1000; // 5 минут
 
         // 🔍 Debug режим
-        this.debug = window.location.hostname === 'localhost';
+        this.debug = this.isDebugMode();
         
-        this.log('🚀 API Service инициализирован', { baseURL: this.baseURL });
+        this.log('🚀 API Service инициализирован', { baseURL: this.baseURL, debug: this.debug });
+    }
+
+    /**
+     * 🔍 Определяет debug режим
+     * ИСПРАВЛЕНО: Добавлена проверка для app.unibotz.com
+     */
+    isDebugMode() {
+        const hostname = window.location.hostname;
+        
+        // Debug режим для разработки
+        return hostname === 'localhost' || 
+               hostname === '127.0.0.1' ||
+               hostname.includes('unibotz.com') || // 🔥 ДОБАВЛЕНО для вашего домена
+               hostname.includes('ngrok') ||
+               hostname.includes('vercel.app') ||
+               hostname.includes('netlify.app');
     }
 
     /**
      * 🌐 Определяет базовый URL в зависимости от окружения
+     * ИСПРАВЛЕНО: Принудительно используем заглушки в debug режиме
      */
     getBaseURL() {
         const hostname = window.location.hostname;
         
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return 'http://localhost:3000/api/reader';
+        // 🧪 Debug режим - НЕ ИСПОЛЬЗУЕМ реальный API
+        if (this.isDebugMode()) {
+            console.log('🧪 DEBUG MODE: Используются заглушки вместо реального API');
+            return null; // Заглушки не требуют URL
         }
         
-        // Продакшн URL (настроить при деплое)
+        // Продакшн URL (только для реального продакшна)
         return 'https://your-domain.com/api/reader';
     }
 
@@ -78,8 +97,15 @@ class ApiService {
 
     /**
      * 📡 Универсальный HTTP клиент с обработкой ошибок
+     * ИСПРАВЛЕНО: Автоматическое переключение на заглушки в debug режиме
      */
     async request(method, endpoint, data = null, options = {}) {
+        // 🧪 В debug режиме используем заглушки
+        if (this.debug) {
+            this.log(`🧪 DEBUG: Возвращаем заглушку для ${method} ${endpoint}`);
+            return this.getMockData(endpoint, method, data);
+        }
+
         const url = `${this.baseURL}${endpoint}`;
         const cacheKey = `${method}:${endpoint}:${JSON.stringify(data)}`;
 
@@ -148,6 +174,219 @@ class ApiService {
     }
 
     /**
+     * 🧪 Получение тестовых данных (заглушки)
+     * НОВЫЙ: Централизованные заглушки для всех endpoint'ов
+     */
+    getMockData(endpoint, method, data) {
+        // Имитируем задержку сети
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const mockData = this.generateMockResponse(endpoint, method, data);
+                resolve(mockData);
+            }, Math.random() * 500 + 200); // 200-700ms задержка
+        });
+    }
+
+    /**
+     * 🎭 Генерация mock данных для разных endpoint'ов
+     */
+    generateMockResponse(endpoint, method, data) {
+        this.log(`🎭 Генерируем mock для ${endpoint}`);
+
+        // Профиль пользователя
+        if (endpoint === '/profile') {
+            return {
+                id: 12345,
+                firstName: 'Тестер',
+                username: 'debug_user',
+                email: 'test@example.com',
+                isOnboardingCompleted: true,
+                createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 дней назад
+                preferences: {
+                    theme: 'light',
+                    notifications: true
+                }
+            };
+        }
+
+        // Статистика пользователя
+        if (endpoint === '/stats') {
+            return {
+                totalQuotes: 127,
+                thisWeek: 8,
+                currentStreak: 5,
+                longestStreak: 23,
+                favoriteAuthors: ['Эрих Фромм', 'Карл Юнг', 'Виктор Франкл'],
+                totalBooks: 15,
+                readingGoal: 50,
+                achievements: 8
+            };
+        }
+
+        // Последние цитаты
+        if (endpoint.includes('/quotes/recent')) {
+            return {
+                quotes: [
+                    {
+                        id: 1,
+                        text: "Смысл жизни заключается в том, чтобы найти свой дар. Цель жизни — отдать его.",
+                        author: "Пабло Пикассо",
+                        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 часа назад
+                        source: "mini_app"
+                    },
+                    {
+                        id: 2,
+                        text: "Будущее принадлежит тем, кто верит в красоту своих мечт.",
+                        author: "Элеонора Рузвельт",
+                        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 день назад
+                        source: "telegram_bot"
+                    },
+                    {
+                        id: 3,
+                        text: "Единственный способ делать великую работу — любить то, что ты делаешь.",
+                        author: "Стив Джобс",
+                        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 дня назад
+                        source: "mini_app"
+                    }
+                ]
+            };
+        }
+
+        // Каталог книг
+        if (endpoint.includes('/catalog')) {
+            return [
+                {
+                    id: 1,
+                    title: "Искусство любить",
+                    author: "Эрих Фромм",
+                    description: "Классическая работа о природе любви и человеческих отношений",
+                    price: 1299,
+                    originalPrice: 1599,
+                    rating: 4.8,
+                    reviewsCount: 156,
+                    category: "psychology",
+                    chaptersCount: 8,
+                    readingTime: "45 минут"
+                },
+                {
+                    id: 2,
+                    title: "Человек в поисках смысла",
+                    author: "Виктор Франкл",
+                    description: "Вдохновляющая история о поиске смысла жизни в любых обстоятельствах",
+                    price: 999,
+                    rating: 4.9,
+                    reviewsCount: 234,
+                    category: "psychology",
+                    chaptersCount: 6,
+                    readingTime: "60 минут"
+                },
+                {
+                    id: 3,
+                    title: "Воспоминания, сновидения, размышления",
+                    author: "Карл Густав Юнг",
+                    description: "Автобиографические записи великого психоаналитика",
+                    price: 1499,
+                    rating: 4.7,
+                    reviewsCount: 89,
+                    category: "psychology",
+                    chaptersCount: 12,
+                    readingTime: "90 минут"
+                }
+            ];
+        }
+
+        // Рекомендации
+        if (endpoint === '/recommendations') {
+            return [
+                {
+                    id: 1,
+                    title: "Искусство любить",
+                    author: "Эрих Фромм",
+                    recommendationReason: "На основе ваших цитат о любви и отношениях",
+                    price: 1299
+                },
+                {
+                    id: 2,
+                    title: "Быть собой",
+                    author: "Анна Бусел",
+                    recommendationReason: "Подходит для самопознания",
+                    price: 899
+                }
+            ];
+        }
+
+        // Категории
+        if (endpoint === '/categories') {
+            return [
+                { id: 'psychology', name: 'Психология', count: 45 },
+                { id: 'philosophy', name: 'Философия', count: 23 },
+                { id: 'personal_growth', name: 'Личностный рост', count: 34 },
+                { id: 'relationships', name: 'Отношения', count: 18 }
+            ];
+        }
+
+        // Статистика сообщества
+        if (endpoint === '/community/stats') {
+            return {
+                totalMembers: 1250,
+                activeToday: 89,
+                totalQuotes: 15420,
+                topAuthors: ['Эрих Фромм', 'Виктор Франкл', 'Карл Юнг']
+            };
+        }
+
+        // Рейтинг
+        if (endpoint.includes('/community/leaderboard')) {
+            return [
+                { name: 'Анна', quotes: 127, position: 1 },
+                { name: 'Мария', quotes: 98, position: 2 },
+                { name: 'Елена', quotes: 76, position: 3 },
+                { name: 'Вы', quotes: 45, position: 8 }
+            ];
+        }
+
+        // Популярные цитаты
+        if (endpoint.includes('/community/popular')) {
+            return [
+                {
+                    text: "Смысл жизни заключается в том, чтобы найти свой дар. Цель жизни — отдать его.",
+                    author: "Пабло Пикассо",
+                    likes: 42,
+                    user: "Анна"
+                },
+                {
+                    text: "Будущее принадлежит тем, кто верит в красоту своих мечт.",
+                    author: "Элеонора Рузвельт", 
+                    likes: 38,
+                    user: "Мария"
+                }
+            ];
+        }
+
+        // Еженедельные отчеты
+        if (endpoint.includes('/reports/weekly')) {
+            return [
+                {
+                    id: 1,
+                    weekNumber: 30,
+                    year: 2025,
+                    quotesCount: 8,
+                    analysis: "На этой неделе вас интересовали темы самопознания и личностного роста.",
+                    recommendations: ["Искусство любить - Эрих Фромм", "Быть собой - Анна Бусел"],
+                    promoCode: { code: "READER20", discount: 20 }
+                }
+            ];
+        }
+
+        // По умолчанию
+        return {
+            success: true,
+            message: `Mock data for ${endpoint}`,
+            data: null
+        };
+    }
+
+    /**
      * 📨 Обрабатывает HTTP ответ
      */
     async handleResponse(response, endpoint) {
@@ -190,6 +429,19 @@ class ApiService {
      * 🔑 Аутентификация через Telegram
      */
     async authenticateWithTelegram(telegramData, user) {
+        if (this.debug) {
+            this.log('🧪 DEBUG: Мок аутентификации');
+            return {
+                token: 'debug_token_12345',
+                user: {
+                    id: 12345,
+                    firstName: 'Тестер',
+                    username: 'debug_user',
+                    isDebug: true
+                }
+            };
+        }
+
         try {
             const response = await this.request('POST', '/auth/telegram', {
                 telegramData,
@@ -466,18 +718,7 @@ class ApiService {
      * НОВЫЙ: Добавлен недостающий метод для CommunityPage
      */
     async getCommunityStats() {
-        try {
-            return await this.request('GET', '/community/stats');
-        } catch (error) {
-            this.log('⚠️ Статистика сообщества недоступна, возвращаем заглушку');
-            // Возвращаем заглушку для отладки
-            return {
-                totalMembers: 1250,
-                activeToday: 89,
-                totalQuotes: 15420,
-                topAuthors: ['Эрих Фромм', 'Виктор Франкл', 'Карл Юнг']
-            };
-        }
+        return this.request('GET', '/community/stats');
     }
 
     /**
@@ -485,18 +726,7 @@ class ApiService {
      * НОВЫЙ: Добавлен недостающий метод для CommunityPage
      */
     async getLeaderboard(type = 'monthly') {
-        try {
-            return await this.request('GET', `/community/leaderboard?type=${type}`);
-        } catch (error) {
-            this.log('⚠️ Рейтинг недоступен, возвращаем заглушку');
-            // Возвращаем заглушку для отладки
-            return [
-                { name: 'Анна', quotes: 127, position: 1 },
-                { name: 'Мария', quotes: 98, position: 2 },
-                { name: 'Елена', quotes: 76, position: 3 },
-                { name: 'Вы', quotes: 45, position: 8 }
-            ];
-        }
+        return this.request('GET', `/community/leaderboard?type=${type}`);
     }
 
     /**
@@ -504,33 +734,14 @@ class ApiService {
      * НОВЫЙ: Добавлен недостающий метод для CommunityPage
      */
     async getPopularQuotes(options = {}) {
-        try {
-            const params = new URLSearchParams();
-            if (options.limit) params.append('limit', options.limit);
-            if (options.period) params.append('period', options.period);
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+        if (options.period) params.append('period', options.period);
 
-            const queryString = params.toString();
-            const endpoint = queryString ? `/community/popular?${queryString}` : '/community/popular';
-            
-            return await this.request('GET', endpoint);
-        } catch (error) {
-            this.log('⚠️ Популярные цитаты недоступны, возвращаем заглушку');
-            // Возвращаем заглушку для отладки
-            return [
-                {
-                    text: "Смысл жизни заключается в том, чтобы найти свой дар. Цель жизни — отдать его.",
-                    author: "Пабло Пикассо",
-                    likes: 42,
-                    user: "Анна"
-                },
-                {
-                    text: "Будущее принадлежит тем, кто верит в красоту своих мечт.",
-                    author: "Элеонора Рузвельт", 
-                    likes: 38,
-                    user: "Мария"
-                }
-            ];
-        }
+        const queryString = params.toString();
+        const endpoint = queryString ? `/community/popular?${queryString}` : '/community/popular';
+        
+        return this.request('GET', endpoint);
     }
 
     // ===========================================
@@ -628,4 +839,3 @@ window.ApiService = ApiService;
 // 📱 Экспорт для модульной системы
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ApiService;
-}
