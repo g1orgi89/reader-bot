@@ -6,7 +6,7 @@
  * 
  * @filesize 2 KB - SPA роутинг
  * @author Claude Assistant  
- * @version 1.0.1 - ИСПРАВЛЕНА ОШИБКА isAuthenticated
+ * @version 1.0.2 - ИСПРАВЛЕНА ПЕРЕДАЧА API В КОМПОНЕНТЫ
  */
 
 /**
@@ -41,6 +41,16 @@ class AppRouter {
     state = null;
 
     /**
+     * @type {ApiService} - API сервис для HTTP запросов
+     */
+    api = null;
+
+    /**
+     * @type {TelegramService} - Telegram сервис
+     */
+    telegram = null;
+
+    /**
      * @type {Map<string, RouteConfig>} - Карта зарегистрированных маршрутов
      */
     routes = new Map();
@@ -70,20 +80,24 @@ class AppRouter {
      * @param {Object} options - Опции инициализации
      * @param {HTMLElement} options.container - Контейнер для страниц
      * @param {AppState} options.state - Глобальное состояние
+     * @param {ApiService} options.api - API сервис
+     * @param {TelegramService} options.telegram - Telegram сервис
      */
-    constructor({ container, state }) {
+    constructor({ container, state, api = null, telegram = null }) {
         if (!container) {
             throw new Error('❌ Router: Контейнер не передан');
         }
 
         this.container = container;
         this.state = state;
+        this.api = api;
+        this.telegram = telegram;
         
         // Привязываем методы к контексту
         this.handlePopState = this.handlePopState.bind(this);
         this.handleNavigation = this.handleNavigation.bind(this);
         
-        console.log('✅ Router: Конструктор инициализирован');
+        console.log('✅ Router: Конструктор инициализирован - VERSION 1.0.2');
     }
 
     /**
@@ -103,6 +117,22 @@ class AppRouter {
         
         this.isInitialized = true;
         console.log('✅ Router: Инициализация завершена');
+    }
+
+    /**
+     * 🔧 Устанавливает API сервис (для позднего связывания)
+     */
+    setAPI(api) {
+        this.api = api;
+        console.log('✅ Router: API сервис установлен');
+    }
+
+    /**
+     * 🔧 Устанавливает Telegram сервис (для позднего связывания)
+     */
+    setTelegram(telegram) {
+        this.telegram = telegram;
+        console.log('✅ Router: Telegram сервис установлен');
     }
 
     /**
@@ -244,19 +274,24 @@ class AppRouter {
 
     /**
      * 🏗️ Создание компонента страницы
+     * ИСПРАВЛЕНО: Правильная передача app объекта в конструктор
      * @param {RouteConfig} route - Конфигурация маршрута
      * @param {Object} state - Состояние для передачи в компонент
      */
     async createComponent(route, state = {}) {
         console.log(`🏗️ Router: Создание компонента ${route.title}`);
         
-        // Создаем экземпляр компонента
-        this.currentComponent = new route.component({
-            container: this.container,
+        // ИСПРАВЛЕНО: Создаем объект app для передачи в конструктор страницы
+        const appContext = {
             state: this.state,
+            api: this.api,
+            telegram: this.telegram,
             router: this,
             initialState: state
-        });
+        };
+
+        // Создаем экземпляр компонента с правильной структурой
+        this.currentComponent = new route.component(appContext);
         
         // Инициализируем компонент
         if (this.currentComponent.init) {
@@ -265,7 +300,15 @@ class AppRouter {
         
         // Рендерим компонент
         if (this.currentComponent.render) {
-            await this.currentComponent.render();
+            const html = await this.currentComponent.render();
+            if (html && this.container) {
+                this.container.innerHTML = html;
+                
+                // Вызываем attachEventListeners если он есть
+                if (this.currentComponent.attachEventListeners) {
+                    this.currentComponent.attachEventListeners();
+                }
+            }
         }
     }
 
