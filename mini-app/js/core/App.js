@@ -6,7 +6,7 @@
  * 
  * @filesize 3 KB - главный класс приложения
  * @author Claude Assistant
- * @version 1.0.2 - ИСПРАВЛЕНА АУТЕНТИФИКАЦИЯ
+ * @version 1.0.3 - ИСПРАВЛЕНА ПЕРЕДАЧА API В ROUTER
  */
 
 /**
@@ -27,7 +27,7 @@
 /**
  * 🏗️ Главный класс приложения Reader Bot
  * Управляет инициализацией, состоянием и жизненным циклом приложения
- * ИСПРАВЛЕНО: Правильная обработка отсутствия Telegram данных
+ * ИСПРАВЛЕНО: Правильная передача API и Telegram сервисов в Router
  */
 class ReaderApp {
     /**
@@ -69,7 +69,7 @@ class ReaderApp {
      * 🏗️ Конструктор приложения
      */
     constructor() {
-        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.2');
+        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.3');
         
         // Получаем основные элементы DOM
         this.appContainer = document.getElementById('app');
@@ -84,7 +84,7 @@ class ReaderApp {
         this.handleError = this.handleError.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНА АУТЕНТИФИКАЦИЯ!');
+        console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНА ПЕРЕДАЧА API В ROUTER!');
     }
 
     /**
@@ -147,10 +147,12 @@ class ReaderApp {
         // Создаем Telegram сервис
         this.telegram = new TelegramService();
         
-        // Создаем роутер
+        // ИСПРАВЛЕНО: Создаем роутер с передачей всех сервисов
         this.router = new AppRouter({
             container: document.getElementById('page-content'),
-            state: this.state
+            state: this.state,
+            api: this.api,
+            telegram: this.telegram
         });
         
         console.log('✅ Сервисы инициализированы');
