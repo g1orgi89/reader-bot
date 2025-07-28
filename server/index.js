@@ -249,7 +249,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Static files
+// 📱 ИСПРАВЛЕНИЕ: Статические файлы для Mini App
+logger.info('📱 Setting up Mini App static files...');
+app.use('/mini-app', express.static(path.join(__dirname, '../mini-app'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    } else if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    } else if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    } else if (filePath.endsWith('.json')) {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+  }
+}));
+
+// Static files для основного клиента
 app.use(express.static(path.join(__dirname, '../client'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
@@ -330,6 +346,11 @@ app.get('/admin*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/admin-panel/index.html'));
 });
 
+// 📱 ИСПРАВЛЕНИЕ: Роут для Mini App
+app.get('/mini-app*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../mini-app/index.html'));
+});
+
 // Default route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/index.html'));
@@ -377,6 +398,7 @@ async function startServer() {
     logger.info(`🌐 Server listening on all interfaces (0.0.0.0:${PORT})`);
     logger.info(`🌐 API available at: http://localhost:${PORT}${config.app.apiPrefix}`);
     logger.info(`🏠 Client available at: http://localhost:${PORT}`);
+    logger.info(`📱 Mini App available at: http://localhost:${PORT}/mini-app/`);
     logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
     logger.info(`📋 Data Management APIs:`);
     logger.info(`   📚 Book Catalog: ${config.app.apiPrefix}/book-catalog`);
