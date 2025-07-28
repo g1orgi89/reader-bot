@@ -6,7 +6,7 @@
  * 
  * @filesize 3 KB - главный класс приложения
  * @author Claude Assistant
- * @version 1.0.5 - ИСПРАВЛЕНА ОШИБКА С this.state.getState()
+ * @version 1.0.6 - ДОБАВЛЕН МЕТОД showTopMenu()
  */
 
 /**
@@ -66,10 +66,16 @@ class ReaderApp {
     loadingScreen = null;
 
     /**
+     * @type {TopMenu} - Экземпляр верхнего меню
+     * НОВЫЙ: Добавлен для поддержки showTopMenu
+     */
+    topMenu = null;
+
+    /**
      * 🏗️ Конструктор приложения
      */
     constructor() {
-        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.5');
+        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.6');
         
         // Получаем основные элементы DOM
         this.appContainer = document.getElementById('app');
@@ -84,7 +90,7 @@ class ReaderApp {
         this.handleError = this.handleError.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНА ОШИБКА С STATE!');
+        console.log('✅ Reader App: Конструктор завершен - ДОБАВЛЕН МЕТОД showTopMenu!');
     }
 
     /**
@@ -300,7 +306,7 @@ class ReaderApp {
 
     /**
      * 🎨 Инициализация пользовательского интерфейса
-     * ИСПРАВЛЕНО: Проверка доступности классов UI компонентов
+     * ОБНОВЛЕНО: Добавлена инициализация TopMenu компонента
      */
     async initializeUI() {
         console.log('🔄 Инициализация UI...');
@@ -315,11 +321,18 @@ class ReaderApp {
             console.warn('⚠️ BottomNavigation класс не найден');
         }
         
+        // 🆕 НОВЫЙ: Инициализация TopMenu
         if (typeof TopMenu !== 'undefined') {
-            const topMenu = new TopMenu();
-            if (typeof topMenu.init === 'function') {
-                topMenu.init();
+            this.topMenu = new TopMenu({
+                app: this,
+                api: this.api,
+                state: this.state,
+                telegram: this.telegram
+            });
+            if (typeof this.topMenu.init === 'function') {
+                this.topMenu.init();
             }
+            console.log('✅ TopMenu инициализирован');
         } else {
             console.warn('⚠️ TopMenu класс не найден');
         }
@@ -411,6 +424,60 @@ class ReaderApp {
         
         console.log('✅ Приложение полностью готово к работе');
     }
+
+    // ===========================================
+    // 🆕 НОВАЯ СЕКЦИЯ: UI МЕТОДЫ
+    // ===========================================
+
+    /**
+     * 📋 Показать верхнее меню
+     * НОВЫЙ: Добавлен недостающий метод для HomePage
+     */
+    showTopMenu() {
+        console.log('🔄 Показываем верхнее меню...');
+        
+        if (this.topMenu && typeof this.topMenu.show === 'function') {
+            this.topMenu.show();
+            console.log('✅ Верхнее меню показано');
+        } else {
+            console.warn('⚠️ TopMenu не инициализирован или не имеет метода show()');
+            
+            // Fallback: простое уведомление
+            if (this.telegram && typeof this.telegram.showAlert === 'function') {
+                this.telegram.showAlert('Меню пока не доступно');
+            } else {
+                alert('Меню пока не доступно');
+            }
+        }
+    }
+
+    /**
+     * 📋 Скрыть верхнее меню
+     * НОВЫЙ: Дополнительный метод для управления меню
+     */
+    hideTopMenu() {
+        if (this.topMenu && typeof this.topMenu.hide === 'function') {
+            this.topMenu.hide();
+            console.log('✅ Верхнее меню скрыто');
+        }
+    }
+
+    /**
+     * 🔄 Переключить состояние верхнего меню
+     * НОВЫЙ: Удобный метод для переключения
+     */
+    toggleTopMenu() {
+        if (this.topMenu && typeof this.topMenu.toggle === 'function') {
+            this.topMenu.toggle();
+        } else {
+            // Если нет метода toggle, используем show
+            this.showTopMenu();
+        }
+    }
+
+    // ===========================================
+    // ПРОДОЛЖЕНИЕ СУЩЕСТВУЮЩИХ МЕТОДОВ
+    // ===========================================
 
     /**
      * 📱 Применение темы Telegram к приложению
