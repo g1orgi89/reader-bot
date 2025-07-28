@@ -9,13 +9,6 @@
  * - Интеграции с Telegram WebApp API
  */
 
-// Получаем константы из глобального объекта (убираем const объявления)
-const PAGES = window.PAGES || {};
-const MENU_ITEMS = window.MENU_ITEMS || [];
-const SUCCESS_MESSAGES = window.SUCCESS_MESSAGES || {};
-const ERROR_MESSAGES = window.ERROR_MESSAGES || {};
-const ANNA_INFO = window.ANNA_INFO || {};
-
 // 🎯 КЛАСС ДЛЯ УПРАВЛЕНИЯ МЕНЮ
 
 /**
@@ -23,7 +16,7 @@ const ANNA_INFO = window.ANNA_INFO || {};
  */
 class MenuHandler {
     constructor() {
-        this.currentPage = PAGES.HOME;
+        this.currentPage = window.PAGES?.HOME || 'home';
         this.isMenuOpen = false;
         this.activeModals = new Set();
     }
@@ -89,7 +82,8 @@ class MenuHandler {
      * @param {string} menuItemId - ID пункта меню
      */
     handleMenuItemClick(menuItemId) {
-        const menuItem = MENU_ITEMS.find(item => item.id === menuItemId);
+        const menuItems = window.MENU_ITEMS || [];
+        const menuItem = menuItems.find(item => item.id === menuItemId);
         if (!menuItem) return;
 
         // Haptic feedback
@@ -426,6 +420,9 @@ class MenuHandler {
      * @returns {string} - HTML контент
      */
     getHelpModalContent() {
+        const annaInfo = window.ANNA_INFO || {};
+        const contacts = annaInfo.contacts || {};
+        
         return `
             <div style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: var(--border-radius); padding: 16px; text-align: center; margin-bottom: 20px;">
                 <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">💬 Нужна помощь?</div>
@@ -455,8 +452,8 @@ class MenuHandler {
             <div class="contact-info">
                 <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">📞 Связаться с нами</div>
                 <div style="font-size: 11px; color: var(--text-secondary);">
-                    • Telegram: ${ANNA_INFO.contacts?.telegram || '@annabusel_support'}<br>
-                    • Email: ${ANNA_INFO.contacts?.email || 'help@annabusel.org'}<br>
+                    • Telegram: ${contacts.telegram || '@annabusel_support'}<br>
+                    • Email: ${contacts.email || 'help@annabusel.org'}<br>
                     • Время ответа: до 24 часов
                 </div>
             </div>
@@ -468,12 +465,14 @@ class MenuHandler {
      * @returns {string} - HTML контент
      */
     getAboutModalContent() {
+        const annaInfo = window.ANNA_INFO || {};
+        
         return `
             <div class="anna-card">
-                <div class="anna-photo">${ANNA_INFO.photo || 'А'}</div>
-                <div class="anna-name">${ANNA_INFO.name || 'Анна Бусел'}</div>
-                <div class="anna-role">${ANNA_INFO.role || 'Психолог • Основатель "Книжного клуба"'}</div>
-                <div class="anna-quote">"${ANNA_INFO.quote || 'Хорошая жизнь строится, а не дается по умолчанию'}"</div>
+                <div class="anna-photo">${annaInfo.photo || 'А'}</div>
+                <div class="anna-name">${annaInfo.name || 'Анна Бусел'}</div>
+                <div class="anna-role">${annaInfo.role || 'Психолог • Основатель "Книжного клуба"'}</div>
+                <div class="anna-quote">"${annaInfo.quote || 'Хорошая жизнь строится, а не дается по умолчанию'}"</div>
             </div>
             
             <div class="app-info">
@@ -508,7 +507,8 @@ class MenuHandler {
      */
     saveProfile() {
         // Здесь будет интеграция с API
-        this.showNotification(SUCCESS_MESSAGES.profileUpdated || 'Профиль обновлен!', 'success');
+        const successMsg = window.SUCCESS_MESSAGES?.profileUpdated || 'Профиль обновлен!';
+        this.showNotification(successMsg, 'success');
         
         // Haptic feedback
         if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -565,7 +565,8 @@ class MenuHandler {
      */
     exportData() {
         // Здесь будет логика экспорта данных
-        this.showNotification(SUCCESS_MESSAGES.dataExported || 'Данные экспортированы!', 'success');
+        const successMsg = window.SUCCESS_MESSAGES?.dataExported || 'Данные экспортированы!';
+        this.showNotification(successMsg, 'success');
         
         // Haptic feedback
         if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -594,7 +595,9 @@ class MenuHandler {
      * Связь с поддержкой
      */
     contactSupport() {
-        const telegramContact = ANNA_INFO.contacts?.telegram || '@annabusel_support';
+        const annaInfo = window.ANNA_INFO || {};
+        const contacts = annaInfo.contacts || {};
+        const telegramContact = contacts.telegram || '@annabusel_support';
         
         // Открываем Telegram чат с поддержкой
         if (window.Telegram?.WebApp) {
@@ -631,7 +634,8 @@ class MenuHandler {
      * @param {string} platform - Платформа (instagram, telegram, website)
      */
     openSocialLink(platform) {
-        const contacts = ANNA_INFO.contacts || {};
+        const annaInfo = window.ANNA_INFO || {};
+        const contacts = annaInfo.contacts || {};
         const links = {
             instagram: `https://instagram.com/${contacts.instagram || 'annabusel'}`,
             telegram: `https://t.me/${(contacts.telegram || '@annabusel_support').replace('@', '')}`,
