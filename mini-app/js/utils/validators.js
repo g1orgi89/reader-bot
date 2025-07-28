@@ -9,12 +9,11 @@
  * - Ограничений и лимитов приложения
  */
 
-import {
-    LIMITS,
-    VALIDATION_PATTERNS,
-    VALIDATION_MESSAGES,
-    ERROR_MESSAGES
-} from './constants.js';
+// Получаем константы из глобального объекта
+const LIMITS = window.LIMITS || {};
+const VALIDATION_PATTERNS = window.VALIDATION_PATTERNS || {};
+const VALIDATION_MESSAGES = window.VALIDATION_MESSAGES || {};
+const ERROR_MESSAGES = window.ERROR_MESSAGES || {};
 
 // 📝 БАЗОВЫЕ ВАЛИДАТОРЫ
 
@@ -23,7 +22,7 @@ import {
  * @param {string} value - Значение для проверки
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateRequired(value) {
+function validateRequired(value) {
     const isValid = value && value.toString().trim().length > 0;
     return {
         isValid,
@@ -37,7 +36,7 @@ export function validateRequired(value) {
  * @param {number} minLength - Минимальная длина
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateMinLength(value, minLength) {
+function validateMinLength(value, minLength) {
     const str = value ? value.toString().trim() : '';
     const isValid = str.length >= minLength;
     return {
@@ -52,7 +51,7 @@ export function validateMinLength(value, minLength) {
  * @param {number} maxLength - Максимальная длина
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateMaxLength(value, maxLength) {
+function validateMaxLength(value, maxLength) {
     const str = value ? value.toString().trim() : '';
     const isValid = str.length <= maxLength;
     return {
@@ -68,7 +67,7 @@ export function validateMaxLength(value, maxLength) {
  * @param {string} message - Сообщение об ошибке
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validatePattern(value, pattern, message) {
+function validatePattern(value, pattern, message) {
     const str = value ? value.toString().trim() : '';
     const isValid = !str || pattern.test(str); // Пустое значение считается валидным
     return {
@@ -85,7 +84,7 @@ export function validatePattern(value, pattern, message) {
  * @param {boolean} required - Обязательное ли поле
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateEmail(email, required = false) {
+function validateEmail(email, required = false) {
     // Проверяем обязательность
     if (required) {
         const requiredCheck = validateRequired(email);
@@ -107,7 +106,7 @@ export function validateEmail(email, required = false) {
  * @param {boolean} required - Обязательное ли поле
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateName(name, required = true) {
+function validateName(name, required = true) {
     // Проверяем обязательность
     if (required) {
         const requiredCheck = validateRequired(name);
@@ -133,7 +132,7 @@ export function validateName(name, required = true) {
  * @param {boolean} required - Обязательное ли поле
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validatePhone(phone, required = false) {
+function validatePhone(phone, required = false) {
     // Проверяем обязательность
     if (required) {
         const requiredCheck = validateRequired(phone);
@@ -156,7 +155,7 @@ export function validatePhone(phone, required = false) {
  * @param {string} quoteText - Текст цитаты
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateQuoteText(quoteText) {
+function validateQuoteText(quoteText) {
     // Проверяем обязательность
     const requiredCheck = validateRequired(quoteText);
     if (!requiredCheck.isValid) return requiredCheck;
@@ -187,7 +186,7 @@ export function validateQuoteText(quoteText) {
  * @param {string} author - Имя автора
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateQuoteAuthor(author) {
+function validateQuoteAuthor(author) {
     // Автор не обязателен (может быть собственная мысль)
     if (!author || !author.trim()) {
         return { isValid: true, message: '' };
@@ -212,7 +211,7 @@ export function validateQuoteAuthor(author) {
  * @param {string} quoteData.author - Автор цитаты
  * @returns {{isValid: boolean, errors: Object}} - Результат валидации
  */
-export function validateQuote(quoteData) {
+function validateQuote(quoteData) {
     const errors = {};
     let isValid = true;
     
@@ -240,7 +239,7 @@ export function validateQuote(quoteData) {
  * @param {string} bio - Описание пользователя
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateBio(bio) {
+function validateBio(bio) {
     // Описание не обязательно
     if (!bio || !bio.trim()) {
         return { isValid: true, message: '' };
@@ -258,7 +257,7 @@ export function validateBio(bio) {
  * @param {string} profileData.bio - Описание пользователя
  * @returns {{isValid: boolean, errors: Object}} - Результат валидации
  */
-export function validateProfile(profileData) {
+function validateProfile(profileData) {
     const errors = {};
     let isValid = true;
     
@@ -293,7 +292,7 @@ export function validateProfile(profileData) {
  * @param {string} query - Поисковый запрос
  * @returns {{isValid: boolean, message: string}} - Результат валидации
  */
-export function validateSearchQuery(query) {
+function validateSearchQuery(query) {
     // Пустой запрос валиден (показываем все)
     if (!query || !query.trim()) {
         return { isValid: true, message: '' };
@@ -318,7 +317,7 @@ export function validateSearchQuery(query) {
  * @param {number} currentCount - Текущее количество цитат за день
  * @returns {{isValid: boolean, message: string}} - Результат проверки
  */
-export function validateDailyQuotesLimit(currentCount) {
+function validateDailyQuotesLimit(currentCount) {
     const isValid = currentCount < LIMITS.quotesPerDay;
     return {
         isValid,
@@ -333,7 +332,7 @@ export function validateDailyQuotesLimit(currentCount) {
  * @param {Object} obj - Объект для очистки
  * @returns {Object} - Очищенный объект
  */
-export function sanitizeForValidation(obj) {
+function sanitizeForValidation(obj) {
     const sanitized = {};
     
     for (const [key, value] of Object.entries(obj)) {
@@ -356,7 +355,7 @@ export function sanitizeForValidation(obj) {
  * @param {Object} validationRules - Правила валидации
  * @returns {{isValid: boolean, errors: Object}} - Результат валидации
  */
-export function validateForm(formData, validationRules) {
+function validateForm(formData, validationRules) {
     const errors = {};
     let isValid = true;
     
@@ -380,8 +379,26 @@ export function validateForm(formData, validationRules) {
     return { isValid, errors };
 }
 
-// 🌐 ЭКСПОРТ ВСЕХ ВАЛИДАТОРОВ
-export default {
+// 🌐 ГЛОБАЛЬНЫЙ ДОСТУП
+window.validateRequired = validateRequired;
+window.validateMinLength = validateMinLength;
+window.validateMaxLength = validateMaxLength;
+window.validatePattern = validatePattern;
+window.validateEmail = validateEmail;
+window.validateName = validateName;
+window.validatePhone = validatePhone;
+window.validateQuoteText = validateQuoteText;
+window.validateQuoteAuthor = validateQuoteAuthor;
+window.validateQuote = validateQuote;
+window.validateBio = validateBio;
+window.validateProfile = validateProfile;
+window.validateSearchQuery = validateSearchQuery;
+window.validateDailyQuotesLimit = validateDailyQuotesLimit;
+window.sanitizeForValidation = sanitizeForValidation;
+window.validateForm = validateForm;
+
+// Главный объект валидаторов
+window.Validators = {
     // Базовые валидаторы
     validateRequired,
     validateMinLength,
