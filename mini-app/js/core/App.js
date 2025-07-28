@@ -136,10 +136,10 @@ class ReaderApp {
         this.state = new AppState();
         await this.state.init();
         
-        // Создаем API сервис
+        // Создаем API сервис с исправленной ссылкой на AppConfig
         this.api = new ApiService({
-            baseUrl: APP_CONFIG.apiBaseUrl,
-            timeout: APP_CONFIG.apiTimeout
+            baseUrl: window.AppConfig?.app?.isDevelopment ? 'http://localhost:3000/api' : '/api',
+            timeout: 10000 // 10 секунд
         });
         
         // Создаем Telegram сервис
