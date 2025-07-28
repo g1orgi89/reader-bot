@@ -162,7 +162,7 @@ class ReaderApp {
         
         if (!window.Telegram?.WebApp) {
             console.warn('⚠️ Telegram Web App недоступен, запуск в debug режиме');
-            this.state.setState({ debugMode: true });
+            this.state.set('debugMode', true);
             return;
         }
         
@@ -189,7 +189,7 @@ class ReaderApp {
             // Получаем данные пользователя из Telegram
             const telegramUser = this.telegram.getUser();
             
-            if (!telegramUser && !this.state.getState().debugMode) {
+            if (!telegramUser && !this.state.get('debugMode')) {
                 throw new Error('Данные пользователя Telegram недоступны');
             }
             
@@ -203,8 +203,8 @@ class ReaderApp {
             this.api.setAuthToken(authResponse.token);
             
             // Сохраняем данные пользователя в состоянии
-            this.state.setState({
-                user: authResponse.user,
+            this.state.update('user', {
+                profile: authResponse.user,
                 isAuthenticated: true
             });
             
@@ -214,7 +214,7 @@ class ReaderApp {
             console.error('❌ Ошибка аутентификации:', error);
             
             // В debug режиме создаем тестового пользователя
-            if (this.state.getState().debugMode) {
+            if (this.state.get('debugMode')) {
                 this.createDebugUser();
             } else {
                 throw error;
@@ -228,7 +228,7 @@ class ReaderApp {
     async loadUserData() {
         console.log('🔄 Загрузка пользовательских данных...');
         
-        const user = this.state.getState().user;
+        const user = this.state.get('user.profile');
         
         try {
             // Загружаем профиль пользователя
@@ -241,11 +241,11 @@ class ReaderApp {
             const recentQuotes = await this.api.get('/quotes/recent', { limit: 5 });
             
             // Обновляем состояние
-            this.state.setState({
-                profile: profile,
-                stats: stats,
-                recentQuotes: recentQuotes.quotes || []
+            this.state.update('user', {
+                profile: profile
             });
+            this.state.setStats(stats);
+            this.state.setRecentQuotes(recentQuotes.quotes || []);
             
             console.log('✅ Пользовательские данные загружены');
             
@@ -285,8 +285,8 @@ class ReaderApp {
         console.log('🔄 Инициализация роутинга...');
         
         // Определяем начальную страницу
-        const user = this.state.getState().user;
-        const profile = this.state.getState().profile;
+        const user = this.state.get('user.profile');
+        const profile = this.state.get('user.profile');
         
         let initialRoute = '/home';
         
@@ -389,8 +389,8 @@ class ReaderApp {
      * 🧪 Создание тестового пользователя для debug режима
      */
     createDebugUser() {
-        this.state.setState({
-            user: {
+        this.state.update('user', {
+            profile: {
                 id: 12345,
                 firstName: 'Тестер',
                 username: 'debug_user',
@@ -447,7 +447,7 @@ class ReaderApp {
         try {
             // Обновляем только критичные данные
             const stats = await this.api.get('/stats');
-            this.state.setState({ stats });
+            this.state.setStats(stats);
         } catch (error) {
             console.warn('⚠️ Не удалось обновить данные:', error);
         }
