@@ -1,0 +1,185 @@
+{
+  "app": {
+    "name": "Reader Bot Mini App",
+    "short_name": "Reader",
+    "version": "1.0.0",
+    "description": "Персональный дневник цитат для участников Книжного клуба",
+    "lang": "ru",
+    "theme_color": "#667eea",
+    "background_color": "#f7fafc"
+  },
+  "telegram": {
+    "webapp": {
+      "bot_name": "reader_quotes_bot",
+      "short_name": "reader",
+      "menu_button": {
+        "text": "📚 Открыть приложение",
+        "url": "https://reader-bot.your-domain.com"
+      }
+    },
+    "integration": {
+      "header_color": "#667eea",
+      "background_color": "#ffffff",
+      "secondary_background_color": "#f7fafc",
+      "text_color": "#2d3748",
+      "hint_color": "#718096",
+      "link_color": "#3182ce",
+      "button_color": "#667eea",
+      "button_text_color": "#ffffff"
+    }
+  },
+  "security": {
+    "allowed_domains": [
+      "reader-bot.your-domain.com",
+      "localhost:3000",
+      "127.0.0.1:3000"
+    ],
+    "content_security_policy": {
+      "default_src": "'self'",
+      "script_src": "'self' 'unsafe-inline' https://telegram.org",
+      "style_src": "'self' 'unsafe-inline'",
+      "img_src": "'self' data: https:",
+      "connect_src": "'self' https://api.telegram.org wss:",
+      "font_src": "'self'",
+      "object_src": "'none'",
+      "base_uri": "'self'",
+      "form_action": "'self'"
+    },
+    "frame_options": "ALLOWALL",
+    "referrer_policy": "strict-origin-when-cross-origin"
+  },
+  "pwa": {
+    "enabled": true,
+    "installable": true,
+    "scope": "/",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "icons": [
+      {
+        "src": "assets/icons/icon-72x72.png",
+        "sizes": "72x72",
+        "type": "image/png",
+        "purpose": "maskable any"
+      },
+      {
+        "src": "assets/icons/icon-96x96.png",
+        "sizes": "96x96",
+        "type": "image/png",
+        "purpose": "maskable any"
+      },
+      {
+        "src": "assets/icons/icon-128x128.png",
+        "sizes": "128x128",
+        "type": "image/png",
+        "purpose": "maskable any"
+      },
+      {
+        "src": "assets/icons/icon-144x144.png",
+        "sizes": "144x144",
+        "type": "image/png",
+        "purpose": "maskable any"
+      },
+      {
+        "src": "assets/icons/icon-152x152.png",
+        "sizes": "152x152",
+        "type": "image/png",
+        "purpose": "maskable any"
+      },
+      {
+        "src": "assets/icons/icon-192x192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "maskable any"
+      },
+      {
+        "src": "assets/icons/icon-384x384.png",
+        "sizes": "384x384",
+        "type": "image/png",
+        "purpose": "maskable any"
+      },
+      {
+        "src": "assets/icons/icon-512x512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "maskable any"
+      }
+    ]
+  },
+  "performance": {
+    "cache_strategy": "cache_first",
+    "offline_support": true,
+    "preload_critical_resources": [
+      "css/main.css",
+      "css/mobile.css",
+      "js/app.js",
+      "js/telegram.js",
+      "js/api.js"
+    ],
+    "lazy_load_images": true,
+    "compress_assets": true
+  },
+  "api": {
+    "base_url": "/api/reader",
+    "timeout": 10000,
+    "retry_attempts": 3,
+    "retry_delay": 1000,
+    "endpoints": {
+      "auth": "/auth/telegram",
+      "quotes": "/quotes",
+      "reports": "/reports",
+      "statistics": "/statistics",
+      "achievements": "/achievements",
+      "recommendations": "/recommendations"
+    }
+  },
+  "features": {
+    "quotes": {
+      "daily_limit": 10,
+      "min_length": 10,
+      "max_length": 1000,
+      "auto_save_draft": true,
+      "ai_analysis": true
+    },
+    "reports": {
+      "weekly_enabled": true,
+      "monthly_enabled": true,
+      "export_formats": ["json", "txt"],
+      "sharing_enabled": false
+    },
+    "gamification": {
+      "achievements_enabled": true,
+      "streaks_enabled": true,
+      "points_system": false,
+      "leaderboard": false
+    },
+    "notifications": {
+      "push_enabled": false,
+      "in_app_enabled": true,
+      "email_enabled": false
+    }
+  },
+  "ui": {
+    "theme": "light",
+    "animation_duration": 300,
+    "haptic_feedback": true,
+    "loading_indicators": true,
+    "skeleton_screens": true,
+    "infinite_scroll": false,
+    "pull_to_refresh": true
+  },
+  "development": {
+    "debug_mode": false,
+    "console_logs": false,
+    "performance_monitoring": true,
+    "error_reporting": true,
+    "analytics_enabled": false
+  },
+  "deployment": {
+    "environment": "production",
+    "ssl_required": true,
+    "domain_verification": true,
+    "bot_verification": true,
+    "webhook_validation": true
+  }
+}
