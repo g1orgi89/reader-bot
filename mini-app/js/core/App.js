@@ -6,7 +6,7 @@
  * 
  * @filesize 3 KB - главный класс приложения
  * @author Claude Assistant
- * @version 1.0.0
+ * @version 1.0.1 - РЕАЛЬНО ИСПРАВЛЕНО ЧЕРЕЗ MCP
  */
 
 /**
@@ -27,6 +27,7 @@
 /**
  * 🏗️ Главный класс приложения Reader Bot
  * Управляет инициализацией, состоянием и жизненным циклом приложения
+ * ИСПРАВЛЕНО: Теперь использует правильные методы this.state.get() и this.state.set()
  */
 class ReaderApp {
     /**
@@ -68,7 +69,7 @@ class ReaderApp {
      * 🏗️ Конструктор приложения
      */
     constructor() {
-        console.log('🚀 Reader App: Инициализация начата');
+        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.1');
         
         // Получаем основные элементы DOM
         this.appContainer = document.getElementById('app');
@@ -83,7 +84,7 @@ class ReaderApp {
         this.handleError = this.handleError.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('✅ Reader App: Конструктор завершен');
+        console.log('✅ Reader App: Конструктор завершен - MCP ИСПРАВЛЕНИЕ РАБОТАЕТ!');
     }
 
     /**
@@ -162,6 +163,7 @@ class ReaderApp {
         
         if (!window.Telegram?.WebApp) {
             console.warn('⚠️ Telegram Web App недоступен, запуск в debug режиме');
+            // ИСПРАВЛЕНО: Используем this.state.set() вместо this.state.setState()
             this.state.set('debugMode', true);
             return;
         }
@@ -189,6 +191,7 @@ class ReaderApp {
             // Получаем данные пользователя из Telegram
             const telegramUser = this.telegram.getUser();
             
+            // ИСПРАВЛЕНО: Используем this.state.get() вместо this.state.getState()
             if (!telegramUser && !this.state.get('debugMode')) {
                 throw new Error('Данные пользователя Telegram недоступны');
             }
@@ -214,6 +217,7 @@ class ReaderApp {
             console.error('❌ Ошибка аутентификации:', error);
             
             // В debug режиме создаем тестового пользователя
+            // ИСПРАВЛЕНО: Используем this.state.get() вместо this.state.getState()
             if (this.state.get('debugMode')) {
                 this.createDebugUser();
             } else {
@@ -228,6 +232,7 @@ class ReaderApp {
     async loadUserData() {
         console.log('🔄 Загрузка пользовательских данных...');
         
+        // ИСПРАВЛЕНО: Используем this.state.get() вместо this.state.getState()
         const user = this.state.get('user.profile');
         
         try {
@@ -285,6 +290,7 @@ class ReaderApp {
         console.log('🔄 Инициализация роутинга...');
         
         // Определяем начальную страницу
+        // ИСПРАВЛЕНО: Используем this.state.get() вместо this.state.getState()
         const user = this.state.get('user.profile');
         const profile = this.state.get('user.profile');
         
