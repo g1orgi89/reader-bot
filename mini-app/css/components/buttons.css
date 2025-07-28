@@ -1,1 +1,618 @@
-/* 🔲 КНОПКИ - Все стили кнопок */
+/**
+ * 🎯 BUTTONS CSS ДЛЯ TELEGRAM MINI APP
+ * Все стили кнопок в дизайне Анны Бусел
+ */
+
+/* ============================================================================
+   🎯 БАЗОВЫЕ СТИЛИ КНОПОК
+   ============================================================================ */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    
+    /* Размеры */
+    min-height: var(--button-height);
+    padding: var(--spacing-sm) var(--spacing-md);
+    
+    /* Типографика */
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    
+    /* Внешний вид */
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    outline: none;
+    position: relative;
+    overflow: hidden;
+    
+    /* Анимации */
+    transition: all var(--duration-normal) var(--ease-out);
+    
+    /* Touch optimization */
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.btn:disabled {
+    opacity: var(--disabled-opacity);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ============================================================================
+   🎨 ОСНОВНЫЕ ВАРИАНТЫ КНОПОК
+   ============================================================================ */
+
+/* 🔥 Основная кнопка (терракотовая) */
+.btn-primary {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    box-shadow: var(--shadow-primary);
+    transform: translateY(-1px);
+}
+
+.btn-primary:active {
+    background: var(--primary-dark);
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+/* 🌟 Вторичная кнопка (контурная) */
+.btn-secondary {
+    background: transparent;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+}
+
+.btn-secondary:hover {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+}
+
+/* 🎭 Кнопка-призрак */
+.btn-ghost {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--text-muted);
+}
+
+.btn-ghost:hover {
+    background: var(--bg-overlay);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* 💫 Мягкая кнопка */
+.btn-soft {
+    background: var(--bg-overlay);
+    color: var(--primary-color);
+    border: none;
+}
+
+.btn-soft:hover {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    transform: translateY(-1px);
+}
+
+/* ============================================================================
+   🎯 СТАТУСНЫЕ КНОПКИ
+   ============================================================================ */
+
+/* ✅ Успех */
+.btn-success {
+    background: var(--success-color);
+    color: var(--text-inverse);
+}
+
+.btn-success:hover {
+    background: var(--success-light);
+    transform: translateY(-1px);
+}
+
+/* ⚠️ Предупреждение */
+.btn-warning {
+    background: var(--warning-color);
+    color: var(--text-inverse);
+}
+
+.btn-warning:hover {
+    background: #F57C00;
+    transform: translateY(-1px);
+}
+
+/* ❌ Ошибка */
+.btn-error {
+    background: var(--error-color);
+    color: var(--text-inverse);
+}
+
+.btn-error:hover {
+    background: #D32F2F;
+    transform: translateY(-1px);
+}
+
+/* ℹ️ Информация */
+.btn-info {
+    background: var(--info-color);
+    color: var(--text-inverse);
+}
+
+.btn-info:hover {
+    background: #1976D2;
+    transform: translateY(-1px);
+}
+
+/* ============================================================================
+   📏 РАЗМЕРЫ КНОПОК
+   ============================================================================ */
+
+/* 🐭 Маленькая */
+.btn-sm {
+    min-height: 36px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    border-radius: var(--radius-sm);
+}
+
+/* 📏 Средняя (по умолчанию) */
+.btn-md {
+    min-height: var(--button-height);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-base);
+}
+
+/* 🔴 Большая */
+.btn-lg {
+    min-height: 52px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* 🎯 Очень большая */
+.btn-xl {
+    min-height: 60px;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    border-radius: var(--radius-lg);
+}
+
+/* ============================================================================
+   📐 ФОРМЫ КНОПОК
+   ============================================================================ */
+
+/* 📱 Полная ширина */
+.btn-block {
+    display: flex;
+    width: 100%;
+}
+
+/* ⚪ Круглая */
+.btn-round {
+    border-radius: var(--radius-round);
+    aspect-ratio: 1;
+    padding: 0;
+    min-width: var(--button-height);
+}
+
+.btn-round.btn-sm {
+    min-width: 36px;
+}
+
+.btn-round.btn-lg {
+    min-width: 52px;
+}
+
+/* 📦 Квадратная */
+.btn-square {
+    aspect-ratio: 1;
+    padding: 0;
+    min-width: var(--button-height);
+}
+
+/* ============================================================================
+   🎨 СПЕЦИАЛЬНЫЕ ЭФФЕКТЫ
+   ============================================================================ */
+
+/* 🌈 Градиентная кнопка */
+.btn-gradient {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: var(--text-inverse);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-gradient::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left var(--duration-slow) var(--ease-out);
+}
+
+.btn-gradient:hover::before {
+    left: 100%;
+}
+
+/* 💫 Кнопка с тенью */
+.btn-shadow {
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-shadow:hover {
+    box-shadow: var(--shadow-xl);
+    transform: translateY(-2px);
+}
+
+/* 🔥 Светящаяся кнопка */
+.btn-glow {
+    box-shadow: 0 0 20px rgba(210, 69, 44, 0.3);
+}
+
+.btn-glow:hover {
+    box-shadow: 0 0 30px rgba(210, 69, 44, 0.5);
+}
+
+/* ============================================================================
+   🎯 КНОПКИ С ИКОНКАМИ
+   ============================================================================ */
+
+/* Кнопка с иконкой */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.btn-icon .icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.btn-icon.btn-sm .icon {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-icon.btn-lg .icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Только иконка */
+.btn-icon-only {
+    padding: var(--spacing-sm);
+    min-width: var(--button-height);
+    justify-content: center;
+}
+
+.btn-icon-only .icon {
+    margin: 0;
+}
+
+/* ============================================================================
+   📱 ГРУППЫ КНОПОК
+   ============================================================================ */
+
+/* Горизонтальная группа */
+.btn-group {
+    display: inline-flex;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-group .btn {
+    border-radius: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    margin: 0;
+}
+
+.btn-group .btn:first-child {
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+    border-right: none;
+}
+
+/* Вертикальная группа */
+.btn-group-vertical {
+    display: inline-flex;
+    flex-direction: column;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-group-vertical .btn {
+    border-radius: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    margin: 0;
+}
+
+.btn-group-vertical .btn:first-child {
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
+}
+
+.btn-group-vertical .btn:last-child {
+    border-bottom-left-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+    border-bottom: none;
+}
+
+/* ============================================================================
+   🎭 СОСТОЯНИЯ КНОПОК
+   ============================================================================ */
+
+/* Загрузка */
+.btn-loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: btnSpin 1s linear infinite;
+}
+
+@keyframes btnSpin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Активная кнопка */
+.btn-active {
+    background: var(--primary-dark);
+    color: var(--text-inverse);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    /* Увеличенные touch targets */
+    .btn {
+        min-height: 48px;
+        padding: var(--spacing-md) var(--spacing-lg);
+    }
+    
+    .btn-sm {
+        min-height: 40px;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .btn-lg {
+        min-height: 56px;
+        padding: var(--spacing-lg) var(--spacing-xl);
+    }
+    
+    /* Полная ширина на мобильных */
+    .btn-mobile-block {
+        display: flex;
+        width: 100%;
+    }
+    
+    /* Стек кнопок на мобильных */
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 0;
+    }
+    
+    .btn-group .btn:first-child {
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+    
+    .btn-group .btn:last-child {
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        border-bottom: none;
+    }
+}
+
+/* ============================================================================
+   🎯 СПЕЦИАЛЬНЫЕ КНОПКИ ДЛЯ MINI APP
+   ============================================================================ */
+
+/* Кнопка добавления цитаты */
+.btn-add-quote {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: var(--text-inverse);
+    font-weight: var(--font-weight-semibold);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-add-quote:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-primary-lg);
+}
+
+/* Кнопка сохранения */
+.btn-save {
+    background: var(--success-color);
+    color: var(--text-inverse);
+    font-weight: var(--font-weight-medium);
+}
+
+/* Кнопка отмены */
+.btn-cancel {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--text-muted);
+}
+
+/* Кнопка в стиле Telegram */
+.btn-telegram {
+    background: var(--tg-theme-button-color, var(--primary-color));
+    color: var(--tg-theme-button-text-color, var(--text-inverse));
+    border-radius: var(--radius-md);
+    font-weight: var(--font-weight-medium);
+}
+
+/* Floating Action Button */
+.btn-fab {
+    position: fixed;
+    bottom: calc(var(--bottom-nav-height) + var(--spacing-md));
+    right: var(--spacing-md);
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-round);
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    box-shadow: var(--shadow-lg);
+    z-index: var(--z-index-dropdown);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.btn-fab:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-xl);
+}
+
+/* ============================================================================
+   🎪 АНИМИРОВАННЫЕ КНОПКИ
+   ============================================================================ */
+
+/* Кнопка с пульсацией */
+.btn-pulse {
+    animation: btnPulse 2s infinite;
+}
+
+@keyframes btnPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(210, 69, 44, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(210, 69, 44, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(210, 69, 44, 0);
+    }
+}
+
+/* Кнопка с эффектом ripple */
+.btn-ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-ripple::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-ripple:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* ============================================================================
+   🔧 УТИЛИТАРНЫЕ КЛАССЫ ДЛЯ КНОПОК
+   ============================================================================ */
+
+/* Убрать все стили */
+.btn-reset {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+/* Кнопка-ссылка */
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    text-decoration: underline;
+    cursor: pointer;
+    padding: var(--spacing-xs) 0;
+}
+
+.btn-link:hover {
+    color: var(--primary-dark);
+    text-decoration: none;
+}
+
+/* Отступы между кнопками */
+.btn + .btn {
+    margin-left: var(--spacing-sm);
+}
+
+.btn-stack .btn {
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.btn-stack .btn:last-child {
+    margin-bottom: 0;
+}
