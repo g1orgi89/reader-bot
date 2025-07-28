@@ -6,7 +6,7 @@
  * 
  * @filesize 3 KB - главный класс приложения
  * @author Claude Assistant
- * @version 1.0.4 - ИСПРАВЛЕНЫ ОШИБКИ С КЛАССАМИ И ЗАВИСИМОСТЯМИ
+ * @version 1.0.5 - ИСПРАВЛЕНА ОШИБКА С this.state.getState()
  */
 
 /**
@@ -69,7 +69,7 @@ class ReaderApp {
      * 🏗️ Конструктор приложения
      */
     constructor() {
-        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.4');
+        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.5');
         
         // Получаем основные элементы DOM
         this.appContainer = document.getElementById('app');
@@ -84,7 +84,7 @@ class ReaderApp {
         this.handleError = this.handleError.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНЫ ОШИБКИ С КЛАССАМИ!');
+        console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНА ОШИБКА С STATE!');
     }
 
     /**
@@ -202,13 +202,13 @@ class ReaderApp {
 
     /**
      * 🔐 Аутентификация пользователя через Telegram
-     * ИСПРАВЛЕНО: Правильная обработка отсутствия Telegram данных
+     * 🔧 ИСПРАВЛЕНО: Используем this.state.get() вместо this.state.getState()
      */
     async authenticateUser() {
         console.log('🔄 Аутентификация пользователя...');
         
         try {
-            // Проверяем debug режим в первую очередь
+            // 🔧 ИСПРАВЛЕНО: Правильный вызов метода state.get()
             const isDebugMode = this.state.get('debugMode');
             
             if (isDebugMode) {
