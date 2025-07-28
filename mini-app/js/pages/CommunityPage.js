@@ -8,6 +8,8 @@
  * - Топ недели: лидеры читателей, популярные цитаты, популярные разборы
  * - Статистика: общая статистика сообщества, рейтинг пользователя
  * - Интеграция с API и State Management
+ * 
+ * 🐛 ИСПРАВЛЕНО: Ошибки null.stats в версии 1.0.1
  */
 
 class CommunityPage {
@@ -22,7 +24,7 @@ class CommunityPage {
         this.loading = false;
         this.error = null;
         
-        // Данные сообщества
+        // 🔧 ИСПРАВЛЕНО: Инициализируем данные с проверками
         this.communityData = {
             stats: {
                 activeReaders: 127,
@@ -47,9 +49,9 @@ class CommunityPage {
     /**
      * 🔧 Инициализация страницы
      */
-    init() {
+    async init() {
         this.setupSubscriptions();
-        this.loadInitialData();
+        await this.loadInitialData();
     }
     
     /**
@@ -71,6 +73,7 @@ class CommunityPage {
     
     /**
      * 📊 Загрузка начальных данных
+     * 🐛 ИСПРАВЛЕНО: Улучшена обработка ошибок и null значений
      */
     async loadInitialData() {
         try {
@@ -78,26 +81,43 @@ class CommunityPage {
             this.state.set('ui.loading', true);
             
             // Параллельная загрузка данных сообщества 
-            const [stats, leaderboard, popularContent] = await Promise.all([
+            const [stats, leaderboard, popularContent] = await Promise.allSettled([
                 this.loadCommunityStats(),
                 this.loadLeaderboard(),
                 this.loadPopularContent()
             ]);
             
-            // Обновление состояния
-            if (stats) this.communityData.stats = { ...this.communityData.stats, ...stats };
-            if (leaderboard) this.communityData.leaderboard = leaderboard;
-            if (popularContent) {
-                this.communityData.popularQuotes = popularContent.quotes || [];
-                this.communityData.popularBooks = popularContent.books || [];
+            // 🔧 ИСПРАВЛЕНО: Безопасная обработка результатов Promise.allSettled
+            if (stats.status === 'fulfilled' && stats.value) {
+                this.communityData.stats = { ...this.communityData.stats, ...stats.value };
             }
             
+            if (leaderboard.status === 'fulfilled' && leaderboard.value) {
+                this.communityData.leaderboard = leaderboard.value;
+            }
+            
+            if (popularContent.status === 'fulfilled' && popularContent.value) {
+                this.communityData.popularQuotes = popularContent.value.quotes || [];
+                this.communityData.popularBooks = popularContent.value.books || [];
+            }
+            
+            // Обновляем состояние только если у нас есть валидные данные
             this.state.set('community', this.communityData);
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных сообщества:', error);
             this.error = error.message;
-            this.showError('Не удалось загрузить данные сообщества');
+            
+            // 🔧 ИСПРАВЛЕНО: Безопасный вызов showAlert с проверкой
+            try {
+                if (this.telegram && typeof this.telegram.showAlert === 'function') {
+                    this.telegram.showAlert('Не удалось загрузить данные сообщества');
+                } else {
+                    console.warn('⚠️ Telegram service недоступен для показа уведомления');
+                }
+            } catch (telegramError) {
+                console.error('❌ Ошибка показа уведомления:', telegramError);
+            }
         } finally {
             this.loading = false;
             this.state.set('ui.loading', false);
@@ -106,16 +126,39 @@ class CommunityPage {
     
     /**
      * 📈 Загрузка статистики сообщества
+     * 🐛 ИСПРАВЛЕНО: Добавлена безопасная обработка null результатов
      */
     async loadCommunityStats() {
         try {
             const stats = await this.api.getCommunityStats();
-            return stats;
+            
+            // 🔧 ИСПРАВЛЕНО: Проверяем что stats не null и не undefined
+            if (stats && typeof stats === 'object') {
+                return stats;
+            }
+            
+            console.warn('⚠️ API вернул null/undefined для статистики, используем fallback');
+            return this.getFallbackStats();
+            
         } catch (error) {
             console.error('❌ Ошибка загрузки статистики сообщества:', error);
-            // Возвращаем моковые данные как fallback
-            return this.communityData.stats;
+            return this.getFallbackStats();
         }
+    }
+    
+    /**
+     * 📊 Fallback статистика для случаев ошибок
+     * 🆕 НОВЫЙ: Централизованный источник fallback данных
+     */
+    getFallbackStats() {
+        return {
+            activeReaders: 127,
+            newQuotes: 89,
+            totalReaders: 1247,
+            totalQuotes: 8156,
+            totalAuthors: 342,
+            daysActive: 67
+        };
     }
     
     /**
@@ -124,16 +167,31 @@ class CommunityPage {
     async loadLeaderboard() {
         try {
             const leaderboard = await this.api.getLeaderboard({ limit: 10 });
-            return leaderboard;
+            
+            // Проверяем что leaderboard это массив
+            if (Array.isArray(leaderboard)) {
+                return leaderboard;
+            }
+            
+            console.warn('⚠️ API вернул не массив для лидербоарда, используем fallback');
+            return this.getFallbackLeaderboard();
+            
         } catch (error) {
             console.error('❌ Ошибка загрузки рейтинга:', error);
-            // Возвращаем моковые данные
-            return [
-                { id: '1', name: 'Мария К.', quotesThisWeek: 23, achievement: '🔥 "Коллекционер мудрости"' },
-                { id: '2', name: 'Анна М.', quotesThisWeek: 18, achievement: '📚 "Философ недели"', isCurrentUser: true },
-                { id: '3', name: 'Елена В.', quotesThisWeek: 15, achievement: '💎 "Мыслитель"' }
-            ];
+            return this.getFallbackLeaderboard();
         }
+    }
+    
+    /**
+     * 🏆 Fallback лидербоард
+     * 🆕 НОВЫЙ: Централизованный источник fallback данных
+     */
+    getFallbackLeaderboard() {
+        return [
+            { id: '1', name: 'Мария К.', quotesThisWeek: 23, achievement: '🔥 "Коллекционер мудрости"' },
+            { id: '2', name: 'Анна М.', quotesThisWeek: 18, achievement: '📚 "Философ недели"', isCurrentUser: true },
+            { id: '3', name: 'Елена В.', quotesThisWeek: 15, achievement: '💎 "Мыслитель"' }
+        ];
     }
     
     /**
@@ -141,28 +199,57 @@ class CommunityPage {
      */
     async loadPopularContent() {
         try {
-            const [quotes, books] = await Promise.all([
+            const [quotes, books] = await Promise.allSettled([
                 this.api.getPopularQuotes({ limit: 3 }),
                 this.api.getPopularBooks({ limit: 3 })
             ]);
             
-            return { quotes, books };
+            const result = {
+                quotes: quotes.status === 'fulfilled' && Array.isArray(quotes.value) ? quotes.value : [],
+                books: books.status === 'fulfilled' && Array.isArray(books.value) ? books.value : []
+            };
+            
+            // Если нет данных, используем fallback
+            if (result.quotes.length === 0) {
+                result.quotes = this.getFallbackQuotes();
+            }
+            if (result.books.length === 0) {
+                result.books = this.getFallbackBooks();
+            }
+            
+            return result;
+            
         } catch (error) {
             console.error('❌ Ошибка загрузки популярного контента:', error);
-            // Возвращаем моковые данные
             return {
-                quotes: [
-                    { text: 'Любовь — это решение любить', author: 'Эрих Фромм', addedBy: 23 },
-                    { text: 'В каждом слове — целая жизнь', author: 'Марина Цветаева', addedBy: 18 },
-                    { text: 'Хорошая жизнь строится, а не дается', author: 'Анна Бусел', addedBy: 15 }
-                ],
-                books: [
-                    { title: 'Искусство любить', author: 'Эрих Фромм', interested: 47 },
-                    { title: 'Быть собой', author: 'Анна Бусел', interested: 31 },
-                    { title: 'Письма поэту', author: 'Рильке', interested: 23 }
-                ]
+                quotes: this.getFallbackQuotes(),
+                books: this.getFallbackBooks()
             };
         }
+    }
+    
+    /**
+     * 💫 Fallback цитаты
+     * 🆕 НОВЫЙ: Централизованный источник fallback данных
+     */
+    getFallbackQuotes() {
+        return [
+            { text: 'Любовь — это решение любить', author: 'Эрих Фромм', addedBy: 23 },
+            { text: 'В каждом слове — целая жизнь', author: 'Марина Цветаева', addedBy: 18 },
+            { text: 'Хорошая жизнь строится, а не дается', author: 'Анна Бусел', addedBy: 15 }
+        ];
+    }
+    
+    /**
+     * 📚 Fallback книги
+     * 🆕 НОВЫЙ: Централизованный источник fallback данных
+     */
+    getFallbackBooks() {
+        return [
+            { title: 'Искусство любить', author: 'Эрих Фромм', interested: 47 },
+            { title: 'Быть собой', author: 'Анна Бусел', interested: 31 },
+            { title: 'Письма поэту', author: 'Рильке', interested: 23 }
+        ];
     }
     
     /**
@@ -230,13 +317,15 @@ class CommunityPage {
     
     /**
      * 📊 Рендер статистики сообщества (краткой для ленты)
+     * 🐛 ИСПРАВЛЕНО: Безопасное обращение к объекту stats
      */
     renderCommunityStats() {
-        const stats = this.communityData.stats;
+        // 🔧 ИСПРАВЛЕНО: Проверяем что communityData и stats существуют
+        const stats = this.communityData?.stats || this.getFallbackStats();
         
         return `
             <div class="stats-summary">
-                📊 Сегодня: ${stats.activeReaders} активных читателей • ${stats.newQuotes} новых цитат
+                📊 Сегодня: ${stats.activeReaders || 0} активных читателей • ${stats.newQuotes || 0} новых цитат
             </div>
         `;
     }
@@ -245,7 +334,7 @@ class CommunityPage {
      * 💫 Рендер цитаты дня
      */
     renderQuoteOfTheDay() {
-        const popularQuotes = this.communityData.popularQuotes;
+        const popularQuotes = this.communityData?.popularQuotes || [];
         const quoteOfDay = popularQuotes[0];
         
         if (!quoteOfDay) return '';
@@ -253,8 +342,8 @@ class CommunityPage {
         return `
             <div class="mvp-community-item">
                 <div class="mvp-community-title">💫 Цитата дня от сообщества</div>
-                <div class="mvp-community-text">"${quoteOfDay.text}"</div>
-                <div class="mvp-community-author">— ${quoteOfDay.author}</div>
+                <div class="mvp-community-text">"${quoteOfDay.text || ''}"</div>
+                <div class="mvp-community-author">— ${quoteOfDay.author || 'Неизвестный автор'}</div>
             </div>
         `;
     }
@@ -263,7 +352,7 @@ class CommunityPage {
      * 📚 Рендер популярных разборов
      */
     renderPopularBooks() {
-        const books = this.communityData.popularBooks;
+        const books = this.communityData?.popularBooks || [];
         
         if (!books.length) return '';
         
@@ -272,7 +361,7 @@ class CommunityPage {
         return `
             <div class="mvp-community-item">
                 <div class="mvp-community-title">📚 Популярные разборы</div>
-                <div class="mvp-community-text">"${topBook.title}" — ${topBook.interested} покупок на этой неделе</div>
+                <div class="mvp-community-text">"${topBook.title || 'Неизвестная книга'}" — ${topBook.interested || 0} покупок на этой неделе</div>
                 <div class="mvp-community-author">Читатели с похожими интересами активно изучают эту тему</div>
             </div>
         `;
@@ -334,18 +423,19 @@ class CommunityPage {
     
     /**
      * 📊 Рендер статистики для топа
+     * 🐛 ИСПРАВЛЕНО: Безопасное обращение к объекту stats
      */
     renderTopStats() {
-        const stats = this.communityData.stats;
+        const stats = this.communityData?.stats || this.getFallbackStats();
         
         return `
             <div class="community-stats-grid">
                 <div class="community-stat-card">
-                    <div class="community-stat-number">${stats.activeReaders}</div>
+                    <div class="community-stat-number">${stats.activeReaders || 0}</div>
                     <div class="community-stat-label">Активных читателей</div>
                 </div>
                 <div class="community-stat-card">
-                    <div class="community-stat-number">${stats.newQuotes}</div>
+                    <div class="community-stat-number">${stats.newQuotes || 0}</div>
                     <div class="community-stat-label">Новых цитат</div>
                 </div>
             </div>
@@ -356,7 +446,7 @@ class CommunityPage {
      * 👑 Рендер секции лидеров
      */
     renderLeaderboardSection() {
-        const leaderboard = this.communityData.leaderboard;
+        const leaderboard = this.communityData?.leaderboard || [];
         
         return `
             <div class="leaderboard-section">
@@ -383,9 +473,9 @@ class CommunityPage {
             <div class="leaderboard-item ${currentUserClass}">
                 <div class="rank-badge ${rankClass}">${rank}</div>
                 <div class="user-info">
-                    <div class="user-name">${user.name}${user.isCurrentUser ? ' (вы)' : ''}</div>
-                    <div class="user-stats">${user.quotesThisWeek} цитат за неделю</div>
-                    <div class="user-achievement">${user.achievement}</div>
+                    <div class="user-name">${user.name || 'Неизвестный'}${user.isCurrentUser ? ' (вы)' : ''}</div>
+                    <div class="user-stats">${user.quotesThisWeek || 0} цитат за неделю</div>
+                    <div class="user-achievement">${user.achievement || ''}</div>
                 </div>
             </div>
         `;
@@ -395,7 +485,7 @@ class CommunityPage {
      * ⭐ Рендер популярных цитат недели
      */
     renderPopularQuotesSection() {
-        const quotes = this.communityData.popularQuotes;
+        const quotes = this.communityData?.popularQuotes || [];
         
         return `
             <div class="popular-section">
@@ -413,8 +503,8 @@ class CommunityPage {
     renderPopularQuote(quote) {
         return `
             <div class="popular-item">
-                <div class="popular-text">"${quote.text}"</div>
-                <div class="popular-meta">${quote.author} • добавили ${quote.addedBy} человек</div>
+                <div class="popular-text">"${quote.text || ''}"</div>
+                <div class="popular-meta">${quote.author || 'Неизвестный автор'} • добавили ${quote.addedBy || 0} человек</div>
             </div>
         `;
     }
@@ -423,7 +513,7 @@ class CommunityPage {
      * 📚 Рендер популярных разборов недели
      */
     renderPopularBooksSection() {
-        const books = this.communityData.popularBooks;
+        const books = this.communityData?.popularBooks || [];
         
         return `
             <div class="popular-section">
@@ -441,8 +531,8 @@ class CommunityPage {
     renderPopularBook(book, rank) {
         return `
             <div class="popular-item">
-                <div class="popular-title">${rank}. "${book.title}" ${book.author}</div>
-                <div class="popular-meta">💫 ${book.interested} человек заинтересовалось</div>
+                <div class="popular-title">${rank}. "${book.title || 'Неизвестная книга'}" ${book.author || 'Неизвестный автор'}</div>
+                <div class="popular-meta">💫 ${book.interested || 0} человек заинтересовалось</div>
             </div>
         `;
     }
@@ -484,28 +574,29 @@ class CommunityPage {
     
     /**
      * 📈 Рендер общей статистики
+     * 🐛 ИСПРАВЛЕНО: Безопасное обращение к объекту stats
      */
     renderOverallStats() {
-        const stats = this.communityData.stats;
+        const stats = this.communityData?.stats || this.getFallbackStats();
         
         return `
             <div class="overall-stats-section">
                 <div class="stats-header">📈 Общая статистика сообщества</div>
                 <div class="stats-grid">
                     <div class="stat-item">
-                        <div class="stat-number">${stats.totalReaders.toLocaleString()}</div>
+                        <div class="stat-number">${(stats.totalReaders || 0).toLocaleString()}</div>
                         <div class="stat-label">Всего читателей</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">${stats.totalQuotes.toLocaleString()}</div>
+                        <div class="stat-number">${(stats.totalQuotes || 0).toLocaleString()}</div>
                         <div class="stat-label">Цитат собрано</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">${stats.totalAuthors}</div>
+                        <div class="stat-number">${stats.totalAuthors || 0}</div>
                         <div class="stat-label">Авторов</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">${stats.daysActive}</div>
+                        <div class="stat-number">${stats.daysActive || 0}</div>
                         <div class="stat-label">Дней работы</div>
                     </div>
                 </div>
@@ -642,7 +733,9 @@ class CommunityPage {
         const exploreBtn = document.getElementById('exploreBtn');
         if (exploreBtn) {
             exploreBtn.addEventListener('click', () => {
-                this.telegram.hapticFeedback('light');
+                if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+                    this.telegram.hapticFeedback('light');
+                }
                 this.app.router.navigate('/catalog');
             });
         }
@@ -656,7 +749,9 @@ class CommunityPage {
         const leaderboardItems = document.querySelectorAll('.leaderboard-item');
         leaderboardItems.forEach(item => {
             item.addEventListener('click', () => {
-                this.telegram.hapticFeedback('light');
+                if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+                    this.telegram.hapticFeedback('light');
+                }
                 // Можно показать профиль пользователя
             });
         });
@@ -665,7 +760,9 @@ class CommunityPage {
         const popularItems = document.querySelectorAll('.popular-item');
         popularItems.forEach(item => {
             item.addEventListener('click', () => {
-                this.telegram.hapticFeedback('light');
+                if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+                    this.telegram.hapticFeedback('light');
+                }
                 // Можно перейти к деталям элемента
             });
         });
@@ -676,7 +773,10 @@ class CommunityPage {
      */
     switchTab(tabName) {
         this.activeTab = tabName;
-        this.telegram.hapticFeedback('light');
+        
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('light');
+        }
         
         // Перерендер страницы
         this.rerender();
@@ -736,12 +836,23 @@ class CommunityPage {
     
     /**
      * ⚠️ Показать ошибку
+     * 🐛 ИСПРАВЛЕНО: Безопасный вызов showAlert
      */
     showError(message) {
         this.error = message;
         
-        if (this.telegram) {
-            this.telegram.showAlert(message);
+        try {
+            if (this.telegram && typeof this.telegram.showAlert === 'function') {
+                this.telegram.showAlert(message);
+            } else {
+                console.warn('⚠️ Telegram service недоступен, показываем alert');
+                // Fallback на обычный alert если Telegram недоступен
+                if (typeof alert !== 'undefined') {
+                    alert(message);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Ошибка показа уведомления:', error);
         }
     }
     
