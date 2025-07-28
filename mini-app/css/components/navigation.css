@@ -1,1 +1,627 @@
-/* 🧭 НАВИГАЦИЯ - Нижняя панель (5 страниц) + меню модалки */
+/**
+ * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP
+ * Стили навигации: нижняя панель, верхнее меню, табы
+ */
+
+/* ============================================================================
+   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV)
+   ============================================================================ */
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--bottom-nav-height);
+    background: var(--bg-card);
+    border-top: 1px solid var(--bg-secondary);
+    z-index: var(--z-index-nav);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-muted);
+    transition: all var(--duration-normal) var(--ease-out);
+    position: relative;
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.nav-item:hover {
+    color: var(--primary-color);
+    background: var(--bg-overlay);
+    text-decoration: none;
+}
+
+.nav-item.active {
+    color: var(--primary-color);
+    background: var(--bg-overlay);
+}
+
+.nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 3px;
+    background: var(--primary-color);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.nav-item:active .nav-icon {
+    transform: scale(0.9);
+}
+
+.nav-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+    text-align: center;
+}
+
+/* Бейдж для уведомлений */
+.nav-badge {
+    position: absolute;
+    top: 2px;
+    right: 8px;
+    width: var(--badge-size);
+    height: var(--badge-size);
+    background: var(--error-color);
+    color: var(--text-inverse);
+    border-radius: var(--radius-round);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--badge-font-size);
+    font-weight: var(--font-weight-bold);
+    min-width: var(--badge-size);
+    padding: 0 4px;
+    box-shadow: 0 0 0 2px var(--bg-card);
+}
+
+.nav-badge.empty {
+    display: none;
+}
+
+/* ============================================================================
+   📋 ВЕРХНЕЕ МЕНЮ (TOP MENU)
+   ============================================================================ */
+
+.top-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--bg-secondary);
+    z-index: var(--z-index-header);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-md);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.menu-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.menu-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.menu-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.menu-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1;
+}
+
+.menu-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.menu-btn {
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-normal) var(--ease-out);
+    position: relative;
+}
+
+.menu-btn:hover {
+    background: var(--bg-overlay);
+    color: var(--primary-color);
+}
+
+.menu-btn .icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Кнопка назад */
+.menu-back {
+    color: var(--primary-color);
+}
+
+.menu-back .icon {
+    transform: rotate(180deg);
+}
+
+/* Кнопка меню (три точки) */
+.menu-more .icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* ============================================================================
+   📑 ТАБЫ (TABS)
+   ============================================================================ */
+
+.tabs {
+    display: flex;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--bg-secondary);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    flex: 1;
+    min-width: 0;
+    padding: var(--spacing-md);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tab:hover {
+    color: var(--primary-color);
+    background: var(--bg-overlay);
+}
+
+.tab.active {
+    color: var(--primary-color);
+}
+
+.tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-color);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+/* Табы с иконками */
+.tab-icon {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    justify-content: center;
+}
+
+.tab-icon .icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Вертикальные табы */
+.tabs-vertical {
+    flex-direction: column;
+    border-bottom: none;
+    border-right: 1px solid var(--bg-secondary);
+    width: 200px;
+    max-width: 200px;
+}
+
+.tabs-vertical .tab {
+    text-align: left;
+    justify-content: flex-start;
+}
+
+.tabs-vertical .tab.active::after {
+    top: 0;
+    bottom: 0;
+    left: auto;
+    right: 0;
+    width: 3px;
+    height: auto;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+/* ============================================================================
+   🍞 BREADCRUMB (ХЛЕБНЫЕ КРОШКИ)
+   ============================================================================ */
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+}
+
+.breadcrumb-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color var(--duration-normal) var(--ease-out);
+}
+
+.breadcrumb-link:hover {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.breadcrumb-separator {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    opacity: 0.6;
+}
+
+.breadcrumb-current {
+    color: var(--text-primary);
+    font-weight: var(--font-weight-medium);
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .bottom-nav {
+        height: 60px;
+        padding: var(--spacing-xs);
+    }
+    
+    .nav-item {
+        padding: var(--spacing-xs) 2px;
+        gap: 2px;
+    }
+    
+    .nav-icon {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .nav-label {
+        font-size: 10px;
+    }
+    
+    .top-menu {
+        height: 50px;
+        padding: 0 var(--spacing-sm);
+    }
+    
+    .menu-title {
+        font-size: var(--font-size-base);
+    }
+    
+    .menu-btn {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .menu-btn .icon {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .tabs {
+        padding: 0;
+    }
+    
+    .tab {
+        padding: var(--spacing-sm);
+        font-size: var(--font-size-sm);
+    }
+    
+    .breadcrumb {
+        padding: var(--spacing-xs) 0;
+        font-size: var(--font-size-xs);
+    }
+}
+
+/* ============================================================================
+   🎭 АНИМАЦИИ И ЭФФЕКТЫ
+   ============================================================================ */
+
+/* Анимация появления нижней навигации */
+.bottom-nav {
+    animation: navSlideUp var(--duration-normal) var(--ease-out);
+}
+
+@keyframes navSlideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Анимация переключения табов */
+.tab-content {
+    animation: tabFadeIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes tabFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Рипл эффект для кнопок навигации */
+.nav-item,
+.menu-btn,
+.tab {
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item::before,
+.menu-btn::before,
+.tab::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: var(--radius-round);
+    background: rgba(210, 69, 44, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.nav-item:active::before,
+.menu-btn:active::before,
+.tab:active::before {
+    width: 100px;
+    height: 100px;
+}
+
+/* ============================================================================
+   🎯 СПЕЦИАЛЬНАЯ НАВИГАЦИЯ ДЛЯ MINI APP
+   ============================================================================ */
+
+/* Навигация для дневника с фильтрами */
+.diary-nav {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--bg-secondary);
+    padding: var(--spacing-sm) var(--spacing-md);
+    display: flex;
+    gap: var(--spacing-sm);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.diary-filter {
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.diary-filter:hover {
+    background: var(--bg-overlay);
+    color: var(--text-primary);
+}
+
+.diary-filter.active {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+}
+
+/* Плавающая кнопка добавления */
+.fab-nav {
+    position: fixed;
+    bottom: calc(var(--bottom-nav-height) + var(--spacing-md));
+    right: var(--spacing-md);
+    width: 56px;
+    height: 56px;
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--radius-round);
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    z-index: calc(var(--z-index-nav) + 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.fab-nav:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-xl);
+}
+
+.fab-nav:active {
+    transform: scale(0.95);
+}
+
+.fab-nav .icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* ============================================================================
+   🔧 УТИЛИТАРНЫЕ КЛАССЫ
+   ============================================================================ */
+
+/* Скрытие навигации */
+.nav-hidden .bottom-nav {
+    transform: translateY(100%);
+}
+
+.nav-hidden .top-menu {
+    transform: translateY(-100%);
+}
+
+/* Компактная навигация */
+.nav-compact .bottom-nav {
+    height: 50px;
+    padding: var(--spacing-xs);
+}
+
+.nav-compact .nav-label {
+    display: none;
+}
+
+.nav-compact .nav-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Полупрозрачная навигация */
+.nav-transparent .bottom-nav,
+.nav-transparent .top-menu {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Навигация без границ */
+.nav-borderless .bottom-nav {
+    border-top: none;
+}
+
+.nav-borderless .top-menu {
+    border-bottom: none;
+}
+
+/* Индикатор загрузки в навигации */
+.nav-loading .menu-title::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--bg-secondary);
+    border-top-color: var(--primary-color);
+    border-radius: var(--radius-round);
+    margin-left: var(--spacing-xs);
+    animation: navSpin 1s linear infinite;
+}
+
+@keyframes navSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   🎨 ИНТЕГРАЦИЯ С TELEGRAM ТЕМАМИ
+   ============================================================================ */
+
+/* Адаптация под Telegram цвета */
+body[data-theme="telegram"] .bottom-nav {
+    background: var(--tg-theme-bg-color, var(--bg-card));
+    border-top-color: var(--tg-theme-hint-color, var(--bg-secondary));
+}
+
+body[data-theme="telegram"] .top-menu {
+    background: var(--tg-theme-bg-color, var(--bg-card));
+    border-bottom-color: var(--tg-theme-hint-color, var(--bg-secondary));
+}
+
+body[data-theme="telegram"] .nav-item {
+    color: var(--tg-theme-hint-color, var(--text-muted));
+}
+
+body[data-theme="telegram"] .nav-item.active {
+    color: var(--tg-theme-link-color, var(--primary-color));
+}
+
+body[data-theme="telegram"] .menu-title {
+    color: var(--tg-theme-text-color, var(--text-primary));
+}
