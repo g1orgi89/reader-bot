@@ -9,6 +9,8 @@
  * - Промокоды и специальные предложения
  * - История всех отчетов с фильтрами
  * - Экспорт отчетов и поделиться
+ * 
+ * @version 1.0.1 - ИСПРАВЛЕНА ОШИБКА TELEGRAM SHARE
  */
 
 class ReportsPage {
@@ -852,7 +854,9 @@ class ReportsPage {
      */
     async switchPeriod(period) {
         this.currentPeriod = period;
-        this.telegram.hapticFeedback('light');
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('light');
+        }
         
         // Перезагрузка данных для нового периода
         await this.loadCurrentReport();
@@ -864,20 +868,33 @@ class ReportsPage {
      */
     switchTab(tabName) {
         this.activeTab = tabName;
-        this.telegram.hapticFeedback('light');
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('light');
+        }
         this.rerender();
     }
     
     /**
      * 📤 Поделиться отчетом
+     * ИСПРАВЛЕНО: Используем правильные методы Telegram Web App
      */
     shareReport() {
-        this.telegram.hapticFeedback('medium');
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('medium');
+        }
         
-        const shareText = `📊 Мой отчет в Reader Bot:\n• ${this.currentReport?.statistics?.quotesCount || 0} цитат\n• ${this.currentReport?.statistics?.uniqueAuthors || 0} авторов\n\nСобираю мудрость каждый день! 📚`;
+        const shareText = `📊 Мой отчет в Reader Bot:\\n• ${this.currentReport?.statistics?.quotesCount || 0} цитат\\n• ${this.currentReport?.statistics?.uniqueAuthors || 0} авторов\\n\\nСобираю мудрость каждый день! 📚`;
         
-        if (this.telegram.isShareSupported()) {
-            this.telegram.shareMessage(shareText);
+        // ИСПРАВЛЕНО: Проверяем доступность Telegram Web App shareUrl
+        if (window.Telegram?.WebApp?.shareUrl) {
+            window.Telegram.WebApp.shareUrl(window.location.href, shareText);
+        } else if (navigator.share) {
+            // Используем Web Share API если доступен
+            navigator.share({
+                title: 'Мой отчет в Reader Bot',
+                text: shareText,
+                url: window.location.href
+            });
         } else {
             // Fallback: копирование в буфер
             navigator.clipboard.writeText(shareText);
@@ -889,7 +906,9 @@ class ReportsPage {
      * 💾 Экспорт отчета
      */
     exportReport() {
-        this.telegram.hapticFeedback('medium');
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('medium');
+        }
         
         // Можно реализовать экспорт в PDF или текстовый файл
         this.showSuccess('💾 Функция экспорта будет доступна в следующем обновлении');
@@ -899,7 +918,9 @@ class ReportsPage {
      * 📚 Обработка действий с книгами
      */
     handleBookAction(action, bookId) {
-        this.telegram.hapticFeedback('light');
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('light');
+        }
         
         switch (action) {
             case 'view':
@@ -920,7 +941,11 @@ class ReportsPage {
         const promoCode = this.currentReport?.promoCode?.code;
         const buyUrl = `https://annabusel.org/catalog/${bookId}${promoCode ? `?promo=${promoCode}` : ''}`;
         
-        this.telegram.openLink(buyUrl);
+        if (this.telegram && typeof this.telegram.openLink === 'function') {
+            this.telegram.openLink(buyUrl);
+        } else {
+            window.open(buyUrl, '_blank');
+        }
     }
     
     /**
@@ -932,7 +957,9 @@ class ReportsPage {
             const code = promoCodeText.textContent;
             navigator.clipboard.writeText(code);
             
-            this.telegram.hapticFeedback('success');
+            if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+                this.telegram.hapticFeedback('success');
+            }
             this.showSuccess('✅ Промокод скопирован!');
         }
     }
@@ -941,7 +968,9 @@ class ReportsPage {
      * 🛒 Использование промокода
      */
     usePromoCode() {
-        this.telegram.hapticFeedback('medium');
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('medium');
+        }
         this.app.router.navigate('/catalog?promo=true');
     }
     
@@ -949,7 +978,9 @@ class ReportsPage {
      * 📚 Обработка действий с историей
      */
     handleHistoryAction(action, reportId) {
-        this.telegram.hapticFeedback('light');
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('light');
+        }
         
         switch (action) {
             case 'view':
@@ -974,6 +1005,14 @@ class ReportsPage {
             console.error('❌ Ошибка загрузки отчета:', error);
             this.showError('Не удалось загрузить отчет');
         }
+    }
+    
+    /**
+     * 📤 Поделиться историческим отчетом
+     */
+    shareHistoryReport(reportId) {
+        // Аналогично shareReport, но для исторического отчета
+        this.shareReport();
     }
     
     /**
@@ -1030,6 +1069,11 @@ class ReportsPage {
         // Обновление значений...
     }
     
+    filterHistory(period) {
+        this.currentPeriod = period;
+        this.rerender();
+    }
+    
     rerender() {
         const container = document.querySelector('.reports-page .content');
         if (container) {
@@ -1043,14 +1087,18 @@ class ReportsPage {
     }
     
     showSuccess(message) {
-        if (this.telegram) {
+        if (this.telegram && typeof this.telegram.showAlert === 'function') {
             this.telegram.showAlert(message);
+        } else {
+            alert(message);
         }
     }
     
     showError(message) {
-        if (this.telegram) {
+        if (this.telegram && typeof this.telegram.showAlert === 'function') {
             this.telegram.showAlert(message);
+        } else {
+            alert(message);
         }
     }
     
