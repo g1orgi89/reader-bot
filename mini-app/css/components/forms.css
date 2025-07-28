@@ -1,1 +1,719 @@
-/* 📝 ФОРМЫ - Инпуты и валидация */
+/**
+ * 📝 FORMS CSS ДЛЯ TELEGRAM MINI APP
+ * Стили форм, полей ввода и элементов управления
+ */
+
+/* ============================================================================
+   📝 БАЗОВЫЕ СТИЛИ ФОРМ
+   ============================================================================ */
+
+.form {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: var(--spacing-lg);
+    position: relative;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-row {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: flex-end;
+}
+
+.form-col {
+    flex: 1;
+}
+
+/* ============================================================================
+   🏷️ ЛЕЙБЛЫ И ОПИСАНИЯ
+   ============================================================================ */
+
+.form-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    line-height: var(--line-height-normal);
+}
+
+.form-label.required::after {
+    content: '*';
+    color: var(--error-color);
+    margin-left: var(--spacing-xs);
+}
+
+.form-description {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--spacing-xs);
+    line-height: var(--line-height-normal);
+}
+
+.form-error {
+    font-size: var(--font-size-xs);
+    color: var(--error-color);
+    margin-top: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.form-error .icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* ============================================================================
+   📝 ПОЛЯ ВВОДА
+   ============================================================================ */
+
+.form-input {
+    width: 100%;
+    min-height: var(--input-height);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: var(--input-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--text-primary);
+    transition: all var(--duration-normal) var(--ease-out);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.form-input::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+.form-input:focus {
+    border: var(--input-border-focus);
+    box-shadow: 0 0 0 3px rgba(210, 69, 44, 0.1);
+    background: var(--bg-card);
+}
+
+.form-input:disabled {
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: var(--disabled-opacity);
+}
+
+.form-input.error {
+    border-color: var(--error-color);
+    background: rgba(244, 67, 54, 0.05);
+}
+
+.form-input.error:focus {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
+}
+
+.form-input.success {
+    border-color: var(--success-color);
+    background: rgba(76, 175, 80, 0.05);
+}
+
+/* ============================================================================
+   📐 РАЗМЕРЫ ПОЛЕЙ ВВОДА
+   ============================================================================ */
+
+.form-input-sm {
+    min-height: 36px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    border-radius: var(--radius-sm);
+}
+
+.form-input-lg {
+    min-height: 56px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-lg);
+    border-radius: var(--radius-lg);
+}
+
+/* ============================================================================
+   📝 TEXTAREA
+   ============================================================================ */
+
+.form-textarea {
+    min-height: 120px;
+    resize: vertical;
+    padding: var(--spacing-md);
+    line-height: var(--line-height-normal);
+    font-family: var(--font-family-primary);
+}
+
+.form-textarea.auto-resize {
+    resize: none;
+    overflow: hidden;
+}
+
+/* Специальный стиль для цитат */
+.form-textarea-quote {
+    min-height: 160px;
+    font-family: var(--font-family-secondary);
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-loose);
+    font-style: italic;
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+    border: 2px solid var(--primary-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+}
+
+.form-textarea-quote:focus {
+    background: var(--bg-card);
+    box-shadow: var(--shadow-primary);
+}
+
+.form-textarea-quote::placeholder {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* ============================================================================
+   🔽 SELECT И ВЫПАДАЮЩИЕ СПИСКИ
+   ============================================================================ */
+
+.form-select {
+    width: 100%;
+    min-height: var(--input-height);
+    padding: var(--spacing-sm) var(--spacing-md);
+    padding-right: 40px;
+    border: var(--input-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-sm) center;
+    background-size: 20px;
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.form-select:focus {
+    border: var(--input-border-focus);
+    box-shadow: 0 0 0 3px rgba(210, 69, 44, 0.1);
+    outline: none;
+}
+
+.form-select:disabled {
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* ============================================================================
+   ☑️ ЧЕКБОКСЫ И РАДИОКНОПКИ
+   ============================================================================ */
+
+.form-checkbox,
+.form-radio {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    padding: var(--spacing-xs) 0;
+    position: relative;
+}
+
+.form-checkbox input[type="checkbox"],
+.form-radio input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    opacity: 0;
+    position: absolute;
+    left: 0;
+    top: 2px;
+}
+
+.form-checkbox .checkmark,
+.form-radio .checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--text-muted);
+    background: var(--bg-card);
+    position: relative;
+    flex-shrink: 0;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.form-checkbox .checkmark {
+    border-radius: var(--radius-sm);
+}
+
+.form-radio .checkmark {
+    border-radius: var(--radius-round);
+}
+
+.form-checkbox input:checked + .checkmark,
+.form-radio input:checked + .checkmark {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.form-checkbox input:checked + .checkmark::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-inverse);
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.form-radio input:checked + .checkmark::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: var(--text-inverse);
+    border-radius: var(--radius-round);
+}
+
+.form-checkbox:hover .checkmark,
+.form-radio:hover .checkmark {
+    border-color: var(--primary-color);
+}
+
+.form-checkbox input:focus + .checkmark,
+.form-radio input:focus + .checkmark {
+    box-shadow: 0 0 0 3px rgba(210, 69, 44, 0.1);
+}
+
+.form-checkbox-label,
+.form-radio-label {
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    line-height: var(--line-height-normal);
+    cursor: pointer;
+}
+
+/* ============================================================================
+   🎚️ RANGE СЛАЙДЕРЫ
+   ============================================================================ */
+
+.form-range {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.form-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    background: var(--primary-color);
+    border-radius: var(--radius-round);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.form-range::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-md);
+}
+
+.form-range::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    background: var(--primary-color);
+    border-radius: var(--radius-round);
+    cursor: pointer;
+    border: none;
+    box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================================
+   🔍 ПОИСК И СПЕЦИАЛЬНЫЕ ПОЛЯ
+   ============================================================================ */
+
+.form-search {
+    position: relative;
+}
+
+.form-search .form-input {
+    padding-left: 40px;
+    padding-right: 40px;
+}
+
+.form-search .search-icon {
+    position: absolute;
+    left: var(--spacing-sm);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.form-search .clear-btn {
+    position: absolute;
+    right: var(--spacing-sm);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.form-search .form-input:not(:placeholder-shown) + .clear-btn {
+    opacity: 1;
+}
+
+.form-search .clear-btn:hover {
+    color: var(--text-primary);
+}
+
+/* Поле с иконкой */
+.form-input-icon {
+    position: relative;
+}
+
+.form-input-icon .form-input {
+    padding-left: 40px;
+}
+
+.form-input-icon .icon {
+    position: absolute;
+    left: var(--spacing-sm);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+/* ============================================================================
+   📊 СЧЕТЧИКИ И ИНДИКАТОРЫ
+   ============================================================================ */
+
+.form-counter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-xs);
+}
+
+.form-counter-text {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.form-counter-numbers {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.form-counter-numbers.warning {
+    color: var(--warning-color);
+}
+
+.form-counter-numbers.error {
+    color: var(--error-color);
+}
+
+/* Индикатор загрузки для полей */
+.form-loading {
+    position: relative;
+}
+
+.form-loading::after {
+    content: '';
+    position: absolute;
+    right: var(--spacing-sm);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--bg-secondary);
+    border-top-color: var(--primary-color);
+    border-radius: var(--radius-round);
+    animation: formSpin 1s linear infinite;
+}
+
+@keyframes formSpin {
+    to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* ============================================================================
+   🔘 TOGGLE SWITCHES
+   ============================================================================ */
+
+.form-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+}
+
+.form-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-switch {
+    width: 48px;
+    height: 24px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    position: relative;
+    transition: all var(--duration-normal) var(--ease-out);
+    cursor: pointer;
+}
+
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: var(--bg-card);
+    border-radius: var(--radius-round);
+    transition: all var(--duration-normal) var(--ease-out);
+    box-shadow: var(--shadow-sm);
+}
+
+.form-toggle input:checked + .toggle-switch {
+    background: var(--primary-color);
+}
+
+.form-toggle input:checked + .toggle-switch::after {
+    transform: translateX(24px);
+}
+
+.form-toggle:hover .toggle-switch {
+    transform: scale(1.05);
+}
+
+.toggle-label {
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+/* ============================================================================
+   📋 ГРУППЫ ПОЛЕЙ
+   ============================================================================ */
+
+.form-fieldset {
+    border: 1px solid var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    position: relative;
+}
+
+.form-legend {
+    background: var(--bg-primary);
+    padding: 0 var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    position: absolute;
+    top: -12px;
+    left: var(--spacing-md);
+}
+
+/* Группа радиокнопок */
+.form-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.form-radio-group.horizontal {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+/* Группа чекбоксов */
+.form-checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* ============================================================================
+   🎯 СПЕЦИАЛЬНЫЕ ФОРМЫ ДЛЯ MINI APP
+   ============================================================================ */
+
+/* Форма добавления цитаты */
+.quote-form {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+}
+
+.quote-form::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+}
+
+.quote-form .form-textarea-quote {
+    background: var(--bg-secondary);
+    border: 2px dashed var(--primary-color);
+    min-height: 180px;
+}
+
+.quote-form .form-textarea-quote:focus {
+    border-style: solid;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-primary);
+}
+
+/* Быстрая форма */
+.quick-form {
+    background: var(--bg-overlay);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    border: 1px solid var(--primary-color);
+}
+
+.quick-form .form-input {
+    border: none;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .form-row {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+    
+    .form-input,
+    .form-select,
+    .form-textarea {
+        font-size: 16px; /* Предотвращение zoom на iOS */
+    }
+    
+    .form-textarea {
+        min-height: 100px;
+    }
+    
+    .form-textarea-quote {
+        min-height: 140px;
+        padding: var(--spacing-md);
+    }
+    
+    .form-radio-group.horizontal {
+        flex-direction: column;
+    }
+    
+    .quote-form {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-lg);
+    }
+}
+
+/* ============================================================================
+   🎭 АНИМАЦИИ И ЭФФЕКТЫ
+   ============================================================================ */
+
+/* Анимация появления ошибки */
+.form-error {
+    animation: errorSlideIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes errorSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Плавающие лейблы */
+.form-floating {
+    position: relative;
+}
+
+.form-floating .form-input {
+    padding-top: 20px;
+}
+
+.form-floating .form-label {
+    position: absolute;
+    top: 50%;
+    left: var(--spacing-md);
+    transform: translateY(-50%);
+    transition: all var(--duration-normal) var(--ease-out);
+    pointer-events: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+}
+
+.form-floating .form-input:focus + .form-label,
+.form-floating .form-input:not(:placeholder-shown) + .form-label {
+    top: 8px;
+    transform: translateY(0);
+    font-size: var(--font-size-xs);
+    color: var(--primary-color);
+}
+
+/* Эффект focus для полей */
+.form-input,
+.form-select,
+.form-textarea {
+    position: relative;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    transform: translateY(-1px);
+}
