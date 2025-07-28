@@ -1,3 +1,228 @@
 {
-  "_comment": "PWA манифест - будет заполнен согласно архитектуре"
+  "name": "Reader Bot - Дневник цитат",
+  "short_name": "Reader Bot",
+  "description": "Персональный дневник цитат для участников Книжного клуба от психолога Анны Бусел",
+  "version": "1.0.0",
+  
+  "start_url": "/",
+  "scope": "/",
+  "id": "reader-bot-mini-app",
+  
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#667eea",
+  "background_color": "#f7fafc",
+  
+  "categories": [
+    "books",
+    "education", 
+    "lifestyle",
+    "productivity"
+  ],
+  
+  "lang": "ru",
+  "dir": "ltr",
+  
+  "icons": [
+    {
+      "src": "assets/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "assets/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "assets/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "assets/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "assets/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "assets/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "assets/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "assets/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  
+  "screenshots": [
+    {
+      "src": "assets/screenshots/home-screen.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Главная страница с добавлением цитат"
+    },
+    {
+      "src": "assets/screenshots/quotes-list.png", 
+      "sizes": "390x844",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Список сохраненных цитат"
+    },
+    {
+      "src": "assets/screenshots/weekly-report.png",
+      "sizes": "390x844", 
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Еженедельный отчет с анализом"
+    }
+  ],
+  
+  "shortcuts": [
+    {
+      "name": "Добавить цитату",
+      "short_name": "Новая цитата",
+      "description": "Быстро добавить новую цитату",
+      "url": "/?action=add-quote",
+      "icons": [
+        {
+          "src": "assets/icons/shortcut-add.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Мои цитаты",
+      "short_name": "Цитаты", 
+      "description": "Просмотреть все сохраненные цитаты",
+      "url": "/?page=quotes",
+      "icons": [
+        {
+          "src": "assets/icons/shortcut-quotes.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Отчеты",
+      "short_name": "Отчеты",
+      "description": "Еженедельные и месячные отчеты",
+      "url": "/?page=reports", 
+      "icons": [
+        {
+          "src": "assets/icons/shortcut-reports.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  
+  "protocol_handlers": [
+    {
+      "protocol": "web+reader",
+      "url": "/?quote=%s"
+    }
+  ],
+  
+  "file_handlers": [
+    {
+      "action": "/?import=true",
+      "accept": {
+        "text/plain": [".txt"],
+        "application/json": [".json"]
+      }
+    }
+  ],
+  
+  "share_target": {
+    "action": "/?share=true",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  
+  "permissions": [
+    "storage-access"
+  ],
+  
+  "iarc_rating_id": "",
+  
+  "features": [
+    "cross-origin-isolated"
+  ],
+  
+  "related_applications": [
+    {
+      "platform": "telegram",
+      "url": "https://t.me/reader_quotes_bot",
+      "id": "reader_quotes_bot"
+    }
+  ],
+  
+  "serviceworker": {
+    "src": "service-worker.js",
+    "scope": "/",
+    "update_via_cache": "imports"
+  },
+  
+  "display_override": [
+    "window-controls-overlay",
+    "standalone", 
+    "minimal-ui",
+    "browser"
+  ],
+  
+  "developer": {
+    "name": "Reader Bot Development Team",
+    "url": "https://github.com/g1orgi89/reader-bot"
+  },
+  
+  "app": {
+    "background": {
+      "scripts": ["service-worker.js"]
+    },
+    "content_security_policy": "script-src 'self' 'unsafe-inline'; object-src 'self'"
+  },
+  
+  "webapp": {
+    "offline_enabled": true,
+    "cache_enabled": true,
+    "installable": true
+  }
 }
