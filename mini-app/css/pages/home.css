@@ -1,1 +1,677 @@
-/* 🏠 ГЛАВНАЯ СТРАНИЦА - Стили для домашней страницы */
+/**
+ * 🏠 ГЛАВНАЯ СТРАНИЦА - Стили для домашней страницы
+ * Дашборд со статистикой, быстрое добавление цитат, последние достижения
+ */
+
+/* ============================================================================
+   🏠 ОСНОВНОЙ КОНТЕЙНЕР ГЛАВНОЙ СТРАНИЦЫ
+   ============================================================================ */
+
+.home-page {
+    padding: var(--spacing-md);
+    padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-md));
+    min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+/* ============================================================================
+   👋 СЕКЦИЯ ПРИВЕТСТВИЯ
+   ============================================================================ */
+
+.home-welcome {
+    margin-bottom: var(--spacing-xl);
+}
+
+.welcome-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.welcome-text h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.welcome-text .user-name {
+    color: var(--primary-color);
+}
+
+.welcome-text p {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    line-height: var(--line-height-normal);
+}
+
+.welcome-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius-round);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-inverse);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+    box-shadow: var(--shadow-md);
+}
+
+.welcome-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-lg);
+}
+
+/* ============================================================================
+   📊 СТАТИСТИКА НА ГЛАВНОЙ
+   ============================================================================ */
+
+.home-stats {
+    margin-bottom: var(--spacing-xl);
+}
+
+.home-stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.home-stats-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.stats-period-selector {
+    display: flex;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xs);
+    box-shadow: var(--shadow-sm);
+}
+
+.period-option {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.period-option.active {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    box-shadow: var(--shadow-sm);
+}
+
+.period-option:hover:not(.active) {
+    background: var(--bg-overlay);
+    color: var(--text-primary);
+}
+
+/* Сетка статистики */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* Основная статистика */
+.main-stat-card {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: var(--text-inverse);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-primary-lg);
+}
+
+.main-stat-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: mainStatFloat 8s ease-in-out infinite;
+}
+
+@keyframes mainStatFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-30px, -20px) rotate(3deg); }
+}
+
+.main-stat-number {
+    font-size: 48px;
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    margin-bottom: var(--spacing-sm);
+    position: relative;
+    z-index: 1;
+}
+
+.main-stat-label {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-medium);
+    opacity: 0.9;
+    position: relative;
+    z-index: 1;
+}
+
+.main-stat-description {
+    font-size: var(--font-size-sm);
+    opacity: 0.8;
+    margin-top: var(--spacing-xs);
+    position: relative;
+    z-index: 1;
+}
+
+/* Дополнительная статистика */
+.secondary-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+}
+
+/* ============================================================================
+   ⚡ БЫСТРЫЕ ДЕЙСТВИЯ
+   ============================================================================ */
+
+.home-quick-actions {
+    margin-bottom: var(--spacing-xl);
+}
+
+.quick-actions-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.quick-actions-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.quick-actions-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--primary-color);
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+}
+
+.quick-action-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-action-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-color);
+}
+
+.quick-action-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(210, 69, 44, 0.1), transparent);
+    transition: left var(--duration-slow) var(--ease-out);
+}
+
+.quick-action-card:hover::before {
+    left: 100%;
+}
+
+.quick-action-icon {
+    font-size: 36px;
+    margin-bottom: var(--spacing-md);
+    color: var(--primary-color);
+    position: relative;
+    z-index: 1;
+}
+
+.quick-action-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    position: relative;
+    z-index: 1;
+}
+
+.quick-action-description {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: var(--line-height-normal);
+    position: relative;
+    z-index: 1;
+}
+
+/* Специальная карточка для добавления цитаты */
+.quick-add-quote {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+    border: 2px dashed var(--primary-color);
+    position: relative;
+}
+
+.quick-add-quote:hover {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: var(--text-inverse);
+    border-style: solid;
+}
+
+.quick-add-quote:hover .quick-action-icon,
+.quick-add-quote:hover .quick-action-title,
+.quick-add-quote:hover .quick-action-description {
+    color: inherit;
+}
+
+/* ============================================================================
+   🏆 ПОСЛЕДНИЕ ДОСТИЖЕНИЯ
+   ============================================================================ */
+
+.home-achievements {
+    margin-bottom: var(--spacing-xl);
+}
+
+.achievements-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.achievements-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.view-all-achievements {
+    font-size: var(--font-size-sm);
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: var(--font-weight-medium);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-md);
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.view-all-achievements:hover {
+    background: var(--bg-overlay);
+    text-decoration: none;
+    color: var(--primary-dark);
+}
+
+.recent-achievements {
+    display: flex;
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    padding-bottom: var(--spacing-sm);
+}
+
+.recent-achievements::-webkit-scrollbar {
+    display: none;
+}
+
+.achievement-mini-card {
+    min-width: 120px;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    text-align: center;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.achievement-mini-card.unlocked {
+    background: linear-gradient(135deg, var(--success-color), var(--success-light));
+    color: var(--text-inverse);
+    box-shadow: var(--shadow-md);
+}
+
+.achievement-mini-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.achievement-mini-card.unlocked:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.achievement-mini-icon {
+    font-size: 32px;
+    margin-bottom: var(--spacing-sm);
+    opacity: 0.8;
+}
+
+.achievement-mini-card.unlocked .achievement-mini-icon {
+    opacity: 1;
+    animation: miniAchievementPulse 3s infinite;
+}
+
+@keyframes miniAchievementPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.achievement-mini-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
+    margin-bottom: var(--spacing-xs);
+}
+
+.achievement-mini-progress {
+    height: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.achievement-mini-card.unlocked .achievement-mini-progress {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.achievement-mini-progress-bar {
+    height: 100%;
+    background: var(--primary-color);
+    border-radius: inherit;
+    transition: width var(--duration-slow) var(--ease-out);
+}
+
+.achievement-mini-card.unlocked .achievement-mini-progress-bar {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+/* ============================================================================
+   📖 ПОСЛЕДНЯЯ ЦИТАТА
+   ============================================================================ */
+
+.home-last-quote {
+    margin-bottom: var(--spacing-xl);
+}
+
+.last-quote-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.last-quote-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.edit-quote-btn {
+    font-size: var(--font-size-sm);
+    color: var(--primary-color);
+    text-decoration: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-md);
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.edit-quote-btn:hover {
+    background: var(--bg-overlay);
+    text-decoration: none;
+}
+
+.last-quote-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border-left: 6px solid var(--primary-color);
+    box-shadow: var(--shadow-md);
+    position: relative;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.last-quote-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-left-width: 8px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 2px dashed var(--text-muted);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-lg);
+}
+
+.empty-state-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.empty-state-description {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    line-height: var(--line-height-normal);
+    margin-bottom: var(--spacing-lg);
+}
+
+.empty-state-action {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+    display: inline-block;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.empty-state-action:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    text-decoration: none;
+    color: var(--text-inverse);
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .home-page {
+        padding: var(--spacing-sm);
+        padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-sm));
+    }
+    
+    .welcome-header {
+        flex-direction: column;
+        text-align: center;
+        gap: var(--spacing-md);
+    }
+    
+    .welcome-text h1 {
+        font-size: var(--font-size-xl);
+    }
+    
+    .welcome-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: var(--font-size-lg);
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+    
+    .secondary-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .main-stat-card {
+        padding: var(--spacing-lg);
+    }
+    
+    .main-stat-number {
+        font-size: 36px;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+    
+    .quick-add-quote {
+        grid-column: auto;
+    }
+    
+    .quick-action-card {
+        padding: var(--spacing-md);
+    }
+    
+    .quick-action-icon {
+        font-size: 28px;
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .achievements-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .recent-achievements {
+        gap: var(--spacing-sm);
+    }
+    
+    .achievement-mini-card {
+        min-width: 100px;
+        padding: var(--spacing-sm);
+    }
+    
+    .achievement-mini-icon {
+        font-size: 24px;
+    }
+    
+    .last-quote-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .last-quote-card {
+        padding: var(--spacing-md);
+        border-left-width: 4px;
+    }
+    
+    .empty-state {
+        padding: var(--spacing-lg);
+    }
+    
+    .empty-state-icon {
+        font-size: 36px;
+        margin-bottom: var(--spacing-md);
+    }
+    
+    .empty-state-action {
+        padding: var(--spacing-sm) var(--spacing-lg);
+    }
+}
+
+/* ============================================================================
+   ✨ АНИМАЦИИ И ЭФФЕКТЫ
+   ============================================================================ */
+
+/* Загрузка контента */
+.home-page > * {
+    animation: homeContentSlideUp 0.6s var(--ease-out);
+    animation-fill-mode: both;
+}
+
+.home-page > *:nth-child(1) { animation-delay: 0.1s; }
+.home-page > *:nth-child(2) { animation-delay: 0.2s; }
+.home-page > *:nth-child(3) { animation-delay: 0.3s; }
+.home-page > *:nth-child(4) { animation-delay: 0.4s; }
+.home-page > *:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes homeContentSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Пульсация для новых достижений */
+.achievement-new {
+    animation: achievementNew 2s ease-in-out infinite;
+}
+
+@keyframes achievementNew {
+    0%, 100% { box-shadow: var(--shadow-md); }
+    50% { box-shadow: var(--shadow-primary-lg); }
+}
+
+/* Эффект скольжения для горизонтального скролла */
+.recent-achievements {
+    scroll-behavior: smooth;
+}
+
+/* Hover эффекты для touch устройств */
+@media (hover: none) {
+    .quick-action-card:hover,
+    .achievement-mini-card:hover,
+    .last-quote-card:hover {
+        transform: none;
+    }
+    
+    .quick-action-card:active {
+        transform: scale(0.98);
+    }
+}
