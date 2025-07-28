@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Онбординг тест - 7 вопросов</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            /* СВЕТЛАЯ ТЕМА - точные цвета сайта annabusel.org */
+            --primary-color: #D2452C;           /* Терракотовый/кирпично-красный */
+            --primary-dark: #B53A23;           /* Темнее красный */
+            --primary-light: #E85A42;          /* Светлее красный */
+            --text-primary: #2D2D2D;           /* Темно-серый текст */
+            --text-secondary: #666666;         /* Серый текст */
+            --text-muted: #999999;             /* Приглушенный серый */
+            --background: #F5F2EC;             /* Светло-бежевый фон как на сайте */
+            --background-light: #FAF8F3;       /* Очень светлый бежевый */
+            --background-soft: #F0EBE3;        /* Мягкий бежевый */
+            --surface: #FFFFFF;                /* Белые карточки */
+            --surface-warm: #FEFCF8;           /* Теплый белый */
+            --border: #E6E0D6;                 /* Бежевая граница */
+            --border-light: #F0EBE3;           /* Светлая граница */
+            --shadow-color: rgba(210, 69, 44, 0.08);
+            --shadow-color-strong: rgba(210, 69, 44, 0.15);
+            --success: #28a745;                
+            --warning: #ffc107;                
+            --error: #dc3545;
+            
+            /* Переменные для плавных переходов */
+            --transition-fast: 0.2s ease;
+            --transition-normal: 0.3s ease;
+            --border-radius: 12px;
+            --border-radius-small: 8px;
+        }
+        
+        /* Темная тема через класс */
+        body.dark-theme {
+            --primary-color: #E85A42;           /* Ярче терракотовый для контраста */
+            --primary-dark: #D2452C;           /* Оригинальный терракотовый */
+            --primary-light: #F16B52;          /* Светлее для hover */
+            --text-primary: #F0F0F0;           /* Светлый текст */
+            --text-secondary: #B8B8B8;         /* Серый текст */
+            --text-muted: #888888;             /* Приглушенный серый */
+            --background: #1A1A1A;             /* Темный фон */
+            --background-light: #242424;       /* Светлее темный */
+            --background-soft: #2D2D2D;        /* Мягкий темный */
+            --surface: #2A2A2A;                /* Темные карточки */
+            --surface-warm: #2E2824;           /* Теплая темная поверхность */
+            --border: #404040;                 /* Темная граница */
+            --border-light: #363636;           /* Светлая граница для темной темы */
+            --shadow-color: rgba(232, 90, 66, 0.12);
+            --shadow-color-strong: rgba(232, 90, 66, 0.20);
+        }
+        
+        /* Ручной переключатель темы */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--surface);
+            border: 2px solid var(--primary-color);
+            border-radius: 25px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary-color);
+            transition: var(--transition-normal);
+            z-index: 1000;
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+        
+        .theme-toggle:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--background);
+            padding: 20px;
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+        
+        .demo-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-top: 60px;
+        }
+        
+        .demo-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .demo-header h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-weight: 500;
+            font-size: 28px;
+            transition: color var(--transition-normal);
+        }
+        
+        .demo-header p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            transition: color var(--transition-normal);
+        }
+        
+        .pages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .phone-frame {
+            background: var(--surface);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 
+                0 8px 32px var(--shadow-color-strong),
+                0 2px 8px var(--shadow-color),
+                0 0 0 1px var(--border);
+            height: 700px;
+            position: relative;
+            transition: all var(--transition-normal);
+        }
+        
+        .onboarding-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 16px;
+            text-align: center;
+        }
+        
+        .onboarding-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .onboarding-subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .progress-section {
+            background: var(--surface);
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .progress-steps {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .progress-bar {
+            background: var(--background-light);
+            border-radius: 10px;
+            height: 6px;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+            border-radius: 10px;
+            transition: width 0.6s ease;
+        }
+        
+        .content {
+            padding: 20px;
+            height: calc(100% - 180px);
+            overflow-y: auto;
+            background: var(--background);
+            transition: background var(--transition-normal);
+        }
+        
+        .question-section {
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 12px var(--shadow-color);
+            transition: all var(--transition-normal);
+        }
+        
+        .question-number {
+            background: var(--primary-color);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .question-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            line-height: 1.4;
+            transition: color var(--transition-normal);
+        }
+        
+        .question-input {
+            width: 100%;
+            border: 2px solid var(--border);
+            border-radius: var(--border-radius-small);
+            padding: 12px 16px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all var(--transition-normal);
+            background: var(--surface-warm);
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+        
+        .question-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(210, 69, 44, 0.15);
+        }
+        
+        .question-input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .question-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .answer-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .answer-option {
+            background: var(--surface-warm);
+            border: 2px solid var(--border);
+            border-radius: var(--border-radius-small);
+            padding: 12px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            color: var(--text-primary);
+            text-align: left;
+            font-family: inherit;
+        }
+        
+        .answer-option:hover {
+            border-color: var(--primary-light);
+            background: var(--background-light);
+        }
+        
+        .answer-option.selected {
+            border-color: var(--primary-color);
+            background: rgba(210, 69, 44, 0.08);
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .next-button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all var(--transition-normal);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            width: calc(100% - 40px);
+        }
+        
+        .next-button:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--shadow-color-strong);
+        }
+        
+        .next-button:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .welcome-screen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .welcome-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            transition: color var(--transition-normal);
+        }
+        
+        .welcome-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 24px;
+            transition: color var(--transition-normal);
+        }
+        
+        .anna-signature {
+            background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin: 20px 0;
+            font-style: italic;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .completion-screen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .completion-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            transition: color var(--transition-normal);
+        }
+        
+        .completion-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 20px;
+            transition: color var(--transition-normal);
+        }
+        
+        /* Анимация переключения темы */
+        * {
+            transition: 
+                background 0.3s ease,
+                color 0.3s ease,
+                border-color 0.3s ease,
+                box-shadow 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">
+        🌙 Переключить тему
+    </button>
+    
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>Онбординг тест Reader Bot</h1>
+            <p>Минималистичный дизайн без лишних иконок • Элегантный стиль Анны Бусел</p>
+        </div>
+        
+        <div class="pages-grid">
+            <!-- 1. ПРИВЕТСТВЕННЫЙ ЭКРАН -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Добро пожаловать!</div>
+                    <div class="onboarding-subtitle">Ваш персональный проводник в мире цитат</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Знакомство</div>
+                        <div class="progress-steps">0 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="welcome-screen">
+                        <div class="welcome-title">Здравствуйте!</div>
+                        <div class="welcome-description">
+                            Вы попали в «Читатель» — ваш личный проводник в мире слов и цитат.
+                            <br><br>
+                            Меня зовут Анна Бусел, я психолог и основатель «Книжного клуба». Здесь мы превратим ваши случайные цитаты в персональный дневник роста.
+                        </div>
+                        
+                        <div class="anna-signature">
+                            "Хорошая жизнь строится, а не дается по умолчанию. Давайте строить вашу вместе!"
+                            <br><br>
+                            — Анна Бусел
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="next-button">Пройти тест (2 минуты)</button>
+            </div>
+            
+            <!-- 2. ВОПРОС 1: ИМЯ -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Знакомство</div>
+                    <div class="onboarding-subtitle">Расскажите о себе</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Вопрос 1</div>
+                        <div class="progress-steps">1 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 14%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="question-section">
+                        <div class="question-number">1</div>
+                        <div class="question-title">Как вас зовут?</div>
+                        <input class="question-input" placeholder="Введите ваше имя..." value="Анна">
+                    </div>
+                </div>
+                
+                <button class="next-button">Далее →</button>
+            </div>
+            
+            <!-- 3. ВОПРОС 2: О СЕБЕ -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Знакомство</div>
+                    <div class="onboarding-subtitle">Расскажите о себе</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Вопрос 2</div>
+                        <div class="progress-steps">2 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 28%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="question-section">
+                        <div class="question-number">2</div>
+                        <div class="question-title">Расскажите о себе</div>
+                        <div class="answer-options">
+                            <button class="answer-option">Мама, воспитываю детей</button>
+                            <button class="answer-option selected">Замужем, работаю</button>
+                            <button class="answer-option">Свободна, развиваюсь</button>
+                            <button class="answer-option">В поиске себя</button>
+                            <button class="answer-option">Предпочитаю не говорить</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="next-button">Далее →</button>
+            </div>
+            
+            <!-- 4. ВОПРОС 3: ВРЕМЯ ДЛЯ СЕБЯ -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Ваш ритм жизни</div>
+                    <div class="onboarding-subtitle">Понимаем ваши потребности</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Вопрос 3</div>
+                        <div class="progress-steps">3 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 42%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="question-section">
+                        <div class="question-number">3</div>
+                        <div class="question-title">Как находите время для себя?</div>
+                        <textarea class="question-input question-textarea" placeholder="Расскажите, как вы уделяете время саморазвитию...">Читаю по вечерам перед сном, иногда в обеденный перерыв. Стараюсь выделять хотя бы 30 минут в день для себя.</textarea>
+                    </div>
+                </div>
+                
+                <button class="next-button">Далее →</button>
+            </div>
+            
+            <!-- 5. ВОПРОС 4: ПРИОРИТЕТЫ -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Ваши приоритеты</div>
+                    <div class="onboarding-subtitle">Что важно сейчас</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Вопрос 4</div>
+                        <div class="progress-steps">4 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 57%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="question-section">
+                        <div class="question-number">4</div>
+                        <div class="question-title">Что сейчас важнее всего?</div>
+                        <div class="answer-options">
+                            <button class="answer-option">Карьера и профессиональный рост</button>
+                            <button class="answer-option">Семья и отношения</button>
+                            <button class="answer-option selected">Личностное развитие</button>
+                            <button class="answer-option">Здоровье и самочувствие</button>
+                            <button class="answer-option">Финансовая стабильность</button>
+                            <button class="answer-option">Творчество и самовыражение</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="next-button">Далее →</button>
+            </div>
+            
+            <!-- 6. ВОПРОС 5: ЧТЕНИЕ КНИГ -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Ваше чтение</div>
+                    <div class="onboarding-subtitle">Понимаем ваш опыт</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Вопрос 5</div>
+                        <div class="progress-steps">5 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 71%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="question-section">
+                        <div class="question-number">5</div>
+                        <div class="question-title">Что чувствуете, читая книги?</div>
+                        <div class="answer-options">
+                            <button class="answer-option">Вдохновение и энергию</button>
+                            <button class="answer-option selected">Понимание себя и мира</button>
+                            <button class="answer-option">Спокойствие и умиротворение</button>
+                            <button class="answer-option">Желание действовать и меняться</button>
+                            <button class="answer-option">Иногда скуку, не всегда интересно</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="next-button">Далее →</button>
+            </div>
+            
+            <!-- 7. ВОПРОС 6: ЖИЗНЕННАЯ ФИЛОСОФИЯ -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Ваша философия</div>
+                    <div class="onboarding-subtitle">Что вам ближе</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Вопрос 6</div>
+                        <div class="progress-steps">6 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 85%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="question-section">
+                        <div class="question-number">6</div>
+                        <div class="question-title">Какая фраза ближе?</div>
+                        <div class="answer-options">
+                            <button class="answer-option">"Принимаю жизнь такой, какая есть"</button>
+                            <button class="answer-option selected">"Хорошая жизнь строится, а не дается"</button>
+                            <button class="answer-option">"Главное — быть счастливым здесь и сейчас"</button>
+                            <button class="answer-option">"Все происходит по судьбе"</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="next-button">Далее →</button>
+            </div>
+            
+            <!-- 8. ВОПРОС 7: ВРЕМЯ НА ЧТЕНИЕ -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Ваш ритм</div>
+                    <div class="onboarding-subtitle">Последний вопрос</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Вопрос 7</div>
+                        <div class="progress-steps">7 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="question-section">
+                        <div class="question-number">7</div>
+                        <div class="question-title">Сколько времени читаете в неделю?</div>
+                        <div class="answer-options">
+                            <button class="answer-option">Меньше часа</button>
+                            <button class="answer-option">1-3 часа</button>
+                            <button class="answer-option selected">3-7 часов</button>
+                            <button class="answer-option">Больше 7 часов</button>
+                            <button class="answer-option">Читаю нерегулярно</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="next-button">Завершить тест</button>
+            </div>
+            
+            <!-- 9. ЭКРАН ЗАВЕРШЕНИЯ -->
+            <div class="phone-frame">
+                <div class="onboarding-header">
+                    <div class="onboarding-title">Готово!</div>
+                    <div class="onboarding-subtitle">Добро пожаловать в сообщество</div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <div class="progress-text">Тест завершен</div>
+                        <div class="progress-steps">7 / 7</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="completion-screen">
+                        <div class="completion-title">Анна, спасибо за ответы!</div>
+                        <div class="completion-description">
+                            Теперь я лучше понимаю ваши потребности и смогу давать персональные рекомендации.
+                            <br><br>
+                            Готовы начать собирать цитаты и получать еженедельные отчеты с анализом?
+                        </div>
+                        
+                        <div class="anna-signature">
+                            "Ваши ответы показывают стремление к осознанному развитию. Это отличная основа для нашей работы вместе!"
+                            <br><br>
+                            — Анна Бусел
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="next-button">Войти в приложение</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const button = document.querySelector('.theme-toggle');
+            
+            if (body.classList.contains('dark-theme')) {
+                body.classList.remove('dark-theme');
+                button.textContent = '🌙 Переключить тему';
+                localStorage.setItem('reader-theme', 'light');
+            } else {
+                body.classList.add('dark-theme');
+                button.textContent = '☀️ Светлая тема';
+                localStorage.setItem('reader-theme', 'dark');
+            }
+        }
+        
+        // Загружаем сохраненную тему
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('reader-theme');
+            const button = document.querySelector('.theme-toggle');
+            
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                button.textContent = '☀️ Светлая тема';
+            } else {
+                button.textContent = '🌙 Переключить тему';
+            }
+            
+            // Добавляем интерактивность к кнопкам ответов
+            const answerOptions = document.querySelectorAll('.answer-option');
+            answerOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Убираем выделение с других опций в той же группе
+                    const parent = this.closest('.answer-options');
+                    parent.querySelectorAll('.answer-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+                    
+                    // Выделяем текущую опцию
+                    this.classList.add('selected');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

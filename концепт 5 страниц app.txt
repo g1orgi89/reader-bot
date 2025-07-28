@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reader Bot - Полное приложение в стиле Анны Бусел</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            /* СВЕТЛАЯ ТЕМА - точные цвета сайта annabusel.org */
+            --primary-color: #D2452C;           /* Терракотовый/кирпично-красный */
+            --primary-dark: #B53A23;           /* Темнее красный */
+            --primary-light: #E85A42;          /* Светлее красный */
+            --text-primary: #2D2D2D;           /* Темно-серый текст */
+            --text-secondary: #666666;         /* Серый текст */
+            --text-muted: #999999;             /* Приглушенный серый */
+            --background: #F5F2EC;             /* Светло-бежевый фон как на сайте */
+            --background-light: #FAF8F3;       /* Очень светлый бежевый */
+            --background-soft: #F0EBE3;        /* Мягкий бежевый */
+            --surface: #FFFFFF;                /* Белые карточки */
+            --surface-warm: #FEFCF8;           /* Теплый белый */
+            --border: #E6E0D6;                 /* Бежевая граница */
+            --border-light: #F0EBE3;           /* Светлая граница */
+            --shadow-color: rgba(210, 69, 44, 0.08);
+            --shadow-color-strong: rgba(210, 69, 44, 0.15);
+            --success: #28a745;                
+            --warning: #ffc107;                
+            --error: #dc3545;
+            
+            /* Переменные для плавных переходов */
+            --transition-fast: 0.2s ease;
+            --transition-normal: 0.3s ease;
+            --border-radius: 12px;
+            --border-radius-small: 8px;
+        }
+        
+        /* Темная тема через класс */
+        body.dark-theme {
+            --primary-color: #E85A42;           /* Ярче терракотовый для контраста */
+            --primary-dark: #D2452C;           /* Оригинальный терракотовый */
+            --primary-light: #F16B52;          /* Светлее для hover */
+            --text-primary: #F0F0F0;           /* Светлый текст */
+            --text-secondary: #B8B8B8;         /* Серый текст */
+            --text-muted: #888888;             /* Приглушенный серый */
+            --background: #1A1A1A;             /* Темный фон */
+            --background-light: #242424;       /* Светлее темный */
+            --background-soft: #2D2D2D;        /* Мягкий темный */
+            --surface: #2A2A2A;                /* Темные карточки */
+            --surface-warm: #2E2824;           /* Теплая темная поверхность */
+            --border: #404040;                 /* Темная граница */
+            --border-light: #363636;           /* Светлая граница для темной темы */
+            --shadow-color: rgba(232, 90, 66, 0.12);
+            --shadow-color-strong: rgba(232, 90, 66, 0.20);
+        }
+        
+        /* Ручной переключатель темы */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--surface);
+            border: 2px solid var(--primary-color);
+            border-radius: 25px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary-color);
+            transition: var(--transition-normal);
+            z-index: 1000;
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+        
+        .theme-toggle:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--background);
+            padding: 20px;
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+        
+        .demo-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-top: 60px;
+        }
+        
+        .demo-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .demo-header h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-weight: 500;
+            font-size: 28px;
+            transition: color var(--transition-normal);
+        }
+        
+        .demo-header p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            transition: color var(--transition-normal);
+        }
+        
+        .pages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .phone-frame {
+            background: var(--surface);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 
+                0 8px 32px var(--shadow-color-strong),
+                0 2px 8px var(--shadow-color),
+                0 0 0 1px var(--border);
+            height: 700px;
+            position: relative;
+            transition: all var(--transition-normal);
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 18px;
+            font-weight: 500;
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .home-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .user-details h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        
+        .user-details p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .menu-button {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        
+        .menu-button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .content {
+            padding: 16px;
+            height: calc(100% - 120px);
+            overflow-y: auto;
+            background: var(--background);
+            transition: background var(--transition-normal);
+        }
+        
+        .tabs {
+            display: flex;
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            padding: 4px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            transition: all var(--transition-normal);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 10px 8px;
+            text-align: center;
+            border-radius: var(--border-radius-small);
+            border: none;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            color: var(--text-secondary);
+            background: transparent;
+        }
+        
+        .tab.active {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+        
+        .tab:not(.active):hover {
+            background: var(--background-light);
+            color: var(--text-primary);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        
+        .stat-card {
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            text-align: center;
+            border: 1px solid var(--border);
+            transition: all var(--transition-normal);
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            transition: color var(--transition-normal);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: color var(--transition-normal);
+        }
+        
+        .main-cta {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 16px 0;
+            transition: all var(--transition-normal);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+        
+        .main-cta:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--shadow-color-strong);
+        }
+        
+        .top-books-section {
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            transition: all var(--transition-normal);
+        }
+        
+        .section-title {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            transition: color var(--transition-normal);
+        }
+        
+        .book-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            margin: 8px 0;
+            background: var(--background-light);
+            border-radius: var(--border-radius-small);
+            border: 1px solid var(--border-light);
+            transition: all var(--transition-normal);
+        }
+        
+        .book-rank {
+            width: 24px;
+            height: 24px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .book-info {
+            flex: 1;
+        }
+        
+        .book-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+            transition: color var(--transition-normal);
+        }
+        
+        .book-author {
+            font-size: 10px;
+            color: var(--text-secondary);
+            transition: color var(--transition-normal);
+        }
+        
+        .book-sales {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            transition: color var(--transition-normal);
+        }
+        
+        .form-section {
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 12px var(--shadow-color);
+            transition: all var(--transition-normal);
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            display: block;
+            transition: color var(--transition-normal);
+        }
+        
+        .form-textarea, .form-input {
+            width: 100%;
+            border: 2px solid var(--border);
+            border-radius: var(--border-radius-small);
+            padding: 12px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all var(--transition-normal);
+            background: var(--surface-warm);
+            color: var(--text-primary);
+        }
+        
+        .form-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .form-textarea:focus, .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(210, 69, 44, 0.15);
+        }
+        
+        .save-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-small);
+            padding: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all var(--transition-normal);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+        
+        .save-btn:hover {
+            background: var(--primary-light);
+            transform: translateY(-1px);
+        }
+        
+        .ai-insight {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin: 16px 0;
+        }
+        
+        .ai-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .ai-text {
+            font-size: 11px;
+            opacity: 0.95;
+            line-height: 1.4;
+        }
+        
+        .quote-item {
+            background: var(--surface);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--primary-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            transition: all var(--transition-normal);
+        }
+        
+        .quote-text {
+            font-style: italic;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            line-height: 1.4;
+            transition: color var(--transition-normal);
+        }
+        
+        .quote-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: var(--text-secondary);
+            transition: color var(--transition-normal);
+        }
+        
+        .quote-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .quote-action {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all var(--transition-fast);
+        }
+        
+        .quote-action:hover {
+            background: var(--background-light);
+        }
+        
+        .filter-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-tab {
+            padding: 6px 12px;
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            font-size: 10px;
+            background: var(--surface);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .filter-tab.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .filter-tab:not(.active):hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .stats-summary {
+            background: var(--surface);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 16px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            transition: all var(--transition-normal);
+        }
+        
+        .mvp-community-item {
+            background: var(--surface);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            transition: all var(--transition-normal);
+        }
+        
+        .mvp-community-title {
+            font-size: 11px;
+            color: var(--primary-color);
+            margin-bottom: 6px;
+            font-weight: 600;
+            transition: color var(--transition-normal);
+        }
+        
+        .mvp-community-text {
+            font-style: italic;
+            font-size: 12px;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            line-height: 1.3;
+            transition: color var(--transition-normal);
+        }
+        
+        .mvp-community-author {
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: color var(--transition-normal);
+        }
+        
+        .promo-section {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border-radius: var(--border-radius);
+            padding: 16px;
+            text-align: center;
+            margin: 16px 0;
+        }
+        
+        .promo-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        
+        .promo-text {
+            font-size: 10px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            line-height: 1.3;
+        }
+        
+        .promo-btn {
+            background: white;
+            color: var(--primary-color);
+            border: none;
+            padding: 8px 14px;
+            border-radius: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 10px;
+            transition: transform var(--transition-fast);
+        }
+        
+        .promo-btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            display: flex;
+            border-top: 1px solid var(--border);
+            height: 60px;
+            transition: all var(--transition-normal);
+        }
+        
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            padding: 8px 4px;
+            color: var(--text-muted);
+            position: relative;
+        }
+        
+        .nav-item.active {
+            color: var(--primary-color);
+        }
+        
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 3px;
+            background: var(--primary-color);
+            border-radius: 0 0 3px 3px;
+            transition: background var(--transition-normal);
+        }
+        
+        .nav-item:hover:not(.active) {
+            color: var(--text-secondary);
+            background: var(--background-light);
+        }
+        
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+            margin-bottom: 2px;
+            stroke-width: 2;
+        }
+        
+        .nav-label {
+            font-size: 9px;
+            font-weight: 500;
+        }
+        
+        .page-title {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        
+        .page-title h2 {
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: color var(--transition-normal);
+        }
+        
+        .page-title p {
+            color: var(--text-secondary);
+            font-size: 11px;
+            transition: color var(--transition-normal);
+        }
+        
+        /* Анимация переключения темы */
+        * {
+            transition: 
+                background 0.3s ease,
+                color 0.3s ease,
+                border-color 0.3s ease,
+                box-shadow 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">
+        🌙 Переключить тему
+    </button>
+    
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>📱 Reader Bot - Полное приложение</h1>
+            <p>5 страниц в стиле Анны Бусел • Сбалансированное использование терракотового</p>
+        </div>
+        
+        <div class="pages-grid">
+            <!-- 1. Главная страница с топ 3 разбора -->
+            <div class="phone-frame">
+                <div class="home-header">
+                    <div class="user-info">
+                        <div class="user-avatar">А</div>
+                        <div class="user-details">
+                            <h3>Анна М.</h3>
+                            <p>Читатель</p>
+                        </div>
+                    </div>
+                    <button class="menu-button">⋯</button>
+                </div>
+                <div class="content">
+                    <div class="page-title">
+                        <h2>Добро пожаловать! 👋</h2>
+                        <p>Ваш персональный дневник мудрости</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">47</div>
+                            <div class="stat-label">Цитат собрано</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">12</div>
+                            <div class="stat-label">Дней подряд</div>
+                        </div>
+                    </div>
+                    
+                    <button class="main-cta">✍️ Добавить новую цитату</button>
+                    
+                    <div class="top-books-section">
+                        <div class="section-title">🔥 Топ 3 разбора недели</div>
+                        
+                        <div class="book-item">
+                            <div class="book-rank">1</div>
+                            <div class="book-info">
+                                <div class="book-title">Искусство любить</div>
+                                <div class="book-author">Эрих Фромм</div>
+                            </div>
+                            <div class="book-sales">47 покупок</div>
+                        </div>
+                        
+                        <div class="book-item">
+                            <div class="book-rank">2</div>
+                            <div class="book-info">
+                                <div class="book-title">Быть собой</div>
+                                <div class="book-author">Анна Бусел</div>
+                            </div>
+                            <div class="book-sales">31 покупка</div>
+                        </div>
+                        
+                        <div class="book-item">
+                            <div class="book-rank">3</div>
+                            <div class="book-info">
+                                <div class="book-title">Психология отношений</div>
+                                <div class="book-author">Анна Бусел</div>
+                            </div>
+                            <div class="book-sales">23 покупки</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); transition: all var(--transition-normal);">
+                        <div style="font-weight: 600; font-size: 12px; margin-bottom: 6px; color: var(--text-primary); transition: color var(--transition-normal);">📈 Ваш прогресс</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); transition: color var(--transition-normal);">Вы на 35% активнее среднего читателя! 🔥</div>
+                    </div>
+                </div>
+                
+                <div class="bottom-nav">
+                    <div class="nav-item active">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
+                        <div class="nav-label">Главная</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        </svg>
+                        <div class="nav-label">Дневник</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                        </svg>
+                        <div class="nav-label">Отчеты</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        </svg>
+                        <div class="nav-label">Каталог</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <div class="nav-label">Сообщество</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 2. Дневник - Добавить цитату -->
+            <div class="phone-frame">
+                <div class="page-header">📖+ Дневник цитат</div>
+                <div class="content">
+                    <div class="tabs">
+                        <button class="tab active">✍️ Добавить</button>
+                        <button class="tab">📚 Мои цитаты</button>
+                        <button class="tab">🔍 Поиск</button>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-group">
+                            <label class="form-label">💭 Текст цитаты</label>
+                            <textarea class="form-textarea" placeholder="Введите цитату, которая вас вдохновила...">В каждом слове — целая жизнь. Каждое слово способно на подвиг и на предательство.</textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">✍️ Автор</label>
+                            <input class="form-input" placeholder="Кто автор этих слов?" value="Марина Цветаева">
+                        </div>
+                        
+                        <button class="save-btn">💾 Сохранить в дневник</button>
+                    </div>
+                    
+                    <div class="ai-insight">
+                        <div class="ai-title">
+                            <span>✨</span>
+                            <span>Анализ от Анны</span>
+                        </div>
+                        <div class="ai-text">Эта цитата Цветаевой отражает ваш поиск глубины в словах и отношениях. Вы цените поэзию как способ понимания жизни.</div>
+                    </div>
+                    
+                    <div class="stats-summary">
+                        📊 У вас уже 47 цитат • Вы активнее 78% читателей сообщества
+                    </div>
+                </div>
+                
+                <div class="bottom-nav">
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
+                        <div class="nav-label">Главная</div>
+                    </div>
+                    <div class="nav-item active">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        </svg>
+                        <div class="nav-label">Дневник</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4-4V8z"/>
+                        </svg>
+                        <div class="nav-label">Отчеты</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        </svg>
+                        <div class="nav-label">Каталог</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <div class="nav-label">Сообщество</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 3. Дневник - Мои цитаты -->
+            <div class="phone-frame">
+                <div class="page-header">📖+ Дневник цитат</div>
+                <div class="content">
+                    <div class="tabs">
+                        <button class="tab">✍️ Добавить</button>
+                        <button class="tab active">📚 Мои цитаты</button>
+                        <button class="tab">🔍 Поиск</button>
+                    </div>
+                    
+                    <div class="filter-tabs">
+                        <button class="filter-tab active">Все</button>
+                        <button class="filter-tab">Избранные</button>
+                        <button class="filter-tab">Эта неделя</button>
+                        <button class="filter-tab">По автору</button>
+                    </div>
+                    
+                    <div class="stats-summary">
+                        📊 Всего: 47 цитат • За неделю: 7 • Любимый автор: Э. Фромм
+                    </div>
+                    
+                    <div class="quote-item">
+                        <div class="quote-text">"В каждом слове — целая жизнь. Каждое слово способно на подвиг и на предательство."</div>
+                        <div class="quote-meta">
+                            <span style="font-weight: 500; color: var(--text-primary); transition: color var(--transition-normal);">Марина Цветаева</span>
+                            <div class="quote-actions">
+                                <button class="quote-action">❤️</button>
+                                <button class="quote-action">✏️</button>
+                                <button class="quote-action">⋯</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="quote-item">
+                        <div class="quote-text">"Любовь — это решение любить, а не просто чувство, которое приходит и уходит."</div>
+                        <div class="quote-meta">
+                            <span style="font-weight: 500; color: var(--text-primary); transition: color var(--transition-normal);">Эрих Фромм</span>
+                            <div class="quote-actions">
+                                <button class="quote-action" style="color: var(--primary-color);">❤️</button>
+                                <button class="quote-action">✏️</button>
+                                <button class="quote-action">⋯</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="quote-item">
+                        <div class="quote-text">"Хорошая жизнь строится, а не даётся по умолчанию."</div>
+                        <div class="quote-meta">
+                            <span style="font-weight: 500; color: var(--text-primary); transition: color var(--transition-normal);">Анна Бусел</span>
+                            <div class="quote-actions">
+                                <button class="quote-action">❤️</button>
+                                <button class="quote-action">✏️</button>
+                                <button class="quote-action">⋯</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bottom-nav">
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
+                        <div class="nav-label">Главная</div>
+                    </div>
+                    <div class="nav-item active">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        </svg>
+                        <div class="nav-label">Дневник</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                        </svg>
+                        <div class="nav-label">Отчеты</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        </svg>
+                        <div class="nav-label">Каталог</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <div class="nav-label">Сообщество</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 4. Отчеты -->
+            <div class="phone-frame">
+                <div class="page-header">📋 Отчеты + Анализ</div>
+                <div class="content">
+                    <div style="background: var(--surface); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); transition: all var(--transition-normal);">
+                        <div style="font-weight: bold; margin-bottom: 10px; font-size: 13px; color: var(--text-primary); transition: color var(--transition-normal);">📈 Ваш отчет за неделю</div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 16px; font-weight: bold; color: var(--text-primary); transition: color var(--transition-normal);">7</div>
+                                <div style="font-size: 9px; color: var(--text-secondary); transition: color var(--transition-normal);">Цитат</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 16px; font-weight: bold; color: var(--text-primary); transition: color var(--transition-normal);">5</div>
+                                <div style="font-size: 9px; color: var(--text-secondary); transition: color var(--transition-normal);">Авторов</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 16px; font-weight: bold; color: var(--text-primary); transition: color var(--transition-normal);">6</div>
+                                <div style="font-size: 9px; color: var(--text-secondary); transition: color var(--transition-normal);">Дней</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 16px; font-weight: bold; color: var(--primary-color); transition: color var(--transition-normal);">85%</div>
+                                <div style="font-size: 9px; color: var(--text-secondary); transition: color var(--transition-normal);">Цель</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 8px; transition: color var(--transition-normal);">Темы: психология, саморазвитие, отношения</div>
+                    </div>
+                    
+                    <div class="ai-insight">
+                        <div class="ai-title">💡 Анализ от Анны</div>
+                        <div class="ai-text">Ваши цитаты показывают активный поиск внутренней гармонии. Рекомендую углубиться в тему саморазвития.</div>
+                    </div>
+                    
+                    <div class="promo-section">
+                        <div class="promo-title">🎯 Специально для вас</div>
+                        <div class="promo-text">На основе ваших цитат и интересов сообщества</div>
+                        <button class="promo-btn">Получить рекомендации</button>
+                    </div>
+                </div>
+                
+                <div class="bottom-nav">
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
+                        <div class="nav-label">Главная</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        </svg>
+                        <div class="nav-label">Дневник</div>
+                    </div>
+                    <div class="nav-item active">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                        </svg>
+                        <div class="nav-label">Отчеты</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        </svg>
+                        <div class="nav-label">Каталог</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <div class="nav-label">Сообщество</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 5. Сообщество MVP версия -->
+            <div class="phone-frame">
+                <div class="page-header">👥 Сообщество читателей</div>
+                <div class="content">
+                    <div class="tabs">
+                        <button class="tab active">📰 Лента</button>
+                        <button class="tab">🏆 Топ недели</button>
+                        <button class="tab">📊 Статистика</button>
+                    </div>
+                    
+                    <div class="stats-summary">
+                        📊 Сегодня: 127 активных читателей • 89 новых цитат
+                    </div>
+                    
+                    <div class="mvp-community-item">
+                        <div class="mvp-community-title">💫 Цитата дня от сообщества</div>
+                        <div class="mvp-community-text">"В каждом слове — целая жизнь"</div>
+                        <div class="mvp-community-author">— Марина Цветаева</div>
+                    </div>
+                    
+                    <div class="mvp-community-item">
+                        <div class="mvp-community-title">📚 Популярные разборы</div>
+                        <div class="mvp-community-text">"Искусство любить" — 47 покупок на этой неделе</div>
+                        <div class="mvp-community-author">Читатели с похожими интересами активно изучают эту тему</div>
+                    </div>
+                    
+                    <div class="mvp-community-item">
+                        <div class="mvp-community-title">🏆 Достижения недели</div>
+                        <div class="mvp-community-text">23 читателя получили значок "Коллекционер мудрости"</div>
+                        <div class="mvp-community-author">А вы уже собрали 50 цитат?</div>
+                    </div>
+                    
+                    <div style="background: linear-gradient(45deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 10px; padding: 12px; margin-bottom: 10px;">
+                        <div style="font-size: 11px; margin-bottom: 6px;">💬 Сообщение от Анны</div>
+                        <div style="font-size: 12px; margin-bottom: 6px;">"Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день!"</div>
+                        <div style="font-size: 10px; opacity: 0.8;">2 часа назад</div>
+                    </div>
+                    
+                    <div class="promo-section">
+                        <div class="promo-title">🎯 Тренд недели</div>
+                        <div class="promo-text">Тема "Психология отношений" набирает популярность</div>
+                        <button class="promo-btn">Изучить разборы</button>
+                    </div>
+                </div>
+                
+                <div class="bottom-nav">
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
+                        <div class="nav-label">Главная</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        </svg>
+                        <div class="nav-label">Дневник</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                        </svg>
+                        <div class="nav-label">Отчеты</div>
+                    </div>
+                    <div class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        </svg>
+                        <div class="nav-label">Каталог</div>
+                    </div>
+                    <div class="nav-item active">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <div class="nav-label">Сообщество</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const button = document.querySelector('.theme-toggle');
+            
+            if (body.classList.contains('dark-theme')) {
+                body.classList.remove('dark-theme');
+                button.textContent = '🌙 Переключить тему';
+                localStorage.setItem('reader-theme', 'light');
+            } else {
+                body.classList.add('dark-theme');
+                button.textContent = '☀️ Светлая тема';
+                localStorage.setItem('reader-theme', 'dark');
+            }
+        }
+        
+        // Загружаем сохраненную тему
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('reader-theme');
+            const button = document.querySelector('.theme-toggle');
+            
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                button.textContent = '☀️ Светлая тема';
+            } else {
+                button.textContent = '🌙 Переключить тему';
+            }
+        });
+    </script>
+</body>
+</html>
