@@ -1,1 +1,505 @@
-/* 📱 MOBILE АДАПТАЦИЯ - iOS фиксы, мобильные экраны */
+/**
+ * 📱 MOBILE CSS ДЛЯ TELEGRAM MINI APP
+ * Мобильная адаптация, iOS фиксы и touch-оптимизация
+ */
+
+/* ============================================================================
+   📱 БАЗОВЫЕ МОБИЛЬНЫЕ НАСТРОЙКИ
+   ============================================================================ */
+
+/* Viewport настройки */
+@viewport {
+    width: device-width;
+    zoom: 1.0;
+}
+
+/* Основные мобильные стили */
+@media screen and (max-width: 480px) {
+    html {
+        /* Предотвращение автоматического масштабирования шрифтов на iOS */
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+    
+    body {
+        /* Отключение горизонтального скроллинга */
+        overflow-x: hidden;
+        /* Улучшение производительности скроллинга */
+        -webkit-overflow-scrolling: touch;
+        /* Отключение выделения при долгом нажатии */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+}
+
+/* ============================================================================
+   🍎 iOS SAFARI ФИКСЫ
+   ============================================================================ */
+
+/* Фиксы для iOS Safari */
+@supports (-webkit-touch-callout: none) {
+    /* Корректное отображение viewport height */
+    .full-height-ios {
+        height: 100vh;
+        height: -webkit-fill-available;
+    }
+    
+    /* Фикс для 100vh на iOS */
+    .viewport-height-fix {
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+    }
+    
+    /* Отключение zoom при двойном нажатии */
+    * {
+        touch-action: manipulation;
+    }
+    
+    /* Улучшение производительности скроллинга */
+    .scroll-container {
+        -webkit-overflow-scrolling: touch;
+        transform: translateZ(0);
+    }
+    
+    /* Фикс для position: fixed на iOS */
+    .fixed-element {
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+    }
+    
+    /* Отключение автоматической коррекции и капитализации */
+    input, textarea {
+        -webkit-appearance: none;
+        -webkit-autocorrect: off;
+        -webkit-autocapitalize: off;
+        autocorrect: off;
+        autocapitalize: off;
+        spellcheck: false;
+    }
+    
+    /* Отключение highlight при нажатии */
+    * {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-focus-ring-color: transparent;
+        outline: none;
+    }
+    
+    /* Включение highlight для ссылок и кнопок */
+    a, button, [role="button"] {
+        -webkit-tap-highlight-color: rgba(210, 69, 44, 0.1);
+    }
+}
+
+/* ============================================================================
+   🤖 ANDROID CHROME ФИКСЫ
+   ============================================================================ */
+
+/* Фиксы для Android Chrome */
+@media screen and (-webkit-min-device-pixel-ratio: 1) {
+    /* Предотвращение изменения размера шрифта при повороте */
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+    
+    /* Улучшение производительности анимаций */
+    .animated-element {
+        will-change: transform;
+        transform: translateZ(0);
+    }
+    
+    /* Фикс для input полей */
+    input {
+        background-clip: padding-box;
+    }
+}
+
+/* ============================================================================
+   👆 TOUCH-FRIENDLY ИНТЕРФЕЙС
+   ============================================================================ */
+
+/* Минимальные размеры для touch targets */
+.touch-target {
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+    position: relative;
+}
+
+/* Увеличение зоны нажатия для маленьких элементов */
+.touch-target::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+    z-index: -1;
+}
+
+/* Touch-friendly кнопки */
+.btn-touch {
+    min-height: var(--touch-target-min);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+/* Touch-friendly input поля */
+.input-touch {
+    min-height: var(--input-height);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+}
+
+/* ============================================================================
+   📏 АДАПТИВНЫЕ РАЗМЕРЫ И ОТСТУПЫ
+   ============================================================================ */
+
+/* Мобильные контейнеры */
+@media (max-width: 480px) {
+    .container {
+        padding-left: var(--spacing-md);
+        padding-right: var(--spacing-md);
+    }
+    
+    .container-mobile {
+        padding-left: var(--spacing-sm);
+        padding-right: var(--spacing-sm);
+    }
+    
+    /* Уменьшенные отступы на мобильных */
+    .mobile-spacing-sm {
+        padding: var(--spacing-sm);
+    }
+    
+    .mobile-spacing-md {
+        padding: var(--spacing-md);
+    }
+    
+    /* Адаптивная типографика */
+    h1 { font-size: var(--font-size-2xl); }
+    h2 { font-size: var(--font-size-xl); }
+    h3 { font-size: var(--font-size-lg); }
+    
+    .text-responsive {
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-normal);
+    }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 360px) {
+    .container {
+        padding-left: var(--spacing-sm);
+        padding-right: var(--spacing-sm);
+    }
+    
+    h1 { font-size: var(--font-size-xl); }
+    h2 { font-size: var(--font-size-lg); }
+    
+    .btn-touch {
+        min-height: 40px;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: var(--font-size-sm);
+    }
+}
+
+/* ============================================================================
+   🔄 МОБИЛЬНЫЕ АНИМАЦИИ И ПЕРЕХОДЫ
+   ============================================================================ */
+
+/* Уменьшенная длительность анимаций на мобильных */
+@media (max-width: 480px) {
+    .transition,
+    .transition-colors,
+    .transition-transform {
+        transition-duration: var(--duration-fast);
+    }
+    
+    /* Отключение анимаций при низкой производительности */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+/* Оптимизированные анимации для мобильных */
+.mobile-slide-in {
+    animation: mobileSlideIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes mobileSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobile-fade-in {
+    animation: mobileFadeIn var(--duration-fast) var(--ease-out);
+}
+
+@keyframes mobileFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ============================================================================
+   ✋ SWIPE GESTURES И TOUCH HANDLING
+   ============================================================================ */
+
+/* Контейнер для swipe-действий */
+.swipe-container {
+    position: relative;
+    overflow: hidden;
+    touch-action: pan-y; /* Разрешить только вертикальный скроллинг */
+}
+
+/* Элемент поддерживающий swipe */
+.swipeable {
+    position: relative;
+    transition: transform var(--duration-normal) var(--ease-out);
+    touch-action: pan-y;
+}
+
+.swipeable.swiping {
+    transition: none;
+}
+
+/* Индикаторы swipe-действий */
+.swipe-action-left,
+.swipe-action-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.swipe-action-left {
+    left: 0;
+    background: linear-gradient(90deg, var(--success-color), transparent);
+}
+
+.swipe-action-right {
+    right: 0;
+    background: linear-gradient(-90deg, var(--error-color), transparent);
+}
+
+.swipe-action-left.active,
+.swipe-action-right.active {
+    opacity: 1;
+}
+
+/* ============================================================================
+   📺 ОРИЕНТАЦИЯ ЭКРАНА
+   ============================================================================ */
+
+/* Портретная ориентация */
+@media screen and (orientation: portrait) {
+    .portrait-only {
+        display: block;
+    }
+    
+    .landscape-only {
+        display: none;
+    }
+    
+    /* Оптимизация для портретного режима */
+    .page {
+        padding: var(--spacing-md) var(--spacing-md) var(--spacing-xl);
+    }
+}
+
+/* Альбомная ориентация */
+@media screen and (orientation: landscape) and (max-width: 768px) {
+    .portrait-only {
+        display: none;
+    }
+    
+    .landscape-only {
+        display: block;
+    }
+    
+    /* Уменьшенные отступы в альбомном режиме */
+    .page {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    /* Адаптация навигации */
+    .bottom-nav {
+        padding: var(--spacing-xs) 0;
+    }
+    
+    .header {
+        height: 48px;
+    }
+}
+
+/* ============================================================================
+   🔋 ПРОИЗВОДИТЕЛЬНОСТЬ НА МОБИЛЬНЫХ
+   ============================================================================ */
+
+/* Оптимизация производительности для слабых устройств */
+@media (max-width: 480px) {
+    /* Упрощение теней на мобильных */
+    .shadow-lg,
+    .shadow-xl {
+        box-shadow: var(--shadow-md);
+    }
+    
+    /* Упрощение градиентов */
+    .gradient-complex {
+        background: var(--primary-color);
+    }
+    
+    /* Отключение дорогих эффектов */
+    .expensive-effect {
+        filter: none;
+        backdrop-filter: none;
+    }
+}
+
+/* Оптимизация для медленных соединений */
+@media (prefers-reduced-data: reduce) {
+    /* Отключение фоновых изображений */
+    .bg-image {
+        background-image: none;
+        background-color: var(--bg-secondary);
+    }
+    
+    /* Упрощение анимаций */
+    .complex-animation {
+        animation: none;
+    }
+}
+
+/* ============================================================================
+   🌐 ЯЗЫКОВЫЕ И РЕГИОНАЛЬНЫЕ НАСТРОЙКИ
+   ============================================================================ */
+
+/* Поддержка RTL языков */
+[dir="rtl"] {
+    .ml-auto { margin-left: 0; margin-right: auto; }
+    .mr-auto { margin-right: 0; margin-left: auto; }
+    .pl-3 { padding-left: 0; padding-right: var(--spacing-md); }
+    .pr-3 { padding-right: 0; padding-left: var(--spacing-md); }
+}
+
+/* ============================================================================
+   🎯 СПЕЦИАЛЬНЫЕ МОБИЛЬНЫЕ УТИЛИТЫ
+   ============================================================================ */
+
+/* Скрытие элементов на мобильных */
+@media (max-width: 480px) {
+    .mobile\:hidden { display: none !important; }
+    .mobile\:visible { display: block !important; }
+    .mobile\:flex { display: flex !important; }
+}
+
+/* Показ только на мобильных */
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 480px) {
+    .mobile-only {
+        display: block;
+    }
+}
+
+/* Адаптивные отступы */
+@media (max-width: 480px) {
+    .mobile\:p-2 { padding: var(--spacing-sm) !important; }
+    .mobile\:px-2 { padding-left: var(--spacing-sm) !important; padding-right: var(--spacing-sm) !important; }
+    .mobile\:py-2 { padding-top: var(--spacing-sm) !important; padding-bottom: var(--spacing-sm) !important; }
+    .mobile\:m-2 { margin: var(--spacing-sm) !important; }
+    .mobile\:mx-2 { margin-left: var(--spacing-sm) !important; margin-right: var(--spacing-sm) !important; }
+    .mobile\:my-2 { margin-top: var(--spacing-sm) !important; margin-bottom: var(--spacing-sm) !important; }
+}
+
+/* ============================================================================
+   📋 ACCESSIBILITY НА МОБИЛЬНЫХ
+   ============================================================================ */
+
+/* Увеличенные размеры для доступности */
+@media (prefers-contrast: high) {
+    .btn-touch {
+        border: 2px solid currentColor;
+    }
+    
+    .input-touch {
+        border: 2px solid var(--text-primary);
+    }
+}
+
+/* Уменьшенная прозрачность для лучшей читаемости */
+@media (prefers-contrast: high) {
+    .text-muted {
+        color: var(--text-secondary);
+    }
+    
+    .opacity-50 {
+        opacity: 0.7;
+    }
+}
+
+/* Крупный шрифт */
+@media (prefers-font-size: large) {
+    body {
+        font-size: calc(var(--font-size-base) * 1.2);
+    }
+    
+    .btn-touch {
+        min-height: calc(var(--touch-target-min) * 1.2);
+        font-size: calc(var(--font-size-base) * 1.2);
+    }
+}
+
+/* ============================================================================
+   🚀 TELEGRAM MINI APP СПЕЦИФИКА
+   ============================================================================ */
+
+/* Интеграция с Telegram темами на мобильных */
+@media (max-width: 480px) {
+    body[data-theme="telegram"] {
+        background-color: var(--tg-theme-bg-color, var(--bg-primary));
+        color: var(--tg-theme-text-color, var(--text-primary));
+    }
+    
+    /* Адаптация высоты под Telegram viewport */
+    .tg-full-height {
+        height: var(--tg-viewport-height, 100vh);
+        min-height: var(--tg-viewport-height, 100vh);
+    }
+    
+    /* Безопасные зоны в Telegram */
+    .tg-safe-area {
+        padding-top: max(var(--safe-area-top), var(--spacing-sm));
+        padding-bottom: max(var(--safe-area-bottom), var(--spacing-sm));
+    }
+}
