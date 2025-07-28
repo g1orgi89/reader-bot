@@ -6,7 +6,7 @@
  * 
  * @filesize 3 KB - главный класс приложения
  * @author Claude Assistant
- * @version 1.0.3 - ИСПРАВЛЕНА ПЕРЕДАЧА API В ROUTER
+ * @version 1.0.4 - ИСПРАВЛЕНЫ ОШИБКИ С КЛАССАМИ И ЗАВИСИМОСТЯМИ
  */
 
 /**
@@ -31,12 +31,12 @@
  */
 class ReaderApp {
     /**
-     * @type {Router} - Экземпляр роутера
+     * @type {AppRouter} - Экземпляр роутера
      */
     router = null;
 
     /**
-     * @type {State} - Глобальное состояние приложения  
+     * @type {AppState} - Глобальное состояние приложения  
      */
     state = null;
 
@@ -69,7 +69,7 @@ class ReaderApp {
      * 🏗️ Конструктор приложения
      */
     constructor() {
-        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.3');
+        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.4');
         
         // Получаем основные элементы DOM
         this.appContainer = document.getElementById('app');
@@ -84,7 +84,7 @@ class ReaderApp {
         this.handleError = this.handleError.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНА ПЕРЕДАЧА API В ROUTER!');
+        console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНЫ ОШИБКИ С КЛАССАМИ!');
     }
 
     /**
@@ -130,30 +130,38 @@ class ReaderApp {
 
     /**
      * 🔧 Инициализация всех сервисов приложения
+     * ИСПРАВЛЕНО: Правильное использование классов AppState и ApiService
      */
     async initializeServices() {
         console.log('🔄 Инициализация сервисов...');
         
-        // Создаем глобальное состояние
+        // 🔧 ИСПРАВЛЕНО: Используем правильный класс AppState
         this.state = new AppState();
         await this.state.init();
         
-        // Создаем API сервис с исправленной ссылкой на AppConfig
-        this.api = new ApiService({
-            baseUrl: window.AppConfig?.app?.isDevelopment ? 'http://localhost:3000/api' : '/api',
-            timeout: 10000 // 10 секунд
-        });
+        // 🔧 ИСПРАВЛЕНО: Создаем API сервис без дополнительной конфигурации
+        this.api = new ApiService();
         
-        // Создаем Telegram сервис
-        this.telegram = new TelegramService();
+        // 🔧 ИСПРАВЛЕНО: Проверяем доступность TelegramService перед созданием
+        if (typeof TelegramService !== 'undefined') {
+            this.telegram = new TelegramService();
+        } else {
+            console.warn('⚠️ TelegramService не найден, будет создан заглушка');
+            this.telegram = null;
+        }
         
-        // ИСПРАВЛЕНО: Создаем роутер с передачей всех сервисов
-        this.router = new AppRouter({
-            container: document.getElementById('page-content'),
-            state: this.state,
-            api: this.api,
-            telegram: this.telegram
-        });
+        // 🔧 ИСПРАВЛЕНО: Создаем роутер с проверкой доступности класса
+        if (typeof AppRouter !== 'undefined') {
+            this.router = new AppRouter({
+                container: document.getElementById('page-content'),
+                state: this.state,
+                api: this.api,
+                telegram: this.telegram
+            });
+        } else {
+            console.warn('⚠️ AppRouter не найден');
+            this.router = null;
+        }
         
         console.log('✅ Сервисы инициализированы');
     }
@@ -171,12 +179,16 @@ class ReaderApp {
         }
         
         try {
-            // Инициализируем Telegram сервис
-            await this.telegram.init();
-            
-            // Настраиваем Telegram интерфейс
-            this.telegram.expand();
-            this.telegram.ready();
+            // 🔧 ИСПРАВЛЕНО: Проверяем доступность telegram сервиса
+            if (this.telegram && typeof this.telegram.init === 'function') {
+                await this.telegram.init();
+                
+                // Настраиваем Telegram интерфейс
+                this.telegram.expand();
+                this.telegram.ready();
+            } else {
+                console.warn('⚠️ Telegram сервис недоступен');
+            }
             
             // Применяем тему Telegram
             this.applyTelegramTheme();
@@ -288,21 +300,26 @@ class ReaderApp {
 
     /**
      * 🎨 Инициализация пользовательского интерфейса
+     * ИСПРАВЛЕНО: Проверка доступности классов UI компонентов
      */
     async initializeUI() {
         console.log('🔄 Инициализация UI...');
         
-        // ИСПРАВЛЕНО: Проверяем существование классов перед инициализацией
+        // 🔧 ИСПРАВЛЕНО: Проверяем существование классов перед инициализацией
         if (typeof BottomNavigation !== 'undefined') {
             const bottomNav = new BottomNavigation();
-            bottomNav.init();
+            if (typeof bottomNav.init === 'function') {
+                bottomNav.init();
+            }
         } else {
             console.warn('⚠️ BottomNavigation класс не найден');
         }
         
         if (typeof TopMenu !== 'undefined') {
             const topMenu = new TopMenu();
-            topMenu.init();
+            if (typeof topMenu.init === 'function') {
+                topMenu.init();
+            }
         } else {
             console.warn('⚠️ TopMenu класс не найден');
         }
@@ -318,6 +335,7 @@ class ReaderApp {
 
     /**
      * 🧭 Инициализация роутинга
+     * ИСПРАВЛЕНО: Улучшенная проверка роутера
      */
     async initializeRouting() {
         console.log('🔄 Инициализация роутинга...');
@@ -333,24 +351,27 @@ class ReaderApp {
             initialRoute = '/onboarding';
         }
         
-        // ИСПРАВЛЕНО: Проверяем существование роутера
+        // 🔧 ИСПРАВЛЕНО: Проверяем существование роутера более тщательно
         if (this.router && typeof this.router.init === 'function') {
-            await this.router.init();
-            this.router.navigate(initialRoute);
+            try {
+                await this.router.init();
+                this.router.navigate(initialRoute);
+                console.log('✅ Роутинг инициализирован, начальная страница:', initialRoute);
+            } catch (error) {
+                console.error('❌ Ошибка инициализации роутера:', error);
+                this.showBasicContent();
+            }
         } else {
             console.warn('⚠️ Router недоступен, показываем базовую страницу');
-            // Показываем базовое содержимое
             this.showBasicContent();
         }
-        
-        console.log('✅ Роутинг инициализирован, начальная страница:', initialRoute);
     }
 
     /**
      * 📄 Показать базовое содержимое (fallback)
      */
     showBasicContent() {
-        const mainContent = document.getElementById('main-content');
+        const mainContent = document.getElementById('page-content') || document.getElementById('main-content');
         if (mainContent) {
             mainContent.innerHTML = `
                 <div class="welcome-screen">
@@ -499,7 +520,7 @@ class ReaderApp {
      * ⚠️ Показать сообщение об ошибке
      */
     showErrorMessage(message) {
-        const mainContent = document.getElementById('main-content');
+        const mainContent = document.getElementById('page-content') || document.getElementById('main-content');
         if (mainContent) {
             mainContent.innerHTML = `
                 <div class="error-screen">
