@@ -9,7 +9,7 @@
  * - Ограничений и лимитов приложения
  */
 
-// Получаем константы из глобального объекта
+// Получаем константы из глобального объекта (убираем const объявления)
 const LIMITS = window.LIMITS || {};
 const VALIDATION_PATTERNS = window.VALIDATION_PATTERNS || {};
 const VALIDATION_MESSAGES = window.VALIDATION_MESSAGES || {};
