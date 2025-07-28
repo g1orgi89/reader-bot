@@ -340,7 +340,7 @@ let iosFixes = null;
 /**
  * Инициализация iOS фиксов
  */
-export function initIOSFixes() {
+function initIOSFixes() {
     if (isIOS() && !iosFixes) {
         iosFixes = new IOSFixes();
         iosFixes.addIOSStyles();
@@ -354,7 +354,7 @@ export function initIOSFixes() {
  * Проверка активности iOS фиксов
  * @returns {boolean} - Активны ли iOS фиксы
  */
-export function isIOSFixesActive() {
+function isIOSFixesActive() {
     return iosFixes !== null;
 }
 
@@ -365,10 +365,8 @@ if (document.readyState === 'loading') {
     initIOSFixes();
 }
 
-// 🌐 ЭКСПОРТ
-export default {
-    IOSFixes,
-    initIOSFixes,
-    isIOSFixesActive,
-    isIOS
-};
+// 🌐 ГЛОБАЛЬНЫЙ ДОСТУП
+window.IOSFixes = IOSFixes;
+window.initIOSFixes = initIOSFixes;
+window.isIOSFixesActive = isIOSFixesActive;
+window.isIOS = isIOS;
