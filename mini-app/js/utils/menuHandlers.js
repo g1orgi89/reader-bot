@@ -9,13 +9,12 @@
  * - Интеграции с Telegram WebApp API
  */
 
-import { 
-    PAGES, 
-    MENU_ITEMS, 
-    SUCCESS_MESSAGES, 
-    ERROR_MESSAGES,
-    ANNA_INFO 
-} from './constants.js';
+// Получаем константы из глобального объекта
+const PAGES = window.PAGES || {};
+const MENU_ITEMS = window.MENU_ITEMS || [];
+const SUCCESS_MESSAGES = window.SUCCESS_MESSAGES || {};
+const ERROR_MESSAGES = window.ERROR_MESSAGES || {};
+const ANNA_INFO = window.ANNA_INFO || {};
 
 // 🎯 КЛАСС ДЛЯ УПРАВЛЕНИЯ МЕНЮ
 
@@ -456,8 +455,8 @@ class MenuHandler {
             <div class="contact-info">
                 <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">📞 Связаться с нами</div>
                 <div style="font-size: 11px; color: var(--text-secondary);">
-                    • Telegram: ${ANNA_INFO.contacts.telegram}<br>
-                    • Email: ${ANNA_INFO.contacts.email}<br>
+                    • Telegram: ${ANNA_INFO.contacts?.telegram || '@annabusel_support'}<br>
+                    • Email: ${ANNA_INFO.contacts?.email || 'help@annabusel.org'}<br>
                     • Время ответа: до 24 часов
                 </div>
             </div>
@@ -471,10 +470,10 @@ class MenuHandler {
     getAboutModalContent() {
         return `
             <div class="anna-card">
-                <div class="anna-photo">${ANNA_INFO.photo}</div>
-                <div class="anna-name">${ANNA_INFO.name}</div>
-                <div class="anna-role">${ANNA_INFO.role}</div>
-                <div class="anna-quote">"${ANNA_INFO.quote}"</div>
+                <div class="anna-photo">${ANNA_INFO.photo || 'А'}</div>
+                <div class="anna-name">${ANNA_INFO.name || 'Анна Бусел'}</div>
+                <div class="anna-role">${ANNA_INFO.role || 'Психолог • Основатель "Книжного клуба"'}</div>
+                <div class="anna-quote">"${ANNA_INFO.quote || 'Хорошая жизнь строится, а не дается по умолчанию'}"</div>
             </div>
             
             <div class="app-info">
@@ -509,7 +508,7 @@ class MenuHandler {
      */
     saveProfile() {
         // Здесь будет интеграция с API
-        this.showNotification(SUCCESS_MESSAGES.profileUpdated, 'success');
+        this.showNotification(SUCCESS_MESSAGES.profileUpdated || 'Профиль обновлен!', 'success');
         
         // Haptic feedback
         if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -566,7 +565,7 @@ class MenuHandler {
      */
     exportData() {
         // Здесь будет логика экспорта данных
-        this.showNotification(SUCCESS_MESSAGES.dataExported, 'success');
+        this.showNotification(SUCCESS_MESSAGES.dataExported || 'Данные экспортированы!', 'success');
         
         // Haptic feedback
         if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -595,12 +594,14 @@ class MenuHandler {
      * Связь с поддержкой
      */
     contactSupport() {
+        const telegramContact = ANNA_INFO.contacts?.telegram || '@annabusel_support';
+        
         // Открываем Telegram чат с поддержкой
         if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.openTelegramLink(`https://t.me/${ANNA_INFO.contacts.telegram.replace('@', '')}`);
+            window.Telegram.WebApp.openTelegramLink(`https://t.me/${telegramContact.replace('@', '')}`);
         } else {
             // Fallback для тестирования в браузере
-            window.open(`https://t.me/${ANNA_INFO.contacts.telegram.replace('@', '')}`, '_blank');
+            window.open(`https://t.me/${telegramContact.replace('@', '')}`, '_blank');
         }
         
         // Haptic feedback
@@ -630,10 +631,11 @@ class MenuHandler {
      * @param {string} platform - Платформа (instagram, telegram, website)
      */
     openSocialLink(platform) {
+        const contacts = ANNA_INFO.contacts || {};
         const links = {
-            instagram: `https://instagram.com/${ANNA_INFO.contacts.instagram}`,
-            telegram: `https://t.me/${ANNA_INFO.contacts.telegram.replace('@', '')}`,
-            website: `https://${ANNA_INFO.contacts.website}`
+            instagram: `https://instagram.com/${contacts.instagram || 'annabusel'}`,
+            telegram: `https://t.me/${(contacts.telegram || '@annabusel_support').replace('@', '')}`,
+            website: `https://${contacts.website || 'annabusel.org'}`
         };
         
         const url = links[platform];
@@ -734,6 +736,6 @@ if (document.readyState === 'loading') {
     menuHandler.init();
 }
 
-// 🌐 ЭКСПОРТ
-export default menuHandler;
-export { MenuHandler };
+// Глобальный доступ
+window.MenuHandler = MenuHandler;
+window.menuHandler = menuHandler;
