@@ -6,7 +6,7 @@
  * 
  * @filesize 2 KB - SPA роутинг
  * @author Claude Assistant  
- * @version 1.0.0
+ * @version 1.0.1 - ИСПРАВЛЕНА ОШИБКА isAuthenticated
  */
 
 /**
@@ -404,10 +404,11 @@ class AppRouter {
 
     /**
      * 🔐 Проверка аутентификации пользователя
+     * ИСПРАВЛЕНО: Используем правильный метод state.get() вместо getState()
      * @returns {boolean} - Аутентифицирован ли пользователь
      */
     isAuthenticated() {
-        return this.state?.getState()?.isAuthenticated || false;
+        return this.state?.get('user.isAuthenticated') || false;
     }
 
     /**
