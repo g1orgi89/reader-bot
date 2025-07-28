@@ -12,7 +12,7 @@
 // 🎨 UI КОНСТАНТЫ
 
 /** Цветовая палитра приложения (CSS переменные) */
-export const COLORS = {
+const COLORS = {
     primary: '#D2452C',           // Терракотовый как на сайте annabusel.org
     primaryDark: '#B53A23',       // Темнее красный
     primaryLight: '#E85A42',      // Светлее красный
@@ -29,7 +29,7 @@ export const COLORS = {
 };
 
 /** Размеры и отступы */
-export const DIMENSIONS = {
+const DIMENSIONS = {
     borderRadius: '12px',
     borderRadiusSmall: '8px',
     headerHeight: '64px',
@@ -42,7 +42,7 @@ export const DIMENSIONS = {
 };
 
 /** Длительность анимаций */
-export const ANIMATIONS = {
+const ANIMATIONS = {
     fast: '0.2s',
     normal: '0.3s',
     slow: '0.5s',
@@ -53,7 +53,7 @@ export const ANIMATIONS = {
 // 📱 НАСТРОЙКИ ПРИЛОЖЕНИЯ
 
 /** Лимиты и ограничения */
-export const LIMITS = {
+const LIMITS = {
     quotesPerDay: 10,             // Максимум цитат в день
     quoteMaxLength: 500,          // Максимальная длина цитаты
     authorMaxLength: 100,         // Максимальная длина имени автора
@@ -64,7 +64,7 @@ export const LIMITS = {
 };
 
 /** Настройки кэширования */
-export const CACHE = {
+const CACHE = {
     userProfileTTL: 300000,       // 5 минут для профиля пользователя
     quotesListTTL: 60000,         // 1 минута для списка цитат
     reportsTTL: 600000,           // 10 минут для отчетов
@@ -72,7 +72,7 @@ export const CACHE = {
 };
 
 /** Типы страниц для навигации */
-export const PAGES = {
+const PAGES = {
     HOME: 'home',
     DIARY: 'diary',
     REPORTS: 'reports',
@@ -89,7 +89,7 @@ export const PAGES = {
 // 💬 ТЕКСТЫ ИНТЕРФЕЙСА В СТИЛЕ АННЫ БУСЕЛ
 
 /** Фирменные фразы Анны Бусел */
-export const ANNA_PHRASES = {
+const ANNA_PHRASES = {
     greeting: "Друзья, здравствуйте!",
     motto1: "Хватит сидеть в телефоне - читайте книги!",
     motto2: "Почитайте в клубе хотя бы несколько лет и ваша жизнь изменится до неузнаваемости",
@@ -98,7 +98,7 @@ export const ANNA_PHRASES = {
 };
 
 /** Тексты приветствий и онбординга */
-export const WELCOME_TEXTS = {
+const WELCOME_TEXTS = {
     title: "Добро пожаловать! 👋",
     subtitle: "Ваш персональный дневник мудрости",
     description: "Здесь мы превратим ваши случайные цитаты в персональный дневник роста.",
@@ -107,7 +107,7 @@ export const WELCOME_TEXTS = {
 };
 
 /** Тексты для главной страницы */
-export const HOME_TEXTS = {
+const HOME_TEXTS = {
     todayQuotes: "Сегодня добавлено",
     weekStreak: "Дней подряд",
     totalQuotes: "Цитат собрано",
@@ -119,7 +119,7 @@ export const HOME_TEXTS = {
 };
 
 /** Тексты для дневника цитат */
-export const DIARY_TEXTS = {
+const DIARY_TEXTS = {
     title: "Дневник цитат",
     searchPlaceholder: "Поиск по цитатам...",
     addQuoteButton: "➕ Добавить цитату",
@@ -139,7 +139,7 @@ export const DIARY_TEXTS = {
 };
 
 /** Тексты для отчетов */
-export const REPORTS_TEXTS = {
+const REPORTS_TEXTS = {
     title: "Мои отчеты",
     weeklyTitle: "📊 Еженедельные отчеты",
     monthlyTitle: "📈 Месячные анализы",
@@ -153,7 +153,7 @@ export const REPORTS_TEXTS = {
 };
 
 /** Тексты для каталога */
-export const CATALOG_TEXTS = {
+const CATALOG_TEXTS = {
     title: "Каталог книг",
     searchPlaceholder: "Поиск книг...",
     categories: "Категории",
@@ -166,7 +166,7 @@ export const CATALOG_TEXTS = {
 };
 
 /** Тексты для профиля */
-export const PROFILE_TEXTS = {
+const PROFILE_TEXTS = {
     title: "Мой профиль",
     editProfile: "Редактировать профиль",
     statistics: "Статистика",
@@ -190,7 +190,7 @@ export const PROFILE_TEXTS = {
 };
 
 /** Тексты для настроек */
-export const SETTINGS_TEXTS = {
+const SETTINGS_TEXTS = {
     title: "Настройки",
     groups: {
         notifications: "Уведомления",
@@ -212,7 +212,7 @@ export const SETTINGS_TEXTS = {
 // 🏆 КОНФИГУРАЦИЯ ДОСТИЖЕНИЙ
 
 /** Типы достижений */
-export const ACHIEVEMENT_TYPES = {
+const ACHIEVEMENT_TYPES = {
     QUOTES_COUNT: 'quotes_count',
     STREAK_DAYS: 'streak_days',
     BOOK_QUOTES: 'book_quotes',
@@ -224,7 +224,7 @@ export const ACHIEVEMENT_TYPES = {
 };
 
 /** Конфигурация достижений */
-export const ACHIEVEMENTS_CONFIG = {
+const ACHIEVEMENTS_CONFIG = {
     [ACHIEVEMENT_TYPES.QUOTES_COUNT]: [
         { id: 'first_quote', title: 'Первые шаги', description: 'Добавили первую цитату', icon: '🌟', threshold: 1 },
         { id: 'collector', title: 'Коллекционер мудрости', description: 'Собрали 25 цитат', icon: '📚', threshold: 25 },
@@ -243,7 +243,7 @@ export const ACHIEVEMENTS_CONFIG = {
 };
 
 /** Тексты для достижений */
-export const ACHIEVEMENTS_TEXTS = {
+const ACHIEVEMENTS_TEXTS = {
     title: "Мои достижения",
     subtitle: "Продолжайте собирать цитаты для новых наград!",
     progress: "Прогресс",
@@ -255,7 +255,7 @@ export const ACHIEVEMENTS_TEXTS = {
 // 📋 МЕНЮ И НАВИГАЦИЯ
 
 /** Конфигурация главного меню */
-export const MENU_ITEMS = [
+const MENU_ITEMS = [
     {
         id: 'profile',
         title: 'Мой профиль',
@@ -289,7 +289,7 @@ export const MENU_ITEMS = [
 ];
 
 /** Конфигурация нижней навигации */
-export const BOTTOM_NAV_ITEMS = [
+const BOTTOM_NAV_ITEMS = [
     {
         id: 'home',
         title: 'Главная',
@@ -325,7 +325,7 @@ export const BOTTOM_NAV_ITEMS = [
 // 🔄 СОСТОЯНИЯ И СТАТУСЫ
 
 /** Состояния загрузки */
-export const LOADING_STATES = {
+const LOADING_STATES = {
     IDLE: 'idle',
     LOADING: 'loading',
     SUCCESS: 'success',
@@ -333,7 +333,7 @@ export const LOADING_STATES = {
 };
 
 /** Типы уведомлений */
-export const NOTIFICATION_TYPES = {
+const NOTIFICATION_TYPES = {
     SUCCESS: 'success',
     ERROR: 'error',
     WARNING: 'warning',
@@ -341,7 +341,7 @@ export const NOTIFICATION_TYPES = {
 };
 
 /** Сообщения об ошибках */
-export const ERROR_MESSAGES = {
+const ERROR_MESSAGES = {
     network: 'Проблемы с подключением. Проверьте интернет.',
     validation: 'Пожалуйста, проверьте правильность заполнения полей.',
     quoteTooLong: `Цитата слишком длинная. Максимум ${LIMITS.quoteMaxLength} символов.`,
@@ -352,7 +352,7 @@ export const ERROR_MESSAGES = {
 };
 
 /** Сообщения об успехе */
-export const SUCCESS_MESSAGES = {
+const SUCCESS_MESSAGES = {
     quoteSaved: 'Цитата сохранена в ваш дневник! 📖',
     profileUpdated: 'Профиль обновлен!',
     settingsSaved: 'Настройки сохранены!',
@@ -363,7 +363,7 @@ export const SUCCESS_MESSAGES = {
 // 📞 КОНТАКТНАЯ ИНФОРМАЦИЯ
 
 /** Информация об Анне Бусел */
-export const ANNA_INFO = {
+const ANNA_INFO = {
     name: 'Анна Бусел',
     role: 'Психолог • Основатель "Книжного клуба"',
     photo: 'А', // Инициал для аватара
@@ -377,7 +377,7 @@ export const ANNA_INFO = {
 };
 
 /** Информация о приложении */
-export const APP_INFO = {
+const APP_INFO = {
     name: 'Читатель',
     version: '1.0.2',
     description: '"Читатель" — это персональный дневник цитат с AI-анализом от Анны Бусел. Собирайте мудрость, получайте персональные рекомендации книг и развивайтесь вместе с сообществом единомышленников.',
@@ -388,14 +388,14 @@ export const APP_INFO = {
 // 🔐 ВАЛИДАЦИЯ
 
 /** Регулярные выражения для валидации */
-export const VALIDATION_PATTERNS = {
+const VALIDATION_PATTERNS = {
     email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     name: /^[а-яё\s\-]+$/i,
     phone: /^[\+]?[0-9\s\-\(\)]{10,}$/
 };
 
 /** Сообщения валидации */
-export const VALIDATION_MESSAGES = {
+const VALIDATION_MESSAGES = {
     required: 'Это поле обязательно для заполнения',
     email: 'Введите корректный email адрес',
     name: 'Имя может содержать только буквы, пробелы и дефисы',
@@ -404,8 +404,37 @@ export const VALIDATION_MESSAGES = {
     phone: 'Введите корректный номер телефона'
 };
 
-// 🌐 ЭКСПОРТ ПО УМОЛЧАНИЮ
-export default {
+// 🌐 ГЛОБАЛЬНЫЙ ДОСТУП
+window.COLORS = COLORS;
+window.DIMENSIONS = DIMENSIONS;
+window.ANIMATIONS = ANIMATIONS;
+window.LIMITS = LIMITS;
+window.CACHE = CACHE;
+window.PAGES = PAGES;
+window.ANNA_PHRASES = ANNA_PHRASES;
+window.WELCOME_TEXTS = WELCOME_TEXTS;
+window.HOME_TEXTS = HOME_TEXTS;
+window.DIARY_TEXTS = DIARY_TEXTS;
+window.REPORTS_TEXTS = REPORTS_TEXTS;
+window.CATALOG_TEXTS = CATALOG_TEXTS;
+window.PROFILE_TEXTS = PROFILE_TEXTS;
+window.SETTINGS_TEXTS = SETTINGS_TEXTS;
+window.ACHIEVEMENT_TYPES = ACHIEVEMENT_TYPES;
+window.ACHIEVEMENTS_CONFIG = ACHIEVEMENTS_CONFIG;
+window.ACHIEVEMENTS_TEXTS = ACHIEVEMENTS_TEXTS;
+window.MENU_ITEMS = MENU_ITEMS;
+window.BOTTOM_NAV_ITEMS = BOTTOM_NAV_ITEMS;
+window.LOADING_STATES = LOADING_STATES;
+window.NOTIFICATION_TYPES = NOTIFICATION_TYPES;
+window.ERROR_MESSAGES = ERROR_MESSAGES;
+window.SUCCESS_MESSAGES = SUCCESS_MESSAGES;
+window.ANNA_INFO = ANNA_INFO;
+window.APP_INFO = APP_INFO;
+window.VALIDATION_PATTERNS = VALIDATION_PATTERNS;
+window.VALIDATION_MESSAGES = VALIDATION_MESSAGES;
+
+// Главный объект со всеми константами
+window.APP_CONSTANTS = {
     COLORS,
     DIMENSIONS,
     ANIMATIONS,
