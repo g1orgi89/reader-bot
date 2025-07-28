@@ -1,2 +1,183 @@
-<!-- 📱 ГЛАВНЫЙ HTML ФАЙЛ MINI APP -->
-<!-- Будет заполнен содержимым согласно архитектуре -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#D2452C">
+    
+    <!-- PWA Meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Читатель">
+    
+    <title>Читатель - Дневник цитат от Анны Бусел</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- CSS Styles -->
+    <link rel="stylesheet" href="./css/variables.css">
+    <link rel="stylesheet" href="./css/reset.css">
+    <link rel="stylesheet" href="./css/base.css">
+    <link rel="stylesheet" href="./css/mobile.css">
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="./css/components/buttons.css">
+    <link rel="stylesheet" href="./css/components/cards.css">
+    <link rel="stylesheet" href="./css/components/forms.css">
+    <link rel="stylesheet" href="./css/components/modals.css">
+    <link rel="stylesheet" href="./css/components/navigation.css">
+    
+    <!-- Page Styles -->
+    <link rel="stylesheet" href="./css/pages/home.css">
+    <link rel="stylesheet" href="./css/pages/diary.css">
+    <link rel="stylesheet" href="./css/pages/reports.css">
+    <link rel="stylesheet" href="./css/pages/catalog.css">
+    <link rel="stylesheet" href="./css/pages/community.css">
+    
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p>Загружаем ваш дневник цитат...</p>
+    </div>
+
+    <!-- Main App Container -->
+    <main id="app" class="app-container" style="display: none;">
+        <!-- Top Menu (3 dots) -->
+        <header id="top-menu" class="top-menu">
+            <div class="menu-button" id="menu-trigger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </header>
+
+        <!-- Page Content Area -->
+        <section id="page-content" class="page-content">
+            <!-- Pages will be dynamically loaded here -->
+        </section>
+
+        <!-- Bottom Navigation -->
+        <nav id="bottom-nav" class="bottom-nav">
+            <button class="nav-item active" data-page="home">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M12 2L2 12h3v8h14v-8h3L12 2z"/>
+                </svg>
+                <span>Главная</span>
+            </button>
+            
+            <button class="nav-item" data-page="diary">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                </svg>
+                <span>Дневник</span>
+            </button>
+            
+            <button class="nav-item" data-page="reports">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                </svg>
+                <span>Отчеты</span>
+            </button>
+            
+            <button class="nav-item" data-page="catalog">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/>
+                </svg>
+                <span>Каталог</span>
+            </button>
+            
+            <button class="nav-item" data-page="community">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16.5c-.44 0-.85.18-1.15.48L12 11.83 8.65 8.48A1.5 1.5 0 0 0 7.5 8H5.46c-.66 0-1.26.34-1.42 1.37L1.5 16H4v6h16z"/>
+                </svg>
+                <span>Сообщество</span>
+            </button>
+        </nav>
+    </main>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="modal-container"></div>
+
+    <!-- Configuration -->
+    <script src="./config/api-endpoints.js"></script>
+    <script src="./config/app-config.js"></script>
+
+    <!-- Core JavaScript -->
+    <script src="./js/core/State.js"></script>
+    <script src="./js/core/Router.js"></script>
+    <script src="./js/core/App.js"></script>
+
+    <!-- Services -->
+    <script src="./js/services/telegram.js"></script>
+    <script src="./js/services/storage.js"></script>
+    <script src="./js/services/api.js"></script>
+    <script src="./js/services/ios-fix.js"></script>
+
+    <!-- Utilities -->
+    <script src="./js/utils/helpers.js"></script>
+    <script src="./js/utils/constants.js"></script>
+    <script src="./js/utils/validators.js"></script>
+    <script src="./js/utils/menuHandlers.js"></script>
+
+    <!-- Components -->
+    <script src="./js/components/ui/Button.js"></script>
+    <script src="./js/components/ui/Card.js"></script>
+    <script src="./js/components/ui/Modal.js"></script>
+    <script src="./js/components/ui/Form.js"></script>
+
+    <!-- Navigation Components -->
+    <script src="./js/components/navigation/BottomNav.js"></script>
+    <script src="./js/components/navigation/TopMenu.js"></script>
+
+    <!-- Modal Components -->
+    <script src="./js/components/modals/ProfileModal.js"></script>
+    <script src="./js/components/modals/AchievementsModal.js"></script>
+    <script src="./js/components/modals/SettingsModal.js"></script>
+
+    <!-- Quote Components -->
+    <script src="./js/components/quote/QuoteCard.js"></script>
+    <script src="./js/components/quote/QuoteForm.js"></script>
+
+    <!-- Pages -->
+    <script src="./js/pages/HomePage.js"></script>
+    <script src="./js/pages/DiaryPage.js"></script>
+    <script src="./js/pages/ReportsPage.js"></script>
+    <script src="./js/pages/CatalogPage.js"></script>
+    <script src="./js/pages/CommunityPage.js"></script>
+    <script src="./js/pages/OnboardingPage.js"></script>
+
+    <!-- App Initialization -->
+    <script>
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Telegram Web App
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+            }
+            
+            // Start the application
+            const app = new ReaderApp();
+            app.init();
+        });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
