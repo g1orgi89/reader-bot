@@ -9,12 +9,6 @@
  * - Ограничений и лимитов приложения
  */
 
-// Получаем константы из глобального объекта (убираем const объявления)
-const LIMITS = window.LIMITS || {};
-const VALIDATION_PATTERNS = window.VALIDATION_PATTERNS || {};
-const VALIDATION_MESSAGES = window.VALIDATION_MESSAGES || {};
-const ERROR_MESSAGES = window.ERROR_MESSAGES || {};
-
 // 📝 БАЗОВЫЕ ВАЛИДАТОРЫ
 
 /**
@@ -26,7 +20,7 @@ function validateRequired(value) {
     const isValid = value && value.toString().trim().length > 0;
     return {
         isValid,
-        message: isValid ? '' : VALIDATION_MESSAGES.required
+        message: isValid ? '' : window.VALIDATION_MESSAGES?.required || 'Поле обязательно для заполнения'
     };
 }
 
@@ -41,7 +35,7 @@ function validateMinLength(value, minLength) {
     const isValid = str.length >= minLength;
     return {
         isValid,
-        message: isValid ? '' : VALIDATION_MESSAGES.minLength(minLength)
+        message: isValid ? '' : (window.VALIDATION_MESSAGES?.minLength?.(minLength) || `Минимум ${minLength} символов`)
     };
 }
 
@@ -56,7 +50,7 @@ function validateMaxLength(value, maxLength) {
     const isValid = str.length <= maxLength;
     return {
         isValid,
-        message: isValid ? '' : VALIDATION_MESSAGES.maxLength(maxLength)
+        message: isValid ? '' : (window.VALIDATION_MESSAGES?.maxLength?.(maxLength) || `Максимум ${maxLength} символов`)
     };
 }
 
@@ -97,7 +91,9 @@ function validateEmail(email, required = false) {
     }
     
     // Проверяем формат email
-    return validatePattern(email, VALIDATION_PATTERNS.email, VALIDATION_MESSAGES.email);
+    const emailPattern = window.VALIDATION_PATTERNS?.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailMessage = window.VALIDATION_MESSAGES?.email || 'Некорректный email адрес';
+    return validatePattern(email, emailPattern, emailMessage);
 }
 
 /**
@@ -119,11 +115,14 @@ function validateName(name, required = true) {
     }
     
     // Проверяем длину
-    const lengthCheck = validateMaxLength(name, LIMITS.nameMaxLength);
+    const nameMaxLength = window.LIMITS?.nameMaxLength || 100;
+    const lengthCheck = validateMaxLength(name, nameMaxLength);
     if (!lengthCheck.isValid) return lengthCheck;
     
     // Проверяем формат имени
-    return validatePattern(name, VALIDATION_PATTERNS.name, VALIDATION_MESSAGES.name);
+    const namePattern = window.VALIDATION_PATTERNS?.name || /^[а-яёА-ЯЁa-zA-Z\s-]+$/;
+    const nameMessage = window.VALIDATION_MESSAGES?.name || 'Имя может содержать только буквы, пробелы и дефисы';
+    return validatePattern(name, namePattern, nameMessage);
 }
 
 /**
@@ -145,7 +144,9 @@ function validatePhone(phone, required = false) {
     }
     
     // Проверяем формат телефона
-    return validatePattern(phone, VALIDATION_PATTERNS.phone, VALIDATION_MESSAGES.phone);
+    const phonePattern = window.VALIDATION_PATTERNS?.phone || /^\+?[1-9]\d{1,14}$/;
+    const phoneMessage = window.VALIDATION_MESSAGES?.phone || 'Некорректный номер телефона';
+    return validatePattern(phone, phonePattern, phoneMessage);
 }
 
 // 📚 ВАЛИДАТОРЫ ДЛЯ ЦИТАТ
@@ -170,11 +171,12 @@ function validateQuoteText(quoteText) {
     }
     
     // Проверяем максимальную длину
-    const maxLengthCheck = validateMaxLength(quoteText, LIMITS.quoteMaxLength);
+    const quoteMaxLength = window.LIMITS?.quoteMaxLength || 1000;
+    const maxLengthCheck = validateMaxLength(quoteText, quoteMaxLength);
     if (!maxLengthCheck.isValid) {
         return {
             isValid: false,
-            message: ERROR_MESSAGES.quoteTooLong
+            message: window.ERROR_MESSAGES?.quoteTooLong || `Цитата слишком длинная. Максимум ${quoteMaxLength} символов.`
         };
     }
     
@@ -193,11 +195,12 @@ function validateQuoteAuthor(author) {
     }
     
     // Проверяем максимальную длину
-    const maxLengthCheck = validateMaxLength(author, LIMITS.authorMaxLength);
+    const authorMaxLength = window.LIMITS?.authorMaxLength || 100;
+    const maxLengthCheck = validateMaxLength(author, authorMaxLength);
     if (!maxLengthCheck.isValid) {
         return {
             isValid: false,
-            message: `Имя автора слишком длинное. Максимум ${LIMITS.authorMaxLength} символов.`
+            message: `Имя автора слишком длинное. Максимум ${authorMaxLength} символов.`
         };
     }
     
@@ -246,7 +249,8 @@ function validateBio(bio) {
     }
     
     // Проверяем максимальную длину
-    return validateMaxLength(bio, LIMITS.bioMaxLength);
+    const bioMaxLength = window.LIMITS?.bioMaxLength || 500;
+    return validateMaxLength(bio, bioMaxLength);
 }
 
 /**
@@ -299,11 +303,12 @@ function validateSearchQuery(query) {
     }
     
     // Проверяем минимальную длину
-    const minLengthCheck = validateMinLength(query, LIMITS.searchMinLength);
+    const searchMinLength = window.LIMITS?.searchMinLength || 2;
+    const minLengthCheck = validateMinLength(query, searchMinLength);
     if (!minLengthCheck.isValid) {
         return {
             isValid: false,
-            message: `Введите минимум ${LIMITS.searchMinLength} символа для поиска`
+            message: `Введите минимум ${searchMinLength} символа для поиска`
         };
     }
     
@@ -318,10 +323,11 @@ function validateSearchQuery(query) {
  * @returns {{isValid: boolean, message: string}} - Результат проверки
  */
 function validateDailyQuotesLimit(currentCount) {
-    const isValid = currentCount < LIMITS.quotesPerDay;
+    const quotesPerDay = window.LIMITS?.quotesPerDay || 10;
+    const isValid = currentCount < quotesPerDay;
     return {
         isValid,
-        message: isValid ? '' : ERROR_MESSAGES.quotesLimit
+        message: isValid ? '' : (window.ERROR_MESSAGES?.quotesLimit || `Превышен лимит цитат в день (${quotesPerDay})`)
     };
 }
 
