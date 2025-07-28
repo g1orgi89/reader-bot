@@ -6,7 +6,7 @@
  * 
  * @filesize 2 KB - SPA роутинг
  * @author Claude Assistant  
- * @version 1.0.2 - ИСПРАВЛЕНА ПЕРЕДАЧА API В КОМПОНЕНТЫ
+ * @version 1.0.3 - ИСПРАВЛЕНА КРИТИЧЕСКАЯ ОШИБКА С APP КОНТЕКСТОМ
  */
 
 /**
@@ -51,6 +51,11 @@ class AppRouter {
     telegram = null;
 
     /**
+     * @type {ReaderApp} - Ссылка на главное приложение
+     */
+    app = null;
+
+    /**
      * @type {Map<string, RouteConfig>} - Карта зарегистрированных маршрутов
      */
     routes = new Map();
@@ -82,8 +87,9 @@ class AppRouter {
      * @param {AppState} options.state - Глобальное состояние
      * @param {ApiService} options.api - API сервис
      * @param {TelegramService} options.telegram - Telegram сервис
+     * @param {ReaderApp} options.app - Ссылка на главное приложение
      */
-    constructor({ container, state, api = null, telegram = null }) {
+    constructor({ container, state, api = null, telegram = null, app = null }) {
         if (!container) {
             throw new Error('❌ Router: Контейнер не передан');
         }
@@ -92,12 +98,13 @@ class AppRouter {
         this.state = state;
         this.api = api;
         this.telegram = telegram;
+        this.app = app;
         
         // Привязываем методы к контексту
         this.handlePopState = this.handlePopState.bind(this);
         this.handleNavigation = this.handleNavigation.bind(this);
         
-        console.log('✅ Router: Конструктор инициализирован - VERSION 1.0.2');
+        console.log('✅ Router: Конструктор инициализирован - VERSION 1.0.3');
     }
 
     /**
@@ -133,6 +140,14 @@ class AppRouter {
     setTelegram(telegram) {
         this.telegram = telegram;
         console.log('✅ Router: Telegram сервис установлен');
+    }
+
+    /**
+     * 🔧 Устанавливает ссылку на главное приложение
+     */
+    setApp(app) {
+        this.app = app;
+        console.log('✅ Router: App установлен');
     }
 
     /**
@@ -274,41 +289,87 @@ class AppRouter {
 
     /**
      * 🏗️ Создание компонента страницы
-     * ИСПРАВЛЕНО: Правильная передача app объекта в конструктор
+     * ИСПРАВЛЕНО: Создаем правильный app объект со всеми нужными методами
      * @param {RouteConfig} route - Конфигурация маршрута
      * @param {Object} state - Состояние для передачи в компонент
      */
     async createComponent(route, state = {}) {
         console.log(`🏗️ Router: Создание компонента ${route.title}`);
         
-        // ИСПРАВЛЕНО: Создаем объект app для передачи в конструктор страницы
-        const appContext = {
+        // ИСПРАВЛЕНО: Создаем объект app с правильной структурой для страниц
+        const appObject = {
+            // Основные сервисы
             state: this.state,
             api: this.api,
             telegram: this.telegram,
             router: this,
+            
+            // Методы, которые ожидают страницы
+            showTopMenu: () => {
+                console.log('📋 App: showTopMenu вызван');
+                if (this.app && typeof this.app.showTopMenu === 'function') {
+                    this.app.showTopMenu();
+                } else {
+                    console.warn('⚠️ showTopMenu недоступен, показываем заглушку');
+                    if (this.telegram && typeof this.telegram.showAlert === 'function') {
+                        this.telegram.showAlert('Меню пока не доступно');
+                    } else {
+                        alert('Меню пока не доступно');
+                    }
+                }
+            },
+            
+            hideTopMenu: () => {
+                if (this.app && typeof this.app.hideTopMenu === 'function') {
+                    this.app.hideTopMenu();
+                }
+            },
+            
+            // Дополнительное состояние
             initialState: state
         };
 
-        // Создаем экземпляр компонента с правильной структурой
-        this.currentComponent = new route.component(appContext);
-        
-        // Инициализируем компонент
-        if (this.currentComponent.init) {
-            await this.currentComponent.init();
-        }
-        
-        // Рендерим компонент
-        if (this.currentComponent.render) {
-            const html = await this.currentComponent.render();
-            if (html && this.container) {
-                this.container.innerHTML = html;
-                
-                // Вызываем attachEventListeners если он есть
-                if (this.currentComponent.attachEventListeners) {
-                    this.currentComponent.attachEventListeners();
+        try {
+            // Создаем экземпляр компонента с правильной структурой app
+            this.currentComponent = new route.component(appObject);
+            
+            // Инициализируем компонент
+            if (this.currentComponent && typeof this.currentComponent.init === 'function') {
+                await this.currentComponent.init();
+            }
+            
+            // Рендерим компонент
+            if (this.currentComponent && typeof this.currentComponent.render === 'function') {
+                const html = await this.currentComponent.render();
+                if (html && this.container) {
+                    this.container.innerHTML = html;
+                    
+                    // ИСПРАВЛЕНО: Проверяем наличие метода перед вызовом
+                    if (this.currentComponent && typeof this.currentComponent.attachEventListeners === 'function') {
+                        this.currentComponent.attachEventListeners();
+                    } else {
+                        console.warn(`⚠️ Router: attachEventListeners не найден у ${route.title}`);
+                    }
                 }
             }
+            
+            console.log(`✅ Router: Компонент ${route.title} создан успешно`);
+            
+        } catch (error) {
+            console.error(`❌ Router: Ошибка создания компонента ${route.title}:`, error);
+            
+            // Показываем ошибку в контейнере
+            if (this.container) {
+                this.container.innerHTML = `
+                    <div class="error-page">
+                        <h2>⚠️ Ошибка загрузки страницы</h2>
+                        <p>${error.message}</p>
+                        <button onclick="window.location.reload()">🔄 Обновить страницу</button>
+                    </div>
+                `;
+            }
+            
+            throw error;
         }
     }
 
@@ -321,7 +382,7 @@ class AppRouter {
         console.log('💥 Router: Уничтожение текущего компонента');
         
         // Вызываем метод очистки если он есть
-        if (this.currentComponent.destroy) {
+        if (this.currentComponent && typeof this.currentComponent.destroy === 'function') {
             await this.currentComponent.destroy();
         }
         
@@ -447,7 +508,6 @@ class AppRouter {
 
     /**
      * 🔐 Проверка аутентификации пользователя
-     * ИСПРАВЛЕНО: Используем правильный метод state.get() вместо getState()
      * @returns {boolean} - Аутентифицирован ли пользователь
      */
     isAuthenticated() {
