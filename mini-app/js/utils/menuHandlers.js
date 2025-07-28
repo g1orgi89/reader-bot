@@ -9,7 +9,7 @@
  * - Интеграции с Telegram WebApp API
  */
 
-// Получаем константы из глобального объекта
+// Получаем константы из глобального объекта (убираем const объявления)
 const PAGES = window.PAGES || {};
 const MENU_ITEMS = window.MENU_ITEMS || [];
 const SUCCESS_MESSAGES = window.SUCCESS_MESSAGES || {};
