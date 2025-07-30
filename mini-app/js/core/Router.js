@@ -1,12 +1,12 @@
 /**
- * 🧭 SPA РОУТЕР ДЛЯ READER BOT MINI APP
+ * 🧭 SPA РОУТЕР ДЛЯ READER BOT MINI APP (ИСПРАВЛЕНО)
  * 
  * Управляет клиентским роутингом между страницами
  * Поддерживает анимации переходов и навигацию назад
  * 
  * @filesize 2 KB - SPA роутинг
  * @author Claude Assistant  
- * @version 1.0.3 - ИСПРАВЛЕНА КРИТИЧЕСКАЯ ОШИБКА С APP КОНТЕКСТОМ
+ * @version 1.0.4 - ДОБАВЛЕНЫ ВЫЗОВЫ onShow/onHide ДЛЯ СТРАНИЦ
  */
 
 /**
@@ -104,7 +104,7 @@ class AppRouter {
         this.handlePopState = this.handlePopState.bind(this);
         this.handleNavigation = this.handleNavigation.bind(this);
         
-        console.log('✅ Router: Конструктор инициализирован - VERSION 1.0.3');
+        console.log('✅ Router: Конструктор инициализирован - VERSION 1.0.4');
     }
 
     /**
@@ -276,6 +276,12 @@ class AppRouter {
             // Сохраняем текущий маршрут
             this.currentRoute = path;
             
+            // ИСПРАВЛЕНО: Вызываем onShow для нового компонента
+            if (this.currentComponent && typeof this.currentComponent.onShow === 'function') {
+                this.currentComponent.onShow();
+                console.log(`✅ Router: onShow вызван для ${route.title}`);
+            }
+            
             // Скрываем индикатор загрузки
             this.hideLoadingState();
             
@@ -380,6 +386,12 @@ class AppRouter {
         if (!this.currentComponent) return;
         
         console.log('💥 Router: Уничтожение текущего компонента');
+        
+        // ИСПРАВЛЕНО: Вызываем onHide для текущего компонента
+        if (this.currentComponent && typeof this.currentComponent.onHide === 'function') {
+            this.currentComponent.onHide();
+            console.log('✅ Router: onHide вызван для текущего компонента');
+        }
         
         // Вызываем метод очистки если он есть
         if (this.currentComponent && typeof this.currentComponent.destroy === 'function') {
