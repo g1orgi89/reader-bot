@@ -47,13 +47,21 @@
 
     <!-- Main App Container -->
     <main id="app" class="app-container" style="display: none;">
-        <!-- Top Menu (3 dots) -->
-        <header id="top-menu" class="top-menu">
-            <div class="menu-button" id="menu-trigger">
-                <span></span>
-                <span></span>
-                <span></span>
+        <!-- Home Header with User Profile (Only for Home Page) -->
+        <header id="home-header" class="home-header" style="display: none;">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">👤</div>
+                <div class="user-details">
+                    <h3 id="userName">Пользователь</h3>
+                    <p>Читатель</p>
+                </div>
             </div>
+            <button class="menu-button" id="menu-trigger">⋯</button>
+        </header>
+
+        <!-- Regular Page Header (For Other Pages) -->
+        <header id="page-header" class="page-header" style="display: none;">
+            <h1 id="page-title">Читатель</h1>
         </header>
 
         <!-- Page Content Area -->
@@ -64,38 +72,39 @@
         <!-- Bottom Navigation -->
         <nav id="bottom-nav" class="bottom-nav">
             <button class="nav-item active" data-page="home">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M12 2L2 12h3v8h14v-8h3L12 2z"/>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                 </svg>
-                <span>Главная</span>
+                <span class="nav-label">Главная</span>
             </button>
             
             <button class="nav-item" data-page="diary">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 </svg>
-                <span>Дневник</span>
+                <span class="nav-label">Дневник</span>
             </button>
             
             <button class="nav-item" data-page="reports">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
                 </svg>
-                <span>Отчеты</span>
+                <span class="nav-label">Отчеты</span>
             </button>
             
             <button class="nav-item" data-page="catalog">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
                 </svg>
-                <span>Каталог</span>
+                <span class="nav-label">Каталог</span>
             </button>
             
             <button class="nav-item" data-page="community">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16.5c-.44 0-.85.18-1.15.48L12 11.83 8.65 8.48A1.5 1.5 0 0 0 7.5 8H5.46c-.66 0-1.26.34-1.42 1.37L1.5 16H4v6h16z"/>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
                 </svg>
-                <span>Сообщество</span>
+                <span class="nav-label">Сообщество</span>
             </button>
         </nav>
     </main>
