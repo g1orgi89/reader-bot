@@ -432,9 +432,11 @@ class CatalogPage {
         this.telegram.hapticFeedback('success');
         
         // Формируем URL для покупки (как в оригинальном коде)
-        const buyUrl = `https://annabusel.org/catalog/${bookId}`;\n        this.telegram.openLink(buyUrl);
+        const buyUrl = `https://annabusel.org/catalog/${bookId}`;
+        this.telegram.openLink(buyUrl);
         
-        this.showSuccess(`📚 Переходим к покупке "${book.title}"`);\n    }
+        this.showSuccess(`📚 Переходим к покупке "${book.title}"`);
+    }
     
     /**
      * 🎁 ПРИМЕНИТЬ ПРОМОКОД
