@@ -1,192 +1,239 @@
 /**
- * 👥 СООБЩЕСТВО - MVP версия сообщества
- * Страница с участниками, рейтингами, достижениями и обсуждениями
+ * 👥 СООБЩЕСТВО CSS - Точно по концепту!
+ * Стили для CommunityPage в соответствии с концептами
  */
 
 /* ============================================================================
-   👥 ОСНОВНОЙ КОНТЕЙНЕР СООБЩЕСТВА
+   👥 ОСНОВНЫЕ СТИЛИ СООБЩЕСТВА
    ============================================================================ */
 
-.community-page {
-    padding: var(--spacing-md);
-    padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-md));
-    min-height: 100vh;
-    background: var(--bg-primary);
-}
+/* Стили табов наследуются из diary.css */
 
 /* ============================================================================
-   🌟 ЗАГОЛОВОК СООБЩЕСТВА
+   📊 СТАТИСТИКА СООБЩЕСТВА (ИЗ ДОПОЛНИТЕЛЬНОГО КОНЦЕПТА!)
    ============================================================================ */
 
-.community-header {
-    margin-bottom: var(--spacing-xl);
+.community-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
-.community-title {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.community-subtitle {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-lg);
-}
-
-/* Карточка приветствия сообщества */
-.community-welcome {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    color: var(--text-inverse);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
+.community-stat-card {
+    background: var(--surface, #FFFFFF);
+    border-radius: var(--border-radius, 12px);
+    padding: 12px;
     text-align: center;
-    position: relative;
-    overflow: hidden;
-    margin-bottom: var(--spacing-lg);
-}
-
-.community-welcome::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: communityWelcomeFloat 12s ease-in-out infinite;
-}
-
-@keyframes communityWelcomeFloat {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(-30px, -20px) rotate(3deg); }
-}
-
-.community-stats-row {
-    display: flex;
-    justify-content: center;
-    gap: var(--spacing-xl);
-    margin-bottom: var(--spacing-lg);
-    position: relative;
-    z-index: 1;
-}
-
-.community-stat {
-    text-align: center;
+    border: 1px solid var(--border, #E6E0D6);
+    transition: all var(--transition-normal, 0.3s ease);
 }
 
 .community-stat-number {
-    font-size: var(--font-size-3xl);
-    font-weight: var(--font-weight-bold);
-    line-height: 1;
-    margin-bottom: var(--spacing-xs);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--primary-color, #D2452C);
+    margin-bottom: 4px;
+    transition: color var(--transition-normal, 0.3s ease);
 }
 
 .community-stat-label {
-    font-size: var(--font-size-sm);
-    opacity: 0.9;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.community-welcome-text {
-    font-size: var(--font-size-lg);
-    line-height: var(--line-height-normal);
-    position: relative;
-    z-index: 1;
-    opacity: 0.95;
+    font-size: 10px;
+    color: var(--text-secondary, #666666);
+    font-weight: 500;
+    transition: color var(--transition-normal, 0.3s ease);
 }
 
 /* ============================================================================
-   🏆 ТАБЫ СООБЩЕСТВА
+   🏆 ЛИДЕРБОРД (ИЗ ДОПОЛНИТЕЛЬНОГО КОНЦЕПТА!)
    ============================================================================ */
 
-.community-tabs {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-xs);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: var(--spacing-xl);
+.leaderboard-item {
+    background: var(--surface, #FFFFFF);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border, #E6E0D6);
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
     display: flex;
-    overflow-x: auto;
+    align-items: center;
+    gap: 12px;
 }
 
-.community-tab {
-    flex: 1;
-    min-width: 120px;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--text-secondary);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-    white-space: nowrap;
-    text-align: center;
-    position: relative;
-}
-
-.community-tab:hover {
-    color: var(--text-primary);
-    background: var(--bg-overlay);
-}
-
-.community-tab.active {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.community-tab-icon {
-    display: block;
-    font-size: 20px;
-    margin-bottom: var(--spacing-xs);
-}
-
-.community-tab-label {
-    display: block;
-    font-size: var(--font-size-xs);
-}
-
-.community-tab-badge {
-    position: absolute;
-    top: var(--spacing-xs);
-    right: var(--spacing-xs);
-    width: 16px;
-    height: 16px;
-    background: var(--error-color);
+.rank-badge {
+    width: 28px;
+    height: 28px;
+    background: var(--primary-color, #D2452C);
     color: white;
-    border-radius: var(--radius-round);
-    font-size: 10px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: var(--font-weight-bold);
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
 }
 
-.community-tab.active .community-tab-badge {
-    background: rgba(255, 255, 255, 0.3);
+.rank-badge.gold {
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+}
+
+.rank-badge.silver {
+    background: linear-gradient(45deg, #C0C0C0, #A8A8A8);
+}
+
+.rank-badge.bronze {
+    background: linear-gradient(45deg, #CD7F32, #B8860B);
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary, #2D2D2D);
+    margin-bottom: 2px;
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.user-stats {
+    font-size: 10px;
+    color: var(--text-secondary, #666666);
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.user-achievement {
+    font-size: 10px;
+    color: var(--primary-color, #D2452C);
+    font-weight: 500;
+    transition: color var(--transition-normal, 0.3s ease);
 }
 
 /* ============================================================================
-   📊 СОДЕРЖИМОЕ ТАБОВ
+   📝 MVP ЭЛЕМЕНТЫ СООБЩЕСТВА (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
 
-.community-tab-content {
-    display: none;
+.mvp-community-item {
+    background: var(--surface, #FFFFFF);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border, #E6E0D6);
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
 }
 
-.community-tab-content.active {
-    display: block;
-    animation: communityTabSlideIn var(--duration-normal) var(--ease-out);
+.mvp-community-title {
+    font-size: 11px;
+    color: var(--primary-color, #D2452C);
+    margin-bottom: 6px;
+    font-weight: 600;
+    transition: color var(--transition-normal, 0.3s ease);
 }
 
-@keyframes communityTabSlideIn {
+.mvp-community-text {
+    font-style: italic;
+    font-size: 12px;
+    color: var(--text-primary, #2D2D2D);
+    margin-bottom: 4px;
+    line-height: 1.3;
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.mvp-community-author {
+    font-size: 10px;
+    color: var(--text-muted, #999999);
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+/* ============================================================================
+   📈 ПРОГРЕСС БАР (ИЗ ДОПОЛНИТЕЛЬНОГО КОНЦЕПТА!)
+   ============================================================================ */
+
+.progress-bar {
+    background: var(--background-light, #FAF8F3);
+    border-radius: 10px;
+    height: 6px;
+    margin: 8px 0;
+    overflow: hidden;
+    border: 1px solid var(--border-light, #F0EBE3);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color, #D2452C), var(--primary-light, #E85A42));
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .community-stats-grid {
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .community-stat-card {
+        padding: 10px;
+    }
+    
+    .community-stat-number {
+        font-size: 16px;
+    }
+    
+    .community-stat-label {
+        font-size: 9px;
+    }
+    
+    .leaderboard-item {
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+    
+    .rank-badge {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
+    
+    .user-name {
+        font-size: 11px;
+    }
+    
+    .user-stats,
+    .user-achievement {
+        font-size: 9px;
+    }
+    
+    .mvp-community-item {
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+    
+    .mvp-community-title {
+        font-size: 10px;
+    }
+    
+    .mvp-community-text {
+        font-size: 11px;
+    }
+    
+    .mvp-community-author {
+        font-size: 9px;
+    }
+}
+
+/* ============================================================================
+   ✨ АНИМАЦИИ И ПЕРЕХОДЫ
+   ============================================================================ */
+
+@keyframes communitySlideIn {
     from {
         opacity: 0;
         transform: translateY(20px);
@@ -197,922 +244,70 @@
     }
 }
 
-/* ============================================================================
-   🏆 ТАБ РЕЙТИНГА
-   ============================================================================ */
-
-.leaderboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.leaderboard-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-}
-
-.leaderboard-period {
-    display: flex;
-    background: var(--bg-card);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-xs);
-    box-shadow: var(--shadow-sm);
-}
-
-.period-btn {
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: var(--radius-sm);
-    background: transparent;
-    border: none;
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-}
-
-.period-btn.active {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-}
-
-/* Топ-3 участника */
-.leaderboard-podium {
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
-    padding: var(--spacing-lg);
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    position: relative;
-    overflow: hidden;
-}
-
-.leaderboard-podium::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #FFD700, #FFA500, #FF6347);
-}
-
-.podium-place {
-    text-align: center;
-    position: relative;
-    cursor: pointer;
-    transition: transform var(--duration-normal) var(--ease-out);
-}
-
-.podium-place:hover {
-    transform: translateY(-4px);
-}
-
-.podium-place.first {
-    order: 2;
-    transform: translateY(-20px);
-}
-
-.podium-place.second {
-    order: 1;
-}
-
-.podium-place.third {
-    order: 3;
-}
-
-.podium-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: var(--radius-round);
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-inverse);
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
-    margin: 0 auto var(--spacing-sm);
-    box-shadow: var(--shadow-lg);
-    position: relative;
-}
-
-.podium-place.first .podium-avatar {
-    width: 100px;
-    height: 100px;
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
-}
-
-.podium-place.second .podium-avatar {
-    background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
-}
-
-.podium-place.third .podium-avatar {
-    background: linear-gradient(135deg, #CD7F32, #B8860B);
-}
-
-.podium-crown {
-    position: absolute;
-    top: -15px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 24px;
-    color: #FFD700;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
-.podium-name {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
-}
-
-.podium-score {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
-    color: var(--primary-color);
-    margin-bottom: var(--spacing-xs);
-}
-
-.podium-place.first .podium-score {
-    color: #FFD700;
-}
-
-.podium-place.second .podium-score {
-    color: #C0C0C0;
-}
-
-.podium-place.third .podium-score {
-    color: #CD7F32;
-}
-
-.podium-change {
-    font-size: var(--font-size-xs);
-    color: var(--success-color);
-}
-
-.podium-change.down {
-    color: var(--error-color);
-}
-
-/* Список рейтинга */
-.leaderboard-list {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
+.mvp-community-item {
+    animation: communitySlideIn 0.4s ease;
 }
 
 .leaderboard-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-lg);
-    border-bottom: 1px solid var(--bg-secondary);
-    transition: all var(--duration-fast) var(--ease-out);
-    cursor: pointer;
+    animation: communitySlideIn 0.4s ease;
 }
 
-.leaderboard-item:hover {
-    background: var(--bg-overlay);
+.community-stat-card {
+    animation: communitySlideIn 0.4s ease;
 }
 
-.leaderboard-item:last-child {
-    border-bottom: none;
-}
+/* Задержки анимации для последовательного появления */
+.mvp-community-item:nth-child(1) { animation-delay: 0.1s; }
+.mvp-community-item:nth-child(2) { animation-delay: 0.2s; }
+.mvp-community-item:nth-child(3) { animation-delay: 0.3s; }
+.mvp-community-item:nth-child(4) { animation-delay: 0.4s; }
+.mvp-community-item:nth-child(5) { animation-delay: 0.5s; }
 
-.leaderboard-item.current-user {
-    background: var(--bg-overlay);
-    border-left: 4px solid var(--primary-color);
-}
+.leaderboard-item:nth-child(1) { animation-delay: 0.1s; }
+.leaderboard-item:nth-child(2) { animation-delay: 0.2s; }
+.leaderboard-item:nth-child(3) { animation-delay: 0.3s; }
 
-.leaderboard-rank {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-secondary);
-    min-width: 40px;
-    text-align: center;
-}
+/* ============================================================================
+   🎯 HOVER ЭФФЕКТЫ
+   ============================================================================ */
 
-.leaderboard-rank.top-10 {
-    color: var(--primary-color);
-}
-
-.leaderboard-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: var(--radius-round);
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-inverse);
-    font-weight: var(--font-weight-bold);
-    flex-shrink: 0;
-}
-
-.leaderboard-info {
-    flex: 1;
-}
-
-.leaderboard-name {
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
-}
-
-.leaderboard-details {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-}
-
-.leaderboard-score-container {
-    text-align: right;
-}
-
-.leaderboard-score {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
-    color: var(--primary-color);
-}
-
-.leaderboard-change {
-    font-size: var(--font-size-xs);
-    margin-top: var(--spacing-xs);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--spacing-xs);
-}
-
-.leaderboard-change.up {
-    color: var(--success-color);
-}
-
-.leaderboard-change.down {
-    color: var(--error-color);
+@media (hover: hover) {
+    .mvp-community-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+    }
+    
+    .leaderboard-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+    }
+    
+    .community-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+    }
 }
 
 /* ============================================================================
-   🏅 ТАБ ДОСТИЖЕНИЙ
+   🌙 ТЕМНАЯ ТЕМА АДАПТАЦИЯ
    ============================================================================ */
 
-.achievements-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-}
-
-.achievement-community-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    text-align: center;
-    box-shadow: var(--shadow-sm);
-    transition: all var(--duration-normal) var(--ease-out);
-    border: 2px solid transparent;
-    position: relative;
-    overflow: hidden;
-}
-
-.achievement-community-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary-color);
-}
-
-.achievement-community-card.unlocked {
-    background: linear-gradient(135deg, var(--success-color), var(--success-light));
-    color: var(--text-inverse);
-    box-shadow: var(--shadow-lg);
-}
-
-.achievement-community-card.unlocked::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    animation: achievementShine 3s infinite;
-}
-
-@keyframes achievementShine {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
-
-.achievement-community-icon {
-    font-size: 48px;
-    margin-bottom: var(--spacing-md);
-    opacity: 0.8;
-    position: relative;
-    z-index: 1;
-}
-
-.achievement-community-card.unlocked .achievement-community-icon {
-    opacity: 1;
-    animation: achievementPulse 2s infinite;
-}
-
-@keyframes achievementPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-.achievement-community-title {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    margin-bottom: var(--spacing-sm);
-    position: relative;
-    z-index: 1;
-}
-
-.achievement-community-description {
-    font-size: var(--font-size-sm);
-    opacity: 0.9;
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-md);
-    position: relative;
-    z-index: 1;
-}
-
-.achievement-progress {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: var(--radius-sm);
-    height: 6px;
-    overflow: hidden;
-    margin-bottom: var(--spacing-sm);
-    position: relative;
-    z-index: 1;
-}
-
-.achievement-community-card.unlocked .achievement-progress {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.achievement-progress-bar {
-    height: 100%;
-    background: var(--primary-color);
-    border-radius: inherit;
-    transition: width var(--duration-slow) var(--ease-out);
-}
-
-.achievement-community-card.unlocked .achievement-progress-bar {
-    background: rgba(255, 255, 255, 0.8);
-}
-
-.achievement-progress-text {
-    font-size: var(--font-size-xs);
-    opacity: 0.8;
-    position: relative;
-    z-index: 1;
-}
-
-/* ============================================================================
-   💬 ТАБ ОБСУЖДЕНИЙ
-   ============================================================================ */
-
-.discussions-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.discussions-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-}
-
-.new-discussion-btn {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    padding: var(--spacing-sm) var(--spacing-lg);
-    border-radius: var(--radius-md);
-    border: none;
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-}
-
-.new-discussion-btn:hover {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.discussions-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.discussion-item {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow-sm);
-    transition: all var(--duration-normal) var(--ease-out);
-    text-decoration: none;
-    color: inherit;
-    border-left: 4px solid transparent;
-}
-
-.discussion-item:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-left-color: var(--primary-color);
-    text-decoration: none;
-    color: inherit;
-}
-
-.discussion-item.pinned {
-    border-left-color: var(--warning-color);
-    background: linear-gradient(135deg, var(--bg-card), var(--bg-overlay));
-}
-
-.discussion-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--spacing-sm);
-}
-
-.discussion-title {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    line-height: var(--line-height-tight);
-    margin-bottom: var(--spacing-xs);
-}
-
-.discussion-badges {
-    display: flex;
-    gap: var(--spacing-xs);
-}
-
-.discussion-badge {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.discussion-badge.hot {
-    background: var(--error-color);
-    color: var(--text-inverse);
-}
-
-.discussion-badge.pinned {
-    background: var(--warning-color);
-    color: var(--text-inverse);
-}
-
-.discussion-badge.solved {
-    background: var(--success-color);
-    color: var(--text-inverse);
-}
-
-.discussion-preview {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-md);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.discussion-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-}
-
-.discussion-author {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-}
-
-.author-avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: var(--radius-round);
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-bold);
-}
-
-.discussion-stats {
-    display: flex;
-    gap: var(--spacing-md);
-}
-
-.discussion-stat {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-}
-
-.stat-icon {
-    width: 14px;
-    height: 14px;
-}
-
-/* ============================================================================
-   👤 ТАБ УЧАСТНИКОВ
-   ============================================================================ */
-
-.members-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.members-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-}
-
-.members-search {
-    position: relative;
-    width: 250px;
-}
-
-.members-search-input {
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-xl) var(--spacing-sm) var(--spacing-sm);
-    border: 2px solid var(--bg-secondary);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    color: var(--text-primary);
-    background: var(--bg-card);
-    transition: border-color var(--duration-fast) var(--ease-out);
-}
-
-.members-search-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-}
-
-.members-search-icon {
-    position: absolute;
-    right: var(--spacing-sm);
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px;
-    height: 16px;
-    color: var(--text-muted);
-}
-
-.members-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-lg);
-}
-
-.member-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    text-align: center;
-    box-shadow: var(--shadow-sm);
-    transition: all var(--duration-normal) var(--ease-out);
-    text-decoration: none;
-    color: inherit;
-    border: 2px solid transparent;
-}
-
-.member-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary-color);
-    text-decoration: none;
-    color: inherit;
-}
-
-.member-card.featured {
-    border-color: var(--warning-color);
-    background: linear-gradient(135deg, var(--bg-card), var(--bg-overlay));
-}
-
-.member-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: var(--radius-round);
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-inverse);
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
-    margin: 0 auto var(--spacing-md);
-    box-shadow: var(--shadow-md);
-}
-
-.member-name {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
-}
-
-.member-role {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-md);
-}
-
-.member-stats {
-    display: flex;
-    justify-content: center;
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-md);
-}
-
-.member-stat {
-    text-align: center;
-}
-
-.member-stat-number {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
-    color: var(--primary-color);
-    display: block;
-}
-
-.member-stat-label {
-    font-size: var(--font-size-xs);
-    color: var(--text-secondary);
-    text-transform: uppercase;
-}
-
-.member-badges {
-    display: flex;
-    justify-content: center;
-    gap: var(--spacing-xs);
-    flex-wrap: wrap;
-}
-
-.member-badge {
-    width: 24px;
-    height: 24px;
-    border-radius: var(--radius-round);
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--font-size-xs);
-    title: attr(data-title);
-}
-
-.member-badge.gold {
-    background: #FFD700;
-    color: #000;
-}
-
-.member-badge.silver {
-    background: #C0C0C0;
-    color: #000;
-}
-
-.member-badge.bronze {
-    background: #CD7F32;
-    color: #fff;
-}
-
-/* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
-   ============================================================================ */
-
-@media (max-width: 768px) {
-    .community-page {
-        padding: var(--spacing-sm);
-        padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-sm));
-    }
-    
-    .community-welcome {
-        padding: var(--spacing-lg);
-        margin-bottom: var(--spacing-md);
-    }
-    
-    .community-stats-row {
-        gap: var(--spacing-lg);
-    }
-    
-    .community-stat-number {
-        font-size: var(--font-size-2xl);
-    }
-    
-    .community-tab {
-        min-width: 100px;
-        padding: var(--spacing-xs) var(--spacing-sm);
-    }
-    
-    .community-tab-icon {
-        font-size: 18px;
-        margin-bottom: 2px;
-    }
-    
-    .leaderboard-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-    
-    .leaderboard-podium {
-        flex-direction: column;
-        align-items: center;
-        gap: var(--spacing-lg);
-        padding: var(--spacing-md);
-    }
-    
-    .podium-place {
-        order: unset !important;
-        transform: none !important;
-    }
-    
-    .podium-place.first {
-        order: 1;
-    }
-    
-    .podium-place.second {
-        order: 2;
-    }
-    
-    .podium-place.third {
-        order: 3;
+@media (prefers-color-scheme: dark) {
+    .community-stat-card {
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
     }
     
     .leaderboard-item {
-        padding: var(--spacing-md);
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
     }
     
-    .leaderboard-avatar {
-        width: 40px;
-        height: 40px;
-        font-size: var(--font-size-sm);
+    .mvp-community-item {
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
     }
     
-    .achievements-grid {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-md);
-    }
-    
-    .discussions-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-    
-    .discussion-item {
-        padding: var(--spacing-md);
-    }
-    
-    .discussion-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-xs);
-    }
-    
-    .discussion-meta {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-xs);
-    }
-    
-    .members-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-    
-    .members-search {
-        width: 100%;
-    }
-    
-    .members-grid {
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: var(--spacing-md);
-    }
-    
-    .member-card {
-        padding: var(--spacing-md);
-    }
-    
-    .member-avatar {
-        width: 60px;
-        height: 60px;
-        font-size: var(--font-size-lg);
-        margin-bottom: var(--spacing-sm);
-    }
-}
-
-/* ============================================================================
-   ✨ АНИМАЦИИ И ЭФФЕКТЫ
-   ============================================================================ */
-
-/* Загрузка контента */
-.community-page > * {
-    animation: communitySlideUp 0.6s var(--ease-out);
-    animation-fill-mode: both;
-}
-
-.community-page > *:nth-child(1) { animation-delay: 0.1s; }
-.community-page > *:nth-child(2) { animation-delay: 0.2s; }
-.community-page > *:nth-child(3) { animation-delay: 0.3s; }
-
-@keyframes communitySlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Анимация элементов списка */
-.leaderboard-item,
-.discussion-item,
-.member-card {
-    animation: itemSlideIn 0.4s var(--ease-out);
-    animation-fill-mode: both;
-}
-
-.leaderboard-item:nth-child(1) { animation-delay: 0.1s; }
-.leaderboard-item:nth-child(2) { animation-delay: 0.15s; }
-.leaderboard-item:nth-child(3) { animation-delay: 0.2s; }
-.leaderboard-item:nth-child(4) { animation-delay: 0.25s; }
-.leaderboard-item:nth-child(5) { animation-delay: 0.3s; }
-
-@keyframes itemSlideIn {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-/* Эффект новых уведомлений */
-.community-tab-badge {
-    animation: badgePulse 2s infinite;
-}
-
-@keyframes badgePulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-}
-
-/* Эффект hover для touch устройств */
-@media (hover: none) {
-    .podium-place:hover,
+    .community-stat-card:hover,
     .leaderboard-item:hover,
-    .achievement-community-card:hover,
-    .discussion-item:hover,
-    .member-card:hover {
-        transform: none;
-    }
-    
-    .podium-place:active,
-    .leaderboard-item:active,
-    .achievement-community-card:active,
-    .discussion-item:active,
-    .member-card:active {
-        transform: scale(0.98);
+    .mvp-community-item:hover {
+        box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
     }
 }
