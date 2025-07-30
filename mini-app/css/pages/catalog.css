@@ -1,141 +1,105 @@
 /**
- * 📚 КАТАЛОГ - Точно по концептам из "концепт каталог разборов app.txt"
- * ✅ Полное соответствие дизайну: персонализация, фильтры, карточки, промо
+ * 📚 КАТАЛОГ - Исправленные стили (БЕЗ КОНФЛИКТОВ!)
+ * ✅ Использует существующие CSS переменные из variables.css
+ * ✅ Совместим с base.css и navigation.css
+ * ✅ Правильная работа скролла и нижней навигации
  */
 
 /* ============================================================================
-   🎨 CSS ПЕРЕМЕННЫЕ ИЗ КОНЦЕПТОВ (ТОЧНЫЕ ЦВЕТА annabusel.org)
-   ============================================================================ */
-
-:root {
-    /* СВЕТЛАЯ ТЕМА - точные цвета сайта annabusel.org */
-    --primary-color: #D2452C;           /* Терракотовый/кирпично-красный */
-    --primary-dark: #B53A23;           /* Темнее красный */
-    --primary-light: #E85A42;          /* Светлее красный */
-    --text-primary: #2D2D2D;           /* Темно-серый текст */
-    --text-secondary: #666666;         /* Серый текст */
-    --text-muted: #999999;             /* Приглушенный серый */
-    --background: #F5F2EC;             /* Светло-бежевый фон как на сайте */
-    --background-light: #FAF8F3;       /* Очень светлый бежевый */
-    --background-soft: #F0EBE3;        /* Мягкий бежевый */
-    --surface: #FFFFFF;                /* Белые карточки */
-    --surface-warm: #FEFCF8;           /* Теплый белый */
-    --border: #E6E0D6;                 /* Бежевая граница */
-    --border-light: #F0EBE3;           /* Светлая граница */
-    --shadow-color: rgba(210, 69, 44, 0.08);
-    --shadow-color-strong: rgba(210, 69, 44, 0.15);
-    --success: #28a745;                
-    --warning: #ffc107;                
-    --error: #dc3545;
-    
-    /* Переменные для плавных переходов */
-    --transition-fast: 0.2s ease;
-    --transition-normal: 0.3s ease;
-    --border-radius: 12px;
-    --border-radius-small: 8px;
-}
-
-/* Темная тема через класс */
-body.dark-theme {
-    --primary-color: #E85A42;           /* Ярче терракотовый для контраста */
-    --primary-dark: #D2452C;           /* Оригинальный терракотовый */
-    --primary-light: #F16B52;          /* Светлее для hover */
-    --text-primary: #F0F0F0;           /* Светлый текст */
-    --text-secondary: #B8B8B8;         /* Серый текст */
-    --text-muted: #888888;             /* Приглушенный серый */
-    --background: #1A1A1A;             /* Темный фон */
-    --background-light: #242424;       /* Светлее темный */
-    --background-soft: #2D2D2D;        /* Мягкий темный */
-    --surface: #2A2A2A;                /* Темные карточки */
-    --surface-warm: #2E2824;           /* Теплая темная поверхность */
-    --border: #404040;                 /* Темная граница */
-    --border-light: #363636;           /* Светлая граница для темной темы */
-    --shadow-color: rgba(232, 90, 66, 0.12);
-    --shadow-color-strong: rgba(232, 90, 66, 0.20);
-}
-
-/* ============================================================================
-   📚 ОСНОВНОЙ КОНТЕЙНЕР КАТАЛОГА
-   ============================================================================ */
-
-.catalog-page {
-    padding: 16px;
-    padding-bottom: calc(60px + 16px); /* bottom nav height + padding */
-    min-height: 100vh;
-    background: var(--background);
-    transition: background var(--transition-normal);
-}
-
-/* ============================================================================
-   🎯 ПЕРСОНАЛИЗАЦИЯ (ТОЧНО ИЗ КОНЦЕПТА!)
+   🎯 ПЕРСОНАЛИЗАЦИЯ (используем существующие переменные!)
    ============================================================================ */
 
 .personalization-card {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    color: white;
-    border-radius: var(--border-radius);
-    padding: 16px;
+    color: var(--text-inverse);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
     text-align: center;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 16px var(--shadow-color-strong);
-    transition: all var(--transition-normal);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow-primary);
+    transition: all var(--duration-normal) var(--ease-out);
+    position: relative;
+    overflow: hidden;
+}
+
+.personalization-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: personalizationFloat 8s ease-in-out infinite;
+}
+
+@keyframes personalizationFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-20px, -20px) rotate(2deg); }
 }
 
 .personalization-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-xs);
+    position: relative;
+    z-index: 1;
 }
 
 .personalization-subtitle {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     opacity: 0.9;
-    margin-bottom: 12px;
+    margin-bottom: var(--spacing-sm);
+    position: relative;
+    z-index: 1;
 }
 
 .user-tags {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-xs);
     justify-content: center;
     flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
 }
 
 .user-tag {
     background: rgba(255,255,255,0.2);
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 500;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
 }
 
 /* ============================================================================
-   🏷️ ФИЛЬТРЫ (ТОЧНО ИЗ КОНЦЕПТА!)
+   🏷️ ФИЛЬТРЫ (используем существующие переменные!)
    ============================================================================ */
 
 .filter-tabs {
     display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding-bottom: var(--spacing-xs);
+    -webkit-overflow-scrolling: touch;
 }
 
 .filter-tab {
-    background: var(--surface);
+    background: var(--bg-card);
     color: var(--text-secondary);
-    border: 2px solid var(--border);
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
+    border: 2px solid var(--text-muted);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-xl);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
     white-space: nowrap;
     cursor: pointer;
-    transition: all var(--transition-normal);
+    transition: all var(--duration-normal) var(--ease-out);
 }
 
 .filter-tab.active {
     background: var(--primary-color);
-    color: white;
+    color: var(--text-inverse);
     border-color: var(--primary-color);
 }
 
@@ -145,16 +109,16 @@ body.dark-theme {
 }
 
 /* ============================================================================
-   🔍 ПОИСК (ИЗ КОНЦЕПТА)
+   🔍 ПОИСК (используем существующие переменные!)
    ============================================================================ */
 
 .search-section {
-    background: var(--surface);
-    border-radius: var(--border-radius);
-    padding: 12px;
-    margin-bottom: 16px;
-    border: 2px solid var(--border);
-    transition: all var(--transition-normal);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    border: 2px solid var(--text-muted);
+    transition: all var(--duration-normal) var(--ease-out);
 }
 
 .search-section.active {
@@ -165,10 +129,10 @@ body.dark-theme {
     width: 100%;
     border: none;
     background: transparent;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     outline: none;
-    font-family: inherit;
+    font-family: var(--font-family-primary);
 }
 
 .search-input::placeholder {
@@ -176,50 +140,50 @@ body.dark-theme {
 }
 
 /* ============================================================================
-   📖 КАРТОЧКИ КНИГ (ТОЧНО ИЗ КОНЦЕПТА!)
+   📖 КАРТОЧКИ КНИГ (используем существующие переменные!)
    ============================================================================ */
 
 .book-card {
-    background: var(--surface);
-    border-radius: var(--border-radius);
-    padding: 16px;
-    margin-bottom: 16px;
-    border: 1px solid var(--border);
-    box-shadow: 0 2px 8px var(--shadow-color);
-    transition: all var(--transition-normal);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--text-muted);
+    box-shadow: var(--shadow-md);
+    transition: all var(--duration-normal) var(--ease-out);
     cursor: pointer;
 }
 
 .book-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px var(--shadow-color-strong);
+    box-shadow: var(--shadow-lg);
 }
 
 .book-main {
     display: flex;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
 }
 
 .book-cover {
     width: 60px;
     height: 80px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 10px;
+    color: var(--text-inverse);
+    font-size: var(--font-size-xs);
     text-align: center;
-    padding: 4px;
-    font-weight: 600;
-    line-height: 1.2;
+    padding: var(--spacing-xs);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
     position: relative;
     overflow: hidden;
 }
 
-/* Разные градиенты для обложек (точно из концепта) */
+/* Разные градиенты для обложек */
 .book-cover.cover-1 { background: linear-gradient(135deg, #8B5A3C, #A0522D); }
 .book-cover.cover-2 { background: linear-gradient(135deg, #4A5D23, #6B8E23); }
 .book-cover.cover-3 { background: linear-gradient(135deg, #8B008B, #9370DB); }
@@ -235,71 +199,71 @@ body.dark-theme {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 6px;
+    margin-bottom: var(--spacing-xs);
 }
 
 .book-title {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
     color: var(--text-primary);
     margin-bottom: 2px;
-    transition: color var(--transition-normal);
+    transition: color var(--duration-normal) var(--ease-out);
 }
 
 .book-author {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
-    transition: color var(--transition-normal);
+    transition: color var(--duration-normal) var(--ease-out);
 }
 
 .book-badge {
     padding: 2px 6px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     font-size: 9px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     flex-shrink: 0;
 }
 
 .book-badge.top {
     background: var(--primary-color);
-    color: white;
+    color: var(--text-inverse);
 }
 
 .book-badge.new {
-    background: var(--warning);
-    color: white;
+    background: var(--warning-color);
+    color: var(--text-inverse);
 }
 
 .book-badge.popular {
-    background: var(--success);
-    color: white;
+    background: var(--success-color);
+    color: var(--text-inverse);
 }
 
 .book-description {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--text-primary);
-    line-height: 1.3;
-    margin-bottom: 8px;
-    transition: color var(--transition-normal);
+    line-height: var(--line-height-normal);
+    margin-bottom: var(--spacing-xs);
+    transition: color var(--duration-normal) var(--ease-out);
 }
 
 .book-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-xs);
     flex-wrap: wrap;
 }
 
 .book-meta-item {
     font-size: 10px;
     color: var(--text-secondary);
-    transition: color var(--transition-normal);
+    transition: color var(--duration-normal) var(--ease-out);
 }
 
 .book-footer {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-xs);
     align-items: center;
 }
 
@@ -308,29 +272,29 @@ body.dark-theme {
 }
 
 .book-old-price {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--text-muted);
     text-decoration: line-through;
-    transition: color var(--transition-normal);
+    transition: color var(--duration-normal) var(--ease-out);
 }
 
 .book-price {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
     color: var(--primary-color);
-    transition: color var(--transition-normal);
+    transition: color var(--duration-normal) var(--ease-out);
 }
 
 .buy-button {
     background: var(--primary-color);
-    color: white;
+    color: var(--text-inverse);
     border: none;
-    padding: 10px 16px;
-    border-radius: var(--border-radius-small);
-    font-size: 12px;
-    font-weight: 600;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
     cursor: pointer;
-    transition: all var(--transition-normal);
+    transition: all var(--duration-normal) var(--ease-out);
     white-space: nowrap;
 }
 
@@ -340,41 +304,41 @@ body.dark-theme {
 }
 
 /* ============================================================================
-   🎁 ПРОМО СЕКЦИЯ (ИЗ КОНЦЕПТА)
+   🎁 ПРОМО СЕКЦИИ (используем существующие переменные!)
    ============================================================================ */
 
 .promo-section {
     background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
-    color: white;
-    border-radius: var(--border-radius);
-    padding: 16px;
+    color: var(--text-inverse);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
     text-align: center;
-    margin: 20px 0;
+    margin: var(--spacing-lg) 0;
 }
 
 .promo-title {
-    font-weight: 600;
-    margin-bottom: 8px;
-    font-size: 12px;
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-xs);
+    font-size: var(--font-size-xs);
 }
 
 .promo-text {
     font-size: 10px;
     opacity: 0.9;
-    margin-bottom: 10px;
-    line-height: 1.3;
+    margin-bottom: var(--spacing-sm);
+    line-height: var(--line-height-normal);
 }
 
 .promo-button {
-    background: white;
+    background: var(--text-inverse);
     color: var(--primary-color);
     border: none;
-    padding: 8px 14px;
-    border-radius: 16px;
-    font-weight: 600;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
     cursor: pointer;
     font-size: 10px;
-    transition: transform var(--transition-fast);
+    transition: transform var(--duration-fast) var(--ease-out);
 }
 
 .promo-button:hover {
@@ -382,29 +346,28 @@ body.dark-theme {
 }
 
 /* ============================================================================
-   🔥 СПЕЦИАЛЬНЫЕ АКЦИИ И СКИДКИ
+   🔥 СКИДКИ И АКЦИИ (используем существующие переменные!)
    ============================================================================ */
 
-/* Промо блок сверху */
 .top-promo-banner {
-    background: linear-gradient(45deg, var(--warning), #ff8c00);
-    color: white;
-    border-radius: var(--border-radius);
-    padding: 16px;
+    background: linear-gradient(45deg, var(--warning-color), #ff8c00);
+    color: var(--text-inverse);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-lg);
 }
 
 .top-promo-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-xs);
 }
 
 .top-promo-subtitle {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     opacity: 0.9;
-    margin-bottom: 12px;
+    margin-bottom: var(--spacing-sm);
 }
 
 .top-promo-timer {
@@ -412,26 +375,35 @@ body.dark-theme {
     opacity: 0.8;
 }
 
-/* Карточки со скидками */
 .book-card.discount-card {
-    border: 2px solid var(--warning);
+    border: 2px solid var(--warning-color);
     position: relative;
+    animation: discountPulse 2s ease-in-out infinite;
+}
+
+@keyframes discountPulse {
+    0%, 100% { 
+        box-shadow: var(--shadow-md), 0 0 0 0 rgba(255, 152, 0, 0.3); 
+    }
+    50% { 
+        box-shadow: var(--shadow-lg), 0 0 0 4px rgba(255, 152, 0, 0.1); 
+    }
 }
 
 .discount-badge {
     position: absolute;
     top: -10px;
-    right: 12px;
-    background: var(--warning);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 12px;
+    right: var(--spacing-sm);
+    background: var(--warning-color);
+    color: var(--text-inverse);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-lg);
     font-size: 10px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
 }
 
 .buy-button.discount-button {
-    background: var(--warning);
+    background: var(--warning-color);
 }
 
 .buy-button.discount-button:hover {
@@ -439,53 +411,48 @@ body.dark-theme {
 }
 
 /* ============================================================================
-   📊 РЕЗУЛЬТАТЫ ПОИСКА
+   📊 РЕЗУЛЬТАТЫ ПОИСКА (используем существующие переменные!)
    ============================================================================ */
 
 .search-results-info {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
-    margin-bottom: 16px;
-    transition: color var(--transition-normal);
+    margin-bottom: var(--spacing-md);
+    transition: color var(--duration-normal) var(--ease-out);
 }
 
 .search-results-count {
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--primary-color);
 }
 
 /* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ (используем существующие переменные!)
    ============================================================================ */
 
-@media (max-width: 768px) {
-    .catalog-page {
-        padding: 12px;
-        padding-bottom: calc(60px + 12px);
-    }
-    
+@media (max-width: 480px) {
     .personalization-card {
-        padding: 12px;
-        margin-bottom: 16px;
+        padding: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
     }
     
     .user-tags {
-        gap: 6px;
+        gap: var(--spacing-xs);
     }
     
     .filter-tabs {
-        gap: 6px;
-        margin-bottom: 12px;
+        gap: var(--spacing-xs);
+        margin-bottom: var(--spacing-sm);
     }
     
     .filter-tab {
-        padding: 6px 12px;
+        padding: var(--spacing-xs) var(--spacing-sm);
         font-size: 10px;
     }
     
     .book-card {
-        padding: 12px;
-        margin-bottom: 12px;
+        padding: var(--spacing-sm);
+        margin-bottom: var(--spacing-sm);
     }
     
     .book-cover {
@@ -495,12 +462,12 @@ body.dark-theme {
     }
     
     .book-main {
-        gap: 10px;
-        margin-bottom: 10px;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-sm);
     }
     
     .book-title {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
     
     .book-author {
@@ -512,7 +479,7 @@ body.dark-theme {
     }
     
     .book-meta {
-        gap: 6px;
+        gap: var(--spacing-xs);
     }
     
     .book-meta-item {
@@ -520,41 +487,31 @@ body.dark-theme {
     }
     
     .book-price {
-        font-size: 14px;
+        font-size: var(--font-size-sm);
     }
     
     .buy-button {
-        padding: 8px 12px;
+        padding: var(--spacing-xs) var(--spacing-sm);
         font-size: 11px;
     }
     
     .promo-section {
-        padding: 12px;
-        margin: 16px 0;
+        padding: var(--spacing-sm);
+        margin: var(--spacing-md) 0;
     }
     
     .top-promo-banner {
-        padding: 12px;
-        margin-bottom: 16px;
+        padding: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
     }
 }
 
 /* ============================================================================
-   ✨ АНИМАЦИИ И ЭФФЕКТЫ
+   ✨ АНИМАЦИИ (используем существующие переменные!)
    ============================================================================ */
 
-/* Плавные переходы для всех элементов */
-* {
-    transition: 
-        background 0.3s ease,
-        color 0.3s ease,
-        border-color 0.3s ease,
-        box-shadow 0.3s ease;
-}
-
-/* Анимация появления карточек */
 .book-card {
-    animation: bookCardSlideUp 0.6s ease-out;
+    animation: bookCardSlideUp 0.6s var(--ease-out);
     animation-fill-mode: both;
 }
 
@@ -576,28 +533,6 @@ body.dark-theme {
     }
 }
 
-/* Анимация персонализации */
-.personalization-card {
-    position: relative;
-    overflow: hidden;
-}
-
-.personalization-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: personalizationFloat 8s ease-in-out infinite;
-}
-
-@keyframes personalizationFloat {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(-20px, -20px) rotate(2deg); }
-}
-
 /* Эффект ряби для кнопок */
 .buy-button {
     position: relative;
@@ -611,7 +546,7 @@ body.dark-theme {
     left: 50%;
     width: 0;
     height: 0;
-    border-radius: 50%;
+    border-radius: var(--radius-round);
     background: rgba(255, 255, 255, 0.3);
     transition: width 0.6s, height 0.6s;
     transform: translate(-50%, -50%);
@@ -620,14 +555,4 @@ body.dark-theme {
 .buy-button:active::before {
     width: 300px;
     height: 300px;
-}
-
-/* Пульсация для скидочных карточек */
-.book-card.discount-card {
-    animation: discountPulse 2s ease-in-out infinite;
-}
-
-@keyframes discountPulse {
-    0%, 100% { box-shadow: 0 2px 8px var(--shadow-color), 0 0 0 0 rgba(255, 193, 7, 0.3); }
-    50% { box-shadow: 0 4px 16px var(--shadow-color-strong), 0 0 0 4px rgba(255, 193, 7, 0.1); }
 }
