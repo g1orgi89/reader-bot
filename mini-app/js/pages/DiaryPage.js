@@ -634,6 +634,22 @@ class DiaryPage {
     }
     
     /**
+     * 🧹 ОЧИСТКА КНОПОК ПОИСКА (НОВЫЙ МЕТОД!)
+     */
+    cleanupSearchButtons() {
+        const pageHeader = document.getElementById('page-header');
+        if (pageHeader) {
+            // Удаляем все кнопки поиска, которые могли быть добавлены другими страницами
+            const searchButtons = pageHeader.querySelectorAll('.search-button');
+            searchButtons.forEach(btn => btn.remove());
+            
+            // Удаляем другие дополнительные кнопки, кроме основных
+            const extraButtons = pageHeader.querySelectorAll('button:not(.back-btn):not(.menu-btn)');
+            extraButtons.forEach(btn => btn.remove());
+        }
+    }
+    
+    /**
      * 🧹 ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
      */
     
@@ -773,11 +789,17 @@ class DiaryPage {
         if (homeHeader) homeHeader.style.display = 'none';
         if (pageHeader) pageHeader.style.display = 'block';
         if (pageTitle) pageTitle.textContent = '📖 Дневник цитат';
+        
+        // ИСПРАВЛЕНО: Убираем любые кнопки поиска, которые могли остаться от других страниц
+        this.cleanupSearchButtons();
     }
     
     onHide() {
         const pageHeader = document.getElementById('page-header');
         if (pageHeader) pageHeader.style.display = 'none';
+        
+        // Убираем кнопки поиска при скрытии страницы
+        this.cleanupSearchButtons();
     }
     
     destroy() {
@@ -787,6 +809,9 @@ class DiaryPage {
             }
         });
         this.subscriptions = [];
+        
+        // Очистка кнопок поиска
+        this.cleanupSearchButtons();
     }
 }
 
