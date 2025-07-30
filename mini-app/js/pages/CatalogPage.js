@@ -7,6 +7,7 @@
  * - Карточки книг точно как в концепте
  * - Поиск с результатами
  * - Промо секции со скидками
+ * - Скидочные ленты и спеццены
  */
 
 class CatalogPage {
@@ -33,7 +34,7 @@ class CatalogPage {
     }
     
     /**
-     * 📚 ПРИМЕРЫ КНИГ ИЗ КОНЦЕПТА
+     * 📚 ПРИМЕРЫ КНИГ ИЗ КОНЦЕПТА (обновленные с акциями)
      */
     getExampleBooks() {
         return [
@@ -50,7 +51,9 @@ class CatalogPage {
                 match: '97% подходит',
                 oldPrice: '1,200₽',
                 price: '960₽',
-                category: 'psychology'
+                discount: '-20%',
+                category: 'psychology',
+                hasDiscount: true
             },
             {
                 id: '2',
@@ -119,7 +122,8 @@ class CatalogPage {
                 oldPrice: '1,500₽',
                 price: '1,000₽',
                 discount: '-33%',
-                category: 'self-development'
+                category: 'self-development',
+                hasDiscount: true
             }
         ];
     }
@@ -129,10 +133,25 @@ class CatalogPage {
      */
     render() {
         const isSearchMode = this.showSearch;
+        const isDiscountFilter = this.activeFilter === 'sales';
         
         return `
-            <div class="content">
+            <div class="catalog-page">
+                ${isDiscountFilter ? this.renderDiscountBanner() : ''}
                 ${isSearchMode ? this.renderSearchMode() : this.renderNormalMode()}
+            </div>
+        `;
+    }
+    
+    /**
+     * 🔥 БАННЕР СКИДОК (для фильтра "Скидки")
+     */
+    renderDiscountBanner() {
+        return `
+            <div class="top-promo-banner">
+                <div class="top-promo-title">🔥 Распродажа января</div>
+                <div class="top-promo-subtitle">Скидки до 40% на популярные разборы</div>
+                <div class="top-promo-timer">Только до 31 января</div>
             </div>
         `;
     }
@@ -221,6 +240,10 @@ class CatalogPage {
     renderBooksList() {
         const filteredBooks = this.getFilteredBooks();
         
+        if (filteredBooks.length === 0) {
+            return this.renderEmptyState();
+        }
+        
         return filteredBooks.map(book => this.renderBookCard(book)).join('');
     }
     
@@ -234,8 +257,8 @@ class CatalogPage {
         );
         
         return `
-            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; transition: color var(--transition-normal);">
-                Найдено ${results.length} разборов по запросу "${this.searchQuery}"
+            <div class="search-results-info">
+                Найдено <span class="search-results-count">${results.length}</span> разборов по запросу "${this.searchQuery}"
             </div>
             ${results.map(book => this.renderBookCard(book)).join('')}
         `;
@@ -245,15 +268,12 @@ class CatalogPage {
      * 📖 КАРТОЧКА КНИГИ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderBookCard(book) {
-        const hasDiscount = book.oldPrice && book.discount;
-        const cardStyle = hasDiscount ? 'border: 2px solid var(--warning); position: relative;' : '';
+        const discountClass = book.hasDiscount ? 'discount-card' : '';
         
         return `
-            <div class="book-card" style="${cardStyle}" data-book-id="${book.id}">
-                ${hasDiscount ? `
-                    <div style="position: absolute; top: -10px; right: 12px; background: var(--warning); color: white; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 600;">
-                        ${book.discount}
-                    </div>
+            <div class="book-card ${discountClass}" data-book-id="${book.id}">
+                ${book.hasDiscount ? `
+                    <div class="discount-badge">${book.discount}</div>
                 ` : ''}
                 
                 <div class="book-main">
@@ -284,10 +304,9 @@ class CatalogPage {
                         ` : ''}
                         <div class="book-price">${book.price}</div>
                     </div>
-                    <button class="buy-button" 
-                            ${hasDiscount ? 'style="background: var(--warning);"' : ''}
+                    <button class="buy-button ${book.hasDiscount ? 'discount-button' : ''}" 
                             data-book-id="${book.id}">
-                        ${hasDiscount ? 'Купить со скидкой' : 'Купить разбор'}
+                        ${book.hasDiscount ? 'Купить со скидкой' : 'Купить разбор'}
                     </button>
                 </div>
             </div>
@@ -311,6 +330,31 @@ class CatalogPage {
     }
     
     /**
+     * 🚫 ПУСТОЕ СОСТОЯНИЕ
+     */
+    renderEmptyState() {
+        const messages = {
+            'for-you': 'Мы изучаем ваши предпочтения, чтобы предложить лучшие разборы',
+            'popular': 'Популярные разборы временно недоступны',
+            'new': 'Новых разборов пока нет, но скоро появятся!',
+            'classic': 'Классические разборы в разработке',
+            'sales': 'Акций сейчас нет, но следите за обновлениями!'
+        };
+        
+        return `
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+                <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                    Разборы не найдены
+                </div>
+                <div style="font-size: 12px; line-height: 1.4;">
+                    ${messages[this.activeFilter] || 'Попробуйте выбрать другой фильтр'}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
      * 🔧 ФИЛЬТРАЦИЯ КНИГ
      */
     getFilteredBooks() {
@@ -324,7 +368,7 @@ class CatalogPage {
             case 'classic':
                 return this.books.filter(book => book.category === 'classic');
             case 'sales':
-                return this.books.filter(book => book.oldPrice && book.discount);
+                return this.books.filter(book => book.hasDiscount);
             default:
                 return this.books;
         }
@@ -388,11 +432,9 @@ class CatalogPage {
         this.telegram.hapticFeedback('success');
         
         // Формируем URL для покупки (как в оригинальном коде)
-        const buyUrl = `https://annabusel.org/catalog/${bookId}`;
-        this.telegram.openLink(buyUrl);
+        const buyUrl = `https://annabusel.org/catalog/${bookId}`;\n        this.telegram.openLink(buyUrl);
         
-        this.showSuccess(`📚 Переходим к покупке "${book.title}"`);
-    }
+        this.showSuccess(`📚 Переходим к покупке "${book.title}"`);\n    }
     
     /**
      * 🎁 ПРИМЕНИТЬ ПРОМОКОД
@@ -452,15 +494,22 @@ class CatalogPage {
             searchBtn.className = 'search-button';
             searchBtn.innerHTML = '🔍';
             searchBtn.style.cssText = `
-                background: none;
+                background: rgba(255,255,255,0.1);
                 border: none;
+                color: white;
                 font-size: 18px;
                 cursor: pointer;
                 padding: 8px;
                 border-radius: 8px;
-                transition: background-color 0.2s;
+                transition: background var(--transition-normal);
             `;
             searchBtn.addEventListener('click', () => this.toggleSearch());
+            searchBtn.addEventListener('mouseenter', () => {
+                searchBtn.style.background = 'rgba(255,255,255,0.2)';
+            });
+            searchBtn.addEventListener('mouseleave', () => {
+                searchBtn.style.background = 'rgba(255,255,255,0.1)';
+            });
             pageHeader.appendChild(searchBtn);
         }
     }
