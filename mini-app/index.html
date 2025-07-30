@@ -8,8 +8,27 @@
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-    <!-- CSS стили -->
-    <link rel="stylesheet" href="css/style.css">
+    <!-- 🎨 CSS стили в правильном порядке (ИСПРАВЛЕНО) -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/base.css">
+    
+    <!-- Компоненты CSS -->
+    <link rel="stylesheet" href="css/components/navigation.css">
+    <link rel="stylesheet" href="css/components/buttons.css">
+    <link rel="stylesheet" href="css/components/cards.css">
+    <link rel="stylesheet" href="css/components/forms.css">
+    <link rel="stylesheet" href="css/components/modals.css">
+    
+    <!-- Страницы CSS -->
+    <link rel="stylesheet" href="css/pages/home.css">
+    <link rel="stylesheet" href="css/pages/diary.css">
+    <link rel="stylesheet" href="css/pages/reports.css">
+    <link rel="stylesheet" href="css/pages/catalog.css">
+    <link rel="stylesheet" href="css/pages/community.css">
+    
+    <!-- Мобильная адаптация -->
+    <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
     <!-- 📱 ЭКРАН ЗАГРУЗКИ -->
@@ -25,13 +44,16 @@
     <!-- 🏠 ГЛАВНОЕ ПРИЛОЖЕНИЕ -->
     <div id="app" class="app-container" style="display: none;">
         
-        <!-- 📋 ШАПКА ГЛАВНОЙ СТРАНИЦЫ - ТОЛЬКО МЕНЮ -->
+        <!-- 📋 ШАПКА ГЛАВНОЙ СТРАНИЦЫ (ИСПРАВЛЕНО ПОД home.css) -->
         <div id="home-header" class="home-header" style="display: none;">
-            <div class="page-title">
-                <h1>📚 Reader Bot</h1>
-                <p>Ваш персональный дневник мудрости</p>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">👤</div>
+                <div class="user-details">
+                    <h3 id="userName">Загрузка...</h3>
+                    <p id="userStatus">Ваш дневник мудрости</p>
+                </div>
             </div>
-            <button class="menu-btn" id="homeMenuBtn">☰</button>
+            <button class="menu-button" id="homeMenuBtn">☰</button>
         </div>
 
         <!-- 📋 ОБЫЧНАЯ ШАПКА ДЛЯ ОСТАЛЬНЫХ СТРАНИЦ -->
@@ -85,9 +107,54 @@
             </div>
         </nav>
 
-        <!-- 🎯 МОДАЛЬНОЕ ОКНО МЕНЮ (будет добавлено позже) -->
+        <!-- 🎯 МОДАЛЬНЫЕ ОКНА (ДОБАВЛЕНО) -->
+        
+        <!-- Главное меню -->
         <div id="menu-modal" class="menu-modal" style="display: none;">
-            <!-- Контент меню будет здесь -->
+            <div class="menu-backdrop"></div>
+            <div class="menu-content">
+                <!-- Контент меню будет добавлен через TopMenu.js -->
+            </div>
+        </div>
+        
+        <!-- Модальное окно профиля -->
+        <div id="profile-modal" class="modal" style="display: none;">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <!-- Контент профиля будет добавлен позже -->
+            </div>
+        </div>
+        
+        <!-- Модальное окно настроек -->
+        <div id="settings-modal" class="modal" style="display: none;">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <!-- Контент настроек будет добавлен позже -->
+            </div>
+        </div>
+        
+        <!-- Модальное окно достижений -->
+        <div id="achievements-modal" class="modal" style="display: none;">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <!-- Контент достижений будет добавлен позже -->
+            </div>
+        </div>
+        
+        <!-- Модальное окно помощи -->
+        <div id="help-modal" class="modal" style="display: none;">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <!-- Контент помощи будет добавлен позже -->
+            </div>
+        </div>
+        
+        <!-- Модальное окно "О приложении" -->
+        <div id="about-modal" class="modal" style="display: none;">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <!-- Контент "О приложении" будет добавлен позже -->
+            </div>
         </div>
     </div>
 
