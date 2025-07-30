@@ -1,6 +1,6 @@
 /**
  * 📊 ОТЧЕТЫ CSS - Точно по концепту!
- * Простые стили для ReportsPage в соответствии с концептом
+ * Полные стили для ReportsPage в соответствии с концептом
  */
 
 /* ============================================================================
@@ -15,14 +15,86 @@
    📈 КАРТОЧКА ЕЖЕНЕДЕЛЬНОГО ОТЧЕТА (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
 
-/* Стили для карточки отчета используют inline стили как в концепте */
-/* Это сделано намеренно для точного соответствия концепту */
+.weekly-report {
+    background: var(--surface, #FFFFFF);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border, #E6E0D6);
+    transition: all var(--transition-normal, 0.3s ease);
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+}
+
+.report-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--text-primary, #2D2D2D);
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.report-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.report-stat {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--text-primary, #2D2D2D);
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.stat-value.goal-stat {
+    color: var(--primary-color, #D2452C);
+}
+
+.stat-name {
+    font-size: 9px;
+    color: var(--text-secondary, #666666);
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.report-themes {
+    font-size: 10px;
+    color: var(--text-secondary, #666666);
+    margin-bottom: 8px;
+    transition: color var(--transition-normal, 0.3s ease);
+}
 
 /* ============================================================================
    💡 AI АНАЛИЗ ОТ АННЫ
    ============================================================================ */
 
-/* Используются стили .ai-insight из diary.css */
+.ai-insight {
+    background: linear-gradient(135deg, var(--primary-color, #D2452C), var(--primary-dark, #B53A23));
+    color: white;
+    border-radius: var(--border-radius, 12px);
+    padding: 16px;
+    margin: 16px 0;
+    box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+}
+
+.ai-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ai-text {
+    font-size: 11px;
+    opacity: 0.95;
+    line-height: 1.4;
+}
 
 /* ============================================================================
    🎯 ПРОМО СЕКЦИЯ
@@ -35,6 +107,7 @@
     padding: 16px;
     text-align: center;
     margin: 16px 0;
+    box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
 }
 
 .promo-title {
@@ -75,6 +148,40 @@
         padding: 16px;
     }
     
+    .weekly-report {
+        margin-bottom: 12px;
+        padding: 12px;
+    }
+    
+    .report-title {
+        font-size: 12px;
+    }
+    
+    .stat-value {
+        font-size: 14px;
+    }
+    
+    .stat-name {
+        font-size: 8px;
+    }
+    
+    .report-themes {
+        font-size: 9px;
+    }
+    
+    .ai-insight {
+        margin: 12px 0;
+        padding: 12px;
+    }
+    
+    .ai-title {
+        font-size: 11px;
+    }
+    
+    .ai-text {
+        font-size: 10px;
+    }
+    
     .promo-section {
         margin: 12px 0;
         padding: 12px;
@@ -98,8 +205,38 @@
    ✨ АНИМАЦИИ
    ============================================================================ */
 
+.weekly-report {
+    animation: reportSlideIn 0.5s ease;
+}
+
+.ai-insight {
+    animation: aiSlideIn 0.6s ease;
+}
+
 .promo-section {
-    animation: promoSlideIn 0.5s ease;
+    animation: promoSlideIn 0.7s ease;
+}
+
+@keyframes reportSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes aiSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes promoSlideIn {
@@ -113,8 +250,13 @@
     }
 }
 
-/* Hover эффект для десктопа */
+/* Hover эффекты для десктопа */
 @media (hover: hover) {
+    .weekly-report:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+    }
+    
     .promo-btn:hover {
         box-shadow: 0 4px 12px rgba(210, 69, 44, 0.3);
     }
@@ -125,6 +267,16 @@
    ============================================================================ */
 
 @media (prefers-color-scheme: dark) {
+    .weekly-report {
+        background: var(--surface, #2A2A2A);
+        border-color: var(--border, #404040);
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
+    }
+    
+    .ai-insight {
+        box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
+    }
+    
     .promo-section {
         box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
     }
