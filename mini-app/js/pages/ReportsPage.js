@@ -2,10 +2,11 @@
  * 📊 ОТЧЕТЫ - ReportsPage.js (ТОЧНО ПО КОНЦЕПТУ!)
  * 
  * ✅ ПОЛНОЕ СООТВЕТСТВИЕ КОНЦЕПТУ ИЗ "концепт 5 страниц app.txt":
- * - Простая структура без табов
- * - Карточка с 4 колонками статистики
- * - AI анализ от Анны в стиле ai-insight
- * - Промо секция с кнопкой
+ * - Точная HTML структура из концепта
+ * - CSS классы вместо inline стилей
+ * - 4 колонки статистики как в концепте
+ * - AI анализ от Анны в классе ai-insight
+ * - Промо секция в классе promo-section
  */
 
 class ReportsPage {
@@ -15,7 +16,7 @@ class ReportsPage {
         this.state = app.state;
         this.telegram = app.telegram;
         
-        // Данные отчета (примеры из концепта)
+        // Данные отчета (точно из концепта)
         this.reportData = {
             statistics: {
                 quotes: 7,
@@ -67,33 +68,33 @@ class ReportsPage {
     }
     
     /**
-     * 📊 ЕЖЕНЕДЕЛЬНЫЙ ОТЧЕТ (ТОЧНО ИЗ КОНЦЕПТА!)
+     * 📊 ЕЖЕНЕДЕЛЬНЫЙ ОТЧЕТ (ТОЧНАЯ СТРУКТУРА ИЗ КОНЦЕПТА!)
      */
     renderWeeklyReport() {
         const { quotes, authors, days, goal } = this.reportData.statistics;
         
         return `
-            <div style="background: var(--surface); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); transition: all var(--transition-normal);">
-                <div style="font-weight: bold; margin-bottom: 10px; font-size: 13px; color: var(--text-primary); transition: color var(--transition-normal);">📈 Ваш отчет за неделю</div>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 16px; font-weight: bold; color: var(--text-primary); transition: color var(--transition-normal);">${quotes}</div>
-                        <div style="font-size: 9px; color: var(--text-secondary); transition: color var(--transition-normal);">Цитат</div>
+            <div class="weekly-report">
+                <div class="report-title">📈 Ваш отчет за неделю</div>
+                <div class="report-stats-grid">
+                    <div class="report-stat">
+                        <div class="stat-value">${quotes}</div>
+                        <div class="stat-name">Цитат</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 16px; font-weight: bold; color: var(--text-primary); transition: color var(--transition-normal);">${authors}</div>
-                        <div style="font-size: 9px; color: var(--text-secondary); transition: color var(--transition-normal);">Авторов</div>
+                    <div class="report-stat">
+                        <div class="stat-value">${authors}</div>
+                        <div class="stat-name">Авторов</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 16px; font-weight: bold; color: var(--text-primary); transition: color var(--transition-normal);">${days}</div>
-                        <div style="font-size: 9px; color: var(--text-secondary); transition: color var(--transition-normal);">Дней</div>
+                    <div class="report-stat">
+                        <div class="stat-value">${days}</div>
+                        <div class="stat-name">Дней</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 16px; font-weight: bold; color: var(--primary-color); transition: color var(--transition-normal);">${goal}%</div>
-                        <div style="font-size: 9px; color: var(--text-secondary); transition: color var(--transition-normal);">Цель</div>
+                    <div class="report-stat">
+                        <div class="stat-value goal-stat">${goal}%</div>
+                        <div class="stat-name">Цель</div>
                     </div>
                 </div>
-                <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 8px; transition: color var(--transition-normal);">Темы: ${this.reportData.topics}</div>
+                <div class="report-themes">Темы: ${this.reportData.topics}</div>
             </div>
         `;
     }
