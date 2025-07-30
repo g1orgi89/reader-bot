@@ -1,13 +1,10 @@
 /**
- * 📚 КАТАЛОГ - CatalogPage.js (ТОЧНО ПО КОНЦЕПТУ!)
+ * 📚 КАТАЛОГ - CatalogPage.js (ИСПРАВЛЕНО ПОД БАЗОВУЮ АРХИТЕКТУРУ!)
  * 
- * ✅ ПОЛНОЕ СООТВЕТСТВИЕ КОНЦЕПТУ ИЗ "концепт каталог разборов app.txt":
- * - Персонализация с тегами пользователя
- * - Простые фильтры: "Для вас", "Популярное", "Новинки", "Классика", "Скидки"
- * - Карточки книг точно как в концепте
- * - Поиск с результатами
- * - Промо секции со скидками
- * - Скидочные ленты и спеццены
+ * ✅ ИСПОЛЬЗУЕТ ПРАВИЛЬНУЮ СТРУКТУРУ:
+ * - Убран .catalog-page контейнер (конфликтовал с base.css)
+ * - Контент рендерится прямо в page-content
+ * - Правильная работа скролла и навигации
  */
 
 class CatalogPage {
@@ -129,14 +126,19 @@ class CatalogPage {
     }
     
     /**
-     * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!)
+     * 🎨 РЕНДЕР СТРАНИЦЫ (ИСПРАВЛЕНО!)
+     * 
+     * 🔧 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: 
+     * - Убран .catalog-page контейнер 
+     * - Контент рендерится прямо в page-content из base.css
+     * - Это обеспечивает правильную работу скролла и навигации
      */
     render() {
         const isSearchMode = this.showSearch;
         const isDiscountFilter = this.activeFilter === 'sales';
         
         return `
-            <div class="catalog-page">
+            <div class="page px-3 py-3">
                 ${isDiscountFilter ? this.renderDiscountBanner() : ''}
                 ${isSearchMode ? this.renderSearchMode() : this.renderNormalMode()}
             </div>
@@ -342,12 +344,12 @@ class CatalogPage {
         };
         
         return `
-            <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
-                <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
-                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+            <div class="text-center py-4 px-2">
+                <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📚</div>
+                <div class="font-semibold text-primary mb-2" style="font-size: var(--font-size-sm);">
                     Разборы не найдены
                 </div>
-                <div style="font-size: 12px; line-height: 1.4;">
+                <div class="text-muted" style="font-size: var(--font-size-xs); line-height: var(--line-height-normal);">
                     ${messages[this.activeFilter] || 'Попробуйте выбрать другой фильтр'}
                 </div>
             </div>
@@ -503,7 +505,7 @@ class CatalogPage {
                 cursor: pointer;
                 padding: 8px;
                 border-radius: 8px;
-                transition: background var(--transition-normal);
+                transition: background var(--duration-normal, 0.25s) var(--ease-out);
             `;
             searchBtn.addEventListener('click', () => this.toggleSearch());
             searchBtn.addEventListener('mouseenter', () => {
