@@ -1,519 +1,406 @@
 /**
- * 🏠 ГЛАВНАЯ СТРАНИЦА - Стили для домашней страницы
- * Дашборд со статистикой, быстрое добавление цитат, последние достижения
+ * 🏠 ГЛАВНАЯ СТРАНИЦА - home.css (ИСПРАВЛЕНО ПОД КОНЦЕПТ)
+ * Стили точно соответствуют концепту "5 страниц app.txt"
  */
 
 /* ============================================================================
-   🏠 ОСНОВНОЙ КОНТЕЙНЕР ГЛАВНОЙ СТРАНИЦЫ
+   🎨 CSS ПЕРЕМЕННЫЕ ИЗ КОНЦЕПТА
    ============================================================================ */
 
-.home-page {
-    padding: var(--spacing-md);
-    padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-md));
-    min-height: 100vh;
-    background: var(--bg-primary);
+:root {
+    /* СВЕТЛАЯ ТЕМА - точные цвета сайта annabusel.org */
+    --primary-color: #D2452C;           /* Терракотовый/кирпично-красный */
+    --primary-dark: #B53A23;           /* Темнее красный */
+    --primary-light: #E85A42;          /* Светлее красный */
+    --text-primary: #2D2D2D;           /* Темно-серый текст */
+    --text-secondary: #666666;         /* Серый текст */
+    --text-muted: #999999;             /* Приглушенный серый */
+    --background: #F5F2EC;             /* Светло-бежевый фон как на сайте */
+    --background-light: #FAF8F3;       /* Очень светлый бежевый */
+    --background-soft: #F0EBE3;        /* Мягкий бежевый */
+    --surface: #FFFFFF;                /* Белые карточки */
+    --surface-warm: #FEFCF8;           /* Теплый белый */
+    --border: #E6E0D6;                 /* Бежевая граница */
+    --border-light: #F0EBE3;           /* Светлая граница */
+    --shadow-color: rgba(210, 69, 44, 0.08);
+    --shadow-color-strong: rgba(210, 69, 44, 0.15);
+    
+    /* Переменные для плавных переходов */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --border-radius: 12px;
+    --border-radius-small: 8px;
 }
 
 /* ============================================================================
-   👋 СЕКЦИЯ ПРИВЕТСТВИЯ
+   🏠 ШАПКА ГЛАВНОЙ СТРАНИЦЫ (В INDEX.HTML)
    ============================================================================ */
 
-.home-welcome {
-    margin-bottom: var(--spacing-xl);
-}
-
-.welcome-header {
+.home-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    padding: 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-lg);
 }
 
-.welcome-text h1 {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-.welcome-text .user-name {
-    color: var(--primary-color);
-}
-
-.welcome-text p {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-}
-
-.welcome-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: var(--radius-round);
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-inverse);
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
+    font-size: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
     cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
 }
 
-.welcome-avatar:hover {
+.user-avatar:hover {
+    background: rgba(255,255,255,0.3);
     transform: scale(1.05);
-    box-shadow: var(--shadow-lg);
+}
+
+.user-details h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.user-details p {
+    margin: 0;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.menu-button {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background 0.3s ease;
+}
+
+.menu-button:hover {
+    background: rgba(255,255,255,0.2);
 }
 
 /* ============================================================================
-   📊 СТАТИСТИКА НА ГЛАВНОЙ
+   📄 КОНТЕНТ ГЛАВНОЙ СТРАНИЦЫ
    ============================================================================ */
 
-.home-stats {
-    margin-bottom: var(--spacing-xl);
+.content {
+    padding: 16px;
+    height: calc(100% - 120px);
+    overflow-y: auto;
+    background: var(--background);
+    transition: background var(--transition-normal);
 }
 
-.home-stats-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
+/* ============================================================================
+   👋 ПРИВЕТСТВЕННАЯ СЕКЦИЯ
+   ============================================================================ */
+
+.page-title {
+    text-align: center;
+    margin-bottom: 16px;
 }
 
-.home-stats-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
+.page-title h2 {
     color: var(--text-primary);
+    margin-bottom: 4px;
+    font-size: 16px;
+    font-weight: 500;
+    transition: color var(--transition-normal);
 }
 
-.stats-period-selector {
-    display: flex;
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-xs);
-    box-shadow: var(--shadow-sm);
-}
-
-.period-option {
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
+.page-title p {
     color: var(--text-secondary);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
+    font-size: 11px;
+    transition: color var(--transition-normal);
 }
 
-.period-option.active {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    box-shadow: var(--shadow-sm);
-}
+/* ============================================================================
+   📊 СТАТИСТИКА 2X2 СЕТКА
+   ============================================================================ */
 
-.period-option:hover:not(.active) {
-    background: var(--bg-overlay);
-    color: var(--text-primary);
-}
-
-/* Сетка статистики */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0;
 }
 
-/* Основная статистика */
-.main-stat-card {
-    grid-column: 1 / -1;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    color: var(--text-inverse);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
+.stat-card {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    padding: 16px;
     text-align: center;
-    position: relative;
-    overflow: hidden;
-    box-shadow: var(--shadow-primary-lg);
+    border: 1px solid var(--border);
+    transition: all var(--transition-normal);
+    cursor: pointer;
 }
 
-.main-stat-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: mainStatFloat 8s ease-in-out infinite;
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-color);
 }
 
-@keyframes mainStatFloat {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(-30px, -20px) rotate(3deg); }
+.stat-number {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    transition: color var(--transition-normal);
 }
 
-.main-stat-number {
-    font-size: 48px;
-    font-weight: var(--font-weight-bold);
-    line-height: 1;
-    margin-bottom: var(--spacing-sm);
-    position: relative;
-    z-index: 1;
-}
-
-.main-stat-label {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-medium);
-    opacity: 0.9;
-    position: relative;
-    z-index: 1;
-}
-
-.main-stat-description {
-    font-size: var(--font-size-sm);
-    opacity: 0.8;
-    margin-top: var(--spacing-xs);
-    position: relative;
-    z-index: 1;
-}
-
-/* Дополнительная статистика */
-.secondary-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-md);
+.stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: color var(--transition-normal);
 }
 
 /* ============================================================================
-   ⚡ БЫСТРЫЕ ДЕЙСТВИЯ
+   ✍️ ГЛАВНАЯ CTA КНОПКА
    ============================================================================ */
 
-.home-quick-actions {
-    margin-bottom: var(--spacing-xl);
+.main-cta {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin: 16px 0;
+    transition: all var(--transition-normal);
+    box-shadow: 0 4px 12px var(--shadow-color);
 }
 
-.quick-actions-header {
+.main-cta:hover {
+    background: var(--primary-light);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--shadow-color-strong);
+}
+
+/* ============================================================================
+   🔥 ТОП 3 РАЗБОРА НЕДЕЛИ
+   ============================================================================ */
+
+.top-books-section {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin: 16px 0;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all var(--transition-normal);
+}
+
+.section-title {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    transition: color var(--transition-normal);
+}
+
+.book-item {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-}
-
-.quick-actions-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-}
-
-.quick-actions-icon {
-    width: 24px;
-    height: 24px;
-    color: var(--primary-color);
-}
-
-.quick-actions-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-md);
-}
-
-.quick-action-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    text-align: center;
+    gap: 12px;
+    padding: 10px;
+    margin: 8px 0;
+    background: var(--background-light);
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-normal);
     cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-    border: 2px solid transparent;
-    position: relative;
-    overflow: hidden;
 }
 
-.quick-action-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
+.book-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-color);
     border-color: var(--primary-color);
 }
 
-.quick-action-card::before {
+.book-rank {
+    width: 24px;
+    height: 24px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.book-info {
+    flex: 1;
+}
+
+.book-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    transition: color var(--transition-normal);
+}
+
+.book-author {
+    font-size: 10px;
+    color: var(--text-secondary);
+    transition: color var(--transition-normal);
+}
+
+.book-sales {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    transition: color var(--transition-normal);
+}
+
+.empty-books {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* ============================================================================
+   📈 СЕКЦИЯ ПРОГРЕССА
+   ============================================================================ */
+
+.progress-section {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 12px;
+    margin: 16px 0;
+    border: 1px solid var(--border);
+    transition: all var(--transition-normal);
+}
+
+.progress-title {
+    font-weight: 600;
+    font-size: 12px;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+    transition: color var(--transition-normal);
+}
+
+.progress-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+    transition: color var(--transition-normal);
+}
+
+/* ============================================================================
+   ⚠️ ОШИБКИ
+   ============================================================================ */
+
+.error-message {
+    background: #fee;
+    border: 1px solid #fcc;
+    border-radius: var(--border-radius-small);
+    padding: 12px;
+    margin: 16px 0;
+    color: #c33;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.error-message button {
+    background: none;
+    border: none;
+    color: #c33;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+}
+
+/* ============================================================================
+   🧩 НИЖНЯЯ НАВИГАЦИЯ
+   ============================================================================ */
+
+.bottom-nav {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    display: flex;
+    border-top: 1px solid var(--border);
+    height: 60px;
+    transition: all var(--transition-normal);
+}
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    padding: 8px 4px;
+    color: var(--text-muted);
+    position: relative;
+    background: none;
+    border: none;
+}
+
+.nav-item.active {
+    color: var(--primary-color);
+}
+
+.nav-item.active::before {
     content: '';
     position: absolute;
     top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(210, 69, 44, 0.1), transparent);
-    transition: left var(--duration-slow) var(--ease-out);
-}
-
-.quick-action-card:hover::before {
-    left: 100%;
-}
-
-.quick-action-icon {
-    font-size: 36px;
-    margin-bottom: var(--spacing-md);
-    color: var(--primary-color);
-    position: relative;
-    z-index: 1;
-}
-
-.quick-action-title {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
-    position: relative;
-    z-index: 1;
-}
-
-.quick-action-description {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-    position: relative;
-    z-index: 1;
-}
-
-/* Специальная карточка для добавления цитаты */
-.quick-add-quote {
-    grid-column: 1 / -1;
-    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
-    border: 2px dashed var(--primary-color);
-    position: relative;
-}
-
-.quick-add-quote:hover {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    color: var(--text-inverse);
-    border-style: solid;
-}
-
-.quick-add-quote:hover .quick-action-icon,
-.quick-add-quote:hover .quick-action-title,
-.quick-add-quote:hover .quick-action-description {
-    color: inherit;
-}
-
-/* ============================================================================
-   🏆 ПОСЛЕДНИЕ ДОСТИЖЕНИЯ
-   ============================================================================ */
-
-.home-achievements {
-    margin-bottom: var(--spacing-xl);
-}
-
-.achievements-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.achievements-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-}
-
-.view-all-achievements {
-    font-size: var(--font-size-sm);
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: var(--font-weight-medium);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-md);
-    transition: all var(--duration-fast) var(--ease-out);
-}
-
-.view-all-achievements:hover {
-    background: var(--bg-overlay);
-    text-decoration: none;
-    color: var(--primary-dark);
-}
-
-.recent-achievements {
-    display: flex;
-    gap: var(--spacing-md);
-    overflow-x: auto;
-    padding-bottom: var(--spacing-sm);
-}
-
-.recent-achievements::-webkit-scrollbar {
-    display: none;
-}
-
-.achievement-mini-card {
-    min-width: 120px;
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    text-align: center;
-    position: relative;
-    box-shadow: var(--shadow-sm);
-    transition: all var(--duration-normal) var(--ease-out);
-}
-
-.achievement-mini-card.unlocked {
-    background: linear-gradient(135deg, var(--success-color), var(--success-light));
-    color: var(--text-inverse);
-    box-shadow: var(--shadow-md);
-}
-
-.achievement-mini-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.achievement-mini-card.unlocked:hover {
-    box-shadow: var(--shadow-lg);
-}
-
-.achievement-mini-icon {
-    font-size: 32px;
-    margin-bottom: var(--spacing-sm);
-    opacity: 0.8;
-}
-
-.achievement-mini-card.unlocked .achievement-mini-icon {
-    opacity: 1;
-    animation: miniAchievementPulse 3s infinite;
-}
-
-@keyframes miniAchievementPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
-
-.achievement-mini-title {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    line-height: var(--line-height-tight);
-    margin-bottom: var(--spacing-xs);
-}
-
-.achievement-mini-progress {
-    height: 4px;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-}
-
-.achievement-mini-card.unlocked .achievement-mini-progress {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.achievement-mini-progress-bar {
-    height: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 3px;
     background: var(--primary-color);
-    border-radius: inherit;
-    transition: width var(--duration-slow) var(--ease-out);
+    border-radius: 0 0 3px 3px;
+    transition: background var(--transition-normal);
 }
 
-.achievement-mini-card.unlocked .achievement-mini-progress-bar {
-    background: rgba(255, 255, 255, 0.8);
-}
-
-/* ============================================================================
-   📖 ПОСЛЕДНЯЯ ЦИТАТА
-   ============================================================================ */
-
-.home-last-quote {
-    margin-bottom: var(--spacing-xl);
-}
-
-.last-quote-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.last-quote-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-}
-
-.edit-quote-btn {
-    font-size: var(--font-size-sm);
-    color: var(--primary-color);
-    text-decoration: none;
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-md);
-    transition: all var(--duration-fast) var(--ease-out);
-}
-
-.edit-quote-btn:hover {
-    background: var(--bg-overlay);
-    text-decoration: none;
-}
-
-.last-quote-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    border-left: 6px solid var(--primary-color);
-    box-shadow: var(--shadow-md);
-    position: relative;
-    transition: all var(--duration-normal) var(--ease-out);
-}
-
-.last-quote-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    border-left-width: 8px;
-}
-
-.empty-state {
-    text-align: center;
-    padding: var(--spacing-2xl);
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    border: 2px dashed var(--text-muted);
-}
-
-.empty-state-icon {
-    font-size: 48px;
-    color: var(--text-muted);
-    margin-bottom: var(--spacing-lg);
-}
-
-.empty-state-title {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.empty-state-description {
-    font-size: var(--font-size-base);
+.nav-item:hover:not(.active) {
     color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-lg);
+    background: var(--background-light);
 }
 
-.empty-state-action {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    padding: var(--spacing-md) var(--spacing-xl);
-    border-radius: var(--radius-lg);
-    font-weight: var(--font-weight-semibold);
-    text-decoration: none;
-    display: inline-block;
-    transition: all var(--duration-normal) var(--ease-out);
+.nav-icon {
+    width: 18px;
+    height: 18px;
+    margin-bottom: 2px;
+    stroke-width: 2;
 }
 
-.empty-state-action:hover {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    text-decoration: none;
-    color: var(--text-inverse);
+.nav-label {
+    font-size: 9px;
+    font-weight: 500;
 }
 
 /* ============================================================================
@@ -521,126 +408,65 @@
    ============================================================================ */
 
 @media (max-width: 480px) {
-    .home-page {
-        padding: var(--spacing-sm);
-        padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-sm));
-    }
-    
-    .welcome-header {
-        flex-direction: column;
-        text-align: center;
-        gap: var(--spacing-md);
-    }
-    
-    .welcome-text h1 {
-        font-size: var(--font-size-xl);
-    }
-    
-    .welcome-avatar {
-        width: 50px;
-        height: 50px;
-        font-size: var(--font-size-lg);
+    .content {
+        padding: 12px;
     }
     
     .stats-grid {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-sm);
+        gap: 8px;
     }
     
-    .secondary-stats {
-        grid-template-columns: 1fr;
+    .stat-card {
+        padding: 12px;
     }
     
-    .main-stat-card {
-        padding: var(--spacing-lg);
+    .stat-number {
+        font-size: 20px;
     }
     
-    .main-stat-number {
-        font-size: 36px;
+    .main-cta {
+        padding: 14px;
+        font-size: 13px;
     }
     
-    .quick-actions-grid {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-sm);
+    .top-books-section {
+        padding: 12px;
     }
     
-    .quick-add-quote {
-        grid-column: auto;
+    .book-item {
+        padding: 8px;
     }
     
-    .quick-action-card {
-        padding: var(--spacing-md);
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
     }
     
-    .quick-action-icon {
-        font-size: 28px;
-        margin-bottom: var(--spacing-sm);
-    }
-    
-    .achievements-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-    
-    .recent-achievements {
-        gap: var(--spacing-sm);
-    }
-    
-    .achievement-mini-card {
-        min-width: 100px;
-        padding: var(--spacing-sm);
-    }
-    
-    .achievement-mini-icon {
-        font-size: 24px;
-    }
-    
-    .last-quote-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-    
-    .last-quote-card {
-        padding: var(--spacing-md);
-        border-left-width: 4px;
-    }
-    
-    .empty-state {
-        padding: var(--spacing-lg);
-    }
-    
-    .empty-state-icon {
-        font-size: 36px;
-        margin-bottom: var(--spacing-md);
-    }
-    
-    .empty-state-action {
-        padding: var(--spacing-sm) var(--spacing-lg);
+    .user-details h3 {
+        font-size: 14px;
     }
 }
 
 /* ============================================================================
-   ✨ АНИМАЦИИ И ЭФФЕКТЫ
+   ✨ АНИМАЦИИ
    ============================================================================ */
 
-/* Загрузка контента */
-.home-page > * {
-    animation: homeContentSlideUp 0.6s var(--ease-out);
+.content > * {
+    animation: slideUp 0.6s ease;
     animation-fill-mode: both;
 }
 
-.home-page > *:nth-child(1) { animation-delay: 0.1s; }
-.home-page > *:nth-child(2) { animation-delay: 0.2s; }
-.home-page > *:nth-child(3) { animation-delay: 0.3s; }
-.home-page > *:nth-child(4) { animation-delay: 0.4s; }
-.home-page > *:nth-child(5) { animation-delay: 0.5s; }
+.content > *:nth-child(1) { animation-delay: 0.1s; }
+.content > *:nth-child(2) { animation-delay: 0.2s; }
+.content > *:nth-child(3) { animation-delay: 0.3s; }
+.content > *:nth-child(4) { animation-delay: 0.4s; }
+.content > *:nth-child(5) { animation-delay: 0.5s; }
 
-@keyframes homeContentSlideUp {
+@keyframes slideUp {
     from {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(20px);
     }
     to {
         opacity: 1;
@@ -648,30 +474,30 @@
     }
 }
 
-/* Пульсация для новых достижений */
-.achievement-new {
-    animation: achievementNew 2s ease-in-out infinite;
+/* Темная тема через класс */
+body.dark-theme {
+    --primary-color: #E85A42;           /* Ярче терракотовый для контраста */
+    --primary-dark: #D2452C;           /* Оригинальный терракотовый */
+    --primary-light: #F16B52;          /* Светлее для hover */
+    --text-primary: #F0F0F0;           /* Светлый текст */
+    --text-secondary: #B8B8B8;         /* Серый текст */
+    --text-muted: #888888;             /* Приглушенный серый */
+    --background: #1A1A1A;             /* Темный фон */
+    --background-light: #242424;       /* Светлее темный */
+    --background-soft: #2D2D2D;        /* Мягкий темный */
+    --surface: #2A2A2A;                /* Темные карточки */
+    --surface-warm: #2E2824;           /* Теплая темная поверхность */
+    --border: #404040;                 /* Темная граница */
+    --border-light: #363636;           /* Светлая граница для темной темы */
+    --shadow-color: rgba(232, 90, 66, 0.12);
+    --shadow-color-strong: rgba(232, 90, 66, 0.20);
 }
 
-@keyframes achievementNew {
-    0%, 100% { box-shadow: var(--shadow-md); }
-    50% { box-shadow: var(--shadow-primary-lg); }
-}
-
-/* Эффект скольжения для горизонтального скролла */
-.recent-achievements {
-    scroll-behavior: smooth;
-}
-
-/* Hover эффекты для touch устройств */
-@media (hover: none) {
-    .quick-action-card:hover,
-    .achievement-mini-card:hover,
-    .last-quote-card:hover {
-        transform: none;
-    }
-    
-    .quick-action-card:active {
-        transform: scale(0.98);
-    }
+/* Плавные переходы для всех элементов */
+* {
+    transition: 
+        background 0.3s ease,
+        color 0.3s ease,
+        border-color 0.3s ease,
+        box-shadow 0.3s ease;
 }
