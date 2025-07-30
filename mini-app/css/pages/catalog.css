@@ -1,640 +1,457 @@
 /**
- * 📚 КАТАЛОГ - Каталог книг (из админки)
- * Страница с каталогом разборов книг от Анны Бусел
+ * 📚 КАТАЛОГ - Точно по концептам из "концепт каталог разборов app.txt"
+ * ✅ Полное соответствие дизайну: персонализация, фильтры, карточки, промо
  */
+
+/* ============================================================================
+   🎨 CSS ПЕРЕМЕННЫЕ ИЗ КОНЦЕПТОВ (ТОЧНЫЕ ЦВЕТА annabusel.org)
+   ============================================================================ */
+
+:root {
+    /* СВЕТЛАЯ ТЕМА - точные цвета сайта annabusel.org */
+    --primary-color: #D2452C;           /* Терракотовый/кирпично-красный */
+    --primary-dark: #B53A23;           /* Темнее красный */
+    --primary-light: #E85A42;          /* Светлее красный */
+    --text-primary: #2D2D2D;           /* Темно-серый текст */
+    --text-secondary: #666666;         /* Серый текст */
+    --text-muted: #999999;             /* Приглушенный серый */
+    --background: #F5F2EC;             /* Светло-бежевый фон как на сайте */
+    --background-light: #FAF8F3;       /* Очень светлый бежевый */
+    --background-soft: #F0EBE3;        /* Мягкий бежевый */
+    --surface: #FFFFFF;                /* Белые карточки */
+    --surface-warm: #FEFCF8;           /* Теплый белый */
+    --border: #E6E0D6;                 /* Бежевая граница */
+    --border-light: #F0EBE3;           /* Светлая граница */
+    --shadow-color: rgba(210, 69, 44, 0.08);
+    --shadow-color-strong: rgba(210, 69, 44, 0.15);
+    --success: #28a745;                
+    --warning: #ffc107;                
+    --error: #dc3545;
+    
+    /* Переменные для плавных переходов */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --border-radius: 12px;
+    --border-radius-small: 8px;
+}
+
+/* Темная тема через класс */
+body.dark-theme {
+    --primary-color: #E85A42;           /* Ярче терракотовый для контраста */
+    --primary-dark: #D2452C;           /* Оригинальный терракотовый */
+    --primary-light: #F16B52;          /* Светлее для hover */
+    --text-primary: #F0F0F0;           /* Светлый текст */
+    --text-secondary: #B8B8B8;         /* Серый текст */
+    --text-muted: #888888;             /* Приглушенный серый */
+    --background: #1A1A1A;             /* Темный фон */
+    --background-light: #242424;       /* Светлее темный */
+    --background-soft: #2D2D2D;        /* Мягкий темный */
+    --surface: #2A2A2A;                /* Темные карточки */
+    --surface-warm: #2E2824;           /* Теплая темная поверхность */
+    --border: #404040;                 /* Темная граница */
+    --border-light: #363636;           /* Светлая граница для темной темы */
+    --shadow-color: rgba(232, 90, 66, 0.12);
+    --shadow-color-strong: rgba(232, 90, 66, 0.20);
+}
 
 /* ============================================================================
    📚 ОСНОВНОЙ КОНТЕЙНЕР КАТАЛОГА
    ============================================================================ */
 
 .catalog-page {
-    padding: var(--spacing-md);
-    padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-md));
+    padding: 16px;
+    padding-bottom: calc(60px + 16px); /* bottom nav height + padding */
     min-height: 100vh;
-    background: var(--bg-primary);
+    background: var(--background);
+    transition: background var(--transition-normal);
 }
 
 /* ============================================================================
-   📖 ЗАГОЛОВОК КАТАЛОГА
+   🎯 ПЕРСОНАЛИЗАЦИЯ (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
 
-.catalog-header {
-    margin-bottom: var(--spacing-xl);
-}
-
-.catalog-title {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.catalog-subtitle {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-lg);
-}
-
-.anna-intro {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-    color: var(--text-inverse);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
+.personalization-card {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 16px;
     text-align: center;
-    position: relative;
-    overflow: hidden;
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px var(--shadow-color-strong);
+    transition: all var(--transition-normal);
 }
 
-.anna-intro::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: introFloat 8s ease-in-out infinite;
+.personalization-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
 }
 
-@keyframes introFloat {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(-20px, -20px) rotate(2deg); }
+.personalization-subtitle {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 12px;
 }
 
-.anna-intro-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: var(--radius-round);
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    margin: 0 auto var(--spacing-md);
+.user-tags {
     display: flex;
-    align-items: center;
+    gap: 8px;
     justify-content: center;
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    position: relative;
-    z-index: 1;
-    box-shadow: var(--shadow-lg);
-}
-
-.anna-intro-text {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-medium);
-    line-height: var(--line-height-normal);
-    position: relative;
-    z-index: 1;
-    opacity: 0.95;
-}
-
-/* ============================================================================
-   🔍 ПОИСК И ФИЛЬТРЫ
-   ============================================================================ */
-
-.catalog-filters {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow-md);
-    margin-bottom: var(--spacing-xl);
-    position: sticky;
-    top: var(--spacing-md);
-    z-index: var(--z-index-dropdown);
-}
-
-.filters-row {
-    display: flex;
-    gap: var(--spacing-md);
-    align-items: center;
-    flex-wrap: wrap;
-    margin-bottom: var(--spacing-md);
-}
-
-.search-container {
-    flex: 1;
-    min-width: 250px;
-    position: relative;
-}
-
-.catalog-search {
-    width: 100%;
-    padding: var(--spacing-md) var(--spacing-2xl) var(--spacing-md) var(--spacing-md);
-    border: 2px solid var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    font-size: var(--font-size-base);
-    color: var(--text-primary);
-    background: var(--bg-secondary);
-    transition: all var(--duration-normal) var(--ease-out);
-}
-
-.catalog-search:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    background: var(--bg-card);
-    box-shadow: 0 0 0 4px rgba(210, 69, 44, 0.1);
-}
-
-.catalog-search::placeholder {
-    color: var(--text-muted);
-}
-
-.search-icon {
-    position: absolute;
-    right: var(--spacing-md);
-    top: 50%;
-    transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    color: var(--text-muted);
-    pointer-events: none;
-}
-
-.filter-select {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 2px solid var(--bg-secondary);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    color: var(--text-primary);
-    background: var(--bg-secondary);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-    min-width: 120px;
-}
-
-.filter-select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    background: var(--bg-card);
-}
-
-.view-toggle {
-    display: flex;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-xs);
-}
-
-.view-option {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-sm);
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-}
-
-.view-option.active {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-}
-
-.view-option:hover:not(.active) {
-    background: var(--bg-overlay);
-    color: var(--text-primary);
-}
-
-.view-icon {
-    width: 16px;
-    height: 16px;
-}
-
-/* Активные фильтры */
-.active-filters {
-    display: flex;
-    gap: var(--spacing-sm);
     flex-wrap: wrap;
 }
 
-.filter-chip {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-round);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-medium);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    animation: filterChipAppear 0.3s var(--ease-out);
-}
-
-@keyframes filterChipAppear {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-.filter-chip-remove {
-    width: 16px;
-    height: 16px;
-    border-radius: var(--radius-round);
-    background: rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background var(--duration-fast) var(--ease-out);
-}
-
-.filter-chip-remove:hover {
-    background: rgba(255, 255, 255, 0.3);
+.user-tag {
+    background: rgba(255,255,255,0.2);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
 }
 
 /* ============================================================================
-   📊 РЕЗУЛЬТАТЫ И СОРТИРОВКА
+   🏷️ ФИЛЬТРЫ (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
 
-.catalog-results-header {
+.filter-tabs {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
+    gap: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    padding-bottom: 4px;
 }
 
-.results-count {
-    font-size: var(--font-size-sm);
+.filter-tab {
+    background: var(--surface);
     color: var(--text-secondary);
+    border: 2px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--transition-normal);
 }
 
-.results-count-number {
-    font-weight: var(--font-weight-semibold);
+.filter-tab.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.filter-tab:not(.active):hover {
+    border-color: var(--primary-color);
     color: var(--primary-color);
 }
 
-.sort-container {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
+/* ============================================================================
+   🔍 ПОИСК (ИЗ КОНЦЕПТА)
+   ============================================================================ */
+
+.search-section {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 2px solid var(--border);
+    transition: all var(--transition-normal);
 }
 
-.sort-label {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    font-weight: var(--font-weight-medium);
+.search-section.active {
+    border-color: var(--primary-color);
 }
 
-.sort-select {
-    padding: var(--spacing-xs) var(--spacing-md);
-    border: 1px solid var(--bg-secondary);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
+.search-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 13px;
     color: var(--text-primary);
-    background: var(--bg-card);
-    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
 }
 
 /* ============================================================================
-   📚 СЕТКА КНИГ
+   📖 КАРТОЧКИ КНИГ (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
 
-.catalog-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+.book-card {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all var(--transition-normal);
+    cursor: pointer;
 }
 
-.catalog-grid.list-view {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-md);
+.book-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px var(--shadow-color-strong);
 }
 
-/* Карточка книги в сетке */
-.book-catalog-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-xl);
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-    transition: all var(--duration-normal) var(--ease-out);
-    text-decoration: none;
-    color: inherit;
+.book-main {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.book-cover {
+    width: 60px;
+    height: 80px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    text-align: center;
+    padding: 4px;
+    font-weight: 600;
+    line-height: 1.2;
     position: relative;
-    border: 2px solid transparent;
-}
-
-.book-catalog-card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary-color);
-    text-decoration: none;
-    color: inherit;
-}
-
-.book-catalog-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(210, 69, 44, 0.1), transparent);
-    transition: left var(--duration-slow) var(--ease-out);
-    z-index: 1;
-}
-
-.book-catalog-card:hover::before {
-    left: 100%;
-}
-
-.book-cover-container {
-    position: relative;
-    height: 240px;
     overflow: hidden;
-    background: var(--bg-secondary);
 }
 
-.book-cover-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform var(--duration-slow) var(--ease-out);
+/* Разные градиенты для обложек (точно из концепта) */
+.book-cover.cover-1 { background: linear-gradient(135deg, #8B5A3C, #A0522D); }
+.book-cover.cover-2 { background: linear-gradient(135deg, #4A5D23, #6B8E23); }
+.book-cover.cover-3 { background: linear-gradient(135deg, #8B008B, #9370DB); }
+.book-cover.cover-4 { background: linear-gradient(135deg, #2F4F4F, #708090); }
+.book-cover.cover-5 { background: linear-gradient(135deg, #B22222, #DC143C); }
+.book-cover.cover-6 { background: linear-gradient(135deg, #191970, #4169E1); }
+
+.book-info {
+    flex: 1;
 }
 
-.book-catalog-card:hover .book-cover-image {
-    transform: scale(1.05);
+.book-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+}
+
+.book-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    transition: color var(--transition-normal);
+}
+
+.book-author {
+    font-size: 11px;
+    color: var(--text-secondary);
+    transition: color var(--transition-normal);
 }
 
 .book-badge {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.book-badge.top {
     background: var(--primary-color);
-    color: var(--text-inverse);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    z-index: 2;
+    color: white;
 }
 
 .book-badge.new {
-    background: var(--success-color);
-}
-
-.book-badge.bestseller {
-    background: var(--warning-color);
-}
-
-.book-badge.recommended {
-    background: var(--info-color);
-}
-
-.book-rating {
-    position: absolute;
-    bottom: var(--spacing-sm);
-    left: var(--spacing-sm);
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--warning);
     color: white;
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    z-index: 2;
 }
 
-.book-content {
-    padding: var(--spacing-lg);
-    position: relative;
-    z-index: 2;
-}
-
-.book-catalog-title {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    line-height: var(--line-height-tight);
-    margin-bottom: var(--spacing-sm);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.book-catalog-author {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    font-weight: var(--font-weight-medium);
-    margin-bottom: var(--spacing-md);
+.book-badge.popular {
+    background: var(--success);
+    color: white;
 }
 
 .book-description {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-lg);
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 8px;
+    transition: color var(--transition-normal);
+}
+
+.book-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.book-meta-item {
+    font-size: 10px;
+    color: var(--text-secondary);
+    transition: color var(--transition-normal);
 }
 
 .book-footer {
     display: flex;
-    justify-content: space-between;
+    gap: 8px;
     align-items: center;
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--bg-secondary);
 }
 
-.book-price-container {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+.book-pricing {
+    flex: 1;
+}
+
+.book-old-price {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: line-through;
+    transition: color var(--transition-normal);
 }
 
 .book-price {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
+    font-size: 16px;
+    font-weight: 600;
     color: var(--primary-color);
+    transition: color var(--transition-normal);
 }
 
-.book-price-old {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-    text-decoration: line-through;
-}
-
-.book-actions {
-    display: flex;
-    gap: var(--spacing-xs);
-}
-
-.book-action-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
+.buy-button {
+    background: var(--primary-color);
+    color: white;
     border: none;
-    background: var(--bg-overlay);
-    color: var(--text-secondary);
+    padding: 10px 16px;
+    border-radius: var(--border-radius-small);
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    transition: all var(--transition-normal);
+    white-space: nowrap;
 }
 
-.book-action-btn:hover {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    transform: scale(1.1);
-}
-
-.book-action-btn.favorited {
-    background: var(--error-color);
-    color: var(--text-inverse);
-}
-
-/* Карточка книги в списке */
-.catalog-grid.list-view .book-catalog-card {
-    display: flex;
-    align-items: center;
-    padding: var(--spacing-lg);
-    border-radius: var(--radius-lg);
-}
-
-.catalog-grid.list-view .book-cover-container {
-    width: 120px;
-    height: 180px;
-    flex-shrink: 0;
-    margin-right: var(--spacing-lg);
-}
-
-.catalog-grid.list-view .book-content {
-    flex: 1;
-    padding: 0;
-}
-
-.catalog-grid.list-view .book-description {
-    -webkit-line-clamp: 2;
+.buy-button:hover {
+    background: var(--primary-light);
+    transform: translateY(-1px);
 }
 
 /* ============================================================================
-   📄 ПАГИНАЦИЯ
+   🎁 ПРОМО СЕКЦИЯ (ИЗ КОНЦЕПТА)
    ============================================================================ */
 
-.catalog-pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-xl);
-}
-
-.pagination-btn {
-    width: 40px;
-    height: 40px;
-    border: 2px solid var(--bg-secondary);
-    border-radius: var(--radius-md);
-    background: var(--bg-card);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: var(--font-weight-medium);
-}
-
-.pagination-btn:hover {
-    border-color: var(--primary-color);
-    color: var(--text-primary);
-}
-
-.pagination-btn.active {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-    color: var(--text-inverse);
-}
-
-.pagination-btn:disabled {
-    opacity: var(--disabled-opacity);
-    cursor: not-allowed;
-}
-
-.pagination-btn:disabled:hover {
-    border-color: var(--bg-secondary);
-    color: var(--text-secondary);
-}
-
-.pagination-info {
-    margin: 0 var(--spacing-md);
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-}
-
-/* ============================================================================
-   🚫 ПУСТОЕ СОСТОЯНИЕ
-   ============================================================================ */
-
-.catalog-empty {
+.promo-section {
+    background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 16px;
     text-align: center;
-    padding: var(--spacing-2xl);
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    border: 2px dashed var(--text-muted);
-    margin-top: var(--spacing-xl);
+    margin: 20px 0;
 }
 
-.catalog-empty-icon {
-    font-size: 64px;
-    color: var(--text-muted);
-    margin-bottom: var(--spacing-lg);
+.promo-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 12px;
 }
 
-.catalog-empty-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
+.promo-text {
+    font-size: 10px;
+    opacity: 0.9;
+    margin-bottom: 10px;
+    line-height: 1.3;
 }
 
-.catalog-empty-message {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-lg);
-}
-
-.catalog-empty-actions {
-    display: flex;
-    gap: var(--spacing-md);
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.empty-action-btn {
-    padding: var(--spacing-sm) var(--spacing-lg);
-    border-radius: var(--radius-md);
-    border: 2px solid var(--primary-color);
-    background: transparent;
+.promo-button {
+    background: white;
     color: var(--primary-color);
-    font-weight: var(--font-weight-medium);
+    border: none;
+    padding: 8px 14px;
+    border-radius: 16px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
+    font-size: 10px;
+    transition: transform var(--transition-fast);
 }
 
-.empty-action-btn:hover {
-    background: var(--primary-color);
-    color: var(--text-inverse);
+.promo-button:hover {
+    transform: translateY(-1px);
 }
 
-.empty-action-btn.primary {
-    background: var(--primary-color);
-    color: var(--text-inverse);
+/* ============================================================================
+   🔥 СПЕЦИАЛЬНЫЕ АКЦИИ И СКИДКИ
+   ============================================================================ */
+
+/* Промо блок сверху */
+.top-promo-banner {
+    background: linear-gradient(45deg, var(--warning), #ff8c00);
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 20px;
 }
 
-.empty-action-btn.primary:hover {
-    background: var(--primary-dark);
-    border-color: var(--primary-dark);
+.top-promo-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.top-promo-subtitle {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 12px;
+}
+
+.top-promo-timer {
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+/* Карточки со скидками */
+.book-card.discount-card {
+    border: 2px solid var(--warning);
+    position: relative;
+}
+
+.discount-badge {
+    position: absolute;
+    top: -10px;
+    right: 12px;
+    background: var(--warning);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.buy-button.discount-button {
+    background: var(--warning);
+}
+
+.buy-button.discount-button:hover {
+    background: #e0a800;
+}
+
+/* ============================================================================
+   📊 РЕЗУЛЬТАТЫ ПОИСКА
+   ============================================================================ */
+
+.search-results-info {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    transition: color var(--transition-normal);
+}
+
+.search-results-count {
+    font-weight: 600;
+    color: var(--primary-color);
 }
 
 /* ============================================================================
@@ -643,120 +460,82 @@
 
 @media (max-width: 768px) {
     .catalog-page {
-        padding: var(--spacing-sm);
-        padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-sm));
+        padding: 12px;
+        padding-bottom: calc(60px + 12px);
     }
     
-    .anna-intro {
-        padding: var(--spacing-lg);
-        margin-bottom: var(--spacing-md);
+    .personalization-card {
+        padding: 12px;
+        margin-bottom: 16px;
     }
     
-    .anna-intro-avatar {
-        width: 60px;
-        height: 60px;
-        font-size: var(--font-size-xl);
-        margin-bottom: var(--spacing-sm);
+    .user-tags {
+        gap: 6px;
     }
     
-    .anna-intro-text {
-        font-size: var(--font-size-base);
+    .filter-tabs {
+        gap: 6px;
+        margin-bottom: 12px;
     }
     
-    .catalog-filters {
-        padding: var(--spacing-md);
-        position: static;
+    .filter-tab {
+        padding: 6px 12px;
+        font-size: 10px;
     }
     
-    .filters-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: var(--spacing-sm);
+    .book-card {
+        padding: 12px;
+        margin-bottom: 12px;
     }
     
-    .search-container {
-        min-width: auto;
+    .book-cover {
+        width: 50px;
+        height: 70px;
+        font-size: 9px;
     }
     
-    .view-toggle {
-        align-self: center;
+    .book-main {
+        gap: 10px;
+        margin-bottom: 10px;
     }
     
-    .catalog-results-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
+    .book-title {
+        font-size: 13px;
     }
     
-    .catalog-grid {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-md);
+    .book-author {
+        font-size: 10px;
     }
     
-    .book-catalog-card:hover {
-        transform: none;
+    .book-description {
+        font-size: 11px;
     }
     
-    .book-cover-container {
-        height: 200px;
+    .book-meta {
+        gap: 6px;
     }
     
-    .book-content {
-        padding: var(--spacing-md);
+    .book-meta-item {
+        font-size: 9px;
     }
     
-    .book-footer {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
+    .book-price {
+        font-size: 14px;
     }
     
-    .catalog-grid.list-view .book-catalog-card {
-        flex-direction: column;
-        text-align: center;
-        padding: var(--spacing-md);
+    .buy-button {
+        padding: 8px 12px;
+        font-size: 11px;
     }
     
-    .catalog-grid.list-view .book-cover-container {
-        width: 100px;
-        height: 150px;
-        margin: 0 auto var(--spacing-md);
+    .promo-section {
+        padding: 12px;
+        margin: 16px 0;
     }
     
-    .catalog-pagination {
-        gap: var(--spacing-xs);
-        flex-wrap: wrap;
-    }
-    
-    .pagination-btn {
-        width: 36px;
-        height: 36px;
-        font-size: var(--font-size-sm);
-    }
-    
-    .pagination-info {
-        width: 100%;
-        text-align: center;
-        margin: var(--spacing-sm) 0;
-    }
-    
-    .catalog-empty {
-        padding: var(--spacing-lg);
-    }
-    
-    .catalog-empty-icon {
-        font-size: 48px;
-        margin-bottom: var(--spacing-md);
-    }
-    
-    .catalog-empty-actions {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .empty-action-btn {
-        width: 100%;
-        max-width: 200px;
+    .top-promo-banner {
+        padding: 12px;
+        margin-bottom: 16px;
     }
 }
 
@@ -764,28 +543,27 @@
    ✨ АНИМАЦИИ И ЭФФЕКТЫ
    ============================================================================ */
 
-/* Загрузка каталога */
-.catalog-grid.loading .book-catalog-card {
-    animation: bookCardPulse 1.5s ease-in-out infinite;
+/* Плавные переходы для всех элементов */
+* {
+    transition: 
+        background 0.3s ease,
+        color 0.3s ease,
+        border-color 0.3s ease,
+        box-shadow 0.3s ease;
 }
 
-@keyframes bookCardPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-/* Появление карточек */
-.book-catalog-card {
-    animation: bookCardSlideUp 0.6s var(--ease-out);
+/* Анимация появления карточек */
+.book-card {
+    animation: bookCardSlideUp 0.6s ease-out;
     animation-fill-mode: both;
 }
 
-.book-catalog-card:nth-child(1) { animation-delay: 0.1s; }
-.book-catalog-card:nth-child(2) { animation-delay: 0.2s; }
-.book-catalog-card:nth-child(3) { animation-delay: 0.3s; }
-.book-catalog-card:nth-child(4) { animation-delay: 0.4s; }
-.book-catalog-card:nth-child(5) { animation-delay: 0.5s; }
-.book-catalog-card:nth-child(6) { animation-delay: 0.6s; }
+.book-card:nth-child(1) { animation-delay: 0.1s; }
+.book-card:nth-child(2) { animation-delay: 0.2s; }
+.book-card:nth-child(3) { animation-delay: 0.3s; }
+.book-card:nth-child(4) { animation-delay: 0.4s; }
+.book-card:nth-child(5) { animation-delay: 0.5s; }
+.book-card:nth-child(6) { animation-delay: 0.6s; }
 
 @keyframes bookCardSlideUp {
     from {
@@ -798,29 +576,58 @@
     }
 }
 
-/* Анимация переключения видов */
-.catalog-grid {
-    transition: all var(--duration-normal) var(--ease-out);
+/* Анимация персонализации */
+.personalization-card {
+    position: relative;
+    overflow: hidden;
 }
 
-/* Успешное добавление в избранное */
-.book-action-btn.added {
-    animation: favoriteAdded 0.6s var(--ease-out);
+.personalization-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: personalizationFloat 8s ease-in-out infinite;
 }
 
-@keyframes favoriteAdded {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.3); background: var(--success-color); }
-    100% { transform: scale(1); }
+@keyframes personalizationFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-20px, -20px) rotate(2deg); }
 }
 
-/* Эффект поиска */
-.catalog-search:focus + .search-icon {
-    animation: searchFocus 0.4s var(--ease-out);
+/* Эффект ряби для кнопок */
+.buy-button {
+    position: relative;
+    overflow: hidden;
 }
 
-@keyframes searchFocus {
-    0% { transform: translateY(-50%) scale(1); }
-    50% { transform: translateY(-50%) scale(1.2); }
-    100% { transform: translateY(-50%) scale(1); }
+.buy-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transition: width 0.6s, height 0.6s;
+    transform: translate(-50%, -50%);
+}
+
+.buy-button:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Пульсация для скидочных карточек */
+.book-card.discount-card {
+    animation: discountPulse 2s ease-in-out infinite;
+}
+
+@keyframes discountPulse {
+    0%, 100% { box-shadow: 0 2px 8px var(--shadow-color), 0 0 0 0 rgba(255, 193, 7, 0.3); }
+    50% { box-shadow: 0 4px 16px var(--shadow-color-strong), 0 0 0 4px rgba(255, 193, 7, 0.1); }
 }
