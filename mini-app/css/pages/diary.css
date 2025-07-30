@@ -1,120 +1,478 @@
 /**
- * 📖 ДНЕВНИК - Дневник с табами (добавить, мои цитаты, поиск)
- * Основная страница для работы с цитатами
+ * 📖 ДНЕВНИК CSS - Точно по концептам!
+ * Стили для всех элементов DiaryPage в соответствии с концептами
  */
 
 /* ============================================================================
-   📖 ОСНОВНОЙ КОНТЕЙНЕР ДНЕВНИКА
+   🗂️ ТАБЫ (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
 
-.diary-page {
-    padding: 0;
-    padding-bottom: var(--bottom-nav-height);
-    min-height: 100vh;
-    background: var(--bg-primary);
+.tabs {
     display: flex;
-    flex-direction: column;
+    background: var(--surface);
+    border-radius: var(--border-radius, 12px);
+    padding: 4px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border, #E6E0D6);
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
 }
 
-/* ============================================================================
-   🗂️ ТАБЫ ДНЕВНИКА
-   ============================================================================ */
-
-.diary-tabs {
-    background: var(--bg-card);
-    border-bottom: 1px solid rgba(210, 69, 44, 0.1);
-    position: sticky;
-    top: 0;
-    z-index: var(--z-index-nav);
-    box-shadow: var(--shadow-sm);
-}
-
-.diary-tabs-container {
-    display: flex;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.diary-tabs-container::-webkit-scrollbar {
-    display: none;
-}
-
-.diary-tab {
+.tab {
     flex: 1;
-    min-width: 120px;
-    padding: var(--spacing-md) var(--spacing-sm);
-    background: transparent;
-    border: none;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--text-secondary);
-    cursor: pointer;
-    position: relative;
-    transition: all var(--duration-fast) var(--ease-out);
-    white-space: nowrap;
+    padding: 10px 8px;
     text-align: center;
+    border-radius: var(--border-radius-small, 8px);
+    border: none;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-normal, 0.3s ease);
+    color: var(--text-secondary, #666666);
+    background: transparent;
 }
 
-.diary-tab:hover {
-    color: var(--text-primary);
-    background: var(--bg-overlay);
+.tab.active {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
 }
 
-.diary-tab.active {
-    color: var(--primary-color);
-    font-weight: var(--font-weight-semibold);
-}
-
-.diary-tab::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 3px;
-    background: var(--primary-color);
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    transition: width var(--duration-normal) var(--ease-out);
-}
-
-.diary-tab.active::after {
-    width: 80%;
-}
-
-.diary-tab-icon {
-    display: block;
-    font-size: 20px;
-    margin-bottom: var(--spacing-xs);
-}
-
-.diary-tab-label {
-    display: block;
-    font-size: var(--font-size-xs);
+.tab:not(.active):hover {
+    background: var(--background-light, #FAF8F3);
+    color: var(--text-primary, #2D2D2D);
 }
 
 /* ============================================================================
-   📝 СОДЕРЖИМОЕ ТАБОВ
+   📝 ФОРМА ДОБАВЛЕНИЯ (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
 
-.diary-content {
-    flex: 1;
-    position: relative;
+.form-section {
+    background: var(--surface, #FFFFFF);
+    border-radius: var(--border-radius, 12px);
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border, #E6E0D6);
+    box-shadow: 0 2px 12px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
 }
 
-.diary-tab-panel {
-    display: none;
-    padding: var(--spacing-md);
-    min-height: calc(100vh - var(--header-height) - var(--bottom-nav-height));
+.form-group {
+    margin-bottom: 16px;
 }
 
-.diary-tab-panel.active {
+.form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary, #2D2D2D);
+    margin-bottom: 6px;
     display: block;
-    animation: tabPanelSlideIn var(--duration-normal) var(--ease-out);
+    transition: color var(--transition-normal, 0.3s ease);
 }
 
-@keyframes tabPanelSlideIn {
+.form-textarea, 
+.form-input {
+    width: 100%;
+    border: 2px solid var(--border, #E6E0D6);
+    border-radius: var(--border-radius-small, 8px);
+    padding: 12px;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all var(--transition-normal, 0.3s ease);
+    background: var(--surface-warm, #FEFCF8);
+    color: var(--text-primary, #2D2D2D);
+}
+
+.form-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.form-textarea:focus, 
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #D2452C);
+    box-shadow: 0 0 0 3px rgba(210, 69, 44, 0.15);
+}
+
+.save-btn {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-small, 8px);
+    padding: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: all var(--transition-normal, 0.3s ease);
+    box-shadow: 0 4px 12px var(--shadow-color, rgba(210, 69, 44, 0.08));
+}
+
+.save-btn:hover {
+    background: var(--primary-light, #E85A42);
+    transform: translateY(-1px);
+}
+
+.save-btn:disabled {
+    background: var(--text-muted, #999999);
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ============================================================================
+   ✨ AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!)
+   ============================================================================ */
+
+.ai-insight {
+    background: linear-gradient(135deg, var(--primary-color, #D2452C), var(--primary-dark, #B53A23));
+    color: white;
+    border-radius: var(--border-radius, 12px);
+    padding: 16px;
+    margin: 16px 0;
+}
+
+.ai-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ai-text {
+    font-size: 11px;
+    opacity: 0.95;
+    line-height: 1.4;
+}
+
+/* ============================================================================
+   📊 СТАТИСТИКА (ТОЧНО ИЗ КОНЦЕПТА!)
+   ============================================================================ */
+
+.stats-summary {
+    background: var(--surface, #FFFFFF);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 16px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-secondary, #666666);
+    border: 1px solid var(--border, #E6E0D6);
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+/* ============================================================================
+   🔧 ФИЛЬТРЫ (ТОЧНО ИЗ КОНЦЕПТА!)
+   ============================================================================ */
+
+.filter-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.filter-tab {
+    padding: 6px 12px;
+    border: 2px solid var(--border, #E6E0D6);
+    border-radius: 20px;
+    font-size: 10px;
+    background: var(--surface, #FFFFFF);
+    cursor: pointer;
+    transition: all var(--transition-normal, 0.3s ease);
+    color: var(--text-secondary, #666666);
+    font-weight: 500;
+}
+
+.filter-tab.active {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    border-color: var(--primary-color, #D2452C);
+}
+
+.filter-tab:not(.active):hover {
+    border-color: var(--primary-color, #D2452C);
+    color: var(--primary-color, #D2452C);
+}
+
+/* ============================================================================
+   📝 КАРТОЧКИ ЦИТАТ (ТОЧНО ИЗ КОНЦЕПТА!)
+   ============================================================================ */
+
+.quote-item {
+    background: var(--surface, #FFFFFF);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-left: 4px solid var(--primary-color, #D2452C);
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+.quote-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+}
+
+.quote-text {
+    font-style: italic;
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: var(--text-primary, #2D2D2D);
+    line-height: 1.4;
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.quote-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: var(--text-secondary, #666666);
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.quote-author {
+    font-weight: 500;
+    color: var(--text-primary, #2D2D2D);
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.quote-date {
+    color: var(--text-muted, #999999);
+    font-size: 9px;
+}
+
+.quote-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.quote-action {
+    background: none;
+    border: none;
+    color: var(--primary-color, #D2452C);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all var(--transition-fast, 0.2s ease);
+}
+
+.quote-action:hover {
+    background: var(--background-light, #FAF8F3);
+}
+
+/* ============================================================================
+   🔍 ПОИСК (ИЗ ДОПОЛНИТЕЛЬНОГО КОНЦЕПТА!)
+   ============================================================================ */
+
+.search-section {
+    background: var(--surface, #FFFFFF);
+    border-radius: var(--border-radius, 12px);
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border, #E6E0D6);
+    box-shadow: 0 2px 12px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+.search-input {
+    width: 100%;
+    border: 2px solid var(--border, #E6E0D6);
+    border-radius: var(--border-radius-small, 8px);
+    padding: 12px 16px;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all var(--transition-normal, 0.3s ease);
+    background: var(--surface-warm, #FEFCF8);
+    color: var(--text-primary, #2D2D2D);
+    margin-bottom: 12px;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #D2452C);
+    box-shadow: 0 0 0 3px rgba(210, 69, 44, 0.15);
+}
+
+.search-input::placeholder {
+    color: var(--text-muted, #999999);
+}
+
+.search-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.search-filter {
+    padding: 6px 12px;
+    border: 2px solid var(--border, #E6E0D6);
+    border-radius: 20px;
+    font-size: 10px;
+    background: var(--surface, #FFFFFF);
+    cursor: pointer;
+    transition: all var(--transition-normal, 0.3s ease);
+    color: var(--text-secondary, #666666);
+    font-weight: 500;
+}
+
+.search-filter.active {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    border-color: var(--primary-color, #D2452C);
+}
+
+.search-filter:not(.active):hover {
+    border-color: var(--primary-color, #D2452C);
+    color: var(--primary-color, #D2452C);
+}
+
+.search-stats {
+    background: var(--background-light, #FAF8F3);
+    border-radius: var(--border-radius-small, 8px);
+    padding: 10px;
+    font-size: 11px;
+    color: var(--text-secondary, #666666);
+    text-align: center;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-light, #F0EBE3);
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+.search-tips {
+    background: var(--background-light, #FAF8F3);
+    border-radius: var(--border-radius-small, 8px);
+    padding: 12px;
+    font-size: 10px;
+    color: var(--text-secondary, #666666);
+    margin-top: 16px;
+    border: 1px solid var(--border-light, #F0EBE3);
+}
+
+.search-tips strong {
+    color: var(--primary-color, #D2452C);
+}
+
+.highlight-match {
+    background: rgba(210, 69, 44, 0.15);
+    padding: 1px 2px;
+    border-radius: 2px;
+}
+
+/* ============================================================================
+   📭 ПУСТЫЕ СОСТОЯНИЯ
+   ============================================================================ */
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    background: var(--surface, #FFFFFF);
+    border-radius: var(--border-radius, 12px);
+    border: 2px dashed var(--text-muted, #999999);
+}
+
+.empty-icon {
+    font-size: 48px;
+    color: var(--text-muted, #999999);
+    margin-bottom: 16px;
+}
+
+.empty-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary, #2D2D2D);
+    margin-bottom: 8px;
+}
+
+.empty-text {
+    font-size: 14px;
+    color: var(--text-secondary, #666666);
+    margin-bottom: 20px;
+}
+
+.empty-action {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: var(--border-radius, 12px);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+.empty-action:hover {
+    background: var(--primary-dark, #B53A23);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-color, rgba(210, 69, 44, 0.08));
+}
+
+.loading-state {
+    text-align: center;
+    padding: 40px;
+    font-size: 14px;
+    color: var(--text-secondary, #666666);
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .tab {
+        font-size: 10px;
+        padding: 8px 6px;
+    }
+    
+    .form-section {
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    
+    .quote-item {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .quote-text {
+        font-size: 11px;
+    }
+    
+    .filter-tabs {
+        justify-content: center;
+    }
+    
+    .search-filters {
+        justify-content: center;
+    }
+    
+    .empty-state {
+        padding: 30px 15px;
+    }
+    
+    .empty-icon {
+        font-size: 36px;
+    }
+    
+    .empty-title {
+        font-size: 16px;
+    }
+    
+    .empty-text {
+        font-size: 13px;
+    }
+}
+
+/* ============================================================================
+   ✨ АНИМАЦИИ И ПЕРЕХОДЫ
+   ============================================================================ */
+
+@keyframes tabSlideIn {
     from {
         opacity: 0;
         transform: translateY(20px);
@@ -125,615 +483,8 @@
     }
 }
 
-/* ============================================================================
-   ➕ ТАБ "ДОБАВИТЬ ЦИТАТУ"
-   ============================================================================ */
-
-.add-quote-panel {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.add-quote-header {
-    text-align: center;
-    margin-bottom: var(--spacing-xl);
-}
-
-.add-quote-title {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.add-quote-subtitle {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-}
-
-/* Форма добавления цитаты */
-.quote-form {
-    background: var(--bg-card);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    box-shadow: var(--shadow-lg);
-    margin-bottom: var(--spacing-xl);
-    position: relative;
-    overflow: hidden;
-}
-
-.quote-form::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
-}
-
-.form-group {
-    margin-bottom: var(--spacing-lg);
-}
-
-.form-label {
-    display: block;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.quote-textarea {
-    width: 100%;
-    min-height: 120px;
-    padding: var(--spacing-md);
-    border: 2px solid var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    font-family: var(--font-family-secondary);
-    font-size: var(--font-size-lg);
-    line-height: var(--line-height-loose);
-    color: var(--text-primary);
-    background: var(--bg-secondary);
-    resize: vertical;
-    transition: all var(--duration-normal) var(--ease-out);
-}
-
-.quote-textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    background: var(--bg-card);
-    box-shadow: 0 0 0 4px rgba(210, 69, 44, 0.1);
-}
-
-.quote-textarea::placeholder {
-    color: var(--text-muted);
-    font-style: italic;
-}
-
-.author-input {
-    width: 100%;
-    padding: var(--spacing-md);
-    border: 2px solid var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    font-size: var(--font-size-base);
-    color: var(--text-primary);
-    background: var(--bg-secondary);
-    transition: all var(--duration-normal) var(--ease-out);
-}
-
-.author-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    background: var(--bg-card);
-    box-shadow: 0 0 0 4px rgba(210, 69, 44, 0.1);
-}
-
-.form-actions {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-xl);
-}
-
-.btn-save-quote {
-    flex: 1;
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    padding: var(--spacing-md) var(--spacing-xl);
-    border: none;
-    border-radius: var(--radius-lg);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-semibold);
-    cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-save-quote:hover {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-.btn-save-quote:active {
-    transform: translateY(0);
-}
-
-.btn-save-quote.loading {
-    background: var(--text-muted);
-    cursor: not-allowed;
-}
-
-.btn-save-quote.loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 20px;
-    height: 20px;
-    border: 2px solid transparent;
-    border-top: 2px solid var(--text-inverse);
-    border-radius: 50%;
-    animation: buttonSpinner 1s linear infinite;
-}
-
-@keyframes buttonSpinner {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    100% { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-.btn-clear {
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-    padding: var(--spacing-md) var(--spacing-lg);
-    border: 2px solid var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-}
-
-.btn-clear:hover {
-    border-color: var(--text-muted);
-    color: var(--text-primary);
-}
-
-/* AI анализ (если включен) */
-.ai-analysis {
-    background: linear-gradient(135deg, var(--bg-overlay), var(--bg-secondary));
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    margin-top: var(--spacing-lg);
-    border-left: 4px solid var(--primary-color);
-}
-
-.ai-analysis-header {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-}
-
-.ai-analysis-icon {
-    width: 24px;
-    height: 24px;
-    color: var(--primary-color);
-}
-
-.ai-analysis-title {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-}
-
-.ai-analysis-content {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-}
-
-/* ============================================================================
-   📚 ТАБ "МОИ ЦИТАТЫ"
-   ============================================================================ */
-
-.my-quotes-panel .quotes-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.quotes-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-}
-
-.quotes-count {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    background: var(--bg-overlay);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-md);
-}
-
-/* Фильтры цитат */
-.quotes-filters {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-    box-shadow: var(--shadow-sm);
-}
-
-.filter-row {
-    display: flex;
-    gap: var(--spacing-md);
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.filter-group {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.filter-label {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    font-weight: var(--font-weight-medium);
-    white-space: nowrap;
-}
-
-.filter-select {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border: 1px solid var(--bg-secondary);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    color: var(--text-primary);
-    background: var(--bg-card);
-    cursor: pointer;
-    transition: border-color var(--duration-fast) var(--ease-out);
-}
-
-.filter-select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-}
-
-/* Список цитат */
-.quotes-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.quote-item {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    border-left: 4px solid var(--primary-color);
-    box-shadow: var(--shadow-sm);
-    transition: all var(--duration-normal) var(--ease-out);
-    position: relative;
-}
-
-.quote-item:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-left-width: 6px;
-}
-
-.quote-item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--spacing-md);
-}
-
-.quote-item-actions {
-    display: flex;
-    gap: var(--spacing-xs);
-    opacity: 0;
-    transition: opacity var(--duration-fast) var(--ease-out);
-}
-
-.quote-item:hover .quote-item-actions {
-    opacity: 1;
-}
-
-.quote-action-btn {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--bg-overlay);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.quote-action-btn:hover {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    transform: scale(1.1);
-}
-
-.quote-action-btn.delete:hover {
-    background: var(--error-color);
-}
-
-/* Пустое состояние */
-.quotes-empty {
-    text-align: center;
-    padding: var(--spacing-2xl);
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    border: 2px dashed var(--text-muted);
-}
-
-.quotes-empty-icon {
-    font-size: 64px;
-    color: var(--text-muted);
-    margin-bottom: var(--spacing-lg);
-}
-
-.quotes-empty-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.quotes-empty-message {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-lg);
-}
-
-.quotes-empty-action {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    padding: var(--spacing-md) var(--spacing-xl);
-    border: none;
-    border-radius: var(--radius-lg);
-    font-weight: var(--font-weight-semibold);
-    cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-}
-
-.quotes-empty-action:hover {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-/* ============================================================================
-   🔍 ТАБ "ПОИСК"
-   ============================================================================ */
-
-.search-panel .search-header {
-    margin-bottom: var(--spacing-xl);
-}
-
-.search-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.search-subtitle {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    line-height: var(--line-height-normal);
-}
-
-/* Поисковая форма */
-.search-form {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow-md);
-    margin-bottom: var(--spacing-xl);
-    position: relative;
-}
-
-.search-input-group {
-    position: relative;
-    margin-bottom: var(--spacing-md);
-}
-
-.search-input {
-    width: 100%;
-    padding: var(--spacing-md) var(--spacing-2xl) var(--spacing-md) var(--spacing-md);
-    border: 2px solid var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    font-size: var(--font-size-lg);
-    color: var(--text-primary);
-    background: var(--bg-secondary);
-    transition: all var(--duration-normal) var(--ease-out);
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    background: var(--bg-card);
-    box-shadow: 0 0 0 4px rgba(210, 69, 44, 0.1);
-}
-
-.search-icon {
-    position: absolute;
-    right: var(--spacing-md);
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: color var(--duration-fast) var(--ease-out);
-}
-
-.search-icon:hover {
-    color: var(--primary-color);
-}
-
-.search-filters {
-    display: flex;
-    gap: var(--spacing-md);
-    flex-wrap: wrap;
-}
-
-.search-filter-chip {
-    padding: var(--spacing-xs) var(--spacing-md);
-    background: var(--bg-overlay);
-    border: 1px solid transparent;
-    border-radius: var(--radius-round);
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out);
-}
-
-.search-filter-chip:hover {
-    border-color: var(--primary-color);
-    color: var(--text-primary);
-}
-
-.search-filter-chip.active {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    border-color: var(--primary-color);
-}
-
-/* Результаты поиска */
-.search-results {
-    margin-top: var(--spacing-lg);
-}
-
-.search-results-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.search-results-count {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-}
-
-.search-results-sort {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.search-no-results {
-    text-align: center;
-    padding: var(--spacing-xl);
-    color: var(--text-muted);
-}
-
-.search-no-results-icon {
-    font-size: 48px;
-    margin-bottom: var(--spacing-md);
-}
-
-.search-no-results-text {
-    font-size: var(--font-size-lg);
-    margin-bottom: var(--spacing-sm);
-}
-
-.search-no-results-hint {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-}
-
-/* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
-   ============================================================================ */
-
-@media (max-width: 480px) {
-    .diary-tab-panel {
-        padding: var(--spacing-sm);
-    }
-    
-    .diary-tab {
-        min-width: 100px;
-        padding: var(--spacing-sm) var(--spacing-xs);
-    }
-    
-    .diary-tab-icon {
-        font-size: 18px;
-        margin-bottom: 2px;
-    }
-    
-    .add-quote-panel {
-        max-width: none;
-    }
-    
-    .quote-form {
-        padding: var(--spacing-lg);
-        margin-bottom: var(--spacing-lg);
-    }
-    
-    .form-actions {
-        flex-direction: column;
-        gap: var(--spacing-sm);
-    }
-    
-    .quotes-filters .filter-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: var(--spacing-sm);
-    }
-    
-    .filter-group {
-        justify-content: space-between;
-    }
-    
-    .quote-item {
-        padding: var(--spacing-md);
-    }
-    
-    .quote-item-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-    
-    .quote-item-actions {
-        opacity: 1;
-    }
-    
-    .search-filters {
-        justify-content: center;
-    }
-    
-    .search-results-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-}
-
-/* ============================================================================
-   ✨ ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ
-   ============================================================================ */
-
-/* Загрузка цитат */
-.quote-item {
-    animation: quoteSlideIn 0.4s var(--ease-out);
+.tab-content {
+    animation: tabSlideIn 0.3s ease;
 }
 
 @keyframes quoteSlideIn {
@@ -747,9 +498,8 @@
     }
 }
 
-/* Успешное сохранение */
-.quote-form.success {
-    animation: formSuccess 0.6s var(--ease-out);
+.quote-item {
+    animation: quoteSlideIn 0.4s ease;
 }
 
 @keyframes formSuccess {
@@ -758,12 +508,75 @@
     100% { transform: scale(1); }
 }
 
-/* Пульсация при поиске */
-.search-form.searching .search-icon {
-    animation: searchPulse 1.5s ease-in-out infinite;
+.form-section.success {
+    animation: formSuccess 0.6s ease;
 }
 
 @keyframes searchPulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
+}
+
+.search-section.searching .search-input {
+    animation: searchPulse 1.5s ease-in-out infinite;
+}
+
+/* ============================================================================
+   🎯 HOVER ЭФФЕКТЫ
+   ============================================================================ */
+
+@media (hover: hover) {
+    .tab:hover {
+        transform: translateY(-1px);
+    }
+    
+    .save-btn:hover {
+        box-shadow: 0 6px 20px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+    }
+    
+    .quote-item:hover {
+        border-left-width: 6px;
+    }
+    
+    .filter-tab:hover {
+        transform: translateY(-1px);
+    }
+    
+    .search-filter:hover {
+        transform: translateY(-1px);
+    }
+}
+
+/* ============================================================================
+   🌙 ТЕМНАЯ ТЕМА АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .tabs {
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
+    }
+    
+    .form-section {
+        box-shadow: 0 2px 12px rgba(232, 90, 66, 0.12);
+    }
+    
+    .quote-item {
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
+    }
+    
+    .quote-item:hover {
+        box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
+    }
+    
+    .save-btn {
+        box-shadow: 0 4px 12px rgba(232, 90, 66, 0.12);
+    }
+    
+    .stats-summary {
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
+    }
+    
+    .search-section {
+        box-shadow: 0 2px 12px rgba(232, 90, 66, 0.12);
+    }
 }
