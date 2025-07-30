@@ -3,190 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#D2452C">
-    
-    <!-- PWA Meta -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Читатель">
-    
-    <title>Читатель - Дневник цитат от Анны Бусел</title>
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="./manifest.json">
-    
-    <!-- CSS Styles -->
-    <link rel="stylesheet" href="./css/variables.css">
-    <link rel="stylesheet" href="./css/reset.css">
-    <link rel="stylesheet" href="./css/base.css">
-    <link rel="stylesheet" href="./css/mobile.css">
-    
-    <!-- Component Styles -->
-    <link rel="stylesheet" href="./css/components/buttons.css">
-    <link rel="stylesheet" href="./css/components/cards.css">
-    <link rel="stylesheet" href="./css/components/forms.css">
-    <link rel="stylesheet" href="./css/components/modals.css">
-    <link rel="stylesheet" href="./css/components/navigation.css">
-    
-    <!-- Page Styles -->
-    <link rel="stylesheet" href="./css/pages/home.css">
-    <link rel="stylesheet" href="./css/pages/diary.css">
-    <link rel="stylesheet" href="./css/pages/reports.css">
-    <link rel="stylesheet" href="./css/pages/catalog.css">
-    <link rel="stylesheet" href="./css/pages/community.css">
+    <title>Reader Bot</title>
     
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- CSS стили -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- Loading Screen -->
+    <!-- 📱 ЭКРАН ЗАГРУЗКИ -->
     <div id="loading-screen" class="loading-screen">
-        <div class="loading-spinner"></div>
-        <p>Загружаем ваш дневник цитат...</p>
+        <div class="loading-content">
+            <div class="loading-logo">📚</div>
+            <div class="loading-text">Reader Bot</div>
+            <div class="loading-subtitle">Загружаем ваш дневник мудрости...</div>
+            <div class="loading-spinner"></div>
+        </div>
     </div>
 
-    <!-- Main App Container -->
-    <main id="app" class="app-container" style="display: none;">
-        <!-- Home Header with User Profile (Only for Home Page) -->
-        <header id="home-header" class="home-header" style="display: none;">
-            <div class="user-info">
-                <div class="user-avatar" id="userAvatar">👤</div>
-                <div class="user-details">
-                    <h3 id="userName">Пользователь</h3>
-                    <p>Читатель</p>
-                </div>
+    <!-- 🏠 ГЛАВНОЕ ПРИЛОЖЕНИЕ -->
+    <div id="app" class="app-container" style="display: none;">
+        
+        <!-- 📋 ШАПКА ГЛАВНОЙ СТРАНИЦЫ - ТОЛЬКО МЕНЮ -->
+        <div id="home-header" class="home-header" style="display: none;">
+            <div class="page-title">
+                <h1>📚 Reader Bot</h1>
+                <p>Ваш персональный дневник мудрости</p>
             </div>
-            <button class="menu-button" id="menu-trigger">⋯</button>
-        </header>
+            <button class="menu-btn" id="homeMenuBtn">☰</button>
+        </div>
 
-        <!-- Regular Page Header (For Other Pages) -->
-        <header id="page-header" class="page-header" style="display: none;">
-            <h1 id="page-title">Читатель</h1>
-        </header>
+        <!-- 📋 ОБЫЧНАЯ ШАПКА ДЛЯ ОСТАЛЬНЫХ СТРАНИЦ -->
+        <div id="page-header" class="page-header" style="display: none;">
+            <button class="back-btn" id="backBtn">←</button>
+            <span class="page-title" id="pageTitle">Страница</span>
+            <button class="menu-btn" id="pageMenuBtn">☰</button>
+        </div>
 
-        <!-- Page Content Area -->
-        <section id="page-content" class="page-content">
-            <!-- Pages will be dynamically loaded here -->
-        </section>
+        <!-- 📄 КОНТЕЙНЕР ДЛЯ СОДЕРЖИМОГО СТРАНИЦ -->
+        <div id="page-content" class="page-content">
+            <!-- Здесь будет содержимое текущей страницы -->
+        </div>
 
-        <!-- Bottom Navigation -->
+        <!-- 📱 НИЖНЯЯ НАВИГАЦИЯ -->
         <nav id="bottom-nav" class="bottom-nav">
-            <button class="nav-item active" data-page="home">
+            <div class="nav-item active" data-page="home">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                 </svg>
                 <span class="nav-label">Главная</span>
-            </button>
+            </div>
             
-            <button class="nav-item" data-page="diary">
+            <div class="nav-item" data-page="diary">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 </svg>
                 <span class="nav-label">Дневник</span>
-            </button>
+            </div>
             
-            <button class="nav-item" data-page="reports">
+            <div class="nav-item" data-page="reports">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
                 </svg>
                 <span class="nav-label">Отчеты</span>
-            </button>
+            </div>
             
-            <button class="nav-item" data-page="catalog">
+            <div class="nav-item" data-page="catalog">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
                 </svg>
                 <span class="nav-label">Каталог</span>
-            </button>
+            </div>
             
-            <button class="nav-item" data-page="community">
+            <div class="nav-item" data-page="community">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
                 </svg>
                 <span class="nav-label">Сообщество</span>
-            </button>
+            </div>
         </nav>
-    </main>
 
-    <!-- Modal Container -->
-    <div id="modal-container" class="modal-container"></div>
+        <!-- 🎯 МОДАЛЬНОЕ ОКНО МЕНЮ (будет добавлено позже) -->
+        <div id="menu-modal" class="menu-modal" style="display: none;">
+            <!-- Контент меню будет здесь -->
+        </div>
+    </div>
 
-    <!-- Configuration -->
-    <script src="./config/api-endpoints.js"></script>
-    <script src="./config/app-config.js"></script>
-
-    <!-- Core JavaScript -->
-    <script src="./js/core/State.js"></script>
-    <script src="./js/core/Router.js"></script>
-    <script src="./js/core/App.js"></script>
-
-    <!-- Services -->
-    <script src="./js/services/telegram.js"></script>
-    <script src="./js/services/storage.js"></script>
-    <script src="./js/services/api.js"></script>
-    <script src="./js/services/ios-fix.js"></script>
-
-    <!-- Utilities -->
-    <script src="./js/utils/helpers.js"></script>
-    <script src="./js/utils/constants.js"></script>
-    <script src="./js/utils/validators.js"></script>
-    <script src="./js/utils/menuHandlers.js"></script>
-
-    <!-- Components -->
-    <script src="./js/components/ui/Button.js"></script>
-    <script src="./js/components/ui/Card.js"></script>
-    <script src="./js/components/ui/Modal.js"></script>
-    <script src="./js/components/ui/Form.js"></script>
-
-    <!-- Navigation Components -->
-    <script src="./js/components/navigation/BottomNav.js"></script>
-    <script src="./js/components/navigation/TopMenu.js"></script>
-
-    <!-- Modal Components -->
-    <script src="./js/components/modals/ProfileModal.js"></script>
-    <script src="./js/components/modals/AchievementsModal.js"></script>
-    <script src="./js/components/modals/SettingsModal.js"></script>
-
-    <!-- Quote Components -->
-    <script src="./js/components/quote/QuoteCard.js"></script>
-    <script src="./js/components/quote/QuoteForm.js"></script>
-
-    <!-- Pages -->
-    <script src="./js/pages/HomePage.js"></script>
-    <script src="./js/pages/DiaryPage.js"></script>
-    <script src="./js/pages/ReportsPage.js"></script>
-    <script src="./js/pages/CatalogPage.js"></script>
-    <script src="./js/pages/CommunityPage.js"></script>
-    <script src="./js/pages/OnboardingPage.js"></script>
-
-    <!-- App Initialization -->
+    <!-- 📚 JavaScript файлы -->
+    
+    <!-- Ядро приложения -->
+    <script src="js/core/State.js"></script>
+    <script src="js/core/Router.js"></script>
+    <script src="js/core/App.js"></script>
+    
+    <!-- Сервисы -->
+    <script src="js/services/TelegramService.js"></script>
+    <script src="js/services/ApiService.js"></script>
+    
+    <!-- Компоненты -->
+    <script src="js/components/BottomNavigation.js"></script>
+    <script src="js/components/TopMenu.js"></script>
+    
+    <!-- Страницы -->
+    <script src="js/pages/HomePage.js"></script>
+    <script src="js/pages/DiaryPage.js"></script>
+    <script src="js/pages/ReportsPage.js"></script>
+    <script src="js/pages/CatalogPage.js"></script>
+    <script src="js/pages/CommunityPage.js"></script>
+    <script src="js/pages/OnboardingPage.js"></script>
+    
+    <!-- Инициализация -->
     <script>
-        // Initialize app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize Telegram Web App
-            if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.ready();
-                window.Telegram.WebApp.expand();
-            }
+        // Проверяем поддержку Telegram Web App
+        if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+            console.log('🚀 Telegram Web App обнаружен');
             
-            // Start the application
-            const app = new ReaderApp();
-            app.init();
-        });
-
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(registration => {
-                        console.log('SW registered: ', registration);
-                    })
-                    .catch(registrationError => {
-                        console.log('SW registration failed: ', registrationError);
-                    });
-            });
+            // Настраиваем Telegram Web App
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+            
+            // Применяем цвета темы Telegram
+            const themeParams = window.Telegram.WebApp.themeParams;
+            if (themeParams.bg_color) {
+                document.documentElement.style.setProperty('--tg-bg-color', themeParams.bg_color);
+            }
+            if (themeParams.text_color) {
+                document.documentElement.style.setProperty('--tg-text-color', themeParams.text_color);
+            }
+        } else {
+            console.log('🧪 Запуск в debug режиме (не в Telegram)');
         }
+        
+        // Инициализация приложения после загрузки DOM
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                console.log('🔄 Начало инициализации Reader Bot');
+                
+                // Создаем экземпляр приложения
+                const app = new ReaderApp();
+                
+                // Запускаем инициализацию
+                await app.init();
+                
+                console.log('✅ Reader Bot успешно инициализирован');
+                
+            } catch (error) {
+                console.error('❌ Ошибка инициализации приложения:', error);
+                
+                // Показываем ошибку пользователю
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.innerHTML = `
+                        <div class="loading-content">
+                            <div class="loading-logo">⚠️</div>
+                            <div class="loading-text">Ошибка загрузки</div>
+                            <div class="loading-subtitle">${error.message}</div>
+                            <button onclick="location.reload()" class="retry-btn">
+                                🔄 Попробовать снова
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        });
+        
+        // Предотвращаем стандартное поведение тач-событий для лучшего UX
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Предотвращаем зум при двойном тапе
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
     </script>
 </body>
 </html>
