@@ -416,6 +416,22 @@ class CatalogPage {
     }
     
     /**
+     * 🧹 ОЧИСТКА КНОПОК ПОИСКА (НОВЫЙ МЕТОД!)
+     */
+    cleanupSearchButtons() {
+        const pageHeader = document.getElementById('page-header');
+        if (pageHeader) {
+            // Удаляем все кнопки поиска, которые могли быть добавлены другими страницами
+            const searchButtons = pageHeader.querySelectorAll('.search-button');
+            searchButtons.forEach(btn => btn.remove());
+            
+            // Удаляем другие дополнительные кнопки, кроме основных
+            const extraButtons = pageHeader.querySelectorAll('button:not(.back-btn):not(.menu-btn)');
+            extraButtons.forEach(btn => btn.remove());
+        }
+    }
+    
+    /**
      * 📱 LIFECYCLE МЕТОДЫ
      */
     onShow() {
@@ -427,21 +443,34 @@ class CatalogPage {
         if (pageHeader) pageHeader.style.display = 'block';
         if (pageTitle) pageTitle.textContent = 'Каталог разборов';
         
-        // Добавляем кнопку поиска в заголовок
+        // ИСПРАВЛЕНО: Сначала очищаем старые кнопки, потом добавляем новые
+        this.cleanupSearchButtons();
+        
+        // Добавляем кнопку поиска в заголовок ТОЛЬКО для каталога
         if (pageHeader) {
-            const searchBtn = pageHeader.querySelector('.search-button') || document.createElement('button');
-            if (!pageHeader.querySelector('.search-button')) {
-                searchBtn.className = 'search-button';
-                searchBtn.innerHTML = '🔍';
-                searchBtn.addEventListener('click', () => this.toggleSearch());
-                pageHeader.appendChild(searchBtn);
-            }
+            const searchBtn = document.createElement('button');
+            searchBtn.className = 'search-button';
+            searchBtn.innerHTML = '🔍';
+            searchBtn.style.cssText = `
+                background: none;
+                border: none;
+                font-size: 18px;
+                cursor: pointer;
+                padding: 8px;
+                border-radius: 8px;
+                transition: background-color 0.2s;
+            `;
+            searchBtn.addEventListener('click', () => this.toggleSearch());
+            pageHeader.appendChild(searchBtn);
         }
     }
     
     onHide() {
         const pageHeader = document.getElementById('page-header');
         if (pageHeader) pageHeader.style.display = 'none';
+        
+        // ИСПРАВЛЕНО: Убираем кнопки поиска при скрытии страницы
+        this.cleanupSearchButtons();
     }
     
     rerender() {
@@ -460,6 +489,7 @@ class CatalogPage {
     
     destroy() {
         // Очистка ресурсов
+        this.cleanupSearchButtons();
     }
 }
 
