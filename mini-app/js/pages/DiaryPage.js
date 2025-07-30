@@ -1,5 +1,5 @@
 /**
- * 📖 ДНЕВНИК ЦИТАТ - DiaryPage.js
+ * 📖 ДНЕВНИК ЦИТАТ - DiaryPage.js (ИСПРАВЛЕНО ПОД НОВУЮ АРХИТЕКТУРУ)
  * 
  * Функциональность:
  * - 3 таба: ✍️ Добавить, 📚 Мои цитаты, 🔍 Поиск
@@ -8,6 +8,11 @@
  * - Поиск по цитатам с расширенными фильтрами
  * - Редактирование и удаление цитат
  * - Интеграция с API и реактивным состоянием
+ * 
+ * ✅ АРХИТЕКТУРА ИСПРАВЛЕНА:
+ * - Убрана собственная шапка (теперь управляется из index.html)
+ * - Добавлены методы onShow/onHide для управления шапкой
+ * - Рендерится только контент без шапки
  */
 
 class DiaryPage {
@@ -153,16 +158,13 @@ class DiaryPage {
     }
     
     /**
-     * 🎨 Генерация HTML разметки
+     * 🎨 Генерация HTML разметки (БЕЗ ШАПКИ!)
      */
     render() {
         return `
-            <div class="diary-page">
-                <div class="page-header">📖 Дневник цитат</div>
-                <div class="content">
-                    ${this.renderTabs()}
-                    ${this.renderTabContent()}
-                </div>
+            <div class="content">
+                ${this.renderTabs()}
+                ${this.renderTabContent()}
             </div>
         `;
     }
@@ -890,14 +892,38 @@ class DiaryPage {
     }
     
     rerender() {
-        const container = document.querySelector('.diary-page .content');
+        const container = document.getElementById('page-content');
         if (container) {
-            container.innerHTML = `
-                ${this.renderTabs()}
-                ${this.renderTabContent()}
-            `;
+            container.innerHTML = this.render();
             this.attachEventListeners();
         }
+    }
+    
+    /**
+     * 📱 LIFECYCLE МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ШАПКОЙ
+     */
+    
+    /**
+     * Вызывается при показе страницы
+     */
+    onShow() {
+        // Показываем обычную шапку страницы
+        const homeHeader = document.getElementById('home-header');
+        const pageHeader = document.getElementById('page-header');
+        const pageTitle = document.getElementById('page-title');
+        
+        if (homeHeader) homeHeader.style.display = 'none';
+        if (pageHeader) pageHeader.style.display = 'block';
+        if (pageTitle) pageTitle.textContent = '📖 Дневник цитат';
+    }
+    
+    /**
+     * Вызывается при скрытии страницы
+     */
+    onHide() {
+        // Скрываем обычную шапку страницы
+        const pageHeader = document.getElementById('page-header');
+        if (pageHeader) pageHeader.style.display = 'none';
     }
     
     /**
