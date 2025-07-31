@@ -1,5 +1,5 @@
 /**
- * 📊 ОТЧЕТЫ - ReportsPage.js (ТОЧНО ПО КОНЦЕПТУ!)
+ * 📊 ОТЧЕТЫ - ReportsPage.js (ИСПРАВЛЕНО - БЕЗ ШАПКИ!)
  * 
  * ✅ ПОЛНОЕ СООТВЕТСТВИЕ КОНЦЕПТУ ИЗ "концепт 5 страниц app.txt":
  * - Точная HTML структура из концепта
@@ -7,6 +7,8 @@
  * - 4 колонки статистики как в концепте
  * - AI анализ от Анны в классе ai-insight
  * - Промо секция в классе promo-section
+ * 
+ * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
  */
 
 class ReportsPage {
@@ -55,7 +57,7 @@ class ReportsPage {
     }
     
     /**
-     * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!)
+     * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
      */
     render() {
         return `
@@ -148,19 +150,12 @@ class ReportsPage {
     }
     
     /**
-     * 📱 LIFECYCLE МЕТОДЫ
+     * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
      */
     onShow() {
-        const homeHeader = document.getElementById('home-header');
-        const pageHeader = document.getElementById('page-header');
-        const pageTitle = document.getElementById('pageTitle');
-        
-        if (homeHeader) homeHeader.style.display = 'none';
-        if (pageHeader) pageHeader.style.display = 'block';
-        if (pageTitle) pageTitle.textContent = '📋 Отчеты + Анализ';
-        
-        // ИСПРАВЛЕНО: Убираем любые кнопки поиска, которые могли остаться от других страниц
-        this.cleanupSearchButtons();
+        console.log('📊 ReportsPage: onShow - БЕЗ ШАПКИ!');
+        // Ничего не делаем - Router уже скрыл все шапки!
+        // Страница отчетов работает без шапки сверху
         
         // Обновляем данные при показе страницы
         this.loadReportData().then(() => {
@@ -169,27 +164,8 @@ class ReportsPage {
     }
     
     onHide() {
-        const pageHeader = document.getElementById('page-header');
-        if (pageHeader) pageHeader.style.display = 'none';
-        
-        // Убираем кнопки поиска при скрытии страницы
-        this.cleanupSearchButtons();
-    }
-    
-    /**
-     * 🧹 ОЧИСТКА КНОПОК ПОИСКА (НОВЫЙ МЕТОД!)
-     */
-    cleanupSearchButtons() {
-        const pageHeader = document.getElementById('page-header');
-        if (pageHeader) {
-            // Удаляем все кнопки поиска, которые могли быть добавлены другими страницами
-            const searchButtons = pageHeader.querySelectorAll('.search-button');
-            searchButtons.forEach(btn => btn.remove());
-            
-            // Удаляем другие дополнительные кнопки, кроме основных
-            const extraButtons = pageHeader.querySelectorAll('button:not(.back-btn):not(.menu-btn)');
-            extraButtons.forEach(btn => btn.remove());
-        }
+        console.log('📊 ReportsPage: onHide');
+        // Ничего не делаем - Router управляет шапками
     }
     
     rerender() {
