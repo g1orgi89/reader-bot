@@ -1,7 +1,8 @@
 /**
- * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 ИСПРАВЛЕНЫ ПЕРЕМЕННЫЕ НАВИГАЦИИ)
+ * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 ИСПРАВЛЕНЫ АНИМАЦИИ СТРАНИЦ)
  * Базовая типографика, сетка и общие стили компонентов
  * ✅ ИСПРАВЛЕНО: Используются правильные CSS переменные для размеров навигации
+ * ✅ ИСПРАВЛЕНО: Убраны повторные запуски анимаций при переходах между страницами
  */
 
 /* ============================================================================
@@ -316,15 +317,76 @@ p {
     overflow-x: hidden;
 }
 
-/* 📄 Страница */
+/* ============================================================================
+   🔄 АНИМАЦИИ СТРАНИЦ (ИСПРАВЛЕНО - БЕЗ АВТОЗАПУСКА)
+   ============================================================================ */
+
+/* 📄 Страница - БЕЗ АВТОМАТИЧЕСКОЙ АНИМАЦИИ */
 .page {
     flex: 1;
     padding: var(--spacing-md);
     max-width: 100%;
     margin: 0 auto;
-    animation: pageSlideIn var(--duration-normal) var(--ease-out);
+    /* ❌ УБРАНО: animation: pageSlideIn var(--duration-normal) var(--ease-out); */
+    /* ✅ ДОБАВЛЕНО: Только базовая прозрачность */
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity var(--duration-fast, 0.2s) ease, transform var(--duration-fast, 0.2s) ease;
 }
 
+/* ✅ НОВЫЕ КОНТРОЛИРУЕМЫЕ АНИМАЦИИ - ЗАПУСКАЮТСЯ ТОЛЬКО ПРОГРАММНО */
+.page-enter {
+    opacity: 0;
+    transform: translateX(20px);
+}
+
+.page-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity var(--duration-normal, 0.3s) var(--ease-out, ease-out), 
+                transform var(--duration-normal, 0.3s) var(--ease-out, ease-out);
+}
+
+.page-exit {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.page-exit-active {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity var(--duration-fast, 0.2s) ease, 
+                transform var(--duration-fast, 0.2s) ease;
+}
+
+/* ✅ СОСТОЯНИЕ ЗАГРУЗКИ СТРАНИЦЫ */
+.page-loading {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
+.page-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid var(--text-muted, #999);
+    border-top-color: var(--primary-color, #D2452C);
+    border-radius: 50%;
+    animation: pageLoadingSpinner 0.6s linear infinite;
+}
+
+@keyframes pageLoadingSpinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ✅ ИСПРАВЛЕНА ОРИГИНАЛЬНАЯ АНИМАЦИЯ - ТЕПЕРЬ ТОЛЬКО ДЛЯ РУЧНОГО ИСПОЛЬЗОВАНИЯ */
 @keyframes pageSlideIn {
     from {
         opacity: 0;
@@ -335,6 +397,35 @@ p {
         transform: translateX(0);
     }
 }
+
+@keyframes pageSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+}
+
+/* ✅ УТИЛИТАРНЫЕ КЛАССЫ ДЛЯ КОНТРОЛЯ АНИМАЦИЙ */
+.animate-slide-in {
+    animation: pageSlideIn var(--duration-normal, 0.3s) var(--ease-out, ease-out) forwards;
+}
+
+.animate-slide-out {
+    animation: pageSlideOut var(--duration-fast, 0.2s) ease forwards;
+}
+
+.no-animation {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* ============================================================================
+   📱 КОНТЕЙНЕРЫ И LAYOUT
+   ============================================================================ */
 
 /* 📱 Контейнеры с отступами */
 .container {
