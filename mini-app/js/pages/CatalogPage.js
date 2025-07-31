@@ -1,10 +1,12 @@
 /**
- * 📚 КАТАЛОГ - CatalogPage.js (🔧 ИСПРАВЛЕНА СТРУКТУРА РЕНДЕРА!)
+ * 📚 КАТАЛОГ - CatalogPage.js (ИСПРАВЛЕНО - БЕЗ ШАПКИ!)
  * 
  * ✅ ИСПОЛЬЗУЕТ ПРАВИЛЬНУЮ СТРУКТУРУ:
  * - Убрана лишняя обертка .page
  * - Контент рендерится прямо как .content (как в ReportsPage)
  * - Правильная работа скролла и навигации
+ * 
+ * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
  */
 
 class CatalogPage {
@@ -126,7 +128,7 @@ class CatalogPage {
     }
     
     /**
-     * 🎨 РЕНДЕР СТРАНИЦЫ (🔧 ИСПРАВЛЕНО!)
+     * 🎨 РЕНДЕР СТРАНИЦЫ (ИСПРАВЛЕНО!) - БЕЗ ШАПКИ!
      * 
      * 🔧 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: 
      * - Убрана лишняя обертка .page px-3 py-3
@@ -462,68 +464,17 @@ class CatalogPage {
     }
     
     /**
-     * 🧹 ОЧИСТКА КНОПОК ПОИСКА (НОВЫЙ МЕТОД!)
-     */
-    cleanupSearchButtons() {
-        const pageHeader = document.getElementById('page-header');
-        if (pageHeader) {
-            // Удаляем все кнопки поиска, которые могли быть добавлены другими страницами
-            const searchButtons = pageHeader.querySelectorAll('.search-button');
-            searchButtons.forEach(btn => btn.remove());
-            
-            // Удаляем другие дополнительные кнопки, кроме основных
-            const extraButtons = pageHeader.querySelectorAll('button:not(.back-btn):not(.menu-btn)');
-            extraButtons.forEach(btn => btn.remove());
-        }
-    }
-    
-    /**
-     * 📱 LIFECYCLE МЕТОДЫ
+     * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
      */
     onShow() {
-        const homeHeader = document.getElementById('home-header');
-        const pageHeader = document.getElementById('page-header');
-        const pageTitle = document.getElementById('pageTitle');
-        
-        if (homeHeader) homeHeader.style.display = 'none';
-        if (pageHeader) pageHeader.style.display = 'block';
-        if (pageTitle) pageTitle.textContent = 'Каталог разборов';
-        
-        // ИСПРАВЛЕНО: Сначала очищаем старые кнопки, потом добавляем новые
-        this.cleanupSearchButtons();
-        
-        // Добавляем кнопку поиска в заголовок ТОЛЬКО для каталога
-        if (pageHeader) {
-            const searchBtn = document.createElement('button');
-            searchBtn.className = 'search-button';
-            searchBtn.innerHTML = '🔍';
-            searchBtn.style.cssText = `
-                background: rgba(255,255,255,0.1);
-                border: none;
-                color: white;
-                font-size: 18px;
-                cursor: pointer;
-                padding: 8px;
-                border-radius: 8px;
-                transition: background var(--duration-normal, 0.25s) var(--ease-out);
-            `;
-            searchBtn.addEventListener('click', () => this.toggleSearch());
-            searchBtn.addEventListener('mouseenter', () => {
-                searchBtn.style.background = 'rgba(255,255,255,0.2)';
-            });
-            searchBtn.addEventListener('mouseleave', () => {
-                searchBtn.style.background = 'rgba(255,255,255,0.1)';
-            });
-            pageHeader.appendChild(searchBtn);
-        }
+        console.log('📚 CatalogPage: onShow - БЕЗ ШАПКИ!');
+        // Ничего не делаем - Router уже скрыл все шапки!
+        // Страница каталога работает без шапки сверху
     }
     
     onHide() {
-        const pageHeader = document.getElementById('page-header');
-        if (pageHeader) pageHeader.style.display = 'none';
-        
-        // ИСПРАВЛЕНО: Убираем кнопки поиска при скрытии страницы
-        this.cleanupSearchButtons();
+        console.log('📚 CatalogPage: onHide');
+        // Ничего не делаем - Router управляет шапками
     }
     
     rerender() {
@@ -542,7 +493,6 @@ class CatalogPage {
     
     destroy() {
         // Очистка ресурсов
-        this.cleanupSearchButtons();
     }
 }
 
