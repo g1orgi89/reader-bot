@@ -1,7 +1,7 @@
 /**
- * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 ИСПРАВЛЕН ПОЛНЫЙ ЭКРАН + iOS)
+ * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 ИСПРАВЛЕН ОТСТУП ДЛЯ НАВИГАЦИИ)
  * Базовая типографика, сетка и общие стили компонентов
- * ✅ ИСПРАВЛЕНО: .content занимает весь экран + учитывает iOS safe area
+ * ✅ ИСПРАВЛЕНО: .content учитывает высоту нижней навигации
  */
 
 /* ============================================================================
@@ -178,11 +178,12 @@ p {
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* 🔧 ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: ПОЛНЫЙ ЭКРАН + iOS SAFE AREA */
+/* 🔧 ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: ПРАВИЛЬНАЯ ВЫСОТА С УЧЕТОМ НАВИГАЦИИ */
 .content {
-    /* ✅ ИСПРАВЛЕНО: Всегда занимает полную высоту родителя */
-    min-height: 100%;
-    height: 100%;
+    /* ✅ ИСПРАВЛЕНО: Высота с учетом нижней навигации */
+    height: calc(100vh - 64px - 56px - 40px); /* viewport - bottom-nav - header - margins */
+    max-height: calc(100vh - 64px - 56px - 40px);
+    min-height: calc(100vh - 64px - 56px - 40px);
     width: 100%;
     
     /* ✅ ИСПРАВЛЕНО: Правильный скроллинг для длинного контента */
@@ -200,9 +201,6 @@ p {
     
     /* ✅ iOS SAFE AREA: Учитываем безопасную зону внизу */
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-    
-    /* ✅ ДОБАВЛЕНО: Минимальная высота для коротких страниц */
-    min-height: calc(100vh - 160px); /* Учитываем шапку и навигацию */
 }
 
 /* ✅ iOS ИСПРАВЛЕНИЯ: Дополнительные стили для iPhone */
@@ -210,8 +208,10 @@ p {
     .content {
         /* Используем max() для правильной работы safe-area */
         padding-bottom: max(16px, env(safe-area-inset-bottom));
-        /* Высота viewport с учетом safe area */
-        min-height: calc(100vh - 160px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        /* Высота viewport с учетом safe area и навигации */
+        height: calc(100vh - 64px - 56px - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        max-height: calc(100vh - 64px - 56px - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        min-height: calc(100vh - 64px - 56px - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     }
 }
 
@@ -231,8 +231,10 @@ p {
     .content {
         padding: 12px;
         padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-        /* Уменьшенная высота для мобильных */
-        min-height: calc(100vh - 140px);
+        /* Уменьшенная высота для мобильных с учетом навигации */
+        height: calc(100vh - 60px - 50px - 20px); /* 60px bottom-nav, 50px header, 20px margins */
+        max-height: calc(100vh - 60px - 50px - 20px);
+        min-height: calc(100vh - 60px - 50px - 20px);
     }
 }
 
@@ -251,7 +253,9 @@ p {
     .content {
         padding: 10px;
         padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-        min-height: calc(100vh - 120px);
+        height: calc(100vh - 60px - 50px - 10px);
+        max-height: calc(100vh - 60px - 50px - 10px);
+        min-height: calc(100vh - 60px - 50px - 10px);
     }
 }
 
@@ -269,7 +273,9 @@ p {
     
     .content {
         /* На десктопе высота определяется app-container */
-        min-height: calc(700px - 160px);
+        height: calc(700px - 64px - 56px); /* container - bottom-nav - header */
+        max-height: calc(700px - 64px - 56px);
+        min-height: calc(700px - 64px - 56px);
     }
 }
 
