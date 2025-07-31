@@ -8,6 +8,7 @@
  * - Все элементы как в макете
  * 
  * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
+ * ✅ ИСПРАВЛЕНО: Устранены дублирующиеся API вызовы как в HomePage и DiaryPage
  */
 
 class CommunityPage {
@@ -16,6 +17,10 @@ class CommunityPage {
         this.api = app.api;
         this.state = app.state;
         this.telegram = app.telegram;
+        
+        // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
+        this.communityLoaded = false;
+        this.communityLoading = false;
         
         // Состояние (точно как в концепте)
         this.activeTab = 'feed'; // feed, top, stats
@@ -34,18 +39,39 @@ class CommunityPage {
     }
     
     init() {
-        this.loadCommunityData();
+        this.setupSubscriptions();
+        // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init()
+    }
+    
+    setupSubscriptions() {
+        // Подписки на изменения состояния, если необходимо
     }
     
     async loadCommunityData() {
+        // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
+        if (this.communityLoading) {
+            console.log('🔄 CommunityPage: Сообщество уже загружается, пропускаем');
+            return;
+        }
+        
         try {
+            this.communityLoading = true;
+            console.log('👥 CommunityPage: Загружаем данные сообщества...');
+            
             const stats = await this.api.getCommunityStats();
             if (stats) {
                 this.communityData = { ...this.communityData, ...stats };
             }
+            
+            this.communityLoaded = true;
+            this.state.set('community.lastUpdate', Date.now());
+            console.log('✅ CommunityPage: Данные сообщества загружены');
+            
         } catch (error) {
             console.error('❌ Ошибка загрузки данных сообщества:', error);
             // Используем данные из концепта как fallback
+        } finally {
+            this.communityLoading = false;
         }
     }
     
@@ -337,8 +363,28 @@ class CommunityPage {
      */
     onShow() {
         console.log('👥 CommunityPage: onShow - БЕЗ ШАПКИ!');
-        // Ничего не делаем - Router уже скрыл все шапки!
-        // Страница сообщества работает без шапки сверху
+        
+        // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
+        if (!this.communityLoaded) {
+            console.log('🔄 CommunityPage: Первый показ, загружаем данные');
+            this.loadCommunityData().then(() => {
+                this.rerender();
+            });
+        } else {
+            // Проверяем актуальность данных (10 минут)
+            const lastUpdate = this.state.get('community.lastUpdate');
+            const now = Date.now();
+            const tenMinutes = 10 * 60 * 1000;
+            
+            if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
+                console.log('🔄 CommunityPage: Данные устарели, обновляем');
+                this.loadCommunityData().then(() => {
+                    this.rerender();
+                });
+            } else {
+                console.log('✅ CommunityPage: Данные актуальны');
+            }
+        }
     }
     
     onHide() {
@@ -356,6 +402,10 @@ class CommunityPage {
     
     destroy() {
         // Очистка ресурсов
+        
+        // ✅ НОВОЕ: Сброс флагов
+        this.communityLoaded = false;
+        this.communityLoading = false;
     }
 }
 
