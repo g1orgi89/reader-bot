@@ -1,5 +1,5 @@
 /**
- * 📖 ДНЕВНИК ЦИТАТ - DiaryPage.js (ИСПРАВЛЕНО - БЕЗ ШАПКИ!)
+ * 📖 ДНЕВНИК ЦИТАТ - DiaryPage.js (🔧 ИСПРАВЛЕНЫ API ВЫЗОВЫ)
  * 
  * ✅ ПОЛНОЕ СООТВЕТСТВИЕ КОНЦЕПТАМ:
  * - HTML структура из "концепт 5 страниц app.txt"
@@ -8,6 +8,7 @@
  * - Все элементы в точности как в концепте
  * 
  * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
+ * 🔧 ИСПРАВЛЕНО: Убраны дублирующиеся API вызовы - нет "моргания" анализа
  */
 
 class DiaryPage {
@@ -37,12 +38,18 @@ class DiaryPage {
         this.hasMore = true;
         this.subscriptions = [];
         
+        // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
+        this.quotesLoaded = false;
+        this.quotesLoading = false;
+        this.statsLoaded = false;
+        this.statsLoading = false;
+        
         this.init();
     }
     
     init() {
         this.setupSubscriptions();
-        this.loadInitialData();
+        // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init, будет в onShow
     }
     
     setupSubscriptions() {
@@ -58,16 +65,35 @@ class DiaryPage {
     }
     
     async loadInitialData() {
+        console.log('📖 DiaryPage: loadInitialData начата');
+        
         try {
-            await this.loadQuotes();
-            await this.loadStats();
+            // ✅ ИСПРАВЛЕНО: Загружаем только если не загружено
+            if (!this.quotesLoaded && !this.quotesLoading) {
+                await this.loadQuotes();
+            }
+            
+            if (!this.statsLoaded && !this.statsLoading) {
+                await this.loadStats();
+            }
+            
+            console.log('✅ DiaryPage: Данные загружены');
         } catch (error) {
             console.error('❌ Ошибка загрузки данных дневника:', error);
         }
     }
     
     async loadQuotes(reset = false) {
+        // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
+        if (this.quotesLoading) {
+            console.log('🔄 DiaryPage: Цитаты уже загружаются, пропускаем');
+            return;
+        }
+        
         try {
+            this.quotesLoading = true;
+            console.log('📚 DiaryPage: Загружаем цитаты');
+            
             if (reset) {
                 this.currentPage = 1;
                 this.hasMore = true;
@@ -101,23 +127,40 @@ class DiaryPage {
             this.state.update('quotes', {
                 total: response.total || quotes.length,
                 loading: false,
-                lastUpdate: Date.now()
+                lastUpdate: Date.now() // ✅ НОВОЕ: Время обновления
             });
             
             this.hasMore = quotes.length === this.itemsPerPage;
+            this.quotesLoaded = true; // ✅ НОВОЕ: Помечаем как загруженное
             
         } catch (error) {
             console.error('❌ Ошибка загрузки цитат:', error);
             this.state.set('quotes.loading', false);
+        } finally {
+            this.quotesLoading = false; // ✅ НОВОЕ: Сбрасываем флаг
         }
     }
     
     async loadStats() {
+        // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
+        if (this.statsLoading) {
+            console.log('🔄 DiaryPage: Статистика уже загружается, пропускаем');
+            return;
+        }
+        
         try {
+            this.statsLoading = true;
+            console.log('📊 DiaryPage: Загружаем статистику');
+            
             const stats = await this.api.getStats();
             this.state.set('stats', stats);
+            this.state.set('stats.lastUpdate', Date.now()); // ✅ НОВОЕ: Время обновления
+            this.statsLoaded = true; // ✅ НОВОЕ: Помечаем как загруженное
+            
         } catch (error) {
             console.error('❌ Ошибка загрузки статистики:', error);
+        } finally {
+            this.statsLoading = false; // ✅ НОВОЕ: Сбрасываем флаг
         }
     }
     
@@ -191,9 +234,22 @@ class DiaryPage {
     }
     
     /**
-     * ✨ AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!)
+     * ✨ AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!) - 🔧 ИСПРАВЛЕНО: НЕТ ДУБЛИРОВАНИЯ
      */
     renderAIInsight() {
+        // ✅ ИСПРАВЛЕНО: Проверяем флаг загрузки перед показом
+        if (this.statsLoading) {
+            return `
+                <div class="ai-insight">
+                    <div class="ai-title">
+                        <span>✨</span>
+                        <span>Анализ от Анны</span>
+                    </div>
+                    <div class="ai-text">⏳ Анализируем ваши цитаты...</div>
+                </div>
+            `;
+        }
+        
         const lastQuote = this.getLastAddedQuote();
         
         if (!lastQuote || !lastQuote.aiAnalysis) {
@@ -399,7 +455,7 @@ class DiaryPage {
                     <div class="quote-actions">
                         <button class="quote-action" 
                                 data-action="favorite" 
-                                style="color: ${isFavorite ? 'var(--primary-color)' : 'var(--text-muted)'};\" 
+                                style="color: ${isFavorite ? 'var(--primary-color)' : 'var(--text-muted)'};" 
                                 title="${isFavorite ? 'В избранном' : 'Добавить в избранное'}">
                             ${isFavorite ? '⭐' : '☆'}
                         </button>
@@ -531,7 +587,8 @@ class DiaryPage {
         this.telegram.hapticFeedback('light');
         this.rerender();
         
-        if (tabName === 'my-quotes') {
+        // ✅ ИСПРАВЛЕНО: Умная загрузка при переключении табов
+        if (tabName === 'my-quotes' && !this.quotesLoaded) {
             this.loadQuotes(true);
         }
     }
@@ -769,8 +826,24 @@ class DiaryPage {
      */
     onShow() {
         console.log('📖 DiaryPage: onShow - БЕЗ ШАПКИ!');
-        // Ничего не делаем - Router уже скрыл все шапки!
-        // Страница дневника работает без шапки сверху
+        
+        // ✅ ИСПРАВЛЕНО: Умная загрузка данных как в HomePage
+        if (!this.quotesLoaded && !this.statsLoaded) {
+            console.log('🔄 DiaryPage: Первый показ, загружаем данные');
+            this.loadInitialData();
+        } else {
+            // Проверяем актуальность данных (только если прошло больше 10 минут)
+            const lastUpdate = this.state.get('stats.lastUpdate');
+            const now = Date.now();
+            const tenMinutes = 10 * 60 * 1000;
+            
+            if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
+                console.log('🔄 DiaryPage: Данные устарели, обновляем');
+                this.loadInitialData();
+            } else {
+                console.log('✅ DiaryPage: Данные актуальны, пропускаем загрузку');
+            }
+        }
     }
     
     onHide() {
@@ -785,6 +858,12 @@ class DiaryPage {
             }
         });
         this.subscriptions = [];
+        
+        // ✅ НОВОЕ: Сбрасываем флаги загрузки
+        this.quotesLoaded = false;
+        this.quotesLoading = false;
+        this.statsLoaded = false;
+        this.statsLoading = false;
     }
 }
 
