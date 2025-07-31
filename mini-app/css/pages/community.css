@@ -1,7 +1,8 @@
 /**
- * 👥 СООБЩЕСТВО CSS - Точно по концепту! (✅ ИСПРАВЛЕН СКРОЛЛИНГ)
+ * 👥 СООБЩЕСТВО CSS - Точно по концепту! (✅ ИСПРАВЛЕН СКРОЛЛИНГ И АНИМАЦИИ)
  * Стили для CommunityPage в соответствии с концептами
  * ✅ ИСПРАВЛЕНО: Добавлен правильный класс .content с flex скроллингом
+ * ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации, оставлены только контролируемые
  */
 
 /* ============================================================================
@@ -259,8 +260,42 @@
 }
 
 /* ============================================================================
-   ✨ АНИМАЦИИ И ПЕРЕХОДЫ
+   ✨ КОНТРОЛИРУЕМЫЕ АНИМАЦИИ (✅ ИСПРАВЛЕНО!)
    ============================================================================ */
+
+/* ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации */
+/* Анимации теперь запускаются только через Router при переходах */
+
+/* Контролируемые анимации для Router */
+.animate-content .mvp-community-item {
+    animation: communitySlideIn 0.4s ease;
+}
+
+.animate-content .leaderboard-item {
+    animation: communitySlideIn 0.4s ease;
+}
+
+.animate-content .community-stat-card {
+    animation: communitySlideIn 0.4s ease;
+}
+
+/* Отключение анимаций при флаге no-animations */
+.no-animations .mvp-community-item,
+.no-animations .leaderboard-item,
+.no-animations .community-stat-card {
+    animation: none !important;
+}
+
+/* Задержки анимации для последовательного появления */
+.animate-content .mvp-community-item:nth-child(1) { animation-delay: 0.1s; }
+.animate-content .mvp-community-item:nth-child(2) { animation-delay: 0.2s; }
+.animate-content .mvp-community-item:nth-child(3) { animation-delay: 0.3s; }
+.animate-content .mvp-community-item:nth-child(4) { animation-delay: 0.4s; }
+.animate-content .mvp-community-item:nth-child(5) { animation-delay: 0.5s; }
+
+.animate-content .leaderboard-item:nth-child(1) { animation-delay: 0.1s; }
+.animate-content .leaderboard-item:nth-child(2) { animation-delay: 0.2s; }
+.animate-content .leaderboard-item:nth-child(3) { animation-delay: 0.3s; }
 
 @keyframes communitySlideIn {
     from {
@@ -272,29 +307,6 @@
         transform: translateY(0);
     }
 }
-
-.mvp-community-item {
-    animation: communitySlideIn 0.4s ease;
-}
-
-.leaderboard-item {
-    animation: communitySlideIn 0.4s ease;
-}
-
-.community-stat-card {
-    animation: communitySlideIn 0.4s ease;
-}
-
-/* Задержки анимации для последовательного появления */
-.mvp-community-item:nth-child(1) { animation-delay: 0.1s; }
-.mvp-community-item:nth-child(2) { animation-delay: 0.2s; }
-.mvp-community-item:nth-child(3) { animation-delay: 0.3s; }
-.mvp-community-item:nth-child(4) { animation-delay: 0.4s; }
-.mvp-community-item:nth-child(5) { animation-delay: 0.5s; }
-
-.leaderboard-item:nth-child(1) { animation-delay: 0.1s; }
-.leaderboard-item:nth-child(2) { animation-delay: 0.2s; }
-.leaderboard-item:nth-child(3) { animation-delay: 0.3s; }
 
 /* ============================================================================
    🎯 HOVER ЭФФЕКТЫ
