@@ -1,11 +1,13 @@
 /**
- * 👥 СООБЩЕСТВО ЧИТАТЕЛЕЙ - CommunityPage.js (ТОЧНО ПО КОНЦЕПТУ!)
+ * 👥 СООБЩЕСТВО ЧИТАТЕЛЕЙ - CommunityPage.js (ИСПРАВЛЕНО - БЕЗ ШАПКИ!)
  * 
  * ✅ ПОЛНОЕ СООТВЕТСТВИЕ КОНЦЕПТУ ИЗ "концепт 5 страниц app.txt":
  * - 3 таба: 📰 Лента, 🏆 Топ недели, 📊 Статистика
  * - MVP версия сообщества
  * - Точная HTML структура из концепта
  * - Все элементы как в макете
+ * 
+ * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
  */
 
 class CommunityPage {
@@ -48,7 +50,7 @@ class CommunityPage {
     }
     
     /**
-     * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!)
+     * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
      */
     render() {
         return `
@@ -331,21 +333,17 @@ class CommunityPage {
     }
     
     /**
-     * 📱 LIFECYCLE МЕТОДЫ
+     * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
      */
     onShow() {
-        const homeHeader = document.getElementById('home-header');
-        const pageHeader = document.getElementById('page-header');
-        const pageTitle = document.getElementById('pageTitle');
-        
-        if (homeHeader) homeHeader.style.display = 'none';
-        if (pageHeader) pageHeader.style.display = 'block';
-        if (pageTitle) pageTitle.textContent = '👥 Сообщество читателей';
+        console.log('👥 CommunityPage: onShow - БЕЗ ШАПКИ!');
+        // Ничего не делаем - Router уже скрыл все шапки!
+        // Страница сообщества работает без шапки сверху
     }
     
     onHide() {
-        const pageHeader = document.getElementById('page-header');
-        if (pageHeader) pageHeader.style.display = 'none';
+        console.log('👥 CommunityPage: onHide');
+        // Ничего не делаем - Router управляет шапками
     }
     
     rerender() {
