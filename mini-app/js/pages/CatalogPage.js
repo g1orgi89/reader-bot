@@ -7,6 +7,7 @@
  * - Правильная работа скролла и навигации
  * 
  * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
+ * ✅ ИСПРАВЛЕНО: Устранены дублирующиеся API вызовы как в HomePage и DiaryPage
  */
 
 class CatalogPage {
@@ -15,6 +16,10 @@ class CatalogPage {
         this.api = app.api;
         this.state = app.state;
         this.telegram = app.telegram;
+        
+        // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
+        this.catalogLoaded = false;
+        this.catalogLoading = false;
         
         // Состояние фильтров (точно из концепта)
         this.activeFilter = 'for-you'; // for-you, popular, new, classic, sales
@@ -29,7 +34,37 @@ class CatalogPage {
     }
     
     init() {
-        // Инициализация простая, как в концепте
+        this.setupSubscriptions();
+        // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init()
+    }
+    
+    setupSubscriptions() {
+        // Подписки на изменения состояния, если необходимо
+    }
+    
+    async loadCatalogData() {
+        // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
+        if (this.catalogLoading) {
+            console.log('🔄 CatalogPage: Каталог уже загружается, пропускаем');
+            return;
+        }
+        
+        try {
+            this.catalogLoading = true;
+            console.log('📚 CatalogPage: Загружаем данные каталога...');
+            
+            // Здесь может быть загрузка актуальных данных каталога
+            // Пока используем статичные данные из концепта
+            
+            this.catalogLoaded = true;
+            this.state.set('catalog.lastUpdate', Date.now());
+            console.log('✅ CatalogPage: Данные каталога загружены');
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки данных каталога:', error);
+        } finally {
+            this.catalogLoading = false;
+        }
     }
     
     /**
@@ -468,8 +503,24 @@ class CatalogPage {
      */
     onShow() {
         console.log('📚 CatalogPage: onShow - БЕЗ ШАПКИ!');
-        // Ничего не делаем - Router уже скрыл все шапки!
-        // Страница каталога работает без шапки сверху
+        
+        // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
+        if (!this.catalogLoaded) {
+            console.log('🔄 CatalogPage: Первый показ, загружаем данные');
+            this.loadCatalogData();
+        } else {
+            // Проверяем актуальность данных (10 минут)
+            const lastUpdate = this.state.get('catalog.lastUpdate');
+            const now = Date.now();
+            const tenMinutes = 10 * 60 * 1000;
+            
+            if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
+                console.log('🔄 CatalogPage: Данные устарели, обновляем');
+                this.loadCatalogData();
+            } else {
+                console.log('✅ CatalogPage: Данные актуальны');
+            }
+        }
     }
     
     onHide() {
@@ -493,6 +544,10 @@ class CatalogPage {
     
     destroy() {
         // Очистка ресурсов
+        
+        // ✅ НОВОЕ: Сброс флагов
+        this.catalogLoaded = false;
+        this.catalogLoading = false;
     }
 }
 
