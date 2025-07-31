@@ -1,7 +1,7 @@
 /**
- * 🏠 ГЛАВНАЯ СТРАНИЦА - home.css (✅ УБРАНЫ ОТСТУПЫ - ТЕПЕРЬ В BASE.CSS)
+ * 🏠 ГЛАВНАЯ СТРАНИЦА - home.css (🔧 ИСПРАВЛЕНЫ АНИМАЦИИ)
  * Стили точно соответствуют концепту "5 страниц app.txt"
- * ✅ ИСПРАВЛЕНО: Убраны padding из .content - теперь управляется base.css
+ * ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации контента
  */
 
 /* ============================================================================
@@ -434,20 +434,39 @@
 }
 
 /* ============================================================================
-   ✨ АНИМАЦИИ
+   ✨ КОНТРОЛИРУЕМЫЕ АНИМАЦИИ (УБРАНА АВТОЗАГРУЗКА)
    ============================================================================ */
 
+/* ❌ УБРАНО: Автоматические анимации контента при каждом рендере */
+/* 
 .content > * {
     animation: slideUp 0.6s ease;
     animation-fill-mode: both;
 }
+*/
 
-.content > *:nth-child(1) { animation-delay: 0.1s; }
-.content > *:nth-child(2) { animation-delay: 0.2s; }
-.content > *:nth-child(3) { animation-delay: 0.3s; }
-.content > *:nth-child(4) { animation-delay: 0.4s; }
-.content > *:nth-child(5) { animation-delay: 0.5s; }
+/* ✅ НОВОЕ: Утилитарные классы для контролируемых анимаций */
+.animate-content .page-title {
+    animation: slideUp 0.4s ease 0.1s both;
+}
 
+.animate-content .stats-grid {
+    animation: slideUp 0.4s ease 0.2s both;
+}
+
+.animate-content .main-cta {
+    animation: slideUp 0.4s ease 0.3s both;
+}
+
+.animate-content .top-books-section {
+    animation: slideUp 0.4s ease 0.4s both;
+}
+
+.animate-content .progress-section {
+    animation: slideUp 0.4s ease 0.5s both;
+}
+
+/* ✅ Базовая анимация slideUp остается */
 @keyframes slideUp {
     from {
         opacity: 0;
@@ -458,6 +477,15 @@
         transform: translateY(0);
     }
 }
+
+/* ✅ НОВОЕ: Класс для отключения всех анимаций */
+.no-content-animations * {
+    animation: none !important;
+}
+
+/* ============================================================================
+   🌙 ТЕМНАЯ ТЕМА
+   ============================================================================ */
 
 /* Темная тема через класс */
 body.dark-theme {
@@ -478,11 +506,18 @@ body.dark-theme {
     --shadow-color-strong: rgba(232, 90, 66, 0.20);
 }
 
-/* Плавные переходы для всех элементов */
-* {
+/* ✅ ИСПРАВЛЕНО: Убрана чрезмерная transition для всех элементов */
+/* Плавные переходы только для интерактивных элементов */
+.stat-card,
+.main-cta,
+.book-item,
+.nav-item,
+.user-avatar,
+.menu-button {
     transition: 
-        background 0.3s ease,
-        color 0.3s ease,
-        border-color 0.3s ease,
-        box-shadow 0.3s ease;
+        background var(--transition-normal),
+        color var(--transition-normal),
+        border-color var(--transition-normal),
+        box-shadow var(--transition-normal),
+        transform var(--transition-normal);
 }
