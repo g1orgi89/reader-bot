@@ -1,5 +1,5 @@
 /**
- * 🏠 ГЛАВНАЯ СТРАНИЦА - HomePage.js (ИСПРАВЛЕНО)
+ * 🏠 ГЛАВНАЯ СТРАНИЦА - HomePage.js (🔧 ИСПРАВЛЕНЫ API ВЫЗОВЫ)
  * 
  * Функциональность:
  * - Приветственная секция с заголовком
@@ -14,6 +14,7 @@
  * - Убрано дублирование шапки (теперь в index.html)
  * - Использованы точные классы из концепта
  * - Реализован дизайн 1:1 как в концепте "5 страниц"
+ * 🔧 ИСПРАВЛЕНО: Убраны дублирующиеся API вызовы
  */
 
 class HomePage {
@@ -26,6 +27,7 @@ class HomePage {
         // Состояние компонента
         this.loading = false;
         this.error = null;
+        this.dataLoaded = false; // ✅ НОВОЕ: Флаг загруженности данных
         
         // Подписки на изменения состояния
         this.subscriptions = [];
@@ -38,7 +40,7 @@ class HomePage {
      */
     init() {
         this.setupSubscriptions();
-        this.loadInitialData();
+        // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init, будет в onShow
     }
     
     /**
@@ -77,9 +79,17 @@ class HomePage {
      * 📊 Загрузка начальных данных
      */
     async loadInitialData() {
+        // ✅ ИСПРАВЛЕНО: Предотвращаем повторную загрузку
+        if (this.loading) {
+            console.log('🔄 HomePage: Загрузка уже выполняется, пропускаем');
+            return;
+        }
+        
         try {
             this.loading = true;
             this.state.set('ui.loading', true);
+            
+            console.log('📊 HomePage: Начинаем загрузку данных');
             
             // Параллельная загрузка данных
             const [stats, topBooks, profile] = await Promise.all([
@@ -89,9 +99,15 @@ class HomePage {
             ]);
             
             // Обновление состояния
-            if (stats) this.state.set('stats', stats);
+            if (stats) {
+                this.state.set('stats', stats);
+                this.state.set('stats.lastUpdate', Date.now()); // ✅ НОВОЕ: Время обновления
+            }
             if (topBooks) this.state.set('catalog.books', topBooks);
             if (profile) this.state.set('user.profile', profile);
+            
+            this.dataLoaded = true; // ✅ НОВОЕ: Помечаем данные как загруженные
+            console.log('✅ HomePage: Данные загружены успешно');
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных главной страницы:', error);
@@ -547,6 +563,7 @@ class HomePage {
         // Очистка состояния компонента
         this.loading = false;
         this.error = null;
+        this.dataLoaded = false; // ✅ НОВОЕ: Сброс флага
     }
     
     /**
@@ -557,6 +574,8 @@ class HomePage {
      * Вызывается при показе страницы
      */
     onShow() {
+        console.log('🏠 HomePage: onShow - ПОКАЗЫВАЕМ ШАПКУ!');
+        
         // Показываем шапку главной страницы
         const homeHeader = document.getElementById('home-header');
         const pageHeader = document.getElementById('page-header');
@@ -568,13 +587,23 @@ class HomePage {
         const profile = this.state.get('user.profile');
         this.updateUserInfoUI(profile);
         
-        // Обновляем данные если страница была неактивна долго
-        const lastUpdate = this.state.get('stats.lastUpdate');
-        const now = Date.now();
-        const fiveMinutes = 5 * 60 * 1000;
-        
-        if (!lastUpdate || (now - lastUpdate) > fiveMinutes) {
-            this.refresh();
+        // ✅ ИСПРАВЛЕНО: Умная загрузка данных
+        if (!this.dataLoaded) {
+            // Первый показ - загружаем данные
+            console.log('🔄 HomePage: Первый показ, загружаем данные');
+            this.loadInitialData();
+        } else {
+            // Проверяем актуальность данных (только если прошло больше 10 минут)
+            const lastUpdate = this.state.get('stats.lastUpdate');
+            const now = Date.now();
+            const tenMinutes = 10 * 60 * 1000; // ✅ ИСПРАВЛЕНО: Увеличен интервал
+            
+            if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
+                console.log('🔄 HomePage: Данные устарели, обновляем');
+                this.loadInitialData();
+            } else {
+                console.log('✅ HomePage: Данные актуальны, пропускаем загрузку');
+            }
         }
     }
     
@@ -582,6 +611,8 @@ class HomePage {
      * Вызывается при скрытии страницы
      */
     onHide() {
+        console.log('🏠 HomePage: onHide');
+        
         // Скрываем шапку главной страницы
         const homeHeader = document.getElementById('home-header');
         if (homeHeader) homeHeader.style.display = 'none';
