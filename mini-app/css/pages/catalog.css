@@ -1,8 +1,9 @@
 /**
- * 📚 КАТАЛОГ - Исправленные стили (БЕЗ КОНФЛИКТОВ!)
+ * 📚 КАТАЛОГ - Исправленные стили (БЕЗ КОНФЛИКТОВ И АВТОЗАПУСКАЮЩИХСЯ АНИМАЦИЙ!)
  * ✅ Использует существующие CSS переменные из variables.css
  * ✅ Совместим с base.css и navigation.css
  * ✅ Правильная работа скролла и нижней навигации
+ * ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации, оставлены только контролируемые
  */
 
 /* ============================================================================
@@ -378,7 +379,16 @@
 .book-card.discount-card {
     border: 2px solid var(--warning-color);
     position: relative;
+}
+
+/* ✅ ИСПРАВЛЕНО: Убрана автозапускающаяся анимация discountPulse */
+/* Теперь анимация запускается только через Router */
+.animate-content .book-card.discount-card {
     animation: discountPulse 2s ease-in-out infinite;
+}
+
+.no-animations .book-card.discount-card {
+    animation: none !important;
 }
 
 @keyframes discountPulse {
@@ -507,20 +517,29 @@
 }
 
 /* ============================================================================
-   ✨ АНИМАЦИИ (используем существующие переменные!)
+   ✨ КОНТРОЛИРУЕМЫЕ АНИМАЦИИ (✅ ИСПРАВЛЕНО!)
    ============================================================================ */
 
-.book-card {
+/* ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации */
+/* Анимации теперь запускаются только через Router при переходах */
+
+/* Контролируемые анимации для Router */
+.animate-content .book-card {
     animation: bookCardSlideUp 0.6s var(--ease-out);
     animation-fill-mode: both;
 }
 
-.book-card:nth-child(1) { animation-delay: 0.1s; }
-.book-card:nth-child(2) { animation-delay: 0.2s; }
-.book-card:nth-child(3) { animation-delay: 0.3s; }
-.book-card:nth-child(4) { animation-delay: 0.4s; }
-.book-card:nth-child(5) { animation-delay: 0.5s; }
-.book-card:nth-child(6) { animation-delay: 0.6s; }
+.animate-content .book-card:nth-child(1) { animation-delay: 0.1s; }
+.animate-content .book-card:nth-child(2) { animation-delay: 0.2s; }
+.animate-content .book-card:nth-child(3) { animation-delay: 0.3s; }
+.animate-content .book-card:nth-child(4) { animation-delay: 0.4s; }
+.animate-content .book-card:nth-child(5) { animation-delay: 0.5s; }
+.animate-content .book-card:nth-child(6) { animation-delay: 0.6s; }
+
+/* Отключение анимаций при флаге no-animations */
+.no-animations .book-card {
+    animation: none !important;
+}
 
 @keyframes bookCardSlideUp {
     from {
