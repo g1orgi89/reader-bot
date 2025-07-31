@@ -1,10 +1,11 @@
 /**
- * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP
+ * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 ИСПРАВЛЕН iOS FIXED)
  * Стили навигации: нижняя панель, верхнее меню, табы
+ * ✅ ИСПРАВЛЕНО: iOS position fixed с поддержкой safe-area
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV)
+   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV) - ИСПРАВЛЕНА ДЛЯ iOS
    ============================================================================ */
 
 .bottom-nav {
@@ -23,6 +24,39 @@
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
+    
+    /* 🔧 iOS ФИКСЫ */
+    -webkit-transform: translateZ(0); /* Аппаратное ускорение */
+    transform: translateZ(0);
+    will-change: transform;
+    
+    /* 🔧 iOS SAFE AREA: Добавляем отступ снизу для безопасной зоны */
+    padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 0px));
+    
+    /* 🔧 iOS WEBKIT: Принудительная фиксация */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* 🔧 iOS ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ */
+@supports (padding: max(0px)) {
+    .bottom-nav {
+        /* Используем max() для правильной работы safe-area */
+        padding-bottom: max(var(--spacing-xs), env(safe-area-inset-bottom));
+        /* Увеличиваем высоту на размер safe-area */
+        height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+/* 🔧 WEBKIT ПРИОРИТЕТ: Для старых версий iOS */
+@supports (-webkit-touch-callout: none) {
+    .bottom-nav {
+        position: -webkit-sticky;
+        position: sticky;
+        bottom: 0;
+        /* Webkit sticky fallback */
+        position: fixed !important;
+    }
 }
 
 .nav-item {
@@ -110,7 +144,7 @@
 }
 
 /* ============================================================================
-   📋 ВЕРХНЕЕ МЕНЮ (TOP MENU)
+   📋 ВЕРХНЕЕ МЕНЮ (TOP MENU) - ИСПРАВЛЕНО ДЛЯ iOS
    ============================================================================ */
 
 .top-menu {
@@ -128,6 +162,19 @@
     padding: 0 var(--spacing-md);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
+    
+    /* 🔧 iOS ФИКСЫ */
+    -webkit-transform: translateZ(0); /* Аппаратное ускорение */
+    transform: translateZ(0);
+    will-change: transform;
+    
+    /* 🔧 iOS SAFE AREA: Добавляем отступ сверху для безопасной зоны */
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    
+    /* 🔧 iOS WEBKIT: Принудительная фиксация */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
 }
 
 .menu-left {
@@ -344,13 +391,15 @@
 }
 
 /* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ С iOS ФИКСАМИ
    ============================================================================ */
 
 @media (max-width: 480px) {
     .bottom-nav {
         height: 60px;
         padding: var(--spacing-xs);
+        /* 🔧 МОБИЛЬНЫЕ iOS ФИКСЫ */
+        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 0px));
     }
     
     .nav-item {
@@ -370,6 +419,9 @@
     .top-menu {
         height: 50px;
         padding: 0 var(--spacing-sm);
+        /* 🔧 МОБИЛЬНЫЕ iOS ФИКСЫ */
+        padding-top: env(safe-area-inset-top, 0px);
+        height: calc(50px + env(safe-area-inset-top, 0px));
     }
     
     .menu-title {
@@ -398,6 +450,20 @@
     .breadcrumb {
         padding: var(--spacing-xs) 0;
         font-size: var(--font-size-xs);
+    }
+}
+
+/* 🔧 iOS ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ ДЛЯ МОБИЛЬНЫХ */
+@supports (padding: max(0px)) {
+    @media (max-width: 480px) {
+        .bottom-nav {
+            padding-bottom: max(var(--spacing-xs), env(safe-area-inset-bottom));
+            height: calc(60px + env(safe-area-inset-bottom, 0px));
+        }
+        
+        .top-menu {
+            height: calc(50px + env(safe-area-inset-top, 0px));
+        }
     }
 }
 
@@ -503,10 +569,10 @@
     color: var(--text-inverse);
 }
 
-/* Плавающая кнопка добавления */
+/* 🔧 ПЛАВАЮЩАЯ КНОПКА ДОБАВЛЕНИЯ - ИСПРАВЛЕНА ДЛЯ iOS */
 .fab-nav {
     position: fixed;
-    bottom: calc(var(--bottom-nav-height) + var(--spacing-md));
+    bottom: calc(var(--bottom-nav-height) + var(--spacing-md) + env(safe-area-inset-bottom, 0px));
     right: var(--spacing-md);
     width: 56px;
     height: 56px;
@@ -521,6 +587,13 @@
     align-items: center;
     justify-content: center;
     transition: all var(--duration-normal) var(--ease-out);
+    
+    /* 🔧 iOS ФИКСЫ ДЛЯ FAB */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
 }
 
 .fab-nav:hover {
