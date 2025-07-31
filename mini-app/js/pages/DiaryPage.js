@@ -1,11 +1,13 @@
 /**
- * 📖 ДНЕВНИК ЦИТАТ - DiaryPage.js (ТОЧНО ПО КОНЦЕПТАМ!)
+ * 📖 ДНЕВНИК ЦИТАТ - DiaryPage.js (ИСПРАВЛЕНО - БЕЗ ШАПКИ!)
  * 
  * ✅ ПОЛНОЕ СООТВЕТСТВИЕ КОНЦЕПТАМ:
  * - HTML структура из "концепт 5 страниц app.txt"
  * - CSS классы из концептов
  * - Поиск из "дополнительный концепт страниц app.txt"
  * - Все элементы в точности как в концепте
+ * 
+ * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
  */
 
 class DiaryPage {
@@ -120,7 +122,7 @@ class DiaryPage {
     }
     
     /**
-     * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!)
+     * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
      */
     render() {
         return `
@@ -397,7 +399,7 @@ class DiaryPage {
                     <div class="quote-actions">
                         <button class="quote-action" 
                                 data-action="favorite" 
-                                style="color: ${isFavorite ? 'var(--primary-color)' : 'var(--text-muted)'};" 
+                                style="color: ${isFavorite ? 'var(--primary-color)' : 'var(--text-muted)'};\" 
                                 title="${isFavorite ? 'В избранном' : 'Добавить в избранное'}">
                             ${isFavorite ? '⭐' : '☆'}
                         </button>
@@ -634,22 +636,6 @@ class DiaryPage {
     }
     
     /**
-     * 🧹 ОЧИСТКА КНОПОК ПОИСКА (НОВЫЙ МЕТОД!)
-     */
-    cleanupSearchButtons() {
-        const pageHeader = document.getElementById('page-header');
-        if (pageHeader) {
-            // Удаляем все кнопки поиска, которые могли быть добавлены другими страницами
-            const searchButtons = pageHeader.querySelectorAll('.search-button');
-            searchButtons.forEach(btn => btn.remove());
-            
-            // Удаляем другие дополнительные кнопки, кроме основных
-            const extraButtons = pageHeader.querySelectorAll('button:not(.back-btn):not(.menu-btn)');
-            extraButtons.forEach(btn => btn.remove());
-        }
-    }
-    
-    /**
      * 🧹 ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
      */
     
@@ -779,27 +765,17 @@ class DiaryPage {
     }
     
     /**
-     * 📱 LIFECYCLE МЕТОДЫ
+     * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
      */
     onShow() {
-        const homeHeader = document.getElementById('home-header');
-        const pageHeader = document.getElementById('page-header');
-        const pageTitle = document.getElementById('pageTitle');
-        
-        if (homeHeader) homeHeader.style.display = 'none';
-        if (pageHeader) pageHeader.style.display = 'block';
-        if (pageTitle) pageTitle.textContent = '📖 Дневник цитат';
-        
-        // ИСПРАВЛЕНО: Убираем любые кнопки поиска, которые могли остаться от других страниц
-        this.cleanupSearchButtons();
+        console.log('📖 DiaryPage: onShow - БЕЗ ШАПКИ!');
+        // Ничего не делаем - Router уже скрыл все шапки!
+        // Страница дневника работает без шапки сверху
     }
     
     onHide() {
-        const pageHeader = document.getElementById('page-header');
-        if (pageHeader) pageHeader.style.display = 'none';
-        
-        // Убираем кнопки поиска при скрытии страницы
-        this.cleanupSearchButtons();
+        console.log('📖 DiaryPage: onHide');
+        // Ничего не делаем - Router управляет шапками
     }
     
     destroy() {
@@ -809,9 +785,6 @@ class DiaryPage {
             }
         });
         this.subscriptions = [];
-        
-        // Очистка кнопок поиска
-        this.cleanupSearchButtons();
     }
 }
 
