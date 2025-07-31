@@ -9,6 +9,7 @@
  * - Промо секция в классе promo-section
  * 
  * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
+ * ✅ ИСПРАВЛЕНО: Устранены дублирующиеся API вызовы как в HomePage и DiaryPage
  */
 
 class ReportsPage {
@@ -17,6 +18,10 @@ class ReportsPage {
         this.api = app.api;
         this.state = app.state;
         this.telegram = app.telegram;
+        
+        // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
+        this.reportsLoaded = false;
+        this.reportsLoading = false;
         
         // Данные отчета (точно из концепта)
         this.reportData = {
@@ -35,11 +40,25 @@ class ReportsPage {
     }
     
     init() {
-        this.loadReportData();
+        this.setupSubscriptions();
+        // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init()
+    }
+    
+    setupSubscriptions() {
+        // Подписки на изменения состояния, если необходимо
     }
     
     async loadReportData() {
+        // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
+        if (this.reportsLoading) {
+            console.log('🔄 ReportsPage: Отчеты уже загружаются, пропускаем');
+            return;
+        }
+        
         try {
+            this.reportsLoading = true;
+            console.log('📊 ReportsPage: Загружаем данные отчета...');
+            
             // Загружаем актуальные данные для отчета
             const stats = await this.api.getStats();
             if (stats) {
@@ -50,9 +69,16 @@ class ReportsPage {
                     goal: Math.min(Math.round((stats.thisWeek / 7) * 100), 100) || 85
                 };
             }
+            
+            this.reportsLoaded = true;
+            this.state.set('reports.lastUpdate', Date.now());
+            console.log('✅ ReportsPage: Данные отчета загружены');
+            
         } catch (error) {
             console.error('❌ Ошибка загрузки данных отчета:', error);
             // Используем примеры из концепта как fallback
+        } finally {
+            this.reportsLoading = false;
         }
     }
     
@@ -154,13 +180,28 @@ class ReportsPage {
      */
     onShow() {
         console.log('📊 ReportsPage: onShow - БЕЗ ШАПКИ!');
-        // Ничего не делаем - Router уже скрыл все шапки!
-        // Страница отчетов работает без шапки сверху
         
-        // Обновляем данные при показе страницы
-        this.loadReportData().then(() => {
-            this.rerender();
-        });
+        // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
+        if (!this.reportsLoaded) {
+            console.log('🔄 ReportsPage: Первый показ, загружаем данные');
+            this.loadReportData().then(() => {
+                this.rerender();
+            });
+        } else {
+            // Проверяем актуальность данных (10 минут)
+            const lastUpdate = this.state.get('reports.lastUpdate');
+            const now = Date.now();
+            const tenMinutes = 10 * 60 * 1000;
+            
+            if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
+                console.log('🔄 ReportsPage: Данные устарели, обновляем');
+                this.loadReportData().then(() => {
+                    this.rerender();
+                });
+            } else {
+                console.log('✅ ReportsPage: Данные актуальны');
+            }
+        }
     }
     
     onHide() {
@@ -178,6 +219,10 @@ class ReportsPage {
     
     destroy() {
         // Очистка ресурсов
+        
+        // ✅ НОВОЕ: Сброс флагов
+        this.reportsLoaded = false;
+        this.reportsLoading = false;
     }
 }
 
