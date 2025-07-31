@@ -6,7 +6,7 @@
  * 
  * @filesize 2 KB - SPA роутинг
  * @author Claude Assistant  
- * @version 1.0.4 - ДОБАВЛЕНЫ ВЫЗОВЫ onShow/onHide ДЛЯ СТРАНИЦ
+ * @version 1.0.5 - ИСПРАВЛЕНО УПРАВЛЕНИЕ ШАПКАМИ
  */
 
 /**
@@ -16,6 +16,7 @@
  * @property {string} title - Заголовок страницы
  * @property {boolean} requiresAuth - Требует аутентификации
  * @property {boolean} showBottomNav - Показывать нижнюю навигацию
+ * @property {boolean} showHomeHeader - Показывать шапку главной страницы
  */
 
 /**
@@ -104,7 +105,7 @@ class AppRouter {
         this.handlePopState = this.handlePopState.bind(this);
         this.handleNavigation = this.handleNavigation.bind(this);
         
-        console.log('✅ Router: Конструктор инициализирован - VERSION 1.0.4');
+        console.log('✅ Router: Конструктор инициализирован - VERSION 1.0.5 - ИСПРАВЛЕНО УПРАВЛЕНИЕ ШАПКАМИ');
     }
 
     /**
@@ -156,58 +157,64 @@ class AppRouter {
     registerRoutes() {
         console.log('🔄 Router: Регистрация маршрутов');
         
-        // Главная страница
+        // Главная страница - ТОЛЬКО ОНА ПОКАЗЫВАЕТ ШАПКУ!
         this.routes.set('/home', {
             path: '/home',
             component: HomePage,
             title: 'Главная',
             requiresAuth: true,
-            showBottomNav: true
+            showBottomNav: true,
+            showHomeHeader: true  // ✅ ТОЛЬКО ГЛАВНАЯ ПОКАЗЫВАЕТ ШАПКУ
         });
 
-        // Дневник цитат
+        // Дневник цитат - БЕЗ ШАПКИ
         this.routes.set('/diary', {
             path: '/diary', 
             component: DiaryPage,
             title: 'Дневник цитат',
             requiresAuth: true,
-            showBottomNav: true
+            showBottomNav: true,
+            showHomeHeader: false  // ❌ НЕТ ШАПКИ
         });
 
-        // Отчеты
+        // Отчеты - БЕЗ ШАПКИ
         this.routes.set('/reports', {
             path: '/reports',
             component: ReportsPage, 
             title: 'Отчеты',
             requiresAuth: true,
-            showBottomNav: true
+            showBottomNav: true,
+            showHomeHeader: false  // ❌ НЕТ ШАПКИ
         });
 
-        // Каталог книг
+        // Каталог книг - БЕЗ ШАПКИ
         this.routes.set('/catalog', {
             path: '/catalog',
             component: CatalogPage,
             title: 'Каталог книг', 
             requiresAuth: true,
-            showBottomNav: true
+            showBottomNav: true,
+            showHomeHeader: false  // ❌ НЕТ ШАПКИ
         });
 
-        // Сообщество
+        // Сообщество - БЕЗ ШАПКИ
         this.routes.set('/community', {
             path: '/community',
             component: CommunityPage,
             title: 'Сообщество',
             requiresAuth: true,
-            showBottomNav: true
+            showBottomNav: true,
+            showHomeHeader: false  // ❌ НЕТ ШАПКИ
         });
 
-        // Онбординг (тест 7 вопросов)
+        // Онбординг - БЕЗ ШАПКИ И БЕЗ НИЖНЕЙ НАВИГАЦИИ
         this.routes.set('/onboarding', {
             path: '/onboarding',
             component: OnboardingPage,
             title: 'Добро пожаловать',
             requiresAuth: true,
-            showBottomNav: false
+            showBottomNav: false,
+            showHomeHeader: false  // ❌ НЕТ ШАПКИ
         });
 
         console.log(`✅ Router: Зарегистрировано ${this.routes.size} маршрутов`);
@@ -264,6 +271,9 @@ class AppRouter {
             // Уничтожаем предыдущий компонент
             await this.destroyCurrentComponent();
             
+            // ИСПРАВЛЕНО: Управляем шапками ДО создания компонента
+            this.manageHeaders(route);
+            
             // Создаем новый компонент
             await this.createComponent(route, options.state);
             
@@ -276,7 +286,7 @@ class AppRouter {
             // Сохраняем текущий маршрут
             this.currentRoute = path;
             
-            // ИСПРАВЛЕНО: Вызываем onShow для нового компонента
+            // Вызываем onShow для нового компонента
             if (this.currentComponent && typeof this.currentComponent.onShow === 'function') {
                 this.currentComponent.onShow();
                 console.log(`✅ Router: onShow вызван для ${route.title}`);
@@ -290,6 +300,39 @@ class AppRouter {
         } catch (error) {
             console.error(`❌ Router: Ошибка навигации к ${path}:`, error);
             this.handleNavigationError(error);
+        }
+    }
+
+    /**
+     * 📱 НОВАЯ ФУНКЦИЯ: Управление отображением шапок
+     * @param {RouteConfig} route - Конфигурация маршрута
+     */
+    manageHeaders(route) {
+        const homeHeader = document.getElementById('home-header');
+        const pageHeader = document.getElementById('page-header');
+        
+        console.log(`🔧 Router: Управление шапками для ${route.path}`);
+        
+        if (route.showHomeHeader) {
+            // ✅ ПОКАЗЫВАЕМ ШАПКУ ГЛАВНОЙ СТРАНИЦЫ
+            if (homeHeader) {
+                homeHeader.style.display = 'flex';
+                console.log('✅ Router: home-header показан');
+            }
+            if (pageHeader) {
+                pageHeader.style.display = 'none';
+                console.log('❌ Router: page-header скрыт');
+            }
+        } else {
+            // ❌ СКРЫВАЕМ ВСЕ ШАПКИ
+            if (homeHeader) {
+                homeHeader.style.display = 'none';
+                console.log('❌ Router: home-header скрыт');
+            }
+            if (pageHeader) {
+                pageHeader.style.display = 'none';
+                console.log('❌ Router: page-header скрыт');
+            }
         }
     }
 
