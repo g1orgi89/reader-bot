@@ -1,18 +1,20 @@
 /**
- * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 ПРОСТОЙ iOS ФИКС)
+ * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 ЖЕЛЕЗОБЕТОННЫЙ iOS ФИКС)
  * Стили навигации: нижняя панель, верхнее меню, табы
- * ✅ ПРОСТОЕ ИСПРАВЛЕНИЕ: iOS safe-area фикс без излишеств
+ * ✅ РЕШЕНИЕ ПРОБЛЕМЫ: Панель уезжает наверх на iPhone и не возвращается
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV) - ПРОСТОЙ iOS ФИКС
+   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV) - ЖЕЛЕЗОБЕТОННЫЙ iOS ФИКС
    ============================================================================ */
 
 .bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    /* 🔧 ПРИНУДИТЕЛЬНАЯ ФИКСАЦИЯ ДЛЯ iOS */
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
     height: var(--bottom-nav-height);
     background: var(--bg-card);
     border-top: 1px solid var(--bg-secondary);
@@ -25,22 +27,60 @@
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     
-    /* 🔧 ПРОСТОЙ iOS ФИКС */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
+    /* 🔧 АППАРАТНОЕ УСКОРЕНИЕ - КРИТИЧНО ДЛЯ iOS */
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    transform: translate3d(0, 0, 0) !important;
     
-    /* 🔧 ПРАВИЛЬНЫЙ SAFE-AREA ФИКС */
+    /* 🔧 ЗАПРЕТ ИЗМЕНЕНИЯ ПОЗИЦИИ */
+    -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
+    will-change: auto !important;
+    
+    /* 🔧 SAFE AREA */
     padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom));
     height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
 }
 
-/* 🔧 iOS WEBKIT ФИКС: Только для Safari */
+/* 🔧 ДОПОЛНИТЕЛЬНАЯ ПРИНУДИТЕЛЬНАЯ ФИКСАЦИЯ ДЛЯ iOS */
 @supports (-webkit-touch-callout: none) {
     .bottom-nav {
-        position: -webkit-sticky;
-        position: sticky;
+        /* Множественные методы фиксации */
+        position: -webkit-sticky !important;
+        position: sticky !important; 
+        position: fixed !important;
+        
+        /* Принудительные координаты */
+        bottom: 0 !important;
+        top: auto !important;
+        
+        /* Отключение влияния скролла */
+        -webkit-overflow-scrolling: auto !important;
+        
+        /* Изоляция элемента */
+        contain: layout style paint !important;
+        isolation: isolate !important;
+    }
+    
+    /* 🔧 ГЛОБАЛЬНЫЙ ФИКС BODY - ПРЕДОТВРАЩЕНИЕ BOUNCE */
+    body {
+        overscroll-behavior: none !important;
+        -webkit-overscroll-behavior: none !important;
+        position: relative !important;
+    }
+    
+    /* 🔧 ФИКС HTML */
+    html {
+        overflow-x: hidden !important;
+    }
+}
+
+/* 🔧 WEBKIT СПЕЦИФИЧНЫЙ ФИКС ДЛЯ SAFARI */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    _::-webkit-full-page-media, _:future, :root .bottom-nav {
         position: fixed !important;
         bottom: 0 !important;
+        -webkit-transform: translate3d(0, 0, 0) !important;
+        transform: translate3d(0, 0, 0) !important;
     }
 }
 
@@ -367,16 +407,32 @@
 }
 
 /* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ С ЖЕЛЕЗОБЕТОННЫМИ iOS ФИКСАМИ
    ============================================================================ */
 
 @media (max-width: 480px) {
     .bottom-nav {
-        height: 60px;
-        padding: var(--spacing-xs);
-        /* 🔧 МОБИЛЬНЫЙ iOS SAFE-AREA ФИКС */
-        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom));
-        height: calc(60px + env(safe-area-inset-bottom));
+        height: 60px !important;
+        padding: var(--spacing-xs) !important;
+        
+        /* 🔧 КРИТИЧНО: Принудительные iOS фиксы */
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        
+        /* 🔧 ПРИНУДИТЕЛЬНОЕ АППАРАТНОЕ УСКОРЕНИЕ */
+        -webkit-transform: translate3d(0, 0, 0) !important;
+        transform: translate3d(0, 0, 0) !important;
+        
+        /* 🔧 ИЗОЛЯЦИЯ ОТ СКРОЛЛА */
+        contain: layout style paint !important;
+        isolation: isolate !important;
+        
+        /* 🔧 SAFE AREA НА МОБИЛЬНЫХ */
+        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom)) !important;
+        height: calc(60px + env(safe-area-inset-bottom)) !important;
     }
     
     .nav-item {
