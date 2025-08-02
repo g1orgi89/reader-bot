@@ -1,25 +1,25 @@
 /**
- * 🧭 NAVIGATION CSS - ВЫНОС ПАНЕЛИ ИЗ APP-CONTAINER
- * ИСПРАВЛЕНИЕ: position: relative в app-container ломает fixed панель!
+ * 🧭 NAVIGATION CSS - ИСПРАВЛЕНИЕ: НЕ ЛОМАЕМ БРАУЗЕРНУЮ ВЕРСИЮ!
+ * ТОЛЬКО iPhone в Telegram фиксим, браузер оставляем как есть!
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ - ИСПРАВЛЕНИЕ STACKING CONTEXT
+   🧭 НИЖНЯЯ НАВИГАЦИЯ - ОСТОРОЖНОЕ ИСПРАВЛЕНИЕ
    ============================================================================ */
 
 .bottom-nav {
-    /* ПОЗИЦИОНИРОВАНИЕ ВНЕ APP-CONTAINER */
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
+    /* БАЗОВОЕ ПОЗИЦИОНИРОВАНИЕ */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
     height: 60px;
     
     /* ВИЗУАЛ */
     background: var(--bg-card);
     border-top: 1px solid var(--bg-secondary);
-    z-index: 9999 !important; /* ВЫШЕ ВСЕГО */
+    z-index: 40;
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -28,15 +28,11 @@
     /* ПРОСТЫЕ ОТСТУПЫ */
     padding: 8px 16px;
     padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-    
-    /* ПРИНУДИТЕЛЬНАЯ ИЗОЛЯЦИЯ ОТ РОДИТЕЛЕЙ */
-    contain: layout style paint !important;
-    isolation: isolate !important;
 }
 
-/* 🔧 ДОПОЛНИТЕЛЬНАЯ ИЗОЛЯЦИЯ ДЛЯ ТЕЛЕГРАМА */
+/* 🔧 ТОЛЬКО ДЛЯ ТЕЛЕГРАМА - АГРЕССИВНЫЕ ФИКСЫ */
 body[data-telegram="true"] .bottom-nav {
-    /* В Telegram еще более агрессивная фиксация */
+    /* В ТЕЛЕГРАМЕ убираем stacking context проблему */
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
@@ -46,8 +42,25 @@ body[data-telegram="true"] .bottom-nav {
     /* Убираем все что может конфликтовать */
     transform: none !important;
     -webkit-transform: none !important;
-    contain: none !important;
-    isolation: auto !important;
+    contain: layout style paint !important;
+    isolation: isolate !important;
+}
+
+/* 🔧 ТОЛЬКО ДЛЯ ТЕЛЕГРАМА - ИСПРАВЛЯЕМ APP-CONTAINER */
+body[data-telegram="true"] .app-container {
+    /* УБИРАЕМ position: relative ТОЛЬКО В ТЕЛЕГРАМЕ */
+    position: static !important;
+}
+
+/* 🌐 ДЛЯ БРАУЗЕРА - ОСТАВЛЯЕМ КАК БЫЛО */
+body:not([data-telegram="true"]) .bottom-nav {
+    /* В браузере обычное позиционирование внутри phone-frame */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    /* Не трогаем app-container в браузере */
 }
 
 /* 🔧 ДЛЯ iOS - ПРОСТОЙ ФИКС */
@@ -148,7 +161,10 @@ body[data-telegram="true"] .bottom-nav {
         height: 60px;
         padding: 4px 8px;
         padding-bottom: calc(4px + env(safe-area-inset-bottom, 8px));
-        /* ПРИНУДИТЕЛЬНАЯ ФИКСАЦИЯ */
+    }
+    
+    /* ТОЛЬКО В ТЕЛЕГРАМЕ на мобильных - агрессивные фиксы */
+    body[data-telegram="true"] .bottom-nav {
         position: fixed !important;
         bottom: 0 !important;
         z-index: 99999 !important;
@@ -172,15 +188,8 @@ body[data-telegram="true"] .bottom-nav {
 }
 
 /* ============================================================================
-   🔧 УБИРАЕМ ВСЕ КОНФЛИКТЫ
+   🔧 БАЗОВЫЕ ФИКСЫ (БЕЗ ЛОМАНИЯ БРАУЗЕРА)
    ============================================================================ */
-
-/* 🔧 ИСПРАВЛЕНИЕ APP-CONTAINER - УБИРАЕМ position: relative */
-.app-container {
-    /* УБИРАЕМ position: relative КОТОРЫЙ ЛОМАЕТ fixed */
-    position: static !important;
-    /* Или можно оставить relative но вынести навигацию наружу */
-}
 
 /* Убираем конфликты с body */
 body {
