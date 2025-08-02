@@ -144,7 +144,10 @@
 
     <!-- 📚 JavaScript файлы (ИСПРАВЛЕНЫ ПУТИ!) -->
     
-    <!-- 🔧 КРИТИЧЕСКОЕ: iOS Navigation Stabilizer (ЗАГРУЖАЕТСЯ ПЕРВЫМ!) -->
+    <!-- 🔍 КРИТИЧЕСКОЕ: Comprehensive Debug System (ЗАГРУЖАЕТСЯ ПЕРВЫМ!) -->
+    <script src="js/utils/comprehensive-debug-system.js"></script>
+    
+    <!-- 🔧 КРИТИЧЕСКОЕ: iOS Navigation Stabilizer -->
     <script src="js/ios-navigation-stabilizer.js"></script>
     
     <!-- 🔍 НОВОЕ: Viewport диагностика -->
@@ -185,6 +188,9 @@
         window.isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
+        // 🔍 НОВОЕ: Инициализация Debug System НЕМЕДЛЕННО для iOS
+        let debugSessionId = null;
+        
         if (window.isIOSDevice) {
             console.log('🍎 iOS устройство обнаружено - применяем критические фиксы...');
             
@@ -208,23 +214,70 @@
             `;
             
             console.log('✅ Базовые iOS фиксы применены немедленно');
+            
+            // 🔍 НОВОЕ: Запуск debug системы для iOS
+            if (window.debugSystem) {
+                console.log('🔍 Запуск debug системы для iOS...');
+                // Используем временный userId, позже обновим из Telegram
+                const tempUserId = 'ios_debug_' + Date.now();
+                window.debugSystem.startSession(tempUserId).then(sessionId => {
+                    debugSessionId = sessionId;
+                    console.log('✅ Debug система запущена:', sessionId);
+                }).catch(error => {
+                    console.error('❌ Ошибка запуска debug системы:', error);
+                });
+            }
         }
         
         // Проверяем поддержку Telegram Web App
         if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
             console.log('🚀 Telegram Web App обнаружен');
             
+            // 🔍 НОВОЕ: Логирование Telegram API события
+            if (window.debugSystem && window.isIOSDevice) {
+                window.debugSystem.log('TELEGRAM', 'INFO', 'Telegram WebApp detected', {
+                    version: window.Telegram.WebApp.version,
+                    platform: window.Telegram.WebApp.platform,
+                    isExpanded: window.Telegram.WebApp.isExpanded
+                });
+            }
+            
             // Настраиваем Telegram Web App
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
             
+            // 🔍 НОВОЕ: Обновляем userId из Telegram данных
+            if (window.debugSystem && window.isIOSDevice && debugSessionId) {
+                const telegramUser = window.Telegram.WebApp.initDataUnsafe?.user;
+                if (telegramUser) {
+                    // Завершаем временную сессию и начинаем новую с правильным userId
+                    window.debugSystem.endSession().then(() => {
+                        return window.debugSystem.startSession(telegramUser.id.toString());
+                    }).then(newSessionId => {
+                        debugSessionId = newSessionId;
+                        console.log('✅ Debug система перезапущена с Telegram userId:', newSessionId);
+                    }).catch(error => {
+                        console.error('❌ Ошибка перезапуска debug системы:', error);
+                    });
+                }
+            }
+            
             if (window.isIOSDevice) {
                 console.log('🍎 Применяем Telegram iOS фиксы...');
+                
+                // 🔍 НОВОЕ: Логирование Telegram iOS фиксов
+                if (window.debugSystem) {
+                    window.debugSystem.log('TELEGRAM', 'INFO', 'Applying Telegram iOS fixes');
+                }
                 
                 // Bot API 7.7+ - Отключаем вертикальные свайпы для предотвращения "всплывания" навигации
                 if (window.Telegram.WebApp.disableVerticalSwipes) {
                     window.Telegram.WebApp.disableVerticalSwipes();
                     console.log('🔧 iOS Fix: Вертикальные свайпы отключены');
+                    
+                    if (window.debugSystem) {
+                        window.debugSystem.log('TELEGRAM', 'INFO', 'Vertical swipes disabled for iOS');
+                    }
                 }
                 
                 // Настраиваем Safe Area с новым API Telegram
@@ -235,12 +288,23 @@
                     document.documentElement.style.setProperty('--tg-safe-area-left', `${safeArea.left}px`);
                     document.documentElement.style.setProperty('--tg-safe-area-right', `${safeArea.right}px`);
                     console.log('🔧 iOS Fix: Safe Area установлена', safeArea);
+                    
+                    if (window.debugSystem) {
+                        window.debugSystem.log('TELEGRAM', 'INFO', 'Safe Area configured', { safeArea });
+                    }
                 }
                 
                 // Фиксируем viewport height для стабильности
                 const updateViewportHeight = () => {
                     const vh = window.innerHeight * 0.01;
                     document.documentElement.style.setProperty('--vh', `${vh}px`);
+                    
+                    if (window.debugSystem) {
+                        window.debugSystem.log('VIEWPORT', 'DEBUG', 'Viewport height updated', {
+                            innerHeight: window.innerHeight,
+                            vh: vh
+                        });
+                    }
                 };
                 
                 updateViewportHeight();
@@ -262,12 +326,22 @@
             }
         } else {
             console.log('🧪 Запуск в debug режиме (не в Telegram)');
+            
+            // 🔍 НОВОЕ: Логирование для debug режима
+            if (window.debugSystem && window.isIOSDevice) {
+                window.debugSystem.log('INIT', 'WARNING', 'Running in debug mode (not in Telegram)');
+            }
         }
         
         // Инициализация приложения после загрузки DOM
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 console.log('🔄 Начало инициализации Reader Bot');
+                
+                // 🔍 НОВОЕ: Логирование начала инициализации
+                if (window.debugSystem && window.isIOSDevice) {
+                    window.debugSystem.log('INIT', 'INFO', 'Starting Reader Bot initialization');
+                }
                 
                 // Создаем экземпляр приложения
                 const app = new ReaderApp();
@@ -277,6 +351,11 @@
                 
                 console.log('✅ Reader Bot успешно инициализирован');
                 
+                // 🔍 НОВОЕ: Логирование успешной инициализации
+                if (window.debugSystem && window.isIOSDevice) {
+                    window.debugSystem.log('INIT', 'INFO', 'Reader Bot initialization completed successfully');
+                }
+                
                 // 🔍 НОВОЕ: Запускаем viewport tracker после инициализации приложения
                 if (window.ViewportTracker && !window.viewportTracker) {
                     console.log('🔍 Запуск Viewport Tracker...');
@@ -284,11 +363,23 @@
                         window.viewportTracker = new ViewportTracker();
                         window.viewportTracker.start();
                         console.log('✅ Viewport Tracker активирован для диагностики');
+                        
+                        if (window.debugSystem && window.isIOSDevice) {
+                            window.debugSystem.log('INIT', 'INFO', 'Viewport Tracker started');
+                        }
                     }, 3000); // Даем приложению время инициализироваться
                 }
                 
             } catch (error) {
                 console.error('❌ Ошибка инициализации приложения:', error);
+                
+                // 🔍 НОВОЕ: Логирование критической ошибки
+                if (window.debugSystem && window.isIOSDevice) {
+                    window.debugSystem.log('ERROR', 'CRITICAL', 'Reader Bot initialization failed', {
+                        error: error.message,
+                        stack: error.stack
+                    });
+                }
                 
                 // Показываем ошибку пользователю
                 const loadingScreen = document.getElementById('loading-screen');
@@ -311,6 +402,13 @@
         document.addEventListener('touchstart', function(e) {
             if (e.touches.length > 1) {
                 e.preventDefault();
+                
+                // 🔍 НОВОЕ: Логирование multi-touch событий
+                if (window.debugSystem && window.isIOSDevice) {
+                    window.debugSystem.log('TOUCH', 'WARNING', 'Multi-touch prevented', {
+                        touchCount: e.touches.length
+                    });
+                }
             }
         }, { passive: false });
         
@@ -320,6 +418,11 @@
             const now = (new Date()).getTime();
             if (now - lastTouchEnd <= 300) {
                 e.preventDefault();
+                
+                // 🔍 НОВОЕ: Логирование предотвращения зума
+                if (window.debugSystem && window.isIOSDevice) {
+                    window.debugSystem.log('TOUCH', 'DEBUG', 'Double tap zoom prevented');
+                }
             }
             lastTouchEnd = now;
         }, false);
@@ -330,10 +433,15 @@
             const scrollableParent = e.target.closest('.scrollable, .modal-content, .page-content');
             if (!scrollableParent) {
                 e.preventDefault();
+                
+                // 🔍 НОВОЕ: Логирование предотвращения bounce
+                if (window.debugSystem && window.isIOSDevice) {
+                    window.debugSystem.log('SCROLL', 'DEBUG', 'Bounce effect prevented');
+                }
             }
         }, { passive: false });
         
-        // 🔍 DEBUG: Расширенные debug команды
+        // 🔍 DEBUG: Расширенные debug команды с интеграцией новой системы
         window.debugViewport = {
             start: () => {
                 if (window.viewportTracker) {
@@ -393,7 +501,8 @@
                         hasIOSClass: document.documentElement.classList.contains('ios-device'),
                         hasIOSFixes: window.isIOSFixesActive ? window.isIOSFixesActive() : false,
                         verticalSwipesDisabled: window.Telegram?.WebApp?.isVerticalSwipesEnabled === false,
-                        navigationStabilizer: window.iosNavigationStabilizer ? window.iosNavigationStabilizer.getStatus() : null
+                        navigationStabilizer: window.iosNavigationStabilizer ? window.iosNavigationStabilizer.getStatus() : null,
+                        debugSystem: window.debugSystem ? window.debugSystem.getLocalStats() : null
                     };
                     console.log('🍎 iOS статус:', status);
                     return status;
@@ -416,16 +525,60 @@
                         console.log('🔍 iOS Navigation Debug отключен');
                     }
                 }
+            },
+            // 🔍 НОВОЕ: Команды для новой debug системы
+            comprehensive: {
+                start: async (userId) => {
+                    if (window.debugSystem) {
+                        const sessionId = await window.debugSystem.startSession(userId || 'manual_' + Date.now());
+                        console.log('🔍 Comprehensive Debug запущен:', sessionId);
+                        return sessionId;
+                    }
+                },
+                end: async () => {
+                    if (window.debugSystem) {
+                        const stats = await window.debugSystem.endSession();
+                        console.log('✅ Comprehensive Debug завершен:', stats);
+                        return stats;
+                    }
+                },
+                log: (category, level, message, data) => {
+                    if (window.debugSystem) {
+                        window.debugSystem.log(category, level, message, data);
+                        console.log(`🔍 Debug лог: [${category}/${level}] ${message}`, data);
+                    }
+                },
+                stats: () => {
+                    if (window.debugSystem) {
+                        const stats = window.debugSystem.getLocalStats();
+                        console.log('📊 Debug статистика:', stats);
+                        return stats;
+                    }
+                }
             }
         };
         
         // Дополнительные debug команды для навигации
         window.debugNavigation = window.debugViewport.ios;
         
+        // 🔍 НОВОЕ: Удобные глобальные команды для debug системы
+        if (window.isIOSDevice && window.debugSystem) {
+            window.startDebug = window.debugViewport.comprehensive.start;
+            window.endDebug = window.debugViewport.comprehensive.end;
+            window.logDebug = window.debugViewport.comprehensive.log;
+            window.debugStats = window.debugViewport.comprehensive.stats;
+        }
+        
         console.log('🔍 Debug команды доступны через:');
         console.log('  - window.debugViewport (основные)');
         console.log('  - window.debugNavigation (iOS навигация)');
+        console.log('  - window.debugViewport.comprehensive (новая система)');
         console.log('  - window.isIOSDevice (проверка iOS)');
+        
+        if (window.isIOSDevice) {
+            console.log('🍎 iOS команды:');
+            console.log('  - startDebug(userId), endDebug(), logDebug(category, level, message, data), debugStats()');
+        }
     </script>
 </body>
 </html>
