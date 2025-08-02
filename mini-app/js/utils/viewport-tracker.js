@@ -6,9 +6,10 @@
  * 
  * 🔧 РАСШИРЕНО: Детальная диагностика всех элементов DOM для iOS
  * 🔧 ИСПРАВЛЕНО: Убран автозапуск, только ручная инициализация
+ * 🔧 ИСПРАВЛЕНО: Fallback значения header-height 56px → 0px
  * 
  * @filesize ~12KB
- * @version 2.0.1
+ * @version 2.0.2
  */
 
 /**
@@ -67,7 +68,7 @@ class ViewportTracker {
         this.handleResize = this.handleResize.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('📱 ViewportTracker v2.0.1 initialized:', {
+        console.log('📱 ViewportTracker v2.0.2 initialized:', {
             sessionId: this.sessionId.substring(0, 8),
             debugMode: this.debugMode
         });
@@ -102,7 +103,7 @@ class ViewportTracker {
             window.Telegram.WebApp.onEvent('viewportChanged', this.handleResize);
         }
         
-        console.log('✅ ViewportTracker v2.0.1 started with DETAILED diagnostics');
+        console.log('✅ ViewportTracker v2.0.2 started with DETAILED diagnostics');
     }
 
     /**
@@ -145,10 +146,10 @@ class ViewportTracker {
             const telegramStableHeight = window.Telegram?.WebApp?.viewportStableHeight || null;
             const telegramExpanded = window.Telegram?.WebApp?.isExpanded || null;
             
-            // 🔧 НОВОЕ: Детальная диагностика CSS переменных
+            // 🔧 ИСПРАВЛЕНО: Обновлены fallback значения для новой архитектуры (хедеры убраны)
             const cssVars = this.getCSSVariables();
-            const cssBottomNavHeight = parseInt(cssVars.bottomNavHeight) || 64;
-            const cssHeaderHeight = parseInt(cssVars.headerHeight) || 56;
+            const cssBottomNavHeight = parseInt(cssVars.bottomNavHeight) || 60;  // РЕАЛЬНЫЙ размер навигации
+            const cssHeaderHeight = parseInt(cssVars.headerHeight) || 0;        // ✅ ИСПРАВЛЕНО: 56 → 0
             
             // 🔧 НОВОЕ: Реальные размеры элементов DOM
             const realSizes = this.measureRealElementSizes();
@@ -250,7 +251,7 @@ class ViewportTracker {
             
             // Логируем в консоль в debug режиме
             if (this.debugMode) {
-                console.log('📏 DETAILED Viewport measurement v2.0.1:', {
+                console.log('📏 DETAILED Viewport measurement v2.0.2:', {
                     page: currentPage,
                     innerHeight,
                     telegramHeight,
@@ -568,7 +569,7 @@ class ViewportTracker {
                 const result = await response.json();
                 
                 if (this.debugMode) {
-                    console.log('✅ DETAILED Viewport data v2.0.1 sent successfully:', {
+                    console.log('✅ DETAILED Viewport data v2.0.2 sent successfully:', {
                         logId: result.logId,
                         analysis: result.analysis,
                         realSizes: latestData.sizes.real,
@@ -597,9 +598,9 @@ class ViewportTracker {
     analyzeProblem(difference, scrollData, realSizes, cssVars) {
         const abs = Math.abs(difference);
         
-        // 🔧 НОВОЕ: Анализируем расхождения размеров
-        const headerDiff = realSizes.headerHeight - parseInt(cssVars.headerHeight || 56);
-        const navDiff = realSizes.bottomNavHeight - parseInt(cssVars.bottomNavHeight || 64);
+        // 🔧 ИСПРАВЛЕНО: Обновлены fallback значения для анализа расхождений
+        const headerDiff = realSizes.headerHeight - parseInt(cssVars.headerHeight || 0);    // ✅ ИСПРАВЛЕНО: 56 → 0
+        const navDiff = realSizes.bottomNavHeight - parseInt(cssVars.bottomNavHeight || 60); // ✅ ИСПРАВЛЕНО: 64 → 60
         
         let type, severity, description, recommendations = [];
         
@@ -819,4 +820,4 @@ class ViewportTracker {
 window.ViewportTracker = ViewportTracker;
 
 // 🔧 ИСПРАВЛЕНО: Убран автозапуск - только ручная инициализация из HTML
-console.log('📱 ViewportTracker v2.0.1 module loaded - manual init only');
+console.log('📱 ViewportTracker v2.0.2 module loaded - manual init only');
