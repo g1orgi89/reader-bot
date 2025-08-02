@@ -181,10 +181,11 @@
         // 🔧 КРИТИЧЕСКОЕ: НЕМЕДЛЕННАЯ iOS СТАБИЛИЗАЦИЯ
         console.log('🍎 Немедленная iOS стабилизация...');
         
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        // ЕДИНСТВЕННОЕ объявление isIOS в глобальной области
+        window.isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
-        if (isIOS) {
+        if (window.isIOSDevice) {
             console.log('🍎 iOS устройство обнаружено - применяем критические фиксы...');
             
             // Добавляем iOS класс немедленно
@@ -217,7 +218,7 @@
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
             
-            if (isIOS) {
+            if (window.isIOSDevice) {
                 console.log('🍎 Применяем Telegram iOS фиксы...');
                 
                 // Bot API 7.7+ - Отключаем вертикальные свайпы для предотвращения "всплывания" навигации
@@ -388,7 +389,7 @@
                 },
                 status: () => {
                     const status = {
-                        isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+                        isIOS: window.isIOSDevice,
                         hasIOSClass: document.documentElement.classList.contains('ios-device'),
                         hasIOSFixes: window.isIOSFixesActive ? window.isIOSFixesActive() : false,
                         verticalSwipesDisabled: window.Telegram?.WebApp?.isVerticalSwipesEnabled === false,
@@ -424,6 +425,7 @@
         console.log('🔍 Debug команды доступны через:');
         console.log('  - window.debugViewport (основные)');
         console.log('  - window.debugNavigation (iOS навигация)');
+        console.log('  - window.isIOSDevice (проверка iOS)');
     </script>
 </body>
 </html>
