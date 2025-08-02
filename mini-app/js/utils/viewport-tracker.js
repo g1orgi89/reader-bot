@@ -4,8 +4,10 @@
  * Отслеживает viewport изменения, собирает данные о проблемах
  * и отправляет их на сервер для анализа и исправления
  * 
- * @filesize ~6KB
- * @version 1.0.1
+ * 🔧 РАСШИРЕНО: Детальная диагностика всех элементов DOM для iOS
+ * 
+ * @filesize ~12KB
+ * @version 2.0.0
  */
 
 /**
@@ -64,7 +66,7 @@ class ViewportTracker {
         this.handleResize = this.handleResize.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('📱 ViewportTracker initialized:', {
+        console.log('📱 ViewportTracker v2.0.0 initialized:', {
             sessionId: this.sessionId.substring(0, 8),
             debugMode: this.debugMode
         });
@@ -99,7 +101,7 @@ class ViewportTracker {
             window.Telegram.WebApp.onEvent('viewportChanged', this.handleResize);
         }
         
-        console.log('✅ ViewportTracker started');
+        console.log('✅ ViewportTracker v2.0.0 started');
     }
 
     /**
@@ -129,7 +131,7 @@ class ViewportTracker {
     }
 
     /**
-     * 📏 Измерение viewport параметров
+     * 📏 РАСШИРЕННОЕ измерение viewport параметров
      */
     measureViewport() {
         try {
@@ -142,13 +144,22 @@ class ViewportTracker {
             const telegramStableHeight = window.Telegram?.WebApp?.viewportStableHeight || null;
             const telegramExpanded = window.Telegram?.WebApp?.isExpanded || null;
             
-            // CSS переменные
+            // 🔧 НОВОЕ: Детальная диагностика CSS переменных
             const cssVars = this.getCSSVariables();
-            const bottomNavHeight = parseInt(cssVars.bottomNavHeight) || 64;
-            const headerHeight = parseInt(cssVars.headerHeight) || 56;
+            const cssBottomNavHeight = parseInt(cssVars.bottomNavHeight) || 64;
+            const cssHeaderHeight = parseInt(cssVars.headerHeight) || 56;
+            
+            // 🔧 НОВОЕ: Реальные размеры элементов DOM
+            const realSizes = this.measureRealElementSizes();
+            
+            // 🔧 НОВОЕ: Анализ всех fixed/positioned элементов
+            const allFixedElements = this.getAllFixedElements();
+            
+            // 🔧 НОВОЕ: Подробная информация о body и html
+            const documentMetrics = this.getDocumentMetrics();
             
             // Рассчитанная высота контента (по CSS формуле)
-            const calculatedContentHeight = innerHeight - bottomNavHeight - headerHeight - 40;
+            const calculatedContentHeight = innerHeight - cssBottomNavHeight - cssHeaderHeight - 40;
             
             // Реальная высота контентного элемента
             const contentElement = document.querySelector('.content') || 
@@ -157,6 +168,9 @@ class ViewportTracker {
             
             const actualContentHeight = contentElement ? 
                 contentElement.getBoundingClientRect().height : 0;
+            
+            // 🔧 НОВОЕ: Детальный анализ content элемента
+            const contentAnalysis = this.analyzeContentElement(contentElement);
             
             // Разница между ожидаемым и фактическим
             const difference = calculatedContentHeight - actualContentHeight;
@@ -176,6 +190,9 @@ class ViewportTracker {
             // Определяем текущую страницу
             const currentPage = this.getCurrentPage();
             
+            // 🔧 НОВОЕ: iOS специфичные метрики
+            const iosMetrics = this.getIOSMetrics();
+            
             const measurement = {
                 timestamp: new Date().toISOString(),
                 sessionId: this.sessionId,
@@ -191,15 +208,38 @@ class ViewportTracker {
                     calculatedContentHeight,
                     actualContentHeight,
                     difference,
-                    bottomNavHeight,
-                    headerHeight,
                     safeBounds
                 },
+                
+                // 🔧 НОВОЕ: Детальные размеры
+                sizes: {
+                    css: {
+                        bottomNavHeight: cssBottomNavHeight,
+                        headerHeight: cssHeaderHeight
+                    },
+                    real: realSizes,
+                    comparison: {
+                        headerDifference: realSizes.headerHeight - cssHeaderHeight,
+                        navDifference: realSizes.bottomNavHeight - cssBottomNavHeight
+                    }
+                },
+                
+                // 🔧 НОВОЕ: Все fixed элементы
+                fixedElements: allFixedElements,
+                
+                // 🔧 НОВОЕ: Метрики документа
+                document: documentMetrics,
+                
+                // 🔧 НОВОЕ: Анализ content элемента
+                content: contentAnalysis,
+                
+                // 🔧 НОВОЕ: iOS специфика
+                ios: iosMetrics,
                 
                 device: deviceInfo,
                 telegram: telegramInfo,
                 
-                problem: this.analyzeProblem(difference, scrollData),
+                problem: this.analyzeProblem(difference, scrollData, realSizes, cssVars),
                 
                 debugMode: this.debugMode,
                 cssVariables: cssVars,
@@ -209,13 +249,19 @@ class ViewportTracker {
             
             // Логируем в консоль в debug режиме
             if (this.debugMode) {
-                console.log('📏 Viewport measurement:', {
+                console.log('📏 DETAILED Viewport measurement:', {
                     page: currentPage,
                     innerHeight,
                     telegramHeight,
                     calculatedHeight: calculatedContentHeight,
                     actualHeight: actualContentHeight,
                     difference,
+                    realHeaderHeight: realSizes.headerHeight,
+                    cssHeaderHeight: cssHeaderHeight,
+                    headerDiff: realSizes.headerHeight - cssHeaderHeight,
+                    realNavHeight: realSizes.bottomNavHeight,
+                    cssNavHeight: cssBottomNavHeight,
+                    navDiff: realSizes.bottomNavHeight - cssBottomNavHeight,
                     problem: measurement.problem.type
                 });
             }
@@ -227,6 +273,253 @@ class ViewportTracker {
             console.error('❌ ViewportTracker measurement error:', error);
             return null;
         }
+    }
+
+    /**
+     * 🔧 НОВОЕ: Измерить реальные размеры элементов DOM
+     */
+    measureRealElementSizes() {
+        const measurements = {
+            headerHeight: 0,
+            bottomNavHeight: 0,
+            headerElement: null,
+            bottomNavElement: null
+        };
+
+        // Ищем header элемент
+        const headerSelectors = ['.header', '#header', 'header', '.top-nav', '.app-header'];
+        for (const selector of headerSelectors) {
+            const element = document.querySelector(selector);
+            if (element) {
+                const rect = element.getBoundingClientRect();
+                const computedStyle = window.getComputedStyle(element);
+                measurements.headerHeight = rect.height;
+                measurements.headerElement = {
+                    selector,
+                    rect: {
+                        height: rect.height,
+                        width: rect.width,
+                        top: rect.top,
+                        left: rect.left
+                    },
+                    computedStyle: {
+                        height: computedStyle.height,
+                        paddingTop: computedStyle.paddingTop,
+                        paddingBottom: computedStyle.paddingBottom,
+                        marginTop: computedStyle.marginTop,
+                        marginBottom: computedStyle.marginBottom,
+                        borderTopWidth: computedStyle.borderTopWidth,
+                        borderBottomWidth: computedStyle.borderBottomWidth,
+                        position: computedStyle.position,
+                        zIndex: computedStyle.zIndex
+                    }
+                };
+                break;
+            }
+        }
+
+        // Ищем bottom navigation элемент
+        const navSelectors = ['.bottom-nav', '#bottom-nav', '.navigation', '.nav-bottom', '.footer-nav'];
+        for (const selector of navSelectors) {
+            const element = document.querySelector(selector);
+            if (element) {
+                const rect = element.getBoundingClientRect();
+                const computedStyle = window.getComputedStyle(element);
+                measurements.bottomNavHeight = rect.height;
+                measurements.bottomNavElement = {
+                    selector,
+                    rect: {
+                        height: rect.height,
+                        width: rect.width,
+                        top: rect.top,
+                        left: rect.left
+                    },
+                    computedStyle: {
+                        height: computedStyle.height,
+                        paddingTop: computedStyle.paddingTop,
+                        paddingBottom: computedStyle.paddingBottom,
+                        marginTop: computedStyle.marginTop,
+                        marginBottom: computedStyle.marginBottom,
+                        borderTopWidth: computedStyle.borderTopWidth,
+                        borderBottomWidth: computedStyle.borderBottomWidth,
+                        position: computedStyle.position,
+                        zIndex: computedStyle.zIndex
+                    }
+                };
+                break;
+            }
+        }
+
+        return measurements;
+    }
+
+    /**
+     * 🔧 НОВОЕ: Получить все fixed/positioned элементы
+     */
+    getAllFixedElements() {
+        const allElements = document.querySelectorAll('*');
+        const fixedElements = [];
+        
+        allElements.forEach(element => {
+            const computedStyle = window.getComputedStyle(element);
+            const position = computedStyle.position;
+            
+            if (position === 'fixed' || position === 'absolute' || position === 'sticky') {
+                const rect = element.getBoundingClientRect();
+                
+                // Игнорируем элементы без размеров
+                if (rect.height > 0 && rect.width > 0) {
+                    fixedElements.push({
+                        tagName: element.tagName,
+                        className: element.className,
+                        id: element.id,
+                        position,
+                        zIndex: computedStyle.zIndex,
+                        rect: {
+                            height: rect.height,
+                            width: rect.width,
+                            top: rect.top,
+                            left: rect.left,
+                            bottom: rect.bottom,
+                            right: rect.right
+                        },
+                        computedHeight: computedStyle.height,
+                        visible: rect.height > 0 && rect.width > 0 && computedStyle.visibility !== 'hidden' && computedStyle.display !== 'none'
+                    });
+                }
+            }
+        });
+        
+        return fixedElements;
+    }
+
+    /**
+     * 🔧 НОВОЕ: Получить метрики документа
+     */
+    getDocumentMetrics() {
+        const html = document.documentElement;
+        const body = document.body;
+        
+        const htmlStyle = window.getComputedStyle(html);
+        const bodyStyle = window.getComputedStyle(body);
+        
+        return {
+            html: {
+                scrollHeight: html.scrollHeight,
+                clientHeight: html.clientHeight,
+                offsetHeight: html.offsetHeight,
+                computedStyle: {
+                    height: htmlStyle.height,
+                    padding: htmlStyle.padding,
+                    margin: htmlStyle.margin,
+                    overflow: htmlStyle.overflow,
+                    overflowY: htmlStyle.overflowY
+                }
+            },
+            body: {
+                scrollHeight: body.scrollHeight,
+                clientHeight: body.clientHeight,
+                offsetHeight: body.offsetHeight,
+                computedStyle: {
+                    height: bodyStyle.height,
+                    padding: bodyStyle.padding,
+                    margin: bodyStyle.margin,
+                    overflow: bodyStyle.overflow,
+                    overflowY: bodyStyle.overflowY
+                }
+            }
+        };
+    }
+
+    /**
+     * 🔧 НОВОЕ: Анализ content элемента
+     */
+    analyzeContentElement(contentElement) {
+        if (!contentElement) {
+            return { found: false, error: 'Content element not found' };
+        }
+
+        const rect = contentElement.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(contentElement);
+        
+        return {
+            found: true,
+            selector: this.getElementSelector(contentElement),
+            rect: {
+                height: rect.height,
+                width: rect.width,
+                top: rect.top,
+                left: rect.left,
+                bottom: rect.bottom,
+                right: rect.right
+            },
+            scroll: {
+                scrollTop: contentElement.scrollTop,
+                scrollHeight: contentElement.scrollHeight,
+                clientHeight: contentElement.clientHeight
+            },
+            computedStyle: {
+                height: computedStyle.height,
+                minHeight: computedStyle.minHeight,
+                maxHeight: computedStyle.maxHeight,
+                padding: computedStyle.padding,
+                margin: computedStyle.margin,
+                border: computedStyle.border,
+                overflow: computedStyle.overflow,
+                overflowY: computedStyle.overflowY,
+                position: computedStyle.position
+            },
+            children: {
+                count: contentElement.children.length,
+                totalHeight: Array.from(contentElement.children).reduce((sum, child) => {
+                    return sum + child.getBoundingClientRect().height;
+                }, 0)
+            }
+        };
+    }
+
+    /**
+     * 🔧 НОВОЕ: iOS специфичные метрики
+     */
+    getIOSMetrics() {
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+        if (!isIOS) {
+            return { isIOS: false };
+        }
+
+        // Проверяем CSS переменные для iOS
+        const rootStyle = getComputedStyle(document.documentElement);
+        
+        return {
+            isIOS: true,
+            safeAreaSupport: CSS.supports('padding', 'env(safe-area-inset-top)'),
+            webkitFillAvailable: CSS.supports('height', '-webkit-fill-available'),
+            viewport100vh: window.innerHeight,
+            visualViewport: window.visualViewport ? {
+                height: window.visualViewport.height,
+                width: window.visualViewport.width,
+                offsetTop: window.visualViewport.offsetTop,
+                scale: window.visualViewport.scale
+            } : null,
+            computedSafeAreas: {
+                top: rootStyle.getPropertyValue('--safe-area-top') || rootStyle.getPropertyValue('env(safe-area-inset-top)'),
+                bottom: rootStyle.getPropertyValue('--safe-area-bottom') || rootStyle.getPropertyValue('env(safe-area-inset-bottom)'),
+                left: rootStyle.getPropertyValue('--safe-area-left') || rootStyle.getPropertyValue('env(safe-area-inset-left)'),
+                right: rootStyle.getPropertyValue('--safe-area-right') || rootStyle.getPropertyValue('env(safe-area-inset-right)')
+            }
+        };
+    }
+
+    /**
+     * 🔧 НОВОЕ: Получить CSS селектор элемента
+     */
+    getElementSelector(element) {
+        if (!element) return null;
+        
+        if (element.id) return `#${element.id}`;
+        if (element.className) return `.${element.className.split(' ')[0]}`;
+        return element.tagName.toLowerCase();
     }
 
     /**
@@ -259,7 +552,6 @@ class ViewportTracker {
             // Отправляем последнее измерение (самое актуальное)
             const latestData = this.dataCache[this.dataCache.length - 1];
             
-            // 🔧 ИСПРАВЛЕНО: правильный API path с /reader/ префиксом
             const response = await fetch('/api/reader/debug/viewport', {
                 method: 'POST',
                 headers: {
@@ -272,9 +564,12 @@ class ViewportTracker {
                 const result = await response.json();
                 
                 if (this.debugMode) {
-                    console.log('✅ Viewport data sent successfully:', {
+                    console.log('✅ DETAILED Viewport data sent successfully:', {
                         logId: result.logId,
-                        analysis: result.analysis
+                        analysis: result.analysis,
+                        realSizes: latestData.sizes.real,
+                        cssSizes: latestData.sizes.css,
+                        sizeDifferences: latestData.sizes.comparison
                     });
                 }
                 
@@ -291,12 +586,16 @@ class ViewportTracker {
     }
 
     /**
-     * 🔍 Анализ проблемы viewport
+     * 🔍 РАСШИРЕННЫЙ анализ проблемы viewport
      */
-    analyzeProblem(difference, scrollData) {
+    analyzeProblem(difference, scrollData, realSizes, cssVars) {
         const abs = Math.abs(difference);
         
-        let type, severity, description;
+        // 🔧 НОВОЕ: Анализируем расхождения размеров
+        const headerDiff = realSizes.headerHeight - parseInt(cssVars.headerHeight || 56);
+        const navDiff = realSizes.bottomNavHeight - parseInt(cssVars.bottomNavHeight || 64);
+        
+        let type, severity, description, recommendations = [];
         
         if (difference > 10) {
             type = 'empty_space_bottom';
@@ -312,6 +611,15 @@ class ViewportTracker {
             description = 'Minor viewport inconsistency';
         }
         
+        // 🔧 НОВОЕ: Рекомендации на основе анализа размеров
+        if (Math.abs(headerDiff) > 5) {
+            recommendations.push(`Header size mismatch: real ${realSizes.headerHeight}px vs CSS ${cssVars.headerHeight}`);
+        }
+        
+        if (Math.abs(navDiff) > 5) {
+            recommendations.push(`Navigation size mismatch: real ${realSizes.bottomNavHeight}px vs CSS ${cssVars.bottomNavHeight}`);
+        }
+        
         if (abs < 10) severity = 'minor';
         else if (abs < 50) severity = 'moderate';
         else severity = 'severe';
@@ -320,12 +628,17 @@ class ViewportTracker {
             type,
             severity,
             description,
+            recommendations,
+            sizeMismatches: {
+                header: headerDiff,
+                navigation: navDiff
+            },
             ...scrollData
         };
     }
 
     // ===========================================
-    // 🛠️ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    // 🛠️ ОСТАЛЬНЫЕ МЕТОДЫ (без изменений)
     // ===========================================
 
     /**
@@ -338,7 +651,9 @@ class ViewportTracker {
         return {
             bottomNavHeight: computedStyle.getPropertyValue('--bottom-nav-height').trim(),
             headerHeight: computedStyle.getPropertyValue('--header-height').trim(),
-            tgViewportHeight: computedStyle.getPropertyValue('--tg-viewport-height').trim()
+            tgViewportHeight: computedStyle.getPropertyValue('--tg-viewport-height').trim(),
+            safeAreaTop: computedStyle.getPropertyValue('--safe-area-top').trim(),
+            safeAreaBottom: computedStyle.getPropertyValue('--safe-area-bottom').trim()
         };
     }
 
@@ -515,4 +830,4 @@ if (typeof window !== 'undefined' && window.location.pathname.includes('mini-app
     }
 }
 
-console.log('📱 ViewportTracker module loaded');
+console.log('📱 ViewportTracker v2.0.0 module loaded with detailed diagnostics');
