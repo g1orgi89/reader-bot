@@ -1,33 +1,9 @@
 /**
- * 🧭 BottomNav.js - Нижняя панель навигации Telegram Mini App
- * 
- * Компонент нижней навигации с 5 страницами:
- * 🏠 Главная, 📖 Дневник, 📊 Отчеты, 📚 Каталог, 👥 Сообщество
- * 
- * Дизайн: Соответствует концепту 5 страниц app.txt и цветовой схеме Анны Бусел
- * Архитектура: Следует паттернам HomePage.js и DiaryPage.js
- * 
- * @class BottomNav
- * @author Claude Sonnet 4
- * @created 2025-07-28
- */
-
-/**
- * @typedef {Object} NavItem
- * @property {string} id - Уникальный ID страницы
- * @property {string} label - Название страницы
- * @property {string} icon - SVG иконка
- * @property {string} route - Маршрут страницы
- * @property {boolean} [isActive] - Активная страница
+ * 🧭 BottomNav.js - ИСПРАВЛЕНО: Убраны инлайн стили
+ * Теперь использует только CSS из navigation.css
  */
 
 class BottomNav {
-    /**
-     * Создает экземпляр нижней навигации
-     * @param {Object} app - Основное приложение
-     * @param {Object} router - Роутер приложения
-     * @param {Object} telegram - Telegram интеграция
-     */
     constructor(app, router, telegram) {
         this.app = app;
         this.router = router;
@@ -37,7 +13,7 @@ class BottomNav {
         this.element = null;
         this.subscriptions = [];
         
-        // 🎨 Конфигурация навигации (из концепта 5 страниц)
+        // 🎨 Конфигурация навигации
         this.navItems = [
             {
                 id: 'home',
@@ -74,141 +50,45 @@ class BottomNav {
         this.init();
     }
 
-    /**
-     * Инициализация компонента
-     */
     init() {
         this.createElement();
         this.attachEventListeners();
         this.subscribeToRouteChanges();
         
-        console.log('BottomNav: Инициализирован с', this.navItems.length, 'страницами');
+        console.log('BottomNav: Инициализирован без инлайн стилей');
     }
 
     /**
-     * 🏗️ Создание DOM элемента навигации
+     * 🏗️ Создание DOM элемента - БЕЗ ИНЛАЙН СТИЛЕЙ!
      */
     createElement() {
-        this.element = document.createElement('div');
+        this.element = document.createElement('nav');
+        this.element.id = 'bottom-nav';
         this.element.className = 'bottom-nav';
         this.element.innerHTML = this.render();
         
-        // 📱 Добавляем в конец body для фиксированного позиционирования
-        document.body.appendChild(this.element);
+        // 📱 Добавляем в существующий контейнер навигации
+        const existingNav = document.getElementById('bottom-nav');
+        if (existingNav) {
+            existingNav.parentNode.replaceChild(this.element, existingNav);
+        } else {
+            document.body.appendChild(this.element);
+        }
     }
 
     /**
-     * 🎨 Рендер компонента (HTML + инлайн стили)
-     * @returns {string} HTML разметка
+     * 🎨 Рендер БЕЗ СТИЛЕЙ - только HTML
      */
     render() {
         const navItemsHTML = this.navItems.map(item => 
             this.renderNavItem(item)
         ).join('');
 
-        return `
-            <style>
-                .bottom-nav {
-                    position: fixed;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    background: var(--surface, #FFFFFF);
-                    display: flex;
-                    border-top: 1px solid var(--border, #E6E0D6);
-                    height: 60px;
-                    z-index: 100;
-                    transition: all 0.3s ease;
-                    box-shadow: 0 -2px 12px rgba(210, 69, 44, 0.08);
-                }
-                
-                .nav-item {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    padding: 8px 4px;
-                    color: var(--text-muted, #999999);
-                    position: relative;
-                    text-decoration: none;
-                    user-select: none;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                
-                .nav-item.active {
-                    color: var(--primary-color, #D2452C);
-                }
-                
-                .nav-item.active::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 30px;
-                    height: 3px;
-                    background: var(--primary-color, #D2452C);
-                    border-radius: 0 0 3px 3px;
-                    transition: all 0.3s ease;
-                }
-                
-                .nav-item:hover:not(.active) {
-                    color: var(--text-secondary, #666666);
-                    background: var(--background-light, #FAF8F3);
-                }
-                
-                .nav-item:active {
-                    transform: scale(0.95);
-                }
-                
-                .nav-icon {
-                    width: 18px;
-                    height: 18px;
-                    margin-bottom: 2px;
-                    stroke-width: 2;
-                    transition: all 0.3s ease;
-                }
-                
-                .nav-label {
-                    font-size: 9px;
-                    font-weight: 500;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    transition: all 0.3s ease;
-                }
-                
-                /* 📱 iOS стили для Telegram Mini App */
-                @media (max-width: 480px) {
-                    .bottom-nav {
-                        padding-bottom: env(safe-area-inset-bottom, 0);
-                    }
-                }
-                
-                /* 🌙 Темная тема */
-                body.dark-theme .bottom-nav {
-                    background: var(--surface, #2A2A2A);
-                    border-top-color: var(--border, #404040);
-                }
-                
-                body.dark-theme .nav-item.active {
-                    color: var(--primary-color, #E85A42);
-                }
-                
-                body.dark-theme .nav-item.active::before {
-                    background: var(--primary-color, #E85A42);
-                }
-            </style>
-            
-            ${navItemsHTML}
-        `;
+        return navItemsHTML;
     }
 
     /**
      * 🎯 Рендер отдельного элемента навигации
-     * @param {NavItem} item - Элемент навигации
-     * @returns {string} HTML элемента
      */
     renderNavItem(item) {
         const isActive = this.currentRoute === item.route;
@@ -220,7 +100,7 @@ class BottomNav {
                 <div class="nav-icon">
                     ${item.icon}
                 </div>
-                <div class="nav-label">${item.label}</div>
+                <span class="nav-label">${item.label}</span>
             </div>
         `;
     }
@@ -262,8 +142,6 @@ class BottomNav {
 
     /**
      * 🧭 Навигация на страницу
-     * @param {string} route - Маршрут
-     * @param {string} navId - ID навигации
      */
     navigateToPage(route, navId) {
         try {
@@ -279,7 +157,6 @@ class BottomNav {
             if (this.router?.navigate) {
                 this.router.navigate(route);
             } else {
-                // Fallback для прямой навигации
                 this.handleDirectNavigation(route, navId);
             }
 
@@ -288,7 +165,6 @@ class BottomNav {
         } catch (error) {
             console.error('BottomNav: Ошибка навигации', error);
             
-            // ❌ Haptic feedback при ошибке
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('error');
             }
@@ -297,7 +173,6 @@ class BottomNav {
 
     /**
      * 🎯 Установка активного маршрута
-     * @param {string} route - Активный маршрут
      */
     setActiveRoute(route) {
         if (this.currentRoute === route) return;
@@ -312,11 +187,9 @@ class BottomNav {
     updateActiveState() {
         if (!this.element) return;
 
-        // Убираем активность со всех элементов
         const allItems = this.element.querySelectorAll('.nav-item');
         allItems.forEach(item => item.classList.remove('active'));
 
-        // Добавляем активность к текущему
         const activeItem = this.element.querySelector(`[data-route="${this.currentRoute}"]`);
         if (activeItem) {
             activeItem.classList.add('active');
@@ -327,7 +200,6 @@ class BottomNav {
      * 🔄 Подписка на изменения маршрута
      */
     subscribeToRouteChanges() {
-        // Если есть глобальный роутер
         if (window.AppRouter) {
             const subscription = window.AppRouter.subscribe((newRoute) => {
                 this.setActiveRoute(newRoute);
@@ -335,7 +207,6 @@ class BottomNav {
             this.subscriptions.push(subscription);
         }
 
-        // Если есть история браузера
         window.addEventListener('popstate', () => {
             this.setActiveRoute(window.location.pathname);
         });
@@ -343,16 +214,12 @@ class BottomNav {
 
     /**
      * 🔗 Прямая навигация (fallback)
-     * @param {string} route - Маршрут
-     * @param {string} navId - ID навигации
      */
     handleDirectNavigation(route, navId) {
-        // Уведомляем приложение о смене маршрута
         if (this.app?.onRouteChange) {
             this.app.onRouteChange(route, navId);
         }
 
-        // Событие для других компонентов
         window.dispatchEvent(new CustomEvent('routeChange', {
             detail: { route, navId, source: 'bottomNav' }
         }));
@@ -360,7 +227,6 @@ class BottomNav {
 
     /**
      * 🎭 Показать/скрыть навигацию
-     * @param {boolean} visible - Показать навигацию
      */
     setVisible(visible) {
         if (!this.element) return;
@@ -368,16 +234,10 @@ class BottomNav {
         this.element.style.transform = visible ? 'translateY(0)' : 'translateY(100%)';
     }
 
-    /**
-     * 🔄 Lifecycle: Показ компонента
-     */
     onShow() {
         this.setVisible(true);
     }
 
-    /**
-     * 🔄 Lifecycle: Скрытие компонента  
-     */
     onHide() {
         this.setVisible(false);
     }
@@ -386,7 +246,6 @@ class BottomNav {
      * 🧹 Очистка ресурсов
      */
     destroy() {
-        // Отписываемся от событий
         this.subscriptions.forEach(unsubscribe => {
             if (typeof unsubscribe === 'function') {
                 unsubscribe();
@@ -394,7 +253,6 @@ class BottomNav {
         });
         this.subscriptions = [];
 
-        // Удаляем DOM элемент
         if (this.element && this.element.parentNode) {
             this.element.parentNode.removeChild(this.element);
         }
@@ -403,12 +261,8 @@ class BottomNav {
         console.log('BottomNav: Компонент уничтожен');
     }
 
-    // 🎨 SVG ИКОНКИ (из концепта 5 страниц)
+    // 🎨 SVG ИКОНКИ
 
-    /**
-     * 🏠 Иконка главной страницы
-     * @returns {string} SVG иконка
-     */
     getHomeIcon() {
         return `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -418,10 +272,6 @@ class BottomNav {
         `;
     }
 
-    /**
-     * 📖 Иконка дневника
-     * @returns {string} SVG иконка
-     */
     getDiaryIcon() {
         return `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -434,10 +284,6 @@ class BottomNav {
         `;
     }
 
-    /**
-     * 📊 Иконка отчетов
-     * @returns {string} SVG иконка
-     */
     getReportsIcon() {
         return `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -455,10 +301,6 @@ class BottomNav {
         `;
     }
 
-    /**
-     * 📚 Иконка каталога
-     * @returns {string} SVG иконка
-     */
     getCatalogIcon() {
         return `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -471,10 +313,6 @@ class BottomNav {
         `;
     }
 
-    /**
-     * 👥 Иконка сообщества
-     * @returns {string} SVG иконка  
-     */
     getCommunityIcon() {
         return `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -487,7 +325,6 @@ class BottomNav {
     }
 }
 
-// 🌍 Экспорт для использования в других модулях
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = BottomNav;
 } else {
