@@ -1,8 +1,9 @@
 /**
- * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 ИСПРАВЛЕНЫ АНИМАЦИИ СТРАНИЦ)
+ * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 ИСПРАВЛЕН VIEWPORT ДЛЯ iOS)
  * Базовая типографика, сетка и общие стили компонентов
  * ✅ ИСПРАВЛЕНО: Используются правильные CSS переменные для размеров навигации
  * ✅ ИСПРАВЛЕНО: Убраны повторные запуски анимаций при переходах между страницами
+ * 🔧 НОВОЕ: Исправлен viewport overflow на iOS на основе диагностики
  */
 
 /* ============================================================================
@@ -179,12 +180,13 @@ p {
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* 🔧 ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: ПРАВИЛЬНЫЕ ПЕРЕМЕННЫЕ НАВИГАЦИИ */
+/* 🔧 ИСПРАВЛЕНО НА ОСНОВЕ ДИАГНОСТИКИ: Уменьшен padding с 40px до 20px для iOS */
 .content {
-    /* ✅ ИСПРАВЛЕНО: Используем правильные переменные из variables.css */
-    height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 40px);
-    max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 40px);
-    min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 40px);
+    /* ✅ ИСПРАВЛЕНО: Уменьшен padding с 40px до 20px на основе данных диагностики */
+    /* iOS показал -20px overflow, значит нужно уменьшить padding */
+    height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px);
+    max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px);
+    min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px);
     width: 100%;
     
     /* ✅ ИСПРАВЛЕНО: Правильный скроллинг для длинного контента */
@@ -204,15 +206,35 @@ p {
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
+/* 🔧 СПЕЦИАЛЬНОЕ ИСПРАВЛЕНИЕ ДЛЯ TELEGRAM WEB APP */
+/* Используем Telegram viewport height если доступен */
+@supports (height: var(--tg-viewport-height)) {
+    .content {
+        /* Используем Telegram viewport вместо 100vh */
+        height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - 20px);
+        max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - 20px);
+        min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - 20px);
+    }
+}
+
 /* ✅ iOS ИСПРАВЛЕНИЯ: Дополнительные стили для iPhone */
 @supports (padding: max(0px)) {
     .content {
         /* Используем max() для правильной работы safe-area */
         padding-bottom: max(16px, env(safe-area-inset-bottom));
-        /* ✅ ИСПРАВЛЕНО: Используем переменные + safe area */
-        height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        /* ✅ ИСПРАВЛЕНО: Используем переменные + safe area + уменьшенный padding */
+        height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    }
+    
+    /* Telegram viewport для iOS */
+    @supports (height: var(--tg-viewport-height)) {
+        .content {
+            height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        }
     }
 }
 
@@ -232,10 +254,10 @@ p {
     .content {
         padding: 12px;
         padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-        /* ✅ МОБИЛЬНЫЕ: Используем переменные */
-        height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px);
-        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px);
-        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px);
+        /* ✅ МОБИЛЬНЫЕ: Используем уменьшенный padding */
+        height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px);
+        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px);
+        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px);
     }
 }
 
@@ -254,10 +276,10 @@ p {
     .content {
         padding: 10px;
         padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-        /* ✅ МАЛЕНЬКИЕ ЭКРАНЫ: Используем переменные */
-        height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px);
-        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px);
-        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px);
+        /* ✅ МАЛЕНЬКИЕ ЭКРАНЫ: Используем минимальный padding */
+        height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 5px);
+        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 5px);
+        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 5px);
     }
 }
 
@@ -274,10 +296,10 @@ p {
     }
     
     .content {
-        /* ✅ ДЕСКТОП: Используем переменные */
-        height: calc(700px - var(--bottom-nav-height) - var(--header-height));
-        max-height: calc(700px - var(--bottom-nav-height) - var(--header-height));
-        min-height: calc(700px - var(--bottom-nav-height) - var(--header-height));
+        /* ✅ ДЕСКТОП: Используем увеличенный padding для лучшего вида */
+        height: calc(700px - var(--bottom-nav-height) - var(--header-height) - 60px);
+        max-height: calc(700px - var(--bottom-nav-height) - var(--header-height) - 60px);
+        min-height: calc(700px - var(--bottom-nav-height) - var(--header-height) - 60px);
     }
 }
 
@@ -286,18 +308,18 @@ p {
     @media (max-width: 480px) {
         .content {
             padding-bottom: max(12px, env(safe-area-inset-bottom));
-            height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
         }
     }
     
     @media (max-width: 360px) {
         .content {
             padding-bottom: max(10px, env(safe-area-inset-bottom));
-            height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 10px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 5px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 5px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - 5px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
         }
     }
 }
