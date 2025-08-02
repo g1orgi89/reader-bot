@@ -1,20 +1,19 @@
 /**
- * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 ЖЕЛЕЗОБЕТОННЫЙ iOS ФИКС)
+ * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 TELEGRAM WEBVIEW ФИКС)
  * Стили навигации: нижняя панель, верхнее меню, табы
- * ✅ РЕШЕНИЕ ПРОБЛЕМЫ: Панель уезжает наверх на iPhone и не возвращается
+ * ✅ РЕШЕНИЕ: Фиксы специально для Telegram WebView на iOS
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV) - ЖЕЛЕЗОБЕТОННЫЙ iOS ФИКС
+   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV) - TELEGRAM iOS ФИКС
    ============================================================================ */
 
 .bottom-nav {
-    /* 🔧 ПРИНУДИТЕЛЬНАЯ ФИКСАЦИЯ ДЛЯ iOS */
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
     height: var(--bottom-nav-height);
     background: var(--bg-card);
     border-top: 1px solid var(--bg-secondary);
@@ -27,60 +26,49 @@
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     
-    /* 🔧 АППАРАТНОЕ УСКОРЕНИЕ - КРИТИЧНО ДЛЯ iOS */
-    -webkit-transform: translate3d(0, 0, 0) !important;
-    transform: translate3d(0, 0, 0) !important;
+    /* 🔧 TELEGRAM WEBVIEW ФИКС */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
     
-    /* 🔧 ЗАПРЕТ ИЗМЕНЕНИЯ ПОЗИЦИИ */
-    -webkit-backface-visibility: hidden !important;
-    backface-visibility: hidden !important;
-    will-change: auto !important;
-    
-    /* 🔧 SAFE AREA */
+    /* 🔧 SAFE AREA ДЛЯ ТЕЛЕГРАМА */
     padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom));
     height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
 }
 
-/* 🔧 ДОПОЛНИТЕЛЬНАЯ ПРИНУДИТЕЛЬНАЯ ФИКСАЦИЯ ДЛЯ iOS */
+/* 🔧 СПЕЦИАЛЬНЫЕ ФИКСЫ ДЛЯ TELEGRAM */
+body[data-telegram="true"] .bottom-nav,
+.tg-viewport .bottom-nav {
+    /* В Телеграме нужен другой подход */
+    position: absolute !important;
+    bottom: 0 !important;
+    /* Убираем все что может конфликтовать с Telegram */
+    transform: none !important;
+    -webkit-transform: none !important;
+    will-change: auto !important;
+    contain: none !important;
+    isolation: auto !important;
+}
+
+/* 🔧 ФИКС ДЛЯ iOS В ТЕЛЕГРАМЕ */
 @supports (-webkit-touch-callout: none) {
-    .bottom-nav {
-        /* Множественные методы фиксации */
-        position: -webkit-sticky !important;
-        position: sticky !important; 
+    /* Если это НЕ Телеграм - используем агрессивные фиксы */
+    body:not([data-telegram="true"]) .bottom-nav {
         position: fixed !important;
-        
-        /* Принудительные координаты */
         bottom: 0 !important;
-        top: auto !important;
-        
-        /* Отключение влияния скролла */
-        -webkit-overflow-scrolling: auto !important;
-        
-        /* Изоляция элемента */
+        transform: translate3d(0, 0, 0) !important;
+        -webkit-transform: translate3d(0, 0, 0) !important;
         contain: layout style paint !important;
         isolation: isolate !important;
     }
     
-    /* 🔧 ГЛОБАЛЬНЫЙ ФИКС BODY - ПРЕДОТВРАЩЕНИЕ BOUNCE */
-    body {
-        overscroll-behavior: none !important;
-        -webkit-overscroll-behavior: none !important;
-        position: relative !important;
-    }
-    
-    /* 🔧 ФИКС HTML */
-    html {
-        overflow-x: hidden !important;
-    }
-}
-
-/* 🔧 WEBKIT СПЕЦИФИЧНЫЙ ФИКС ДЛЯ SAFARI */
-@media screen and (-webkit-min-device-pixel-ratio: 0) {
-    _::-webkit-full-page-media, _:future, :root .bottom-nav {
-        position: fixed !important;
+    /* Если это Телеграм - используем мягкие фиксы */
+    body[data-telegram="true"] .bottom-nav,
+    .tg-viewport .bottom-nav {
+        position: absolute !important;
         bottom: 0 !important;
-        -webkit-transform: translate3d(0, 0, 0) !important;
-        transform: translate3d(0, 0, 0) !important;
+        /* Минимальные фиксы для Telegram WebView */
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
     }
 }
 
@@ -188,9 +176,16 @@
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     
-    /* 🔧 iOS SAFE AREA: Добавляем отступ сверху */
+    /* 🔧 SAFE AREA */
     padding-top: env(safe-area-inset-top);
     height: calc(var(--header-height) + env(safe-area-inset-top));
+}
+
+/* 🔧 ФИКС ДЛЯ TOP MENU В ТЕЛЕГРАМЕ */
+body[data-telegram="true"] .top-menu,
+.tg-viewport .top-menu {
+    position: absolute !important;
+    top: 0 !important;
 }
 
 .menu-left {
@@ -407,32 +402,38 @@
 }
 
 /* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ С ЖЕЛЕЗОБЕТОННЫМИ iOS ФИКСАМИ
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ С TELEGRAM ФИКСАМИ
    ============================================================================ */
 
 @media (max-width: 480px) {
     .bottom-nav {
-        height: 60px !important;
-        padding: var(--spacing-xs) !important;
-        
-        /* 🔧 КРИТИЧНО: Принудительные iOS фиксы */
+        height: 60px;
+        padding: var(--spacing-xs);
+        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom));
+        height: calc(60px + env(safe-area-inset-bottom));
+    }
+    
+    /* 🔧 МОБИЛЬНЫЕ ФИКСЫ ДЛЯ ТЕЛЕГРАМА */
+    body[data-telegram="true"] .bottom-nav,
+    .tg-viewport .bottom-nav {
+        position: absolute !important;
+        bottom: 0 !important;
+        /* Убираем агрессивные фиксы в Телеграме */
+        transform: none !important;
+        -webkit-transform: none !important;
+        contain: none !important;
+        isolation: auto !important;
+        will-change: auto !important;
+    }
+    
+    /* 🔧 БРАУЗЕРНЫЕ ФИКСЫ (НЕ ТЕЛЕГРАМ) */
+    body:not([data-telegram="true"]) .bottom-nav {
         position: fixed !important;
         bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        
-        /* 🔧 ПРИНУДИТЕЛЬНОЕ АППАРАТНОЕ УСКОРЕНИЕ */
-        -webkit-transform: translate3d(0, 0, 0) !important;
         transform: translate3d(0, 0, 0) !important;
-        
-        /* 🔧 ИЗОЛЯЦИЯ ОТ СКРОЛЛА */
+        -webkit-transform: translate3d(0, 0, 0) !important;
         contain: layout style paint !important;
         isolation: isolate !important;
-        
-        /* 🔧 SAFE AREA НА МОБИЛЬНЫХ */
-        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom)) !important;
-        height: calc(60px + env(safe-area-inset-bottom)) !important;
     }
     
     .nav-item {
@@ -605,6 +606,12 @@
     align-items: center;
     justify-content: center;
     transition: all var(--duration-normal) var(--ease-out);
+}
+
+/* 🔧 FAB ФИКС ДЛЯ ТЕЛЕГРАМА */
+body[data-telegram="true"] .fab-nav,
+.tg-viewport .fab-nav {
+    position: absolute;
 }
 
 .fab-nav:hover {
