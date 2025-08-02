@@ -1,25 +1,38 @@
 /**
- * 🧭 NAVIGATION CSS - НАХУЙ SAFE-AREA, ПРОСТОЕ РЕШЕНИЕ
+ * 🧭 NAVIGATION CSS - НЕ FIXED, А STICKY!
  */
 
+/* КОНТЕЙНЕР ПРИЛОЖЕНИЯ - FLEXBOX */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* КОНТЕНТ - РАСТЯГИВАЕТСЯ */
+.page-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    /* БЕЗ padding-bottom - навигация не fixed */
+}
+
+/* НАВИГАЦИЯ - НЕ FIXED, А ОБЫЧНАЯ */
 .bottom-nav {
-    position: fixed;
-    left: 0;
-    right: 0;
+    position: relative; /* НЕ FIXED! */
     width: 100%;
     height: 60px;
-    
-    /* НАХУЙ SAFE-AREA - СТАВИМ ПРОСТО НА ДНО */
-    bottom: 0;
-    
     background: var(--bg-card);
     border-top: 1px solid var(--bg-secondary);
-    z-index: 99999;
+    z-index: 40;
     display: flex;
     align-items: center;
     justify-content: space-around;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     padding: 8px 16px;
+    flex-shrink: 0; /* НЕ СЖИМАЕТСЯ */
 }
 
 .nav-item {
@@ -101,12 +114,6 @@
 
 .nav-badge.empty {
     display: none;
-}
-
-/* КОНТЕНТ - ПРОСТО ОТСТУП */
-.page-content {
-    padding-bottom: 80px !important; /* 60px навигация + 20px отступ */
-    margin: 0 !important;
 }
 
 @media (max-width: 480px) {
