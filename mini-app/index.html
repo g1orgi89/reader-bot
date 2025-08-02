@@ -160,8 +160,10 @@
 
     <!-- 📚 JavaScript файлы (ИСПРАВЛЕНЫ ПУТИ!) -->
     
-    <!-- 🔍 НОВОЕ: Viewport Tracker для диагностики (ЗАГРУЖАЕТСЯ ПЕРВЫМ) -->
+    <!-- 🔍 НОВОЕ: Viewport диагностика (ЗАГРУЖАЕТСЯ ПЕРВЫМ) -->
     <script src="js/utils/viewport-tracker.js"></script>
+    <!-- 🔧 НОВОЕ: Динамический калькулятор viewport высоты -->
+    <script src="js/utils/viewport-calculator.js"></script>
     
     <!-- Ядро приложения -->
     <script src="js/core/State.js"></script>
@@ -229,6 +231,9 @@
                     }, 3000); // Даем приложению время инициализироваться
                 }
                 
+                // 🔧 НОВОЕ: Viewport Calculator запускается автоматически через свой модуль
+                // Никаких дополнительных действий не требуется
+                
             } catch (error) {
                 console.error('❌ Ошибка инициализации приложения:', error);
                 
@@ -291,6 +296,27 @@
                 if (window.viewportTracker) {
                     window.viewportTracker.measureAndReport();
                     console.log('📤 Отправка данных viewport на сервер...');
+                }
+            },
+            // 🔧 НОВОЕ: Debug команды для viewport calculator
+            calculator: {
+                update: () => {
+                    if (window.viewportCalculator) {
+                        window.viewportCalculator.updateViewportHeight();
+                        console.log('🔧 Viewport Calculator обновлен вручную');
+                    }
+                },
+                start: () => {
+                    if (window.viewportCalculator) {
+                        window.viewportCalculator.start();
+                        console.log('🔧 Viewport Calculator запущен вручную');
+                    }
+                },
+                stop: () => {
+                    if (window.viewportCalculator) {
+                        window.viewportCalculator.stop();
+                        console.log('🔧 Viewport Calculator остановлен');
+                    }
                 }
             }
         };
