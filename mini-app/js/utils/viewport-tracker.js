@@ -5,7 +5,7 @@
  * и отправляет их на сервер для анализа и исправления
  * 
  * @filesize ~6KB
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 /**
@@ -259,7 +259,8 @@ class ViewportTracker {
             // Отправляем последнее измерение (самое актуальное)
             const latestData = this.dataCache[this.dataCache.length - 1];
             
-            const response = await fetch('/api/debug/viewport', {
+            // 🔧 ИСПРАВЛЕНО: правильный API path с /reader/ префиксом
+            const response = await fetch('/api/reader/debug/viewport', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
