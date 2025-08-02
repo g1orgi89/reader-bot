@@ -7,9 +7,10 @@
  * 🔧 РАСШИРЕНО: Детальная диагностика всех элементов DOM для iOS
  * 🔧 ИСПРАВЛЕНО: Убран автозапуск, только ручная инициализация
  * 🔧 ИСПРАВЛЕНО: Fallback значения header-height 56px → 0px
+ * 🔧 ОБНОВЛЕНО: Версия для четкой идентификации в логах
  * 
  * @filesize ~12KB
- * @version 2.0.2
+ * @version 2.0.3
  */
 
 /**
@@ -68,7 +69,7 @@ class ViewportTracker {
         this.handleResize = this.handleResize.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('📱 ViewportTracker v2.0.2 initialized:', {
+        console.log('📱 ViewportTracker v2.0.3 initialized:', {
             sessionId: this.sessionId.substring(0, 8),
             debugMode: this.debugMode
         });
@@ -103,7 +104,7 @@ class ViewportTracker {
             window.Telegram.WebApp.onEvent('viewportChanged', this.handleResize);
         }
         
-        console.log('✅ ViewportTracker v2.0.2 started with DETAILED diagnostics');
+        console.log('✅ ViewportTracker v2.0.3 started with DETAILED diagnostics');
     }
 
     /**
@@ -251,7 +252,7 @@ class ViewportTracker {
             
             // Логируем в консоль в debug режиме
             if (this.debugMode) {
-                console.log('📏 DETAILED Viewport measurement v2.0.2:', {
+                console.log('📏 DETAILED Viewport measurement v2.0.3:', {
                     page: currentPage,
                     innerHeight,
                     telegramHeight,
@@ -569,7 +570,7 @@ class ViewportTracker {
                 const result = await response.json();
                 
                 if (this.debugMode) {
-                    console.log('✅ DETAILED Viewport data v2.0.2 sent successfully:', {
+                    console.log('✅ DETAILED Viewport data v2.0.3 sent successfully:', {
                         logId: result.logId,
                         analysis: result.analysis,
                         realSizes: latestData.sizes.real,
@@ -820,4 +821,4 @@ class ViewportTracker {
 window.ViewportTracker = ViewportTracker;
 
 // 🔧 ИСПРАВЛЕНО: Убран автозапуск - только ручная инициализация из HTML
-console.log('📱 ViewportTracker v2.0.2 module loaded - manual init only');
+console.log('📱 ViewportTracker v2.0.3 module loaded - manual init only');
