@@ -1,20 +1,22 @@
 /**
- * 🧭 NAVIGATION CSS - ИСПРАВЛЕНИЕ: НЕ ЛОМАЕМ БРАУЗЕРНУЮ ВЕРСИЮ!
- * ТОЛЬКО iPhone в Telegram фиксим, браузер оставляем как есть!
+ * 🧭 NAVIGATION CSS - ИСПРАВЛЕНИЕ SAFE-AREA КОНФЛИКТА
+ * Проблема: safe-area считается дважды!
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ - ОСТОРОЖНОЕ ИСПРАВЛЕНИЕ
+   🧭 НИЖНЯЯ НАВИГАЦИЯ - ПРАВИЛЬНЫЙ SAFE-AREA
    ============================================================================ */
 
 .bottom-nav {
-    /* БАЗОВОЕ ПОЗИЦИОНИРОВАНИЕ */
+    /* ПОЗИЦИОНИРОВАНИЕ */
     position: fixed;
-    bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
     height: 60px;
+    
+    /* 🔧 ПРАВИЛЬНЫЙ BOTTOM - УЧИТЫВАЕМ SAFE-AREA */
+    bottom: env(safe-area-inset-bottom, 0px);
     
     /* ВИЗУАЛ */
     background: var(--bg-card);
@@ -25,16 +27,14 @@
     justify-content: space-around;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     
-    /* ПРОСТЫЕ ОТСТУПЫ */
+    /* ПРОСТЫЕ ОТСТУПЫ БЕЗ SAFE-AREA */
     padding: 8px 16px;
-    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 🔧 ТОЛЬКО ДЛЯ ТЕЛЕГРАМА - АГРЕССИВНЫЕ ФИКСЫ */
 body[data-telegram="true"] .bottom-nav {
-    /* В ТЕЛЕГРАМЕ убираем stacking context проблему */
     position: fixed !important;
-    bottom: 0 !important;
+    bottom: env(safe-area-inset-bottom, 0px) !important;
     left: 0 !important;
     right: 0 !important;
     z-index: 99999 !important;
@@ -44,30 +44,23 @@ body[data-telegram="true"] .bottom-nav {
     -webkit-transform: none !important;
     contain: layout style paint !important;
     isolation: isolate !important;
+    
+    /* Простые отступы БЕЗ дублирования safe-area */
+    padding: 8px 16px !important;
 }
 
 /* 🔧 ТОЛЬКО ДЛЯ ТЕЛЕГРАМА - ИСПРАВЛЯЕМ APP-CONTAINER */
 body[data-telegram="true"] .app-container {
-    /* УБИРАЕМ position: relative ТОЛЬКО В ТЕЛЕГРАМЕ */
     position: static !important;
 }
 
 /* 🌐 ДЛЯ БРАУЗЕРА - ОСТАВЛЯЕМ КАК БЫЛО */
 body:not([data-telegram="true"]) .bottom-nav {
-    /* В браузере обычное позиционирование внутри phone-frame */
     position: fixed;
-    bottom: 0;
+    bottom: 0; /* В браузере safe-area может не работать */
     left: 0;
     right: 0;
     z-index: 40;
-    /* Не трогаем app-container в браузере */
-}
-
-/* 🔧 ДЛЯ iOS - ПРОСТОЙ ФИКС */
-@supports (padding: env(safe-area-inset-bottom)) {
-    .bottom-nav {
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
-    }
 }
 
 .nav-item {
@@ -153,21 +146,22 @@ body:not([data-telegram="true"]) .bottom-nav {
 }
 
 /* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ - ПРАВИЛЬНЫЙ SAFE-AREA
    ============================================================================ */
 
 @media (max-width: 480px) {
     .bottom-nav {
         height: 60px;
         padding: 4px 8px;
-        padding-bottom: calc(4px + env(safe-area-inset-bottom, 8px));
+        /* 🔧 УБИРАЕМ padding-bottom с safe-area - уже учтен в bottom */
     }
     
-    /* ТОЛЬКО В ТЕЛЕГРАМЕ на мобильных - агрессивные фиксы */
+    /* ТОЛЬКО В ТЕЛЕГРАМЕ на мобильных */
     body[data-telegram="true"] .bottom-nav {
         position: fixed !important;
-        bottom: 0 !important;
+        bottom: env(safe-area-inset-bottom, 0px) !important;
         z-index: 99999 !important;
+        padding: 4px 8px !important; /* БЕЗ safe-area в padding */
     }
     
     .nav-item {
@@ -188,24 +182,22 @@ body:not([data-telegram="true"]) .bottom-nav {
 }
 
 /* ============================================================================
-   🔧 БАЗОВЫЕ ФИКСЫ (БЕЗ ЛОМАНИЯ БРАУЗЕРА)
+   🔧 БАЗОВЫЕ ФИКСЫ
    ============================================================================ */
 
-/* Убираем конфликты с body */
 body {
     margin: 0 !important;
     padding: 0 !important;
 }
 
-/* Убираем конфликты с html */
 html {
     margin: 0 !important;
     padding: 0 !important;
 }
 
-/* Правильный отступ для контента */
+/* 🔧 ПРАВИЛЬНЫЙ ОТСТУП ДЛЯ КОНТЕНТА - С УЧЕТОМ SAFE-AREA */
 .page-content {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom, 8px) + 16px) !important;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px) !important;
     margin: 0 !important;
 }
 
