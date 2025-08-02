@@ -1,7 +1,8 @@
 /**
- * 🏠 ГЛАВНАЯ СТРАНИЦА - home.css (🔧 ИСПРАВЛЕНЫ АНИМАЦИИ)
+ * 🏠 ГЛАВНАЯ СТРАНИЦА - home.css (🔧 ДОБАВЛЕН ВСТРОЕННЫЙ БЛОК АВАТАРА)
  * Стили точно соответствуют концепту "5 страниц app.txt"
  * ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации контента
+ * ✅ НОВОЕ: Добавлены стили для встроенного блока аватара
  */
 
 /* ============================================================================
@@ -34,7 +35,98 @@
 }
 
 /* ============================================================================
-   🏠 ШАПКА ГЛАВНОЙ СТРАНИЦЫ (В INDEX.HTML)
+   👤 ВСТРОЕННЫЙ БЛОК АВАТАРА (НОВОЕ! ТОЛЬКО НА ГЛАВНОЙ)
+   ============================================================================ */
+
+.user-header-inline {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: var(--border-radius);
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    transition: all var(--transition-normal);
+}
+
+.user-header-inline:hover {
+    box-shadow: 0 6px 20px var(--shadow-color-strong);
+    transform: translateY(-1px);
+}
+
+.user-info-inline {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-avatar-inline {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.user-avatar-inline:hover {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.05);
+}
+
+.user-details-inline {
+    flex: 1;
+}
+
+.user-name-inline {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.user-status-inline {
+    margin: 0;
+    font-size: 12px;
+    opacity: 0.8;
+    line-height: 1.2;
+}
+
+.menu-button-inline {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all var(--transition-normal);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.menu-button-inline:hover {
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.05);
+}
+
+.menu-button-inline:active {
+    transform: scale(0.95);
+}
+
+/* ============================================================================
+   🏠 СТАРАЯ ШАПКА (ОСТАЕТСЯ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ)
    ============================================================================ */
 
 .home-header {
@@ -422,14 +514,24 @@
         padding: 8px;
     }
     
-    .user-avatar {
+    .user-avatar, .user-avatar-inline {
         width: 32px;
         height: 32px;
         font-size: 14px;
     }
     
-    .user-details h3 {
+    .user-details h3, .user-name-inline {
         font-size: 14px;
+    }
+    
+    .user-header-inline {
+        padding: 12px;
+    }
+    
+    .menu-button-inline {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
     }
 }
 
@@ -446,6 +548,10 @@
 */
 
 /* ✅ НОВОЕ: Утилитарные классы для контролируемых анимаций */
+.animate-content .user-header-inline {
+    animation: slideUp 0.4s ease 0s both;
+}
+
 .animate-content .page-title {
     animation: slideUp 0.4s ease 0.1s both;
 }
@@ -513,7 +619,10 @@ body.dark-theme {
 .book-item,
 .nav-item,
 .user-avatar,
-.menu-button {
+.user-avatar-inline,
+.menu-button,
+.menu-button-inline,
+.user-header-inline {
     transition: 
         background var(--transition-normal),
         color var(--transition-normal),
