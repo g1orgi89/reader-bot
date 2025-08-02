@@ -1,6 +1,6 @@
 /**
  * 📱 MOBILE CSS ДЛЯ TELEGRAM MINI APP
- * ФИКСИМ ТОЛЬКО КОНФЛИКТЫ! БЕЗ ЛИШНЕЙ ХЕРНИ!
+ * ✅ ИСПРАВЛЕНО: Убрано дублирование safe-area в page-content
  */
 
 /* ============================================================================
@@ -73,10 +73,11 @@
         transform: translateZ(0);
     }
     
-    /* 🔧 КОНТЕНТ ДОЛЖЕН НЕ КОНФЛИКТОВАТЬ С НАВИГАЦИЕЙ */
+    /* ✅ ИСПРАВЛЕН КОНТЕНТ - БЕЗ ДУБЛИРОВАНИЯ SAFE-AREA */
     .page-content {
-        /* Правильный отступ снизу с переменными */
-        padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + var(--spacing-md)) !important;
+        /* Safe-area УЖЕ учтен в bottom навигации! */
+        /* Добавляем только высоту навигации + обычный отступ */
+        padding-bottom: calc(var(--bottom-nav-height) + var(--spacing-md)) !important;
         box-sizing: border-box !important;
         position: relative !important;
         z-index: 1 !important;
@@ -504,10 +505,11 @@
         min-height: -webkit-fill-available;
     }
     
-    /* Безопасные зоны в Telegram */
+    /* ✅ ИСПРАВЛЕНЫ БЕЗОПАСНЫЕ ЗОНЫ В TELEGRAM */
     .tg-safe-area {
+        /* Safe-area УЖЕ учтен в навигации, добавляем только сверху */
         padding-top: max(var(--safe-area-top), var(--spacing-sm));
-        padding-bottom: max(var(--safe-area-bottom), var(--spacing-sm));
+        /* НЕ добавляем padding-bottom - safe-area уже в навигации */
     }
 }
 
@@ -515,15 +517,14 @@
    🔧 ИСПРАВЛЕНИЕ КОНФЛИКТОВ КОНТЕЙНЕРОВ
    ============================================================================ */
 
-/* 🔧 APP CONTAINER НЕ ДОЛЖЕН СОЗДАВАТЬ STACKING CONTEXT */
+/* ✅ APP CONTAINER БЕЗ STACKING CONTEXT КОНФЛИКТОВ */
 .app-container {
     position: relative !important;
     width: 100% !important;
     min-height: 100vh !important;
-    /* КРИТИЧНО: Убираем transform который может создать новый stacking context */
+    /* КРИТИЧНО: Убираем все что создает новый stacking context */
     transform: none !important;
     -webkit-transform: none !important;
-    /* Убираем любые эффекты которые могут влиять на fixed позиционирование */
     filter: none !important;
     contain: none !important;
     isolation: auto !important;
