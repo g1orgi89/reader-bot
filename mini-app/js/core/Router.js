@@ -1,12 +1,12 @@
 /**
- * 🧭 SPA РОУТЕР ДЛЯ READER BOT MINI APP (ИСПРАВЛЕНЫ АНИМАЦИИ)
+ * 🧭 SPA РОУТЕР ДЛЯ READER BOT MINI APP (УБРАНЫ ХЕДЕРЫ)
  * 
  * Управляет клиентским роутингом между страницами
  * Поддерживает анимации переходов и навигацию назад
  * 
  * @filesize 2 KB - SPA роутинг
  * @author Claude Assistant  
- * @version 1.0.6 - ИСПРАВЛЕНЫ АНИМАЦИИ ПЕРЕХОДОВ
+ * @version 1.1.0 - УБРАНЫ ХЕДЕРЫ ДЛЯ РЕШЕНИЯ VIEWPORT ПРОБЛЕМЫ
  */
 
 /**
@@ -16,7 +16,6 @@
  * @property {string} title - Заголовок страницы
  * @property {boolean} requiresAuth - Требует аутентификации
  * @property {boolean} showBottomNav - Показывать нижнюю навигацию
- * @property {boolean} showHomeHeader - Показывать шапку главной страницы
  */
 
 /**
@@ -110,7 +109,7 @@ class AppRouter {
         this.handlePopState = this.handlePopState.bind(this);
         this.handleNavigation = this.handleNavigation.bind(this);
         
-        console.log('✅ Router: Конструктор инициализирован - VERSION 1.0.6 - ИСПРАВЛЕНЫ АНИМАЦИИ');
+        console.log('✅ Router: Конструктор инициализирован - VERSION 1.1.0 - БЕЗ ХЕДЕРОВ');
     }
 
     /**
@@ -162,64 +161,60 @@ class AppRouter {
     registerRoutes() {
         console.log('🔄 Router: Регистрация маршрутов');
         
-        // Главная страница - ТОЛЬКО ОНА ПОКАЗЫВАЕТ ШАПКУ!
+        // ✅ Все страницы БЕЗ ХЕДЕРОВ - контент с самого верха!
+        
+        // Главная страница
         this.routes.set('/home', {
             path: '/home',
             component: HomePage,
             title: 'Главная',
             requiresAuth: true,
-            showBottomNav: true,
-            showHomeHeader: true  // ✅ ТОЛЬКО ГЛАВНАЯ ПОКАЗЫВАЕТ ШАПКУ
+            showBottomNav: true
         });
 
-        // Дневник цитат - БЕЗ ШАПКИ
+        // Дневник цитат
         this.routes.set('/diary', {
             path: '/diary', 
             component: DiaryPage,
             title: 'Дневник цитат',
             requiresAuth: true,
-            showBottomNav: true,
-            showHomeHeader: false  // ❌ НЕТ ШАПКИ
+            showBottomNav: true
         });
 
-        // Отчеты - БЕЗ ШАПКИ
+        // Отчеты
         this.routes.set('/reports', {
             path: '/reports',
             component: ReportsPage, 
             title: 'Отчеты',
             requiresAuth: true,
-            showBottomNav: true,
-            showHomeHeader: false  // ❌ НЕТ ШАПКИ
+            showBottomNav: true
         });
 
-        // Каталог книг - БЕЗ ШАПКИ
+        // Каталог книг
         this.routes.set('/catalog', {
             path: '/catalog',
             component: CatalogPage,
             title: 'Каталог книг', 
             requiresAuth: true,
-            showBottomNav: true,
-            showHomeHeader: false  // ❌ НЕТ ШАПКИ
+            showBottomNav: true
         });
 
-        // Сообщество - БЕЗ ШАПКИ
+        // Сообщество
         this.routes.set('/community', {
             path: '/community',
             component: CommunityPage,
             title: 'Сообщество',
             requiresAuth: true,
-            showBottomNav: true,
-            showHomeHeader: false  // ❌ НЕТ ШАПКИ
+            showBottomNav: true
         });
 
-        // Онбординг - БЕЗ ШАПКИ И БЕЗ НИЖНЕЙ НАВИГАЦИИ
+        // Онбординг - БЕЗ НИЖНЕЙ НАВИГАЦИИ
         this.routes.set('/onboarding', {
             path: '/onboarding',
             component: OnboardingPage,
             title: 'Добро пожаловать',
             requiresAuth: true,
-            showBottomNav: false,
-            showHomeHeader: false  // ❌ НЕТ ШАПКИ
+            showBottomNav: false
         });
 
         console.log(`✅ Router: Зарегистрировано ${this.routes.size} маршрутов`);
@@ -256,13 +251,13 @@ class AppRouter {
     async navigate(path, options = {}) {
         console.log(`🧭 Router: Навигация к ${path}`);
         
-        // ✅ НОВАЯ ЗАЩИТА: Предотвращаем дублирование навигации
+        // Предотвращаем дублирование навигации
         if (this.isNavigating) {
             console.log('⚠️ Router: Навигация уже выполняется, игнорируем');
             return;
         }
 
-        // ✅ НОВАЯ ЗАЩИТА: Не переходим на ту же страницу
+        // Не переходим на ту же страницу
         if (this.currentRoute === path && !options.replace) {
             console.log('⚠️ Router: Уже на этой странице, игнорируем');
             return;
@@ -282,19 +277,16 @@ class AppRouter {
         }
 
         try {
-            // ✅ НОВОЕ: Устанавливаем флаг навигации
+            // Устанавливаем флаг навигации
             this.isNavigating = true;
             
-            // ✅ НОВОЕ: Анимация выхода для текущей страницы
+            // Анимация выхода для текущей страницы
             await this.animatePageExit();
             
             // Уничтожаем предыдущий компонент
             await this.destroyCurrentComponent();
             
-            // Управляем шапками ДО создания компонента
-            this.manageHeaders(route);
-            
-            // ✅ НОВОЕ: Показываем состояние загрузки
+            // Показываем состояние загрузки
             this.showPageLoading();
             
             // Создаем новый компонент
@@ -309,7 +301,7 @@ class AppRouter {
             // Сохраняем текущий маршрут
             this.currentRoute = path;
             
-            // ✅ НОВОЕ: Анимация входа для новой страницы
+            // Анимация входа для новой страницы
             await this.animatePageEnter();
             
             // Вызываем onShow для нового компонента
@@ -324,13 +316,13 @@ class AppRouter {
             console.error(`❌ Router: Ошибка навигации к ${path}:`, error);
             this.handleNavigationError(error);
         } finally {
-            // ✅ НОВОЕ: Сбрасываем флаг навигации
+            // Сбрасываем флаг навигации
             this.isNavigating = false;
         }
     }
 
     /**
-     * ✅ НОВАЯ ФУНКЦИЯ: Анимация выхода страницы
+     * 🎬 Анимация выхода страницы
      */
     async animatePageExit() {
         if (!this.container) return;
@@ -355,7 +347,7 @@ class AppRouter {
     }
 
     /**
-     * ✅ НОВАЯ ФУНКЦИЯ: Анимация входа страницы
+     * 🎬 Анимация входа страницы
      */
     async animatePageEnter() {
         if (!this.container) return;
@@ -385,7 +377,7 @@ class AppRouter {
     }
 
     /**
-     * ✅ НОВАЯ ФУНКЦИЯ: Показ состояния загрузки страницы
+     * ⏳ Показ состояния загрузки страницы
      */
     showPageLoading() {
         if (this.container) {
@@ -395,45 +387,12 @@ class AppRouter {
     }
 
     /**
-     * ✅ НОВАЯ ФУНКЦИЯ: Скрытие состояния загрузки страницы
+     * ✅ Скрытие состояния загрузки страницы
      */
     hidePageLoading() {
         if (this.container) {
             this.container.classList.remove('page-loading');
             console.log('✅ Router: Скрыто состояние загрузки');
-        }
-    }
-
-    /**
-     * 📱 Управление отображением шапок
-     * @param {RouteConfig} route - Конфигурация маршрута
-     */
-    manageHeaders(route) {
-        const homeHeader = document.getElementById('home-header');
-        const pageHeader = document.getElementById('page-header');
-        
-        console.log(`🔧 Router: Управление шапками для ${route.path}`);
-        
-        if (route.showHomeHeader) {
-            // ✅ ПОКАЗЫВАЕМ ШАПКУ ГЛАВНОЙ СТРАНИЦЫ
-            if (homeHeader) {
-                homeHeader.style.display = 'flex';
-                console.log('✅ Router: home-header показан');
-            }
-            if (pageHeader) {
-                pageHeader.style.display = 'none';
-                console.log('❌ Router: page-header скрыт');
-            }
-        } else {
-            // ❌ СКРЫВАЕМ ВСЕ ШАПКИ
-            if (homeHeader) {
-                homeHeader.style.display = 'none';
-                console.log('❌ Router: home-header скрыт');
-            }
-            if (pageHeader) {
-                pageHeader.style.display = 'none';
-                console.log('❌ Router: page-header скрыт');
-            }
         }
     }
 
@@ -493,7 +452,7 @@ class AppRouter {
                 if (html && this.container) {
                     this.container.innerHTML = html;
                     
-                    // ✅ НОВОЕ: Убираем все анимационные классы перед добавлением обработчиков
+                    // Убираем все анимационные классы перед добавлением обработчиков
                     this.container.classList.remove(
                         'page-enter', 'page-enter-active', 
                         'page-exit', 'page-exit-active',
@@ -548,7 +507,7 @@ class AppRouter {
             await this.currentComponent.destroy();
         }
         
-        // ✅ НОВОЕ: Очищаем контейнер и убираем все анимационные классы
+        // Очищаем контейнер и убираем все анимационные классы
         if (this.container) {
             this.container.innerHTML = '';
             this.container.classList.remove(
