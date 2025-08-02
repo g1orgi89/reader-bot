@@ -1,9 +1,9 @@
 /**
- * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 DYNAMIC VIEWPORT FIX)
+ * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 УБРАНЫ ХЕДЕРЫ)
  * Базовая типографика, сетка и общие стили компонентов
- * ✅ ИСПРАВЛЕНО: Используются правильные CSS переменные для размеров навигации
- * ✅ ИСПРАВЛЕНО: Убраны повторные запуски анимаций при переходах между страницами
- * 🔧 НОВОЕ: Динамические CSS переменные на основе реальных размеров элементов
+ * ✅ ИСПРАВЛЕНО: Убраны все отступы для хедеров
+ * ✅ ИСПРАВЛЕНО: Контент начинается с самого верха
+ * 🔧 НОВОЕ: Упрощены формулы viewport без учета header-height
  */
 
 /* ============================================================================
@@ -144,7 +144,6 @@ p {
     /* 📱 PHONE-FRAME: Внешний вид */
     background: var(--surface, #FFFFFF);
     border-radius: 20px;
-    /* 🔧 ИСПРАВЛЕНО: overflow-x для горизонтального, но разрешен вертикальный скролл */
     overflow-x: hidden;
     
     /* 📱 PHONE-FRAME: Многослойные тени как в концепте */
@@ -162,11 +161,10 @@ p {
     transition: all var(--transition-normal, 0.3s ease);
 }
 
-/* 🔧 ПРАВИЛЬНОЕ РЕШЕНИЕ: Комбинация flex + min-height для скролла */
+/* 🔧 ИСПРАВЛЕНО: Упрощенный viewport БЕЗ ХЕДЕРОВ */
 .page-content {
-    /* 🔧 КЛЮЧ: flex растягивает, но min-height ограничивает */
     flex: 1;
-    min-height: 0; /* КРИТИЧНО: позволяет flex-элементу сжиматься */
+    min-height: 0;
     
     /* 🔧 СКРОЛЛ: работает благодаря min-height: 0 */
     overflow-y: auto;
@@ -180,47 +178,38 @@ p {
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* 🔧 НОВОЕ: ДИНАМИЧЕСКИЙ VIEWPORT НА ОСНОВЕ РЕАЛЬНЫХ РАЗМЕРОВ */
+/* 🔧 НОВОЕ: ПРОСТАЯ ФОРМУЛА БЕЗ ХЕДЕРОВ */
 .content {
-    /* 🔧 ОСНОВНАЯ ФОРМУЛА: Используем РЕАЛЬНЫЕ размеры элементов */
-    height: var(--real-available-height, calc(100vh - var(--bottom-nav-height) - var(--header-height)));
-    max-height: var(--real-available-height, calc(100vh - var(--bottom-nav-height) - var(--header-height)));
-    min-height: var(--real-available-height, calc(100vh - var(--bottom-nav-height) - var(--header-height)));
+    /* 🔧 УПРОЩЕННАЯ ФОРМУЛА: Только нижняя навигация */
+    height: calc(100vh - var(--bottom-nav-height, 60px));
+    max-height: calc(100vh - var(--bottom-nav-height, 60px));
+    min-height: calc(100vh - var(--bottom-nav-height, 60px));
     width: 100%;
     
-    /* ✅ ИСПРАВЛЕНО: Правильный скроллинг для длинного контента */
+    /* Правильный скроллинг для длинного контента */
     overflow-y: auto;
     overflow-x: hidden;
     
-    /* ✅ ДОБАВЛЕНО: iOS инерциальный скроллинг */
+    /* iOS инерциальный скроллинг */
     -webkit-overflow-scrolling: touch;
-    /* ✅ ДОБАВЛЕНО: Плавный скроллинг */
+    /* Плавный скроллинг */
     scroll-behavior: smooth;
     
     /* Отступы контента - ТОЛЬКО ВНУТРЕННИЕ */
     padding: 16px;
     box-sizing: border-box;
     
-    /* ✅ iOS SAFE AREA: Учитываем безопасную зону внизу */
+    /* iOS SAFE AREA: Учитываем безопасную зону внизу */
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
-/* 🔧 FALLBACK: Если динамические переменные еще не установлены */
-.content:not([style*="--real-available-height"]) {
-    /* Используем статичные CSS переменные как fallback */
-    height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-    max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-    min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-}
-
 /* 🔧 СПЕЦИАЛЬНОЕ ИСПРАВЛЕНИЕ ДЛЯ TELEGRAM WEB APP */
-/* Используем Telegram viewport height если доступен */
 @supports (height: var(--tg-viewport-height)) {
     .content {
-        /* 🔧 НОВОЕ: Используем реальную доступную высоту с Telegram viewport */
-        height: var(--real-available-height, calc(var(--tg-viewport-height, 100vh) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
-        max-height: var(--real-available-height, calc(var(--tg-viewport-height, 100vh) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
-        min-height: var(--real-available-height, calc(var(--tg-viewport-height, 100vh) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
+        /* 🔧 НОВОЕ: Используем Telegram viewport БЕЗ ХЕДЕРОВ */
+        height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
+        max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
+        min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
     }
 }
 
@@ -229,18 +218,18 @@ p {
     .content {
         /* Используем max() для правильной работы safe-area */
         padding-bottom: max(16px, env(safe-area-inset-bottom));
-        /* 🔧 НОВОЕ: Динамическая формула с safe area */
-        height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
-        max-height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
-        min-height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+        /* 🔧 НОВОЕ: Формула БЕЗ ХЕДЕРОВ с safe area */
+        height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        max-height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        min-height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     }
     
-    /* Telegram viewport для iOS с динамическими переменными */
+    /* Telegram viewport для iOS БЕЗ ХЕДЕРОВ */
     @supports (height: var(--tg-viewport-height)) {
         .content {
-            height: var(--real-available-height, calc(var(--real-viewport-height, var(--tg-viewport-height, 100vh)) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
-            max-height: var(--real-available-height, calc(var(--real-viewport-height, var(--tg-viewport-height, 100vh)) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
-            min-height: var(--real-available-height, calc(var(--real-viewport-height, var(--tg-viewport-height, 100vh)) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+            height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
         }
     }
 }
@@ -255,16 +244,16 @@ p {
         max-width: none;
         margin: 0 0 10px;
         min-height: calc(100vh - 20px);
-        border-radius: 16px; /* Немного меньше скругление на мобильных */
+        border-radius: 16px;
     }
     
     .content {
         padding: 12px;
         padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-        /* 🔧 МОБИЛЬНЫЕ: Используем динамические переменные */
-        height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
-        max-height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
-        min-height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
+        /* 🔧 МОБИЛЬНЫЕ: Упрощенная формула БЕЗ ХЕДЕРОВ */
+        height: calc(100vh - var(--bottom-nav-height, 60px));
+        max-height: calc(100vh - var(--bottom-nav-height, 60px));
+        min-height: calc(100vh - var(--bottom-nav-height, 60px));
     }
 }
 
@@ -272,13 +261,13 @@ p {
    📐 СЕТОЧНАЯ СИСТЕМА И LAYOUT
    ============================================================================ */
 
-/* 📦 Основной контент */
+/* 📦 Основной контент БЕЗ ОТСТУПОВ ДЛЯ ХЕДЕРОВ */
 .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding-top: var(--real-header-height, var(--header-height));
-    padding-bottom: var(--real-bottom-nav-height, var(--bottom-nav-height));
+    /* 🔧 УБРАНО: padding-top для header */
+    padding-bottom: var(--bottom-nav-height, 60px);
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -293,7 +282,6 @@ p {
     padding: var(--spacing-md);
     max-width: 100%;
     margin: 0 auto;
-    /* ❌ УБРАНО: animation: pageSlideIn var(--duration-normal) var(--ease-out); */
     /* ✅ ДОБАВЛЕНО: Только базовая прозрачность */
     opacity: 1;
     transform: translateX(0);
@@ -332,7 +320,7 @@ p {
 /* 📱 Контейнеры с отступами */
 .container {
     width: 100%;
-    max-width: 480px; /* Максимальная ширина для больших экранов */
+    max-width: 480px;
     margin: 0 auto;
     padding: 0 var(--spacing-md);
 }
