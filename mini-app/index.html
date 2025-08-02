@@ -167,6 +167,9 @@
 
     <!-- 📚 JavaScript файлы с CACHE-BUSTING -->
     
+    <!-- 🔍 NAVIGATION DEBUGGER - ДЛЯ ПОИСКА ПРИЧИНЫ ПРОБЛЕМЫ -->
+    <script src="js/utils/navigation-debugger.js?v=1.0&t=1722599000"></script>
+    
     <!-- 🔍 VIEWPORT TRACKER с обновленной версией -->
     <script src="js/utils/viewport-tracker.js?v=2.0.3&t=1722599000"></script>
     <!-- 🔧 Динамический калькулятор viewport высоты -->
@@ -223,7 +226,7 @@
         }
         
         // 🚨 CACHE-BUSTING: Принудительная перезагрузка CSS
-        console.log('🔄 CSS загружен с cache-busting v1.2 + Telegram detector');
+        console.log('🔄 CSS загружен с cache-busting v1.2 + Telegram detector + Navigation Debugger');
         
         // Инициализация приложения после загрузки DOM
         document.addEventListener('DOMContentLoaded', async () => {
@@ -233,6 +236,16 @@
                 // 🔧 ФИНАЛЬНАЯ ПРОВЕРКА ОКРУЖЕНИЯ
                 const telegramDetected = document.body.getAttribute('data-telegram') === 'true';
                 console.log(`🔍 Финальное окружение: ${telegramDetected ? 'TELEGRAM' : 'БРАУЗЕР'}`);
+                
+                // 🚨 АВТОМАТИЧЕСКИЙ ЗАПУСК DEBUGGER НА МОБИЛЬНЫХ
+                if (window.innerWidth <= 480 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                    console.log('📱 МОБИЛЬНОЕ УСТРОЙСТВО - запускаем Navigation Debugger');
+                    setTimeout(() => {
+                        if (window.debugNavigation) {
+                            window.debugNavigation.start();
+                        }
+                    }, 1000);
+                }
                 
                 // Создаем экземпляр приложения
                 const app = new ReaderApp();
@@ -354,6 +367,8 @@
         
         console.log('🔍 Debug команды доступны через window.debugViewport');
         console.log('🔧 Проверить окружение: window.debugViewport.environment()');
+        console.log('🚨 Navigation Debug: window.debugNavigation.start()');
+        console.log('📊 Экспорт данных: window.debugNavigation.export()');
     </script>
 </body>
 </html>
