@@ -50,7 +50,7 @@ class DebugService {
      */
     async log(sessionId, category, level, message, data = {}, context = {}) {
         try {
-            const session = this.activesessions.get(sessionId);
+            const session = this.activeSessions.get(sessionId);
             if (!session) {
                 console.warn(`⚠️ Попытка логирования в несуществующую сессию: ${sessionId}`);
                 return;
@@ -156,7 +156,7 @@ class DebugService {
                 DebugLog.findNavigationErrors(sessionId)
             ]);
 
-            const session = this.activeSession.get(sessionId);
+            const session = this.activeSessions.get(sessionId);
             
             return {
                 sessionId,
@@ -324,7 +324,7 @@ class DebugService {
                 duration: finalStats.duration
             });
 
-            this.activeSession.delete(sessionId);
+            this.activeSessions.delete(sessionId);
             
             console.log(`✅ Debug сессия завершена: ${sessionId}`);
             
@@ -342,9 +342,9 @@ class DebugService {
         const now = Date.now();
         const maxAge = 30 * 60 * 1000; // 30 минут
 
-        for (const [sessionId, session] of this.activeSession.entries()) {
+        for (const [sessionId, session] of this.activeSessions.entries()) {
             if (now - session.startTime > maxAge) {
-                this.activeSession.delete(sessionId);
+                this.activeSessions.delete(sessionId);
                 console.log(`🧹 Удалена старая debug сессия: ${sessionId}`);
             }
         }
@@ -355,7 +355,7 @@ class DebugService {
      * @returns {Array} Список активных сессий
      */
     getActiveSessions() {
-        return Array.from(this.activeSession.entries()).map(([sessionId, session]) => ({
+        return Array.from(this.activeSessions.entries()).map(([sessionId, session]) => ({
             sessionId,
             userId: session.userId,
             startTime: session.startTime,
