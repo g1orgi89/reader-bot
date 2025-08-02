@@ -65,37 +65,14 @@ p {
     line-height: var(--line-height-normal);
 }
 
-.text-small {
-    font-size: var(--font-size-sm);
-}
-
-.text-large {
-    font-size: var(--font-size-lg);
-}
-
-.text-muted {
-    color: var(--text-muted);
-}
-
-.text-secondary {
-    color: var(--text-secondary);
-}
-
-.text-primary-color {
-    color: var(--primary-color);
-}
-
-.text-success {
-    color: var(--success-color);
-}
-
-.text-warning {
-    color: var(--warning-color);
-}
-
-.text-error {
-    color: var(--error-color);
-}
+.text-small { font-size: var(--font-size-sm); }
+.text-large { font-size: var(--font-size-lg); }
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+.text-primary-color { color: var(--primary-color); }
+.text-success { color: var(--success-color); }
+.text-warning { color: var(--warning-color); }
+.text-error { color: var(--error-color); }
 
 /* ✏️ Типографические утилиты */
 .font-light { font-weight: var(--font-weight-light); }
@@ -134,30 +111,20 @@ p {
    📱 PHONE-FRAME ДИЗАЙН (ИЗ КОНЦЕПТА)
    ============================================================================ */
 
-/* 📱 Основной контейнер приложения с phone-frame стилями */
 .app-container {
-    /* 📱 PHONE-FRAME: Размеры и позиционирование */
     max-width: 480px;
     margin: 0 auto 20px;
     min-height: calc(100vh - 40px);
-    
-    /* 📱 PHONE-FRAME: Внешний вид */
     background: var(--surface, #FFFFFF);
     border-radius: 20px;
     overflow-x: hidden;
-    
-    /* 📱 PHONE-FRAME: Многослойные тени как в концепте */
     box-shadow: 
         0 8px 32px var(--shadow-color-strong, rgba(210, 69, 44, 0.15)),
         0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08)),
         0 0 0 1px var(--border, #E6E0D6);
-    
-    /* 📱 PHONE-FRAME: Структура */
     display: flex;
     flex-direction: column;
     position: relative;
-    
-    /* 📱 PHONE-FRAME: Плавные переходы */
     transition: all var(--transition-normal, 0.3s ease);
 }
 
@@ -165,16 +132,10 @@ p {
 .page-content {
     flex: 1;
     min-height: 0;
-    
-    /* 🔧 СКРОЛЛ: работает благодаря min-height: 0 */
     overflow-y: auto;
     overflow-x: hidden;
-    
-    /* iOS инерциальный скроллинг */
     -webkit-overflow-scrolling: touch;
-    /* Плавный скроллинг */
     scroll-behavior: smooth;
-    /* Безопасная зона снизу */
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -185,20 +146,430 @@ p {
     max-height: calc(100vh - var(--bottom-nav-height, 60px));
     min-height: calc(100vh - var(--bottom-nav-height, 60px));
     width: 100%;
-    
-    /* Правильный скроллинг для длинного контента */
     overflow-y: auto;
     overflow-x: hidden;
-    
-    /* iOS инерциальный скроллинг */
     -webkit-overflow-scrolling: touch;
-    /* Плавный скроллинг */
     scroll-behavior: smooth;
-    
-    /* Отступы контента - ТОЛЬКО ВНУТРЕННИЕ */
     padding: 16px;
     box-sizing: border-box;
-    
-    /* iOS SAFE AREA: Учитываем безопасную зону внизу */
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+/* 🔧 СПЕЦИАЛЬНОЕ ИСПРАВЛЕНИЕ ДЛЯ TELEGRAM WEB APP */
+@supports (height: var(--tg-viewport-height)) {
+    .content {
+        height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
+        max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
+        min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
+    }
+}
+
+/* ✅ iOS ИСПРАВЛЕНИЯ */
+@supports (padding: max(0px)) {
+    .content {
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+        height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        max-height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        min-height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    }
+    
+    @supports (height: var(--tg-viewport-height)) {
+        .content {
+            height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        }
+    }
+}
+
+/* 📱 МОБИЛЬНАЯ АДАПТАЦИЯ */
+@media (max-width: 480px) {
+    body { padding: 10px 10px 0; }
+    .app-container {
+        max-width: none;
+        margin: 0 0 10px;
+        min-height: calc(100vh - 20px);
+        border-radius: 16px;
+    }
+    .content {
+        padding: 12px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        height: calc(100vh - var(--bottom-nav-height, 60px));
+        max-height: calc(100vh - var(--bottom-nav-height, 60px));
+        min-height: calc(100vh - var(--bottom-nav-height, 60px));
+    }
+}
+
+/* 📦 Основной контент БЕЗ ОТСТУПОВ ДЛЯ ХЕДЕРОВ */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--bottom-nav-height, 60px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ============================================================================
+   🔄 АНИМАЦИИ СТРАНИЦ
+   ============================================================================ */
+
+.page {
+    flex: 1;
+    padding: var(--spacing-md);
+    max-width: 100%;
+    margin: 0 auto;
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity var(--duration-fast, 0.2s) ease, transform var(--duration-fast, 0.2s) ease;
+}
+
+.page-enter { opacity: 0; transform: translateX(20px); }
+.page-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity var(--duration-normal, 0.3s) var(--ease-out, ease-out), 
+                transform var(--duration-normal, 0.3s) var(--ease-out, ease-out);
+}
+
+.page-exit { opacity: 1; transform: translateX(0); }
+.page-exit-active {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity var(--duration-fast, 0.2s) ease, 
+                transform var(--duration-fast, 0.2s) ease;
+}
+
+/* ============================================================================
+   📱 КОНТЕЙНЕРЫ
+   ============================================================================ */
+
+.container {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+}
+
+.container-fluid {
+    width: 100%;
+    padding: 0 var(--spacing-md);
+}
+
+.container-no-padding {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+/* ============================================================================
+   🎯 FLEXBOX УТИЛИТЫ
+   ============================================================================ */
+
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.flex-row { flex-direction: row; }
+.flex-col { flex-direction: column; }
+.flex-row-reverse { flex-direction: row-reverse; }
+.flex-col-reverse { flex-direction: column-reverse; }
+
+.justify-start { justify-content: flex-start; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+.justify-around { justify-content: space-around; }
+.justify-evenly { justify-content: space-evenly; }
+
+.items-start { align-items: flex-start; }
+.items-center { align-items: center; }
+.items-end { align-items: flex-end; }
+.items-baseline { align-items: baseline; }
+.items-stretch { align-items: stretch; }
+
+.self-start { align-self: flex-start; }
+.self-center { align-self: center; }
+.self-end { align-self: flex-end; }
+.self-stretch { align-self: stretch; }
+
+.flex-1 { flex: 1 1 0%; }
+.flex-auto { flex: 1 1 auto; }
+.flex-none { flex: none; }
+.flex-grow { flex-grow: 1; }
+.flex-shrink { flex-shrink: 1; }
+.flex-no-wrap { flex-wrap: nowrap; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* ============================================================================
+   📏 ОТСТУПЫ И РАЗМЕРЫ
+   ============================================================================ */
+
+/* Margin утилиты */
+.m-0 { margin: 0; }
+.m-1 { margin: var(--spacing-xs); }
+.m-2 { margin: var(--spacing-sm); }
+.m-3 { margin: var(--spacing-md); }
+.m-4 { margin: var(--spacing-lg); }
+.m-5 { margin: var(--spacing-xl); }
+.m-6 { margin: var(--spacing-2xl); }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+.my-auto { margin-top: auto; margin-bottom: auto; }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: var(--spacing-xs); }
+.mt-2 { margin-top: var(--spacing-sm); }
+.mt-3 { margin-top: var(--spacing-md); }
+.mt-4 { margin-top: var(--spacing-lg); }
+.mt-5 { margin-top: var(--spacing-xl); }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: var(--spacing-xs); }
+.mb-2 { margin-bottom: var(--spacing-sm); }
+.mb-3 { margin-bottom: var(--spacing-md); }
+.mb-4 { margin-bottom: var(--spacing-lg); }
+.mb-5 { margin-bottom: var(--spacing-xl); }
+
+.ml-0 { margin-left: 0; }
+.ml-1 { margin-left: var(--spacing-xs); }
+.ml-2 { margin-left: var(--spacing-sm); }
+.ml-3 { margin-left: var(--spacing-md); }
+
+.mr-0 { margin-right: 0; }
+.mr-1 { margin-right: var(--spacing-xs); }
+.mr-2 { margin-right: var(--spacing-sm); }
+.mr-3 { margin-right: var(--spacing-md); }
+
+/* Padding утилиты */
+.p-0 { padding: 0; }
+.p-1 { padding: var(--spacing-xs); }
+.p-2 { padding: var(--spacing-sm); }
+.p-3 { padding: var(--spacing-md); }
+.p-4 { padding: var(--spacing-lg); }
+.p-5 { padding: var(--spacing-xl); }
+
+.px-0 { padding-left: 0; padding-right: 0; }
+.px-1 { padding-left: var(--spacing-xs); padding-right: var(--spacing-xs); }
+.px-2 { padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
+.px-3 { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }
+.px-4 { padding-left: var(--spacing-lg); padding-right: var(--spacing-lg); }
+
+.py-0 { padding-top: 0; padding-bottom: 0; }
+.py-1 { padding-top: var(--spacing-xs); padding-bottom: var(--spacing-xs); }
+.py-2 { padding-top: var(--spacing-sm); padding-bottom: var(--spacing-sm); }
+.py-3 { padding-top: var(--spacing-md); padding-bottom: var(--spacing-md); }
+.py-4 { padding-top: var(--spacing-lg); padding-bottom: var(--spacing-lg); }
+
+/* ============================================================================
+   📐 РАЗМЕРЫ И ПОЗИЦИОНИРОВАНИЕ
+   ============================================================================ */
+
+.w-full { width: 100%; }
+.w-auto { width: auto; }
+.w-fit { width: fit-content; }
+
+.h-full { height: 100%; }
+.h-auto { height: auto; }
+.h-screen { height: 100vh; }
+.h-fit { height: fit-content; }
+
+.min-h-full { min-height: 100%; }
+.min-h-screen { min-height: 100vh; }
+
+.relative { position: relative; }
+.absolute { position: absolute; }
+.fixed { position: fixed; }
+.sticky { position: sticky; }
+
+.top-0 { top: 0; }
+.right-0 { right: 0; }
+.bottom-0 { bottom: 0; }
+.left-0 { left: 0; }
+
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-30 { z-index: 30; }
+.z-40 { z-index: var(--z-index-nav); }
+.z-50 { z-index: var(--z-index-header); }
+
+/* ============================================================================
+   🎨 ВИЗУАЛЬНЫЕ УТИЛИТЫ
+   ============================================================================ */
+
+.visible { visibility: visible; }
+.invisible { visibility: hidden; }
+.hidden { display: none; }
+
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
+.overflow-scroll { overflow: scroll; }
+.overflow-x-hidden { overflow-x: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+
+.rounded-none { border-radius: 0; }
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.rounded-full { border-radius: var(--radius-round); }
+
+.shadow-none { box-shadow: none; }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+.shadow-primary { box-shadow: var(--shadow-primary); }
+
+.border-0 { border: 0; }
+.border { border: 1px solid var(--text-muted); }
+.border-primary { border: 1px solid var(--primary-color); }
+
+.border-t { border-top: 1px solid var(--text-muted); }
+.border-b { border-bottom: 1px solid var(--text-muted); }
+.border-l { border-left: 1px solid var(--text-muted); }
+.border-r { border-right: 1px solid var(--text-muted); }
+
+/* ============================================================================
+   🎭 ИНТЕРАКТИВНЫЕ СОСТОЯНИЯ
+   ============================================================================ */
+
+.cursor-pointer { cursor: pointer; }
+.cursor-default { cursor: default; }
+.cursor-not-allowed { cursor: not-allowed; }
+
+.opacity-0 { opacity: 0; }
+.opacity-50 { opacity: 0.5; }
+.opacity-75 { opacity: 0.75; }
+.opacity-100 { opacity: 1; }
+
+.disabled {
+    opacity: var(--disabled-opacity);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+@media (hover: hover) {
+    .hover\\:opacity-80:hover { opacity: var(--hover-opacity); }
+    .hover\\:shadow-lg:hover { box-shadow: var(--shadow-lg); }
+    .hover\\:shadow-primary:hover { box-shadow: var(--shadow-primary); }
+}
+
+.active\\:opacity-60:active { opacity: var(--active-opacity); }
+
+/* ============================================================================
+   🔄 АНИМАЦИИ И ПЕРЕХОДЫ
+   ============================================================================ */
+
+.transition { transition: all var(--duration-normal) var(--ease-out); }
+.transition-fast { transition: all var(--duration-fast) var(--ease-out); }
+.transition-slow { transition: all var(--duration-slow) var(--ease-out); }
+
+.transition-colors { transition: color var(--duration-normal) var(--ease-out), 
+                                background-color var(--duration-normal) var(--ease-out); }
+.transition-transform { transition: transform var(--duration-normal) var(--ease-out); }
+.transition-opacity { transition: opacity var(--duration-normal) var(--ease-out); }
+
+.scale-95 { transform: scale(0.95); }
+.scale-100 { transform: scale(1); }
+.scale-105 { transform: scale(1.05); }
+
+.rotate-180 { transform: rotate(180deg); }
+.rotate-45 { transform: rotate(45deg); }
+
+/* ============================================================================
+   🎯 СПЕЦИАЛЬНЫЕ УТИЛИТЫ ДЛЯ TELEGRAM MINI APP
+   ============================================================================ */
+
+.scroll-smooth {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.no-select {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.text-select {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.safe-top { padding-top: var(--safe-area-top); }
+.safe-bottom { padding-bottom: var(--safe-area-bottom); }
+
+.full-viewport {
+    height: 100vh;
+    height: var(--tg-viewport-height, 100vh);
+}
+
+.hardware-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* ============================================================================
+   📱 АДАПТИВНЫЕ УТИЛИТЫ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .mobile\\:hidden { display: none; }
+    .mobile\\:block { display: block; }
+    .mobile\\:flex { display: flex; }
+    .mobile\\:text-sm { font-size: var(--font-size-sm); }
+    .mobile\\:px-2 { padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
+}
+
+@media (min-width: 481px) {
+    .desktop\\:max-w-md { max-width: 480px; }
+    .desktop\\:mx-auto { margin-left: auto; margin-right: auto; }
+}
+
+/* ============================================================================
+   📱 PHONE-FRAME ДОПОЛНИТЕЛЬНЫЕ СТИЛИ
+   ============================================================================ */
+
+@media (min-width: 768px) {
+    .app-container:hover {
+        transform: translateY(-2px);
+        box-shadow: 
+            0 12px 40px var(--shadow-color-strong, rgba(210, 69, 44, 0.15)),
+            0 4px 12px var(--shadow-color, rgba(210, 69, 44, 0.08)),
+            0 0 0 1px var(--border, #E6E0D6);
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .app-container {
+        box-shadow: 
+            0 8px 32px rgba(232, 90, 66, 0.20),
+            0 2px 8px rgba(232, 90, 66, 0.12),
+            0 0 0 1px #404040;
+    }
+}
+
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--background, #F5F2EC);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (min-width: 768px) {
+    .loading-screen {
+        max-width: 480px;
+        margin: 0 auto;
+        border-radius: 20px;
+        top: 40px;
+        bottom: 40px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: 480px;
+    }
 }
