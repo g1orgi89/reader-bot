@@ -1,7 +1,8 @@
 /**
- * 🏠 ГЛАВНАЯ СТРАНИЦА - HomePage.js (🔧 ИСПРАВЛЕНЫ API ВЫЗОВЫ)
+ * 🏠 ГЛАВНАЯ СТРАНИЦА - HomePage.js (🔧 УБРАНЫ ХЕДЕРЫ)
  * 
  * Функциональность:
+ * - Встроенный блок с аватаром и меню
  * - Приветственная секция с заголовком
  * - Статистика 2x2: цитаты собрано, дни подряд
  * - CTA кнопка "Добавить новую цитату" 
@@ -11,10 +12,10 @@
  * - Реактивные обновления данных
  * 
  * ✅ АРХИТЕКТУРА ИСПРАВЛЕНА: 
- * - Убрано дублирование шапки (теперь в index.html)
+ * - Убраны внешние хедеры
+ * - Добавлен встроенный header-блок ТОЛЬКО на главной
  * - Использованы точные классы из концепта
  * - Реализован дизайн 1:1 как в концепте "5 страниц"
- * 🔧 ИСПРАВЛЕНО: Убраны дублирующиеся API вызовы
  */
 
 class HomePage {
@@ -27,7 +28,7 @@ class HomePage {
         // Состояние компонента
         this.loading = false;
         this.error = null;
-        this.dataLoaded = false; // ✅ НОВОЕ: Флаг загруженности данных
+        this.dataLoaded = false;
         
         // Подписки на изменения состояния
         this.subscriptions = [];
@@ -40,7 +41,6 @@ class HomePage {
      */
     init() {
         this.setupSubscriptions();
-        // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init, будет в onShow
     }
     
     /**
@@ -79,7 +79,6 @@ class HomePage {
      * 📊 Загрузка начальных данных
      */
     async loadInitialData() {
-        // ✅ ИСПРАВЛЕНО: Предотвращаем повторную загрузку
         if (this.loading) {
             console.log('🔄 HomePage: Загрузка уже выполняется, пропускаем');
             return;
@@ -101,12 +100,12 @@ class HomePage {
             // Обновление состояния
             if (stats) {
                 this.state.set('stats', stats);
-                this.state.set('stats.lastUpdate', Date.now()); // ✅ НОВОЕ: Время обновления
+                this.state.set('stats.lastUpdate', Date.now());
             }
             if (topBooks) this.state.set('catalog.books', topBooks);
             if (profile) this.state.set('user.profile', profile);
             
-            this.dataLoaded = true; // ✅ НОВОЕ: Помечаем данные как загруженные
+            this.dataLoaded = true;
             console.log('✅ HomePage: Данные загружены успешно');
             
         } catch (error) {
@@ -126,7 +125,7 @@ class HomePage {
         try {
             const stats = await this.api.getStats();
             return {
-                totalQuotes: stats.totalQuotes || 47,  // Данные из концепта как fallback
+                totalQuotes: stats.totalQuotes || 47,
                 currentStreak: stats.currentStreak || 12,
                 thisWeek: stats.thisWeek || 0,
                 longestStreak: stats.longestStreak || 0,
@@ -136,7 +135,6 @@ class HomePage {
             };
         } catch (error) {
             console.error('❌ Ошибка загрузки статистики:', error);
-            // Возвращаем данные из концепта как fallback
             return {
                 totalQuotes: 47,
                 currentStreak: 12,
@@ -199,10 +197,9 @@ class HomePage {
             return profile;
         } catch (error) {
             console.error('❌ Ошибка загрузки профиля:', error);
-            // Возвращаем данные из Telegram как fallback
             const telegramUser = this.telegram.getUser();
             return {
-                name: telegramUser?.first_name || 'Анна М.',  // Из концепта
+                name: telegramUser?.first_name || 'Анна М.',
                 username: telegramUser?.username || null,
                 initials: this.getInitials(telegramUser?.first_name || 'Анна М.')
             };
@@ -210,8 +207,7 @@ class HomePage {
     }
     
     /**
-     * 🎨 Генерация HTML разметки страницы (БЕЗ ШАПКИ!)
-     * Точно по концепту "5 страниц"
+     * 🎨 Генерация HTML разметки страницы (СО ВСТРОЕННЫМ БЛОКОМ АВАТАРА)
      */
     render() {
         const user = this.state.get('user.profile') || {};
@@ -220,6 +216,7 @@ class HomePage {
         
         return `
             <div class="content">
+                ${this.renderUserHeader(user)}
                 ${this.renderWelcomeSection()}
                 ${this.renderStatsGrid(stats)}
                 ${this.renderMainCTA()}
@@ -231,7 +228,28 @@ class HomePage {
     }
     
     /**
-     * 👋 Рендер приветственной секции - ТОЧНО ИЗ КОНЦЕПТА
+     * 👤 Рендер встроенного блока с аватаром и меню (ТОЛЬКО на главной!)
+     */
+    renderUserHeader(user) {
+        const initials = user.initials || this.getInitials(user.name || 'Анна М.');
+        const name = user.name || 'Анна М.';
+        
+        return `
+            <div class="user-header-inline">
+                <div class="user-info-inline">
+                    <div class="user-avatar-inline">${initials}</div>
+                    <div class="user-details-inline">
+                        <h3 class="user-name-inline">${name}</h3>
+                        <p class="user-status-inline">Ваш дневник мудрости</p>
+                    </div>
+                </div>
+                <button class="menu-button-inline" id="homeMenuBtn">☰</button>
+            </div>
+        `;
+    }
+    
+    /**
+     * 👋 Рендер приветственной секции
      */
     renderWelcomeSection() {
         return `
@@ -243,7 +261,7 @@ class HomePage {
     }
     
     /**
-     * 📊 Рендер сетки статистики 2x2 - ТОЧНО ИЗ КОНЦЕПТА
+     * 📊 Рендер сетки статистики 2x2
      */
     renderStatsGrid(stats) {
         const loading = stats.loading || this.loading;
@@ -263,7 +281,7 @@ class HomePage {
     }
     
     /**
-     * ✍️ Рендер главной CTA кнопки - ТОЧНО ИЗ КОНЦЕПТА
+     * ✍️ Рендер главной CTA кнопки
      */
     renderMainCTA() {
         return `
@@ -274,7 +292,7 @@ class HomePage {
     }
     
     /**
-     * 🔥 Рендер топ книг недели - ТОЧНО ИЗ КОНЦЕПТА
+     * 🔥 Рендер топ книг недели
      */
     renderTopBooks(books) {
         const topBooks = books.slice(0, 3);
@@ -293,7 +311,7 @@ class HomePage {
     }
     
     /**
-     * 📖 Рендер элемента книги - ТОЧНО ИЗ КОНЦЕПТА
+     * 📖 Рендер элемента книги
      */
     renderBookItem(book, rank) {
         return `
@@ -320,10 +338,10 @@ class HomePage {
     }
     
     /**
-     * 📈 Рендер секции прогресса - ТОЧНО ИЗ КОНЦЕПТА
+     * 📈 Рендер секции прогресса
      */
     renderProgressSection(stats) {
-        const progressPercent = stats.progressPercent || 35; // Из концепта
+        const progressPercent = stats.progressPercent || 35;
         const comparisonText = this.getProgressComparison(progressPercent);
         
         return `
@@ -352,6 +370,12 @@ class HomePage {
      * 📱 Навешивание обработчиков событий
      */
     attachEventListeners() {
+        // Кнопка меню
+        const menuBtn = document.getElementById('homeMenuBtn');
+        if (menuBtn) {
+            menuBtn.addEventListener('click', () => this.handleMenuClick());
+        }
+        
         // Кнопка добавления цитаты
         const addQuoteBtn = document.getElementById('addQuoteBtn');
         if (addQuoteBtn) {
@@ -378,13 +402,30 @@ class HomePage {
     }
     
     /**
-     * ✍️ Обработчик кнопки добавления цитаты
+     * ☰ Обработчик кнопки меню
      */
-    handleAddQuoteClick() {
+    handleMenuClick() {
         // Haptic feedback
         this.telegram.hapticFeedback('medium');
         
-        // Переход на страницу дневника
+        // Вызываем меню через app
+        if (this.app && typeof this.app.showTopMenu === 'function') {
+            this.app.showTopMenu();
+        } else {
+            console.warn('⚠️ showTopMenu недоступен');
+            if (this.telegram && typeof this.telegram.showAlert === 'function') {
+                this.telegram.showAlert('Меню пока не доступно');
+            } else {
+                alert('Меню пока не доступно');
+            }
+        }
+    }
+    
+    /**
+     * ✍️ Обработчик кнопки добавления цитаты
+     */
+    handleAddQuoteClick() {
+        this.telegram.hapticFeedback('medium');
         this.app.router.navigate('/diary');
     }
     
@@ -394,10 +435,7 @@ class HomePage {
     handleBookClick(bookId) {
         if (!bookId) return;
         
-        // Haptic feedback
         this.telegram.hapticFeedback('light');
-        
-        // Переход в каталог с выбранной книгой
         this.app.router.navigate(`/catalog?book=${bookId}`);
     }
     
@@ -405,10 +443,7 @@ class HomePage {
      * 📊 Обработчик клика по статистике
      */
     handleStatClick(statType) {
-        // Haptic feedback
         this.telegram.hapticFeedback('light');
-        
-        // Переход на страницу отчетов
         this.app.router.navigate('/reports');
     }
     
@@ -450,14 +485,14 @@ class HomePage {
     }
     
     /**
-     * 👤 Обновление UI информации о пользователе В ШАПКЕ INDEX.HTML
+     * 👤 Обновление UI информации о пользователе во встроенном блоке
      */
     updateUserInfoUI(profile) {
         if (!profile) return;
         
-        // Обновляем шапку в index.html
-        const userAvatar = document.getElementById('userAvatar');
-        const userName = document.getElementById('userName');
+        // Обновляем встроенный блок на главной странице
+        const userAvatar = document.querySelector('.user-avatar-inline');
+        const userName = document.querySelector('.user-name-inline');
         
         if (userAvatar) {
             userAvatar.textContent = profile.initials || this.getInitials(profile.name);
@@ -486,7 +521,7 @@ class HomePage {
     attachBookEventListeners() {
         const bookItems = document.querySelectorAll('.book-item');
         bookItems.forEach(item => {
-            item.removeEventListener('click', this.handleBookClick); // Удаляем старые
+            item.removeEventListener('click', this.handleBookClick);
             item.addEventListener('click', () => {
                 const bookId = item.dataset.bookId;
                 this.handleBookClick(bookId);
@@ -500,7 +535,6 @@ class HomePage {
     showError(message) {
         this.error = message;
         
-        // Можно показать toast уведомление
         if (this.telegram) {
             this.telegram.showAlert(message);
         }
@@ -514,7 +548,7 @@ class HomePage {
      * Получение инициалов из имени
      */
     getInitials(name) {
-        if (!name) return 'А'; // Из концепта
+        if (!name) return 'А';
         return name.split(' ')
             .map(word => word.charAt(0))
             .join('')
@@ -526,15 +560,14 @@ class HomePage {
      * Расчет прогресса (% от недельной цели)
      */
     calculateProgress(thisWeek) {
-        const weeklyGoal = 7; // 1 цитата в день
+        const weeklyGoal = 7;
         return Math.min(Math.round((thisWeek / weeklyGoal) * 100), 100);
     }
     
     /**
-     * Получение текста сравнения прогресса - ИЗ КОНЦЕПТА
+     * Получение текста сравнения прогресса
      */
     getProgressComparison(percent) {
-        // Точный текст из концепта "5 страниц"
         if (percent >= 75) return `Вы на ${percent}% активнее среднего читателя! 🔥`;
         if (percent >= 50) return `Хорошо! Вы на ${percent}% пути к цели! 📈`;
         if (percent >= 25) return `Неплохое начало! Вы на ${percent}% к цели! 🌱`;
@@ -563,7 +596,7 @@ class HomePage {
         // Очистка состояния компонента
         this.loading = false;
         this.error = null;
-        this.dataLoaded = false; // ✅ НОВОЕ: Сброс флага
+        this.dataLoaded = false;
     }
     
     /**
@@ -574,29 +607,17 @@ class HomePage {
      * Вызывается при показе страницы
      */
     onShow() {
-        console.log('🏠 HomePage: onShow - ПОКАЗЫВАЕМ ШАПКУ!');
+        console.log('🏠 HomePage: onShow - загружаем данные');
         
-        // Показываем шапку главной страницы
-        const homeHeader = document.getElementById('home-header');
-        const pageHeader = document.getElementById('page-header');
-        
-        if (homeHeader) homeHeader.style.display = 'flex';
-        if (pageHeader) pageHeader.style.display = 'none';
-        
-        // Обновляем информацию о пользователе в шапке
-        const profile = this.state.get('user.profile');
-        this.updateUserInfoUI(profile);
-        
-        // ✅ ИСПРАВЛЕНО: Умная загрузка данных
+        // Умная загрузка данных
         if (!this.dataLoaded) {
-            // Первый показ - загружаем данные
             console.log('🔄 HomePage: Первый показ, загружаем данные');
             this.loadInitialData();
         } else {
             // Проверяем актуальность данных (только если прошло больше 10 минут)
             const lastUpdate = this.state.get('stats.lastUpdate');
             const now = Date.now();
-            const tenMinutes = 10 * 60 * 1000; // ✅ ИСПРАВЛЕНО: Увеличен интервал
+            const tenMinutes = 10 * 60 * 1000;
             
             if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
                 console.log('🔄 HomePage: Данные устарели, обновляем');
@@ -612,10 +633,7 @@ class HomePage {
      */
     onHide() {
         console.log('🏠 HomePage: onHide');
-        
-        // Скрываем шапку главной страницы
-        const homeHeader = document.getElementById('home-header');
-        if (homeHeader) homeHeader.style.display = 'none';
+        // Больше никаких действий с хедерами не нужно
     }
 }
 
