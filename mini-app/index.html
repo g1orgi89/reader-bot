@@ -160,6 +160,9 @@
 
     <!-- 📚 JavaScript файлы (ИСПРАВЛЕНЫ ПУТИ!) -->
     
+    <!-- 🔍 НОВОЕ: Viewport Tracker для диагностики (ЗАГРУЖАЕТСЯ ПЕРВЫМ) -->
+    <script src="js/utils/viewport-tracker.js"></script>
+    
     <!-- Ядро приложения -->
     <script src="js/core/State.js"></script>
     <script src="js/core/Router.js"></script>
@@ -216,6 +219,16 @@
                 
                 console.log('✅ Reader Bot успешно инициализирован');
                 
+                // 🔍 НОВОЕ: Запускаем viewport tracker после инициализации приложения
+                if (window.ViewportTracker && !window.viewportTracker) {
+                    console.log('🔍 Запуск Viewport Tracker...');
+                    setTimeout(() => {
+                        window.viewportTracker = new ViewportTracker();
+                        window.viewportTracker.start();
+                        console.log('✅ Viewport Tracker активирован для диагностики');
+                    }, 3000); // Даем приложению время инициализироваться
+                }
+                
             } catch (error) {
                 console.error('❌ Ошибка инициализации приложения:', error);
                 
@@ -252,6 +265,37 @@
             }
             lastTouchEnd = now;
         }, false);
+        
+        // 🔍 DEBUG: Добавляем возможность ручного управления viewport tracker
+        window.debugViewport = {
+            start: () => {
+                if (window.viewportTracker) {
+                    window.viewportTracker.start();
+                    console.log('🔍 Viewport Tracker запущен вручную');
+                }
+            },
+            stop: () => {
+                if (window.viewportTracker) {
+                    window.viewportTracker.stop();
+                    console.log('⏹️ Viewport Tracker остановлен');
+                }
+            },
+            measure: () => {
+                if (window.viewportTracker) {
+                    const measurement = window.viewportTracker.measureViewport();
+                    console.log('📏 Текущие измерения viewport:', measurement);
+                    return measurement;
+                }
+            },
+            send: () => {
+                if (window.viewportTracker) {
+                    window.viewportTracker.measureAndReport();
+                    console.log('📤 Отправка данных viewport на сервер...');
+                }
+            }
+        };
+        
+        console.log('🔍 Debug команды доступны через window.debugViewport');
     </script>
 </body>
 </html>
