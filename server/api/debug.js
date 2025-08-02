@@ -5,7 +5,7 @@
  * и предоставляет аналитику для исправления багов
  * 
  * @filesize ~8KB
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 const express = require('express');
@@ -61,6 +61,12 @@ router.post('/viewport', async (req, res) => {
     const problemType = determineProblemType(viewport, problem);
     const severity = determineSeverity(viewport.difference);
 
+    // 🔧 ИСПРАВЛЕНО: Рассчитываем обязательные поля перед сохранением
+    const bottomNavHeight = viewport.bottomNavHeight || 64;
+    const headerHeight = viewport.headerHeight || 56;
+    const totalSubtracted = bottomNavHeight + headerHeight + 40; // padding
+    const availableHeight = viewport.innerHeight - totalSubtracted;
+
     // 💾 Создаем запись в БД
     const viewportLog = new ViewportLog({
       sessionId,
@@ -74,8 +80,11 @@ router.post('/viewport', async (req, res) => {
         telegramExpanded: viewport.telegramExpanded,
         calculatedContentHeight: viewport.calculatedContentHeight,
         actualContentHeight: viewport.actualContentHeight,
-        bottomNavHeight: viewport.bottomNavHeight,
-        headerHeight: viewport.headerHeight,
+        bottomNavHeight: bottomNavHeight,
+        headerHeight: headerHeight,
+        // 🔧 ИСПРАВЛЕНО: Добавляем обязательные поля
+        totalSubtracted: totalSubtracted,
+        availableHeight: availableHeight,
         difference: viewport.difference,
         safeBounds: viewport.safeBounds || { top: 0, bottom: 0, left: 0, right: 0 }
       },
