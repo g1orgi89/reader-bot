@@ -1,22 +1,8 @@
 /**
- * 🧭 NAVIGATION CSS - FIXED НО ПРАВИЛЬНО!
+ * 🧭 NAVIGATION CSS - СПЕЦИАЛЬНЫЕ ФИКСЫ ДЛЯ TELEGRAM
  */
 
-/* КОНТЕЙНЕР ПРИЛОЖЕНИЯ */
-.app-container {
-    position: relative;
-    width: 100%;
-    min-height: 100vh;
-}
-
-/* КОНТЕНТ С ОТСТУПОМ ПОД НАВИГАЦИЮ */
-.page-content {
-    padding: 16px;
-    padding-bottom: 76px; /* 60px навигация + 16px отступ */
-    min-height: calc(100vh - 60px);
-}
-
-/* НАВИГАЦИЯ FIXED К НИЗУ VIEWPORT */
+/* ОБЫЧНАЯ НАВИГАЦИЯ ДЛЯ БРАУЗЕРА */
 .bottom-nav {
     position: fixed;
     bottom: 0;
@@ -26,12 +12,66 @@
     height: 60px;
     background: var(--bg-card);
     border-top: 1px solid var(--bg-secondary);
-    z-index: 9999; /* ПОВЕРХ ВСЕГО */
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: space-around;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     padding: 8px 16px 0 16px;
+}
+
+/* 🔥 АГРЕССИВНЫЕ ФИКСЫ ТОЛЬКО ДЛЯ TELEGRAM */
+body[data-telegram="true"] .bottom-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 999999 !important;
+    
+    /* БЛОКИРУЕМ ВСЕ ТРАНСФОРМАЦИИ */
+    transform: none !important;
+    -webkit-transform: none !important;
+    translate: none !important;
+    
+    /* БЛОКИРУЕМ ИЗМЕНЕНИЯ ПОЗИЦИИ */
+    top: auto !important;
+    margin: 0 !important;
+    
+    /* ФИКСИРУЕМ РАЗМЕРЫ */
+    width: 100% !important;
+    height: 60px !important;
+    
+    /* ОТКЛЮЧАЕМ ВСЕ ЧТО МОЖЕТ МЕШАТЬ */
+    contain: none !important;
+    isolation: auto !important;
+    will-change: auto !important;
+    
+    /* TELEGRAM МОЖЕТ МЕНЯТЬ VIEWPORT - КОМПЕНСИРУЕМ */
+    position: fixed !important;
+}
+
+/* КОНТЕНТ */
+.page-content {
+    padding: 16px;
+    padding-bottom: 76px;
+    min-height: calc(100vh - 60px);
+}
+
+/* КОНТЕЙНЕР ПРИЛОЖЕНИЯ ПРОСТОЙ */
+.app-container {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* 🔥 ДЛЯ TELEGRAM - ЗАБЛОКИРОВАТЬ BODY И HTML */
+body[data-telegram="true"],
+html[data-telegram="true"] {
+    position: relative !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 .nav-item {
@@ -122,7 +162,7 @@
     }
     
     .page-content {
-        padding-bottom: 72px; /* 60px + 12px на мобильных */
+        padding-bottom: 72px;
     }
     
     .nav-item {
