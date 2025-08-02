@@ -1,7 +1,6 @@
 /**
  * 📱 MOBILE CSS ДЛЯ TELEGRAM MINI APP
- * Мобильная адаптация, ЖЕЛЕЗОБЕТОННЫЕ iOS фиксы и touch-оптимизация
- * 🔧 РЕШЕНИЕ ПРОБЛЕМЫ: Панель уезжает наверх на iPhone
+ * ФИКСИМ ТОЛЬКО КОНФЛИКТЫ! БЕЗ ЛИШНЕЙ ХЕРНИ!
  */
 
 /* ============================================================================
@@ -22,13 +21,18 @@
         -ms-text-size-adjust: 100%;
         text-size-adjust: 100%;
         
-        /* 🔧 КРИТИЧНО: Глобальные iOS фиксы */
+        /* 🔧 УБИРАЕМ КОНФЛИКТЫ */
+        margin: 0 !important;
+        padding: 0 !important;
         overflow-x: hidden !important;
-        height: 100% !important;
-        position: relative !important;
     }
     
     body {
+        /* 🔧 УБИРАЕМ ВСЕ КОНФЛИКТЫ */
+        margin: 0 !important;
+        padding: 0 !important;
+        position: relative !important;
+        
         /* Отключение горизонтального скроллинга */
         overflow-x: hidden !important;
         /* Улучшение производительности скроллинга */
@@ -37,27 +41,11 @@
         -webkit-touch-callout: none;
         -webkit-user-select: none;
         user-select: none;
-        
-        /* 🔧 КРИТИЧНО: iOS фиксы для стабильности навигации */
-        margin: 0 !important;
-        padding: 0 !important;
-        position: relative !important;
-        
-        /* 🔧 РЕШЕНИЕ ПРОБЛЕМЫ: Отключение bounce эффекта */
-        overscroll-behavior: none !important;
-        -webkit-overscroll-behavior: none !important;
-        overscroll-behavior-y: none !important;
-        -webkit-overscroll-behavior-y: none !important;
-        
-        /* 🔧 СТАБИЛИЗАЦИЯ ВЫСОТЫ */
-        height: 100% !important;
-        min-height: 100vh !important;
-        min-height: -webkit-fill-available !important;
     }
 }
 
 /* ============================================================================
-   🍎 ЖЕЛЕЗОБЕТОННЫЕ iOS SAFARI ФИКСЫ
+   🍎 ТОЛЬКО КРИТИЧНЫЕ iOS ФИКСЫ
    ============================================================================ */
 
 /* Фиксы для iOS Safari */
@@ -85,78 +73,14 @@
         transform: translateZ(0);
     }
     
-    /* 🔧 КРИТИЧНО: Все fixed элементы должны быть стабильными */
-    .fixed-element,
-    .bottom-nav,
-    .top-menu {
-        transform: translateZ(0) !important;
-        -webkit-transform: translateZ(0) !important;
-        -webkit-backface-visibility: hidden !important;
-        backface-visibility: hidden !important;
-        will-change: auto !important;
-    }
-    
-    /* 🔧 ЖЕЛЕЗОБЕТОННЫЙ ФИКС ДЛЯ НАВИГАЦИИ */
-    .bottom-nav {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        
-        /* Принудительное аппаратное ускорение */
-        -webkit-transform: translate3d(0, 0, 0) !important;
-        transform: translate3d(0, 0, 0) !important;
-        -webkit-transform-style: preserve-3d !important;
-        transform-style: preserve-3d !important;
-        
-        /* Изоляция от скролла */
-        contain: layout style paint !important;
-        isolation: isolate !important;
-        -webkit-overflow-scrolling: auto !important;
-        
-        /* Блокировка любых изменений позиции */
-        top: auto !important;
-        margin: 0 !important;
-        flex-shrink: 0 !important;
-    }
-    
-    /* 🔧 ФИКС КОНТЕНТА ПОД НАВИГАЦИЮ */
+    /* 🔧 КОНТЕНТ ДОЛЖЕН НЕ КОНФЛИКТОВАТЬ С НАВИГАЦИЕЙ */
     .page-content {
-        /* Правильный отступ снизу с учетом safe-area */
-        padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + var(--spacing-md)) !important;
+        /* Правильный отступ снизу с переменными */
+        padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + var(--spacing-md)) !important;
         box-sizing: border-box !important;
-        
-        /* Изоляция от навигации */
-        transform: translateZ(0) !important;
-        -webkit-transform: translateZ(0) !important;
-        contain: layout !important;
         position: relative !important;
         z-index: 1 !important;
-        
-        /* Убираем любые отрицательные margins */
-        margin-bottom: 0 !important;
-    }
-    
-    /* 🔧 ГЛОБАЛЬНЫЕ ФИКСЫ ДОКУМЕНТА */
-    html {
-        /* Запрет любых эффектов влияющих на fixed */
-        -webkit-transform: translateZ(0) !important;
-        transform: translateZ(0) !important;
-        height: 100% !important;
-        overflow-x: hidden !important;
-    }
-    
-    body {
-        /* Дополнительная стабилизация */
-        -webkit-transform: translateZ(0) !important;
-        transform: translateZ(0) !important;
-        position: relative !important;
-        
-        /* Полное отключение bounce */
-        -webkit-overflow-scrolling: touch !important;
-        overscroll-behavior: none !important;
-        -webkit-overscroll-behavior: none !important;
+        margin: 0 !important;
     }
     
     /* Отключение автоматической коррекции и капитализации */
@@ -179,30 +103,6 @@
     /* Включение highlight для ссылок и кнопок */
     a, button, [role="button"] {
         -webkit-tap-highlight-color: rgba(210, 69, 44, 0.1);
-    }
-}
-
-/* 🔧 ДОПОЛНИТЕЛЬНЫЙ WEBKIT ФИКС ДЛЯ УПРЯМЫХ СЛУЧАЕВ */
-@media screen and (-webkit-min-device-pixel-ratio: 0) {
-    _::-webkit-full-page-media, _:future, :root {
-        .bottom-nav {
-            position: fixed !important;
-            bottom: 0 !important;
-            -webkit-transform: translate3d(0, 0, 0) !important;
-            transform: translate3d(0, 0, 0) !important;
-            contain: layout style paint !important;
-        }
-        
-        body {
-            overscroll-behavior: none !important;
-            -webkit-overscroll-behavior: none !important;
-        }
-        
-        html {
-            overflow-x: hidden !important;
-            -webkit-transform: translateZ(0) !important;
-            transform: translateZ(0) !important;
-        }
     }
 }
 
@@ -463,15 +363,6 @@
     .page {
         padding: var(--spacing-sm) var(--spacing-md);
     }
-    
-    /* 🔧 В альбомном режиме тоже нужны железобетонные фиксы */
-    .bottom-nav {
-        padding: var(--spacing-xs) 0;
-        position: fixed !important;
-        bottom: 0 !important;
-        -webkit-transform: translate3d(0, 0, 0) !important;
-        transform: translate3d(0, 0, 0) !important;
-    }
 }
 
 /* ============================================================================
@@ -603,12 +494,6 @@
     body[data-theme="telegram"] {
         background-color: var(--tg-theme-bg-color, var(--bg-primary));
         color: var(--tg-theme-text-color, var(--text-primary));
-        
-        /* 🔧 iOS фиксы и для Telegram тем */
-        position: relative !important;
-        overflow-x: hidden !important;
-        overscroll-behavior: none !important;
-        -webkit-overscroll-behavior: none !important;
     }
     
     /* Адаптация высоты под Telegram viewport */
@@ -624,4 +509,23 @@
         padding-top: max(var(--safe-area-top), var(--spacing-sm));
         padding-bottom: max(var(--safe-area-bottom), var(--spacing-sm));
     }
+}
+
+/* ============================================================================
+   🔧 ИСПРАВЛЕНИЕ КОНФЛИКТОВ КОНТЕЙНЕРОВ
+   ============================================================================ */
+
+/* 🔧 APP CONTAINER НЕ ДОЛЖЕН СОЗДАВАТЬ STACKING CONTEXT */
+.app-container {
+    position: relative !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    /* КРИТИЧНО: Убираем transform который может создать новый stacking context */
+    transform: none !important;
+    -webkit-transform: none !important;
+    /* Убираем любые эффекты которые могут влиять на fixed позиционирование */
+    filter: none !important;
+    contain: none !important;
+    isolation: auto !important;
+    will-change: auto !important;
 }
