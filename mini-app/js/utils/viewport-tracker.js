@@ -8,9 +8,10 @@
  * 🔧 ИСПРАВЛЕНО: Убран автозапуск, только ручная инициализация
  * 🔧 ИСПРАВЛЕНО: Fallback значения header-height 56px → 0px
  * 🔧 ОБНОВЛЕНО: Версия для четкой идентификации в логах
+ * 🚨 ИСПРАВЛЕНО: Убраны лишние -40px из формулы calculatedContentHeight
  * 
  * @filesize ~12KB
- * @version 2.0.3
+ * @version 2.0.4
  */
 
 /**
@@ -69,7 +70,7 @@ class ViewportTracker {
         this.handleResize = this.handleResize.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('📱 ViewportTracker v2.0.3 initialized:', {
+        console.log('📱 ViewportTracker v2.0.4 initialized:', {
             sessionId: this.sessionId.substring(0, 8),
             debugMode: this.debugMode
         });
@@ -104,7 +105,7 @@ class ViewportTracker {
             window.Telegram.WebApp.onEvent('viewportChanged', this.handleResize);
         }
         
-        console.log('✅ ViewportTracker v2.0.3 started with DETAILED diagnostics');
+        console.log('✅ ViewportTracker v2.0.4 started with DETAILED diagnostics');
     }
 
     /**
@@ -161,8 +162,8 @@ class ViewportTracker {
             // 🔧 НОВОЕ: Подробная информация о body и html
             const documentMetrics = this.getDocumentMetrics();
             
-            // Рассчитанная высота контента (по CSS формуле)
-            const calculatedContentHeight = innerHeight - cssBottomNavHeight - cssHeaderHeight - 40;
+            // 🚨 ИСПРАВЛЕНО: Убраны лишние -40px из формулы
+            const calculatedContentHeight = innerHeight - cssBottomNavHeight - cssHeaderHeight;
             
             // Реальная высота контентного элемента
             const contentElement = document.querySelector('.content') || 
@@ -252,7 +253,7 @@ class ViewportTracker {
             
             // Логируем в консоль в debug режиме
             if (this.debugMode) {
-                console.log('📏 DETAILED Viewport measurement v2.0.3:', {
+                console.log('📏 DETAILED Viewport measurement v2.0.4 (FIXED -40px):', {
                     page: currentPage,
                     innerHeight,
                     telegramHeight,
@@ -266,7 +267,8 @@ class ViewportTracker {
                     cssNavHeight: cssBottomNavHeight,
                     navDiff: realSizes.bottomNavHeight - cssBottomNavHeight,
                     problem: measurement.problem.type,
-                    fixedElementsCount: allFixedElements.length
+                    fixedElementsCount: allFixedElements.length,
+                    formulaFix: 'Removed extra -40px from calculation'
                 });
             }
             
@@ -570,14 +572,15 @@ class ViewportTracker {
                 const result = await response.json();
                 
                 if (this.debugMode) {
-                    console.log('✅ DETAILED Viewport data v2.0.3 sent successfully:', {
+                    console.log('✅ DETAILED Viewport data v2.0.4 sent successfully:', {
                         logId: result.logId,
                         analysis: result.analysis,
                         realSizes: latestData.sizes.real,
                         cssSizes: latestData.sizes.css,
                         sizeDifferences: latestData.sizes.comparison,
                         fixedElementsCount: latestData.fixedElements.length,
-                        iosMetrics: latestData.ios
+                        iosMetrics: latestData.ios,
+                        formulaFixed: true
                     });
                 }
                 
@@ -821,4 +824,4 @@ class ViewportTracker {
 window.ViewportTracker = ViewportTracker;
 
 // 🔧 ИСПРАВЛЕНО: Убран автозапуск - только ручная инициализация из HTML
-console.log('📱 ViewportTracker v2.0.3 module loaded - manual init only');
+console.log('📱 ViewportTracker v2.0.4 module loaded - manual init only');
