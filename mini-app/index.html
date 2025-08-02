@@ -8,27 +8,27 @@
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-    <!-- 🎨 CSS стили в правильном порядке (ИСПРАВЛЕНО) -->
-    <link rel="stylesheet" href="css/variables.css">
-    <link rel="stylesheet" href="css/reset.css">
-    <link rel="stylesheet" href="css/base.css">
+    <!-- 🎨 CSS стили с CACHE-BUSTING (КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ) -->
+    <link rel="stylesheet" href="css/variables.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/reset.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/base.css?v=1.2&t=1722598800">
     
     <!-- Компоненты CSS -->
-    <link rel="stylesheet" href="css/components/navigation.css">
-    <link rel="stylesheet" href="css/components/buttons.css">
-    <link rel="stylesheet" href="css/components/cards.css">
-    <link rel="stylesheet" href="css/components/forms.css">
-    <link rel="stylesheet" href="css/components/modals.css">
+    <link rel="stylesheet" href="css/components/navigation.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/components/buttons.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/components/cards.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/components/forms.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/components/modals.css?v=1.1&t=1722598800">
     
     <!-- Страницы CSS -->
-    <link rel="stylesheet" href="css/pages/home.css">
-    <link rel="stylesheet" href="css/pages/diary.css">
-    <link rel="stylesheet" href="css/pages/reports.css">
-    <link rel="stylesheet" href="css/pages/catalog.css">
-    <link rel="stylesheet" href="css/pages/community.css">
+    <link rel="stylesheet" href="css/pages/home.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/pages/diary.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/pages/reports.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/pages/catalog.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/pages/community.css?v=1.1&t=1722598800">
     
     <!-- Мобильная адаптация -->
-    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/mobile.css?v=1.1&t=1722598800">
 </head>
 <body>
     <!-- 📱 ЭКРАН ЗАГРУЗКИ -->
@@ -139,33 +139,33 @@
         </div>
     </div>
 
-    <!-- 📚 JavaScript файлы (ИСПРАВЛЕНЫ ПУТИ!) -->
+    <!-- 📚 JavaScript файлы с CACHE-BUSTING -->
     
-    <!-- 🔍 УСИЛЕННЫЙ CACHE-BUSTING: Viewport диагностика (ЗАГРУЖАЕТСЯ ПЕРВЫМ) -->
-    <script src="js/utils/viewport-tracker.js?v=2.0.2&t=1722598408"></script>
-    <!-- 🔧 НОВОЕ: Динамический калькулятор viewport высоты -->
-    <script src="js/utils/viewport-calculator.js"></script>
+    <!-- 🔍 VIEWPORT TRACKER с обновленной версией -->
+    <script src="js/utils/viewport-tracker.js?v=2.0.3&t=1722598800"></script>
+    <!-- 🔧 Динамический калькулятор viewport высоты -->
+    <script src="js/utils/viewport-calculator.js?v=1.1&t=1722598800"></script>
     
     <!-- Ядро приложения -->
-    <script src="js/core/State.js"></script>
-    <script src="js/core/Router.js"></script>
-    <script src="js/core/App.js"></script>
+    <script src="js/core/State.js?v=1.1&t=1722598800"></script>
+    <script src="js/core/Router.js?v=1.1&t=1722598800"></script>
+    <script src="js/core/App.js?v=1.1&t=1722598800"></script>
     
-    <!-- Сервисы (ИСПРАВЛЕНЫ ИМЕНА ФАЙЛОВ) -->
-    <script src="js/services/telegram.js"></script>
-    <script src="js/services/api.js"></script>
+    <!-- Сервисы -->
+    <script src="js/services/telegram.js?v=1.1&t=1722598800"></script>
+    <script src="js/services/api.js?v=1.1&t=1722598800"></script>
     
-    <!-- Компоненты (ИСПРАВЛЕНЫ ПУТИ) -->
-    <script src="js/components/navigation/BottomNav.js"></script>
-    <script src="js/components/navigation/TopMenu.js"></script>
+    <!-- Компоненты -->
+    <script src="js/components/navigation/BottomNav.js?v=1.1&t=1722598800"></script>
+    <script src="js/components/navigation/TopMenu.js?v=1.1&t=1722598800"></script>
     
     <!-- Страницы -->
-    <script src="js/pages/HomePage.js"></script>
-    <script src="js/pages/DiaryPage.js"></script>
-    <script src="js/pages/ReportsPage.js"></script>
-    <script src="js/pages/CatalogPage.js"></script>
-    <script src="js/pages/CommunityPage.js"></script>
-    <script src="js/pages/OnboardingPage.js"></script>
+    <script src="js/pages/HomePage.js?v=1.1&t=1722598800"></script>
+    <script src="js/pages/DiaryPage.js?v=1.1&t=1722598800"></script>
+    <script src="js/pages/ReportsPage.js?v=1.1&t=1722598800"></script>
+    <script src="js/pages/CatalogPage.js?v=1.1&t=1722598800"></script>
+    <script src="js/pages/CommunityPage.js?v=1.1&t=1722598800"></script>
+    <script src="js/pages/OnboardingPage.js?v=1.1&t=1722598800"></script>
     
     <!-- Инициализация -->
     <script>
@@ -189,6 +189,9 @@
             console.log('🧪 Запуск в debug режиме (не в Telegram)');
         }
         
+        // 🚨 CACHE-BUSTING: Принудительная перезагрузка CSS
+        console.log('🔄 CSS загружен с cache-busting v1.2 - проблема overflow должна быть исправлена');
+        
         // Инициализация приложения после загрузки DOM
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -204,16 +207,13 @@
                 
                 // 🔍 НОВОЕ: Запускаем viewport tracker после инициализации приложения
                 if (window.ViewportTracker && !window.viewportTracker) {
-                    console.log('🔍 Запуск Viewport Tracker...');
+                    console.log('🔍 Запуск Viewport Tracker v2.0.3...');
                     setTimeout(() => {
                         window.viewportTracker = new ViewportTracker();
                         window.viewportTracker.start();
-                        console.log('✅ Viewport Tracker активирован для диагностики');
+                        console.log('✅ Viewport Tracker v2.0.3 активирован для диагностики');
                     }, 3000); // Даем приложению время инициализироваться
                 }
-                
-                // 🔧 НОВОЕ: Viewport Calculator запускается автоматически через свой модуль
-                // Никаких дополнительных действий не требуется
                 
             } catch (error) {
                 console.error('❌ Ошибка инициализации приложения:', error);
@@ -279,7 +279,7 @@
                     console.log('📤 Отправка данных viewport на сервер...');
                 }
             },
-            // 🔧 НОВОЕ: Debug команды для viewport calculator
+            // 🔧 Debug команды для viewport calculator
             calculator: {
                 update: () => {
                     if (window.viewportCalculator) {
