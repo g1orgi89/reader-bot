@@ -1,5 +1,5 @@
 /**
- * 🧭 NAVIGATION CSS - STICKY К НИЗУ!
+ * 🧭 NAVIGATION CSS - БЕЗ НИЖНЕГО ОТСТУПА
  */
 
 /* КОНТЕЙНЕР ПРИЛОЖЕНИЯ - FLEXBOX */
@@ -16,12 +16,11 @@
     flex: 1;
     overflow-y: auto;
     padding: 16px;
-    /* БЕЗ padding-bottom - навигация не перекрывает */
 }
 
-/* НАВИГАЦИЯ - STICKY К НИЗУ! */
+/* НАВИГАЦИЯ - БЕЗ НИЖНЕГО ОТСТУПА! */
 .bottom-nav {
-    position: sticky; /* ПРИЛИПАЕТ К НИЗУ КОНТЕЙНЕРА */
+    position: sticky;
     bottom: 0;
     width: 100%;
     height: 60px;
@@ -32,8 +31,9 @@
     align-items: center;
     justify-content: space-around;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-    padding: 8px 16px;
-    flex-shrink: 0; /* НЕ СЖИМАЕТСЯ */
+    /* УБИРАЕМ НИЖНИЙ PADDING */
+    padding: 8px 16px 0 16px; /* top right bottom left */
+    flex-shrink: 0;
 }
 
 .nav-item {
@@ -120,7 +120,8 @@
 @media (max-width: 480px) {
     .bottom-nav {
         height: 60px;
-        padding: 4px 8px;
+        /* И НА МОБИЛЬНЫХ ТОЖЕ БЕЗ НИЖНЕГО ОТСТУПА */
+        padding: 4px 8px 0 8px;
     }
     
     .nav-item {
