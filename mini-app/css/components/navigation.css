@@ -1,11 +1,11 @@
 /**
- * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 ИСПРАВЛЕН iOS FIXED)
+ * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 УСИЛЕННЫЕ iOS ФИКСЫ)
  * Стили навигации: нижняя панель, верхнее меню, табы
- * ✅ ИСПРАВЛЕНО: iOS position fixed с поддержкой safe-area
+ * ✅ ИСПРАВЛЕНО: iOS position fixed с максимальной надежностью
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV) - ИСПРАВЛЕНА ДЛЯ iOS
+   🧭 НИЖНЯЯ НАВИГАЦИЯ (BOTTOM NAV) - УСИЛЕННЫЕ iOS ФИКСЫ
    ============================================================================ */
 
 .bottom-nav {
@@ -13,6 +13,7 @@
     bottom: 0;
     left: 0;
     right: 0;
+    width: 100%;
     height: var(--bottom-nav-height);
     background: var(--bg-card);
     border-top: 1px solid var(--bg-secondary);
@@ -25,37 +26,89 @@
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     
-    /* 🔧 iOS ФИКСЫ */
+    /* 🔧 УСИЛЕННЫЕ iOS ФИКСЫ */
     -webkit-transform: translateZ(0); /* Аппаратное ускорение */
     transform: translateZ(0);
     will-change: transform;
-    
-    /* 🔧 iOS SAFE AREA: Добавляем отступ снизу для безопасной зоны */
-    padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 0px));
-    
-    /* 🔧 iOS WEBKIT: Принудительная фиксация */
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
+    
+    /* 🔧 iOS SAFE AREA: Основной отступ снизу */
+    padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 0px));
+    
+    /* 🔧 ДОПОЛНИТЕЛЬНЫЕ iOS WEBKIT ФИКСЫ */
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+    -webkit-perspective: 1000;
+    perspective: 1000;
+    
+    /* 🔧 ПРИНУДИТЕЛЬНАЯ ФИКСАЦИЯ ДЛЯ iOS */
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    position: fixed !important;
 }
 
-/* 🔧 iOS ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ */
+/* 🔧 iOS МАКСИМАЛЬНАЯ ПОДДЕРЖКА SAFE AREA */
 @supports (padding: max(0px)) {
     .bottom-nav {
         /* Используем max() для правильной работы safe-area */
         padding-bottom: max(var(--spacing-xs), env(safe-area-inset-bottom));
         /* Увеличиваем высоту на размер safe-area */
         height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+        /* Дополнительный отступ для безопасности */
+        margin-bottom: env(safe-area-inset-bottom, 0px);
     }
 }
 
-/* 🔧 WEBKIT ПРИОРИТЕТ: Для старых версий iOS */
+/* 🔧 iOS SAFARI СПЕЦИАЛЬНЫЕ ФИКСЫ */
 @supports (-webkit-touch-callout: none) {
     .bottom-nav {
+        /* Webkit sticky фикс */
         position: -webkit-sticky;
         position: sticky;
-        bottom: 0;
-        /* Webkit sticky fallback */
+        /* Принудительная фиксация */
         position: fixed !important;
+        
+        /* Дополнительная поддержка iOS */
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
+        
+        /* Принудительное закрепление внизу */
+        bottom: 0 !important;
+        
+        /* Отключение iOS прокрутки для этого элемента */
+        -webkit-overflow-scrolling: auto;
+        overflow-scrolling: auto;
+        
+        /* Усиленная фиксация позиции */
+        contain: layout style paint;
+    }
+    
+    /* 🔧 ДОПОЛНИТЕЛЬНЫЙ ФИКС: Запрет изменения положения при скролле */
+    body {
+        /* Предотвращение bounce эффекта который может сдвигать навигацию */
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: none;
+        -webkit-overscroll-behavior: none;
+    }
+    
+    /* 🔧 Фикс для основного контейнера чтобы не влиял на навигацию */
+    .page-content {
+        /* Убираем любое влияние на позиционирование навигации */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        contain: layout;
+    }
+}
+
+/* 🔧 СПЕЦИАЛЬНЫЙ iOS ФИКС: Принудительное закрепление при любых условиях */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    _::-webkit-full-page-media, _:future, :root .bottom-nav {
+        position: fixed !important;
+        bottom: 0 !important;
+        will-change: auto !important;
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
     }
 }
 
@@ -144,7 +197,7 @@
 }
 
 /* ============================================================================
-   📋 ВЕРХНЕЕ МЕНЮ (TOP MENU) - ИСПРАВЛЕНО ДЛЯ iOS
+   📋 ВЕРХНЕЕ МЕНЮ (TOP MENU) - УСИЛЕННЫЕ iOS ФИКСЫ
    ============================================================================ */
 
 .top-menu {
@@ -391,15 +444,21 @@
 }
 
 /* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ С iOS ФИКСАМИ
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ С УСИЛЕННЫМИ iOS ФИКСАМИ
    ============================================================================ */
 
 @media (max-width: 480px) {
     .bottom-nav {
         height: 60px;
         padding: var(--spacing-xs);
-        /* 🔧 МОБИЛЬНЫЕ iOS ФИКСЫ */
-        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 0px));
+        /* 🔧 МОБИЛЬНЫЕ iOS ФИКСЫ с дополнительной безопасностью */
+        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 8px));
+        
+        /* 🔧 ДОПОЛНИТЕЛЬНОЕ ЗАКРЕПЛЕНИЕ НА МОБИЛЬНЫХ */
+        position: fixed !important;
+        bottom: 0 !important;
+        transform: translate3d(0, 0, 0) !important;
+        -webkit-transform: translate3d(0, 0, 0) !important;
     }
     
     .nav-item {
@@ -457,12 +516,44 @@
 @supports (padding: max(0px)) {
     @media (max-width: 480px) {
         .bottom-nav {
-            padding-bottom: max(var(--spacing-xs), env(safe-area-inset-bottom));
-            height: calc(60px + env(safe-area-inset-bottom, 0px));
+            padding-bottom: max(var(--spacing-xs), env(safe-area-inset-bottom), 8px);
+            height: calc(60px + env(safe-area-inset-bottom, 8px));
+            /* 🔧 ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА ОТ ПЕРЕМЕЩЕНИЯ */
+            min-height: calc(60px + env(safe-area-inset-bottom, 8px));
         }
         
         .top-menu {
             height: calc(50px + env(safe-area-inset-top, 0px));
+        }
+    }
+}
+
+/* 🔧 ФИКС ДЛЯ УЗКОЙ ПОЛОСКИ СНИЗУ */
+@supports (-webkit-touch-callout: none) {
+    @media (max-width: 480px) {
+        .bottom-nav {
+            /* Добавляем дополнительный отступ если есть узкая полоска */
+            margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 1px);
+            /* Убираем любые возможные gaps */
+            box-sizing: border-box;
+            /* Принудительно задаем ширину */
+            width: 100vw;
+            max-width: 100vw;
+            left: 0;
+            right: 0;
+        }
+        
+        /* 🔧 Убираем отступы у body которые могут создавать полоску */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        /* 🔧 Фикс для page-content чтобы он не создавал полоску */
+        .page-content {
+            padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 8px) + var(--spacing-md));
+            box-sizing: border-box;
         }
     }
 }
@@ -572,7 +663,7 @@
 /* 🔧 ПЛАВАЮЩАЯ КНОПКА ДОБАВЛЕНИЯ - ИСПРАВЛЕНА ДЛЯ iOS */
 .fab-nav {
     position: fixed;
-    bottom: calc(var(--bottom-nav-height) + var(--spacing-md) + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--bottom-nav-height) + var(--spacing-md) + env(safe-area-inset-bottom, 8px));
     right: var(--spacing-md);
     width: 56px;
     height: 56px;
