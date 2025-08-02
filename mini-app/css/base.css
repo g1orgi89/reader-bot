@@ -1,9 +1,9 @@
 /**
- * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🚨 EMERGENCY FIX ДЛЯ iOS)
+ * 📐 BASE CSS ДЛЯ TELEGRAM MINI APP (🔧 DYNAMIC VIEWPORT FIX)
  * Базовая типографика, сетка и общие стили компонентов
  * ✅ ИСПРАВЛЕНО: Используются правильные CSS переменные для размеров навигации
  * ✅ ИСПРАВЛЕНО: Убраны повторные запуски анимаций при переходах между страницами
- * 🚨 ЭКСТРЕННОЕ ИСПРАВЛЕНИЕ: Убран весь padding для iOS на основе диагностики -64px
+ * 🔧 НОВОЕ: Динамические CSS переменные на основе реальных размеров элементов
  */
 
 /* ============================================================================
@@ -180,13 +180,12 @@ p {
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* 🚨 ЭКСТРЕННОЕ ИСПРАВЛЕНИЕ: УБИРАЕМ ВЕСЬ PADDING ДЛЯ iOS */
+/* 🔧 НОВОЕ: ДИНАМИЧЕСКИЙ VIEWPORT НА ОСНОВЕ РЕАЛЬНЫХ РАЗМЕРОВ */
 .content {
-    /* ✅ ЭКСТРЕННОЕ ИСПРАВЛЕНИЕ: Убираем padding полностью (было 20px, стало 0px) */
-    /* iOS показал -64px overflow, убираем весь padding */
-    height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-    max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-    min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
+    /* 🔧 ОСНОВНАЯ ФОРМУЛА: Используем РЕАЛЬНЫЕ размеры элементов */
+    height: var(--real-available-height, calc(100vh - var(--bottom-nav-height) - var(--header-height)));
+    max-height: var(--real-available-height, calc(100vh - var(--bottom-nav-height) - var(--header-height)));
+    min-height: var(--real-available-height, calc(100vh - var(--bottom-nav-height) - var(--header-height)));
     width: 100%;
     
     /* ✅ ИСПРАВЛЕНО: Правильный скроллинг для длинного контента */
@@ -206,14 +205,22 @@ p {
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
+/* 🔧 FALLBACK: Если динамические переменные еще не установлены */
+.content:not([style*="--real-available-height"]) {
+    /* Используем статичные CSS переменные как fallback */
+    height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
+    max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
+    min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
+}
+
 /* 🔧 СПЕЦИАЛЬНОЕ ИСПРАВЛЕНИЕ ДЛЯ TELEGRAM WEB APP */
 /* Используем Telegram viewport height если доступен */
 @supports (height: var(--tg-viewport-height)) {
     .content {
-        /* Используем Telegram viewport вместо 100vh БЕЗ ДОПОЛНИТЕЛЬНОГО PADDING */
-        height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height));
-        max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height));
-        min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height));
+        /* 🔧 НОВОЕ: Используем реальную доступную высоту с Telegram viewport */
+        height: var(--real-available-height, calc(var(--tg-viewport-height, 100vh) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
+        max-height: var(--real-available-height, calc(var(--tg-viewport-height, 100vh) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
+        min-height: var(--real-available-height, calc(var(--tg-viewport-height, 100vh) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
     }
 }
 
@@ -222,18 +229,18 @@ p {
     .content {
         /* Используем max() для правильной работы safe-area */
         padding-bottom: max(16px, env(safe-area-inset-bottom));
-        /* ✅ ИСПРАВЛЕНО: БЕЗ ДОПОЛНИТЕЛЬНОГО PADDING + safe area */
-        height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        /* 🔧 НОВОЕ: Динамическая формула с safe area */
+        height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+        max-height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+        min-height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
     }
     
-    /* Telegram viewport для iOS БЕЗ ДОПОЛНИТЕЛЬНОГО PADDING */
+    /* Telegram viewport для iOS с динамическими переменными */
     @supports (height: var(--tg-viewport-height)) {
         .content {
-            height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            height: var(--real-available-height, calc(var(--real-viewport-height, var(--tg-viewport-height, 100vh)) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+            max-height: var(--real-available-height, calc(var(--real-viewport-height, var(--tg-viewport-height, 100vh)) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+            min-height: var(--real-available-height, calc(var(--real-viewport-height, var(--tg-viewport-height, 100vh)) - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height)) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
         }
     }
 }
@@ -254,73 +261,10 @@ p {
     .content {
         padding: 12px;
         padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-        /* ✅ МОБИЛЬНЫЕ: БЕЗ ДОПОЛНИТЕЛЬНОГО PADDING */
-        height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-    }
-}
-
-/* 📱 PHONE-FRAME: Очень маленькие экраны */
-@media (max-width: 360px) {
-    body {
-        padding: 5px 5px 0;
-    }
-    
-    .app-container {
-        margin: 0 0 5px;
-        min-height: calc(100vh - 10px);
-        border-radius: 12px;
-    }
-    
-    .content {
-        padding: 10px;
-        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-        /* ✅ МАЛЕНЬКИЕ ЭКРАНЫ: БЕЗ ДОПОЛНИТЕЛЬНОГО PADDING */
-        height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-        max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-        min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height));
-    }
-}
-
-/* 📱 PHONE-FRAME: Большие экраны (desktop) */
-@media (min-width: 768px) {
-    body {
-        padding: 40px 20px 0;
-    }
-    
-    .app-container {
-        margin: 0 auto 40px;
-        min-height: 700px; /* Фиксированная высота как в концепте */
-        max-height: calc(100vh - 80px);
-    }
-    
-    .content {
-        /* ✅ ДЕСКТОП: Используем padding для лучшего вида */
-        height: calc(700px - var(--bottom-nav-height) - var(--header-height) - 60px);
-        max-height: calc(700px - var(--bottom-nav-height) - var(--header-height) - 60px);
-        min-height: calc(700px - var(--bottom-nav-height) - var(--header-height) - 60px);
-    }
-}
-
-/* ✅ iOS ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ ДЛЯ МОБИЛЬНЫХ */
-@supports (padding: max(0px)) {
-    @media (max-width: 480px) {
-        .content {
-            padding-bottom: max(12px, env(safe-area-inset-bottom));
-            height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        }
-    }
-    
-    @media (max-width: 360px) {
-        .content {
-            padding-bottom: max(10px, env(safe-area-inset-bottom));
-            height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            max-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            min-height: calc(100vh - var(--bottom-nav-height) - var(--header-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        }
+        /* 🔧 МОБИЛЬНЫЕ: Используем динамические переменные */
+        height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
+        max-height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
+        min-height: var(--real-available-height, calc(100vh - var(--real-bottom-nav-height, var(--bottom-nav-height)) - var(--real-header-height, var(--header-height))));
     }
 }
 
@@ -333,8 +277,8 @@ p {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding-top: var(--header-height);
-    padding-bottom: var(--bottom-nav-height);
+    padding-top: var(--real-header-height, var(--header-height));
+    padding-bottom: var(--real-bottom-nav-height, var(--bottom-nav-height));
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -379,70 +323,6 @@ p {
     transform: translateX(-20px);
     transition: opacity var(--duration-fast, 0.2s) ease, 
                 transform var(--duration-fast, 0.2s) ease;
-}
-
-/* ✅ СОСТОЯНИЕ ЗАГРУЗКИ СТРАНИЦЫ */
-.page-loading {
-    opacity: 0.7;
-    pointer-events: none;
-    position: relative;
-}
-
-.page-loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 20px;
-    height: 20px;
-    margin: -10px 0 0 -10px;
-    border: 2px solid var(--text-muted, #999);
-    border-top-color: var(--primary-color, #D2452C);
-    border-radius: 50%;
-    animation: pageLoadingSpinner 0.6s linear infinite;
-}
-
-@keyframes pageLoadingSpinner {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* ✅ ИСПРАВЛЕНА ОРИГИНАЛЬНАЯ АНИМАЦИЯ - ТЕПЕРЬ ТОЛЬКО ДЛЯ РУЧНОГО ИСПОЛЬЗОВАНИЯ */
-@keyframes pageSlideIn {
-    from {
-        opacity: 0;
-        transform: translateX(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@keyframes pageSlideOut {
-    from {
-        opacity: 1;
-        transform: translateX(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-}
-
-/* ✅ УТИЛИТАРНЫЕ КЛАССЫ ДЛЯ КОНТРОЛЯ АНИМАЦИЙ */
-.animate-slide-in {
-    animation: pageSlideIn var(--duration-normal, 0.3s) var(--ease-out, ease-out) forwards;
-}
-
-.animate-slide-out {
-    animation: pageSlideOut var(--duration-fast, 0.2s) ease forwards;
-}
-
-.no-animation {
-    animation: none !important;
-    transition: none !important;
 }
 
 /* ============================================================================
@@ -671,13 +551,13 @@ p {
 
 /* Hover эффекты */
 @media (hover: hover) {
-    .hover\:opacity-80:hover { opacity: var(--hover-opacity); }
-    .hover\:shadow-lg:hover { box-shadow: var(--shadow-lg); }
-    .hover\:shadow-primary:hover { box-shadow: var(--shadow-primary); }
+    .hover\\:opacity-80:hover { opacity: var(--hover-opacity); }
+    .hover\\:shadow-lg:hover { box-shadow: var(--shadow-lg); }
+    .hover\\:shadow-primary:hover { box-shadow: var(--shadow-primary); }
 }
 
 /* Active состояния */
-.active\:opacity-60:active { opacity: var(--active-opacity); }
+.active\\:opacity-60:active { opacity: var(--active-opacity); }
 
 /* ============================================================================
    🔄 АНИМАЦИИ И ПЕРЕХОДЫ
@@ -744,17 +624,17 @@ p {
 
 /* Показ/скрытие на мобильных */
 @media (max-width: 480px) {
-    .mobile\:hidden { display: none; }
-    .mobile\:block { display: block; }
-    .mobile\:flex { display: flex; }
-    .mobile\:text-sm { font-size: var(--font-size-sm); }
-    .mobile\:px-2 { padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
+    .mobile\\:hidden { display: none; }
+    .mobile\\:block { display: block; }
+    .mobile\\:flex { display: flex; }
+    .mobile\\:text-sm { font-size: var(--font-size-sm); }
+    .mobile\\:px-2 { padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
 }
 
 /* Большие экраны */
 @media (min-width: 481px) {
-    .desktop\:max-w-md { max-width: 480px; }
-    .desktop\:mx-auto { margin-left: auto; margin-right: auto; }
+    .desktop\\:max-w-md { max-width: 480px; }
+    .desktop\\:mx-auto { margin-left: auto; margin-right: auto; }
 }
 
 /* ============================================================================
