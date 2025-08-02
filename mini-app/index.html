@@ -29,6 +29,9 @@
     
     <!-- Мобильная адаптация -->
     <link rel="stylesheet" href="css/mobile.css">
+    
+    <!-- 🔧 КРИТИЧЕСКОЕ: iOS Navigation Fix (ЗАГРУЖАЕТСЯ ПОСЛЕДНИМ!) -->
+    <link rel="stylesheet" href="css/ios-navigation-fix.css">
 </head>
 <body>
     <!-- 📱 ЭКРАН ЗАГРУЗКИ -->
@@ -141,7 +144,10 @@
 
     <!-- 📚 JavaScript файлы (ИСПРАВЛЕНЫ ПУТИ!) -->
     
-    <!-- 🔍 НОВОЕ: Viewport диагностика (ЗАГРУЖАЕТСЯ ПЕРВЫМ) -->
+    <!-- 🔧 КРИТИЧЕСКОЕ: iOS Navigation Stabilizer (ЗАГРУЖАЕТСЯ ПЕРВЫМ!) -->
+    <script src="js/ios-navigation-stabilizer.js"></script>
+    
+    <!-- 🔍 НОВОЕ: Viewport диагностика -->
     <script src="js/utils/viewport-tracker.js"></script>
     <!-- 🔧 НОВОЕ: Динамический калькулятор viewport высоты -->
     <script src="js/utils/viewport-calculator.js"></script>
@@ -172,6 +178,37 @@
     
     <!-- Инициализация -->
     <script>
+        // 🔧 КРИТИЧЕСКОЕ: НЕМЕДЛЕННАЯ iOS СТАБИЛИЗАЦИЯ
+        console.log('🍎 Немедленная iOS стабилизация...');
+        
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        if (isIOS) {
+            console.log('🍎 iOS устройство обнаружено - применяем критические фиксы...');
+            
+            // Добавляем iOS класс немедленно
+            document.documentElement.classList.add('ios-device');
+            
+            // Принудительно устанавливаем базовые стили для документа
+            document.documentElement.style.cssText += `
+                height: calc(100vh + 1px) !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                overscroll-behavior: none !important;
+                -webkit-overscroll-behavior: none !important;
+            `;
+            
+            document.body.style.cssText += `
+                min-height: calc(100vh + 1px) !important;
+                overscroll-behavior: none !important;
+                -webkit-overscroll-behavior: none !important;
+                -webkit-overflow-scrolling: touch !important;
+            `;
+            
+            console.log('✅ Базовые iOS фиксы применены немедленно');
+        }
+        
         // Проверяем поддержку Telegram Web App
         if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
             console.log('🚀 Telegram Web App обнаружен');
@@ -180,12 +217,8 @@
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
             
-            // 🔧 КРИТИЧЕСКИ ВАЖНО: iOS ФИКСЫ для навигации
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            
             if (isIOS) {
-                console.log('🍎 iOS устройство обнаружено');
+                console.log('🍎 Применяем Telegram iOS фиксы...');
                 
                 // Bot API 7.7+ - Отключаем вертикальные свайпы для предотвращения "всплывания" навигации
                 if (window.Telegram.WebApp.disableVerticalSwipes) {
@@ -203,22 +236,6 @@
                     console.log('🔧 iOS Fix: Safe Area установлена', safeArea);
                 }
                 
-                // Добавляем CSS класс для iOS специфичных стилей
-                document.documentElement.classList.add('ios-device');
-                
-                // Обеспечиваем прокручиваемость документа (критически важно!)
-                const ensureScrollable = () => {
-                    const isScrollable = document.documentElement.scrollHeight > window.innerHeight;
-                    if (!isScrollable) {
-                        document.documentElement.style.height = 'calc(100vh + 1px)';
-                        document.body.style.minHeight = 'calc(100vh + 1px)';
-                        console.log('🔧 iOS Fix: Документ сделан прокручиваемым');
-                    }
-                };
-                
-                ensureScrollable();
-                window.addEventListener('resize', ensureScrollable);
-                
                 // Фиксируем viewport height для стабильности
                 const updateViewportHeight = () => {
                     const vh = window.innerHeight * 0.01;
@@ -230,6 +247,8 @@
                 window.addEventListener('orientationchange', () => {
                     setTimeout(updateViewportHeight, 300);
                 });
+                
+                console.log('✅ Telegram iOS фиксы применены');
             }
             
             // Применяем цвета темы Telegram
@@ -266,9 +285,6 @@
                         console.log('✅ Viewport Tracker активирован для диагностики');
                     }, 3000); // Даем приложению время инициализироваться
                 }
-                
-                // 🔧 НОВОЕ: Viewport Calculator запускается автоматически через свой модуль
-                // Никаких дополнительных действий не требуется
                 
             } catch (error) {
                 console.error('❌ Ошибка инициализации приложения:', error);
@@ -316,7 +332,7 @@
             }
         }, { passive: false });
         
-        // 🔍 DEBUG: Добавляем возможность ручного управления viewport tracker
+        // 🔍 DEBUG: Расширенные debug команды
         window.debugViewport = {
             start: () => {
                 if (window.viewportTracker) {
@@ -343,7 +359,6 @@
                     console.log('📤 Отправка данных viewport на сервер...');
                 }
             },
-            // 🔧 НОВОЕ: Debug команды для viewport calculator
             calculator: {
                 update: () => {
                     if (window.viewportCalculator) {
@@ -364,7 +379,6 @@
                     }
                 }
             },
-            // 🍎 iOS Debug команды
             ios: {
                 fix: () => {
                     if (window.initIOSFixes) {
@@ -373,17 +387,43 @@
                     }
                 },
                 status: () => {
-                    console.log('🍎 iOS статус:', {
+                    const status = {
                         isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
                         hasIOSClass: document.documentElement.classList.contains('ios-device'),
                         hasIOSFixes: window.isIOSFixesActive ? window.isIOSFixesActive() : false,
-                        verticalSwipesDisabled: window.Telegram?.WebApp?.isVerticalSwipesEnabled === false
-                    });
+                        verticalSwipesDisabled: window.Telegram?.WebApp?.isVerticalSwipesEnabled === false,
+                        navigationStabilizer: window.iosNavigationStabilizer ? window.iosNavigationStabilizer.getStatus() : null
+                    };
+                    console.log('🍎 iOS статус:', status);
+                    return status;
+                },
+                stabilize: () => {
+                    if (window.iosNavigationStabilizer) {
+                        window.iosNavigationStabilizer.stabilize();
+                        console.log('🔧 Navigation стабилизация принудительно применена');
+                    }
+                },
+                enableDebug: () => {
+                    if (window.iosNavigationStabilizer) {
+                        window.iosNavigationStabilizer.enableDebug();
+                        console.log('🔍 iOS Navigation Debug включен');
+                    }
+                },
+                disableDebug: () => {
+                    if (window.iosNavigationStabilizer) {
+                        window.iosNavigationStabilizer.disableDebug();
+                        console.log('🔍 iOS Navigation Debug отключен');
+                    }
                 }
             }
         };
         
-        console.log('🔍 Debug команды доступны через window.debugViewport');
+        // Дополнительные debug команды для навигации
+        window.debugNavigation = window.debugViewport.ios;
+        
+        console.log('🔍 Debug команды доступны через:');
+        console.log('  - window.debugViewport (основные)');
+        console.log('  - window.debugNavigation (iOS навигация)');
     </script>
 </body>
 </html>
