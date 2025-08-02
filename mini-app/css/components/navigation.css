@@ -1,10 +1,10 @@
 /**
- * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 SAFE-AREA ФИКС)
- * ФИКСИМ КОНФЛИКТ SAFE-AREA И ДРУГИЕ ПРОБЛЕМЫ!
+ * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 TELEGRAM BOTTOM ФИКС)
+ * ИСПРАВЛЯЕМ ПРОБЛЕМУ СМЕЩЕНИЯ ВВЕРХ В TELEGRAM!
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ - ИСПРАВЛЕНИЕ SAFE-AREA КОНФЛИКТА
+   🧭 НИЖНЯЯ НАВИГАЦИЯ - ФИКС TELEGRAM WEBVIEW BOTTOM
    ============================================================================ */
 
 .bottom-nav {
@@ -31,7 +31,6 @@
     
     /* PADDING С ПРАВИЛЬНЫМИ ПЕРЕМЕННЫМИ */
     padding: var(--spacing-xs) var(--spacing-sm);
-    /* 🔧 КРИТИЧНО: Используем CSS переменную а не env() напрямую */
     padding-bottom: calc(var(--spacing-xs) + var(--safe-area-bottom));
     
     /* iOS ОПТИМИЗАЦИЯ */
@@ -49,16 +48,37 @@
     }
 }
 
-/* 🔧 ФИКС ДЛЯ TELEGRAM WEBVIEW */
+/* 🔧 КРИТИЧНЫЙ ФИКС ДЛЯ TELEGRAM WEBVIEW */
 body[data-telegram="true"] .bottom-nav {
     /* В Telegram WebView используем position: absolute */
     position: absolute !important;
+    
+    /* 🚨 ГЛАВНЫЙ ФИКС: bottom должен быть отрицательным! */
+    bottom: calc(-1 * env(safe-area-inset-bottom, 0px)) !important;
+    
     /* Убираем все transform чтобы не конфликтовать */
     transform: none !important;
     -webkit-transform: none !important;
-    /* Простые отступы */
-    padding-bottom: calc(var(--spacing-xs) + 8px);
-    height: calc(var(--bottom-nav-height) + 8px);
+    
+    /* Простые отступы для Telegram */
+    padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 8px));
+    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 8px));
+    
+    /* Убираем backdrop-filter который может глючить в Telegram */
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+/* 🔧 АЛЬТЕРНАТИВНЫЙ ФИКС ДЛЯ TELEGRAM НА МОБИЛЬНЫХ */
+@media (max-width: 480px) {
+    body[data-telegram="true"] .bottom-nav {
+        /* Принудительно ставим на самый низ */
+        bottom: 0 !important;
+        /* Добавляем отрицательный margin чтобы компенсировать смещение */
+        margin-bottom: calc(-1 * env(safe-area-inset-bottom, 0px)) !important;
+        /* Или используем translate */
+        transform: translateY(env(safe-area-inset-bottom, 0px)) !important;
+    }
 }
 
 /* 🔧 ФИКС ДЛЯ БРАУЗЕРА (НЕ TELEGRAM) */
@@ -271,23 +291,34 @@ body[data-telegram="true"] .top-menu {
     .bottom-nav {
         height: 60px;
         padding: var(--spacing-xs);
-        /* 🔧 ПРАВИЛЬНЫЙ SAFE-AREA ДЛЯ МОБИЛЬНЫХ */
         padding-bottom: calc(var(--spacing-xs) + var(--safe-area-bottom));
         height: calc(60px + var(--safe-area-bottom));
     }
     
-    /* 🔧 МОБИЛЬНЫЕ ФИКСЫ ДЛЯ ТЕЛЕГРАМА */
+    /* 🔧 УСИЛЕННЫЕ МОБИЛЬНЫЕ ФИКСЫ ДЛЯ ТЕЛЕГРАМА */
     body[data-telegram="true"] .bottom-nav {
         position: absolute !important;
-        bottom: 0 !important;
-        transform: none !important;
+        
+        /* 🚨 ТЕСТИРУЕМ РАЗНЫЕ ВАРИАНТЫ BOTTOM */
+        /* Вариант 1: Отрицательный bottom */
+        bottom: calc(-1 * env(safe-area-inset-bottom, 0px)) !important;
+        
+        /* Вариант 2: Положительный transform (если первый не работает) */
+        /* transform: translateY(env(safe-area-inset-bottom, 0px)) !important; */
+        
+        /* Убираем конфликты */
         -webkit-transform: none !important;
         contain: none !important;
         isolation: auto !important;
         will-change: auto !important;
+        
         /* Фиксированные отступы для Telegram */
-        padding-bottom: calc(var(--spacing-xs) + 8px);
-        height: calc(60px + 8px);
+        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 8px));
+        height: calc(60px + env(safe-area-inset-bottom, 8px));
+        
+        /* Убираем backdrop-filter */
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
     }
     
     /* 🔧 БРАУЗЕРНЫЕ ФИКСЫ (НЕ ТЕЛЕГРАМ) */
@@ -344,7 +375,6 @@ body[data-telegram="true"] .top-menu {
 body {
     margin: 0 !important;
     padding: 0 !important;
-    /* Убираем возможные конфликты */
     position: relative !important;
 }
 
@@ -360,19 +390,15 @@ html {
     position: relative !important;
     width: 100% !important;
     min-height: 100vh !important;
-    /* Убираем любые transform которые могут создать новый stacking context */
     transform: none !important;
 }
 
 /* 🔧 ПРОБЛЕМА: Page content может толкать навигацию */
 .page-content {
-    /* Правильный отступ снизу */
     padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + var(--spacing-md)) !important;
     box-sizing: border-box !important;
-    /* Изоляция от навигации */
     position: relative !important;
     z-index: 1 !important;
-    /* Убираем любые отрицательные margins */
     margin: 0 !important;
 }
 
@@ -399,7 +425,7 @@ html {
 /* 🔧 FAB ФИКС ДЛЯ ТЕЛЕГРАМА */
 body[data-telegram="true"] .fab-nav {
     position: absolute;
-    bottom: calc(var(--bottom-nav-height) + var(--spacing-md) + 8px);
+    bottom: calc(var(--bottom-nav-height) + var(--spacing-md) + env(safe-area-inset-bottom, 8px));
 }
 
 .fab-nav:hover {
