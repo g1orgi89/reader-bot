@@ -1,5 +1,5 @@
 /**
- * 🧭 NAVIGATION CSS - НЕ FIXED, А STICKY!
+ * 🧭 NAVIGATION CSS - STICKY К НИЗУ!
  */
 
 /* КОНТЕЙНЕР ПРИЛОЖЕНИЯ - FLEXBOX */
@@ -16,12 +16,13 @@
     flex: 1;
     overflow-y: auto;
     padding: 16px;
-    /* БЕЗ padding-bottom - навигация не fixed */
+    /* БЕЗ padding-bottom - навигация не перекрывает */
 }
 
-/* НАВИГАЦИЯ - НЕ FIXED, А ОБЫЧНАЯ */
+/* НАВИГАЦИЯ - STICKY К НИЗУ! */
 .bottom-nav {
-    position: relative; /* НЕ FIXED! */
+    position: sticky; /* ПРИЛИПАЕТ К НИЗУ КОНТЕЙНЕРА */
+    bottom: 0;
     width: 100%;
     height: 60px;
     background: var(--bg-card);
