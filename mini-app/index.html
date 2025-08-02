@@ -8,27 +8,53 @@
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
+    <!-- 🔧 КРИТИЧНЫЙ TELEGRAM DETECTOR -->
+    <script>
+        // 🚨 МГНОВЕННАЯ ДЕТЕКЦИЯ TELEGRAM - ДО ЗАГРУЗКИ CSS!
+        (function() {
+            console.log('🔍 Определяем окружение...');
+            
+            // Проверяем признаки Telegram
+            const isTelegram = (
+                (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) ||
+                window.location.href.includes('tgWebAppPlatform') ||
+                navigator.userAgent.includes('Telegram') ||
+                window.parent !== window
+            );
+            
+            if (isTelegram) {
+                console.log('📱 TELEGRAM WEBVIEW ОБНАРУЖЕН - устанавливаем data-telegram="true"');
+                document.documentElement.setAttribute('data-telegram', 'true');
+                document.body.setAttribute('data-telegram', 'true');
+            } else {
+                console.log('🌐 БРАУЗЕР ОБНАРУЖЕН - устанавливаем data-telegram="false"');
+                document.documentElement.setAttribute('data-telegram', 'false');
+                document.body.setAttribute('data-telegram', 'false');
+            }
+        })();
+    </script>
+    
     <!-- 🎨 CSS стили с CACHE-BUSTING (КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ) -->
-    <link rel="stylesheet" href="css/variables.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/reset.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/base.css?v=1.2&t=1722598800">
+    <link rel="stylesheet" href="css/variables.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/reset.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/base.css?v=1.2&t=1722599000">
     
     <!-- Компоненты CSS -->
-    <link rel="stylesheet" href="css/components/navigation.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/components/buttons.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/components/cards.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/components/forms.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/components/modals.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/components/navigation.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/components/buttons.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/components/cards.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/components/forms.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/components/modals.css?v=1.2&t=1722599000">
     
     <!-- Страницы CSS -->
-    <link rel="stylesheet" href="css/pages/home.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/pages/diary.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/pages/reports.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/pages/catalog.css?v=1.1&t=1722598800">
-    <link rel="stylesheet" href="css/pages/community.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/pages/home.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/pages/diary.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/pages/reports.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/pages/catalog.css?v=1.2&t=1722599000">
+    <link rel="stylesheet" href="css/pages/community.css?v=1.2&t=1722599000">
     
     <!-- Мобильная адаптация -->
-    <link rel="stylesheet" href="css/mobile.css?v=1.1&t=1722598800">
+    <link rel="stylesheet" href="css/mobile.css?v=1.2&t=1722599000">
 </head>
 <body>
     <!-- 📱 ЭКРАН ЗАГРУЗКИ -->
@@ -142,36 +168,40 @@
     <!-- 📚 JavaScript файлы с CACHE-BUSTING -->
     
     <!-- 🔍 VIEWPORT TRACKER с обновленной версией -->
-    <script src="js/utils/viewport-tracker.js?v=2.0.3&t=1722598800"></script>
+    <script src="js/utils/viewport-tracker.js?v=2.0.3&t=1722599000"></script>
     <!-- 🔧 Динамический калькулятор viewport высоты -->
-    <script src="js/utils/viewport-calculator.js?v=1.1&t=1722598800"></script>
+    <script src="js/utils/viewport-calculator.js?v=1.1&t=1722599000"></script>
     
     <!-- Ядро приложения -->
-    <script src="js/core/State.js?v=1.1&t=1722598800"></script>
-    <script src="js/core/Router.js?v=1.1&t=1722598800"></script>
-    <script src="js/core/App.js?v=1.1&t=1722598800"></script>
+    <script src="js/core/State.js?v=1.1&t=1722599000"></script>
+    <script src="js/core/Router.js?v=1.1&t=1722599000"></script>
+    <script src="js/core/App.js?v=1.1&t=1722599000"></script>
     
     <!-- Сервисы -->
-    <script src="js/services/telegram.js?v=1.1&t=1722598800"></script>
-    <script src="js/services/api.js?v=1.1&t=1722598800"></script>
+    <script src="js/services/telegram.js?v=1.1&t=1722599000"></script>
+    <script src="js/services/api.js?v=1.1&t=1722599000"></script>
     
     <!-- Компоненты -->
-    <script src="js/components/navigation/BottomNav.js?v=1.1&t=1722598800"></script>
-    <script src="js/components/navigation/TopMenu.js?v=1.1&t=1722598800"></script>
+    <script src="js/components/navigation/BottomNav.js?v=1.1&t=1722599000"></script>
+    <script src="js/components/navigation/TopMenu.js?v=1.1&t=1722599000"></script>
     
     <!-- Страницы -->
-    <script src="js/pages/HomePage.js?v=1.1&t=1722598800"></script>
-    <script src="js/pages/DiaryPage.js?v=1.1&t=1722598800"></script>
-    <script src="js/pages/ReportsPage.js?v=1.1&t=1722598800"></script>
-    <script src="js/pages/CatalogPage.js?v=1.1&t=1722598800"></script>
-    <script src="js/pages/CommunityPage.js?v=1.1&t=1722598800"></script>
-    <script src="js/pages/OnboardingPage.js?v=1.1&t=1722598800"></script>
+    <script src="js/pages/HomePage.js?v=1.1&t=1722599000"></script>
+    <script src="js/pages/DiaryPage.js?v=1.1&t=1722599000"></script>
+    <script src="js/pages/ReportsPage.js?v=1.1&t=1722599000"></script>
+    <script src="js/pages/CatalogPage.js?v=1.1&t=1722599000"></script>
+    <script src="js/pages/CommunityPage.js?v=1.1&t=1722599000"></script>
+    <script src="js/pages/OnboardingPage.js?v=1.1&t=1722599000"></script>
     
     <!-- Инициализация -->
     <script>
-        // Проверяем поддержку Telegram Web App
+        // 🔧 ДОПОЛНИТЕЛЬНАЯ TELEGRAM ДЕТЕКЦИЯ ПОСЛЕ ЗАГРУЗКИ SDK
         if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
-            console.log('🚀 Telegram Web App обнаружен');
+            console.log('🚀 Telegram Web App SDK подтвержден');
+            
+            // Убеждаемся что атрибут установлен
+            document.documentElement.setAttribute('data-telegram', 'true');
+            document.body.setAttribute('data-telegram', 'true');
             
             // Настраиваем Telegram Web App
             window.Telegram.WebApp.ready();
@@ -187,15 +217,22 @@
             }
         } else {
             console.log('🧪 Запуск в debug режиме (не в Telegram)');
+            // Убеждаемся что атрибут для браузера установлен
+            document.documentElement.setAttribute('data-telegram', 'false');
+            document.body.setAttribute('data-telegram', 'false');
         }
         
         // 🚨 CACHE-BUSTING: Принудительная перезагрузка CSS
-        console.log('🔄 CSS загружен с cache-busting v1.2 - проблема overflow должна быть исправлена');
+        console.log('🔄 CSS загружен с cache-busting v1.2 + Telegram detector');
         
         // Инициализация приложения после загрузки DOM
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 console.log('🔄 Начало инициализации Reader Bot');
+                
+                // 🔧 ФИНАЛЬНАЯ ПРОВЕРКА ОКРУЖЕНИЯ
+                const telegramDetected = document.body.getAttribute('data-telegram') === 'true';
+                console.log(`🔍 Финальное окружение: ${telegramDetected ? 'TELEGRAM' : 'БРАУЗЕР'}`);
                 
                 // Создаем экземпляр приложения
                 const app = new ReaderApp();
@@ -299,10 +336,24 @@
                         console.log('🔧 Viewport Calculator остановлен');
                     }
                 }
+            },
+            // 🔧 НОВЫЙ DEBUG: Показать текущее окружение
+            environment: () => {
+                const telegramDetected = document.body.getAttribute('data-telegram') === 'true';
+                console.log(`🔍 Текущее окружение: ${telegramDetected ? 'TELEGRAM WEBVIEW' : 'БРАУЗЕР'}`);
+                console.log(`📱 data-telegram атрибут: ${document.body.getAttribute('data-telegram')}`);
+                console.log(`🔧 Telegram SDK: ${typeof window.Telegram !== 'undefined' ? 'ДОСТУПЕН' : 'НЕ ДОСТУПЕН'}`);
+                console.log(`🌐 User Agent: ${navigator.userAgent}`);
+                return {
+                    isTelegram: telegramDetected,
+                    hasSDK: typeof window.Telegram !== 'undefined',
+                    userAgent: navigator.userAgent
+                };
             }
         };
         
         console.log('🔍 Debug команды доступны через window.debugViewport');
+        console.log('🔧 Проверить окружение: window.debugViewport.environment()');
     </script>
 </body>
 </html>
