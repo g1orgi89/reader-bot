@@ -1,39 +1,37 @@
 /**
- * 🧭 NAVIGATION CSS - БЕЗ НИЖНЕГО ОТСТУПА
+ * 🧭 NAVIGATION CSS - FIXED НО ПРАВИЛЬНО!
  */
 
-/* КОНТЕЙНЕР ПРИЛОЖЕНИЯ - FLEXBOX */
+/* КОНТЕЙНЕР ПРИЛОЖЕНИЯ */
 .app-container {
-    display: flex;
-    flex-direction: column;
+    position: relative;
+    width: 100%;
     min-height: 100vh;
-    height: 100vh;
-    overflow: hidden;
 }
 
-/* КОНТЕНТ - РАСТЯГИВАЕТСЯ */
+/* КОНТЕНТ С ОТСТУПОМ ПОД НАВИГАЦИЮ */
 .page-content {
-    flex: 1;
-    overflow-y: auto;
     padding: 16px;
+    padding-bottom: 76px; /* 60px навигация + 16px отступ */
+    min-height: calc(100vh - 60px);
 }
 
-/* НАВИГАЦИЯ - БЕЗ НИЖНЕГО ОТСТУПА! */
+/* НАВИГАЦИЯ FIXED К НИЗУ VIEWPORT */
 .bottom-nav {
-    position: sticky;
+    position: fixed;
     bottom: 0;
+    left: 0;
+    right: 0;
     width: 100%;
     height: 60px;
     background: var(--bg-card);
     border-top: 1px solid var(--bg-secondary);
-    z-index: 40;
+    z-index: 9999; /* ПОВЕРХ ВСЕГО */
     display: flex;
     align-items: center;
     justify-content: space-around;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-    /* УБИРАЕМ НИЖНИЙ PADDING */
-    padding: 8px 16px 0 16px; /* top right bottom left */
-    flex-shrink: 0;
+    padding: 8px 16px 0 16px;
 }
 
 .nav-item {
@@ -120,8 +118,11 @@
 @media (max-width: 480px) {
     .bottom-nav {
         height: 60px;
-        /* И НА МОБИЛЬНЫХ ТОЖЕ БЕЗ НИЖНЕГО ОТСТУПА */
         padding: 4px 8px 0 8px;
+    }
+    
+    .page-content {
+        padding-bottom: 72px; /* 60px + 12px на мобильных */
     }
     
     .nav-item {
