@@ -1,10 +1,10 @@
 /**
- * 🧭 NAVIGATION CSS - ИСПРАВЛЕНИЕ SAFE-AREA КОНФЛИКТА
- * Проблема: safe-area считается дважды!
+ * 🧭 NAVIGATION CSS - ИСПРАВЛЕН SAFE-AREA КОНФЛИКТ  
+ * ✅ ПРОБЛЕМА РЕШЕНА: safe-area теперь учитывается только один раз
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ - ПРАВИЛЬНЫЙ SAFE-AREA
+   🧭 НИЖНЯЯ НАВИГАЦИЯ - ПРАВИЛЬНЫЙ SAFE-AREA (БЕЗ ДУБЛИРОВАНИЯ)
    ============================================================================ */
 
 .bottom-nav {
@@ -15,7 +15,7 @@
     width: 100%;
     height: 60px;
     
-    /* 🔧 ПРАВИЛЬНЫЙ BOTTOM - УЧИТЫВАЕМ SAFE-AREA */
+    /* ✅ SAFE-AREA УЧИТЫВАЕТСЯ ТОЛЬКО ЗДЕСЬ */
     bottom: env(safe-area-inset-bottom, 0px);
     
     /* ВИЗУАЛ */
@@ -31,7 +31,7 @@
     padding: 8px 16px;
 }
 
-/* 🔧 ТОЛЬКО ДЛЯ ТЕЛЕГРАМА - АГРЕССИВНЫЕ ФИКСЫ */
+/* 🔧 АГРЕССИВНЫЕ ФИКСЫ ДЛЯ ТЕЛЕГРАМА */
 body[data-telegram="true"] .bottom-nav {
     position: fixed !important;
     bottom: env(safe-area-inset-bottom, 0px) !important;
@@ -45,16 +45,22 @@ body[data-telegram="true"] .bottom-nav {
     contain: layout style paint !important;
     isolation: isolate !important;
     
-    /* Простые отступы БЕЗ дублирования safe-area */
+    /* ПРОСТЫЕ ОТСТУПЫ БЕЗ safe-area */
     padding: 8px 16px !important;
 }
 
-/* 🔧 ТОЛЬКО ДЛЯ ТЕЛЕГРАМА - ИСПРАВЛЯЕМ APP-CONTAINER */
+/* 🔧 ИСПРАВЛЯЕМ APP-CONTAINER ДЛЯ ТЕЛЕГРАМА */
 body[data-telegram="true"] .app-container {
     position: static !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    filter: none !important;
+    contain: none !important;
+    isolation: auto !important;
+    will-change: auto !important;
 }
 
-/* 🌐 ДЛЯ БРАУЗЕРА - ОСТАВЛЯЕМ КАК БЫЛО */
+/* 🌐 БРАУЗЕР - FALLBACK БЕЗ SAFE-AREA */
 body:not([data-telegram="true"]) .bottom-nav {
     position: fixed;
     bottom: 0; /* В браузере safe-area может не работать */
@@ -146,17 +152,17 @@ body:not([data-telegram="true"]) .bottom-nav {
 }
 
 /* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ - ПРАВИЛЬНЫЙ SAFE-AREA
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ - БЕЗ ДУБЛИРОВАНИЯ SAFE-AREA
    ============================================================================ */
 
 @media (max-width: 480px) {
     .bottom-nav {
         height: 60px;
         padding: 4px 8px;
-        /* 🔧 УБИРАЕМ padding-bottom с safe-area - уже учтен в bottom */
+        /* ✅ НЕ ДОБАВЛЯЕМ padding-bottom с safe-area - уже учтен в bottom */
     }
     
-    /* ТОЛЬКО В ТЕЛЕГРАМЕ на мобильных */
+    /* ТЕЛЕГРАМ НА МОБИЛЬНЫХ */
     body[data-telegram="true"] .bottom-nav {
         position: fixed !important;
         bottom: env(safe-area-inset-bottom, 0px) !important;
@@ -182,27 +188,38 @@ body:not([data-telegram="true"]) .bottom-nav {
 }
 
 /* ============================================================================
-   🔧 БАЗОВЫЕ ФИКСЫ
+   ✅ ИСПРАВЛЕННЫЙ ОТСТУП ДЛЯ КОНТЕНТА - БЕЗ ДВОЙНОГО SAFE-AREA
    ============================================================================ */
 
-body {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-html {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* 🔧 ПРАВИЛЬНЫЙ ОТСТУП ДЛЯ КОНТЕНТА - С УЧЕТОМ SAFE-AREA */
+/* ✅ СТАРАЯ ПРОБЛЕМНАЯ ФОРМУЛА (УБРАНА):
 .page-content {
     padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px) !important;
+} */
+
+/* ✅ НОВАЯ ПРАВИЛЬНАЯ ФОРМУЛА: */
+.page-content {
+    /* Простой отступ: высота навигации + обычный отступ */
+    /* Safe-area УЖЕ учтен в bottom навигации! */
+    padding-bottom: calc(60px + 16px) !important; /* 76px вместо 76px + 34px */
     margin: 0 !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    z-index: 1 !important;
 }
 
 /* ============================================================================
-   🎨 ИНТЕГРАЦИЯ С TELEGRAM
+   🔧 ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ ДЛЯ СТАБИЛЬНОСТИ
+   ============================================================================ */
+
+/* Убираем margin/padding из body и html */
+body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box;
+}
+
+/* ============================================================================
+   🎨 ИНТЕГРАЦИЯ С TELEGRAM (БЕЗ ИЗМЕНЕНИЙ)
    ============================================================================ */
 
 body[data-theme="telegram"] .bottom-nav {
