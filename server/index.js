@@ -28,6 +28,9 @@ const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 Маршруты аналитики
 
+// 🔍 НОВОЕ: Debug API для диагностики viewport проблем Mini App
+const debugRoutes = require('./api/debug');
+
 // 📋 НОВЫЕ API ROUTES для системы управления данными
 const bookCatalogRoutes = require('./api/bookCatalog');
 const announcementsRoutes = require('./api/announcements');
@@ -319,6 +322,10 @@ app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
 app.use(`${config.app.apiPrefix}/users`, usersRoutes);
 app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
 
+// 🔍 НОВОЕ: Debug API для диагностики viewport проблем Mini App
+logger.info('🔍 Registering Debug API for Mini App viewport diagnostics...');
+app.use(`${config.app.apiPrefix}/debug`, debugRoutes);
+
 // 📋 НОВЫЕ API РОУТЫ для системы управления данными Reader Bot
 logger.info('📋 Registering Reader Bot data management API routes...');
 app.use(`${config.app.apiPrefix}/book-catalog`, bookCatalogRoutes);
@@ -400,6 +407,7 @@ async function startServer() {
     logger.info(`🏠 Client available at: http://localhost:${PORT}`);
     logger.info(`📱 Mini App available at: http://localhost:${PORT}/mini-app/`);
     logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
+    logger.info(`🔍 Debug API: ${config.app.apiPrefix}/debug (viewport diagnostics)`);
     logger.info(`📋 Data Management APIs:`);
     logger.info(`   📚 Book Catalog: ${config.app.apiPrefix}/book-catalog`);
     logger.info(`   📢 Announcements: ${config.app.apiPrefix}/announcements`);
