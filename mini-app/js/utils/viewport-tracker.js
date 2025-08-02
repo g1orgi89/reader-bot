@@ -5,9 +5,10 @@
  * и отправляет их на сервер для анализа и исправления
  * 
  * 🔧 РАСШИРЕНО: Детальная диагностика всех элементов DOM для iOS
+ * 🔧 ИСПРАВЛЕНО: Убран автозапуск, только ручная инициализация
  * 
  * @filesize ~12KB
- * @version 2.0.0
+ * @version 2.0.1
  */
 
 /**
@@ -66,7 +67,7 @@ class ViewportTracker {
         this.handleResize = this.handleResize.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
         
-        console.log('📱 ViewportTracker v2.0.0 initialized:', {
+        console.log('📱 ViewportTracker v2.0.1 initialized:', {
             sessionId: this.sessionId.substring(0, 8),
             debugMode: this.debugMode
         });
@@ -101,7 +102,7 @@ class ViewportTracker {
             window.Telegram.WebApp.onEvent('viewportChanged', this.handleResize);
         }
         
-        console.log('✅ ViewportTracker v2.0.0 started');
+        console.log('✅ ViewportTracker v2.0.1 started with DETAILED diagnostics');
     }
 
     /**
@@ -249,7 +250,7 @@ class ViewportTracker {
             
             // Логируем в консоль в debug режиме
             if (this.debugMode) {
-                console.log('📏 DETAILED Viewport measurement:', {
+                console.log('📏 DETAILED Viewport measurement v2.0.1:', {
                     page: currentPage,
                     innerHeight,
                     telegramHeight,
@@ -262,7 +263,8 @@ class ViewportTracker {
                     realNavHeight: realSizes.bottomNavHeight,
                     cssNavHeight: cssBottomNavHeight,
                     navDiff: realSizes.bottomNavHeight - cssBottomNavHeight,
-                    problem: measurement.problem.type
+                    problem: measurement.problem.type,
+                    fixedElementsCount: allFixedElements.length
                 });
             }
             
@@ -287,10 +289,10 @@ class ViewportTracker {
         };
 
         // Ищем header элемент
-        const headerSelectors = ['.header', '#header', 'header', '.top-nav', '.app-header'];
+        const headerSelectors = ['.header', '#header', 'header', '.top-nav', '.app-header', '.home-header', '.page-header'];
         for (const selector of headerSelectors) {
             const element = document.querySelector(selector);
-            if (element) {
+            if (element && getComputedStyle(element).display !== 'none') {
                 const rect = element.getBoundingClientRect();
                 const computedStyle = window.getComputedStyle(element);
                 measurements.headerHeight = rect.height;
@@ -311,7 +313,8 @@ class ViewportTracker {
                         borderTopWidth: computedStyle.borderTopWidth,
                         borderBottomWidth: computedStyle.borderBottomWidth,
                         position: computedStyle.position,
-                        zIndex: computedStyle.zIndex
+                        zIndex: computedStyle.zIndex,
+                        display: computedStyle.display
                     }
                 };
                 break;
@@ -322,7 +325,7 @@ class ViewportTracker {
         const navSelectors = ['.bottom-nav', '#bottom-nav', '.navigation', '.nav-bottom', '.footer-nav'];
         for (const selector of navSelectors) {
             const element = document.querySelector(selector);
-            if (element) {
+            if (element && getComputedStyle(element).display !== 'none') {
                 const rect = element.getBoundingClientRect();
                 const computedStyle = window.getComputedStyle(element);
                 measurements.bottomNavHeight = rect.height;
@@ -343,7 +346,8 @@ class ViewportTracker {
                         borderTopWidth: computedStyle.borderTopWidth,
                         borderBottomWidth: computedStyle.borderBottomWidth,
                         position: computedStyle.position,
-                        zIndex: computedStyle.zIndex
+                        zIndex: computedStyle.zIndex,
+                        display: computedStyle.display
                     }
                 };
                 break;
@@ -564,12 +568,14 @@ class ViewportTracker {
                 const result = await response.json();
                 
                 if (this.debugMode) {
-                    console.log('✅ DETAILED Viewport data sent successfully:', {
+                    console.log('✅ DETAILED Viewport data v2.0.1 sent successfully:', {
                         logId: result.logId,
                         analysis: result.analysis,
                         realSizes: latestData.sizes.real,
                         cssSizes: latestData.sizes.css,
-                        sizeDifferences: latestData.sizes.comparison
+                        sizeDifferences: latestData.sizes.comparison,
+                        fixedElementsCount: latestData.fixedElements.length,
+                        iosMetrics: latestData.ios
                     });
                 }
                 
@@ -812,22 +818,5 @@ class ViewportTracker {
 // Экспорт и глобальная доступность
 window.ViewportTracker = ViewportTracker;
 
-// 🚀 Автоматический запуск для Mini App
-if (typeof window !== 'undefined' && window.location.pathname.includes('mini-app')) {
-    // Запускаем трекер после полной загрузки
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                window.viewportTracker = new ViewportTracker();
-                window.viewportTracker.start();
-            }, 2000); // Ждем инициализации приложения
-        });
-    } else {
-        setTimeout(() => {
-            window.viewportTracker = new ViewportTracker();
-            window.viewportTracker.start();
-        }, 2000);
-    }
-}
-
-console.log('📱 ViewportTracker v2.0.0 module loaded with detailed diagnostics');
+// 🔧 ИСПРАВЛЕНО: Убран автозапуск - только ручная инициализация из HTML
+console.log('📱 ViewportTracker v2.0.1 module loaded - manual init only');
