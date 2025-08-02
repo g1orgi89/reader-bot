@@ -1,10 +1,10 @@
 /**
- * 🧭 NAVIGATION CSS ДЛЯ TELEGRAM MINI APP (🔧 TELEGRAM BOTTOM ФИКС)
- * ИСПРАВЛЯЕМ ПРОБЛЕМУ СМЕЩЕНИЯ ВВЕРХ В TELEGRAM!
+ * 🧭 NAVIGATION CSS - ПРОСТОЙ РАБОЧИЙ ФИКС
+ * ХВАТИТ УСЛОЖНЯТЬ! ДЕЛАЕМ КАК РАБОТАЛО РАНЬШЕ!
  */
 
 /* ============================================================================
-   🧭 НИЖНЯЯ НАВИГАЦИЯ - ФИКС TELEGRAM WEBVIEW BOTTOM
+   🧭 НИЖНЯЯ НАВИГАЦИЯ - ПРОСТОЙ ФИКС
    ============================================================================ */
 
 .bottom-nav {
@@ -14,82 +14,37 @@
     left: 0;
     right: 0;
     width: 100%;
-    
-    /* РАЗМЕРЫ С ПРАВИЛЬНЫМ SAFE-AREA */
-    height: var(--bottom-nav-height);
+    height: 60px;
     
     /* ВИЗУАЛ */
     background: var(--bg-card);
     border-top: 1px solid var(--bg-secondary);
-    z-index: var(--z-index-nav);
+    z-index: 40;
     display: flex;
     align-items: center;
     justify-content: space-around;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
     
-    /* PADDING С ПРАВИЛЬНЫМИ ПЕРЕМЕННЫМИ */
-    padding: var(--spacing-xs) var(--spacing-sm);
-    padding-bottom: calc(var(--spacing-xs) + var(--safe-area-bottom));
-    
-    /* iOS ОПТИМИЗАЦИЯ */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
+    /* ПРОСТЫЕ ОТСТУПЫ */
+    padding: 8px 16px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
-/* 🔧 СПЕЦИАЛЬНЫЙ ФИКС: Telegram может иметь проблемы с env() */
-@supports (padding: env(safe-area-inset-bottom)) {
-    .bottom-nav {
-        /* Динамическая высота с safe-area */
-        height: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
-        /* Убираем дополнительный отступ если safe-area уже учтена в height */
-        padding-bottom: var(--spacing-xs);
-    }
-}
-
-/* 🔧 КРИТИЧНЫЙ ФИКС ДЛЯ TELEGRAM WEBVIEW */
+/* 🔧 ДЛЯ ТЕЛЕГРАМА - ПРОСТО И ЧЕТКО */
 body[data-telegram="true"] .bottom-nav {
-    /* В Telegram WebView используем position: absolute */
-    position: absolute !important;
-    
-    /* 🚨 ГЛАВНЫЙ ФИКС: bottom должен быть отрицательным! */
-    bottom: calc(-1 * env(safe-area-inset-bottom, 0px)) !important;
-    
-    /* Убираем все transform чтобы не конфликтовать */
-    transform: none !important;
-    -webkit-transform: none !important;
-    
-    /* Простые отступы для Telegram */
-    padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 8px));
-    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 8px));
-    
-    /* Убираем backdrop-filter который может глючить в Telegram */
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-}
-
-/* 🔧 АЛЬТЕРНАТИВНЫЙ ФИКС ДЛЯ TELEGRAM НА МОБИЛЬНЫХ */
-@media (max-width: 480px) {
-    body[data-telegram="true"] .bottom-nav {
-        /* Принудительно ставим на самый низ */
-        bottom: 0 !important;
-        /* Добавляем отрицательный margin чтобы компенсировать смещение */
-        margin-bottom: calc(-1 * env(safe-area-inset-bottom, 0px)) !important;
-        /* Или используем translate */
-        transform: translateY(env(safe-area-inset-bottom, 0px)) !important;
-    }
-}
-
-/* 🔧 ФИКС ДЛЯ БРАУЗЕРА (НЕ TELEGRAM) */
-body:not([data-telegram="true"]) .bottom-nav {
-    /* В браузере используем агрессивные фиксы */
     position: fixed !important;
     bottom: 0 !important;
-    transform: translate3d(0, 0, 0) !important;
-    -webkit-transform: translate3d(0, 0, 0) !important;
-    contain: layout style paint !important;
-    isolation: isolate !important;
+    /* Убираем все лишние эффекты */
+    transform: none !important;
+    backdrop-filter: none !important;
+    contain: none !important;
+}
+
+/* 🔧 ДЛЯ iOS - ПРОСТОЙ ФИКС */
+@supports (padding: env(safe-area-inset-bottom)) {
+    .bottom-nav {
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
 }
 
 .nav-item {
@@ -97,18 +52,16 @@ body:not([data-telegram="true"]) .bottom-nav {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-xs);
-    border-radius: var(--radius-md);
+    gap: 4px;
+    padding: 8px;
+    border-radius: 8px;
     text-decoration: none;
     color: var(--text-muted);
-    transition: all var(--duration-normal) var(--ease-out);
+    transition: all 0.2s ease;
     position: relative;
-    min-height: var(--touch-target-min);
-    min-width: var(--touch-target-min);
+    min-height: 44px;
+    min-width: 44px;
     cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
 }
 
 .nav-item:hover {
@@ -131,14 +84,14 @@ body:not([data-telegram="true"]) .bottom-nav {
     width: 24px;
     height: 3px;
     background: var(--primary-color);
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    border-radius: 0 0 4px 4px;
 }
 
 .nav-icon {
     width: 24px;
     height: 24px;
     flex-shrink: 0;
-    transition: transform var(--duration-normal) var(--ease-out);
+    transition: transform 0.2s ease;
 }
 
 .nav-item:active .nav-icon {
@@ -146,8 +99,8 @@ body:not([data-telegram="true"]) .bottom-nav {
 }
 
 .nav-label {
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-medium);
+    font-size: 12px;
+    font-weight: 500;
     line-height: 1;
     text-align: center;
 }
@@ -157,17 +110,17 @@ body:not([data-telegram="true"]) .bottom-nav {
     position: absolute;
     top: 2px;
     right: 8px;
-    width: var(--badge-size);
-    height: var(--badge-size);
+    width: 20px;
+    height: 20px;
     background: var(--error-color);
-    color: var(--text-inverse);
-    border-radius: var(--radius-round);
+    color: white;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--badge-font-size);
-    font-weight: var(--font-weight-bold);
-    min-width: var(--badge-size);
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 20px;
     padding: 0 4px;
     box-shadow: 0 0 0 2px var(--bg-card);
 }
@@ -177,163 +130,21 @@ body:not([data-telegram="true"]) .bottom-nav {
 }
 
 /* ============================================================================
-   📋 ВЕРХНЕЕ МЕНЮ
-   ============================================================================ */
-
-.top-menu {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--header-height);
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--bg-secondary);
-    z-index: var(--z-index-header);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 var(--spacing-md);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    
-    /* 🔧 SAFE AREA С ПЕРЕМЕННЫМИ */
-    padding-top: var(--safe-area-top);
-    height: calc(var(--header-height) + var(--safe-area-top));
-}
-
-/* 🔧 ФИКС ДЛЯ TOP MENU В ТЕЛЕГРАМЕ */
-body[data-telegram="true"] .top-menu {
-    position: absolute !important;
-    top: 0 !important;
-}
-
-.menu-left {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.menu-center {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.menu-right {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.menu-title {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin: 0;
-    line-height: 1;
-}
-
-.menu-subtitle {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-    margin: 0;
-    line-height: 1;
-    margin-top: 2px;
-}
-
-.menu-btn {
-    width: 40px;
-    height: 40px;
-    background: none;
-    border: none;
-    border-radius: var(--radius-md);
-    color: var(--text-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--duration-normal) var(--ease-out);
-    position: relative;
-}
-
-.menu-btn:hover {
-    background: var(--bg-overlay);
-    color: var(--primary-color);
-}
-
-.menu-btn .icon {
-    width: 24px;
-    height: 24px;
-}
-
-/* Кнопка назад */
-.menu-back {
-    color: var(--primary-color);
-}
-
-.menu-back .icon {
-    transform: rotate(180deg);
-}
-
-/* Кнопка меню (три точки) */
-.menu-more .icon {
-    width: 20px;
-    height: 20px;
-}
-
-/* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ С ИСПРАВЛЕННЫМ SAFE-AREA
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ - ПРОСТАЯ
    ============================================================================ */
 
 @media (max-width: 480px) {
     .bottom-nav {
         height: 60px;
-        padding: var(--spacing-xs);
-        padding-bottom: calc(var(--spacing-xs) + var(--safe-area-bottom));
-        height: calc(60px + var(--safe-area-bottom));
-    }
-    
-    /* 🔧 УСИЛЕННЫЕ МОБИЛЬНЫЕ ФИКСЫ ДЛЯ ТЕЛЕГРАМА */
-    body[data-telegram="true"] .bottom-nav {
-        position: absolute !important;
-        
-        /* 🚨 ТЕСТИРУЕМ РАЗНЫЕ ВАРИАНТЫ BOTTOM */
-        /* Вариант 1: Отрицательный bottom */
-        bottom: calc(-1 * env(safe-area-inset-bottom, 0px)) !important;
-        
-        /* Вариант 2: Положительный transform (если первый не работает) */
-        /* transform: translateY(env(safe-area-inset-bottom, 0px)) !important; */
-        
-        /* Убираем конфликты */
-        -webkit-transform: none !important;
-        contain: none !important;
-        isolation: auto !important;
-        will-change: auto !important;
-        
-        /* Фиксированные отступы для Telegram */
-        padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 8px));
-        height: calc(60px + env(safe-area-inset-bottom, 8px));
-        
-        /* Убираем backdrop-filter */
-        -webkit-backdrop-filter: none;
-        backdrop-filter: none;
-    }
-    
-    /* 🔧 БРАУЗЕРНЫЕ ФИКСЫ (НЕ ТЕЛЕГРАМ) */
-    body:not([data-telegram="true"]) .bottom-nav {
-        position: fixed !important;
-        bottom: 0 !important;
-        transform: translate3d(0, 0, 0) !important;
-        -webkit-transform: translate3d(0, 0, 0) !important;
-        contain: layout style paint !important;
-        isolation: isolate !important;
+        padding: 4px 8px;
+        padding-bottom: calc(4px + env(safe-area-inset-bottom, 8px));
     }
     
     .nav-item {
-        padding: var(--spacing-xs) 2px;
+        padding: 4px 2px;
         gap: 2px;
+        min-height: 40px;
+        min-width: 40px;
     }
     
     .nav-icon {
@@ -344,48 +155,25 @@ body[data-telegram="true"] .top-menu {
     .nav-label {
         font-size: 10px;
     }
-    
-    .top-menu {
-        height: 50px;
-        padding: 0 var(--spacing-sm);
-        padding-top: var(--safe-area-top);
-        height: calc(50px + var(--safe-area-top));
-    }
-    
-    .menu-title {
-        font-size: var(--font-size-base);
-    }
-    
-    .menu-btn {
-        width: 36px;
-        height: 36px;
-    }
-    
-    .menu-btn .icon {
-        width: 20px;
-        height: 20px;
-    }
 }
 
 /* ============================================================================
-   🔧 ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ ДЛЯ КОНФЛИКТОВ
+   🔧 УБИРАЕМ ВСЕ КОНФЛИКТЫ
    ============================================================================ */
 
-/* 🔧 ПРОБЛЕМА: Конфликт с body padding/margin */
+/* Убираем конфликты с body */
 body {
     margin: 0 !important;
     padding: 0 !important;
-    position: relative !important;
 }
 
-/* 🔧 ПРОБЛЕМА: Конфликт с html размерами */
+/* Убираем конфликты с html */
 html {
     margin: 0 !important;
     padding: 0 !important;
-    overflow-x: hidden !important;
 }
 
-/* 🔧 ПРОБЛЕМА: Родительский контейнер может влиять */
+/* Убираем конфликты с app-container */
 .app-container {
     position: relative !important;
     width: 100% !important;
@@ -393,68 +181,19 @@ html {
     transform: none !important;
 }
 
-/* 🔧 ПРОБЛЕМА: Page content может толкать навигацию */
+/* Правильный отступ для контента */
 .page-content {
-    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + var(--spacing-md)) !important;
-    box-sizing: border-box !important;
-    position: relative !important;
-    z-index: 1 !important;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 8px) + 16px) !important;
     margin: 0 !important;
 }
 
-/* 🔧 ПЛАВАЮЩАЯ КНОПКА ДОБАВЛЕНИЯ */
-.fab-nav {
-    position: fixed;
-    bottom: calc(var(--bottom-nav-height) + var(--spacing-md) + var(--safe-area-bottom));
-    right: var(--spacing-md);
-    width: 56px;
-    height: 56px;
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    border: none;
-    border-radius: var(--radius-round);
-    cursor: pointer;
-    box-shadow: var(--shadow-lg);
-    z-index: calc(var(--z-index-nav) + 1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--duration-normal) var(--ease-out);
-}
-
-/* 🔧 FAB ФИКС ДЛЯ ТЕЛЕГРАМА */
-body[data-telegram="true"] .fab-nav {
-    position: absolute;
-    bottom: calc(var(--bottom-nav-height) + var(--spacing-md) + env(safe-area-inset-bottom, 8px));
-}
-
-.fab-nav:hover {
-    transform: scale(1.1);
-    box-shadow: var(--shadow-xl);
-}
-
-.fab-nav:active {
-    transform: scale(0.95);
-}
-
-.fab-nav .icon {
-    width: 24px;
-    height: 24px;
-}
-
 /* ============================================================================
-   🎨 ИНТЕГРАЦИЯ С TELEGRAM ТЕМАМИ
+   🎨 ИНТЕГРАЦИЯ С TELEGRAM
    ============================================================================ */
 
-/* Адаптация под Telegram цвета */
 body[data-theme="telegram"] .bottom-nav {
     background: var(--tg-theme-bg-color, var(--bg-card));
     border-top-color: var(--tg-theme-hint-color, var(--bg-secondary));
-}
-
-body[data-theme="telegram"] .top-menu {
-    background: var(--tg-theme-bg-color, var(--bg-card));
-    border-bottom-color: var(--tg-theme-hint-color, var(--bg-secondary));
 }
 
 body[data-theme="telegram"] .nav-item {
@@ -463,8 +202,4 @@ body[data-theme="telegram"] .nav-item {
 
 body[data-theme="telegram"] .nav-item.active {
     color: var(--tg-theme-link-color, var(--primary-color));
-}
-
-body[data-theme="telegram"] .menu-title {
-    color: var(--tg-theme-text-color, var(--text-primary));
 }
