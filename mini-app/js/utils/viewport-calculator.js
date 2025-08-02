@@ -1,12 +1,12 @@
 /**
- * 🔧 VIEWPORT HEIGHT CALCULATOR
+ * 🔧 VIEWPORT HEIGHT CALCULATOR (ИСПРАВЛЕН)
  * 
  * Динамически вычисляет правильную высоту контента на основе 
  * РЕАЛЬНЫХ размеров header и navigation элементов
  * 
- * Решает проблему: CSS переменные не совпадают с реальными размерами элементов
+ * 🔧 ИСПРАВЛЕНО: Обновляет ОСНОВНЫЕ CSS переменные после удаления хедеров
  * 
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 class ViewportHeightCalculator {
@@ -17,7 +17,7 @@ class ViewportHeightCalculator {
         this.updateViewportHeight = this.updateViewportHeight.bind(this);
         this.handleResize = this.handleResize.bind(this);
         
-        console.log('🔧 ViewportHeightCalculator initialized');
+        console.log('🔧 ViewportHeightCalculator initialized v1.1.0');
     }
 
     /**
@@ -91,7 +91,12 @@ class ViewportHeightCalculator {
             // Рассчитываем доступную высоту для контента
             const availableHeight = telegramHeight - realSizes.headerHeight - realSizes.bottomNavHeight;
             
-            // Устанавливаем CSS переменные на основе РЕАЛЬНЫХ размеров
+            // 🔧 ИСПРАВЛЕНО: Обновляем ОСНОВНЫЕ CSS переменные
+            // Эти переменные используются в base.css для расчета высоты контента
+            document.documentElement.style.setProperty('--header-height', `${realSizes.headerHeight}px`);
+            document.documentElement.style.setProperty('--bottom-nav-height', `${realSizes.bottomNavHeight}px`);
+            
+            // Дополнительные переменные для отладки
             document.documentElement.style.setProperty('--real-header-height', `${realSizes.headerHeight}px`);
             document.documentElement.style.setProperty('--real-bottom-nav-height', `${realSizes.bottomNavHeight}px`);
             document.documentElement.style.setProperty('--real-available-height', `${availableHeight}px`);
@@ -102,7 +107,11 @@ class ViewportHeightCalculator {
                 realHeader: realSizes.headerHeight,
                 realNav: realSizes.bottomNavHeight,
                 available: availableHeight,
-                page: this.getCurrentPage()
+                page: this.getCurrentPage(),
+                updated: {
+                    '--header-height': `${realSizes.headerHeight}px`,
+                    '--bottom-nav-height': `${realSizes.bottomNavHeight}px`
+                }
             });
             
         } catch (error) {
@@ -117,13 +126,27 @@ class ViewportHeightCalculator {
         let headerHeight = 0;
         let bottomNavHeight = 0;
 
-        // Ищем header элемент (может не быть на некоторых страницах!)
-        const headerSelectors = ['.header', '#header', 'header', '.top-nav', '.app-header', '.home-header', '.page-header'];
-        for (const selector of headerSelectors) {
+        // 🔧 НОВОЕ: Поиск встроенного блока аватара на главной странице
+        const inlineHeaderSelectors = ['.user-header-inline', '.home-header-inline'];
+        for (const selector of inlineHeaderSelectors) {
             const element = document.querySelector(selector);
             if (element && this.isElementVisible(element)) {
                 headerHeight = element.getBoundingClientRect().height;
+                console.log(`📏 Found inline header: ${selector} = ${headerHeight}px`);
                 break;
+            }
+        }
+
+        // Ищем обычные header элементы (не должны быть после удаления хедеров!)
+        if (headerHeight === 0) {
+            const headerSelectors = ['.header', '#header', 'header', '.top-nav', '.app-header', '.page-header'];
+            for (const selector of headerSelectors) {
+                const element = document.querySelector(selector);
+                if (element && this.isElementVisible(element)) {
+                    headerHeight = element.getBoundingClientRect().height;
+                    console.log(`⚠️ Found external header: ${selector} = ${headerHeight}px (should be removed!)`);
+                    break;
+                }
             }
         }
 
@@ -133,9 +156,17 @@ class ViewportHeightCalculator {
             const element = document.querySelector(selector);
             if (element && this.isElementVisible(element)) {
                 bottomNavHeight = element.getBoundingClientRect().height;
+                console.log(`📏 Found bottom nav: ${selector} = ${bottomNavHeight}px`);
                 break;
             }
         }
+
+        // 🔧 НОВОЕ: Логирование для отладки
+        console.log('📏 Real element sizes measured:', {
+            headerHeight,
+            bottomNavHeight,
+            currentPage: this.getCurrentPage()
+        });
 
         return {
             headerHeight,
@@ -196,14 +227,16 @@ if (typeof window !== 'undefined') {
             setTimeout(() => {
                 window.viewportCalculator = new ViewportHeightCalculator();
                 window.viewportCalculator.start();
+                console.log('🔧 ViewportCalculator auto-started after DOMContentLoaded');
             }, 1000); // Даем время другим скриптам инициализироваться
         });
     } else {
         setTimeout(() => {
             window.viewportCalculator = new ViewportHeightCalculator();
             window.viewportCalculator.start();
+            console.log('🔧 ViewportCalculator auto-started immediately');
         }, 1000);
     }
 }
 
-console.log('🔧 ViewportHeightCalculator module loaded');
+console.log('🔧 ViewportHeightCalculator module loaded v1.1.0');
