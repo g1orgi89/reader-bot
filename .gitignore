@@ -139,3 +139,6 @@ ecosystem.config.js.local
 
 # Local development tools
 .history/.env
+
+# Archive directory
+archive/

@@ -1,0 +1,207 @@
+{
+  "name": "reader-bot",
+  "version": "1.0.0",
+  "description": "AI бот 'Читатель' для Анны Бусел - персональный дневник цитат с аналитикой и рекомендациями книг",
+  "main": "reader-bot.js",
+  "scripts": {
+    "start": "cross-env PORT=3002 node server/index.js",
+    "start:reader": "cross-env PORT=3002 node reader-bot.js",
+    "start:win": "set PORT=3002 && node server/index.js",
+    "start:reader:win": "set PORT=3002 && node reader-bot.js",
+    "dev": "cross-env PORT=3002 nodemon server/index.js",
+    "dev:reader": "cross-env PORT=3002 nodemon reader-bot.js",
+    "dev:debug": "cross-env PORT=3002 nodemon --inspect server/index.js",
+    "dev:win": "set PORT=3002 && nodemon server/index.js",
+    "telegram": "node telegram/start.js",
+    "telegram:dev": "nodemon telegram/start.js",
+    "db:setup": "node scripts/setup-reader-db.js",
+    "db:check": "node check-database.js",
+    "migrate:content": "node scripts/migrateContent.js",
+    "seed:books": "node scripts/seedBooks.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:db": "node test-mongodb-simple.js",
+    "test:docker": "node test-mongodb-docker.js",
+    "test:core": "node test-core.js",
+    "test:claude": "node test-claude.js",
+    "test:api": "node test-api-quick.js",
+    "test:reports": "node telegram/test-weekly-reports.js",
+    "test:reports:create-user": "node telegram/test-weekly-reports.js --create-test-user",
+    "test:reports:help": "node telegram/test-weekly-reports.js --help",
+    "test:weekly": "node test-weekly-service.js",
+    "test:monthly": "node test-monthly-service.js",
+    "test:reminders": "node test-reminder-announcement-services.js",
+    "test:announcements": "node test-reminder-announcement-services.js",
+    "test:all-services": "node reader-bot.js test",
+    "diagnose": "node diagnose-mongodb.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "migrate": "node scripts/dbMigration.js",
+    "export-reports": "node scripts/exportReports.js",
+    "deploy": "npm run lint && npm test && npm run build",
+    "build": "echo Building Reader Bot... && npm run lint",
+    "check-health": "curl -f http://localhost:3002/api/reader/health || exit 1",
+    "check-reports": "curl -f http://localhost:3002/api/reader/reports/cron/status || exit 1",
+    "setup": "npm install && cp .env.example .env && echo Setup complete! Please edit .env file and run: npm run db:setup",
+    "setup:reader": "npm run db:setup && npm run migrate:content && npm run seed:books && echo Reader bot setup complete!",
+    "start:prod": "cross-env NODE_ENV=production PORT=3002 node server/index.js",
+    "start:reader:prod": "cross-env NODE_ENV=production PORT=3002 node reader-bot.js",
+    "start:telegram:prod": "cross-env NODE_ENV=production node telegram/start.js",
+    "logs": "tail -f logs/reader/combined.log",
+    "logs:error": "tail -f logs/reader/error.log",
+    "reports:generate": "curl -X POST http://localhost:3002/api/reader/reports/weekly/generate -H Content-Type: application/json",
+    "reports:status": "curl http://localhost:3002/api/reader/reports/cron/status",
+    "reports:stats": "curl http://localhost:3002/api/reader/reports/stats",
+    "reminders:trigger": "curl -X POST http://localhost:3002/api/reader/cron/trigger-reminders -H Content-Type: application/json",
+    "announcements:trigger": "curl -X POST http://localhost:3002/api/reader/cron/trigger-announcements -H Content-Type: application/json",
+    "cron:status": "curl http://localhost:3002/api/reader/cron/status"
+  },
+  "keywords": [
+    "ai",
+    "chatbot",
+    "reader",
+    "quotes",
+    "books",
+    "psychology",
+    "analytics",
+    "claude",
+    "telegram",
+    "recommendations",
+    "anna-busel",
+    "book-club",
+    "weekly-reports",
+    "monthly-reports",
+    "reminders",
+    "announcements",
+    "cron-jobs",
+    "personalization",
+    "utm-tracking"
+  ],
+  "author": "Anna Busel Book Club Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/g1orgi89/reader-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/g1orgi89/reader-bot/issues"
+  },
+  "homepage": "https://github.com/g1orgi89/reader-bot#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.7",
+    "@langchain/anthropic": "^0.3.20",
+    "@langchain/community": "^0.0.43",
+    "@langchain/openai": "^0.0.28",
+    "@qdrant/js-client-rest": "^1.14.0",
+    "axios": "^1.6.2",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "langchain": "^0.0.205",
+    "mammoth": "^1.6.0",
+    "mongoose": "^7.5.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "openai": "^4.100.0",
+    "pdf-parse": "^1.1.1",
+    "pdf-extract": "^1.0.2",
+    "pdfjs-dist": "^3.11.174",
+    "socket.io": "^4.7.2",
+    "telegraf": "^4.12.2",
+    "uuid": "^9.0.0",
+    "winston": "^3.11.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "concurrently": "^8.2.0",
+    "eslint": "^8.47.0",
+    "eslint-plugin-jsdoc": "^46.8.2",
+    "jest": "^29.6.2",
+    "mongodb-memory-server": "^9.1.3",
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "os": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "jest": {
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/tests"
+    ],
+    "testMatch": [
+      "**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "server/**/*.js",
+      "telegram/**/*.js",
+      "!server/index.js",
+      "!**/*.test.js",
+      "!**/node_modules/**"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "testTimeout": 30000
+  },
+  "eslintConfig": {
+    "env": {
+      "node": true,
+      "es2021": true,
+      "jest": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "plugin:jsdoc/recommended"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 12,
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-console": "off",
+      "jsdoc/require-description": "error",
+      "jsdoc/require-param-description": "error",
+      "jsdoc/require-returns-description": "error"
+    }
+  },
+  "nodemonConfig": {
+    "watch": [
+      "server/",
+      "telegram/",
+      "reader-bot.js",
+      ".env"
+    ],
+    "ext": "js,json",
+    "ignore": [
+      "logs/",
+      "node_modules/",
+      "client/"
+    ],
+    "env": {
+      "NODE_ENV": "development"
+    }
+  }
+}
