@@ -515,7 +515,7 @@ app.use(express.static(path.join(__dirname, '../client'), {
 }));
 
 // Health check endpoint - ВАЖНО: должен быть ПЕРЕД API роутами
-app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
+app.get(`${config.app.apiPrefix}/system/health`, async (req, res) => {
   try {
     const health = {
       status: 'ok',
@@ -553,6 +553,8 @@ app.use(`${config.app.apiPrefix}/reports`, reportRoutes);
 app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
 app.use(`${config.app.apiPrefix}/users`, usersRoutes);
 app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
+app.use(`${config.app.apiPrefix}/debug`, debugRoutes);
+app.use(`${config.app.apiPrefix}`, readerRoutes);
 
 // 📱 НОВОЕ: Reader Mini App API
 logger.info('📱 Registering Reader Mini App API routes...');
