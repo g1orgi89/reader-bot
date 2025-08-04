@@ -401,7 +401,7 @@ try {
 }
 
 /**
- * @typedef {import('./types').ShroomsError} ShroomsError
+ * @typedef {import('./types').ReaderError} ReaderError
  * @typedef {import('./types').ChatMessage} ChatMessage
  * @typedef {import('./types').ChatResponse} ChatResponse
  * @typedef {import('./types').SocketMessageData} SocketMessageData

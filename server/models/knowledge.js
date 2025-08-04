@@ -34,9 +34,11 @@ const knowledgeSchema = new mongoose.Schema({
       'productivity', 
       'mindfulness', 
       'creativity',
-      // Legacy категории из Shrooms для совместимости
+      // Reader Bot specific categories
+      'quotes', 
+      'recommendations', 
+      'reports', 
       'user-guide', 
-      'tokenomics', 
       'technical', 
       'troubleshooting', 
       'prompts', 

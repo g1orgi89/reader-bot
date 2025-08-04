@@ -174,7 +174,7 @@ async function testChat() {
             },
             credentials: 'include',
             body: JSON.stringify({
-                message: 'Hello, what is Shrooms project?'
+                message: 'Hello, what is Reader Bot?'
             })
         });
         
