@@ -40,35 +40,28 @@ class ApiService {
 
     /**
      * 🔍 Определяет debug режим
-     * ИСПРАВЛЕНО: Добавлена проверка для app.unibotz.com
      */
     isDebugMode() {
         const hostname = window.location.hostname;
         
-        // Debug режим для разработки
+        // Debug режим ТОЛЬКО для разработки
         return hostname === 'localhost' || 
                hostname === '127.0.0.1' ||
-               hostname.includes('unibotz.com') || // 🔥 ДОБАВЛЕНО для вашего домена
                hostname.includes('ngrok') ||
-               hostname.includes('vercel.app') ||
-               hostname.includes('netlify.app');
+               hostname.includes('vercel.app');
     }
 
     /**
      * 🌐 Определяет базовый URL в зависимости от окружения
-     * ИСПРАВЛЕНО: Принудительно используем заглушки в debug режиме
      */
     getBaseURL() {
-        const hostname = window.location.hostname;
-        
-        // 🧪 Debug режим - НЕ ИСПОЛЬЗУЕМ реальный API
         if (this.isDebugMode()) {
-            console.log('🧪 DEBUG MODE: Используются заглушки вместо реального API');
-            return null; // Заглушки не требуют URL
+            console.log('🧪 DEBUG MODE: Используются заглушки');
+            return null;
         }
         
-        // Продакшн URL (только для реального продакшна)
-        return 'https://your-domain.com/api/reader';
+        // 🌐 Продакшн режим - реальный API
+        return '/api/reader';
     }
 
     /**
