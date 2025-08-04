@@ -556,7 +556,7 @@ app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
 
 // 📱 НОВОЕ: Reader Mini App API
 logger.info('📱 Registering Reader Mini App API routes...');
-app.use(`${config.app.apiPrefix}/reader`, readerRoutes);
+app.use(`${config.app.apiPrefix}`, readerRoutes);
 
 // 🔍 НОВОЕ: Debug API для диагностики viewport проблем Mini App
 logger.info('🔍 Registering Debug API for Mini App viewport diagnostics...');
