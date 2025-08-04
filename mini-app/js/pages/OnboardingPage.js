@@ -654,10 +654,11 @@ class OnboardingPage {
             }
             
             const onboardingData = {
-                answers: this.answers,
-                contact: this.contactData,
-                telegram: telegramData,
-                completedAt: new Date().toISOString()
+                user: telegramData,               // ✅ Backend ожидает "user"
+                answers: this.answers,            // ✅ OK
+                email: this.contactData.email,    // ✅ Backend ожидает "email"
+                source: this.contactData.source,  // ✅ Backend ожидает "source"
+                telegramData: telegramData
             };
             
             // Отправка данных на сервер
