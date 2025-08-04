@@ -62,19 +62,21 @@
     gap: 12px;
 }
 
+/* 👤 Простые инициалы пользователя */
 .user-avatar-inline {
-    width: 36px;
-    height: 36px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.2);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    background: var(--bg-secondary, #E8E5E0);
+    color: var(--text-primary, #2C1810);
     font-weight: 600;
-    border: 2px solid rgba(255,255,255,0.3);
-    cursor: pointer;
-    transition: all var(--transition-normal);
+    font-size: 18px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--primary-color, #D2452C);
 }
 
 .user-avatar-inline:hover {
