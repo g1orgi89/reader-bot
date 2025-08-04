@@ -282,13 +282,7 @@
     box-shadow: var(--shadow-primary);
 }
 
-.answer-option.selected::before {
-    content: '✓';
-    position: absolute;
-    right: var(--spacing-md);
-    font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-lg);
-}
+
 
 /* 🔘 Кнопка навигации */
 .next-button {
