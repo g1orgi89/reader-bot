@@ -125,7 +125,8 @@ class OnboardingPage {
      */
     init() {
         // Проверяем, не проходил ли пользователь онбординг
-        const onboardingCompleted = this.state.get('user.onboardingCompleted');
+        const onboardingCompleted = this.state.get('user.onboardingCompleted') || 
+                                   this.state.get('user.profile.isOnboardingCompleted');
         if (onboardingCompleted) {
             // Перенаправляем на главную страницу
             this.app.router.navigate('/');
@@ -710,7 +711,8 @@ class OnboardingPage {
      */
     onShow() {
         // Проверяем, не завершен ли уже онбординг
-        const onboardingCompleted = this.state.get('user.onboardingCompleted');
+        const onboardingCompleted = this.state.get('user.onboardingCompleted') || 
+                                   this.state.get('user.profile.isOnboardingCompleted');
         if (onboardingCompleted) {
             this.app.router.navigate('/');
             return;

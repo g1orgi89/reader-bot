@@ -537,9 +537,10 @@ class ReaderApp {
                 firstName: 'Тестер',
                 username: 'debug_user',
                 isDebug: true,
-                isOnboardingCompleted: true // Пропускаем онбординг в debug режиме
+                isOnboardingCompleted: false // Включаем онбординг для тестирования
             },
-            isAuthenticated: true
+            isAuthenticated: true,
+            onboardingCompleted: false // Правильный путь для проверки онбординга
         });
         console.log('🧪 Создан debug пользователь');
     }
