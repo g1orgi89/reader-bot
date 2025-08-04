@@ -1,0 +1,612 @@
+/**
+ * 🎯 ONBOARDING PAGE STYLES
+ * @fileoverview Стили для страницы онбординг теста Reader Bot
+ * @description Тест из 7 вопросов с прогресс-баром и валидацией
+ * @author Reader Development Team
+ */
+
+/* ============================================================================
+   1. CSS ПЕРЕМЕННЫЕ СПЕЦИФИЧНЫЕ ДЛЯ СТРАНИЦЫ
+   ============================================================================ */
+
+:root {
+    /* 🎯 Переменные онбординга */
+    --onboarding-card-bg: var(--bg-card);
+    --onboarding-progress-height: 6px;
+    --onboarding-question-number-size: 40px;
+    --onboarding-option-min-height: 44px;
+    --onboarding-content-max-width: 480px;
+    
+    /* 🎨 Специфичные цвета */
+    --onboarding-badge-bg: var(--primary-color);
+    --onboarding-badge-text: var(--text-inverse);
+    --onboarding-selected-bg: var(--primary-color);
+    --onboarding-selected-text: var(--text-inverse);
+    --onboarding-option-bg: var(--bg-card);
+    --onboarding-option-border: var(--text-muted);
+}
+
+/* ============================================================================
+   2. ОСНОВНЫЕ БЛОКИ СТРАНИЦЫ
+   ============================================================================ */
+
+/* 📄 Главный контейнер */
+.onboarding-page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    padding: var(--spacing-lg) var(--spacing-md);
+    max-width: var(--onboarding-content-max-width);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 📱 Шапка онбординга */
+.onboarding-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.onboarding-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    line-height: var(--line-height-tight);
+}
+
+.onboarding-subtitle {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    line-height: var(--line-height-normal);
+}
+
+/* 📊 Секция прогресса */
+.progress-section {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.progress-text {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+}
+
+.progress-steps {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-weight: var(--font-weight-normal);
+}
+
+.progress-bar {
+    width: 100%;
+    height: var(--onboarding-progress-height);
+    background-color: var(--bg-secondary);
+    border-radius: calc(var(--onboarding-progress-height) / 2);
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+    border-radius: inherit;
+    transition: width var(--duration-normal) var(--ease-out);
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
+    animation: progress-shine 2s ease-in-out infinite;
+}
+
+/* 📄 Экраны */
+.welcome-screen,
+.question-screen,
+.completion-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--spacing-xl);
+}
+
+/* 👋 Приветственный экран */
+.welcome-screen {
+    text-align: center;
+}
+
+.welcome-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-lg);
+}
+
+.welcome-description {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    line-height: var(--line-height-loose);
+    margin-bottom: var(--spacing-2xl);
+}
+
+/* ✅ Экран завершения */
+.completion-screen {
+    text-align: center;
+}
+
+.completion-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-lg);
+}
+
+.completion-description {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    line-height: var(--line-height-loose);
+    margin-bottom: var(--spacing-2xl);
+}
+
+/* ❓ Секция вопроса */
+.question-section {
+    background: var(--onboarding-card-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-primary);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid transparent;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.question-section:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-primary-lg);
+}
+
+.question-number {
+    width: var(--onboarding-question-number-size);
+    height: var(--onboarding-question-number-size);
+    background: var(--onboarding-badge-bg);
+    color: var(--onboarding-badge-text);
+    border-radius: var(--radius-round);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    margin: 0 auto var(--spacing-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.question-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+    line-height: var(--line-height-tight);
+}
+
+/* 📝 Поля ввода */
+.question-input,
+.question-textarea {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 2px solid var(--bg-secondary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family-primary);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    transition: all var(--duration-normal) var(--ease-out);
+    min-height: var(--input-height);
+    box-sizing: border-box;
+}
+
+.question-input:focus,
+.question-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(210, 69, 44, 0.1);
+    transform: translateY(-1px);
+}
+
+.question-textarea {
+    min-height: 120px;
+    resize: vertical;
+    line-height: var(--line-height-normal);
+}
+
+.question-input::placeholder,
+.question-textarea::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ⚪ Варианты ответов */
+.answer-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.answer-option {
+    background: var(--onboarding-option-bg);
+    border: 2px solid var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+    min-height: var(--onboarding-option-min-height);
+    display: flex;
+    align-items: center;
+    font-family: var(--font-family-primary);
+    font-weight: var(--font-weight-normal);
+    line-height: var(--line-height-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.answer-option:hover {
+    border-color: var(--primary-light);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.answer-option:active {
+    transform: translateY(0);
+}
+
+.answer-option.selected {
+    background: var(--onboarding-selected-bg);
+    border-color: var(--primary-dark);
+    color: var(--onboarding-selected-text);
+    font-weight: var(--font-weight-medium);
+    box-shadow: var(--shadow-primary);
+}
+
+.answer-option.selected::before {
+    content: '✓';
+    position: absolute;
+    right: var(--spacing-md);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-lg);
+}
+
+/* 🔘 Кнопка навигации */
+.next-button {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-2xl);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    font-family: var(--font-family-primary);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+    min-height: var(--button-height);
+    margin-top: auto;
+    box-shadow: var(--shadow-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.next-button:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-primary-lg);
+}
+
+.next-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.next-button:disabled {
+    background: var(--text-muted);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: var(--shadow-sm);
+    opacity: var(--disabled-opacity);
+}
+
+.next-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -20px;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transform: translateY(-50%);
+    transition: left var(--duration-slow) var(--ease-out);
+}
+
+.next-button:hover:not(:disabled)::before {
+    left: 110%;
+}
+
+/* ✍️ Подпись Анны */
+.anna-signature {
+    background: var(--bg-overlay);
+    border-left: 4px solid var(--primary-color);
+    padding: var(--spacing-lg);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    font-style: italic;
+    color: var(--text-secondary);
+    line-height: var(--line-height-loose);
+    margin: var(--spacing-xl) 0;
+    position: relative;
+}
+
+.anna-signature::before {
+    content: '"';
+    font-size: var(--font-size-3xl);
+    color: var(--primary-color);
+    position: absolute;
+    left: var(--spacing-sm);
+    top: var(--spacing-sm);
+    line-height: 1;
+    font-family: serif;
+}
+
+/* 📧 Контактная форма */
+.contact-form {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--bg-secondary);
+}
+
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+/* ============================================================================
+   3. МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .onboarding-page {
+        padding: var(--spacing-md);
+    }
+    
+    .onboarding-title {
+        font-size: var(--font-size-xl);
+    }
+    
+    .onboarding-subtitle {
+        font-size: var(--font-size-sm);
+    }
+    
+    .question-section {
+        padding: var(--spacing-lg);
+    }
+    
+    .question-title {
+        font-size: var(--font-size-lg);
+    }
+    
+    .question-number {
+        width: 32px;
+        height: 32px;
+        font-size: var(--font-size-base);
+    }
+    
+    .answer-option {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-size-sm);
+    }
+    
+    .next-button {
+        font-size: var(--font-size-base);
+        padding: var(--spacing-sm) var(--spacing-lg);
+    }
+    
+    .anna-signature {
+        padding: var(--spacing-md);
+        font-size: var(--font-size-sm);
+    }
+    
+    .contact-form {
+        padding: var(--spacing-lg);
+    }
+}
+
+/* iPhone X и более новые модели */
+@media (max-width: 480px) and (max-height: 896px) {
+    .onboarding-page {
+        padding-bottom: calc(var(--spacing-lg) + var(--safe-area-bottom));
+    }
+}
+
+/* ============================================================================
+   4. АНИМАЦИИ
+   ============================================================================ */
+
+@keyframes progress-shine {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(0%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Применение анимаций */
+.welcome-screen,
+.question-screen,
+.completion-screen {
+    animation: slideIn var(--duration-slow) var(--ease-out);
+}
+
+.progress-fill {
+    animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+.question-number {
+    animation: pulse var(--duration-slow) var(--ease-back);
+}
+
+.answer-option:hover {
+    animation: none; /* Убираем конфликтующие анимации при hover */
+}
+
+/* ============================================================================
+   5. ТЕМНАЯ ТЕМА
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* 🌙 Переопределение переменных для темной темы */
+        --onboarding-card-bg: var(--bg-card);
+        --onboarding-option-bg: var(--bg-secondary);
+        --onboarding-option-border: var(--text-muted);
+    }
+    
+    .question-section {
+        border-color: var(--bg-secondary);
+        background: var(--bg-card);
+    }
+    
+    .answer-option {
+        background: var(--bg-secondary);
+        border-color: var(--text-muted);
+    }
+    
+    .answer-option:hover {
+        border-color: var(--primary-color);
+        background: var(--bg-card);
+    }
+    
+    .question-input,
+    .question-textarea {
+        background: var(--bg-secondary);
+        border-color: var(--text-muted);
+        color: var(--text-primary);
+    }
+    
+    .question-input:focus,
+    .question-textarea:focus {
+        background: var(--bg-card);
+        border-color: var(--primary-color);
+    }
+    
+    .anna-signature {
+        background: rgba(210, 69, 44, 0.1);
+        border-left-color: var(--primary-color);
+    }
+    
+    .contact-form {
+        background: var(--bg-secondary);
+        border-color: var(--text-muted);
+    }
+}
+
+/* ============================================================================
+   ДОПОЛНИТЕЛЬНЫЕ УТИЛИТАРНЫЕ КЛАССЫ
+   ============================================================================ */
+
+/* 🎯 Состояния загрузки */
+.onboarding-page.loading .next-button {
+    pointer-events: none;
+}
+
+.onboarding-page.loading .next-button::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    margin-left: var(--spacing-sm);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 🚫 Состояния ошибок */
+.question-input.error,
+.question-textarea.error {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
+}
+
+/* ✅ Accessibility улучшения */
+.answer-option:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.next-button:focus {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+}
+
+/* 📱 Touch targets для лучшего UX */
+@media (pointer: coarse) {
+    .answer-option {
+        min-height: var(--touch-target-min);
+    }
+    
+    .question-input,
+    .question-textarea {
+        min-height: var(--touch-target-min);
+    }
+    
+    .next-button {
+        min-height: var(--touch-target-min);
+    }
+}
