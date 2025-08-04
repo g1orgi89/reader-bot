@@ -27,6 +27,7 @@ const adminRoutes = require('./api/admin');
 const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 Маршруты аналитики
+const readerRoutes = require('./api/reader'); // 📱 НОВОЕ: Reader Mini App API
 
 // 🔍 БЕЗОПАСНАЯ ЗАГРУЗКА DEBUG API
 let debugRoutes;
@@ -553,6 +554,10 @@ app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
 app.use(`${config.app.apiPrefix}/users`, usersRoutes);
 app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
 
+// 📱 НОВОЕ: Reader Mini App API
+logger.info('📱 Registering Reader Mini App API routes...');
+app.use(`${config.app.apiPrefix}/reader`, readerRoutes);
+
 // 🔍 НОВОЕ: Debug API для диагностики viewport проблем Mini App
 logger.info('🔍 Registering Debug API for Mini App viewport diagnostics...');
 app.use(`${config.app.apiPrefix}/debug`, debugRoutes);
@@ -638,6 +643,7 @@ async function startServer() {
     logger.info(`🏠 Client available at: http://localhost:${PORT}`);
     logger.info(`📱 Mini App available at: http://localhost:${PORT}/mini-app/`);
     logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
+    logger.info(`📱 Reader API: ${config.app.apiPrefix}/reader (Mini App endpoints)`);
     logger.info(`🔍 Debug API: ${config.app.apiPrefix}/debug (viewport diagnostics)`);
     logger.info(`📋 Data Management APIs:`);
     logger.info(`   📚 Book Catalog: ${config.app.apiPrefix}/book-catalog`);
