@@ -1,6 +1,6 @@
 /**
  * @file Configuration for AI Provider
- * @description Конфигурация AI провайдеров для проекта Shrooms
+ * @description Конфигурация AI провайдеров для Reader Bot
  */
 
 /**

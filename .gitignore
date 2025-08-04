@@ -140,5 +140,7 @@ ecosystem.config.js.local
 # Local development tools
 .history/.env
 
-# Archive directory
-archive/
+# Test and debug files (exclude development artifacts)
+test-*.html
+debug-*.js
+*test*.html

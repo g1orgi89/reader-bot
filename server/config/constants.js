@@ -1,5 +1,5 @@
 /**
- * Constants for Shrooms Support Bot
+ * Constants for Reader Bot
  * @file server/config/constants.js
  */
 
@@ -77,7 +77,7 @@ const CONSTANTS = {
 
   // Vector Store Configuration
   VECTOR_STORE: {
-    COLLECTION_NAME: 'shrooms_knowledge',
+    COLLECTION_NAME: 'reader_knowledge',
     DIMENSIONS: 1536,
     METRICS: {
       COSINE: 'cosine',
@@ -164,17 +164,17 @@ const CONSTANTS = {
     MIN_HEIGHT: 400
   },
 
-  // Shrooms-specific constants
-  SHROOMS: {
-    FARMING_YIELD_DEFAULT: 12.5,
-    CONTRACT_PREFIX: 'SP',
-    DOMAIN: 'shrooms.io',
-    GRUB_TERMINOLOGY: {
-      TOKENS: 'spores',
-      WALLET: 'basket',
-      FARMING: 'growing',
-      USERS: 'mushroom_hunters',
-      TEAM: 'mycologists'
+  // Reader Bot specific constants
+  READER: {
+    DEFAULT_LANGUAGE: 'ru',
+    QUOTE_CATEGORIES: ['psychology', 'philosophy', 'self-development', 'business'],
+    BOOK_RECOMMENDATIONS: {
+      MIN_SCORE: 0.7,
+      MAX_RESULTS: 5
+    },
+    REPORTS: {
+      WEEKLY_DAY: 'sunday',
+      MONTHLY_DAY: 1
     }
   },
 
