@@ -368,10 +368,12 @@ class ReaderApp {
             }
         }
         
+        // Устанавливаем нужный hash ПЕРЕД инициализацией роутера
+        window.location.hash = initialRoute;
+        
         if (this.router && typeof this.router.init === 'function') {
             try {
                 await this.router.init();
-                this.router.navigate(initialRoute);
                 console.log('✅ Роутинг инициализирован, начальная страница:', initialRoute);
             } catch (error) {
                 console.error('❌ Ошибка инициализации роутера:', error);
