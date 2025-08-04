@@ -123,13 +123,26 @@ class OnboardingPage {
     /**
      * 🔧 Инициализация страницы
      */
-    init() {
-        // Проверяем, не проходил ли пользователь онбординг
-        const onboardingCompleted = this.state.get('user.onboardingCompleted');
-        if (onboardingCompleted) {
-            // Перенаправляем на главную страницу
-            this.app.router.navigate('/');
-            return;
+    async init() {
+        // Проверяем статус онбординга через API
+        try {
+            const onboardingStatus = await this.api.checkOnboardingStatus();
+            console.log('📊 OnboardingPage: Статус онбординга:', onboardingStatus);
+            
+            if (onboardingStatus.completed) {
+                // Перенаправляем на главную страницу
+                this.app.router.navigate('/');
+                return;
+            }
+        } catch (error) {
+            console.warn('⚠️ OnboardingPage: Ошибка проверки статуса онбординга:', error);
+            
+            // Fallback: проверяем локальное состояние
+            const onboardingCompleted = this.state.get('user.profile.isOnboardingCompleted');
+            if (onboardingCompleted) {
+                this.app.router.navigate('/');
+                return;
+            }
         }
         
         // Получаем данные пользователя из Telegram
@@ -140,9 +153,31 @@ class OnboardingPage {
      * 👤 Предзаполнение данных пользователя
      */
     prefillUserData() {
-        const telegramUser = this.telegram.getUser();
+        console.log('👤 OnboardingPage: Предзаполнение данных пользователя');
+        
+        // Получаем данные из Telegram
+        let telegramUser = null;
+        
+        if (this.telegram && typeof this.telegram.getUser === 'function') {
+            telegramUser = this.telegram.getUser();
+            console.log('📱 OnboardingPage: Данные Telegram пользователя:', telegramUser);
+        } else {
+            console.warn('⚠️ OnboardingPage: TelegramService недоступен');
+        }
+        
+        // Предзаполняем имя из Telegram
         if (telegramUser && telegramUser.first_name) {
             this.answers.name = telegramUser.first_name;
+            console.log('✅ OnboardingPage: Имя предзаполнено:', telegramUser.first_name);
+        } else {
+            // Fallback: пытаемся получить из состояния приложения
+            const userProfile = this.state.get('user.profile');
+            if (userProfile && userProfile.firstName) {
+                this.answers.name = userProfile.firstName;
+                console.log('✅ OnboardingPage: Имя получено из состояния:', userProfile.firstName);
+            } else {
+                console.log('ℹ️ OnboardingPage: Имя пользователя не найдено, будет введено вручную');
+            }
         }
     }
     
@@ -608,10 +643,22 @@ class OnboardingPage {
             this.updateNavigationButton();
             
             // Подготовка данных для отправки
+            let telegramData = null;
+            
+            // Безопасное получение данных Telegram
+            if (this.telegram && typeof this.telegram.getUser === 'function') {
+                try {
+                    telegramData = this.telegram.getUser();
+                    console.log('📱 OnboardingPage: Данные Telegram для отправки:', telegramData);
+                } catch (error) {
+                    console.warn('⚠️ OnboardingPage: Ошибка получения данных Telegram:', error);
+                }
+            }
+            
             const onboardingData = {
                 answers: this.answers,
                 contact: this.contactData,
-                telegram: this.telegram.getUser(),
+                telegram: telegramData,
                 completedAt: new Date().toISOString()
             };
             

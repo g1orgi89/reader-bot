@@ -589,6 +589,61 @@ class ApiService {
         }
     }
 
+    /**
+     * 📊 Проверка статуса онбординга
+     * НОВЫЙ: Добавлен недостающий метод для проверки онбординга
+     */
+    async checkOnboardingStatus() {
+        if (this.debug) {
+            this.log('🧪 DEBUG: Возвращаем статус онбординга');
+            return {
+                completed: false,
+                user: {
+                    id: 12345,
+                    firstName: 'Тестер',
+                    username: 'debug_user'
+                },
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        try {
+            return await this.request('GET', '/auth/onboarding-status');
+        } catch (error) {
+            this.log('❌ Ошибка проверки статуса онбординга', { error: error.message });
+            // Fallback: считаем что онбординг не пройден
+            return { completed: false };
+        }
+    }
+
+    /**
+     * ✅ Завершение онбординга
+     * НОВЫЙ: Добавлен недостающий метод для завершения онбординга
+     */
+    async completeOnboarding(onboardingData) {
+        if (this.debug) {
+            this.log('🧪 DEBUG: Сохраняем данные онбординга', onboardingData);
+            return {
+                success: true,
+                user: {
+                    id: 12345,
+                    firstName: onboardingData.answers?.name || 'Тестер',
+                    username: 'debug_user',
+                    isOnboardingCompleted: true
+                },
+                onboardingData: onboardingData,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        try {
+            return await this.request('POST', '/auth/complete-onboarding', onboardingData);
+        } catch (error) {
+            this.log('❌ Ошибка завершения онбординга', { error: error.message });
+            throw new Error('Не удалось сохранить данные онбординга');
+        }
+    }
+
     // ===========================================
     // 👤 ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ
     // ===========================================

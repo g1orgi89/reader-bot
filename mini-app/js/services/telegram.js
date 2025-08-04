@@ -424,6 +424,20 @@ class TelegramService {
      * @returns {TelegramUser|null} - Данные пользователя
      */
     getUser() {
+        // Если Telegram недоступен, создаем реалистичного debug пользователя
+        if (!this.isAvailable || !this.user) {
+            console.log('🧪 TelegramService: Возвращаем debug пользователя');
+            return {
+                id: 12345,
+                first_name: 'Тестер',
+                last_name: 'Debug',
+                username: 'debug_user',
+                language_code: 'ru',
+                is_premium: false,
+                is_debug: true
+            };
+        }
+        
         return this.user;
     }
 
