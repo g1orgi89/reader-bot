@@ -28,8 +28,238 @@ const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 Маршруты отчетов
 const analyticsRoutes = require('./api/analytics'); // 📊 Маршруты аналитики
 
-// 🔍 НОВОЕ: Debug API для диагностики viewport проблем Mini App
-const debugRoutes = require('./api/debug');
+// 🔍 БЕЗОПАСНАЯ ЗАГРУЗКА DEBUG API
+let debugRoutes;
+try {
+  logger.info('🔍 [DEBUG] Attempting to load debug API...');
+  debugRoutes = require('./api/debug');
+  logger.info('✅ [DEBUG] Debug API loaded successfully');
+} catch (error) {
+  logger.error('❌ [DEBUG] Failed to load debug API:', error.message);
+  logger.info('🔧 [DEBUG] Creating fallback debug API...');
+  
+  // Создаем безопасный fallback debug API
+  debugRoutes = express.Router();
+  
+  // Простая в памяти база данных
+  const sessions = new Map();
+  const logs = [];
+  
+  // Health check
+  debugRoutes.get('/health', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Debug API is working (fallback version)',
+      timestamp: new Date().toISOString(),
+      stats: { activeSessions: sessions.size, totalLogs: logs.length }
+    });
+  });
+  
+  // Start session
+  debugRoutes.post('/start-session', (req, res) => {
+    try {
+      const { userId, deviceInfo, telegramInfo } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+
+      const sessionId = `${userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      sessions.set(sessionId, {
+        userId,
+        deviceInfo: deviceInfo || {},
+        telegramInfo: telegramInfo || {},
+        startTime: Date.now(),
+        logCount: 0
+      });
+      
+      logger.info(`🔍 Debug session started: ${sessionId} for user ${userId}`);
+      
+      res.json({
+        success: true,
+        sessionId,
+        message: 'Debug session started successfully'
+      });
+    } catch (error) {
+      logger.error('❌ Error starting debug session:', error);
+      res.status(500).json({ error: 'Failed to start debug session', details: error.message });
+    }
+  });
+  
+  // Log endpoint
+  debugRoutes.post('/log', (req, res) => {
+    try {
+      const { sessionId, category, level, message, data, context } = req.body;
+      
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      const logEntry = {
+        sessionId, category, level, message,
+        data: data || {},
+        context: context || {},
+        timestamp: Date.now() - session.startTime,
+        createdAt: new Date()
+      };
+
+      logs.push(logEntry);
+      session.logCount++;
+
+      logger.info(`📝 Debug log [${sessionId}] ${category}/${level}: ${message}`);
+      
+      res.json({ success: true, message: 'Log recorded successfully' });
+    } catch (error) {
+      logger.error('❌ Error recording log:', error);
+      res.status(500).json({ error: 'Failed to record log', details: error.message });
+    }
+  });
+  
+  // Batch log
+  debugRoutes.post('/batch-log', (req, res) => {
+    try {
+      const { sessionId, logs: batchLogs } = req.body;
+      
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      const results = [];
+      for (const log of batchLogs || []) {
+        const logEntry = {
+          sessionId,
+          category: log.category,
+          level: log.level,
+          message: log.message,
+          data: log.data || {},
+          context: log.context || {},
+          timestamp: log.timestamp || (Date.now() - session.startTime),
+          createdAt: new Date()
+        };
+        logs.push(logEntry);
+        session.logCount++;
+        results.push({ success: true });
+        logger.info(`📝 Batch log [${sessionId}] ${log.category}/${log.level}: ${log.message}`);
+      }
+
+      res.json({ success: true, processed: results.length, results });
+    } catch (error) {
+      logger.error('❌ Error processing batch logs:', error);
+      res.status(500).json({ error: 'Failed to process batch logs', details: error.message });
+    }
+  });
+  
+  // Session stats
+  debugRoutes.get('/session/:sessionId/stats', (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const session = sessions.get(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      const sessionLogs = logs.filter(log => log.sessionId === sessionId);
+      const stats = sessionLogs.reduce((acc, log) => {
+        const key = `${log.category}_${log.level}`;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+
+      res.json({
+        success: true,
+        stats: {
+          sessionId,
+          isActive: true,
+          duration: Date.now() - session.startTime,
+          totalLogs: sessionLogs.length,
+          stats,
+          deviceInfo: session.deviceInfo,
+          telegramInfo: session.telegramInfo
+        }
+      });
+    } catch (error) {
+      logger.error('❌ Error getting session stats:', error);
+      res.status(500).json({ error: 'Failed to get session stats', details: error.message });
+    }
+  });
+  
+  // Active sessions
+  debugRoutes.get('/sessions/active', (req, res) => {
+    try {
+      const activeSessions = Array.from(sessions.entries()).map(([sessionId, session]) => ({
+        sessionId,
+        userId: session.userId,
+        startTime: session.startTime,
+        duration: Date.now() - session.startTime,
+        logCount: session.logCount,
+        isIOS: session.deviceInfo?.isIOS || false
+      }));
+      
+      res.json({ success: true, count: activeSessions.length, sessions: activeSessions });
+    } catch (error) {
+      logger.error('❌ Error getting active sessions:', error);
+      res.status(500).json({ error: 'Failed to get active sessions', details: error.message });
+    }
+  });
+  
+  // End session
+  debugRoutes.post('/session/:sessionId/end', (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const session = sessions.get(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      const finalStats = {
+        sessionId,
+        duration: Date.now() - session.startTime,
+        totalLogs: session.logCount
+      };
+
+      sessions.delete(sessionId);
+      logger.info(`✅ Debug session ended: ${sessionId}`, finalStats);
+      
+      res.json({ success: true, message: 'Debug session ended successfully', finalStats });
+    } catch (error) {
+      logger.error('❌ Error ending debug session:', error);
+      res.status(500).json({ error: 'Failed to end debug session', details: error.message });
+    }
+  });
+  
+  // iOS issues
+  debugRoutes.get('/ios-issues', (req, res) => {
+    try {
+      const { hours = 24 } = req.query;
+      const sinceTime = Date.now() - (hours * 60 * 60 * 1000);
+      
+      const iosIssues = logs.filter(log => {
+        const session = sessions.get(log.sessionId);
+        return log.createdAt.getTime() > sinceTime &&
+               session?.deviceInfo?.isIOS &&
+               (log.category === 'NAVIGATION' || log.category === 'VIEWPORT') &&
+               ['ERROR', 'CRITICAL'].includes(log.level);
+      });
+
+      res.json({
+        success: true,
+        period: `${hours} hours`,
+        issuesFound: iosIssues.length,
+        issues: iosIssues
+      });
+    } catch (error) {
+      logger.error('❌ Error getting iOS issues:', error);
+      res.status(500).json({ error: 'Failed to get iOS issues', details: error.message });
+    }
+  });
+  
+  logger.info('✅ [DEBUG] Fallback debug API created successfully');
+}
 
 // 📋 НОВЫЕ API ROUTES для системы управления данными
 const bookCatalogRoutes = require('./api/bookCatalog');
@@ -293,7 +523,8 @@ app.get(`${config.app.apiPrefix}/health`, async (req, res) => {
       version: config.app.version,
       services: {
         database: 'ok',
-        knowledge: 'checking...'
+        knowledge: 'checking...',
+        debug: debugRoutes ? 'ok' : 'fallback'
       }
     };
 

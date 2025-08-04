@@ -1,607 +1,426 @@
-/**
- * 🔍 DEBUG API для диагностики проблем Telegram Mini App
- * 
- * Собирает данные о viewport проблемах, логирует их в БД
- * и предоставляет аналитику для исправления багов
- * 
- * 🔧 ОБНОВЛЕНО: Поддержка расширенной диагностики v2.0
- * 
- * @filesize ~10KB
- * @version 2.0.0
- */
-
 const express = require('express');
 const router = express.Router();
-const ViewportLog = require('../models/ViewportLog');
-const logger = require('../utils/logger');
+const debugService = require('../services/debugService');
+const DebugLog = require('../models/DebugLog');
 
 /**
- * @typedef {import('../types').ShroomsError} ShroomsError
+ * @route POST /api/debug/start-session
+ * @description Начать новую debug сессию
+ * @access Public (для Mini App)
  */
-
-/**
- * 📱 POST /api/debug/viewport - Логирование viewport проблем
- * 
- * 🔧 ОБНОВЛЕНО: Поддержка расширенных данных диагностики v2.0
- * Принимает детальные данные о viewport с клиента и сохраняет в БД для анализа
- */
-router.post('/viewport', async (req, res) => {
-  try {
-    // 🔧 НОВОЕ: Поддержка расширенной структуры данных
-    const {
-      sessionId,
-      page,
-      url,
-      viewport,
-      device,
-      telegram,
-      problem,
-      debugMode = false,
-      cssVariables,
-      notes,
-      // 🆕 НОВЫЕ ПОЛЯ РАСШИРЕННОЙ ДИАГНОСТИКИ
-      sizes,
-      fixedElements,
-      document: documentMetrics,
-      content,
-      ios,
-      timestamp
-    } = req.body;
-
-    // 🔍 Валидация обязательных полей
-    if (!sessionId || !page || !viewport || !device || !problem) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields',
-        required: ['sessionId', 'page', 'viewport', 'device', 'problem']
-      });
-    }
-
-    // 🔧 НОВОЕ: Детальное логирование расширенных данных
-    const logData = {
-      sessionId: sessionId.substring(0, 8),
-      page,
-      platform: device.platform,
-      problemType: problem.type,
-      difference: viewport.difference,
-      userAgent: device.userAgent.substring(0, 50) + '...'
-    };
-
-    // 🔧 НОВОЕ: Добавляем информацию о расширенной диагностике
-    if (sizes) {
-      logData.realSizes = {
-        header: sizes.real?.headerHeight,
-        nav: sizes.real?.bottomNavHeight
-      };
-      logData.cssSizes = {
-        header: sizes.css?.headerHeight,
-        nav: sizes.css?.bottomNavHeight
-      };
-      logData.sizeDifferences = sizes.comparison;
-    }
-
-    if (fixedElements?.length) {
-      logData.fixedElementsCount = fixedElements.length;
-    }
-
-    if (ios?.isIOS) {
-      logData.iosMetrics = {
-        isIOS: ios.isIOS,
-        safeAreaSupport: ios.safeAreaSupport,
-        visualViewportHeight: ios.visualViewport?.height
-      };
-    }
-
-    // 📊 Логируем получение данных
-    logger.info('🔍 [DEBUG] Viewport issue reported v2.0:', logData);
-
-    // 🛠️ Анализируем проблему и определяем тип
-    const problemType = determineProblemType(viewport, problem);
-    const severity = determineSeverity(viewport.difference);
-
-    // 🔧 ИСПРАВЛЕНО: Рассчитываем обязательные поля перед сохранением
-    const bottomNavHeight = viewport.bottomNavHeight || sizes?.css?.bottomNavHeight || sizes?.real?.bottomNavHeight || 64;
-    const headerHeight = viewport.headerHeight || sizes?.css?.headerHeight || sizes?.real?.headerHeight || 56;
-    const totalSubtracted = bottomNavHeight + headerHeight + 40; // padding
-    const availableHeight = viewport.innerHeight - totalSubtracted;
-
-    // 💾 Создаем запись в БД с расширенными данными
-    const viewportLogData = {
-      sessionId,
-      page,
-      url: url || `/mini-app/${page}`,
-      viewport: {
-        innerHeight: viewport.innerHeight,
-        innerWidth: viewport.innerWidth,
-        telegramHeight: viewport.telegramHeight,
-        telegramStableHeight: viewport.telegramStableHeight,
-        telegramExpanded: viewport.telegramExpanded,
-        calculatedContentHeight: viewport.calculatedContentHeight,
-        actualContentHeight: viewport.actualContentHeight,
-        bottomNavHeight: bottomNavHeight,
-        headerHeight: headerHeight,
-        totalSubtracted: totalSubtracted,
-        availableHeight: availableHeight,
-        difference: viewport.difference,
-        safeBounds: viewport.safeBounds || { top: 0, bottom: 0, left: 0, right: 0 }
-      },
-      device: {
-        userAgent: device.userAgent,
-        platform: device.platform || detectPlatform(device.userAgent),
-        browser: device.browser || detectBrowser(device.userAgent),
-        devicePixelRatio: device.devicePixelRatio || 1,
-        orientation: device.orientation || 'portrait',
-        screen: device.screen
-      },
-      telegram: {
-        isAvailable: telegram?.isAvailable || false,
-        version: telegram?.version,
-        platform: telegram?.platform,
-        colorScheme: telegram?.colorScheme,
-        isVerticalSwipesEnabled: telegram?.isVerticalSwipesEnabled,
-        headerColor: telegram?.headerColor,
-        backgroundColor: telegram?.backgroundColor
-      },
-      problem: {
-        type: problemType,
-        severity: severity,
-        description: problem.description || generateProblemDescription(viewport, problemType),
-        scrollTop: problem.scrollTop || 0,
-        scrollHeight: problem.scrollHeight || 0,
-        clientHeight: problem.clientHeight || 0,
-        // 🔧 НОВОЕ: Расширенные рекомендации
-        recommendations: problem.recommendations || [],
-        sizeMismatches: problem.sizeMismatches || {}
-      },
-      debugMode,
-      cssVariables: cssVariables || {},
-      notes,
-      timestamp: timestamp ? new Date(timestamp) : new Date()
-    };
-
-    // 🔧 НОВОЕ: Добавляем расширенные данные если они есть
-    if (sizes) {
-      viewportLogData.sizes = {
-        css: sizes.css || {},
-        real: sizes.real || {},
-        comparison: sizes.comparison || {}
-      };
-    }
-
-    if (fixedElements && fixedElements.length > 0) {
-      viewportLogData.fixedElements = fixedElements.slice(0, 20); // Ограничиваем количество для экономии места
-    }
-
-    if (documentMetrics) {
-      viewportLogData.document = documentMetrics;
-    }
-
-    if (content) {
-      viewportLogData.content = content;
-    }
-
-    if (ios && ios.isIOS) {
-      viewportLogData.ios = ios;
-    }
-
-    const viewportLog = new ViewportLog(viewportLogData);
-
-    // 💾 Сохраняем в БД
-    await viewportLog.save();
-
-    // 📊 Логируем успешное сохранение с детальной информацией
-    const saveLogData = {
-      id: viewportLog._id,
-      sessionId: sessionId.substring(0, 8),
-      problemType,
-      severity,
-      difference: viewport.difference
-    };
-
-    // 🔧 НОВОЕ: Добавляем результаты анализа размеров
-    if (sizes?.comparison) {
-      saveLogData.sizeMismatches = {
-        header: sizes.comparison.headerDifference,
-        nav: sizes.comparison.navDifference
-      };
-    }
-
-    logger.info('✅ [DEBUG] Viewport log saved v2.0:', saveLogData);
-
-    // 🚨 Если проблема серьезная - логируем с повышенным приоритетом
-    if (severity === 'severe') {
-      const severeLogData = {
-        platform: device.platform,
-        page,
-        difference: viewport.difference,
-        userAgent: device.userAgent
-      };
-
-      // 🔧 НОВОЕ: Добавляем данные о размерах в критические логи
-      if (sizes?.real) {
-        severeLogData.realSizes = {
-          header: sizes.real.headerHeight,
-          nav: sizes.real.bottomNavHeight
-        };
-      }
-
-      if (ios?.isIOS) {
-        severeLogData.iOS = true;
-        severeLogData.safeAreaSupport = ios.safeAreaSupport;
-      }
-
-      logger.warn('🚨 [DEBUG] SEVERE viewport issue detected v2.0:', severeLogData);
-    }
-
-    // ✅ Возвращаем успешный ответ с расширенной аналитикой
-    const responseData = {
-      success: true,
-      message: 'Viewport data logged successfully with extended diagnostics',
-      logId: viewportLog._id,
-      analysis: {
-        problemType,
-        severity,
-        recommendation: getRecommendation(problemType, viewport, sizes)
-      }
-    };
-
-    // 🔧 НОВОЕ: Добавляем анализ размеров в ответ
-    if (sizes?.comparison) {
-      responseData.analysis.sizeAnalysis = {
-        headerMismatch: sizes.comparison.headerDifference,
-        navMismatch: sizes.comparison.navDifference,
-        totalMismatch: (sizes.comparison.headerDifference || 0) + (sizes.comparison.navDifference || 0)
-      };
-    }
-
-    res.json(responseData);
-
-  } catch (error) {
-    logger.error('❌ [DEBUG] Failed to log viewport data v2.0:', {
-      error: error.message,
-      stack: error.stack,
-      bodyKeys: Object.keys(req.body),
-      hasExtendedData: !!(req.body.sizes || req.body.fixedElements || req.body.ios)
-    });
-
-    res.status(500).json({
-      success: false,
-      error: 'Failed to log viewport data',
-      details: error.message
-    });
-  }
-});
-
-/**
- * 📊 GET /api/debug/viewport/stats - Статистика viewport проблем
- * 
- * Возвращает аналитику по собранным данным viewport
- */
-router.get('/viewport/stats', async (req, res) => {
-  try {
-    const { platform, page, limit = 100, days = 7 } = req.query;
-
-    // 📅 Фильтр по дате
-    const dateFilter = {
-      timestamp: {
-        $gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-      }
-    };
-
-    // 🔍 Дополнительные фильтры
-    const filters = { ...dateFilter };
-    if (platform) filters['device.platform'] = platform;
-    if (page) filters.page = page;
-
-    // 📊 Получаем статистику
-    const [
-      totalLogs,
-      problemsByType,
-      problemsByPlatform,
-      problemsByPage,
-      recentProblems,
-      averageMetrics
-    ] = await Promise.all([
-      ViewportLog.countDocuments(filters),
-      
-      ViewportLog.aggregate([
-        { $match: filters },
-        { $group: { _id: '$problem.type', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]),
-      
-      ViewportLog.aggregate([
-        { $match: filters },
-        { $group: { _id: '$device.platform', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]),
-      
-      ViewportLog.aggregate([
-        { $match: filters },
-        { $group: { _id: '$page', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]),
-      
-      ViewportLog.find(filters)
-        .sort({ timestamp: -1 })
-        .limit(parseInt(limit))
-        .select('page device.platform problem.type viewport.difference timestamp sizes.comparison')
-        .lean(),
+router.post('/start-session', async (req, res) => {
+    try {
+        const { userId, deviceInfo, telegramInfo } = req.body;
         
-      ViewportLog.aggregate([
-        { $match: filters },
-        {
-          $group: {
-            _id: null,
-            avgDifference: { $avg: '$viewport.difference' },
-            avgInnerHeight: { $avg: '$viewport.innerHeight' },
-            avgTelegramHeight: { $avg: '$viewport.telegramHeight' },
-            avgBottomNavHeight: { $avg: '$viewport.bottomNavHeight' },
-            avgHeaderHeight: { $avg: '$viewport.headerHeight' }
-          }
+        if (!userId) {
+            return res.status(400).json({
+                error: 'userId is required'
+            });
         }
-      ])
-    ]);
 
-    // 📈 Формируем ответ
-    const stats = {
-      summary: {
-        totalLogs,
-        period: `${days} days`,
-        platforms: problemsByPlatform.length,
-        pages: problemsByPage.length
-      },
-      problems: {
-        byType: problemsByType,
-        byPlatform: problemsByPlatform,
-        byPage: problemsByPage
-      },
-      metrics: averageMetrics[0] || {},
-      recent: recentProblems
-    };
-
-    logger.info('📊 [DEBUG] Stats requested v2.0:', {
-      platform,
-      page,
-      totalLogs,
-      days
-    });
-
-    res.json({
-      success: true,
-      data: stats
-    });
-
-  } catch (error) {
-    logger.error('❌ [DEBUG] Failed to get viewport stats:', error);
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get viewport statistics',
-      details: error.message
-    });
-  }
-});
-
-/**
- * 🔍 GET /api/debug/viewport/analysis - Детальный анализ проблем
- * 
- * Возвращает детальный анализ конкретной проблемы или типа проблем
- */
-router.get('/viewport/analysis', async (req, res) => {
-  try {
-    const { logId, problemType, platform } = req.query;
-
-    let analysisData;
-
-    if (logId) {
-      // Анализ конкретной записи
-      analysisData = await ViewportLog.findById(logId).lean();
-      if (!analysisData) {
-        return res.status(404).json({
-          success: false,
-          error: 'Viewport log not found'
+        const sessionId = debugService.startSession(userId, deviceInfo, telegramInfo);
+        
+        res.json({
+            success: true,
+            sessionId,
+            message: 'Debug session started successfully'
         });
-      }
-    } else {
-      // Анализ по типу проблемы или платформе
-      const filters = {};
-      if (problemType) filters['problem.type'] = problemType;
-      if (platform) filters['device.platform'] = platform;
 
-      analysisData = await ViewportLog.aggregate([
-        { $match: filters },
-        {
-          $group: {
-            _id: {
-              platform: '$device.platform',
-              page: '$page',
-              problemType: '$problem.type'
+    } catch (error) {
+        console.error('❌ Ошибка старта debug сессии:', error);
+        res.status(500).json({
+            error: 'Failed to start debug session',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route POST /api/debug/log
+ * @description Отправить debug лог
+ * @access Public (для Mini App)
+ */
+router.post('/log', async (req, res) => {
+    try {
+        const { sessionId, category, level, message, data, context } = req.body;
+        
+        if (!sessionId || !category || !level || !message) {
+            return res.status(400).json({
+                error: 'sessionId, category, level, and message are required'
+            });
+        }
+
+        await debugService.log(sessionId, category, level, message, data, context);
+        
+        res.json({
+            success: true,
+            message: 'Log recorded successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка записи debug лога:', error);
+        res.status(500).json({
+            error: 'Failed to record log',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route POST /api/debug/batch-log
+ * @description Отправить множественные debug логи одним запросом
+ * @access Public (для Mini App)
+ */
+router.post('/batch-log', async (req, res) => {
+    try {
+        const { sessionId, logs } = req.body;
+        
+        if (!sessionId || !Array.isArray(logs)) {
+            return res.status(400).json({
+                error: 'sessionId and logs array are required'
+            });
+        }
+
+        const results = [];
+        
+        for (const log of logs) {
+            try {
+                await debugService.log(
+                    sessionId,
+                    log.category,
+                    log.level,
+                    log.message,
+                    log.data,
+                    log.context
+                );
+                results.push({ success: true });
+            } catch (error) {
+                results.push({ success: false, error: error.message });
+            }
+        }
+
+        res.json({
+            success: true,
+            processed: results.length,
+            results
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка batch записи debug логов:', error);
+        res.status(500).json({
+            error: 'Failed to process batch logs',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/debug/session/:sessionId/stats
+ * @description Получить статистику debug сессии
+ * @access Private (для админов)
+ */
+router.get('/session/:sessionId/stats', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const stats = await debugService.getSessionStats(sessionId);
+        
+        res.json({
+            success: true,
+            stats
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики сессии:', error);
+        res.status(500).json({
+            error: 'Failed to get session stats',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/debug/session/:sessionId/analysis
+ * @description Получить детальный анализ навигации
+ * @access Private (для админов)
+ */
+router.get('/session/:sessionId/analysis', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const analysis = await debugService.getNavigationAnalysis(sessionId);
+        
+        res.json({
+            success: true,
+            analysis
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка анализа сессии:', error);
+        res.status(500).json({
+            error: 'Failed to analyze session',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/debug/session/:sessionId/logs
+ * @description Получить все логи сессии
+ * @access Private (для админов)
+ */
+router.get('/session/:sessionId/logs', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const { category, level, limit = 1000 } = req.query;
+        
+        const filters = {};
+        if (category) filters.category = category;
+        if (level) filters.level = level;
+        
+        const logs = await DebugLog.getSessionLogs(sessionId, filters);
+        
+        res.json({
+            success: true,
+            sessionId,
+            total: logs.length,
+            logs: logs.slice(0, parseInt(limit))
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка получения логов сессии:', error);
+        res.status(500).json({
+            error: 'Failed to get session logs',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/debug/sessions/active
+ * @description Получить список активных debug сессий
+ * @access Private (для админов)
+ */
+router.get('/sessions/active', async (req, res) => {
+    try {
+        const activeSessions = debugService.getActiveSessions();
+        
+        res.json({
+            success: true,
+            count: activeSessions.length,
+            sessions: activeSessions
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка получения активных сессий:', error);
+        res.status(500).json({
+            error: 'Failed to get active sessions',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route POST /api/debug/session/:sessionId/end
+ * @description Завершить debug сессию
+ * @access Public (для Mini App)
+ */
+router.post('/session/:sessionId/end', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const finalStats = await debugService.endSession(sessionId);
+        
+        res.json({
+            success: true,
+            message: 'Debug session ended successfully',
+            finalStats
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка завершения debug сессии:', error);
+        res.status(500).json({
+            error: 'Failed to end debug session',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/debug/ios-issues
+ * @description Получить сводку iOS проблем навигации
+ * @access Private (для админов)
+ */
+router.get('/ios-issues', async (req, res) => {
+    try {
+        const { hours = 24, limit = 100 } = req.query;
+        
+        const sinceDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+        
+        // Ищем iOS сессии с ошибками навигации
+        const iosIssues = await DebugLog.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: sinceDate },
+                    'deviceInfo.isIOS': true,
+                    $or: [
+                        { category: 'NAVIGATION', level: { $in: ['ERROR', 'CRITICAL'] } },
+                        { category: 'VIEWPORT', level: { $in: ['ERROR', 'CRITICAL'] } }
+                    ]
+                }
             },
-            count: { $sum: 1 },
-            avgDifference: { $avg: '$viewport.difference' },
-            minDifference: { $min: '$viewport.difference' },
-            maxDifference: { $max: '$viewport.difference' },
-            avgInnerHeight: { $avg: '$viewport.innerHeight' },
-            avgTelegramHeight: { $avg: '$viewport.telegramHeight' },
-            samples: { $push: '$$ROOT' }
-          }
-        },
-        { $sort: { count: -1 } },
-        { $limit: 20 }
-      ]);
+            {
+                $group: {
+                    _id: '$sessionId',
+                    userId: { $first: '$userId' },
+                    deviceInfo: { $first: '$deviceInfo' },
+                    errorCount: { $sum: 1 },
+                    firstError: { $min: '$createdAt' },
+                    lastError: { $max: '$createdAt' },
+                    categories: { $addToSet: '$category' },
+                    messages: { $push: '$message' }
+                }
+            },
+            { $sort: { errorCount: -1, lastError: -1 } },
+            { $limit: parseInt(limit) }
+        ]);
+
+        res.json({
+            success: true,
+            period: `${hours} hours`,
+            issuesFound: iosIssues.length,
+            issues: iosIssues
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка получения iOS проблем:', error);
+        res.status(500).json({
+            error: 'Failed to get iOS issues',
+            details: error.message
+        });
     }
-
-    res.json({
-      success: true,
-      data: analysisData,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    logger.error('❌ [DEBUG] Failed to get viewport analysis:', error);
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get viewport analysis',
-      details: error.message
-    });
-  }
 });
 
 /**
- * 🗑️ DELETE /api/debug/viewport/clear - Очистка старых логов
- * 
- * Удаляет старые записи viewport логов для экономии места
+ * @route GET /api/debug/reports/navigation-problems
+ * @description Генерация отчета по проблемам навигации
+ * @access Private (для админов)
  */
-router.delete('/viewport/clear', async (req, res) => {
-  try {
-    const { days = 30 } = req.query;
-    
-    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    
-    const result = await ViewportLog.deleteMany({
-      timestamp: { $lt: cutoffDate }
-    });
+router.get('/reports/navigation-problems', async (req, res) => {
+    try {
+        const { days = 7 } = req.query;
+        const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    logger.info('🗑️ [DEBUG] Viewport logs cleaned:', {
-      deletedCount: result.deletedCount,
-      cutoffDate,
-      days
-    });
+        // Статистика по устройствам
+        const deviceStats = await DebugLog.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: sinceDate },
+                    category: 'NAVIGATION',
+                    level: { $in: ['ERROR', 'CRITICAL'] }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        isIOS: '$deviceInfo.isIOS',
+                        iosVersion: '$deviceInfo.iosVersion',
+                        deviceModel: '$deviceInfo.deviceModel'
+                    },
+                    errorCount: { $sum: 1 },
+                    sessionCount: { $addToSet: '$sessionId' }
+                }
+            },
+            {
+                $project: {
+                    device: '$_id',
+                    errorCount: 1,
+                    sessionCount: { $size: '$sessionCount' }
+                }
+            },
+            { $sort: { errorCount: -1 } }
+        ]);
 
-    res.json({
-      success: true,
-      message: `Deleted ${result.deletedCount} old viewport logs`,
-      deletedCount: result.deletedCount,
-      cutoffDate
-    });
+        // Самые частые ошибки
+        const topErrors = await DebugLog.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: sinceDate },
+                    category: 'NAVIGATION',
+                    level: { $in: ['ERROR', 'CRITICAL'] }
+                }
+            },
+            {
+                $group: {
+                    _id: '$message',
+                    count: { $sum: 1 },
+                    sessions: { $addToSet: '$sessionId' },
+                    lastOccurrence: { $max: '$createdAt' }
+                }
+            },
+            {
+                $project: {
+                    message: '$_id',
+                    count: 1,
+                    sessionCount: { $size: '$sessions' },
+                    lastOccurrence: 1
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 20 }
+        ]);
 
-  } catch (error) {
-    logger.error('❌ [DEBUG] Failed to clear viewport logs:', error);
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to clear viewport logs',
-      details: error.message
-    });
-  }
+        res.json({
+            success: true,
+            period: `${days} days`,
+            report: {
+                deviceStats,
+                topErrors,
+                summary: {
+                    totalDeviceConfigs: deviceStats.length,
+                    totalErrorTypes: topErrors.length,
+                    totalSessions: deviceStats.reduce((sum, stat) => sum + stat.sessionCount, 0),
+                    totalErrors: deviceStats.reduce((sum, stat) => sum + stat.errorCount, 0)
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Ошибка генерации отчета:', error);
+        res.status(500).json({
+            error: 'Failed to generate navigation problems report',
+            details: error.message
+        });
+    }
 });
 
-// ===========================================
-// 🛠️ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ===========================================
-
 /**
- * Определить тип проблемы viewport
+ * @route DELETE /api/debug/cleanup
+ * @description Очистка старых debug данных
+ * @access Private (для админов)
  */
-function determineProblemType(viewport, problem) {
-  const diff = viewport.difference;
-  
-  if (problem.type) return problem.type;
-  
-  if (diff > 10) return 'empty_space_bottom';
-  if (diff < -10) return 'content_overflow';
-  if (Math.abs(diff) < 10) return 'height_mismatch';
-  
-  return 'scroll_issue';
-}
+router.delete('/cleanup', async (req, res) => {
+    try {
+        const { days = 7 } = req.query;
+        const beforeDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        
+        const result = await DebugLog.deleteMany({
+            createdAt: { $lt: beforeDate }
+        });
+        
+        // Очищаем активные сессии
+        debugService.cleanupOldSessions();
+        
+        res.json({
+            success: true,
+            message: `Cleaned up debug data older than ${days} days`,
+            deletedLogs: result.deletedCount
+        });
 
-/**
- * Определить серьезность проблемы
- */
-function determineSeverity(difference) {
-  const abs = Math.abs(difference);
-  
-  if (abs < 10) return 'minor';
-  if (abs < 50) return 'moderate';
-  return 'severe';
-}
-
-/**
- * Определить платформу по User Agent
- */
-function detectPlatform(userAgent) {
-  if (/iPhone|iPad|iPod/i.test(userAgent)) return 'iOS';
-  if (/Android/i.test(userAgent)) return 'Android';
-  if (/Windows|Mac|Linux/i.test(userAgent)) return 'Desktop';
-  return 'Unknown';
-}
-
-/**
- * Определить браузер по User Agent
- */
-function detectBrowser(userAgent) {
-  if (/TelegramWebApp/i.test(userAgent)) return 'Telegram';
-  if (/Chrome/i.test(userAgent)) return 'Chrome';
-  if (/Safari/i.test(userAgent)) return 'Safari';
-  if (/Firefox/i.test(userAgent)) return 'Firefox';
-  return 'Unknown';
-}
-
-/**
- * Сгенерировать описание проблемы
- */
-function generateProblemDescription(viewport, problemType) {
-  const diff = viewport.difference;
-  
-  switch (problemType) {
-    case 'empty_space_bottom':
-      return `Empty space at bottom: ${diff}px gap between content and navigation`;
-    case 'content_overflow':
-      return `Content overflow: ${Math.abs(diff)}px content hidden below viewport`;
-    case 'height_mismatch':
-      return `Height calculation mismatch: ${diff}px difference in expected vs actual`;
-    case 'scroll_issue':
-      return `Scroll behavior issue with ${diff}px viewport difference`;
-    default:
-      return `Viewport issue: ${diff}px difference detected`;
-  }
-}
-
-/**
- * 🔧 ОБНОВЛЕНО: Получить рекомендацию по исправлению с учетом размеров
- */
-function getRecommendation(problemType, viewport, sizes) {
-  let recommendations = [];
-  
-  // Базовые рекомендации по типу проблемы
-  switch (problemType) {
-    case 'empty_space_bottom':
-      recommendations.push('Consider reducing bottom padding or adjusting content height calculation');
-      break;
-    case 'content_overflow':
-      recommendations.push('Increase content container height or enable scrolling');
-      break;
-    case 'height_mismatch':
-      recommendations.push('Review CSS calc() formulas and Telegram viewport integration');
-      break;
-    case 'scroll_issue':
-      recommendations.push('Check scroll container configuration and overflow settings');
-      break;
-    default:
-      recommendations.push('Review viewport height calculation logic');
-  }
-  
-  // 🔧 НОВОЕ: Рекомендации на основе анализа размеров
-  if (sizes?.comparison) {
-    const headerDiff = sizes.comparison.headerDifference || 0;
-    const navDiff = sizes.comparison.navDifference || 0;
-    
-    if (Math.abs(headerDiff) > 5) {
-      recommendations.push(`Update --header-height CSS variable from ${sizes.css?.headerHeight}px to ${sizes.real?.headerHeight}px`);
+    } catch (error) {
+        console.error('❌ Ошибка очистки debug данных:', error);
+        res.status(500).json({
+            error: 'Failed to cleanup debug data',
+            details: error.message
+        });
     }
-    
-    if (Math.abs(navDiff) > 5) {
-      recommendations.push(`Update --bottom-nav-height CSS variable from ${sizes.css?.bottomNavHeight}px to ${sizes.real?.bottomNavHeight}px`);
-    }
-    
-    if (Math.abs(headerDiff) > 5 || Math.abs(navDiff) > 5) {
-      recommendations.push('CSS variables do not match real element sizes - this is likely the root cause');
-    }
-  }
-  
-  return recommendations.join('. ');
-}
+});
 
 module.exports = router;
