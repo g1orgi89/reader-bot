@@ -347,14 +347,25 @@ class ReaderApp {
         console.log('🔄 Инициализация роутинга...');
         
         // Определяем начальную страницу
-        const user = this.state.get('user.profile');
         const profile = this.state.get('user.profile');
-        
         let initialRoute = '/home';
         
-        // Если пользователь новый - показываем онбординг
-        if (!profile?.isOnboardingCompleted) {
-            initialRoute = '/onboarding';
+        try {
+            // Проверяем статус онбординга через API
+            const onboardingStatus = await this.api.checkOnboardingStatus();
+            console.log('📊 Статус онбординга:', onboardingStatus);
+            
+            // Если онбординг не завершен - показываем онбординг
+            if (!onboardingStatus.completed && !profile?.isOnboardingCompleted) {
+                initialRoute = '/onboarding';
+                console.log('🎯 Перенаправляем на онбординг');
+            }
+        } catch (error) {
+            console.warn('⚠️ Ошибка проверки статуса онбординга:', error);
+            // Fallback на локальную проверку
+            if (!profile?.isOnboardingCompleted) {
+                initialRoute = '/onboarding';
+            }
         }
         
         if (this.router && typeof this.router.init === 'function') {
@@ -537,7 +548,7 @@ class ReaderApp {
                 firstName: 'Тестер',
                 username: 'debug_user',
                 isDebug: true,
-                isOnboardingCompleted: true // Пропускаем онбординг в debug режиме
+                isOnboardingCompleted: false // Показываем онбординг для тестирования
             },
             isAuthenticated: true
         });
