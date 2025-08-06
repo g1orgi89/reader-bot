@@ -15,6 +15,7 @@ process.on('unhandledRejection', err => {
 });
 
 // Импорт конфигурации и типов
+const express = require('express');
 const { config } = require('./config');
 const { ERROR_CODES } = require('./types');
 
