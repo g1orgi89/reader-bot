@@ -218,27 +218,47 @@ class ReaderApp {
                 return;
             }
             
-            // Получаем данные пользователя из Telegram
+            // ИСПРАВЛЕНО: Получаем реальные данные пользователя из Telegram
             let telegramUser = null;
+            let initData = '';
             
             if (this.telegram && typeof this.telegram.getUser === 'function') {
                 telegramUser = this.telegram.getUser();
+                initData = this.telegram.getInitData();
             }
             
-            if (!telegramUser) {
-                console.warn('⚠️ Данные пользователя Telegram недоступны, переход в debug режим');
-                this.state.set('debugMode', true);
-                this.createDebugUser();
-                return;
+            // ИСПРАВЛЕНО: Строгая проверка данных Telegram
+            if (!telegramUser || !telegramUser.id || telegramUser.is_debug) {
+                console.warn('⚠️ Данные пользователя Telegram недоступны или это debug пользователь');
+                
+                // ИСПРАВЛЕНО: Если нет реальных данных, выбрасываем ошибку вместо fallback на debug
+                if (window.Telegram?.WebApp) {
+                    throw new Error('Не удалось получить данные пользователя от Telegram. Пожалуйста, перезапустите приложение из Telegram.');
+                } else {
+                    // Только в случае отсутствия Telegram WebApp переходим в debug режим
+                    console.log('🧪 Telegram WebApp недоступен, переходим в debug режим');
+                    this.state.set('debugMode', true);
+                    this.createDebugUser();
+                    return;
+                }
             }
             
-            // Отправляем данные на backend для аутентификации
-            const authResponse = await this.api.post('/auth/telegram', {
-                telegramData: this.telegram.getInitData(),
-                user: telegramUser
+            console.log('📊 Отправляем данные Telegram на backend для аутентификации:', {
+                userId: telegramUser.id,
+                firstName: telegramUser.first_name,
+                username: telegramUser.username
             });
             
-            // Сохраняем токен аутентификации
+            // ИСПРАВЛЕНО: Отправляем данные на правильный endpoint backend'а
+            const authResponse = await this.api.authenticateWithTelegram(initData, telegramUser);
+            
+            if (!authResponse || !authResponse.token) {
+                throw new Error('Backend не вернул токен аутентификации');
+            }
+            
+            console.log('✅ Получен токен аутентификации от backend');
+            
+            // ИСПРАВЛЕНО: Сохраняем токен аутентификации в API сервисе
             this.api.setAuthToken(authResponse.token);
             
             // Сохраняем данные пользователя в состоянии
@@ -252,10 +272,16 @@ class ReaderApp {
         } catch (error) {
             console.error('❌ Ошибка аутентификации:', error);
             
-            // В любом случае создаем debug пользователя
-            console.log('🧪 Создаем debug пользователя из-за ошибки аутентификации');
-            this.state.set('debugMode', true);
-            this.createDebugUser();
+            // ИСПРАВЛЕНО: Показываем пользователю конкретную ошибку
+            if (error.message.includes('Telegram')) {
+                this.showErrorMessage(`Ошибка получения данных от Telegram: ${error.message}`);
+            } else if (error.message.includes('Backend') || error.message.includes('токен')) {
+                this.showErrorMessage(`Ошибка сервера: ${error.message}. Попробуйте позже.`);
+            } else {
+                this.showErrorMessage(`Ошибка аутентификации: ${error.message}`);
+            }
+            
+            throw error; // Re-throw для остановки инициализации
         }
     }
 

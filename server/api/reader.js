@@ -5,6 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 
 // Импорты моделей
 const UserProfile = require('../models/userProfile');
@@ -19,36 +20,55 @@ const QuoteHandler = require('../services/quoteHandler');
 // Инициализация обработчика цитат
 const quoteHandler = new QuoteHandler();
 
+// JWT секрет для подписи токенов
+const JWT_SECRET = process.env.JWT_SECRET || 'reader_bot_secret_key_2024';
+
 /**
- * Authentication middleware для защищенных routes
+ * ИСПРАВЛЕНО: Authentication middleware для защищенных routes с JWT
  */
 const authenticateUser = async (req, res, next) => {
     try {
-        const telegramData = req.body.telegramData || req.headers['x-telegram-data'];
-        const user = req.body.user || req.headers['x-telegram-user'];
+        // ИСПРАВЛЕНО: Получаем токен из заголовка Authorization
+        const authHeader = req.headers.authorization;
         
-        if (!user || !user.id) {
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ 
                 success: false, 
-                error: 'Telegram user data required' 
+                error: 'Authorization token required' 
             });
         }
         
-        const userId = user.id.toString();
-        const userProfile = await UserProfile.findOne({ userId });
-        if (!userProfile) {
+        const token = authHeader.substring(7); // Убираем "Bearer "
+        
+        // ИСПРАВЛЕНО: Проверяем JWT токен
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            const userId = decoded.userId;
+            
+            // Находим пользователя в базе
+            const userProfile = await UserProfile.findOne({ userId });
+            if (!userProfile) {
+                return res.status(401).json({ 
+                    success: false, 
+                    error: 'User not found. Complete onboarding first.' 
+                });
+            }
+            
+            req.userId = userId;
+            req.user = userProfile;
+            req.telegramUser = decoded.telegramUser;
+            
+            next();
+        } catch (jwtError) {
+            console.error('❌ JWT verification failed:', jwtError.message);
             return res.status(401).json({ 
                 success: false, 
-                error: 'User not found. Complete onboarding first.' 
+                error: 'Invalid or expired token' 
             });
         }
         
-        req.userId = userId;
-        req.user = userProfile;
-        req.telegramUser = user;
-        
-        next();
     } catch (error) {
+        console.error('❌ Authentication middleware error:', error);
         return res.status(401).json({ 
             success: false, 
             error: 'Authentication failed' 
@@ -58,6 +78,19 @@ const authenticateUser = async (req, res, next) => {
 
 // Применяем middleware к защищенным routes
 router.use(['/profile', '/quotes', '/reports', '/community', '/catalog', '/stats'], authenticateUser);
+
+/**
+ * @description Health check endpoint
+ * @route GET /api/reader/health
+ */
+router.get('/health', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Reader API is healthy',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+    });
+});
 
 /**
  * @description Telegram аутентификация для Mini App
@@ -76,10 +109,26 @@ router.post('/auth/telegram', async (req, res) => {
             });
         }
 
-        // Проверяем, существует ли пользователь в базе
-        const userProfile = await UserProfile.findOne({ userId: user.id.toString() });
+        // ИСПРАВЛЕНО: Проверяем, существует ли пользователь в базе
+        const userId = user.id.toString();
+        let userProfile = await UserProfile.findOne({ userId });
         
-        // Простая аутентификация для начала
+        // ИСПРАВЛЕНО: Создаем JWT токен
+        const tokenPayload = {
+            userId: userId,
+            telegramUser: {
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                username: user.username
+            },
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 дней
+        };
+        
+        const token = jwt.sign(tokenPayload, JWT_SECRET);
+        
+        // ИСПРАВЛЕНО: Формируем ответ с реальными данными
         const authData = {
             success: true,
             user: {
@@ -90,11 +139,18 @@ router.post('/auth/telegram', async (req, res) => {
                 telegramId: user.id,
                 isOnboardingCompleted: userProfile ? userProfile.isOnboardingComplete : false
             },
-            token: `temp_token_${user.id}_${Date.now()}`, // Временный токен
-            isOnboardingCompleted: userProfile ? userProfile.isOnboardingComplete : false
+            token: token,
+            isOnboardingCompleted: userProfile ? userProfile.isOnboardingComplete : false,
+            expiresIn: '30d'
         };
 
-        console.log('✅ Auth Success:', authData);
+        console.log('✅ Auth Success:', {
+            userId: authData.user.id,
+            firstName: authData.user.firstName,
+            isOnboardingCompleted: authData.isOnboardingCompleted,
+            tokenGenerated: !!authData.token
+        });
+        
         res.json(authData);
 
     } catch (error) {
