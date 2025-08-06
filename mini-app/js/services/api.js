@@ -35,6 +35,11 @@ class ApiService {
         // 🔍 Debug режим
         this.debug = this.isDebugMode();
         
+        // 💾 НОВОЕ: Инициализация localStorage для debug режима
+        if (this.debug) {
+            this.initializeDebugStorage();
+        }
+        
         this.log('🚀 API Service инициализирован', { baseURL: this.baseURL, debug: this.debug });
     }
 
@@ -49,6 +54,98 @@ class ApiService {
                hostname === '127.0.0.1' ||
                hostname.includes('ngrok') ||
                hostname.includes('vercel.app');
+    }
+
+    /**
+     * 💾 НОВОЕ: Инициализация localStorage для debug режима
+     */
+    initializeDebugStorage() {
+        const storageKey = 'reader_bot_debug_data';
+        let debugData = localStorage.getItem(storageKey);
+        
+        if (!debugData) {
+            // Инициализируем с начальными данными
+            debugData = {
+                quotes: [],
+                stats: {
+                    totalQuotes: 0,
+                    thisWeek: 0,
+                    currentStreak: 0,
+                    longestStreak: 0,
+                    favoriteAuthors: [],
+                    totalBooks: 15,
+                    readingGoal: 50,
+                    achievements: 8
+                },
+                profile: {
+                    id: 12345,
+                    firstName: 'Тестер',
+                    username: 'debug_user',
+                    email: 'test@example.com',
+                    isOnboardingCompleted: true,
+                    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                    preferences: {
+                        theme: 'light',
+                        notifications: true
+                    }
+                },
+                lastUpdated: Date.now()
+            };
+            localStorage.setItem(storageKey, JSON.stringify(debugData));
+            this.log('💾 Инициализированы debug данные в localStorage');
+        } else {
+            this.log('💾 Загружены существующие debug данные из localStorage');
+        }
+    }
+
+    /**
+     * 💾 НОВОЕ: Получение debug данных из localStorage
+     */
+    getDebugStorage() {
+        const storageKey = 'reader_bot_debug_data';
+        const data = localStorage.getItem(storageKey);
+        return data ? JSON.parse(data) : null;
+    }
+
+    /**
+     * 💾 НОВОЕ: Сохранение debug данных в localStorage
+     */
+    saveDebugStorage(data) {
+        const storageKey = 'reader_bot_debug_data';
+        data.lastUpdated = Date.now();
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        this.log('💾 Debug данные сохранены в localStorage');
+    }
+
+    /**
+     * ✨ НОВОЕ: Генерация AI анализа для цитаты
+     */
+    generateAIAnalysis(quoteText, author) {
+        const analyses = [
+            "Эта цитата отражает ваш глубокий интерес к человеческой природе и стремление к пониманию смысла жизни.",
+            "Ваш выбор этой мысли показывает склонность к философским размышлениям и поиску мудрости.",
+            "Данная цитата резонирует с вашим внутренним стремлением к самопознанию и личностному росту.",
+            "Эти слова отражают ваше желание найти гармонию между разумом и чувствами.",
+            "Ваш интерес к этой мысли демонстрирует готовность к глубоким изменениям в жизни.",
+            "Эта цитата показывает ваше понимание важности осознанного отношения к жизни.",
+            "Выбор этих слов отражает ваш поиск баланса между внутренним миром и внешними обстоятельствами."
+        ];
+
+        const randomIndex = Math.floor(Math.random() * analyses.length);
+        return {
+            summary: analyses[randomIndex],
+            insights: [
+                "Заметен интерес к глубоким жизненным вопросам",
+                "Проявляется стремление к осознанности",
+                "Видна склонность к рефлексии и самоанализу"
+            ],
+            mood: {
+                type: "contemplative",
+                emoji: "🤔",
+                description: "Созерцательное настроение, склонность к размышлениям"
+            },
+            generatedAt: new Date().toISOString()
+        };
     }
 
     /**
@@ -167,8 +264,8 @@ class ApiService {
     }
 
     /**
-     * 🧪 Получение тестовых данных (заглушки)
-     * НОВЫЙ: Централизованные заглушки для всех endpoint'ов
+     * 🧪 Получение тестовых данных (заглушки) - ИСПРАВЛЕНО: С localStorage
+     * НОВЫЙ: Централизованные заглушки для всех endpoint'ов с персистентностью
      */
     getMockData(endpoint, method, data) {
         // Имитируем задержку сети
@@ -181,21 +278,24 @@ class ApiService {
     }
 
     /**
-     * 🎭 Генерация mock данных для разных endpoint'ов
-     * ОБНОВЛЕНО: Добавлена поддержка популярных книг
+     * 🎭 Генерация mock данных для разных endpoint'ов - ИСПРАВЛЕНО: С localStorage
+     * ОБНОВЛЕНО: Добавлена поддержка популярных книг и персистентных данных
      */
     generateMockResponse(endpoint, method, data) {
         this.log(`🎭 Генерируем mock для ${endpoint}`);
 
+        // 💾 Получаем персистентные данные
+        const debugStorage = this.getDebugStorage();
+
         // Профиль пользователя
         if (endpoint === '/profile') {
-            return {
+            return debugStorage?.profile || {
                 id: 12345,
                 firstName: 'Тестер',
                 username: 'debug_user',
                 email: 'test@example.com',
                 isOnboardingCompleted: true,
-                createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 дней назад
+                createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
                 preferences: {
                     theme: 'light',
                     notifications: true
@@ -203,47 +303,91 @@ class ApiService {
             };
         }
 
-        // Статистика пользователя
+        // Статистика пользователя - ИЗ LOCALSTORAGE
         if (endpoint === '/stats') {
-            return {
-                totalQuotes: 127,
-                thisWeek: 8,
-                currentStreak: 5,
-                longestStreak: 23,
-                favoriteAuthors: ['Эрих Фромм', 'Карл Юнг', 'Виктор Франкл'],
+            return debugStorage?.stats || {
+                totalQuotes: 0,
+                thisWeek: 0,
+                currentStreak: 0,
+                longestStreak: 0,
+                favoriteAuthors: [],
                 totalBooks: 15,
                 readingGoal: 50,
                 achievements: 8
             };
         }
 
-        // Последние цитаты
-        if (endpoint.includes('/quotes/recent')) {
-            return {
-                quotes: [
-                    {
-                        id: 1,
-                        text: "Смысл жизни заключается в том, чтобы найти свой дар. Цель жизни — отдать его.",
-                        author: "Пабло Пикассо",
-                        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 часа назад
-                        source: "mini_app"
-                    },
-                    {
-                        id: 2,
-                        text: "Будущее принадлежит тем, кто верит в красоту своих мечт.",
-                        author: "Элеонора Рузвельт",
-                        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 день назад
-                        source: "telegram_bot"
-                    },
-                    {
-                        id: 3,
-                        text: "Единственный способ делать великую работу — любить то, что ты делаешь.",
-                        author: "Стив Джобс",
-                        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 дня назад
-                        source: "mini_app"
-                    }
-                ]
-            };
+        // ЦИТАТЫ - ИЗ LOCALSTORAGE
+        if (endpoint.includes('/quotes')) {
+            if (method === 'POST') {
+                // ДОБАВЛЕНИЕ ЦИТАТЫ - СОХРАНЯЕМ В LOCALSTORAGE
+                const newQuote = {
+                    id: Date.now().toString(),
+                    _id: Date.now().toString(),
+                    text: data.text,
+                    author: data.author,
+                    source: data.source || 'mini_app',
+                    createdAt: new Date().toISOString(),
+                    isFavorite: false,
+                    // ✨ НОВОЕ: Добавляем AI анализ
+                    aiAnalysis: this.generateAIAnalysis(data.text, data.author)
+                };
+
+                // Сохраняем в localStorage
+                const currentData = this.getDebugStorage();
+                currentData.quotes.unshift(newQuote); // Добавляем в начало
+                
+                // Обновляем статистику
+                currentData.stats.totalQuotes = currentData.quotes.length;
+                currentData.stats.thisWeek = currentData.quotes.filter(q => {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    return new Date(q.createdAt) > weekAgo;
+                }).length;
+
+                // Обновляем список любимых авторов
+                const authorCounts = {};
+                currentData.quotes.forEach(q => {
+                    authorCounts[q.author] = (authorCounts[q.author] || 0) + 1;
+                });
+                currentData.stats.favoriteAuthors = Object.keys(authorCounts)
+                    .sort((a, b) => authorCounts[b] - authorCounts[a])
+                    .slice(0, 3);
+
+                this.saveDebugStorage(currentData);
+                this.log('💾 Цитата сохранена в localStorage:', newQuote);
+                
+                return newQuote;
+            } else {
+                // ПОЛУЧЕНИЕ ЦИТАТ - ИЗ LOCALSTORAGE
+                const quotes = debugStorage?.quotes || [];
+                
+                if (endpoint.includes('/quotes/recent')) {
+                    return {
+                        quotes: quotes.slice(0, 10) // Последние 10
+                    };
+                }
+                
+                if (endpoint.includes('/quotes/search')) {
+                    // ПОИСК ЦИТАТ
+                    const searchQuery = data?.q || '';
+                    if (!searchQuery) return { quotes: [] };
+                    
+                    const filteredQuotes = quotes.filter(q => 
+                        q.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        q.author.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                    
+                    return { quotes: filteredQuotes };
+                }
+                
+                // Обычный запрос всех цитат
+                return {
+                    items: quotes,
+                    quotes: quotes,
+                    total: quotes.length
+                };
+            }
         }
 
         // Каталог книг
@@ -590,7 +734,7 @@ class ApiService {
         if (this.debug) {
             this.log('🧪 DEBUG: Возвращаем статус онбординга');
             return {
-                completed: false,
+                completed: true, // ✅ ИСПРАВЛЕНО: Всегда true в debug режиме
                 user: {
                     id: 12345,
                     firstName: 'Тестер',
@@ -656,9 +800,15 @@ class ApiService {
     }
 
     /**
-     * 📊 Получить статистику пользователя
+     * 📊 Получить статистику пользователя - ИСПРАВЛЕНО: Поддержка debug режима
      */
     async getStats() {
+        if (this.debug) {
+            // В debug режиме используем mock с localStorage
+            this.log('🧪 DEBUG: Загружаем статистику из localStorage');
+            return this.getMockData('/stats', 'GET', {});
+        }
+        
         return this.request('GET', '/stats');
     }
 
@@ -674,18 +824,31 @@ class ApiService {
     // ===========================================
 
     /**
-     * ➕ Добавить новую цитату
+     * ➕ Добавить новую цитату - ИСПРАВЛЕНО: Правильная обработка debug режима
      */
     async addQuote(quoteData) {
         // Очищаем кэш цитат после добавления
         this.clearQuotesCache();
+        
+        if (this.debug) {
+            // В debug режиме используем mock с localStorage
+            this.log('🧪 DEBUG: Сохраняем цитату в localStorage');
+            return this.getMockData('/quotes', 'POST', quoteData);
+        }
+        
         return this.request('POST', '/quotes', quoteData);
     }
 
     /**
-     * 📖 Получить цитаты пользователя
+     * 📖 Получить цитаты пользователя - ИСПРАВЛЕНО: Поддержка debug режима
      */
     async getQuotes(options = {}) {
+        if (this.debug) {
+            // В debug режиме используем mock с localStorage
+            this.log('🧪 DEBUG: Загружаем цитаты из localStorage');
+            return this.getMockData('/quotes', 'GET', options);
+        }
+        
         const params = new URLSearchParams();
         
         if (options.limit) params.append('limit', options.limit);
@@ -725,9 +888,15 @@ class ApiService {
     }
 
     /**
-     * 🔍 Поиск цитат
+     * 🔍 Поиск цитат - ИСПРАВЛЕНО: Поддержка debug режима
      */
     async searchQuotes(query, options = {}) {
+        if (this.debug) {
+            // В debug режиме используем mock с localStorage
+            this.log('🧪 DEBUG: Поиск цитат в localStorage');
+            return this.getMockData('/quotes/search', 'GET', { q: query, ...options });
+        }
+        
         const params = new URLSearchParams({ q: query });
         
         if (options.limit) params.append('limit', options.limit);
