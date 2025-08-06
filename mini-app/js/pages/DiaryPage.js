@@ -44,6 +44,9 @@ class DiaryPage {
         this.statsLoaded = false;
         this.statsLoading = false;
         
+        // ✅ НОВОЕ: Debug режим (синхронизируется с API)
+        this.debug = this.api?.debug || false;
+        
         this.init();
     }
     
@@ -1007,6 +1010,248 @@ class DiaryPage {
         this.quotesLoading = false;
         this.statsLoaded = false;
         this.statsLoading = false;
+    }
+
+    /**
+     * ✏️ Редактирование цитаты
+     */
+    editQuote(quoteId) {
+        try {
+            this.log('✏️ Редактирование цитаты:', quoteId);
+            
+            const quotes = this.state.get('quotes.items') || [];
+            const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+            
+            if (!quote) {
+                console.error('❌ Цитата не найдена:', quoteId);
+                return;
+            }
+
+            // ✅ НОВОЕ: Простое редактирование через prompt (для MVP)
+            // TODO: В будущем заменить на модальное окно
+            const newText = prompt('Редактировать текст цитаты:', quote.text);
+            if (newText === null || newText.trim() === '') return; // Отмена или пустой текст
+            
+            const newAuthor = prompt('Редактировать автора:', quote.author || '');
+            if (newAuthor === null) return; // Отмена
+            
+            // Обновляем цитату локально
+            quote.text = newText.trim();
+            quote.author = newAuthor.trim();
+            quote.isEdited = true;
+            quote.editedAt = new Date().toISOString();
+            
+            // Обновляем state
+            this.state.set('quotes.items', [...quotes]);
+            
+            // ✅ НОВОЕ: Обновляем в localStorage для debug режима
+            if (this.debug && this.api.debug) {
+                const debugStorage = this.api.getDebugStorage();
+                const debugQuote = debugStorage.quotes.find(q => q.id === quoteId || q._id === quoteId);
+                if (debugQuote) {
+                    debugQuote.text = newText.trim();
+                    debugQuote.author = newAuthor.trim();
+                    debugQuote.isEdited = true;
+                    debugQuote.editedAt = new Date().toISOString();
+                    this.api.saveDebugStorage(debugStorage);
+                }
+            } else {
+                // ✅ НОВОЕ: В продакшн режиме отправляем на сервер
+                this.api.updateQuote(quoteId, {
+                    text: newText.trim(),
+                    author: newAuthor.trim()
+                }).catch(error => {
+                    console.error('❌ Ошибка обновления цитаты на сервере:', error);
+                    // В случае ошибки возвращаем старые значения (оптимистичное обновление)
+                });
+            }
+            
+            // Обновляем UI
+            this.rerender();
+            this.telegram.hapticFeedback('success');
+            this.log('✅ Цитата обновлена');
+            
+        } catch (error) {
+            console.error('❌ Ошибка редактирования цитаты:', error);
+            this.telegram.hapticFeedback('error');
+        }
+    }
+
+    /**
+     * 🗑️ Удаление цитаты
+     */
+    deleteQuote(quoteId) {
+        try {
+            this.log('🗑️ Удаление цитаты:', quoteId);
+            
+            const quotes = this.state.get('quotes.items') || [];
+            const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+            
+            if (!quote) {
+                console.error('❌ Цитата не найдена:', quoteId);
+                return;
+            }
+
+            // ✅ НОВОЕ: Подтверждение удаления
+            const truncatedText = quote.text.substring(0, 100) + (quote.text.length > 100 ? '...' : '');
+            const confirmText = `Удалить цитату?\n\n"${truncatedText}"\n\n— ${quote.author}`;
+            
+            if (!confirm(confirmText)) {
+                return; // Пользователь отменил удаление
+            }
+            
+            // Удаляем из локального state
+            const updatedQuotes = quotes.filter(q => q._id !== quoteId && q.id !== quoteId);
+            this.state.set('quotes.items', updatedQuotes);
+            
+            // ✅ НОВОЕ: Обновляем статистику
+            const currentStats = this.state.get('stats') || {};
+            const updatedStats = {
+                ...currentStats,
+                totalQuotes: Math.max((currentStats.totalQuotes || 0) - 1, 0)
+            };
+            this.state.set('stats', updatedStats);
+            
+            // ✅ НОВОЕ: Удаляем из localStorage для debug режима
+            if (this.debug && this.api.debug) {
+                const debugStorage = this.api.getDebugStorage();
+                debugStorage.quotes = debugStorage.quotes.filter(q => q.id !== quoteId && q._id !== quoteId);
+                debugStorage.stats.totalQuotes = Math.max(debugStorage.stats.totalQuotes - 1, 0);
+                this.api.saveDebugStorage(debugStorage);
+            } else {
+                // ✅ НОВОЕ: В продакшн режиме отправляем на сервер
+                this.api.deleteQuote(quoteId).catch(error => {
+                    console.error('❌ Ошибка удаления цитаты с сервера:', error);
+                    // В случае ошибки возвращаем цитату обратно (оптимистичное обновление)
+                    this.state.set('quotes.items', quotes);
+                    this.state.set('stats', currentStats);
+                    this.rerender();
+                });
+            }
+            
+            // Обновляем UI
+            this.rerender();
+            this.telegram.hapticFeedback('success');
+            this.log('✅ Цитата удалена');
+            
+        } catch (error) {
+            console.error('❌ Ошибка удаления цитаты:', error);
+            this.telegram.hapticFeedback('error');
+        }
+    }
+
+    /**
+     * ⋯ Показать меню действий с цитатой
+     */
+    showQuoteMenu(quoteId) {
+        try {
+            this.log('⋯ Показать меню для цитаты:', quoteId);
+            
+            const quotes = this.state.get('quotes.items') || [];
+            const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+            
+            if (!quote) {
+                console.error('❌ Цитата не найдена:', quoteId);
+                return;
+            }
+
+            // ✅ НОВОЕ: Простое меню через confirm/prompt (для MVP)
+            // TODO: В будущем заменить на красивое выпадающее меню
+            const actions = [
+                '✏️ Редактировать',
+                '🗑️ Удалить',
+                '📋 Копировать',
+                '❌ Отмена'
+            ];
+            
+            const truncatedText = quote.text.substring(0, 100) + (quote.text.length > 100 ? '...' : '');
+            const choice = prompt(
+                `Действия с цитатой:\n\n"${truncatedText}"\n\n— ${quote.author}\n\n` +
+                'Выберите действие:\n' +
+                '1 - Редактировать\n' +
+                '2 - Удалить\n' +
+                '3 - Копировать\n' +
+                '0 - Отмена',
+                '0'
+            );
+            
+            switch (choice) {
+                case '1':
+                    this.editQuote(quoteId);
+                    break;
+                case '2':
+                    this.deleteQuote(quoteId);
+                    break;
+                case '3':
+                    this.copyQuoteToClipboard(quote);
+                    break;
+                default:
+                    // Отмена или неверный выбор
+                    break;
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка показа меню цитаты:', error);
+            this.telegram.hapticFeedback('error');
+        }
+    }
+
+    /**
+     * 📋 Копирование цитаты в буфер обмена
+     */
+    copyQuoteToClipboard(quote) {
+        try {
+            const textToCopy = `"${quote.text}"\n\n— ${quote.author}`;
+            
+            // Пытаемся использовать современный Clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    this.telegram.hapticFeedback('success');
+                    // TODO: Показать уведомление о копировании
+                    console.log('✅ Цитата скопирована в буфер обмена');
+                }).catch(error => {
+                    console.error('❌ Ошибка копирования:', error);
+                    this.fallbackCopyToClipboard(textToCopy);
+                });
+            } else {
+                // Fallback для старых браузеров
+                this.fallbackCopyToClipboard(textToCopy);
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка копирования цитаты:', error);
+            this.telegram.hapticFeedback('error');
+        }
+    }
+
+    /**
+     * 📋 Fallback копирование для старых браузеров
+     */
+    fallbackCopyToClipboard(text) {
+        try {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (successful) {
+                this.telegram.hapticFeedback('success');
+                console.log('✅ Цитата скопирована в буфер обмена (fallback)');
+            } else {
+                console.error('❌ Не удалось скопировать цитату');
+                this.telegram.hapticFeedback('error');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка fallback копирования:', error);
+            this.telegram.hapticFeedback('error');
+        }
     }
 }
 
