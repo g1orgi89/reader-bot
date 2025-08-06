@@ -82,6 +82,11 @@ const quoteSchema = new mongoose.Schema({
   editedAt: {
     type: Date
     // Дата последнего редактирования
+  },
+  isFavorite: {
+    type: Boolean,
+    default: false
+    // Добавлена ли цитата в избранное
   }
 }, {
   timestamps: true,
