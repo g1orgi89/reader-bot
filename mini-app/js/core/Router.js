@@ -9,8 +9,6 @@
  * @version 1.1.0 - УБРАНЫ ХЕДЕРЫ ДЛЯ РЕШЕНИЯ VIEWPORT ПРОБЛЕМЫ
  */
 
-import { DiaryPage } from '../pages/DiaryPage.js';
-
 /**
  * @typedef {Object} RouteConfig
  * @property {string} path - Путь маршрута
