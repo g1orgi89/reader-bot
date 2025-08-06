@@ -1030,60 +1030,58 @@ class DiaryPage {
     }
 
     /**
-     * ✏️ Редактирование цитаты
-     */
-    editQuote(quoteId) {
-        try {
-            this.log('✏️ Редактирование цитаты:', quoteId);
-            
-            const quotes = this.state.get('quotes.items') || [];
-            const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-            
-            if (!quote) {
-                console.error('❌ Цитата не найдена:', quoteId);
-                return;
-            }
-
-            // ✅ НОВОЕ: Простое редактирование через prompt (для MVP)
-            // TODO: В будущем заменить на модальное окно
-            const newText = prompt('Редактировать текст цитаты:', quote.text);
-            if (newText === null || newText.trim() === '') return; // Отмена или пустой текст
-            
-            const newAuthor = prompt('Редактировать автора:', quote.author || '');
-            if (newAuthor === null) return; // Отмена
-            
-            // Обновляем цитату локально
-            quote.text = newText.trim();
-            quote.author = newAuthor.trim();
-            quote.isEdited = true;
-            quote.editedAt = new Date().toISOString();
-            
-            // Обновляем state
-            this.state.set('quotes.items', [...quotes]);
-            
-            // ✅ ИСПРАВЛЕНО: Всегда используем реальный API
-        async editQuote(quoteId) {
-            try {
-                await this.api.updateQuote(quoteId, {
-                    text: newText.trim(),
-                    author: newAuthor.trim()
-                });
-                console.log('✅ Цитата обновлена на сервере');
-            } catch (error) {
-                console.error('❌ Ошибка обновления цитаты на сервере:', error);
-                // В случае ошибки продолжаем с локальными изменениями
-            }
-            
-            // Обновляем UI
-            this.rerender();
-            this.telegram.hapticFeedback('success');
-            this.log('✅ Цитата обновлена');
-            
-        } catch (error) {
-            console.error('❌ Ошибка редактирования цитаты:', error);
-            this.telegram.hapticFeedback('error');
+  * ✏️ Редактирование цитаты
+ */
+async editQuote(quoteId) {  // ✅ ОДНА async функция
+    try {
+        this.log('✏️ Редактирование цитаты:', quoteId);
+        
+        const quotes = this.state.get('quotes.items') || [];
+        const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+        
+        if (!quote) {
+            console.error('❌ Цитата не найдена:', quoteId);
+            return;
         }
+
+        // ✅ НОВОЕ: Простое редактирование через prompt (для MVP)
+        // TODO: В будущем заменить на модальное окно
+        const newText = prompt('Редактировать текст цитаты:', quote.text);
+        if (newText === null || newText.trim() === '') return; // Отмена или пустой текст
+        
+        const newAuthor = prompt('Редактировать автора:', quote.author || '');
+        if (newAuthor === null) return; // Отмена
+        
+        // Обновляем цитату локально
+        quote.text = newText.trim();
+        quote.author = newAuthor.trim();
+        quote.isEdited = true;
+        quote.editedAt = new Date().toISOString();
+        
+        // Обновляем state
+        this.state.set('quotes.items', [...quotes]);
+        
+        // ✅ ИСПРАВЛЕНО: Всегда используем реальный API
+        await this.api.updateQuote(quoteId, {
+            text: newText.trim(),
+            author: newAuthor.trim()
+        });
+        console.log('✅ Цитата обновлена на сервере');
+        
+        // Обновляем UI
+        this.rerender();
+        this.telegram.hapticFeedback('success');
+        this.log('✅ Цитата обновлена');
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления цитаты на сервере:', error);
+        // В случае ошибки продолжаем с локальными изменениями
+        
+        // Обновляем UI даже при ошибке API
+        this.rerender();
+        this.log('⚠️ Цитата обновлена локально');
     }
+}
 
     /**
      * 🗑️ Удаление цитаты
