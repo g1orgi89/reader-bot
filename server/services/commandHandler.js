@@ -3,7 +3,7 @@
  * @author g1orgi89
  */
 
-const QuoteHandler = require('./quoteHandler');
+const quoteHandler = require('./quoteHandler');
 const AchievementService = require('./achievementService');
 const { Quote, UserProfile } = require('../models');
 
@@ -12,7 +12,7 @@ const { Quote, UserProfile } = require('../models');
  */
 class CommandHandler {
   constructor() {
-    this.quoteHandler = new QuoteHandler();
+    this.quoteHandler = quoteHandler;
     this.achievementService = new AchievementService();
     this.reminderService = null; // Будет инициализирован позже
   }

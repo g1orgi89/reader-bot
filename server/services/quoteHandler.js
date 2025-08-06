@@ -28,7 +28,15 @@ const promptService = require('./promptService');
  */
 class QuoteHandler {
   constructor() {
+    // Flag to prevent multiple initializations
+    if (QuoteHandler.instance) {
+      return QuoteHandler.instance;
+    }
+    
     this.initializeModels();
+    
+    // Store singleton instance
+    QuoteHandler.instance = this;
   }
 
   /**
@@ -399,4 +407,10 @@ class QuoteHandler {
   }
 }
 
-module.exports = QuoteHandler;
+// Create and export singleton instance
+const quoteHandler = new QuoteHandler();
+
+// Freeze to prevent modifications
+Object.freeze(quoteHandler);
+
+module.exports = quoteHandler;

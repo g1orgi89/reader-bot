@@ -200,8 +200,8 @@ ${context}
    * @returns {Promise<void>}
    */
   static async updateUserStatistics(userId, author) {
-    const { QuoteHandler } = require('../handlers/quoteHandler');
-    const handler = new QuoteHandler();
+    const { ModernQuoteHandler } = require('../handlers/modernQuoteHandler');
+    const handler = new ModernQuoteHandler();
     await handler.updateUserStatistics(userId, author);
   }
 
@@ -211,8 +211,8 @@ ${context}
    * @returns {Promise<Array<Achievement>>} Новые достижения
    */
   static async checkAchievements(userId) {
-    const { QuoteHandler } = require('../handlers/quoteHandler');
-    const handler = new QuoteHandler();
+    const { ModernQuoteHandler } = require('../handlers/modernQuoteHandler');
+    const handler = new ModernQuoteHandler();
     return await handler.checkAchievements(userId);
   }
 
@@ -223,8 +223,8 @@ ${context}
    * @returns {Promise<void>}
    */
   static async notifyAchievements(ctx, achievements) {
-    const { QuoteHandler } = require('../handlers/quoteHandler');
-    const handler = new QuoteHandler();
+    const { ModernQuoteHandler } = require('../handlers/modernQuoteHandler');
+    const handler = new ModernQuoteHandler();
     await handler.notifyAchievements(ctx, achievements);
   }
 
@@ -263,8 +263,8 @@ ${context}
    * @returns {Promise<void>}
    */
   static async handleQuote(ctx, messageText, userProfile) {
-    const { QuoteHandler } = require('../handlers/quoteHandler');
-    const handler = new QuoteHandler();
+    const { ModernQuoteHandler } = require('../handlers/modernQuoteHandler');
+    const handler = new ModernQuoteHandler();
     await handler.handleQuote(ctx, messageText, userProfile);
   }
 

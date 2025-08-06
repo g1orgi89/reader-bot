@@ -5,7 +5,7 @@
 
 const GameificationIntegration = require('../services/gamificationIntegration');
 const AchievementService = require('../services/achievementService');
-const QuoteHandler = require('../services/quoteHandler');
+const quoteHandler = require('../services/quoteHandler');
 
 /**
  * Простые тесты геймификации
@@ -14,7 +14,7 @@ class GameificationTest {
   constructor() {
     this.gamification = GameificationIntegration;
     this.achievementService = new AchievementService();
-    this.quoteHandler = new QuoteHandler();
+    this.quoteHandler = quoteHandler;
   }
 
   /**

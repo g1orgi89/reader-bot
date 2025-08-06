@@ -3,7 +3,7 @@
  * @author g1orgi89
  */
 
-const QuoteHandler = require('./quoteHandler');
+const quoteHandler = require('./quoteHandler');
 const CommandHandler = require('./commandHandler');
 const AchievementService = require('./achievementService');
 const logger = require('../utils/logger');
@@ -13,7 +13,7 @@ const logger = require('../utils/logger');
  */
 class GameificationIntegration {
   constructor() {
-    this.quoteHandler = new QuoteHandler();
+    this.quoteHandler = quoteHandler;
     this.commandHandler = new CommandHandler();
     this.achievementService = new AchievementService();
     
