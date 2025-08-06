@@ -7,6 +7,7 @@
 const { Quote, UserProfile } = require('../models');
 const AchievementService = require('./achievementService');
 const { claudeService } = require('./claude');
+const promptService = require('./promptService');
 
 /**
  * @typedef {Object} ParsedQuote
@@ -166,21 +167,35 @@ class QuoteHandler {
   }
 
   /**
-   * 📋 NEW: Анализировать цитату через Claude AI с использованием БД категорий
+   * 📋 NEW: Анализировать цитату через Claude AI с использованием БД категорий и динамических промптов
    * @param {string} text - Текст цитаты
    * @param {string|null} author - Автор цитаты
    * @returns {Promise<QuoteAnalysis>} Анализ цитаты
    * @private
    */
   async _analyzeQuote(text, author) {
-    // Получаем актуальные категории из БД
-    const categories = await this._getAvailableCategories();
-    const categoriesList = categories.map(c => c.name).join(', ');
-
-    const prompt = `Проанализируй эту цитату как психолог Анна Бусел:\n\nЦитата: "${text}"\nАвтор: ${author || 'Неизвестен'}\n\nВерни JSON с анализом:\n{\n  "category": "одна из: ${categoriesList}",\n  "themes": ["тема1", "тема2"],\n  "sentiment": "positive/neutral/negative",\n  "insights": "краткий психологический инсайт (1-2 предложения)"\n}`;
-
     try {
-      const response = await claudeService.generateResponse(prompt, {
+      // Получаем актуальные категории из БД
+      const categories = await this._getAvailableCategories();
+      const categoriesList = categories.map(c => c.name).join(', ');
+
+      // Получаем промпт для анализа цитаты из PromptService
+      let prompt;
+      try {
+        prompt = await promptService.getActivePrompt('quote_analysis');
+      } catch (promptError) {
+        console.warn('Failed to get quote_analysis prompt from database, using fallback:', promptError.message);
+        // Fallback промпт если не найден в БД
+        prompt = `Проанализируй эту цитату как психолог Анна Бусел:\n\nЦитата: "{text}"\nАвтор: {author}\nДоступные категории: {categories}\n\nВерни JSON с анализом:\n{\n  "category": "одна из категорий",\n  "themes": ["тема1", "тема2"],\n  "sentiment": "positive/neutral/negative",\n  "insights": "краткий психологический инсайт (1-2 предложения)"\n}`;
+      }
+
+      // Заменяем плейсхолдеры в промпте
+      const processedPrompt = prompt
+        .replace(/{text}/g, text)
+        .replace(/{author}/g, author || 'Неизвестен')
+        .replace(/{categories}/g, categoriesList);
+
+      const response = await claudeService.generateResponse(processedPrompt, {
         platform: 'telegram',
         userId: 'quote_analysis'
       });
