@@ -595,28 +595,23 @@ router.put('/quotes/:id', async (req, res) => {
         }
         
         try {
-            // Выполняем AI анализ обновленного текста
-            const messageText = author ? `"${text}" (${author})` : text;
-            const result = await quoteHandler.handleQuote(req.userId, messageText);
+            // Выполняем только AI анализ обновленного текста (без создания новой цитаты)
+            const parsedQuote = quoteHandler._parseQuote(author ? `"${text}" (${author})` : text);
+            const analysis = await quoteHandler._analyzeQuote(parsedQuote.text, parsedQuote.author);
             
-            if (result.success && result.quote) {
-                // Обновляем цитату с результатами AI анализа
-                quote.text = text.trim();
-                quote.author = author ? author.trim() : null;
-                quote.source = source ? source.trim() : null;
-                quote.category = result.quote.category;
-                quote.themes = result.quote.themes;
-                quote.sentiment = result.quote.sentiment;
-                quote.isEdited = true;
-                quote.editedAt = new Date();
-                
-                await quote.save();
-                
-                console.log(`✅ Цитата отредактирована с AI анализом: ${req.userId} - ${req.params.id}`);
-            } else {
-                // Fallback на ручное обновление
-                throw new Error('AI analysis failed');
-            }
+            // Обновляем цитату с результатами AI анализа
+            quote.text = text.trim();
+            quote.author = author ? author.trim() : null;
+            quote.source = source ? source.trim() : null;
+            quote.category = analysis.category;
+            quote.themes = analysis.themes;
+            quote.sentiment = analysis.sentiment;
+            quote.isEdited = true;
+            quote.editedAt = new Date();
+            
+            await quote.save();
+            
+            console.log(`✅ Цитата отредактирована с AI анализом: ${req.userId} - ${req.params.id}`);
             
         } catch (aiError) {
             // Fallback на ручное обновление при ошибке AI
