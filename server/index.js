@@ -583,6 +583,17 @@ app.use(`${config.app.apiPrefix}/anna-persona`, annaPersonaRoutes);
 
 logger.info('✅ All API routes registered successfully');
 
+// Root API health check (before 404 handler)
+app.get(`${config.app.apiPrefix}/health`, (req, res) => {
+  res.json({
+    success: true,
+    status: 'healthy',
+    message: 'Reader Bot API is running',
+    timestamp: new Date().toISOString(),
+    version: config.app.version || '1.0.0'
+  });
+});
+
 // 404 handler для API - ВАЖНО: должен быть ПОСЛЕ всех API роутов
 app.use(`${config.app.apiPrefix}/*`, (req, res) => {
   res.status(404).json({

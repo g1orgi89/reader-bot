@@ -680,6 +680,7 @@ class ApiService {
      * 🔑 Аутентификация через Telegram
      */
     async authenticateWithTelegram(telegramData, user) {
+        // ИСПРАВЛЕНО: В debug режиме возвращаем mock данные
         if (this.debug) {
             this.log('🧪 DEBUG: Мок аутентификации');
             return {
@@ -693,7 +694,14 @@ class ApiService {
             };
         }
 
+        // ИСПРАВЛЕНО: В продакшн режиме используем реальный API
         try {
+            console.log('🔐 Отправляем данные на /auth/telegram:', {
+                hasInitData: !!telegramData,
+                userId: user?.id,
+                userFirstName: user?.first_name
+            });
+
             const response = await this.request('POST', '/auth/telegram', {
                 telegramData,
                 user
@@ -701,12 +709,21 @@ class ApiService {
 
             if (response.token) {
                 this.setAuthToken(response.token);
+                console.log('✅ Токен аутентификации сохранен');
             }
 
             return response;
         } catch (error) {
             this.log('❌ Ошибка аутентификации', { error: error.message });
-            throw new Error('Не удалось аутентифицироваться через Telegram');
+            
+            // ИСПРАВЛЕНО: Более детальная информация об ошибке
+            if (error.status === 401) {
+                throw new Error('Ошибка аутентификации: недействительные данные Telegram');
+            } else if (error.status === 500) {
+                throw new Error('Ошибка сервера: не удалось обработать аутентификацию');
+            } else {
+                throw new Error(`Не удалось аутентифицироваться: ${error.message}`);
+            }
         }
     }
 

@@ -97,9 +97,23 @@ class TelegramService {
         try {
             console.log('🔄 TelegramService: Начало инициализации');
             
+            // ИСПРАВЛЕНО: Инициализируем Telegram WebApp правильно
+            await this.initTelegramWebApp();
+            
             // Получаем данные пользователя
             this.user = this.webApp.initDataUnsafe?.user || null;
             this.initData = this.webApp.initData || '';
+            
+            // ИСПРАВЛЕНО: Проверяем что у нас есть реальные данные пользователя
+            if (!this.user || !this.user.id) {
+                throw new Error('Telegram user data not available. Please restart the app from Telegram.');
+            }
+            
+            console.log('✅ TelegramService: Данные пользователя получены:', {
+                id: this.user.id,
+                firstName: this.user.first_name,
+                username: this.user.username
+            });
             
             // Получаем параметры темы
             this.themeParams = this.webApp.themeParams || {};
@@ -120,6 +134,36 @@ class TelegramService {
             console.error('❌ TelegramService: Ошибка инициализации:', error);
             throw error;
         }
+    }
+
+    /**
+     * 🔧 НОВОЕ: Инициализация Telegram WebApp
+     */
+    async initTelegramWebApp() {
+        if (!window.Telegram?.WebApp) {
+            throw new Error('Telegram WebApp SDK not loaded');
+        }
+        
+        console.log('🔄 TelegramService: Инициализация Telegram WebApp...');
+        
+        // Проверяем доступность пользовательских данных
+        if (!window.Telegram.WebApp.initDataUnsafe?.user) {
+            console.warn('⚠️ TelegramService: initDataUnsafe.user недоступен');
+            
+            // Пытаемся получить данные другими способами
+            if (window.Telegram.WebApp.initData) {
+                console.log('📊 TelegramService: Есть initData, но нет parsed user данных');
+                // В продакшене здесь можно попробовать распарсить initData
+            }
+            
+            throw new Error('Telegram user data not available in initDataUnsafe');
+        }
+        
+        // Сообщаем Telegram что мы готовы
+        window.Telegram.WebApp.ready();
+        
+        console.log('✅ TelegramService: Telegram WebApp инициализирован');
+        return window.Telegram.WebApp;
     }
 
     /**
@@ -424,9 +468,9 @@ class TelegramService {
      * @returns {TelegramUser|null} - Данные пользователя
      */
     getUser() {
-        // Если Telegram недоступен, создаем реалистичного debug пользователя
-        if (!this.isAvailable || !this.user) {
-            console.log('🧪 TelegramService: Возвращаем debug пользователя');
+        // ИСПРАВЛЕНО: Возвращаем debug пользователя только если явно в debug режиме
+        if (!this.isAvailable) {
+            console.log('🧪 TelegramService: Telegram недоступен, возвращаем debug пользователя');
             return {
                 id: 12345,
                 first_name: 'Тестер',
@@ -437,6 +481,18 @@ class TelegramService {
                 is_debug: true
             };
         }
+        
+        // ИСПРАВЛЕНО: Если Telegram доступен, но нет пользователя - это ошибка
+        if (!this.user || !this.user.id) {
+            console.error('❌ TelegramService: Telegram доступен, но данные пользователя отсутствуют');
+            return null;
+        }
+        
+        console.log('✅ TelegramService: Возвращаем реального пользователя:', {
+            id: this.user.id,
+            firstName: this.user.first_name,
+            username: this.user.username
+        });
         
         return this.user;
     }
