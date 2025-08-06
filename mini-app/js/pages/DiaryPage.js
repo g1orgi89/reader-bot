@@ -118,7 +118,8 @@ class DiaryPage {
             }
             
             const response = await this.api.getQuotes(params);
-            const quotes = response.items || response || [];
+            // ✅ ИСПРАВЛЕНО: Правильно извлекаем цитаты из ответа API
+            const quotes = response.data?.quotes || response.quotes || response.items || response || [];
             
             if (reset || this.currentPage === 1) {
                 this.state.set('quotes.items', quotes);
@@ -371,8 +372,8 @@ class DiaryPage {
             return this.renderEmptyQuotes();
         }
         
-        // Используем примеры цитат из концепта если нет реальных данных
-        const displayQuotes = quotes.length > 0 ? quotes : this.getExampleQuotes();
+        // ✅ ИСПРАВЛЕНО: Показываем только реальные цитаты пользователя
+        const displayQuotes = quotes;
         
         return displayQuotes.map(quote => this.renderQuoteItem(quote)).join('');
     }
@@ -770,13 +771,28 @@ class DiaryPage {
             
             if (!quote) return;
             
-            quote.isFavorite = !quote.isFavorite;
+            // ✅ ИСПРАВЛЕНО: Обновляем локально и через API
+            const newFavoriteState = !quote.isFavorite;
+            quote.isFavorite = newFavoriteState;
             this.state.set('quotes.items', [...quotes]);
+            
+            // ✅ НОВОЕ: Вызываем API для сохранения на сервере (для будущей реализации)
+            try {
+                await this.api.post(`/quotes/${quoteId}/favorite`, { 
+                    isFavorite: newFavoriteState 
+                });
+                console.log('✅ Избранное обновлено на сервере');
+            } catch (apiError) {
+                console.log('⚠️ Избранное обновлено только локально (API endpoint не реализован):', apiError.message);
+                // Не показываем ошибку пользователю, так как локально все работает
+            }
+            
             this.telegram.hapticFeedback('success');
             this.rerender();
             
         } catch (error) {
             console.error('❌ Ошибка обновления избранного:', error);
+            this.telegram.hapticFeedback('error');
         }
     }
     
@@ -789,13 +805,14 @@ class DiaryPage {
         try {
             this.log('🔍 Выполняем поиск:', this.searchQuery);
             
-            // ✅ ИСПРАВЛЕНО: Используем API для поиска
-            const searchResults = await this.api.searchQuotes(this.searchQuery.trim(), {
+            // ✅ ИСПРАВЛЕНО: Используем основной API endpoint с параметром search
+            const searchResults = await this.api.getQuotes({
+                search: this.searchQuery.trim(),
                 limit: 50
             });
             
             // ✅ ИСПРАВЛЕНО: Сохраняем результаты в state
-            this.state.set('searchResults', searchResults.quotes || []);
+            this.state.set('searchResults', searchResults.data?.quotes || searchResults.quotes || searchResults.items || []);
             this.updateSearchResults();
             
         } catch (error) {
@@ -1044,26 +1061,16 @@ class DiaryPage {
             // Обновляем state
             this.state.set('quotes.items', [...quotes]);
             
-            // ✅ НОВОЕ: Обновляем в localStorage для debug режима
-            if (this.debug && this.api.debug) {
-                const debugStorage = this.api.getDebugStorage();
-                const debugQuote = debugStorage.quotes.find(q => q.id === quoteId || q._id === quoteId);
-                if (debugQuote) {
-                    debugQuote.text = newText.trim();
-                    debugQuote.author = newAuthor.trim();
-                    debugQuote.isEdited = true;
-                    debugQuote.editedAt = new Date().toISOString();
-                    this.api.saveDebugStorage(debugStorage);
-                }
-            } else {
-                // ✅ НОВОЕ: В продакшн режиме отправляем на сервер
-                this.api.updateQuote(quoteId, {
+            // ✅ ИСПРАВЛЕНО: Всегда используем реальный API
+            try {
+                await this.api.updateQuote(quoteId, {
                     text: newText.trim(),
                     author: newAuthor.trim()
-                }).catch(error => {
-                    console.error('❌ Ошибка обновления цитаты на сервере:', error);
-                    // В случае ошибки возвращаем старые значения (оптимистичное обновление)
                 });
+                console.log('✅ Цитата обновлена на сервере');
+            } catch (error) {
+                console.error('❌ Ошибка обновления цитаты на сервере:', error);
+                // В случае ошибки продолжаем с локальными изменениями
             }
             
             // Обновляем UI
@@ -1104,7 +1111,7 @@ class DiaryPage {
             const updatedQuotes = quotes.filter(q => q._id !== quoteId && q.id !== quoteId);
             this.state.set('quotes.items', updatedQuotes);
             
-            // ✅ НОВОЕ: Обновляем статистику
+            // ✅ ИСПРАВЛЕНО: Обновляем статистику
             const currentStats = this.state.get('stats') || {};
             const updatedStats = {
                 ...currentStats,
@@ -1112,21 +1119,17 @@ class DiaryPage {
             };
             this.state.set('stats', updatedStats);
             
-            // ✅ НОВОЕ: Удаляем из localStorage для debug режима
-            if (this.debug && this.api.debug) {
-                const debugStorage = this.api.getDebugStorage();
-                debugStorage.quotes = debugStorage.quotes.filter(q => q.id !== quoteId && q._id !== quoteId);
-                debugStorage.stats.totalQuotes = Math.max(debugStorage.stats.totalQuotes - 1, 0);
-                this.api.saveDebugStorage(debugStorage);
-            } else {
-                // ✅ НОВОЕ: В продакшн режиме отправляем на сервер
-                this.api.deleteQuote(quoteId).catch(error => {
-                    console.error('❌ Ошибка удаления цитаты с сервера:', error);
-                    // В случае ошибки возвращаем цитату обратно (оптимистичное обновление)
-                    this.state.set('quotes.items', quotes);
-                    this.state.set('stats', currentStats);
-                    this.rerender();
-                });
+            // ✅ ИСПРАВЛЕНО: Всегда используем реальный API
+            try {
+                await this.api.deleteQuote(quoteId);
+                console.log('✅ Цитата удалена с сервера');
+            } catch (error) {
+                console.error('❌ Ошибка удаления цитаты с сервера:', error);
+                // В случае ошибки возвращаем цитату обратно (оптимистичное обновление)
+                this.state.set('quotes.items', quotes);
+                this.state.set('stats', currentStats);
+                this.rerender();
+                return;
             }
             
             // Обновляем UI

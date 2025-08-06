@@ -136,6 +136,7 @@ router.get('/', async (req, res) => {
             createdAt: quote.createdAt,
             isEdited: quote.isEdited,
             editedAt: quote.editedAt,
+            isFavorite: quote.isFavorite || false, // ✅ Добавлено поле избранного
             user: {
                 id: quote.userId,
                 name: userMap[quote.userId]?.name || 'Неизвестный',
@@ -750,6 +751,51 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Ошибка удаления цитаты',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/quotes/:id/favorite - Toggle favorite status of a quote
+ */
+router.post('/:id/favorite', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isFavorite } = req.body;
+
+        logger.info('⭐ Toggle favorite for quote:', id, { isFavorite });
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        // Find and update the quote
+        const updatedQuote = await Quote.findByIdAndUpdate(
+            id,
+            { isFavorite: Boolean(isFavorite) },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedQuote) {
+            return res.status(404).json({
+                success: false,
+                message: 'Цитата не найдена'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Статус избранного обновлен',
+            data: {
+                id: updatedQuote._id.toString(),
+                isFavorite: updatedQuote.isFavorite
+            }
+        });
+
+    } catch (error) {
+        logger.error('❌ Ошибка обновления избранного:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Ошибка обновления статуса избранного',
             error: error.message
         });
     }
