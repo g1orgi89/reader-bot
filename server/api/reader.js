@@ -16,8 +16,14 @@ const BookCatalog = require('../models/BookCatalog');
 // Импорт сервисов
 const QuoteHandler = require('../services/quoteHandler');
 
-// Инициализация обработчика цитат
-const quoteHandler = new QuoteHandler();
+// Lazy initialization of QuoteHandler to avoid model conflicts
+let quoteHandler = null;
+function getQuoteHandler() {
+    if (!quoteHandler) {
+        quoteHandler = new QuoteHandler();
+    }
+    return quoteHandler;
+}
 
 /**
  * Authentication middleware для защищенных routes
@@ -332,7 +338,7 @@ router.post('/quotes', async (req, res) => {
         
         try {
             // Пытаемся добавить цитату с AI анализом
-            const result = await quoteHandler.handleQuote(req.userId, text);
+            const result = await getQuoteHandler().handleQuote(req.userId, text);
             
             if (!result.success) {
                 return res.status(400).json({
@@ -596,8 +602,8 @@ router.put('/quotes/:id', async (req, res) => {
         
         try {
             // Выполняем только AI анализ обновленного текста (без создания новой цитаты)
-            const parsedQuote = quoteHandler._parseQuote(author ? `"${text}" (${author})` : text);
-            const analysis = await quoteHandler._analyzeQuote(parsedQuote.text, parsedQuote.author);
+            const parsedQuote = getQuoteHandler()._parseQuote(author ? `"${text}" (${author})` : text);
+            const analysis = await getQuoteHandler()._analyzeQuote(parsedQuote.text, parsedQuote.author);
             
             // Обновляем цитату с результатами AI анализа
             quote.text = text.trim();
@@ -666,8 +672,8 @@ router.post('/quotes/analyze', async (req, res) => {
         }
         
         // Выполняем только анализ без сохранения
-        const parsedQuote = quoteHandler._parseQuote(text);
-        const analysis = await quoteHandler._analyzeQuote(parsedQuote.text, parsedQuote.author);
+        const parsedQuote = getQuoteHandler()._parseQuote(text);
+        const analysis = await getQuoteHandler()._analyzeQuote(parsedQuote.text, parsedQuote.author);
         
         res.json({
             success: true,
