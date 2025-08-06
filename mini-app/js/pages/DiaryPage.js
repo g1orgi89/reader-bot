@@ -1086,7 +1086,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
     /**
      * 🗑️ Удаление цитаты
      */
-    deleteQuote(quoteId) {
+    async deleteQuote(quoteId) {
         try {
             this.log('🗑️ Удаление цитаты:', quoteId);
             
