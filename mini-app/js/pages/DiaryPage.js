@@ -250,21 +250,38 @@ class DiaryPage {
             `;
         }
         
-        const lastQuote = this.getLastAddedQuote();
+        // ✅ ИСПРАВЛЕНО: Получаем последнюю добавленную цитату из state
+        const lastQuote = this.state.get('lastAddedQuote') || this.getLastAddedQuote();
         
         if (!lastQuote || !lastQuote.aiAnalysis) {
-            // Показываем пример как в концепте
-            return `
-                <div class="ai-insight">
-                    <div class="ai-title">
-                        <span>✨</span>
-                        <span>Анализ от Анны</span>
+            // ✅ ИСПРАВЛЕНО: Показываем более динамичный пример
+            const stats = this.state.get('stats') || {};
+            const totalQuotes = stats.totalQuotes || 0;
+            
+            if (totalQuotes === 0) {
+                return `
+                    <div class="ai-insight">
+                        <div class="ai-title">
+                            <span>✨</span>
+                            <span>Анализ от Анны</span>
+                        </div>
+                        <div class="ai-text">Добавьте свою первую цитату, и я проанализирую ваши предпочтения и настроение!</div>
                     </div>
-                    <div class="ai-text">Эта цитата Цветаевой отражает ваш поиск глубины в словах и отношениях. Вы цените поэзию как способ понимания жизни.</div>
-                </div>
-            `;
+                `;
+            } else {
+                return `
+                    <div class="ai-insight">
+                        <div class="ai-title">
+                            <span>✨</span>
+                            <span>Анализ от Анны</span>
+                        </div>
+                        <div class="ai-text">У вас уже ${totalQuotes} ${this.getQuoteWord(totalQuotes)}! Ваши цитаты показывают глубокий интерес к саморазвитию и поиску смысла.</div>
+                    </div>
+                `;
+            }
         }
         
+        // ✅ ИСПРАВЛЕНО: Показываем AI анализ последней цитаты
         return `
             <div class="ai-insight">
                 <div class="ai-title">
@@ -272,6 +289,12 @@ class DiaryPage {
                     <span>Анализ от Анны</span>
                 </div>
                 <div class="ai-text">${lastQuote.aiAnalysis.summary}</div>
+                ${lastQuote.aiAnalysis.mood ? `
+                    <div class="ai-mood">
+                        <span class="mood-emoji">${lastQuote.aiAnalysis.mood.emoji}</span>
+                        <span class="mood-description">${lastQuote.aiAnalysis.mood.description}</span>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
@@ -402,16 +425,17 @@ class DiaryPage {
     }
     
     /**
-     * 📊 СТАТИСТИКА ПОИСКА (ИЗ КОНЦЕПТА!)
+     * 📊 СТАТИСТИКА ПОИСКА (ИЗ КОНЦЕПТА!) - ИСПРАВЛЕНО: Реальные данные
      */
     renderSearchStats() {
-        const searchResultsCount = this.searchQuery ? 3 : 0; // Как в концепте
-        const totalQuotes = this.state.get('stats.totalQuotes') || 47;
+        const searchResults = this.state.get('searchResults') || [];
+        const searchResultsCount = searchResults.length;
+        const totalQuotes = this.state.get('stats.totalQuotes') || 0;
         
         return `
             <div class="search-stats">
                 ${this.searchQuery ? 
-                    `🔍 Найдено ${searchResultsCount} цитаты по запросу "${this.searchQuery}" • Всего у вас: ${totalQuotes} цитат` :
+                    `🔍 Найдено ${searchResultsCount} ${this.getQuoteWord(searchResultsCount)} по запросу "${this.searchQuery}" • Всего у вас: ${totalQuotes} ${this.getQuoteWord(totalQuotes)}` :
                     '🔍 Введите запрос для поиска по вашим цитатам'
                 }
             </div>
@@ -419,7 +443,7 @@ class DiaryPage {
     }
     
     /**
-     * 🔍 РЕЗУЛЬТАТЫ ПОИСКА (ИЗ КОНЦЕПТА!)
+     * 🔍 РЕЗУЛЬТАТЫ ПОИСКА (ИЗ КОНЦЕПТА!) - ИСПРАВЛЕНО: Реальные данные
      */
     renderSearchResults() {
         if (!this.searchQuery) {
@@ -433,24 +457,39 @@ class DiaryPage {
             `;
         }
         
-        // Примеры результатов поиска из концепта
-        return this.getExampleSearchResults().map(quote => this.renderSearchQuoteItem(quote)).join('');
+        // ✅ ИСПРАВЛЕНО: Используем реальные результаты поиска из state
+        const searchResults = this.state.get('searchResults') || [];
+        
+        if (searchResults.length === 0) {
+            return `
+                <div class="empty-search-results">
+                    <div class="empty-icon">🔍</div>
+                    <div class="empty-title">Ничего не найдено</div>
+                    <div class="empty-text">Попробуйте изменить запрос или добавить новые цитаты</div>
+                </div>
+            `;
+        }
+        
+        return searchResults.map(quote => this.renderSearchQuoteItem(quote)).join('');
     }
     
     /**
-     * 🔍 КАРТОЧКА РЕЗУЛЬТАТА ПОИСКА (ИЗ КОНЦЕПТА!)
+     * 🔍 КАРТОЧКА РЕЗУЛЬТАТА ПОИСКА (ИЗ КОНЦЕПТА!) - ИСПРАВЛЕНО: Реальные данные
      */
     renderSearchQuoteItem(quote) {
         const highlightedText = this.highlightSearchTerm(quote.text, this.searchQuery);
         const isFavorite = quote.isFavorite || false;
         
+        // ✅ ИСПРАВЛЕНО: Форматируем дату
+        const date = quote.createdAt ? this.formatQuoteDate(quote.createdAt) : 'Недавно';
+        
         return `
-            <div class="quote-item" data-quote-id="${quote.id}">
+            <div class="quote-item" data-quote-id="${quote.id || quote._id}">
                 <div class="quote-text">"${highlightedText}"</div>
                 <div class="quote-meta">
                     <div>
                         <div class="quote-author">${quote.author}</div>
-                        <div class="quote-date">${quote.date}</div>
+                        <div class="quote-date">${date}</div>
                     </div>
                     <div class="quote-actions">
                         <button class="quote-action" 
@@ -566,13 +605,29 @@ class DiaryPage {
         const searchInput = document.getElementById('searchInput');
         
         if (searchInput) {
+            // ✅ ИСПРАВЛЕНО: Debounced search для лучшего UX
+            let searchTimeout;
+            
             searchInput.addEventListener('input', (e) => {
                 this.searchQuery = e.target.value;
-                this.updateSearchResults();
+                
+                // Очищаем предыдущий timeout
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+                
+                // Запускаем поиск с задержкой
+                searchTimeout = setTimeout(() => {
+                    this.performSearch();
+                }, 300); // 300ms задержка
             });
             
             searchInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
+                    // Немедленный поиск при нажатии Enter
+                    if (searchTimeout) {
+                        clearTimeout(searchTimeout);
+                    }
                     this.performSearch();
                 }
             });
@@ -602,7 +657,7 @@ class DiaryPage {
             const quoteData = {
                 text: this.formData.text.trim(),
                 author: this.formData.author.trim(),
-                source: this.formData.source?.trim()
+                source: this.formData.source?.trim() || 'mini_app'
             };
             
             const saveBtn = document.getElementById('saveQuoteBtn');
@@ -611,28 +666,66 @@ class DiaryPage {
                 saveBtn.textContent = '💾 Сохраняем...';
             }
             
+            // ✅ ИСПРАВЛЕНО: Сохраняем цитату и получаем результат с AI анализом
             const savedQuote = await this.api.addQuote(quoteData);
+            this.log('✅ Цитата сохранена:', savedQuote);
             
+            // ✅ ИСПРАВЛЕНО: Обновляем state немедленно
             const existingQuotes = this.state.get('quotes.items') || [];
             this.state.set('quotes.items', [savedQuote, ...existingQuotes]);
             
-            const stats = this.state.get('stats') || {};
-            this.state.update('stats', {
-                totalQuotes: (stats.totalQuotes || 0) + 1,
-                thisWeek: (stats.thisWeek || 0) + 1
-            });
+            // ✅ ИСПРАВЛЕНО: Обновляем статистику
+            const currentStats = this.state.get('stats') || {};
+            const updatedStats = {
+                ...currentStats,
+                totalQuotes: (currentStats.totalQuotes || 0) + 1,
+                thisWeek: (currentStats.thisWeek || 0) + 1
+            };
+            this.state.set('stats', updatedStats);
             
+            // ✅ ИСПРАВЛЕНО: Сохраняем последнюю добавленную цитату для AI анализа
+            this.state.set('lastAddedQuote', savedQuote);
+            
+            // ✅ ИСПРАВЛЕНО: Очищаем форму
             this.clearForm();
+            
+            // ✅ ИСПРАВЛЕНО: Немедленно обновляем UI
+            this.rerender();
+            
+            // ✅ ИСПРАВЛЕНО: Меняем состояние кнопки на "Сохранено"
+            if (saveBtn) {
+                saveBtn.textContent = '✅ Сохранено!';
+                saveBtn.style.backgroundColor = 'var(--success-color, #22c55e)';
+                saveBtn.style.color = 'white';
+                
+                // Возвращаем обычное состояние через 2 секунды
+                setTimeout(() => {
+                    saveBtn.disabled = true; // Остается disabled пока форма пуста
+                    saveBtn.textContent = '💾 Сохранить в дневник';
+                    saveBtn.style.backgroundColor = '';
+                    saveBtn.style.color = '';
+                }, 2000);
+            }
+            
             this.telegram.hapticFeedback('success');
+            this.log('✅ UI обновлен после сохранения цитаты');
             
         } catch (error) {
             console.error('❌ Ошибка сохранения цитаты:', error);
             this.telegram.hapticFeedback('error');
-        } finally {
+            
             const saveBtn = document.getElementById('saveQuoteBtn');
             if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.textContent = '💾 Сохранить в дневник';
+                saveBtn.textContent = '❌ Ошибка';
+                saveBtn.style.backgroundColor = 'var(--error-color, #ef4444)';
+                saveBtn.style.color = 'white';
+                
+                setTimeout(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = '💾 Сохранить в дневник';
+                    saveBtn.style.backgroundColor = '';
+                    saveBtn.style.color = '';
+                }, 2000);
             }
         }
     }
@@ -684,8 +777,29 @@ class DiaryPage {
         }
     }
     
-    performSearch() {
-        this.updateSearchResults();
+    async performSearch() {
+        if (!this.searchQuery.trim()) {
+            this.updateSearchResults();
+            return;
+        }
+        
+        try {
+            this.log('🔍 Выполняем поиск:', this.searchQuery);
+            
+            // ✅ ИСПРАВЛЕНО: Используем API для поиска
+            const searchResults = await this.api.searchQuotes(this.searchQuery.trim(), {
+                limit: 50
+            });
+            
+            // ✅ ИСПРАВЛЕНО: Сохраняем результаты в state
+            this.state.set('searchResults', searchResults.quotes || []);
+            this.updateSearchResults();
+            
+        } catch (error) {
+            console.error('❌ Ошибка поиска:', error);
+            this.state.set('searchResults', []);
+            this.updateSearchResults();
+        }
     }
     
     updateSearchResults() {
@@ -752,6 +866,35 @@ class DiaryPage {
             'classics': 'Классики'
         };
         return labels[filter] || filter;
+    }
+    
+    getQuoteWord(count) {
+        if (count % 10 === 1 && count % 100 !== 11) return 'цитата';
+        if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'цитаты';
+        return 'цитат';
+    }
+    
+    formatQuoteDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffHours < 1) return 'Только что';
+        if (diffHours < 24) return `${diffHours} ч. назад`;
+        if (diffDays === 1) return 'Вчера';
+        if (diffDays < 7) return `${diffDays} дн. назад`;
+        if (diffDays < 30) return `${Math.floor(diffDays / 7)} нед. назад`;
+        
+        return date.toLocaleDateString('ru-RU', { 
+            day: 'numeric', 
+            month: 'short' 
+        });
+    }
+    
+    log(message, data = null) {
+        console.log(`[DiaryPage] ${message}`, data || '');
     }
     
     highlightSearchTerm(text, searchTerm) {
