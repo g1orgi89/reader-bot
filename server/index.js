@@ -1,3 +1,14 @@
+const express = require('express');
+const app = express();
+
+// ГЛОБАЛЬНЫЕ ОБРАБОТЧИКИ ОШИБОК
+process.on('uncaughtException', err => {
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', err => {
+  console.error('Unhandled Rejection:', err);
+});
+
 /**
  * Основной файл сервера для Reader Bot
  * @file server/index.js
