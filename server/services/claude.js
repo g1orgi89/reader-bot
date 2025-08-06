@@ -264,7 +264,7 @@ class ClaudeService {
    */
   async generateResponse(message, options = {}) {
     try {
-      let { 
+      const { 
         context = [], 
         history = [], 
         language = 'auto', // Игнорируется - AI сам определяет

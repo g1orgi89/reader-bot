@@ -296,7 +296,7 @@ ticketSchema.statics.findByStatus = function(status, options = {}) {
 
 ticketSchema.statics.findByAgent = function(agentId, options = {}) {
   const { status, limit = 50, skip = 0 } = options;
-  let query = { assignedTo: agentId };
+  const query = { assignedTo: agentId };
   if (status) {
     query.status = status;
   }

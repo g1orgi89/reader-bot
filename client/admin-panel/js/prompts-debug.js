@@ -120,7 +120,7 @@ function diagnoseApiRequest(endpoint, options = {}) {
     
     // Анализируем заголовки
     const authState = analyzeAuthState();
-    let headers = { ...options.headers };
+    const headers = { ...options.headers };
     
     debugLog('API_REQUEST', 'Заголовки до модификации', headers);
     
