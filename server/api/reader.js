@@ -13,6 +13,12 @@ const WeeklyReport = require('../models/weeklyReport');
 const MonthlyReport = require('../models/monthlyReport');
 const BookCatalog = require('../models/BookCatalog');
 
+// Импорт сервисов
+const QuoteHandler = require('../services/quoteHandler');
+
+// Инициализация обработчика цитат
+const quoteHandler = new QuoteHandler();
+
 /**
  * Authentication middleware для защищенных routes
  */
@@ -301,7 +307,7 @@ router.get('/stats', async (req, res) => {
 // ===========================================
 
 /**
- * @description Добавление новой цитаты (лимит 10/день)
+ * @description Добавление новой цитаты с AI анализом (лимит 10/день)
  * @route POST /api/reader/quotes
  */
 router.post('/quotes', async (req, res) => {
@@ -324,30 +330,78 @@ router.post('/quotes', async (req, res) => {
             });
         }
         
-        const quote = new Quote({
-            userId: req.userId,
-            text: text.trim(),
-            author: author ? author.trim() : null,
-            source: source ? source.trim() : null
-        });
-        
-        await quote.save();
-        
-        // Обновляем статистику пользователя
-        await req.user.updateQuoteStats(author);
-        
-        console.log(`✅ Цитата добавлена: ${req.userId} - "${text.substring(0, 50)}..."`);
-        
-        res.json({
-            success: true,
-            quote: {
-                id: quote._id,
-                text: quote.text,
-                author: quote.author,
-                source: quote.source,
-                createdAt: quote.createdAt
+        try {
+            // Пытаемся добавить цитату с AI анализом
+            const result = await quoteHandler.handleQuote(req.userId, text);
+            
+            if (!result.success) {
+                return res.status(400).json({
+                    success: false,
+                    error: result.message
+                });
             }
-        });
+            
+            // Обновляем статистику пользователя
+            await req.user.updateQuoteStats(result.quote.author);
+            
+            console.log(`✅ Цитата с AI анализом добавлена: ${req.userId} - "${text.substring(0, 50)}..."`);
+            
+            res.json({
+                success: true,
+                quote: {
+                    id: result.quote._id,
+                    text: result.quote.text,
+                    author: result.quote.author,
+                    source: result.quote.source,
+                    category: result.quote.category,
+                    themes: result.quote.themes,
+                    sentiment: result.quote.sentiment,
+                    isEdited: result.quote.isEdited,
+                    editedAt: result.quote.editedAt,
+                    createdAt: result.quote.createdAt
+                },
+                newAchievements: result.newAchievements || [],
+                todayCount: result.todayCount
+            });
+            
+        } catch (aiError) {
+            // Fallback на ручное сохранение при ошибке AI
+            console.warn(`⚠️ AI анализ неудачен, fallback на ручное сохранение: ${aiError.message}`);
+            
+            const quote = new Quote({
+                userId: req.userId,
+                text: text.trim(),
+                author: author ? author.trim() : null,
+                source: source ? source.trim() : null,
+                category: 'Другое',
+                themes: ['размышления'],
+                sentiment: 'neutral'
+            });
+            
+            await quote.save();
+            
+            // Обновляем статистику пользователя
+            await req.user.updateQuoteStats(author);
+            
+            console.log(`✅ Цитата сохранена вручную (fallback): ${req.userId} - "${text.substring(0, 50)}..."`);
+            
+            res.json({
+                success: true,
+                quote: {
+                    id: quote._id,
+                    text: quote.text,
+                    author: quote.author,
+                    source: quote.source,
+                    category: quote.category,
+                    themes: quote.themes,
+                    sentiment: quote.sentiment,
+                    isEdited: quote.isEdited,
+                    editedAt: quote.editedAt,
+                    createdAt: quote.createdAt
+                },
+                warning: 'Quote saved without AI analysis'
+            });
+        }
         
     } catch (error) {
         console.error('❌ Add Quote Error:', error);
@@ -405,6 +459,10 @@ router.get('/quotes', async (req, res) => {
                 author: quote.author,
                 source: quote.source,
                 category: quote.category,
+                themes: quote.themes,
+                sentiment: quote.sentiment,
+                isEdited: quote.isEdited,
+                editedAt: quote.editedAt,
                 createdAt: quote.createdAt
             })),
             pagination: {
@@ -440,12 +498,253 @@ router.get('/quotes/recent', async (req, res) => {
                 text: quote.text,
                 author: quote.author,
                 source: quote.source,
+                category: quote.category,
+                themes: quote.themes,
+                sentiment: quote.sentiment,
+                isEdited: quote.isEdited,
+                editedAt: quote.editedAt,
                 createdAt: quote.createdAt
             }))
         });
         
     } catch (error) {
         console.error('❌ Get Recent Quotes Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @description Получение детальной информации о цитате
+ * @route GET /api/reader/quotes/:id
+ */
+router.get('/quotes/:id', async (req, res) => {
+    try {
+        const quote = await Quote.findOne({
+            _id: req.params.id,
+            userId: req.userId
+        });
+        
+        if (!quote) {
+            return res.status(404).json({
+                success: false,
+                error: 'Quote not found'
+            });
+        }
+        
+        // Получаем контекст: номер недели, позицию в неделе, общее количество
+        const weekQuotes = await Quote.getWeeklyQuotes(req.userId, quote.weekNumber, quote.yearNumber);
+        const totalQuotes = await Quote.countDocuments({ userId: req.userId });
+        const positionInWeek = weekQuotes.findIndex(q => q._id.toString() === quote._id.toString()) + 1;
+        
+        res.json({
+            success: true,
+            quote: {
+                id: quote._id,
+                text: quote.text,
+                author: quote.author,
+                source: quote.source,
+                category: quote.category,
+                themes: quote.themes,
+                sentiment: quote.sentiment,
+                isEdited: quote.isEdited,
+                editedAt: quote.editedAt,
+                createdAt: quote.createdAt,
+                weekNumber: quote.weekNumber,
+                yearNumber: quote.yearNumber
+            },
+            context: {
+                weekNumber: quote.weekNumber,
+                yearNumber: quote.yearNumber,
+                positionInWeek,
+                totalInWeek: weekQuotes.length,
+                totalQuotes
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Get Quote Details Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @description Редактирование цитаты с повторным AI анализом
+ * @route PUT /api/reader/quotes/:id
+ */
+router.put('/quotes/:id', async (req, res) => {
+    try {
+        const { text, author, source } = req.body;
+        
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Text is required'
+            });
+        }
+        
+        const quote = await Quote.findOne({
+            _id: req.params.id,
+            userId: req.userId
+        });
+        
+        if (!quote) {
+            return res.status(404).json({
+                success: false,
+                error: 'Quote not found'
+            });
+        }
+        
+        try {
+            // Выполняем AI анализ обновленного текста
+            const messageText = author ? `"${text}" (${author})` : text;
+            const result = await quoteHandler.handleQuote(req.userId, messageText);
+            
+            if (result.success && result.quote) {
+                // Обновляем цитату с результатами AI анализа
+                quote.text = text.trim();
+                quote.author = author ? author.trim() : null;
+                quote.source = source ? source.trim() : null;
+                quote.category = result.quote.category;
+                quote.themes = result.quote.themes;
+                quote.sentiment = result.quote.sentiment;
+                quote.isEdited = true;
+                quote.editedAt = new Date();
+                
+                await quote.save();
+                
+                console.log(`✅ Цитата отредактирована с AI анализом: ${req.userId} - ${req.params.id}`);
+            } else {
+                // Fallback на ручное обновление
+                throw new Error('AI analysis failed');
+            }
+            
+        } catch (aiError) {
+            // Fallback на ручное обновление при ошибке AI
+            console.warn(`⚠️ AI анализ при редактировании неудачен, fallback: ${aiError.message}`);
+            
+            quote.text = text.trim();
+            quote.author = author ? author.trim() : null;
+            quote.source = source ? source.trim() : null;
+            quote.isEdited = true;
+            quote.editedAt = new Date();
+            
+            await quote.save();
+            
+            console.log(`✅ Цитата отредактирована вручную (fallback): ${req.userId} - ${req.params.id}`);
+        }
+        
+        res.json({
+            success: true,
+            quote: {
+                id: quote._id,
+                text: quote.text,
+                author: quote.author,
+                source: quote.source,
+                category: quote.category,
+                themes: quote.themes,
+                sentiment: quote.sentiment,
+                isEdited: quote.isEdited,
+                editedAt: quote.editedAt,
+                createdAt: quote.createdAt
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Edit Quote Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @description Отдельный AI анализ текста (без сохранения)
+ * @route POST /api/reader/quotes/analyze
+ */
+router.post('/quotes/analyze', async (req, res) => {
+    try {
+        const { text } = req.body;
+        
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Text is required'
+            });
+        }
+        
+        // Выполняем только анализ без сохранения
+        const parsedQuote = quoteHandler._parseQuote(text);
+        const analysis = await quoteHandler._analyzeQuote(parsedQuote.text, parsedQuote.author);
+        
+        res.json({
+            success: true,
+            analysis: {
+                originalText: text,
+                parsedText: parsedQuote.text,
+                parsedAuthor: parsedQuote.author,
+                category: analysis.category,
+                themes: analysis.themes,
+                sentiment: analysis.sentiment,
+                insights: analysis.insights
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Analyze Quote Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Analysis failed',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @description Поиск по цитатам пользователя с подсветкой
+ * @route GET /api/reader/quotes/search
+ */
+router.get('/quotes/search', async (req, res) => {
+    try {
+        const { q: searchQuery, limit = 20 } = req.query;
+        
+        if (!searchQuery || searchQuery.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Search query is required'
+            });
+        }
+        
+        const quotes = await Quote.searchUserQuotes(req.userId, searchQuery.trim(), parseInt(limit));
+        
+        // Добавляем подсветку найденных фрагментов
+        const highlightedQuotes = quotes.map(quote => {
+            const searchRegex = new RegExp(`(${searchQuery.trim()})`, 'gi');
+            
+            return {
+                id: quote._id,
+                text: quote.text.replace(searchRegex, '<mark>$1</mark>'),
+                originalText: quote.text,
+                author: quote.author ? quote.author.replace(searchRegex, '<mark>$1</mark>') : null,
+                originalAuthor: quote.author,
+                source: quote.source ? quote.source.replace(searchRegex, '<mark>$1</mark>') : null,
+                originalSource: quote.source,
+                category: quote.category,
+                themes: quote.themes,
+                sentiment: quote.sentiment,
+                isEdited: quote.isEdited,
+                editedAt: quote.editedAt,
+                createdAt: quote.createdAt,
+                ageInDays: quote.ageInDays
+            };
+        });
+        
+        res.json({
+            success: true,
+            searchQuery: searchQuery.trim(),
+            totalFound: quotes.length,
+            quotes: highlightedQuotes
+        });
+        
+    } catch (error) {
+        console.error('❌ Search Quotes Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
