@@ -23,7 +23,6 @@ const quoteHandler = require('../services/quoteHandler');
  */
 const authenticateUser = async (req, res, next) => {
     try {
-        const telegramData = req.body.telegramData || req.headers['x-telegram-data'];
         const user = req.body.user || req.headers['x-telegram-user'];
         
         if (!user || !user.id) {
@@ -66,7 +65,7 @@ router.post('/auth/telegram', async (req, res) => {
     try {
         console.log('📱 Telegram Auth Request:', req.body);
         
-        const { telegramData, user } = req.body;
+        const { user } = req.body;
         
         if (!user || !user.id) {
             return res.status(400).json({
@@ -114,7 +113,6 @@ router.get('/auth/onboarding-status', async (req, res) => {
         console.log('📊 Onboarding Status Check');
         
         // Пытаемся получить пользователя из данных запроса
-        const telegramData = req.body.telegramData || req.headers['x-telegram-data'];
         const user = req.body.user || req.headers['x-telegram-user'];
         
         if (user && user.id) {
@@ -158,7 +156,7 @@ router.get('/auth/onboarding-status', async (req, res) => {
  */
 router.post('/auth/complete-onboarding', async (req, res) => {
     try {
-        const { telegramData, user, answers, email, source } = req.body;
+        const { user, answers, email, source } = req.body;
         
         if (!user || !user.id || !answers || !email || !source) {
             return res.status(400).json({
@@ -906,7 +904,6 @@ router.get('/recommendations', async (req, res) => {
     try {
         // Анализируем предпочтения пользователя
         const userThemes = req.user.preferences?.mainThemes || [];
-        const favoriteCategories = req.user.statistics?.favoriteAuthors || [];
         
         // Получаем рекомендации на основе тем
         let recommendations = await BookCatalog.getRecommendationsByThemes(userThemes, 3);

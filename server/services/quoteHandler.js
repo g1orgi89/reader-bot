@@ -111,6 +111,15 @@ class QuoteHandler {
    * @returns {ParsedQuote} Распарсенная цитата
    */
   _parseQuote(messageText) {
+    // Handle null, undefined, or empty input
+    if (!messageText || typeof messageText !== 'string') {
+      return {
+        text: '',
+        author: null,
+        source: null
+      };
+    }
+    
     const text = messageText.trim();
     
     // Паттерны для разных форматов цитат
