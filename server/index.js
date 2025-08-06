@@ -1,14 +1,3 @@
-const express = require('express');
-const app = express();
-
-// ГЛОБАЛЬНЫЕ ОБРАБОТЧИКИ ОШИБОК
-process.on('uncaughtException', err => {
-  console.error('Uncaught Exception:', err);
-});
-process.on('unhandledRejection', err => {
-  console.error('Unhandled Rejection:', err);
-});
-
 /**
  * Основной файл сервера для Reader Bot
  * @file server/index.js
@@ -17,11 +6,13 @@ process.on('unhandledRejection', err => {
 // Загружаем переменные окружения в самом начале
 require('dotenv').config();
 
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
-const path = require('path');
+// ГЛОБАЛЬНЫЕ ОБРАБОТЧИКИ ОШИБОК
+process.on('uncaughtException', err => {
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', err => {
+  console.error('Unhandled Rejection:', err);
+});
 
 // Импорт конфигурации и типов
 const { config } = require('./config');
