@@ -441,6 +441,12 @@ class AppRouter {
             // Создаем экземпляр компонента с правильной структурой app
             this.currentComponent = new route.component(appObject);
             
+            // НОВОЕ: Устанавливаем глобальную ссылку для DiaryPage
+            if (route.component.name === 'DiaryPage') {
+                window.diaryPage = this.currentComponent;
+                console.log('✅ Router: Глобальная ссылка window.diaryPage установлена');
+            }
+            
             // Инициализируем компонент
             if (this.currentComponent && typeof this.currentComponent.init === 'function') {
                 await this.currentComponent.init();
@@ -495,6 +501,12 @@ class AppRouter {
         if (!this.currentComponent) return;
         
         console.log('💥 Router: Уничтожение текущего компонента');
+        
+        // НОВОЕ: Очищаем глобальную ссылку для DiaryPage
+        if (this.currentComponent.constructor.name === 'DiaryPage') {
+            window.diaryPage = null;
+            console.log('✅ Router: Глобальная ссылка window.diaryPage очищена');
+        }
         
         // Вызываем onHide для текущего компонента
         if (this.currentComponent && typeof this.currentComponent.onHide === 'function') {

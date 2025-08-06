@@ -876,6 +876,29 @@ class ApiService {
      */
     async updateQuote(quoteId, updateData) {
         this.clearQuotesCache();
+        
+        if (this.debug) {
+            // В debug режиме обновляем localStorage
+            this.log('🧪 DEBUG: Обновляем цитату в localStorage');
+            const currentData = this.getDebugStorage();
+            const quoteIndex = currentData.quotes.findIndex(q => 
+                q.id === quoteId || q._id === quoteId
+            );
+            
+            if (quoteIndex !== -1) {
+                currentData.quotes[quoteIndex] = {
+                    ...currentData.quotes[quoteIndex],
+                    ...updateData,
+                    updatedAt: new Date().toISOString()
+                };
+                this.saveDebugStorage(currentData);
+                this.log('💾 Цитата обновлена в localStorage:', currentData.quotes[quoteIndex]);
+                return currentData.quotes[quoteIndex];
+            } else {
+                throw new Error('Цитата не найдена');
+            }
+        }
+        
         return this.request('PUT', `/quotes/${quoteId}`, updateData);
     }
 
@@ -884,6 +907,35 @@ class ApiService {
      */
     async deleteQuote(quoteId) {
         this.clearQuotesCache();
+        
+        if (this.debug) {
+            // В debug режиме удаляем из localStorage
+            this.log('🧪 DEBUG: Удаляем цитату из localStorage');
+            const currentData = this.getDebugStorage();
+            const quoteIndex = currentData.quotes.findIndex(q => 
+                q.id === quoteId || q._id === quoteId
+            );
+            
+            if (quoteIndex !== -1) {
+                const deletedQuote = currentData.quotes[quoteIndex];
+                currentData.quotes.splice(quoteIndex, 1);
+                
+                // Обновляем статистику
+                currentData.stats.totalQuotes = currentData.quotes.length;
+                currentData.stats.thisWeek = currentData.quotes.filter(q => {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    return new Date(q.createdAt) > weekAgo;
+                }).length;
+
+                this.saveDebugStorage(currentData);
+                this.log('🗑️ Цитата удалена из localStorage:', deletedQuote);
+                return { success: true, deletedQuote };
+            } else {
+                throw new Error('Цитата не найдена');
+            }
+        }
+        
         return this.request('DELETE', `/quotes/${quoteId}`);
     }
 

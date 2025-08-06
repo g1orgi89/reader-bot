@@ -736,3 +736,180 @@ body.modal-open {
     pointer-events: none;
     opacity: 0.6;
 }
+
+/* ============================================================================
+   📝 QUOTE MANAGEMENT COMPONENTS (NEW)
+   ============================================================================ */
+
+/* Modal overlay для редактирования цитат */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-index-modal);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md);
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* Маленький модал для подтверждения */
+.modal-small .modal-content {
+    max-width: 360px;
+}
+
+/* Стили для предпросмотра цитаты в диалоге удаления */
+.quote-preview {
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--primary-color);
+    padding: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+    border-radius: var(--radius-md);
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+.warning-text {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    text-align: center;
+    margin-top: var(--spacing-sm);
+}
+
+/* Dropdown меню для цитат */
+.quote-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: calc(var(--z-index-modal) + 5);
+    background: var(--bg-card);
+    border: 1px solid var(--bg-secondary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    min-width: 120px;
+    overflow: hidden;
+    animation: slideDown 0.15s ease-out;
+}
+
+.quote-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.quote-menu-item:hover {
+    background: var(--bg-secondary);
+}
+
+.quote-menu-item:active {
+    background: var(--bg-tertiary);
+}
+
+/* Кнопки в футере модала */
+.btn-secondary {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--bg-secondary);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.btn-primary {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-primary:disabled {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.btn-danger {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    background: var(--error-color);
+    color: white;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-danger:disabled {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Мобильные стили */
+@media (max-width: 480px) {
+    .modal-overlay {
+        padding: var(--spacing-sm);
+    }
+    
+    .modal-small .modal-content {
+        max-width: 100%;
+    }
+    
+    .quote-menu {
+        min-width: 140px;
+    }
+}

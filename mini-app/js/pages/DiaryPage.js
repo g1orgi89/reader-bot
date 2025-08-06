@@ -776,6 +776,282 @@ class DiaryPage {
             console.error('❌ Ошибка обновления избранного:', error);
         }
     }
+
+    /**
+     * ✏️ Редактирование цитаты
+     */
+    editQuote(quoteId) {
+        const quotes = this.state.get('quotes.items') || [];
+        const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+        
+        if (!quote) {
+            console.error('❌ Цитата не найдена:', quoteId);
+            return;
+        }
+
+        this.showEditModal(quote);
+    }
+
+    /**
+     * 📝 Показать модальное окно редактирования
+     */
+    showEditModal(quote) {
+        // Закрываем существующий модал, если есть
+        this.closeEditModal();
+
+        const modalHtml = `
+            <div class="modal-overlay" id="editModalOverlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>✏️ Редактировать цитату</h3>
+                        <button class="modal-close" onclick="window.diaryPage.closeEditModal()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">💭 Текст цитаты</label>
+                            <textarea class="form-textarea" id="editQuoteText" placeholder="Введите текст цитаты...">${quote.text}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">✍️ Автор</label>
+                            <input class="form-input" id="editQuoteAuthor" placeholder="Автор цитаты" value="${quote.author}">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="window.diaryPage.closeEditModal()">Отмена</button>
+                        <button class="btn-primary" id="saveEditBtn" onclick="window.diaryPage.saveQuoteEdit('${quote._id || quote.id}')">💾 Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        this.telegram.hapticFeedback('medium');
+
+        // Устанавливаем фокус на поле текста
+        setTimeout(() => {
+            const textField = document.getElementById('editQuoteText');
+            if (textField) textField.focus();
+        }, 100);
+    }
+
+    /**
+     * 💾 Сохранить изменения цитаты
+     */
+    async saveQuoteEdit(quoteId) {
+        const textElement = document.getElementById('editQuoteText');
+        const authorElement = document.getElementById('editQuoteAuthor');
+        const saveBtn = document.getElementById('saveEditBtn');
+
+        if (!textElement || !authorElement) return;
+
+        const newText = textElement.value.trim();
+        const newAuthor = authorElement.value.trim();
+
+        if (!newText || !newAuthor) {
+            this.telegram.showAlert('Заполните все поля');
+            return;
+        }
+
+        try {
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = '💾 Сохраняем...';
+            }
+
+            // Обновляем цитату через API
+            const updatedQuote = await this.api.updateQuote(quoteId, {
+                text: newText,
+                author: newAuthor
+            });
+
+            // Обновляем в локальном состоянии
+            const quotes = this.state.get('quotes.items') || [];
+            const quoteIndex = quotes.findIndex(q => q._id === quoteId || q.id === quoteId);
+            
+            if (quoteIndex !== -1) {
+                quotes[quoteIndex] = { ...quotes[quoteIndex], text: newText, author: newAuthor };
+                this.state.set('quotes.items', [...quotes]);
+            }
+
+            this.closeEditModal();
+            this.rerender();
+            this.telegram.hapticFeedback('success');
+            this.log('✅ Цитата обновлена:', updatedQuote);
+
+        } catch (error) {
+            console.error('❌ Ошибка обновления цитаты:', error);
+            this.telegram.hapticFeedback('error');
+            
+            if (saveBtn) {
+                saveBtn.textContent = '❌ Ошибка';
+                setTimeout(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = '💾 Сохранить';
+                }, 2000);
+            }
+        }
+    }
+
+    /**
+     * ❌ Закрыть модальное окно редактирования
+     */
+    closeEditModal() {
+        const modal = document.getElementById('editModalOverlay');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    /**
+     * ⋯ Показать меню действий для цитаты
+     */
+    showQuoteMenu(quoteId) {
+        // Закрываем все существующие меню
+        this.closeAllQuoteMenus();
+
+        const quoteElement = document.querySelector(`[data-quote-id="${quoteId}"]`);
+        if (!quoteElement) return;
+
+        const moreButton = quoteElement.querySelector('[data-action="more"]');
+        if (!moreButton) return;
+
+        const menuHtml = `
+            <div class="quote-menu" id="quoteMenu-${quoteId}">
+                <button class="quote-menu-item" onclick="window.diaryPage.deleteQuote('${quoteId}')">
+                    🗑️ Удалить
+                </button>
+            </div>
+        `;
+
+        moreButton.insertAdjacentHTML('afterend', menuHtml);
+        this.telegram.hapticFeedback('light');
+
+        // Закрываем меню при клике вне его
+        setTimeout(() => {
+            document.addEventListener('click', this.handleOutsideMenuClick.bind(this), { once: true });
+        }, 100);
+    }
+
+    /**
+     * 🗑️ Удалить цитату
+     */
+    async deleteQuote(quoteId) {
+        this.closeAllQuoteMenus();
+
+        const quotes = this.state.get('quotes.items') || [];
+        const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+        
+        if (!quote) {
+            console.error('❌ Цитата не найдена:', quoteId);
+            return;
+        }
+
+        // Показываем диалог подтверждения
+        this.showDeleteConfirmation(quote);
+    }
+
+    /**
+     * ⚠️ Показать диалог подтверждения удаления
+     */
+    showDeleteConfirmation(quote) {
+        const modalHtml = `
+            <div class="modal-overlay" id="deleteModalOverlay">
+                <div class="modal-content modal-small">
+                    <div class="modal-header">
+                        <h3>⚠️ Удалить цитату?</h3>
+                    </div>
+                    <div class="modal-body">
+                        <p>Вы уверены, что хотите удалить эту цитату?</p>
+                        <div class="quote-preview">
+                            "${quote.text.length > 100 ? quote.text.substring(0, 100) + '...' : quote.text}"
+                            <br><strong>— ${quote.author}</strong>
+                        </div>
+                        <p class="warning-text">Это действие нельзя отменить.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="window.diaryPage.closeDeleteModal()">Отмена</button>
+                        <button class="btn-danger" id="confirmDeleteBtn" onclick="window.diaryPage.confirmDeleteQuote('${quote._id || quote.id}')">🗑️ Удалить</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        this.telegram.hapticFeedback('medium');
+    }
+
+    /**
+     * ✅ Подтвердить удаление цитаты
+     */
+    async confirmDeleteQuote(quoteId) {
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+        try {
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = '🗑️ Удаляем...';
+            }
+
+            // Удаляем через API
+            await this.api.deleteQuote(quoteId);
+
+            // Удаляем из локального состояния
+            const quotes = this.state.get('quotes.items') || [];
+            const updatedQuotes = quotes.filter(q => q._id !== quoteId && q.id !== quoteId);
+            this.state.set('quotes.items', updatedQuotes);
+
+            // Обновляем статистику
+            const currentStats = this.state.get('stats') || {};
+            const updatedStats = {
+                ...currentStats,
+                totalQuotes: Math.max(0, (currentStats.totalQuotes || 0) - 1)
+            };
+            this.state.set('stats', updatedStats);
+
+            this.closeDeleteModal();
+            this.rerender();
+            this.telegram.hapticFeedback('success');
+            this.log('✅ Цитата удалена:', quoteId);
+
+        } catch (error) {
+            console.error('❌ Ошибка удаления цитаты:', error);
+            this.telegram.hapticFeedback('error');
+            
+            if (confirmBtn) {
+                confirmBtn.textContent = '❌ Ошибка';
+                setTimeout(() => {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = '🗑️ Удалить';
+                }, 2000);
+            }
+        }
+    }
+
+    /**
+     * ❌ Закрыть диалог удаления
+     */
+    closeDeleteModal() {
+        const modal = document.getElementById('deleteModalOverlay');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    /**
+     * 🧹 Закрыть все открытые меню цитат
+     */
+    closeAllQuoteMenus() {
+        document.querySelectorAll('.quote-menu').forEach(menu => menu.remove());
+    }
+
+    /**
+     * 📍 Обработка кликов вне меню
+     */
+    handleOutsideMenuClick(event) {
+        if (!event.target.closest('.quote-menu') && !event.target.closest('[data-action="more"]')) {
+            this.closeAllQuoteMenus();
+        }
+    }
     
     async performSearch() {
         if (!this.searchQuery.trim()) {
