@@ -1062,6 +1062,7 @@ class DiaryPage {
             this.state.set('quotes.items', [...quotes]);
             
             // ✅ ИСПРАВЛЕНО: Всегда используем реальный API
+        async editQuote(quoteId) {
             try {
                 await this.api.updateQuote(quoteId, {
                     text: newText.trim(),
