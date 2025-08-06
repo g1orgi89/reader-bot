@@ -35,7 +35,7 @@ class ApiService {
         // 🔍 Debug режим - ОТКЛЮЧЕН
         this.debug = false; // ✅ ИСПРАВЛЕНО: Всегда false
         
-        this.log('🚀 API Service инициализирован', { baseURL: this.baseURL, debug: this.debug });
+        console.log('🚀 API Service инициализирован', { baseURL: this.baseURL, debug: this.debug });
     }
 
     /**
