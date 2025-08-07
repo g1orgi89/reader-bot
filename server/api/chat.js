@@ -319,7 +319,7 @@ router.post(['/', '/message'], async (req, res) => {
     
     let statusCode = 500;
     let errorCode = 'INTERNAL_SERVER_ERROR';
-    let errorMessage = 'Service temporarily unavailable. Please try again.';
+    const errorMessage = 'Service temporarily unavailable. Please try again.';
     
     if (error.message.includes('Database')) {
       statusCode = 503;

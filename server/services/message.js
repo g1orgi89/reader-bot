@@ -385,7 +385,7 @@ class MessageService {
       }
 
       const { limit = 100, skip = 0, role } = options;
-      let query = { userId };
+      const query = { userId };
 
       if (role && ['user', 'assistant', 'system'].includes(role)) {
         query.role = role;
@@ -422,7 +422,7 @@ class MessageService {
 
       const { limit = 50, conversationId, userId, language } = options;
       
-      let query = {
+      const query = {
         $text: { $search: searchText }
       };
 
@@ -627,7 +627,7 @@ class MessageService {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-      let query = {
+      const query = {
         createdAt: { $lte: cutoffDate }
       };
 

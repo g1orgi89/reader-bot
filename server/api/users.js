@@ -282,7 +282,7 @@ router.get('/search', basicAdminAuth, requireAdmin, async (req, res) => {
 
     logger.info(`🔍 Searching users: "${q}" (type: ${type})`);
 
-    let searchQuery = { isOnboardingComplete: true };
+    const searchQuery = { isOnboardingComplete: true };
 
     switch (type) {
       case 'name':

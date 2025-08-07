@@ -18,7 +18,7 @@ const APP_CONFIG = {
  * Глобальные переменные
  */
 let isOnline = navigator.onLine;
-let retryCount = 0;
+const retryCount = 0;
 
 /**
  * Инициализация приложения
