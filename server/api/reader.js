@@ -465,6 +465,55 @@ router.post('/quotes', async (req, res) => {
     }
 });
 
+} catch (error) {
+        console.error('❌ Add Quote Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ✅ АВТОМАТИЧЕСКИЙ AI АНАЛИЗ
+    try {
+        const QuoteHandler = require('../handlers/QuoteHandler');
+        await QuoteHandler.reanalyzeQuote(savedQuote._id);
+        logger.info('🤖 AI анализ выполнен для цитаты:', savedQuote._id);
+    } catch (aiError) {
+        logger.warn('⚠️ AI анализ не удался, но цитата создана:', aiError.message);
+        // Не блокируем создание если AI упал
+    }
+    
+    res.status(201).json({...
+});
+
+/**
+ * @description Получение цитат пользователя с пагинацией и фильтрами
+ * @route GET /api/reader/quotes
+ */
+router.get('/quotes', async (req, res) => {
+    try {
+        const { 
+            limit = 20, 
+            offset = 0, 
+            author, 
+            search, 
+            dateFrom, 
+            dateTo 
+        } = req.query;
+        
+        const query = { userId: req.userId };
+        
+        if (author) {
+            query.author = new RegExp(author, 'i');
+        }
+        
+        if (search) {
+            query.$or = [
+                { text: new RegExp(search, 'i') },
+                { author: new RegExp(search, 'i') },
+                { source: new RegExp(search, 'i') }
+            ];
+        }
+        
+        if (dateFrom || dateTo) {
 /**
  * @description Получение цитат пользователя с пагинацией и фильтрами
  * @route GET /api/reader/quotes
