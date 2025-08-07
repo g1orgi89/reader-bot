@@ -674,6 +674,25 @@ class DiaryPage {
             const savedQuote = await this.api.addQuote(quoteData);
             this.log('✅ Цитата сохранена:', savedQuote);
             
+            // ✅ ИСПРАВЛЕНО: Обрабатываем AI анализ из ответа
+            if (savedQuote.aiAnalysis) {
+                this.state.set('lastAddedQuote', {
+                    ...savedQuote,
+                    aiAnalysis: savedQuote.aiAnalysis
+                });
+                
+                // Показываем персональный ответ Анны вместо стандартного
+                if (savedQuote.aiAnalysis.summary && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+                    window.showNotification(savedQuote.aiAnalysis.summary, 'success', 5000);
+                }
+            } else {
+                // Fallback для случая, когда AI анализ недоступен
+                this.state.set('lastAddedQuote', savedQuote);
+                if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+                    window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
+                }
+            }
+            
             // ✅ ИСПРАВЛЕНО: Обновляем state немедленно
             const existingQuotes = this.state.get('quotes.items') || [];
             this.state.set('quotes.items', [savedQuote, ...existingQuotes]);
@@ -686,9 +705,6 @@ class DiaryPage {
                 thisWeek: (currentStats.thisWeek || 0) + 1
             };
             this.state.set('stats', updatedStats);
-            
-            // ✅ ИСПРАВЛЕНО: Сохраняем последнюю добавленную цитату для AI анализа
-            this.state.set('lastAddedQuote', savedQuote);
             
             // ✅ ИСПРАВЛЕНО: Очищаем форму
             this.clearForm();
