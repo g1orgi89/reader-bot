@@ -16,7 +16,7 @@
 class ApiService {
     constructor() {
         // 🌐 Base URL для всех API запросов
-        this.baseURL = this.getBaseURL();
+        this.baseURL = '/api/reader';
         
         // 🔐 Токен аутентификации
         this.authToken = null;
