@@ -265,7 +265,7 @@ promptSchema.statics.findByType = function(type, language = null, activeOnly = t
  * @param {string} language - Язык
  * @returns {Promise<PromptDocument|null>} Промпт
  */
-promptSchema.statics.getActivePrompt = function(type, language = 'ru') {
+promptSchema.statics.getActivePrompt = function(type, language = 'none') {
   const languageOptions = language === 'none' ? ['none'] : [language, 'none'];
   
   return this.findOne({
