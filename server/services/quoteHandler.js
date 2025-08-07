@@ -96,7 +96,7 @@ class QuoteHandler {
       const newAchievements = await this.achievementService.checkAndUnlockAchievements(userId);
       
       // 7. Генерируем ответ в стиле Анны
-      const response = await this._generateAnnaResponse(parsedQuote, analysis, todayCount + 1, userId);
+      const response = await this.generateAnnaResponse(parsedQuote, analysis, todayCount + 1, userId);
       
       return {
         success: true,
@@ -397,7 +397,7 @@ class QuoteHandler {
    * @returns {Promise<string>} Ответ бота
    * @private
    */
-  async _generateAnnaResponse(parsedQuote, analysis, todayCount, userId) {
+  async generateAnnaResponse(parsedQuote, analysis, todayCount, userId) {
     const { text, author } = parsedQuote;
     const isClassicAuthor = author && this._isClassicAuthor(author);
     
@@ -641,6 +641,15 @@ class QuoteHandler {
    */
   async analyzeQuote(text, author = null) {
     return await this._analyzeQuote(text, author);
+  }
+
+  /**
+   * Получить количество цитат сегодня
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<number>} Количество цитат сегодня
+   */
+  async getTodayQuotesCount(userId) {
+    return await this._checkDailyLimit(userId);
   }
 }
 

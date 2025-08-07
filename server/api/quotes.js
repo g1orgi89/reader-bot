@@ -230,31 +230,80 @@ router.post('/', async (req, res) => {
         const savedQuote = await newQuote.save();
 
         // ✅ АВТОМАТИЧЕСКИЙ AI АНАЛИЗ
-try {
-    const QuoteHandler = require('../handlers/QuoteHandler');
-    await QuoteHandler.reanalyzeQuote(savedQuote._id);
-    logger.info('🤖 AI анализ выполнен для цитаты:', savedQuote._id);
-} catch (aiError) {
-    logger.warn('⚠️ AI анализ не удался, но цитата создана:', aiError.message);
-    // Не блокируем создание если AI упал
-}
+        try {
+            const QuoteHandler = require('../services/quoteHandler');
+            const quoteHandler = new QuoteHandler();
+            
+            // Выполняем AI анализ
+            const analysis = await quoteHandler.analyzeQuote(savedQuote.text, savedQuote.author);
+            
+            // Обновляем цитату с результатами анализа
+            savedQuote.category = analysis.category;
+            savedQuote.themes = analysis.themes;
+            savedQuote.sentiment = analysis.sentiment;
+            
+            // Сохраняем обновленную цитату
+            await savedQuote.save();
+            
+            logger.info('🤖 AI анализ выполнен для цитаты:', savedQuote._id);
+        } catch (aiError) {
+            logger.warn('⚠️ AI анализ не удался, но цитата создана:', aiError.message);
+            // Не блокируем создание если AI упал
+        }
 
-        res.status(201).json({
-            success: true,
-            message: 'Цитата успешно создана',
-            data: {
-                id: savedQuote._id.toString(),
-                text: savedQuote.text,
-                author: savedQuote.author,
-                source: savedQuote.source,
-                category: savedQuote.category,
-                sentiment: savedQuote.sentiment,
-                themes: savedQuote.themes,
-                createdAt: savedQuote.createdAt,
-                weekNumber: savedQuote.weekNumber,
-                monthNumber: savedQuote.monthNumber
-            }
-        });
+        // Генерируем ответ в стиле Анны
+        try {
+            const QuoteHandler = require('../services/quoteHandler');
+            const quoteHandler = new QuoteHandler();
+            const todayCount = await quoteHandler.getTodayQuotesCount(userId);
+            const annaResponse = await quoteHandler.generateAnnaResponse(
+                { text: savedQuote.text, author: savedQuote.author }, 
+                { category: savedQuote.category, themes: savedQuote.themes, sentiment: savedQuote.sentiment },
+                todayCount,
+                userId
+            );
+
+            res.status(201).json({
+                success: true,
+                message: annaResponse, // ✅ НОВОЕ: Персональный ответ от Анны
+                data: {
+                    id: savedQuote._id.toString(),
+                    text: savedQuote.text,
+                    author: savedQuote.author,
+                    source: savedQuote.source,
+                    category: savedQuote.category,
+                    sentiment: savedQuote.sentiment,
+                    themes: savedQuote.themes,
+                    createdAt: savedQuote.createdAt,
+                    weekNumber: savedQuote.weekNumber,
+                    monthNumber: savedQuote.monthNumber,
+                    aiAnalysis: { // ✅ НОВОЕ: AI анализ для frontend
+                        summary: annaResponse,
+                        category: savedQuote.category,
+                        themes: savedQuote.themes,
+                        sentiment: savedQuote.sentiment
+                    }
+                }
+            });
+        } catch (responseError) {
+            logger.warn('⚠️ Ошибка генерации ответа Анны, используем стандартный:', responseError.message);
+            // Fallback к стандартному ответу
+            res.status(201).json({
+                success: true,
+                message: 'Цитата успешно создана',
+                data: {
+                    id: savedQuote._id.toString(),
+                    text: savedQuote.text,
+                    author: savedQuote.author,
+                    source: savedQuote.source,
+                    category: savedQuote.category,
+                    sentiment: savedQuote.sentiment,
+                    themes: savedQuote.themes,
+                    createdAt: savedQuote.createdAt,
+                    weekNumber: savedQuote.weekNumber
+                }
+            });
+        }
 
     } catch (error) {
         logger.error('❌ Ошибка создания цитаты:', error);
