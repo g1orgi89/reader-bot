@@ -6,7 +6,7 @@
 
 const { Quote, UserProfile } = require('../models');
 const AchievementService = require('./achievementService');
-const { claudeService } = require('./claude');
+const claudeService = require('./claude');
 const promptService = require('./promptService');
 
 /**
