@@ -27,7 +27,7 @@ const promptSchema = new mongoose.Schema({
       'ticket_detection', 
       'categorization', 
       'subject',
-      'reader_analysis',      // 📖 Анализ цитат для Reader Bot
+      'quote_analysis',      // 📖 Анализ цитат для Reader Bot
       'reader_reports',       // 📊 Генерация отчетов
       'reader_recommendations', // 📚 Рекомендации книг
       'reader_onboarding'     // 🎯 Онбординг пользователей
