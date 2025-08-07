@@ -632,6 +632,16 @@ class QuoteHandler {
       return [];
     }
   }
+
+   /**
+   * Публичный метод для анализа цитаты (для API endpoints)
+   * @param {string} text - Текст цитаты
+   * @param {string|null} author - Автор цитаты
+   * @returns {Promise<QuoteAnalysis>} Анализ цитаты
+   */
+  async analyzeQuote(text, author = null) {
+    return await this._analyzeQuote(text, author);
+  }
 }
 
 module.exports = QuoteHandler;
