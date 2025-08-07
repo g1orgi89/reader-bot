@@ -229,9 +229,15 @@ router.post('/', async (req, res) => {
         // Сохраняем в базу данных
         const savedQuote = await newQuote.save();
 
-        // TODO: Здесь можно добавить AI анализ цитаты
-        // const claudeService = require('../services/claudeService');
-        // await claudeService.analyzeQuote(savedQuote._id);
+        // ✅ АВТОМАТИЧЕСКИЙ AI АНАЛИЗ
+try {
+    const QuoteHandler = require('../handlers/QuoteHandler');
+    await QuoteHandler.reanalyzeQuote(savedQuote._id);
+    logger.info('🤖 AI анализ выполнен для цитаты:', savedQuote._id);
+} catch (aiError) {
+    logger.warn('⚠️ AI анализ не удался, но цитата создана:', aiError.message);
+    // Не блокируем создание если AI упал
+}
 
         res.status(201).json({
             success: true,
