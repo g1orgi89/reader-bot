@@ -590,15 +590,57 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /api/quotes/:id/analyze - Запуск AI анализа цитаты
  */
+router.post('/analyze', async (req, res) => {
+    try {
+        const { text, author } = req.body;
+
+        logger.info('🤖 Запуск AI анализа цитаты:', { text: text?.substring(0, 50) + '...', author });
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Текст цитаты обязателен'
+            });
+        }
+
+        const QuoteHandler = require('../services/quoteHandler');
+        const quoteHandler = new QuoteHandler();
+        
+        const analysis = await quoteHandler.analyzeQuote(text, author || null);
+
+        res.json({
+            success: true,
+            message: 'Анализ цитаты завершен',
+            data: {
+                text: text,
+                author: author || null,
+                analysis: analysis
+            }
+        });
+
+    } catch (error) {
+        logger.error('❌ Ошибка AI анализа:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Ошибка анализа цитаты',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/quotes/:id/analyze - Повторный анализ существующей цитаты
+ */
 router.post('/:id/analyze', async (req, res) => {
     try {
         const { id } = req.params;
 
-        logger.info('🤖 Запуск AI анализа цитаты:', id);
+        logger.info('🤖 Запуск повторного AI анализа цитаты:', id);
 
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Type: application/json; charset=utf-8');
 
-        // Находим цитату
         const quote = await Quote.findById(id);
         if (!quote) {
             return res.status(404).json({
@@ -607,97 +649,123 @@ router.post('/:id/analyze', async (req, res) => {
             });
         }
 
-        // TODO: Здесь будет интеграция с Claude для анализа
-        // const claudeService = require('../services/claudeService');
-        // const analysis = await claudeService.analyzeQuote(quote.text, quote.author);
+        const QuoteHandler = require('../services/quoteHandler');
+        const quoteHandler = new QuoteHandler();
+        
+        const analysis = await quoteHandler.analyzeQuote(quote.text, quote.author);
+
+        quote.category = analysis.category;
+        quote.themes = analysis.themes;
+        quote.sentiment = analysis.sentiment;
+        await quote.save();
 
         res.json({
             success: true,
-            message: 'AI анализ запущен',
+            message: 'Повторный анализ завершен',
             data: {
                 quoteId: id,
-                status: 'processing',
-                estimatedTime: '30 секунд'
+                analysis: analysis,
+                updated: true
             }
         });
 
     } catch (error) {
-        logger.error('❌ Ошибка запуска анализа:', error);
+        logger.error('❌ Ошибка повторного анализа:', error);
         res.status(500).json({
             success: false,
-            message: 'Ошибка запуска AI анализа',
+            message: 'Ошибка повторного анализа цитаты',
             error: error.message
         });
     }
 });
 
 /**
- * PUT /api/quotes/:id - Обновление цитаты (редактирование)
+ * POST /api/quotes/analyze - Анализ нового текста цитаты
  */
-router.put('/:id', async (req, res) => {
+router.post('/analyze', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { text, author, category, themes } = req.body;
+        const { text, author } = req.body;
 
-        logger.info('✏️ Обновление цитаты:', id, { text, author, category });
+        logger.info('🤖 Запуск AI анализа новой цитаты:', { text: text?.substring(0, 50) + '...', author });
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Валидация
         if (!text || text.trim().length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Текст цитаты не может быть пустым'
+                message: 'Текст цитаты обязателен'
             });
         }
 
-        if (text.length > 1000) {
-            return res.status(400).json({
-                success: false,
-                message: 'Текст цитаты не может превышать 1000 символов'
-            });
-        }
+        const QuoteHandler = require('../services/quoteHandler');
+        const quoteHandler = new QuoteHandler();
+        
+        const analysis = await quoteHandler.analyzeQuote(text, author || null);
 
-        // Обновляем цитату
-        const updatedQuote = await Quote.findByIdAndUpdate(
-            id,
-            {
-                text: text.trim(),
-                author: author?.trim() || null,
-                category: category || 'Другое',
-                themes: themes || [],
-                isEdited: true,
-                editedAt: new Date()
-            },
-            { new: true, runValidators: true }
-        );
+        res.json({
+            success: true,
+            message: 'Анализ цитаты завершен',
+            data: {
+                text: text,
+                author: author || null,
+                analysis: analysis
+            }
+        });
 
-        if (!updatedQuote) {
+    } catch (error) {
+        logger.error('❌ Ошибка AI анализа:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Ошибка анализа цитаты',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/quotes/:id/reanalyze - Повторный анализ существующей цитаты
+ */
+router.post('/:id/reanalyze', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        logger.info('🤖 Запуск повторного AI анализа цитаты:', id);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        const quote = await Quote.findById(id);
+        if (!quote) {
             return res.status(404).json({
                 success: false,
                 message: 'Цитата не найдена'
             });
         }
 
+        const QuoteHandler = require('../services/quoteHandler');
+        const quoteHandler = new QuoteHandler();
+        
+        const analysis = await quoteHandler.analyzeQuote(quote.text, quote.author);
+
+        quote.category = analysis.category;
+        quote.themes = analysis.themes;
+        quote.sentiment = analysis.sentiment;
+        await quote.save();
+
         res.json({
             success: true,
-            message: 'Цитата успешно обновлена',
+            message: 'Повторный анализ завершен',
             data: {
-                id: updatedQuote._id.toString(),
-                text: updatedQuote.text,
-                author: updatedQuote.author,
-                category: updatedQuote.category,
-                themes: updatedQuote.themes,
-                updatedAt: updatedQuote.editedAt,
-                updatedBy: 'admin'
+                quoteId: id,
+                analysis: analysis,
+                updated: true
             }
         });
 
     } catch (error) {
-        logger.error('❌ Ошибка обновления цитаты:', error);
+        logger.error('❌ Ошибка повторного анализа:', error);
         res.status(500).json({
             success: false,
-            message: 'Ошибка обновления цитаты',
+            message: 'Ошибка повторного анализа цитаты',
             error: error.message
         });
     }
