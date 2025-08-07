@@ -436,10 +436,10 @@ router.put('/:id', async (req, res) => {
     if (updateData.category && updateData.category !== prompt.category) {
       const typeMapping = {
         'onboarding': 'reader_onboarding',
-        'quote_analysis': 'reader_analysis',
-        'weekly_reports': 'reader_reports',
-        'monthly_reports': 'reader_reports',
-        'book_recommendations': 'reader_recommendations',
+        'quote_analysis': 'quoute_analysis',
+        'weekly_reports': 'weekly_reports',
+        'monthly_reports': 'monthly_reports',
+        'book_recommendations': 'book_recommendations',
         'user_interaction': 'basic',
         'system': 'basic',
         'other': 'basic'
