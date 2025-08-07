@@ -330,6 +330,23 @@ class ApiService {
     }
 
     /**
+     * 🤖 Анализ цитаты через AI
+     */
+    async analyzeQuote(text, author = null) {
+        return this.request('POST', '/quotes/analyze', {
+            text: text,
+            author: author
+        });
+    }
+
+    /**
+     * 🤖 Повторный анализ существующей цитаты
+     */
+    async reanalyzeQuote(quoteId) {
+        return this.request('POST', `/quotes/${quoteId}/reanalyze`);
+    }
+    
+    /**
      * 🕐 Получить последние цитаты
      */
     async getRecentQuotes(limit = 10) {
