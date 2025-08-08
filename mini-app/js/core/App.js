@@ -188,7 +188,6 @@ class ReaderApp {
                 return;
             }
             
-            // ИСПРАВЛЕНО: Используем новый метод с retry логикой
             let telegramUser = null;
             let initData = '';
             
@@ -196,38 +195,32 @@ class ReaderApp {
                 console.log('🔄 Получаем данные пользователя с retry логикой...');
                 
                 try {
-                    // Попытка получить пользователя с retry логикой
-                    telegramUser = await this.telegram.getUserWithRetry(5, 1000); // 5 попыток с интервалом 1 сек
+                    telegramUser = await this.telegram.getUserWithRetry(5, 1000);
                     initData = this.telegram.getInitData();
                 } catch (error) {
                     console.warn('⚠️ Ошибка при получении пользователя через retry:', error);
                 }
             } else if (this.telegram && typeof this.telegram.getUser === 'function') {
-                // Fallback на старый метод
                 telegramUser = this.telegram.getUser();
                 initData = this.telegram.getInitData();
             }
             
-            // ИСПРАВЛЕНО: Более мягкая проверка данных Telegram с respect к окружению
             if (!telegramUser || !telegramUser.id || telegramUser.is_debug) {
                 console.warn('⚠️ Данные пользователя Telegram недоступны или это debug пользователь');
                 
-                // ИСПРАВЛЕНО: Уважаем настройки окружения
                 const isDevelopment = this.isEnvironmentDevelopment();
                 
                 if (window.Telegram?.WebApp && isDevelopment) {
-                    console.log('🧪 Development режим: Telegram WebApp доступен, но данные пользователя недоступны. Переходим в debug режим для тестирования.');
+                    console.log('🧪 Development режим: переходим в debug режим для тестирования.');
                     this.state.set('debugMode', true);
                     await this.createDebugUser();
                     return;
                 } else if (!window.Telegram?.WebApp && isDevelopment) {
-                    // Если Telegram WebApp вообще недоступен в development
                     console.log('🧪 Development режим: Telegram WebApp недоступен, переходим в debug режим');
                     this.state.set('debugMode', true);
                     await this.createDebugUser();
                     return;
                 } else {
-                    // В production режиме это критическая ошибка
                     throw new Error('Данные пользователя Telegram недоступны. Перезапустите приложение в Telegram.');
                 }
             }
@@ -238,33 +231,25 @@ class ReaderApp {
                 username: telegramUser.username
             });
             
-            // ИСПРАВЛЕНО: Инициализируем состояние с Telegram данными перед отправкой на backend
             const stateInitialized = this.state.initializeWithTelegramUser(telegramUser);
             if (!stateInitialized) {
                 throw new Error('Не удалось инициализировать состояние с данными Telegram');
             }
             
-            // ИСПРАВЛЕНО: Отправляем данные на правильный endpoint backend'а
             const authResponse = await this.api.authenticateWithTelegram(initData, telegramUser);
             
-            if (!authResponse || !authResponse.token) {
-                throw new Error('Backend не вернул токен аутентификации');
+            if (!authResponse || !authResponse.success) {
+                throw new Error('Backend не подтвердил аутентификацию');
             }
             
-            console.log('✅ Получен токен аутентификации от backend');
+            console.log('✅ Аутентификация успешна');
             
-            // ИСПРАВЛЕНО: Сохраняем токен аутентификации в API сервисе
-            this.api.setAuthToken(authResponse.token);
-            
-            // Обновляем данные пользователя в состоянии с данными от backend
             this.state.update('user', {
                 profile: {
                     ...authResponse.user,
-                    // Убеждаемся что имя отображается корректно
                     firstName: authResponse.user.firstName || telegramUser.first_name || 'Пользователь',
                     lastName: authResponse.user.lastName || telegramUser.last_name || '',
                     username: authResponse.user.username || telegramUser.username || '',
-                    // ИСПРАВЛЕНО: Правильно сохраняем статус онбординга
                     isOnboardingCompleted: authResponse.isOnboardingCompleted || false
                 },
                 isAuthenticated: true
@@ -278,21 +263,18 @@ class ReaderApp {
         } catch (error) {
             console.error('❌ Ошибка аутентификации:', error);
             
-            // ИСПРАВЛЕНО: Различаем между development и production окружением
             const isDevelopment = this.isEnvironmentDevelopment();
             
             if (isDevelopment) {
-                // В development режиме разрешаем fallback на debug
-                console.log('🧪 Development режим: ошибка аутентификации, переходим в debug режим для продолжения работы');
+                console.log('🧪 Development режим: ошибка аутентификации, переходим в debug режим');
                 this.state.set('debugMode', true);
                 await this.createDebugUser();
                 this.showErrorMessage(`Development режим: Ошибка аутентификации (${error.message}). Приложение работает в режиме тестирования.`);
             } else {
-                // В production режиме показываем реальную ошибку пользователю
                 console.error('🚨 Production режим: критическая ошибка аутентификации:', error);
                 this.showCriticalError('Ошибка аутентификации', 
                     `Не удалось войти в систему: ${error.message}. Попробуйте перезапустить приложение или обратитесь в поддержку.`);
-                return; // Останавливаем инициализацию в production
+                return;
             }
         }
     }
@@ -312,18 +294,21 @@ class ReaderApp {
         }
         
         try {
+            // Получаем userId из состояния
+            const userId = this.state.get('user.profile.id') || 'demo-user';
+            
             // Загружаем профиль пользователя
-            const profile = await this.api.get('/profile');
+            const profile = await this.api.getProfile(userId);
             
             // Загружаем статистику
-            const stats = await this.api.get('/stats');
+            const stats = await this.api.getStats(userId);
             
             // Загружаем последние цитаты
-            const recentQuotes = await this.api.get('/quotes/recent', { limit: 5 });
+            const recentQuotes = await this.api.getRecentQuotes(5, userId);
             
             // Обновляем состояние
             this.state.update('user', {
-                profile: profile
+                profile: profile.user
             });
             this.state.setStats(stats);
             this.state.setRecentQuotes(recentQuotes.quotes || []);
@@ -388,32 +373,26 @@ class ReaderApp {
         let initialRoute = '/home';
         
         try {
-            // ИСПРАВЛЕНО: Проверяем статус онбординга через API только если есть токен
-            if (this.api.authToken) {
-                const onboardingStatus = await this.api.checkOnboardingStatus();
-                console.log('📊 Статус онбординга от API:', onboardingStatus);
-                
-                // Если онбординг не завершен - показываем онбординг
-                if (!onboardingStatus.completed) {
-                    initialRoute = '/onboarding';
-                    console.log('🎯 API: Перенаправляем на онбординг');
-                } else {
-                    // Обновляем состояние пользователя с данными от API
-                    if (onboardingStatus.user) {
-                        this.state.update('user.profile', {
-                            ...onboardingStatus.user,
-                            isOnboardingCompleted: true
-                        });
-                    }
-                    console.log('🏠 API: Перенаправляем на главную страницу');
-                }
+            // Получаем userId для проверки онбординга
+            const userId = profile?.id || 'demo-user';
+            
+            // Проверяем статус онбординга через API
+            const onboardingStatus = await this.api.checkOnboardingStatus(userId);
+            console.log('📊 Статус онбординга от API:', onboardingStatus);
+            
+            // Если онбординг не завершен - показываем онбординг
+            if (!onboardingStatus.completed) {
+                initialRoute = '/onboarding';
+                console.log('🎯 API: Перенаправляем на онбординг');
             } else {
-                // Fallback: проверяем локальное состояние если нет токена
-                console.log('⚠️ Нет токена аутентификации, проверяем локальное состояние');
-                if (!profile?.isOnboardingCompleted) {
-                    initialRoute = '/onboarding';
-                    console.log('🎯 Локально: Перенаправляем на онбординг');
+                // Обновляем состояние пользователя с данными от API
+                if (onboardingStatus.user) {
+                    this.state.update('user.profile', {
+                        ...onboardingStatus.user,
+                        isOnboardingCompleted: true
+                    });
                 }
+                console.log('🏠 API: Перенаправляем на главную страницу');
             }
         } catch (error) {
             console.warn('⚠️ Ошибка проверки статуса онбординга через API:', error);
@@ -597,12 +576,10 @@ class ReaderApp {
     }
 
     /**
-     * 🧪 Создание тестового пользователя для debug режима с JWT токеном
+     * 🧪 Создание тестового пользователя для debug режима
      */
     async createDebugUser() {
-        // ИСПРАВЛЕНО: Используем новый метод State для инициализации с Telegram данными
-        // ИСПРАВЛЕНО: Генерируем уникальный ID для каждого debug пользователя
-        const debugUserId = 12345 + Math.floor(Math.random() * 1000); // Уникальный ID от 12345 до 13344
+        const debugUserId = 12345 + Math.floor(Math.random() * 1000);
         
         const debugTelegramData = {
             id: debugUserId,
@@ -615,14 +592,13 @@ class ReaderApp {
         };
 
         try {
-            // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Получаем JWT токен для debug пользователя
-            console.log('🔐 Аутентификация debug пользователя для получения JWT токена...');
+            // Пытаемся аутентифицировать debug пользователя
+            console.log('🔐 Аутентификация debug пользователя...');
             
             const authResponse = await this.api.authenticateWithTelegram('debug_init_data', debugTelegramData);
             
-            if (authResponse && authResponse.token) {
-                console.log('✅ Получен JWT токен для debug пользователя');
-                this.api.setAuthToken(authResponse.token);
+            if (authResponse && authResponse.success) {
+                console.log('✅ Debug пользователь аутентифицирован');
                 
                 // Инициализируем состояние с данными от сервера
                 this.state.update('user', {
@@ -638,30 +614,26 @@ class ReaderApp {
                     isAuthenticated: true
                 });
                 
-                console.log('🧪 Debug пользователь аутентифицирован с JWT токеном:', {
+                console.log('🧪 Debug пользователь аутентифицирован:', {
                     name: authResponse.user.firstName,
-                    username: authResponse.user.username,
-                    hasToken: !!authResponse.token
+                    username: authResponse.user.username
                 });
                 
                 return;
             }
         } catch (error) {
             console.warn('⚠️ Не удалось аутентифицировать debug пользователя через API:', error);
-            // Продолжаем с локальным fallback
         }
 
-        // Fallback: создаем локального debug пользователя без JWT токена
-        console.log('🧪 Создание локального debug пользователя без JWT токена');
+        // Fallback: создаем локального debug пользователя
+        console.log('🧪 Создание локального debug пользователя');
         
-        // Используем метод State для правильной инициализации
         const initialized = this.state.initializeWithTelegramUser(debugTelegramData);
         
         if (initialized) {
-            // Дополнительно помечаем как debug режим
             this.state.update('user.profile', {
                 isDebug: true,
-                isOnboardingCompleted: false // Показываем онбординг для тестирования
+                isOnboardingCompleted: false
             });
             
             console.log('🧪 Создан локальный debug пользователь:', {
@@ -669,7 +641,7 @@ class ReaderApp {
                 username: debugTelegramData.username
             });
         } else {
-            // Fallback на старый метод если новый не сработал
+            // Fallback на старый метод
             this.state.update('user', {
                 profile: {
                     id: 12345,
@@ -750,8 +722,11 @@ class ReaderApp {
         if (!this.isInitialized || this.state.get('debugMode')) return;
         
         try {
+            // Получаем userId из состояния
+            const userId = this.state.get('user.profile.id') || 'demo-user';
+            
             // Обновляем только критичные данные
-            const stats = await this.api.get('/stats');
+            const stats = await this.api.getStats(userId);
             this.state.setStats(stats);
         } catch (error) {
             console.warn('⚠️ Не удалось обновить данные:', error);
