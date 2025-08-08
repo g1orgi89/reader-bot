@@ -567,10 +567,6 @@ app.use(`${config.app.apiPrefix}`, readerRoutes);
 logger.info('📱 Registering Reader Mini App API routes...');
 app.use(`${config.app.apiPrefix}`, readerRoutes);
 
-// 🔍 НОВОЕ: Debug API для диагностики viewport проблем Mini App
-logger.info('🔍 Registering Debug API for Mini App viewport diagnostics...');
-app.use(`${config.app.apiPrefix}/debug`, debugRoutes);
-
 // 📋 НОВЫЕ API РОУТЫ для системы управления данными Reader Bot
 logger.info('📋 Registering Reader Bot data management API routes...');
 app.use(`${config.app.apiPrefix}/book-catalog`, bookCatalogRoutes);
@@ -664,7 +660,6 @@ async function startServer() {
     logger.info(`📱 Mini App available at: http://localhost:${PORT}/mini-app/`);
     logger.info(`🔍 Knowledge API: ${config.app.apiPrefix}/knowledge`);
     logger.info(`📱 Reader API: ${config.app.apiPrefix}/reader (Mini App endpoints)`);
-    logger.info(`🔍 Debug API: ${config.app.apiPrefix}/debug (viewport diagnostics)`);
     logger.info(`📋 Data Management APIs:`);
     logger.info(`   📚 Book Catalog: ${config.app.apiPrefix}/book-catalog`);
     logger.info(`   📢 Announcements: ${config.app.apiPrefix}/announcements`);
