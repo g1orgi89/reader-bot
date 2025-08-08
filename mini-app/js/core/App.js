@@ -184,7 +184,7 @@ class ReaderApp {
             
             if (isDebugMode) {
                 console.log('🧪 Debug режим активен, создаем тестового пользователя');
-                this.createDebugUser();
+                await this.createDebugUser();
                 return;
             }
             
@@ -208,22 +208,27 @@ class ReaderApp {
                 initData = this.telegram.getInitData();
             }
             
-            // ИСПРАВЛЕНО: Более мягкая проверка данных Telegram с fallback на debug режим
+            // ИСПРАВЛЕНО: Более мягкая проверка данных Telegram с respect к окружению
             if (!telegramUser || !telegramUser.id || telegramUser.is_debug) {
                 console.warn('⚠️ Данные пользователя Telegram недоступны или это debug пользователь');
                 
-                // ИСПРАВЛЕНО: Если в Telegram WebApp и нет данных - переходим в debug режим
-                if (window.Telegram?.WebApp) {
-                    console.log('🧪 Telegram WebApp доступен, но данные пользователя недоступны. Переходим в debug режим для тестирования.');
+                // ИСПРАВЛЕНО: Уважаем настройки окружения
+                const isDevelopment = this.isEnvironmentDevelopment();
+                
+                if (window.Telegram?.WebApp && isDevelopment) {
+                    console.log('🧪 Development режим: Telegram WebApp доступен, но данные пользователя недоступны. Переходим в debug режим для тестирования.');
                     this.state.set('debugMode', true);
-                    this.createDebugUser();
+                    await this.createDebugUser();
+                    return;
+                } else if (!window.Telegram?.WebApp && isDevelopment) {
+                    // Если Telegram WebApp вообще недоступен в development
+                    console.log('🧪 Development режим: Telegram WebApp недоступен, переходим в debug режим');
+                    this.state.set('debugMode', true);
+                    await this.createDebugUser();
                     return;
                 } else {
-                    // Если Telegram WebApp вообще недоступен
-                    console.log('🧪 Telegram WebApp недоступен, переходим в debug режим');
-                    this.state.set('debugMode', true);
-                    this.createDebugUser();
-                    return;
+                    // В production режиме это критическая ошибка
+                    throw new Error('Данные пользователя Telegram недоступны. Перезапустите приложение в Telegram.');
                 }
             }
             
@@ -271,15 +276,22 @@ class ReaderApp {
         } catch (error) {
             console.error('❌ Ошибка аутентификации:', error);
             
-            // 🚨 КРИТИЧЕСКАЯ ПРОБЛЕМА: Автоматический переход в debug режим маскирует реальные проблемы
-            // TODO: Различать между реальными ошибками Telegram и отсутствием Telegram окружения
-            // TODO: В production режиме не должно быть автоматического fallback на debug
-            console.log('🧪 Ошибка аутентификации, переходим в debug режим для продолжения работы');
-            this.state.set('debugMode', true);
-            this.createDebugUser();
+            // ИСПРАВЛЕНО: Различаем между development и production окружением
+            const isDevelopment = this.isEnvironmentDevelopment();
             
-            // Показываем пользователю информацию об ошибке, но не останавливаем приложение
-            this.showErrorMessage(`Ошибка аутентификации: ${error.message}. Приложение работает в режиме тестирования.`);
+            if (isDevelopment) {
+                // В development режиме разрешаем fallback на debug
+                console.log('🧪 Development режим: ошибка аутентификации, переходим в debug режим для продолжения работы');
+                this.state.set('debugMode', true);
+                await this.createDebugUser();
+                this.showErrorMessage(`Development режим: Ошибка аутентификации (${error.message}). Приложение работает в режиме тестирования.`);
+            } else {
+                // В production режиме показываем реальную ошибку пользователю
+                console.error('🚨 Production режим: критическая ошибка аутентификации:', error);
+                this.showCriticalError('Ошибка аутентификации', 
+                    `Не удалось войти в систему: ${error.message}. Попробуйте перезапустить приложение или обратитесь в поддержку.`);
+                return; // Останавливаем инициализацию в production
+            }
         }
     }
 
@@ -564,9 +576,9 @@ class ReaderApp {
     }
 
     /**
-     * 🧪 Создание тестового пользователя для debug режима
+     * 🧪 Создание тестового пользователя для debug режима с JWT токеном
      */
-    createDebugUser() {
+    async createDebugUser() {
         // ИСПРАВЛЕНО: Используем новый метод State для инициализации с Telegram данными
         const debugTelegramData = {
             id: 12345,
@@ -578,6 +590,46 @@ class ReaderApp {
             is_debug: true
         };
 
+        try {
+            // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Получаем JWT токен для debug пользователя
+            console.log('🔐 Аутентификация debug пользователя для получения JWT токена...');
+            
+            const authResponse = await this.api.authenticateWithTelegram('debug_init_data', debugTelegramData);
+            
+            if (authResponse && authResponse.token) {
+                console.log('✅ Получен JWT токен для debug пользователя');
+                this.api.setAuthToken(authResponse.token);
+                
+                // Инициализируем состояние с данными от сервера
+                this.state.update('user', {
+                    profile: {
+                        id: debugTelegramData.id,
+                        firstName: authResponse.user.firstName || debugTelegramData.first_name,
+                        lastName: authResponse.user.lastName || debugTelegramData.last_name,
+                        username: authResponse.user.username || debugTelegramData.username,
+                        telegramId: debugTelegramData.id,
+                        isDebug: true,
+                        isOnboardingCompleted: authResponse.isOnboardingCompleted || false
+                    },
+                    isAuthenticated: true
+                });
+                
+                console.log('🧪 Debug пользователь аутентифицирован с JWT токеном:', {
+                    name: authResponse.user.firstName,
+                    username: authResponse.user.username,
+                    hasToken: !!authResponse.token
+                });
+                
+                return;
+            }
+        } catch (error) {
+            console.warn('⚠️ Не удалось аутентифицировать debug пользователя через API:', error);
+            // Продолжаем с локальным fallback
+        }
+
+        // Fallback: создаем локального debug пользователя без JWT токена
+        console.log('🧪 Создание локального debug пользователя без JWT токена');
+        
         // Используем метод State для правильной инициализации
         const initialized = this.state.initializeWithTelegramUser(debugTelegramData);
         
@@ -588,7 +640,7 @@ class ReaderApp {
                 isOnboardingCompleted: false // Показываем онбординг для тестирования
             });
             
-            console.log('🧪 Создан debug пользователь с реальным именем:', {
+            console.log('🧪 Создан локальный debug пользователь:', {
                 name: debugTelegramData.first_name,
                 username: debugTelegramData.username
             });
@@ -708,6 +760,53 @@ class ReaderApp {
             }).catch(() => {
                 // Игнорируем ошибки отправки ошибок
             });
+        }
+    }
+
+    /**
+     * 🌍 Определение окружения (development/production)
+     */
+    isEnvironmentDevelopment() {
+        // Проверяем различные индикаторы development окружения
+        return (
+            // 1. Явная переменная окружения
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.hostname.includes('dev') ||
+            // 2. URL параметр для тестирования
+            new URLSearchParams(window.location.search).get('debug') === 'true' ||
+            // 3. Отсутствие Telegram WebApp (обычно указывает на разработку)
+            !window.Telegram?.WebApp
+        );
+    }
+
+    /**
+     * 🚨 Показ критической ошибки (для production)
+     */
+    showCriticalError(title, message) {
+        console.error('🚨 Критическая ошибка:', title, message);
+        
+        // Скрываем загрузочный экран
+        this.hideLoadingScreen();
+        
+        // Показываем критическую ошибку
+        const app = document.getElementById('app');
+        if (app) {
+            app.innerHTML = `
+                <div class="critical-error">
+                    <div class="error-icon">🚨</div>
+                    <h2>${title}</h2>
+                    <p>${message}</p>
+                    <div class="error-actions">
+                        <button onclick="location.reload()" class="retry-button">
+                            🔄 Перезапустить приложение
+                        </button>
+                        <button onclick="window.open('https://t.me/annabusel_support', '_blank')" class="support-button">
+                            💬 Обратиться в поддержку
+                        </button>
+                    </div>
+                </div>
+            `;
         }
     }
 
