@@ -285,10 +285,44 @@ class ApiService {
     }
 
     /**
-     * 📊 Получить статистику пользователя - ИСПРАВЛЕНО: Только реальный API
+     * 📊 Получить статистику пользователя - ИСПРАВЛЕНО: С защитой от undefined
      */
     async getStats() {
-        return this.request('GET', '/stats');
+        try {
+            const result = await this.request('GET', '/stats');
+            
+            // ИСПРАВЛЕНО: Защита от undefined значений в ответе API
+            const safeStats = {
+                totalQuotes: result?.stats?.totalQuotes || 0,
+                currentStreak: result?.stats?.currentStreak || 0,
+                longestStreak: result?.stats?.longestStreak || 0,
+                favoriteAuthors: result?.stats?.favoriteAuthors || [],
+                monthlyQuotes: result?.stats?.monthlyQuotes || 0,
+                todayQuotes: result?.stats?.todayQuotes || 0,
+                daysSinceRegistration: result?.stats?.daysSinceRegistration || 0,
+                weeksSinceRegistration: result?.stats?.weeksSinceRegistration || 0
+            };
+            
+            return { ...result, stats: safeStats };
+        } catch (error) {
+            console.warn('⚠️ Ошибка загрузки статистики, возвращаем безопасные defaults:', error);
+            
+            // ИСПРАВЛЕНО: Возвращаем безопасные default значения при ошибке
+            return {
+                success: true,
+                stats: {
+                    totalQuotes: 0,
+                    currentStreak: 0,
+                    longestStreak: 0,
+                    favoriteAuthors: [],
+                    monthlyQuotes: 0,
+                    todayQuotes: 0,
+                    daysSinceRegistration: 0,
+                    weeksSinceRegistration: 0
+                },
+                warning: 'Статистика временно недоступна'
+            };
+        }
     }
 
     /**
