@@ -139,10 +139,17 @@ class OnboardingPage {
             }
         } catch (error) {
             console.warn('⚠️ OnboardingPage: Ошибка проверки статуса онбординга:', error);
+            console.error('🔍 OnboardingPage: Подробности ошибки API:', {
+                message: error.message,
+                stack: error.stack,
+                userId: this.state.get('user.profile')?.telegramId || this.state.get('user.profile')?.id
+            });
             
             // Fallback: проверяем локальное состояние
-            const onboardingCompleted = this.state.get('user.profile.isOnboardingCompleted');
+            const onboardingCompleted = this.state.get('user.isOnboardingCompleted');
+            console.log('🔄 OnboardingPage: Fallback проверка завершения онбординга:', onboardingCompleted);
             if (onboardingCompleted) {
+                console.log('✅ OnboardingPage: Fallback - пользователь завершил онбординг, перенаправляем на /home');
                 this.app.router.navigate('/home');
                 return;
             }
@@ -676,7 +683,7 @@ class OnboardingPage {
             await this.api.completeOnboarding(onboardingData);
             
             // Обновление состояния пользователя
-            this.state.update('user.profile', {
+            this.state.update('user', {
                 isOnboardingCompleted: true
             });
             this.state.set('user.onboardingData', onboardingData);
@@ -769,7 +776,7 @@ class OnboardingPage {
      */
     onShow() {
         // Проверяем, не завершен ли уже онбординг
-        const onboardingCompleted = this.state.get('user.profile.isOnboardingCompleted');
+        const onboardingCompleted = this.state.get('user.isOnboardingCompleted');
         if (onboardingCompleted) {
             this.app.router.navigate('/home');
             return;
