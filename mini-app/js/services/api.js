@@ -18,9 +18,6 @@ class ApiService {
         // 🌐 Base URL для всех API запросов
         this.baseURL = '/api/reader';
         
-        // 🔐 Токен аутентификации - загружаем из storage если есть
-        this.authToken = this.loadAuthTokenFromStorage();
-        
         // ⚙️ Конфигурация запросов
         this.config = {
             timeout: 30000, // 30 секунд
@@ -31,98 +28,20 @@ class ApiService {
         // 📊 Кэширование запросов
         this.cache = new Map();
         this.cacheTimeout = 5 * 60 * 1000; // 5 минут
-
-        // 🔍 Debug режим - ОТКЛЮЧЕН
-        this.debug = false; // ✅ ИСПРАВЛЕНО: Всегда false
         
         console.log('🚀 API Service инициализирован', { 
-            baseURL: this.baseURL, 
-            debug: this.debug,
-            hasStoredToken: !!this.authToken
+            baseURL: this.baseURL
         });
-    }
-
-    /**
-     * 🔐 Загружает токен аутентификации из storage
-     */
-    loadAuthTokenFromStorage() {
-        try {
-            // Пробуем загрузить из sessionStorage (приоритет)
-            if (typeof sessionStorage !== 'undefined') {
-                const token = sessionStorage.getItem('reader_auth_token');
-                if (token) {
-                    console.log('🔑 Токен загружен из sessionStorage');
-                    return token;
-                }
-            }
-            
-            // Fallback на localStorage
-            if (typeof localStorage !== 'undefined') {
-                const token = localStorage.getItem('reader_auth_token');
-                if (token) {
-                    console.log('🔑 Токен загружен из localStorage');
-                    return token;
-                }
-            }
-            
-            return null;
-        } catch (error) {
-            console.warn('⚠️ Не удалось загрузить токен из storage:', error);
-            return null;
-        }
-    }
-
-    /**
-     * 🔍 Определяет debug режим - ОТКЛЮЧЕН
-     */
-    isDebugMode() {
-        // ✅ ИСПРАВЛЕНО: Всегда false - используем только реальный API
-        return false;
-    }
-
-    /**
-     * 🌐 Определяет базовый URL в зависимости от окружения
-     */
-    getBaseURL() {
-        // ✅ ИСПРАВЛЕНО: Всегда продакшн режим - реальный API
-        return '/api/reader';
-    }
-
-    /**
-     * 🔐 Устанавливает токен аутентификации
-     */
-    setAuthToken(token) {
-        this.authToken = token;
-        
-        // ИСПРАВЛЕНИЕ: Сохраняем токен в storage для доступа из service worker
-        try {
-            if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('reader_auth_token', token);
-            }
-            if (typeof localStorage !== 'undefined') {
-                localStorage.setItem('reader_auth_token', token);
-            }
-        } catch (error) {
-            console.warn('⚠️ Не удалось сохранить токен в storage:', error);
-        }
-        
-        console.log('🔑 Токен аутентификации установлен и сохранен в storage');
     }
 
     /**
      * 🔗 Получает заголовки для запросов
      */
     getHeaders() {
-        const headers = {
+        return {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         };
-
-        if (this.authToken) {
-            headers['Authorization'] = `Bearer ${this.authToken}`;
-        }
-
-        return headers;
     }
 
     /**
@@ -237,7 +156,7 @@ class ApiService {
     // ===========================================
 
     /**
-     * 🔑 Аутентификация через Telegram - ИСПРАВЛЕНО: Только реальный API
+     * 🔑 Аутентификация через Telegram
      */
     async authenticateWithTelegram(telegramData, user) {
         try {
@@ -252,16 +171,10 @@ class ApiService {
                 user
             });
 
-            if (response.token) {
-                this.setAuthToken(response.token);
-                console.log('✅ Токен аутентификации сохранен');
-            }
-
             return response;
         } catch (error) {
             console.log('❌ Ошибка аутентификации', { error: error.message });
             
-            // ИСПРАВЛЕНО: Более детальная информация об ошибке
             if (error.status === 401) {
                 throw new Error('Ошибка аутентификации: недействительные данные Telegram');
             } else if (error.status === 500) {
@@ -273,27 +186,11 @@ class ApiService {
     }
 
     /**
-     * 🔄 Обновление токена
+     * 📊 Проверка статуса онбординга
      */
-    async refreshToken() {
+    async checkOnboardingStatus(userId = 'demo-user') {
         try {
-            const response = await this.request('POST', '/auth/refresh');
-            if (response.token) {
-                this.setAuthToken(response.token);
-            }
-            return response;
-        } catch (error) {
-            console.log('❌ Ошибка обновления токена', { error: error.message });
-            throw error;
-        }
-    }
-
-    /**
-     * 📊 Проверка статуса онбординга - ИСПРАВЛЕНО: Только реальный API
-     */
-    async checkOnboardingStatus() {
-        try {
-            return await this.request('GET', '/auth/onboarding-status');
+            return await this.request('GET', `/auth/onboarding-status?userId=${userId}`);
         } catch (error) {
             console.log('❌ Ошибка проверки статуса онбординга', { error: error.message });
             // Fallback: считаем что онбординг не пройден
@@ -302,7 +199,7 @@ class ApiService {
     }
 
     /**
-     * ✅ Завершение онбординга - ИСПРАВЛЕНО: Только реальный API
+     * ✅ Завершение онбординга
      */
     async completeOnboarding(onboardingData) {
         try {
@@ -320,25 +217,25 @@ class ApiService {
     /**
      * 📋 Получить профиль пользователя
      */
-    async getProfile() {
-        return this.request('GET', '/profile');
+    async getProfile(userId = 'demo-user') {
+        return this.request('GET', `/profile?userId=${userId}`);
     }
 
     /**
      * ✏️ Обновить профиль пользователя
      */
-    async updateProfile(profileData) {
-        return this.request('PUT', '/profile', profileData);
+    async updateProfile(profileData, userId = 'demo-user') {
+        return this.request('PUT', '/profile', { ...profileData, userId });
     }
 
     /**
-     * 📊 Получить статистику пользователя - ИСПРАВЛЕНО: С защитой от undefined
+     * 📊 Получить статистику пользователя
      */
-    async getStats() {
+    async getStats(userId = 'demo-user') {
         try {
-            const result = await this.request('GET', '/stats');
+            const result = await this.request('GET', `/stats?userId=${userId}`);
             
-            // ИСПРАВЛЕНО: Защита от undefined значений в ответе API
+            // Защита от undefined значений в ответе API
             const safeStats = {
                 totalQuotes: result?.stats?.totalQuotes || 0,
                 currentStreak: result?.stats?.currentStreak || 0,
@@ -354,7 +251,6 @@ class ApiService {
         } catch (error) {
             console.warn('⚠️ Ошибка загрузки статистики, возвращаем безопасные defaults:', error);
             
-            // ИСПРАВЛЕНО: Возвращаем безопасные default значения при ошибке
             return {
                 success: true,
                 stats: {
@@ -384,19 +280,20 @@ class ApiService {
     // ===========================================
 
     /**
-     * ➕ Добавить новую цитату - ИСПРАВЛЕНО: Только реальный API
+     * ➕ Добавить новую цитату
      */
-    async addQuote(quoteData) {
+    async addQuote(quoteData, userId = 'demo-user') {
         this.clearQuotesCache();
-        return this.request('POST', '/quotes', quoteData);
+        return this.request('POST', '/quotes', { ...quoteData, userId });
     }
 
     /**
-     * 📖 Получить цитаты пользователя - ИСПРАВЛЕНО: Только реальный API
+     * 📖 Получить цитаты пользователя
      */
-    async getQuotes(options = {}) {
+    async getQuotes(options = {}, userId = 'demo-user') {
         const params = new URLSearchParams();
         
+        params.append('userId', userId);
         if (options.limit) params.append('limit', options.limit);
         if (options.offset) params.append('offset', options.offset);
         if (options.author) params.append('author', options.author);
@@ -404,9 +301,7 @@ class ApiService {
         if (options.dateFrom) params.append('dateFrom', options.dateFrom);
         if (options.dateTo) params.append('dateTo', options.dateTo);
 
-        const queryString = params.toString();
-        const endpoint = queryString ? `/quotes?${queryString}` : '/quotes';
-        
+        const endpoint = `/quotes?${params.toString()}`;
         return this.request('GET', endpoint);
     }
 
@@ -430,31 +325,31 @@ class ApiService {
     /**
      * 🕐 Получить последние цитаты
      */
-    async getRecentQuotes(limit = 10) {
-        return this.request('GET', `/quotes/recent?limit=${limit}`);
+    async getRecentQuotes(limit = 10, userId = 'demo-user') {
+        return this.request('GET', `/quotes/recent?limit=${limit}&userId=${userId}`);
     }
 
     /**
      * ✏️ Обновить цитату
      */
-    async updateQuote(quoteId, updateData) {
+    async updateQuote(quoteId, updateData, userId = 'demo-user') {
         this.clearQuotesCache();
-        return this.request('PUT', `/quotes/${quoteId}`, updateData);
+        return this.request('PUT', `/quotes/${quoteId}`, { ...updateData, userId });
     }
 
     /**
      * 🗑️ Удалить цитату
      */
-    async deleteQuote(quoteId) {
+    async deleteQuote(quoteId, userId = 'demo-user') {
         this.clearQuotesCache();
-        return this.request('DELETE', `/quotes/${quoteId}`);
+        return this.request('DELETE', `/quotes/${quoteId}?userId=${userId}`);
     }
 
     /**
-     * 🔍 Поиск цитат - ИСПРАВЛЕНО: Только реальный API
+     * 🔍 Поиск цитат
      */
-    async searchQuotes(query, options = {}) {
-        const params = new URLSearchParams({ q: query });
+    async searchQuotes(query, options = {}, userId = 'demo-user') {
+        const params = new URLSearchParams({ q: query, userId });
         
         if (options.limit) params.append('limit', options.limit);
         if (options.author) params.append('author', options.author);
@@ -469,45 +364,41 @@ class ApiService {
     /**
      * 📅 Получить еженедельные отчеты
      */
-    async getWeeklyReports(options = {}) {
-        const params = new URLSearchParams();
+    async getWeeklyReports(options = {}, userId = 'demo-user') {
+        const params = new URLSearchParams({ userId });
         
         if (options.limit) params.append('limit', options.limit);
         if (options.offset) params.append('offset', options.offset);
 
-        const queryString = params.toString();
-        const endpoint = queryString ? `/reports/weekly?${queryString}` : '/reports/weekly';
-        
+        const endpoint = `/reports/weekly?${params.toString()}`;
         return this.request('GET', endpoint);
     }
 
     /**
      * 📈 Получить конкретный еженедельный отчет
      */
-    async getWeeklyReport(reportId) {
-        return this.request('GET', `/reports/weekly/${reportId}`);
+    async getWeeklyReport(reportId, userId = 'demo-user') {
+        return this.request('GET', `/reports/weekly/${reportId}?userId=${userId}`);
     }
 
     /**
      * 📅 Получить месячные отчеты
      */
-    async getMonthlyReports(options = {}) {
-        const params = new URLSearchParams();
+    async getMonthlyReports(options = {}, userId = 'demo-user') {
+        const params = new URLSearchParams({ userId });
         
         if (options.limit) params.append('limit', options.limit);
         if (options.offset) params.append('offset', options.offset);
 
-        const queryString = params.toString();
-        const endpoint = queryString ? `/reports/monthly?${queryString}` : '/reports/monthly';
-        
+        const endpoint = `/reports/monthly?${params.toString()}`;
         return this.request('GET', endpoint);
     }
 
     /**
      * 📊 Получить конкретный месячный отчет
      */
-    async getMonthlyReport(reportId) {
-        return this.request('GET', `/reports/monthly/${reportId}`);
+    async getMonthlyReport(reportId, userId = 'demo-user') {
+        return this.request('GET', `/reports/monthly/${reportId}?userId=${userId}`);
     }
 
     /**
