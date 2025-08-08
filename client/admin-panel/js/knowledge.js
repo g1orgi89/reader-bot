@@ -64,15 +64,10 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             headers['Content-Type'] = 'application/json';
         }
 
-        // Добавляем аутентификацию только для приватных endpoints
+        // No authentication headers needed - using userId parameter now
         if (!isPublicEndpoint) {
-            const token = localStorage.getItem('adminToken');
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            } else {
-                // Fallback на Basic Auth
-                headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-            }
+            console.log('📖 Using userId parameter for authentication');
+            // Authorization now handled via userId query parameter, no headers needed
         }
 
         console.log(`📖 Making request to: ${url}`);

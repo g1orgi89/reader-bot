@@ -248,28 +248,17 @@ class AuthManager {
 
     /**
      * Получение заголовков для API запросов
-     * 🔧 ВРЕМЕННО: Используем Basic auth
+     * Simple Content-Type only - authentication now handled via userId parameter
      */
     getApiHeaders() {
-        const headers = {
+        return {
             'Content-Type': 'application/json'
         };
-        
-        if (this.token) {
-            if (this.authMethod === 'bearer') {
-                // Bearer token аутентификация
-                headers['Authorization'] = `Bearer ${this.token}`;
-            } else if (this.authMethod === 'basic') {
-                // Basic аутентификация
-                headers['Authorization'] = `Basic ${this.token}`;
-            }
-        }
-        
-        return headers;
     }
 
     /**
-     * Обертка для fetch с автоматической авторизацией
+     * Обертка для fetch с простыми заголовками (без аутентификации)
+     * Authentication now handled via userId query parameter
      */
     async authenticatedFetch(url, options = {}) {
         const defaultOptions = {
@@ -282,12 +271,9 @@ class AuthManager {
             
             const response = await fetch(url, defaultOptions);
             
-            // Если получили 401, значит токен истек
+            // Если получили 401, показываем предупреждение но не перенаправляем
             if (response.status === 401) {
-                console.log('📖 Получен 401, токен истек или неверный, требуется повторная авторизация');
-                this.clearSession();
-                this.redirectToLogin();
-                return null;
+                console.log('📖 Получен 401, возможно требуется параметр userId');
             }
             
             return response;

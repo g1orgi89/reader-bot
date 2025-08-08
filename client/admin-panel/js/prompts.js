@@ -60,14 +60,8 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
             headers['Content-Type'] = 'application/json';
         }
 
-        // 🔧 ИСПРАВЛЕНО: ВСЕГДА добавляем аутентификацию для всех промпт запросов
-        const token = localStorage.getItem('adminToken');
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        } else {
-            // Fallback на Basic Auth
-            headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-        }
+        // 🔧 No authentication headers needed - using userId parameter now
+        console.log('🤖 Authentication now handled via userId parameter');
 
         console.log(`🤖 Making request to: ${url}`);
         
