@@ -631,6 +631,12 @@ class OnboardingPage {
      * ✅ Завершение онбординга
      */
     async completeOnboarding() {
+        // ИСПРАВЛЕНО: Предотвращаем множественные вызовы
+        if (this.loading) {
+            console.log('⚠️ Онбординг уже в процессе, игнорируем повторный вызов');
+            return;
+        }
+        
         if (!this.isContactDataValid()) {
             this.showError('Пожалуйста, заполните обязательные поля');
             return;

@@ -249,7 +249,7 @@ async function runTests() {
     console.log('🧪 Starting Authentication Flow Tests');
     console.log('=====================================');
     
-    let results = {
+    const results = {
         passed: 0,
         failed: 0,
         details: []

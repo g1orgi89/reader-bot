@@ -116,7 +116,7 @@ router.post('/auth/telegram', async (req, res) => {
         // 🚨 ПОТЕНЦИАЛЬНАЯ ПРОБЛЕМА: Race condition между проверкой и созданием
         // TODO: Добавить атомарную операцию создания пользователя
         const userId = user.id.toString();
-        let userProfile = await UserProfile.findOne({ userId });
+        const userProfile = await UserProfile.findOne({ userId });
         
         // ИСПРАВЛЕНО: Создаем JWT токен
         const tokenPayload = {
