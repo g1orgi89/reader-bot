@@ -318,25 +318,50 @@ router.get('/profile', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
     try {
-        const stats = req.user.statistics;
+        // ИСПРАВЛЕНО: Защита от undefined значений в статистике пользователя
+        const userStats = req.user?.statistics || {};
         const todayQuotes = await Quote.getTodayQuotesCount(req.userId);
+        
+        // ИСПРАВЛЕНО: Добавляем default значения для всех полей
+        const safeStats = {
+            totalQuotes: userStats.totalQuotes || 0,
+            currentStreak: userStats.currentStreak || 0,
+            longestStreak: userStats.longestStreak || 0,
+            favoriteAuthors: userStats.favoriteAuthors || [],
+            monthlyQuotes: userStats.monthlyQuotes || 0,
+            todayQuotes: todayQuotes || 0,
+            daysSinceRegistration: req.user?.daysSinceRegistration || 0,
+            weeksSinceRegistration: req.user?.weeksSinceRegistration || 0
+        };
+        
+        console.log('📊 Stats response with safe defaults:', {
+            userId: req.userId,
+            totalQuotes: safeStats.totalQuotes,
+            hasUserStats: !!req.user?.statistics
+        });
         
         res.json({
             success: true,
-            stats: {
-                totalQuotes: stats.totalQuotes,
-                currentStreak: stats.currentStreak,
-                longestStreak: stats.longestStreak,
-                favoriteAuthors: stats.favoriteAuthors,
-                monthlyQuotes: stats.monthlyQuotes,
-                todayQuotes: todayQuotes,
-                daysSinceRegistration: req.user.daysSinceRegistration,
-                weeksSinceRegistration: req.user.weeksSinceRegistration
-            }
+            stats: safeStats
         });
     } catch (error) {
         console.error('❌ Stats Error:', error);
-        res.status(500).json({ success: false, error: error.message });
+        
+        // ИСПРАВЛЕНО: Возвращаем безопасные default значения даже при ошибке
+        res.status(200).json({ 
+            success: true,
+            stats: {
+                totalQuotes: 0,
+                currentStreak: 0,
+                longestStreak: 0,
+                favoriteAuthors: [],
+                monthlyQuotes: 0,
+                todayQuotes: 0,
+                daysSinceRegistration: 0,
+                weeksSinceRegistration: 0
+            },
+            warning: 'Статистика временно недоступна, показаны значения по умолчанию'
+        });
     }
 });
 

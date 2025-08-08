@@ -573,3 +573,77 @@ p {
         width: 480px;
     }
 }
+
+/* ============================================================================
+   🚨 КРИТИЧЕСКИЕ ОШИБКИ (Production Error Handling)
+   ============================================================================ */
+
+.critical-error {
+    text-align: center;
+    padding: 40px 20px;
+    max-width: 400px;
+    margin: 0 auto;
+    background: var(--bg-secondary, #FFFFFF);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.critical-error .error-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.critical-error h2 {
+    color: var(--accent-error, #FF4747);
+    margin-bottom: 16px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.critical-error p {
+    color: var(--text-secondary, #666666);
+    margin-bottom: 32px;
+    line-height: 1.5;
+}
+
+.critical-error .error-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.critical-error .retry-button,
+.critical-error .support-button {
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.critical-error .retry-button {
+    background: var(--accent-primary, #2C2C2C);
+    color: white;
+}
+
+.critical-error .retry-button:hover {
+    background: var(--accent-primary-hover, #1a1a1a);
+    transform: translateY(-1px);
+}
+
+.critical-error .support-button {
+    background: var(--bg-tertiary, #F0F0F0);
+    color: var(--text-primary, #2C2C2C);
+}
+
+.critical-error .support-button:hover {
+    background: var(--bg-quaternary, #E8E8E8);
+    transform: translateY(-1px);
+}
