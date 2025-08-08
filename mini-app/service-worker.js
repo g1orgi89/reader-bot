@@ -336,6 +336,35 @@ self.addEventListener('sync', (event) => {
 });
 
 /**
+ * Получить JWT токен из storage для аутентификации
+ */
+async function getAuthToken() {
+    try {
+        // Пробуем получить токен из различных источников
+        
+        // 1. Проверяем sessionStorage
+        if (typeof sessionStorage !== 'undefined') {
+            const token = sessionStorage.getItem('reader_auth_token');
+            if (token) return token;
+        }
+        
+        // 2. Проверяем localStorage  
+        if (typeof localStorage !== 'undefined') {
+            const token = localStorage.getItem('reader_auth_token');
+            if (token) return token;
+        }
+        
+        // 3. Проверяем IndexedDB (для более надежного хранения)
+        // TODO: Implement IndexedDB token retrieval if needed
+        
+        return null;
+    } catch (error) {
+        console.warn('⚠️ Не удалось получить токен аутентификации:', error);
+        return null;
+    }
+}
+
+/**
  * Синхронизация цитат при восстановлении соединения
  */
 async function syncQuotes() {
@@ -347,14 +376,19 @@ async function syncQuotes() {
         
         for (const quote of pendingQuotes) {
             try {
+                // ИСПРАВЛЕНИЕ: Получаем JWT токен для аутентификации
+                const authToken = await getAuthToken();
+                
+                // Подготавливаем заголовки
+                const headers = { 'Content-Type': 'application/json' };
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
                 // ИСПРАВЛЕНИЕ: Используем правильный endpoint для Reader API
                 const response = await fetch('/api/reader/quotes', {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                        // TODO: Добавить Authorization header с JWT токеном
-                        // Нужно получить токен из IndexedDB или localStorage
-                    },
+                    headers: headers,
                     body: JSON.stringify(quote)
                 });
                 
