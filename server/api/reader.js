@@ -412,9 +412,33 @@ router.get('/auth/onboarding-status', async (req, res) => {
  */
 router.post('/auth/complete-onboarding', async (req, res) => {
     try {
+        // 📱 ONBOARDING DEBUG
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('📱 [ONBOARDING DEBUG]', {
+                timestamp: new Date().toISOString(),
+                hasUser: !!req.body.user,
+                hasAnswers: !!req.body.answers,
+                hasEmail: !!req.body.email,
+                hasSource: !!req.body.source,
+                userId: req.body.user?.id,
+                answersKeys: req.body.answers ? Object.keys(req.body.answers) : [],
+                email: req.body.email,
+                source: req.body.source
+            });
+        }
+        
         const { telegramData, user, answers, email, source } = req.body;
         
         if (!user || !user.id || !answers || !email || !source) {
+            if (DEBUG_AUTH || DEBUG_ALL) {
+                console.log('❌ [ONBOARDING DEBUG] Missing required fields', {
+                    hasUser: !!user,
+                    hasUserId: !!(user && user.id),
+                    hasAnswers: !!answers,
+                    hasEmail: !!email,
+                    hasSource: !!source
+                });
+            }
             return res.status(400).json({
                 success: false,
                 error: 'Missing required fields: user, answers, email, source'
@@ -422,6 +446,22 @@ router.post('/auth/complete-onboarding', async (req, res) => {
         }
 
         const userId = user.id.toString();
+
+        // 💾 DATABASE DEBUG - ONBOARDING
+        if (DEBUG_DB || DEBUG_ALL) {
+            console.log('💾 [DATABASE DEBUG - ONBOARDING]', {
+                timestamp: new Date().toISOString(),
+                operation: 'UPSERT',
+                table: 'userProfile',
+                userId: userId,
+                onboardingData: {
+                    name: answers.question1_name || answers.name,
+                    email: email,
+                    source: source,
+                    answersCount: Object.keys(answers).length
+                }
+            });
+        }
 
         // ИСПРАВЛЕНО: Используем атомарную операцию findOneAndUpdate с upsert
         // для предотвращения race conditions при одновременном создании пользователей
@@ -470,6 +510,16 @@ router.post('/auth/complete-onboarding', async (req, res) => {
         // Проверяем, был ли пользователь создан сейчас или уже существовал
         const wasJustCreated = userProfile.createdAt.getTime() === userProfile.updatedAt.getTime();
         
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('✅ [ONBOARDING DEBUG] User processed', {
+                userId: userId,
+                wasJustCreated: wasJustCreated,
+                isOnboardingComplete: userProfile.isOnboardingComplete,
+                userName: userProfile.name,
+                userEmail: userProfile.email
+            });
+        }
+        
         if (!wasJustCreated && userProfile.isOnboardingComplete) {
             console.log(`⚠️ Пользователь ${userId} уже завершил онбординг`);
             return res.status(400).json({
@@ -497,6 +547,14 @@ router.post('/auth/complete-onboarding', async (req, res) => {
             message: 'Онбординг успешно завершен'
         });
     } catch (error) {
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('❌ [ONBOARDING DEBUG] Error occurred', {
+                error: error.message,
+                stack: error.stack,
+                errorCode: error.code,
+                userId: req.body.user?.id
+            });
+        }
         console.error('❌ Ошибка онбординга:', error);
         
         // ИСПРАВЛЕНО: Обрабатываем ошибки дубликатов (E11000)
