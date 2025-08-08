@@ -18,8 +18,8 @@ class ApiService {
         // 🌐 Base URL для всех API запросов
         this.baseURL = '/api/reader';
         
-        // 🔐 Токен аутентификации
-        this.authToken = null;
+        // 🔐 Токен аутентификации - загружаем из storage если есть
+        this.authToken = this.loadAuthTokenFromStorage();
         
         // ⚙️ Конфигурация запросов
         this.config = {
@@ -35,7 +35,41 @@ class ApiService {
         // 🔍 Debug режим - ОТКЛЮЧЕН
         this.debug = false; // ✅ ИСПРАВЛЕНО: Всегда false
         
-        console.log('🚀 API Service инициализирован', { baseURL: this.baseURL, debug: this.debug });
+        console.log('🚀 API Service инициализирован', { 
+            baseURL: this.baseURL, 
+            debug: this.debug,
+            hasStoredToken: !!this.authToken
+        });
+    }
+
+    /**
+     * 🔐 Загружает токен аутентификации из storage
+     */
+    loadAuthTokenFromStorage() {
+        try {
+            // Пробуем загрузить из sessionStorage (приоритет)
+            if (typeof sessionStorage !== 'undefined') {
+                const token = sessionStorage.getItem('reader_auth_token');
+                if (token) {
+                    console.log('🔑 Токен загружен из sessionStorage');
+                    return token;
+                }
+            }
+            
+            // Fallback на localStorage
+            if (typeof localStorage !== 'undefined') {
+                const token = localStorage.getItem('reader_auth_token');
+                if (token) {
+                    console.log('🔑 Токен загружен из localStorage');
+                    return token;
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            console.warn('⚠️ Не удалось загрузить токен из storage:', error);
+            return null;
+        }
     }
 
     /**
@@ -59,7 +93,20 @@ class ApiService {
      */
     setAuthToken(token) {
         this.authToken = token;
-        console.log('🔑 Токен аутентификации установлен'); // ✅ Всегда логируем
+        
+        // ИСПРАВЛЕНИЕ: Сохраняем токен в storage для доступа из service worker
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('reader_auth_token', token);
+            }
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('reader_auth_token', token);
+            }
+        } catch (error) {
+            console.warn('⚠️ Не удалось сохранить токен в storage:', error);
+        }
+        
+        console.log('🔑 Токен аутентификации установлен и сохранен в storage');
     }
 
     /**
