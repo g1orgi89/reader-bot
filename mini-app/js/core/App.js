@@ -580,11 +580,14 @@ class ReaderApp {
      */
     async createDebugUser() {
         // ИСПРАВЛЕНО: Используем новый метод State для инициализации с Telegram данными
+        // ИСПРАВЛЕНО: Генерируем уникальный ID для каждого debug пользователя
+        const debugUserId = 12345 + Math.floor(Math.random() * 1000); // Уникальный ID от 12345 до 13344
+        
         const debugTelegramData = {
-            id: 12345,
+            id: debugUserId,
             first_name: 'Тестер Debug',
             last_name: 'Режим',
-            username: 'debug_user',
+            username: `debug_user_${debugUserId}`,
             language_code: 'ru',
             is_premium: false,
             is_debug: true
