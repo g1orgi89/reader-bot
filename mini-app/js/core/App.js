@@ -263,7 +263,9 @@ class ReaderApp {
                     // Убеждаемся что имя отображается корректно
                     firstName: authResponse.user.firstName || telegramUser.first_name || 'Пользователь',
                     lastName: authResponse.user.lastName || telegramUser.last_name || '',
-                    username: authResponse.user.username || telegramUser.username || ''
+                    username: authResponse.user.username || telegramUser.username || '',
+                    // ИСПРАВЛЕНО: Правильно сохраняем статус онбординга
+                    isOnboardingCompleted: authResponse.isOnboardingCompleted || false
                 },
                 isAuthenticated: true
             });
@@ -386,20 +388,39 @@ class ReaderApp {
         let initialRoute = '/home';
         
         try {
-            // Проверяем статус онбординга через API
-            const onboardingStatus = await this.api.checkOnboardingStatus();
-            console.log('📊 Статус онбординга:', onboardingStatus);
-            
-            // Если онбординг не завершен - показываем онбординг
-            if (!onboardingStatus.completed && !profile?.isOnboardingCompleted) {
-                initialRoute = '/onboarding';
-                console.log('🎯 Перенаправляем на онбординг');
+            // ИСПРАВЛЕНО: Проверяем статус онбординга через API только если есть токен
+            if (this.api.authToken) {
+                const onboardingStatus = await this.api.checkOnboardingStatus();
+                console.log('📊 Статус онбординга от API:', onboardingStatus);
+                
+                // Если онбординг не завершен - показываем онбординг
+                if (!onboardingStatus.completed) {
+                    initialRoute = '/onboarding';
+                    console.log('🎯 API: Перенаправляем на онбординг');
+                } else {
+                    // Обновляем состояние пользователя с данными от API
+                    if (onboardingStatus.user) {
+                        this.state.update('user.profile', {
+                            ...onboardingStatus.user,
+                            isOnboardingCompleted: true
+                        });
+                    }
+                    console.log('🏠 API: Перенаправляем на главную страницу');
+                }
+            } else {
+                // Fallback: проверяем локальное состояние если нет токена
+                console.log('⚠️ Нет токена аутентификации, проверяем локальное состояние');
+                if (!profile?.isOnboardingCompleted) {
+                    initialRoute = '/onboarding';
+                    console.log('🎯 Локально: Перенаправляем на онбординг');
+                }
             }
         } catch (error) {
-            console.warn('⚠️ Ошибка проверки статуса онбординга:', error);
+            console.warn('⚠️ Ошибка проверки статуса онбординга через API:', error);
             // Fallback на локальную проверку
             if (!profile?.isOnboardingCompleted) {
                 initialRoute = '/onboarding';
+                console.log('🎯 Fallback: Перенаправляем на онбординг');
             }
         }
         

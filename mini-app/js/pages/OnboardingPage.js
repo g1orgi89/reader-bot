@@ -129,7 +129,7 @@ class OnboardingPage {
             
             if (onboardingStatus.completed) {
                 // Перенаправляем на главную страницу
-                this.app.router.navigate('/');
+                this.app.router.navigate('/home');
                 return;
             }
         } catch (error) {
@@ -138,7 +138,7 @@ class OnboardingPage {
             // Fallback: проверяем локальное состояние
             const onboardingCompleted = this.state.get('user.profile.isOnboardingCompleted');
             if (onboardingCompleted) {
-                this.app.router.navigate('/');
+                this.app.router.navigate('/home');
                 return;
             }
         }
@@ -671,7 +671,9 @@ class OnboardingPage {
             await this.api.completeOnboarding(onboardingData);
             
             // Обновление состояния пользователя
-            this.state.set('user.onboardingCompleted', true);
+            this.state.update('user.profile', {
+                isOnboardingCompleted: true
+            });
             this.state.set('user.onboardingData', onboardingData);
             
             // Haptic feedback успеха
@@ -682,7 +684,7 @@ class OnboardingPage {
             
             // Задержка перед переходом
             setTimeout(() => {
-                this.app.router.navigate('/');
+                this.app.router.navigate('/home');
             }, 1500);
             
         } catch (error) {
@@ -762,9 +764,9 @@ class OnboardingPage {
      */
     onShow() {
         // Проверяем, не завершен ли уже онбординг
-        const onboardingCompleted = this.state.get('user.onboardingCompleted');
+        const onboardingCompleted = this.state.get('user.profile.isOnboardingCompleted');
         if (onboardingCompleted) {
-            this.app.router.navigate('/');
+            this.app.router.navigate('/home');
             return;
         }
         

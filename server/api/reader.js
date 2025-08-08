@@ -170,39 +170,57 @@ router.post('/auth/telegram', async (req, res) => {
 /**
  * @description Проверка статуса онбординга
  * @route GET /api/reader/auth/onboarding-status
+ * ИСПРАВЛЕНО: Использует опциональную JWT аутентификацию для правильной проверки статуса
  */
 router.get('/auth/onboarding-status', async (req, res) => {
     try {
         console.log('📊 Onboarding Status Check');
         
-        // Пытаемся получить пользователя из данных запроса
-        const telegramData = req.body.telegramData || req.headers['x-telegram-data'];
-        const user = req.body.user || req.headers['x-telegram-user'];
+        // Пытаемся получить токен из заголовка Authorization
+        const authHeader = req.headers.authorization;
+        let userProfile = null;
         
-        if (user && user.id) {
-            // Проверяем в базе данных
-            const userProfile = await UserProfile.findOne({ userId: user.id.toString() });
-            
-            if (userProfile && userProfile.isOnboardingComplete) {
-                return res.json({
-                    success: true,
-                    isCompleted: true,
-                    completed: true, // Для совместимости с фронтендом
-                    user: {
-                        userId: userProfile.userId,
-                        name: userProfile.name,
-                        email: userProfile.email
-                    }
-                });
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.substring(7); // Убираем "Bearer "
+                const decoded = jwt.verify(token, JWT_SECRET);
+                const userId = decoded.userId;
+                
+                // Находим пользователя в базе
+                userProfile = await UserProfile.findOne({ userId });
+                console.log('✅ Найден пользователь по JWT токену:', { userId, isOnboardingComplete: userProfile?.isOnboardingComplete });
+            } catch (jwtError) {
+                console.warn('⚠️ JWT токен недействителен:', jwtError.message);
+                // Продолжаем без аутентификации
             }
         }
         
+        if (userProfile && userProfile.isOnboardingComplete) {
+            console.log('✅ Пользователь завершил онбординг:', userProfile.userId);
+            return res.json({
+                success: true,
+                isCompleted: true,
+                completed: true, // Для совместимости с фронтендом
+                user: {
+                    userId: userProfile.userId,
+                    name: userProfile.name,
+                    email: userProfile.email,
+                    isOnboardingCompleted: true
+                }
+            });
+        }
+        
         // Если пользователь не найден или онбординг не завершен
+        console.log('⚠️ Пользователь не завершил онбординг или не найден');
         res.json({
             success: true,
             isCompleted: false,
             completed: false, // Для совместимости с фронтендом
-            data: null
+            user: userProfile ? {
+                userId: userProfile.userId,
+                name: userProfile.name,
+                isOnboardingCompleted: false
+            } : null
         });
 
     } catch (error) {
