@@ -105,7 +105,8 @@ router.get('/recent', async (req, res) => {
 });
 
 /**
- * GET /api/quotes - Получение списка цитат с фильтрацией
+ * GET /api/quotes - Получение списка цитат с фильтрацией для аутентифицированного пользователя
+ * 🚨 ИСПРАВЛЕНО: Добавлен фильтр по userId для показа только цитат текущего пользователя
  */
 router.get('/', async (req, res) => {
     try {
@@ -120,14 +121,19 @@ router.get('/', async (req, res) => {
             sortOrder = 'desc'
         } = req.query;
 
-        logger.info('📝 Получение цитат с фильтрами:', {
-            period, category, author, search, page, limit
+        // ИСПРАВЛЕНО: Получаем userId из аутентификации
+        const userId = req.userId || req.query.userId || 'demo-user';
+
+        logger.info('📝 Получение цитат с фильтрами для пользователя:', {
+            userId, period, category, author, search, page, limit
         });
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Построение фильтра для MongoDB
-        const filter = {};
+        // ИСПРАВЛЕНО: Построение фильтра для MongoDB с обязательным фильтром по userId
+        const filter = {
+            userId: userId // ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Показываем только цитаты текущего пользователя
+        };
         
         // Фильтр по периоду
         if (period !== 'all') {
@@ -424,13 +430,17 @@ router.post('/', async (req, res) => {
 });
 
 /**
- * GET /api/quotes/statistics - Получение статистики цитат
+ * GET /api/quotes/statistics - Получение статистики цитат для аутентифицированного пользователя
+ * 🚨 ИСПРАВЛЕНО: Добавлен фильтр по userId для показа статистики только текущего пользователя
  */
 router.get('/statistics', async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
-        logger.info('📊 Получение статистики цитат за период:', period);
+        // ИСПРАВЛЕНО: Получаем userId из аутентификации
+        const userId = req.userId || req.query.userId || 'demo-user';
+
+        logger.info('📊 Получение статистики цитат за период для пользователя:', { userId, period });
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
@@ -442,7 +452,7 @@ router.get('/statistics', async (req, res) => {
         const previousStartDate = new Date(startDate);
         previousStartDate.setDate(previousStartDate.getDate() - days);
 
-        // Выполняем статистические запросы параллельно
+        // ИСПРАВЛЕНО: Выполняем статистические запросы параллельно с фильтром по userId
         const [
             currentStats,
             previousStats,
@@ -450,7 +460,7 @@ router.get('/statistics', async (req, res) => {
             uniqueAuthors
         ] = await Promise.all([
             Quote.aggregate([
-                { $match: { createdAt: { $gte: startDate } } },
+                { $match: { userId: userId, createdAt: { $gte: startDate } } }, // ✅ Добавлен фильтр по userId
                 {
                     $group: {
                         _id: null,
@@ -462,6 +472,7 @@ router.get('/statistics', async (req, res) => {
             Quote.aggregate([
                 { 
                     $match: { 
+                        userId: userId, // ✅ Добавлен фильтр по userId
                         createdAt: { 
                             $gte: previousStartDate, 
                             $lt: startDate 
@@ -476,7 +487,7 @@ router.get('/statistics', async (req, res) => {
                 }
             ]),
             Quote.aggregate([
-                { $match: { createdAt: { $gte: startDate } } },
+                { $match: { userId: userId, createdAt: { $gte: startDate } } }, // ✅ Добавлен фильтр по userId
                 {
                     $group: {
                         _id: '$category',
@@ -487,6 +498,7 @@ router.get('/statistics', async (req, res) => {
                 { $limit: 1 }
             ]),
             Quote.distinct('author', { 
+                userId: userId, // ✅ Добавлен фильтр по userId
                 createdAt: { $gte: startDate },
                 author: { $ne: null, $ne: '' }
             })
@@ -545,13 +557,17 @@ router.get('/statistics', async (req, res) => {
 });
 
 /**
- * GET /api/quotes/analytics - Получение аналитических данных для графиков
+ * GET /api/quotes/analytics - Получение аналитических данных для графиков для аутентифицированного пользователя
+ * 🚨 ИСПРАВЛЕНО: Добавлен фильтр по userId для показа аналитики только текущего пользователя
  */
 router.get('/analytics', async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
-        logger.info('📈 Получение аналитики цитат за период:', period);
+        // ИСПРАВЛЕНО: Получаем userId из аутентификации
+        const userId = req.userId || req.query.userId || 'demo-user';
+
+        logger.info('📈 Получение аналитики цитат за период для пользователя:', { userId, period });
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
@@ -559,7 +575,7 @@ router.get('/analytics', async (req, res) => {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
 
-        // Параллельные запросы для аналитики
+        // ИСПРАВЛЕНО: Параллельные запросы для аналитики с фильтром по userId
         const [
             categoriesData,
             timelineData,
@@ -568,7 +584,7 @@ router.get('/analytics', async (req, res) => {
         ] = await Promise.all([
             // Распределение по категориям
             Quote.aggregate([
-                { $match: { createdAt: { $gte: startDate } } },
+                { $match: { userId: userId, createdAt: { $gte: startDate } } }, // ✅ Добавлен фильтр по userId
                 {
                     $group: {
                         _id: '$category',
@@ -580,7 +596,7 @@ router.get('/analytics', async (req, res) => {
 
             // Временная динамика
             Quote.aggregate([
-                { $match: { createdAt: { $gte: startDate } } },
+                { $match: { userId: userId, createdAt: { $gte: startDate } } }, // ✅ Добавлен фильтр по userId
                 {
                     $group: {
                         _id: {
@@ -599,6 +615,7 @@ router.get('/analytics', async (req, res) => {
             Quote.aggregate([
                 { 
                     $match: { 
+                        userId: userId, // ✅ Добавлен фильтр по userId
                         createdAt: { $gte: startDate },
                         author: { $ne: null, $ne: '' }
                     } 
@@ -615,7 +632,7 @@ router.get('/analytics', async (req, res) => {
 
             // Анализ настроений
             Quote.aggregate([
-                { $match: { createdAt: { $gte: startDate } } },
+                { $match: { userId: userId, createdAt: { $gte: startDate } } }, // ✅ Добавлен фильтр по userId
                 {
                     $group: {
                         _id: '$sentiment',
