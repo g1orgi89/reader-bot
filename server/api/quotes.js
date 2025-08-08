@@ -396,7 +396,9 @@ router.get('/statistics', async (req, res) => {
         const statistics = {
             totalQuotes: current.totalQuotes,
             totalAuthors: uniqueAuthors.length,
-            popularCategory: topCategory._id,
+            // 🚨 ПОТЕНЦИАЛЬНАЯ ПРОБЛЕМА: topCategory._id может быть undefined
+            // TODO: Добавить fallback значение для безопасности
+            popularCategory: topCategory._id || 'Другое',
             dailyAverage,
             changeStats: {
                 quotesChange: quotesChange > 0 ? `+${quotesChange}` : quotesChange.toString(),
