@@ -41,7 +41,17 @@ const UserProfile = require('../models/userProfile');
  */
 router.get('/recent', async (req, res) => {
     try {
-        const userId = req.userId || req.query.userId || 'demo-user';
+        // ИСПРАВЛЕНИЕ: Убираем fallback к demo-user, требуем аутентификации
+        const userId = req.userId || req.query.userId;
+        
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required',
+                message: 'User ID not found. Please authenticate first.'
+            });
+        }
+        
         const limit = parseInt(req.query.limit) || 10;
 
         logger.info('📝 Получение последних цитат для пользователя:', userId);
@@ -121,8 +131,16 @@ router.get('/', async (req, res) => {
             sortOrder = 'desc'
         } = req.query;
 
-        // ИСПРАВЛЕНО: Получаем userId из аутентификации
-        const userId = req.userId || req.query.userId || 'demo-user';
+        // ИСПРАВЛЕНИЕ: Убираем fallback к demo-user, требуем аутентификации  
+        const userId = req.userId || req.query.userId;
+        
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required',
+                message: 'User ID not found. Please authenticate first.'
+            });
+        }
 
         logger.info('📝 Получение цитат с фильтрами для пользователя:', {
             userId, period, category, author, search, page, limit
@@ -258,9 +276,17 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     try {
-        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Используем req.userId из middleware аутентификации
+        // ИСПРАВЛЕНИЕ: Убираем fallback к demo-user, требуем аутентификации
         const { text, author, source } = req.body;
-        const userId = req.userId || req.body.userId || 'demo-user';
+        const userId = req.userId || req.body.userId;
+        
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required',
+                message: 'User ID not found. Please authenticate first.'
+            });
+        }
 
         logger.info('📝 Создание новой цитаты:', { text, author, source, userId });
 
@@ -437,8 +463,16 @@ router.get('/statistics', async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
-        // ИСПРАВЛЕНО: Получаем userId из аутентификации
-        const userId = req.userId || req.query.userId || 'demo-user';
+        // ИСПРАВЛЕНИЕ: Убираем fallback к demo-user, требуем аутентификации
+        const userId = req.userId || req.query.userId;
+        
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required',
+                message: 'User ID not found. Please authenticate first.'
+            });
+        }
 
         logger.info('📊 Получение статистики цитат за период для пользователя:', { userId, period });
 
@@ -564,8 +598,16 @@ router.get('/analytics', async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
-        // ИСПРАВЛЕНО: Получаем userId из аутентификации
-        const userId = req.userId || req.query.userId || 'demo-user';
+        // ИСПРАВЛЕНИЕ: Убираем fallback к demo-user, требуем аутентификации
+        const userId = req.userId || req.query.userId;
+        
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required',
+                message: 'User ID not found. Please authenticate first.'
+            });
+        }
 
         logger.info('📈 Получение аналитики цитат за период для пользователя:', { userId, period });
 

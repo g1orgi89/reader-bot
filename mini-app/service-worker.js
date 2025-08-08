@@ -28,10 +28,10 @@ const STATIC_CACHE_FILES = [
 
 // API endpoints для кэширования данных
 const API_CACHE_PATTERNS = [
-    '/api/quotes',
-    '/api/reports', 
-    '/api/achievements',
-    '/api/users/profile'
+    '/api/reader/quotes',
+    '/api/reader/reports', 
+    '/api/reader/achievements',
+    '/api/reader/profile'
 ];
 
 // Offline страница
@@ -347,9 +347,14 @@ async function syncQuotes() {
         
         for (const quote of pendingQuotes) {
             try {
-                const response = await fetch('/api/quotes', {
+                // ИСПРАВЛЕНИЕ: Используем правильный endpoint для Reader API
+                const response = await fetch('/api/reader/quotes', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json'
+                        // TODO: Добавить Authorization header с JWT токеном
+                        // Нужно получить токен из IndexedDB или localStorage
+                    },
                     body: JSON.stringify(quote)
                 });
                 
