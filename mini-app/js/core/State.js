@@ -264,6 +264,54 @@ class AppState {
     }
 
     /**
+     * 🔗 НОВОЕ: Инициализировать состояние с данными Telegram пользователя
+     * @param {Object} telegramData - Данные пользователя от Telegram
+     */
+    initializeWithTelegramUser(telegramData) {
+        if (!telegramData || !telegramData.id) {
+            console.warn('⚠️ State: Некорректные данные Telegram пользователя');
+            return false;
+        }
+
+        // Сохраняем Telegram данные
+        this.setTelegramData(telegramData);
+
+        // Устанавливаем базовые данные пользователя
+        this.update('user', {
+            profile: {
+                id: telegramData.id,
+                firstName: telegramData.first_name || 'Пользователь',
+                lastName: telegramData.last_name || '',
+                username: telegramData.username || '',
+                languageCode: telegramData.language_code || 'ru',
+                isPremium: telegramData.is_premium || false,
+                isOnboardingCompleted: false // По умолчанию онбординг не завершен
+            },
+            isAuthenticated: true
+        });
+
+        console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
+            id: telegramData.id,
+            firstName: telegramData.first_name,
+            username: telegramData.username
+        });
+
+        return true;
+    }
+
+    /**
+     * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
+     * @returns {number|null} - ID пользователя или null
+     */
+    getCurrentUserId() {
+        const profile = this.get('user.profile');
+        const telegramData = this.get('user.telegramData');
+        
+        // Приоритет: профиль, затем Telegram данные
+        return profile?.id || telegramData?.id || null;
+    }
+
+    /**
      * 🚪 Выход пользователя
      */
     logout() {

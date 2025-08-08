@@ -34,45 +34,19 @@
  */
 class TelegramService {
     /**
-     * @type {Object} - Экземпляр Telegram Web App
-     */
-    webApp = null;
-
-    /**
-     * @type {TelegramUser|null} - Данные пользователя Telegram
-     */
-    user = null;
-
-    /**
-     * @type {string} - Исходные данные инициализации
-     */
-    initData = '';
-
-    /**
-     * @type {TelegramTheme} - Параметры темы Telegram
-     */
-    themeParams = {};
-
-    /**
-     * @type {boolean} - Доступен ли Telegram Web App
-     */
-    isAvailable = false;
-
-    /**
-     * @type {boolean} - Инициализирован ли сервис
-     */
-    isInitialized = false;
-
-    /**
-     * @type {Array<Function>} - Обработчики событий закрытия
-     */
-    closeCallbacks = [];
-
-    /**
      * 🏗️ Конструктор Telegram сервиса
      */
     constructor() {
         console.log('📱 TelegramService: Инициализация начата');
+        
+        // Инициализация свойств класса
+        this.webApp = null;
+        this.user = null;
+        this.initData = '';
+        this.themeParams = {};
+        this.isAvailable = false;
+        this.isInitialized = false;
+        this.closeCallbacks = [];
         
         // Проверяем доступность Telegram Web App
         this.isAvailable = !!(window.Telegram && window.Telegram.WebApp);
@@ -137,7 +111,7 @@ class TelegramService {
     }
 
     /**
-     * 🔧 НОВОЕ: Инициализация Telegram WebApp
+     * 🔧 НОВОЕ: Инициализация Telegram WebApp с retry логикой
      */
     async initTelegramWebApp() {
         if (!window.Telegram?.WebApp) {
@@ -146,23 +120,37 @@ class TelegramService {
         
         console.log('🔄 TelegramService: Инициализация Telegram WebApp...');
         
-        // Проверяем доступность пользовательских данных
-        if (!window.Telegram.WebApp.initDataUnsafe?.user) {
-            console.warn('⚠️ TelegramService: initDataUnsafe.user недоступен');
-            
-            // Пытаемся получить данные другими способами
-            if (window.Telegram.WebApp.initData) {
-                console.log('📊 TelegramService: Есть initData, но нет parsed user данных');
-                // В продакшене здесь можно попробовать распарсить initData
-            }
-            
-            throw new Error('Telegram user data not available in initDataUnsafe');
-        }
-        
         // Сообщаем Telegram что мы готовы
         window.Telegram.WebApp.ready();
         
-        console.log('✅ TelegramService: Telegram WebApp инициализирован');
+        // ИСПРАВЛЕНО: Добавляем retry логику для получения пользовательских данных
+        let attempts = 0;
+        const maxAttempts = 5;
+        const retryDelay = 500; // 500ms между попытками
+        
+        while (attempts < maxAttempts) {
+            attempts++;
+            console.log(`🔄 TelegramService: Попытка ${attempts}/${maxAttempts} получения данных пользователя`);
+            
+            // Проверяем доступность пользовательских данных
+            if (window.Telegram.WebApp.initDataUnsafe?.user?.id) {
+                console.log('✅ TelegramService: Данные пользователя получены успешно');
+                break;
+            }
+            
+            if (attempts < maxAttempts) {
+                console.log(`⏳ TelegramService: Данные пользователя недоступны, ожидание ${retryDelay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
+        }
+        
+        // Финальная проверка после всех попыток
+        if (!window.Telegram.WebApp.initDataUnsafe?.user?.id) {
+            console.error('❌ TelegramService: Не удалось получить данные пользователя после всех попыток');
+            throw new Error('Telegram user data not available after retries');
+        }
+        
+        console.log('✅ TelegramService: Telegram WebApp инициализирован с данными пользователя');
         return window.Telegram.WebApp;
     }
 
@@ -495,6 +483,62 @@ class TelegramService {
         });
         
         return this.user;
+    }
+
+    /**
+     * 🔄 НОВОЕ: Асинхронное получение данных пользователя с retry логикой
+     * @param {number} maxAttempts - Максимальное количество попыток
+     * @param {number} retryDelay - Задержка между попытками в мс
+     * @returns {Promise<TelegramUser|null>} - Данные пользователя
+     */
+    async getUserWithRetry(maxAttempts = 3, retryDelay = 500) {
+        if (!this.isAvailable) {
+            console.log('🧪 TelegramService: Telegram недоступен в getUserWithRetry, возвращаем debug пользователя');
+            return {
+                id: 12345,
+                first_name: 'Тестер',
+                last_name: 'Debug',
+                username: 'debug_user',
+                language_code: 'ru',
+                is_premium: false,
+                is_debug: true
+            };
+        }
+
+        let attempts = 0;
+        while (attempts < maxAttempts) {
+            attempts++;
+            console.log(`🔄 TelegramService: Попытка ${attempts}/${maxAttempts} получения пользователя`);
+
+            // Проверяем наличие пользователя
+            if (this.user && this.user.id) {
+                console.log('✅ TelegramService: Пользователь найден:', {
+                    id: this.user.id,
+                    firstName: this.user.first_name,
+                    username: this.user.username
+                });
+                return this.user;
+            }
+
+            // Пытаемся получить пользователя из WebApp заново
+            if (this.webApp?.initDataUnsafe?.user?.id) {
+                this.user = this.webApp.initDataUnsafe.user;
+                console.log('✅ TelegramService: Пользователь получен из WebApp:', {
+                    id: this.user.id,
+                    firstName: this.user.first_name,
+                    username: this.user.username
+                });
+                return this.user;
+            }
+
+            if (attempts < maxAttempts) {
+                console.log(`⏳ TelegramService: Ожидание ${retryDelay}ms перед следующей попыткой...`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
+        }
+
+        console.error('❌ TelegramService: Не удалось получить данные пользователя после всех попыток');
+        return null;
     }
 
     /**

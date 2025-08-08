@@ -31,50 +31,20 @@
  */
 class ReaderApp {
     /**
-     * @type {AppRouter} - Экземпляр роутера
-     */
-    router = null;
-
-    /**
-     * @type {AppState} - Глобальное состояние приложения  
-     */
-    state = null;
-
-    /**
-     * @type {TelegramService} - Сервис Telegram интеграции
-     */
-    telegram = null;
-
-    /**
-     * @type {ApiService} - Сервис для работы с API
-     */
-    api = null;
-
-    /**
-     * @type {boolean} - Флаг инициализации приложения
-     */
-    isInitialized = false;
-
-    /**
-     * @type {HTMLElement} - Контейнер приложения
-     */
-    appContainer = null;
-
-    /**
-     * @type {HTMLElement} - Экран загрузки
-     */
-    loadingScreen = null;
-
-    /**
-     * @type {TopMenu} - Экземпляр верхнего меню
-     */
-    topMenu = null;
-
-    /**
      * 🏗️ Конструктор приложения
      */
     constructor() {
         console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.7');
+        
+        // Инициализация свойств класса
+        this.router = null;
+        this.state = null;
+        this.telegram = null;
+        this.api = null;
+        this.isInitialized = false;
+        this.appContainer = null;
+        this.loadingScreen = null;
+        this.topMenu = null;
         
         // Получаем основные элементы DOM
         this.appContainer = document.getElementById('app');
@@ -218,24 +188,38 @@ class ReaderApp {
                 return;
             }
             
-            // ИСПРАВЛЕНО: Получаем реальные данные пользователя из Telegram
+            // ИСПРАВЛЕНО: Используем новый метод с retry логикой
             let telegramUser = null;
             let initData = '';
             
-            if (this.telegram && typeof this.telegram.getUser === 'function') {
+            if (this.telegram && typeof this.telegram.getUserWithRetry === 'function') {
+                console.log('🔄 Получаем данные пользователя с retry логикой...');
+                
+                try {
+                    // Попытка получить пользователя с retry логикой
+                    telegramUser = await this.telegram.getUserWithRetry(5, 1000); // 5 попыток с интервалом 1 сек
+                    initData = this.telegram.getInitData();
+                } catch (error) {
+                    console.warn('⚠️ Ошибка при получении пользователя через retry:', error);
+                }
+            } else if (this.telegram && typeof this.telegram.getUser === 'function') {
+                // Fallback на старый метод
                 telegramUser = this.telegram.getUser();
                 initData = this.telegram.getInitData();
             }
             
-            // ИСПРАВЛЕНО: Строгая проверка данных Telegram
+            // ИСПРАВЛЕНО: Более мягкая проверка данных Telegram с fallback на debug режим
             if (!telegramUser || !telegramUser.id || telegramUser.is_debug) {
                 console.warn('⚠️ Данные пользователя Telegram недоступны или это debug пользователь');
                 
-                // ИСПРАВЛЕНО: Если нет реальных данных, выбрасываем ошибку вместо fallback на debug
+                // ИСПРАВЛЕНО: Если в Telegram WebApp и нет данных - переходим в debug режим
                 if (window.Telegram?.WebApp) {
-                    throw new Error('Не удалось получить данные пользователя от Telegram. Пожалуйста, перезапустите приложение из Telegram.');
+                    console.log('🧪 Telegram WebApp доступен, но данные пользователя недоступны. Переходим в debug режим для тестирования.');
+                    this.state.set('debugMode', true);
+                    this.createDebugUser();
+                    return;
                 } else {
-                    // Только в случае отсутствия Telegram WebApp переходим в debug режим
+                    // Если Telegram WebApp вообще недоступен
                     console.log('🧪 Telegram WebApp недоступен, переходим в debug режим');
                     this.state.set('debugMode', true);
                     this.createDebugUser();
@@ -249,6 +233,12 @@ class ReaderApp {
                 username: telegramUser.username
             });
             
+            // ИСПРАВЛЕНО: Инициализируем состояние с Telegram данными перед отправкой на backend
+            const stateInitialized = this.state.initializeWithTelegramUser(telegramUser);
+            if (!stateInitialized) {
+                throw new Error('Не удалось инициализировать состояние с данными Telegram');
+            }
+            
             // ИСПРАВЛЕНО: Отправляем данные на правильный endpoint backend'а
             const authResponse = await this.api.authenticateWithTelegram(initData, telegramUser);
             
@@ -261,27 +251,33 @@ class ReaderApp {
             // ИСПРАВЛЕНО: Сохраняем токен аутентификации в API сервисе
             this.api.setAuthToken(authResponse.token);
             
-            // Сохраняем данные пользователя в состоянии
+            // Обновляем данные пользователя в состоянии с данными от backend
             this.state.update('user', {
-                profile: authResponse.user,
+                profile: {
+                    ...authResponse.user,
+                    // Убеждаемся что имя отображается корректно
+                    firstName: authResponse.user.firstName || telegramUser.first_name || 'Пользователь',
+                    lastName: authResponse.user.lastName || telegramUser.last_name || '',
+                    username: authResponse.user.username || telegramUser.username || ''
+                },
                 isAuthenticated: true
             });
             
-            console.log('✅ Пользователь аутентифицирован:', authResponse.user.firstName);
+            console.log('✅ Пользователь аутентифицирован:', {
+                name: authResponse.user.firstName || telegramUser.first_name,
+                username: authResponse.user.username || telegramUser.username
+            });
             
         } catch (error) {
             console.error('❌ Ошибка аутентификации:', error);
             
-            // ИСПРАВЛЕНО: Показываем пользователю конкретную ошибку
-            if (error.message.includes('Telegram')) {
-                this.showErrorMessage(`Ошибка получения данных от Telegram: ${error.message}`);
-            } else if (error.message.includes('Backend') || error.message.includes('токен')) {
-                this.showErrorMessage(`Ошибка сервера: ${error.message}. Попробуйте позже.`);
-            } else {
-                this.showErrorMessage(`Ошибка аутентификации: ${error.message}`);
-            }
+            // ИСПРАВЛЕНО: Более мягкая обработка ошибок - fallback на debug режим
+            console.log('🧪 Ошибка аутентификации, переходим в debug режим для продолжения работы');
+            this.state.set('debugMode', true);
+            this.createDebugUser();
             
-            throw error; // Re-throw для остановки инициализации
+            // Показываем пользователю информацию об ошибке, но не останавливаем приложение
+            this.showErrorMessage(`Ошибка аутентификации: ${error.message}. Приложение работает в режиме тестирования.`);
         }
     }
 
@@ -291,7 +287,6 @@ class ReaderApp {
     async loadUserData() {
         console.log('🔄 Загрузка пользовательских данных...');
         
-        const user = this.state.get('user.profile');
         const isDebugMode = this.state.get('debugMode');
         
         // В debug режиме не загружаем данные с сервера
@@ -570,17 +565,45 @@ class ReaderApp {
      * 🧪 Создание тестового пользователя для debug режима
      */
     createDebugUser() {
-        this.state.update('user', {
-            profile: {
-                id: 12345,
-                firstName: 'Тестер',
-                username: 'debug_user',
+        // ИСПРАВЛЕНО: Используем новый метод State для инициализации с Telegram данными
+        const debugTelegramData = {
+            id: 12345,
+            first_name: 'Тестер Debug',
+            last_name: 'Режим',
+            username: 'debug_user',
+            language_code: 'ru',
+            is_premium: false,
+            is_debug: true
+        };
+
+        // Используем метод State для правильной инициализации
+        const initialized = this.state.initializeWithTelegramUser(debugTelegramData);
+        
+        if (initialized) {
+            // Дополнительно помечаем как debug режим
+            this.state.update('user.profile', {
                 isDebug: true,
                 isOnboardingCompleted: false // Показываем онбординг для тестирования
-            },
-            isAuthenticated: true
-        });
-        console.log('🧪 Создан debug пользователь');
+            });
+            
+            console.log('🧪 Создан debug пользователь с реальным именем:', {
+                name: debugTelegramData.first_name,
+                username: debugTelegramData.username
+            });
+        } else {
+            // Fallback на старый метод если новый не сработал
+            this.state.update('user', {
+                profile: {
+                    id: 12345,
+                    firstName: 'Тестер Debug',
+                    username: 'debug_user',
+                    isDebug: true,
+                    isOnboardingCompleted: false
+                },
+                isAuthenticated: true
+            });
+            console.log('🧪 Создан debug пользователь (fallback)');
+        }
     }
 
     /**
@@ -668,7 +691,9 @@ class ReaderApp {
         if (!this.state?.get('debugMode')) {
             // Показываем пользователю уведомление об ошибке
             if (window.showNotification) {
-                showNotification('Произошла ошибка. Попробуйте обновить страницу.', 'error');
+                window.showNotification('Произошла ошибка. Попробуйте обновить страницу.', 'error');
+            } else {
+                console.warn('⚠️ Произошла ошибка. Попробуйте обновить страницу.');
             }
         }
         
