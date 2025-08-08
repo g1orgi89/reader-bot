@@ -1084,6 +1084,338 @@ router.get('/community/leaderboard', async (req, res) => {
     }
 });
 
+// ==========================================
+// 👥 ADMIN USER MANAGEMENT
+// ==========================================
+
+/**
+ * @description Получение статистики пользователей для админ-панели
+ * @route GET /api/reader/users/stats
+ */
+router.get('/users/stats', async (req, res) => {
+    try {
+        const requestUserId = getUserId(req);
+        
+        // Простая проверка на админа
+        if (requestUserId !== 'admin-user') {
+            return res.status(401).json({
+                success: false,
+                error: 'Admin access required'
+            });
+        }
+
+        console.log('📊 Fetching admin user statistics...');
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const [
+            totalUsers,
+            newUsersThisWeek,
+            activeUsers,
+            totalQuotes
+        ] = await Promise.all([
+            UserProfile.countDocuments({ isOnboardingComplete: true }),
+            UserProfile.countDocuments({ 
+                createdAt: { $gte: oneWeekAgo },
+                isOnboardingComplete: true 
+            }),
+            UserProfile.countDocuments({
+                lastActiveAt: { $gte: oneWeekAgo },
+                isActive: true
+            }),
+            Quote.countDocuments()
+        ]);
+
+        // Вычисляем retention rate (упрощенно)
+        const retentionRate = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
+
+        const stats = {
+            totalUsers,
+            activeUsers,
+            newUsersThisWeek,
+            retentionRate,
+            totalQuotes,
+            avgQuotesPerUser: totalUsers > 0 ? Math.round(totalQuotes / totalUsers * 10) / 10 : 0
+        };
+
+        res.json(stats);
+        
+    } catch (error) {
+        console.error('❌ Admin User Stats Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+/**
+ * @description Получение списка пользователей для админ-панели
+ * @route GET /api/reader/users
+ */
+router.get('/users', async (req, res) => {
+    try {
+        const requestUserId = getUserId(req);
+        
+        // Простая проверка на админа
+        if (requestUserId !== 'admin-user') {
+            return res.status(401).json({
+                success: false,
+                error: 'Admin access required'
+            });
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+
+        // Фильтры
+        const filters = { isOnboardingComplete: true };
+        
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, 'i');
+            filters.$or = [
+                { name: searchRegex },
+                { email: searchRegex },
+                { telegramUsername: searchRegex }
+            ];
+        }
+        
+        if (req.query.source) {
+            filters.source = req.query.source;
+        }
+        
+        if (req.query.status === 'active') {
+            filters.isActive = true;
+        } else if (req.query.status === 'inactive') {
+            filters.isActive = false;
+        }
+
+        console.log('👥 Fetching users list:', { page, limit, filters });
+
+        const [users, totalCount] = await Promise.all([
+            UserProfile.find(filters)
+                .select('userId name email telegramUsername source isActive createdAt lastActiveAt isOnboardingComplete')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            UserProfile.countDocuments(filters)
+        ]);
+
+        // Обогащаем данные пользователей
+        const enrichedUsers = await Promise.all(users.map(async (user) => {
+            const quotesCount = await Quote.countDocuments({ userId: user.userId });
+            
+            const now = new Date();
+            const daysSinceRegistration = Math.floor((now - user.createdAt) / (1000 * 60 * 60 * 24));
+            
+            let daysSinceLastActive = null;
+            if (user.lastActiveAt) {
+                daysSinceLastActive = Math.floor((now - user.lastActiveAt) / (1000 * 60 * 60 * 24));
+            }
+
+            return {
+                userId: user.userId,
+                name: user.name,
+                email: user.email,
+                telegramUsername: user.telegramUsername,
+                source: user.source,
+                quotesCount,
+                registeredAt: user.createdAt,
+                lastActiveAt: user.lastActiveAt,
+                daysSinceRegistration,
+                daysSinceLastActive,
+                isActive: user.isActive,
+                isOnboardingComplete: user.isOnboardingComplete,
+                activityStatus: daysSinceLastActive === null ? 'inactive' : 
+                               daysSinceLastActive <= 1 ? 'active' : 
+                               daysSinceLastActive <= 7 ? 'recent' : 'inactive'
+            };
+        }));
+
+        const totalPages = Math.ceil(totalCount / limit);
+
+        res.json({
+            users: enrichedUsers,
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalCount,
+                limit,
+                hasNext: page < totalPages,
+                hasPrev: page > 1
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Admin Users List Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+/**
+ * @description Получение детальной информации о пользователе
+ * @route GET /api/reader/users/:userId
+ */
+router.get('/users/:userId', async (req, res) => {
+    try {
+        const requestUserId = getUserId(req);
+        
+        // Простая проверка на админа
+        if (requestUserId !== 'admin-user') {
+            return res.status(401).json({
+                success: false,
+                error: 'Admin access required'
+            });
+        }
+
+        const { userId } = req.params;
+        
+        const user = await UserProfile.findOne({ userId });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        // Получаем статистику по цитатам
+        const [quotes, recentQuotes] = await Promise.all([
+            Quote.find({ userId }).sort({ createdAt: -1 }),
+            Quote.find({ userId }).sort({ createdAt: -1 }).limit(5)
+        ]);
+
+        // Анализируем цитаты
+        const categoryStats = {};
+        const authorStats = {};
+        
+        quotes.forEach(quote => {
+            if (quote.category) {
+                categoryStats[quote.category] = (categoryStats[quote.category] || 0) + 1;
+            }
+            if (quote.author) {
+                authorStats[quote.author] = (authorStats[quote.author] || 0) + 1;
+            }
+        });
+
+        const topCategories = Object.entries(categoryStats)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 3);
+            
+        const topAuthors = Object.entries(authorStats)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 3);
+
+        // Расчет дней с регистрации
+        const now = new Date();
+        const daysSinceRegistration = Math.floor((now - user.createdAt) / (1000 * 60 * 60 * 24));
+
+        const userDetail = {
+            userId: user.userId,
+            name: user.name,
+            email: user.email,
+            telegramUsername: user.telegramUsername,
+            source: user.source,
+            daysSinceRegistration,
+            isActive: user.isActive,
+            isOnboardingComplete: user.isOnboardingComplete,
+            testResults: user.testResults || {},
+            quoteStats: {
+                total: quotes.length,
+                recent: recentQuotes.map(q => ({
+                    text: q.text,
+                    author: q.author,
+                    createdAt: q.createdAt
+                })),
+                topCategories,
+                topAuthors
+            },
+            engagement: {
+                quotesPerDay: quotes.length > 0 ? (quotes.length / Math.max(daysSinceRegistration, 1)).toFixed(1) : 0,
+                longestStreak: user.statistics?.longestStreak || 0
+            },
+            statistics: user.statistics || {},
+            reports: {
+                weekly: [], // Можно добавить позже
+                monthly: []
+            }
+        };
+
+        res.json(userDetail);
+        
+    } catch (error) {
+        console.error('❌ Admin User Detail Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+/**
+ * @description Удаление пользователя
+ * @route DELETE /api/reader/users/:userId
+ */
+router.delete('/users/:userId', async (req, res) => {
+    try {
+        const requestUserId = getUserId(req);
+        
+        // Простая проверка на админа
+        if (requestUserId !== 'admin-user') {
+            return res.status(401).json({
+                success: false,
+                error: 'Admin access required'
+            });
+        }
+
+        const { userId } = req.params;
+        
+        console.log('🗑️ Admin deleting user:', userId);
+        
+        // Проверяем существование пользователя
+        const user = await UserProfile.findOne({ userId });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        // Удаляем пользователя и все связанные данные
+        await Promise.all([
+            UserProfile.deleteOne({ userId }),
+            Quote.deleteMany({ userId }),
+            WeeklyReport.deleteMany({ userId }),
+            MonthlyReport.deleteMany({ userId })
+        ]);
+
+        console.log('✅ User deleted successfully:', userId);
+
+        res.json({
+            success: true,
+            message: 'User deleted successfully',
+            data: {
+                deletedUserId: userId,
+                deletedUserName: user.name
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Admin User Delete Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
 /**
  * @description Базовая проверка работоспособности API
  * @route GET /api/reader/health

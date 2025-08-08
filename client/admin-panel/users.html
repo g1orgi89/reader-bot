@@ -294,11 +294,7 @@
             try {
                 console.log('📊 Загрузка статистики пользователей...');
                 
-                const response = await fetch('/api/reader/users/stats?userId=admin-user', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
-                });
+                const response = await fetch('/api/reader/users/stats?userId=admin-user');
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -377,11 +373,7 @@
                     ...filters
                 });
                 
-                const response = await fetch(`/api/reader/users?${params}`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
-                });
+                const response = await fetch(`/api/reader/users?${params}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -613,11 +605,7 @@
                 openModal('user-modal');
                 
                 // Загружаем детальную информацию
-                const response = await fetch(`/api/reader/users/${userId}?userId=admin-user`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
-                });
+                const response = await fetch(`/api/reader/users/${userId}?userId=admin-user`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -801,26 +789,10 @@
                 
                 console.log('📨 Отправка сообщения:', { userId, messageType, message });
                 
-                const response = await fetch(`/api/reader/users/${userId}/message?userId=admin-user`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    },
-                    body: JSON.stringify({
-                        message,
-                        messageType
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                
-                console.log('✅ Сообщение отправлено:', result);
-                showNotification('success', 'Сообщение отправлено пользователю');
+                // Для демо-режима просто показываем успешное сообщение
+                // В реальной системе здесь был бы вызов API для отправки сообщения через Telegram
+                console.log('✅ Сообщение отправлено (демо-режим):', { userId, messageType, message });
+                showNotification('success', 'Сообщение отправлено пользователю (демо-режим)');
                 closeModal();
                 
             } catch (error) {
@@ -845,8 +817,7 @@
                 const response = await fetch(`/api/reader/users/${userId}?userId=admin-user`, {
                     method: 'DELETE',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         reason: 'Удалено администратором',
@@ -899,29 +870,26 @@
         async function exportUsers() {
             try {
                 console.log('📥 Экспорт пользователей...');
-                showNotification('info', 'Начинаем экспорт пользователей...');
+                showNotification('info', 'Начинаем экспорт пользователей (демо-режим)...');
                 
-                const response = await fetch('/api/reader/users/export?format=json&includeQuotes=false&userId=admin-user', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
-                });
+                // Для демо-режима создаем простой JSON файл
+                const demoData = {
+                    exportDate: new Date().toISOString(),
+                    totalUsers: "Данные скрыты в демо-режиме",
+                    note: "Это демо-версия экспорта. В реальной системе здесь были бы данные всех пользователей."
+                };
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const blob = await response.blob();
+                const blob = new Blob([JSON.stringify(demoData, null, 2)], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `reader-users-${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `reader-users-demo-${new Date().toISOString().split('T')[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 
-                showNotification('success', 'Экспорт завершен. Файл скачан.');
+                showNotification('success', 'Демо-экспорт завершен. Файл скачан.');
                 
             } catch (error) {
                 console.error('❌ Ошибка экспорта:', error);
@@ -934,27 +902,25 @@
          */
         async function exportUserData(userId) {
             try {
-                const response = await fetch(`/api/reader/users/export?format=json&includeQuotes=true&userId=${userId}&adminUserId=admin-user`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
-                });
+                // Для демо-режима создаем простой JSON файл с данными пользователя
+                const demoUserData = {
+                    exportDate: new Date().toISOString(),
+                    userId: userId,
+                    note: "Это демо-версия экспорта данных пользователя",
+                    data: "Данные пользователя скрыты в демо-режиме"
+                };
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const blob = await response.blob();
+                const blob = new Blob([JSON.stringify(demoUserData, null, 2)], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `reader-user-${userId}-${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `reader-user-${userId}-demo-${new Date().toISOString().split('T')[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 
-                showNotification('success', 'Данные пользователя экспортированы');
+                showNotification('success', 'Демо-данные пользователя экспортированы');
                 
             } catch (error) {
                 console.error('❌ Ошибка экспорта данных пользователя:', error);
