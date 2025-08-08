@@ -545,16 +545,59 @@ class AppState {
     }
 
     /**
-     * 🔔 Добавить уведомление
+     * 🔔 УЛУЧШЕНО: Добавить уведомление с улучшенной типизацией
      */
-    addNotification(message, type = 'info') {
+    addNotification(message, type = 'info', duration = 5000) {
         const notification = {
             id: Date.now(),
             message,
-            type,
-            timestamp: Date.now()
+            type, // 'success', 'error', 'warning', 'info'
+            timestamp: Date.now(),
+            duration
         };
         this.push('ui.notifications', notification);
+
+        // Автоматическое удаление уведомления
+        if (duration > 0) {
+            setTimeout(() => {
+                this.removeNotification(notification.id);
+            }, duration);
+        }
+
+        return notification.id;
+    }
+
+    /**
+     * 🎯 НОВОЕ: Добавить уведомление об ошибке API
+     */
+    addApiErrorNotification(error, context = '') {
+        const message = this.formatApiError(error, context);
+        return this.addNotification(message, 'error', 8000);
+    }
+
+    /**
+     * 🛠️ НОВОЕ: Форматировать ошибку API для пользователя
+     */
+    formatApiError(error, context = '') {
+        let message = 'Произошла ошибка';
+        
+        if (context) {
+            message = `Ошибка ${context}`;
+        }
+
+        if (error?.response?.data?.message) {
+            message = error.response.data.message;
+        } else if (error?.message) {
+            if (error.message.includes('Network Error')) {
+                message = 'Проблемы с подключением к интернету';
+            } else if (error.message.includes('timeout')) {
+                message = 'Превышено время ожидания';
+            } else {
+                message = error.message;
+            }
+        }
+
+        return message;
     }
 
     /**
@@ -702,6 +745,39 @@ class AppState {
      */
     getHistory() {
         return [...this.history];
+    }
+
+    /**
+     * 🛡️ НОВОЕ: Валидация входных данных
+     */
+    validateInput(data, rules) {
+        const errors = [];
+        
+        for (const [field, rule] of Object.entries(rules)) {
+            const value = data[field];
+            
+            if (rule.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
+                errors.push(`${field} обязательно для заполнения`);
+                continue;
+            }
+            
+            if (value && rule.maxLength && value.length > rule.maxLength) {
+                errors.push(`${field} не может превышать ${rule.maxLength} символов`);
+            }
+            
+            if (value && rule.minLength && value.length < rule.minLength) {
+                errors.push(`${field} должно содержать минимум ${rule.minLength} символов`);
+            }
+            
+            if (value && rule.pattern && !rule.pattern.test(value)) {
+                errors.push(`${field} имеет неверный формат`);
+            }
+        }
+        
+        return {
+            isValid: errors.length === 0,
+            errors
+        };
     }
 
     /**
