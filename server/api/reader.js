@@ -23,6 +23,13 @@ const quoteHandler = new QuoteHandler();
 // JWT секрет для подписи токенов
 const JWT_SECRET = process.env.JWT_SECRET || 'reader_bot_secret_key_2024';
 
+// 🎯 DEBUG ENVIRONMENT CONTROLS
+const DEBUG_AUTH = process.env.DEBUG_AUTH === 'true';
+const DEBUG_QUOTES = process.env.DEBUG_QUOTES === 'true';
+const DEBUG_AI = process.env.DEBUG_AI === 'true';
+const DEBUG_DB = process.env.DEBUG_DB === 'true';
+const DEBUG_ALL = process.env.DEBUG_ALL === 'true';
+
 /**
  * ИСПРАВЛЕНО: Authentication middleware для защищенных routes с JWT
  * 🚨 КРИТИЧЕСКАЯ ПРОБЛЕМА: Middleware блокирует все запросы без JWT токена,
@@ -31,10 +38,47 @@ const JWT_SECRET = process.env.JWT_SECRET || 'reader_bot_secret_key_2024';
  */
 const authenticateUser = async (req, res, next) => {
     try {
+        // 🔐 COMPREHENSIVE AUTH MIDDLEWARE DEBUG
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('🔐 [AUTH MIDDLEWARE DEBUG]', {
+                timestamp: new Date().toISOString(),
+                method: req.method,
+                url: req.url,
+                
+                // Headers analysis
+                hasAuthHeader: !!req.headers.authorization,
+                authHeaderType: req.headers.authorization?.split(' ')[0],
+                authHeaderLength: req.headers.authorization?.length,
+                authHeaderPreview: req.headers.authorization?.substring(0, 50) + '...',
+                
+                // All headers for debugging
+                allHeaders: Object.keys(req.headers),
+                userAgent: req.headers['user-agent'],
+                
+                // Telegram Web App context
+                isTelegramWebApp: !!req.headers['x-telegram-web-app'],
+                telegramVersion: req.headers['x-telegram-web-app-version'],
+                telegramPlatform: req.headers['x-telegram-web-app-platform'],
+                referrer: req.headers.referer,
+                origin: req.headers.origin,
+                
+                // Request body preview
+                hasBody: !!req.body,
+                bodyKeys: req.body ? Object.keys(req.body) : []
+            });
+        }
+        
         // ИСПРАВЛЕНО: Получаем токен из заголовка Authorization
         const authHeader = req.headers.authorization;
         
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            if (DEBUG_AUTH || DEBUG_ALL) {
+                console.log('❌ [AUTH DEBUG] No valid authorization header', {
+                    hasAuthHeader: !!authHeader,
+                    authHeaderValue: authHeader?.substring(0, 20) + '...',
+                    expectedFormat: 'Bearer <token>'
+                });
+            }
             return res.status(401).json({ 
                 success: false, 
                 error: 'Authorization token required' 
@@ -48,9 +92,29 @@ const authenticateUser = async (req, res, next) => {
             const decoded = jwt.verify(token, JWT_SECRET);
             const userId = decoded.userId;
             
+            if (DEBUG_AUTH || DEBUG_ALL) {
+                console.log('🔐 [AUTH DEBUG] JWT verification successful', {
+                    extractedToken: token ? `${token.substring(0, 20)}...` : null,
+                    tokenValid: !!decoded,
+                    extractedUserId: decoded?.userId,
+                    tokenPayload: {
+                        userId: decoded?.userId,
+                        iat: decoded?.iat,
+                        exp: decoded?.exp,
+                        telegramUserId: decoded?.telegramUser?.id
+                    }
+                });
+            }
+            
             // Находим пользователя в базе
             const userProfile = await UserProfile.findOne({ userId });
             if (!userProfile) {
+                if (DEBUG_AUTH || DEBUG_ALL) {
+                    console.log('❌ [AUTH DEBUG] User not found in database', {
+                        searchedUserId: userId,
+                        jwtUserId: decoded.userId
+                    });
+                }
                 return res.status(401).json({ 
                     success: false, 
                     error: 'User not found. Complete onboarding first.' 
@@ -61,8 +125,26 @@ const authenticateUser = async (req, res, next) => {
             req.user = userProfile;
             req.telegramUser = decoded.telegramUser;
             
+            if (DEBUG_AUTH || DEBUG_ALL) {
+                console.log('✅ [AUTH DEBUG] Authentication successful', {
+                    finalUserId: userId,
+                    userExists: !!userProfile,
+                    userName: userProfile?.name,
+                    isOnboardingComplete: userProfile?.isOnboardingComplete
+                });
+            }
+            
             next();
         } catch (jwtError) {
+            if (DEBUG_AUTH || DEBUG_ALL) {
+                console.log('❌ [AUTH DEBUG] JWT verification failed', {
+                    error: jwtError.message,
+                    tokenPreview: token?.substring(0, 30) + '...',
+                    jwtErrorName: jwtError.name,
+                    isExpired: jwtError.name === 'TokenExpiredError',
+                    isInvalid: jwtError.name === 'JsonWebTokenError'
+                });
+            }
             console.error('❌ JWT verification failed:', jwtError.message);
             return res.status(401).json({ 
                 success: false, 
@@ -71,6 +153,14 @@ const authenticateUser = async (req, res, next) => {
         }
         
     } catch (error) {
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('❌ [AUTH DEBUG] Middleware error', {
+                error: error.message,
+                stack: error.stack,
+                url: req.url,
+                method: req.method
+            });
+        }
         console.error('❌ Authentication middleware error:', error);
         return res.status(401).json({ 
             success: false, 
@@ -101,11 +191,50 @@ router.get('/health', (req, res) => {
  */
 router.post('/auth/telegram', async (req, res) => {
     try {
+        // 📱 TELEGRAM AUTH COMPREHENSIVE DEBUG
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('📱 [TELEGRAM AUTH DEBUG]', {
+                timestamp: new Date().toISOString(),
+                telegramDataReceived: !!req.body.telegramData,
+                userDataReceived: !!req.body.user,
+                userIdFromTelegram: req.body.user?.id,
+                
+                // Telegram data analysis
+                telegramDataPreview: req.body.telegramData?.substring(0, 100) + '...',
+                userDataKeys: req.body.user ? Object.keys(req.body.user) : [],
+                
+                // Headers analysis for Telegram context
+                telegramHeaders: {
+                    isTelegramWebApp: !!req.headers['x-telegram-web-app'],
+                    telegramVersion: req.headers['x-telegram-web-app-version'],
+                    telegramPlatform: req.headers['x-telegram-web-app-platform'],
+                    userAgent: req.headers['user-agent'],
+                    referrer: req.headers.referer,
+                    origin: req.headers.origin
+                },
+                
+                // Full request body structure (sanitized)
+                requestStructure: {
+                    hasUser: !!req.body.user,
+                    hasTelegramData: !!req.body.telegramData,
+                    userFields: req.body.user ? Object.keys(req.body.user) : [],
+                    telegramDataLength: req.body.telegramData?.length || 0
+                }
+            });
+        }
+        
         console.log('📱 Telegram Auth Request:', req.body);
         
         const { telegramData, user } = req.body;
         
         if (!user || !user.id) {
+            if (DEBUG_AUTH || DEBUG_ALL) {
+                console.log('❌ [TELEGRAM AUTH DEBUG] Missing user data', {
+                    hasUser: !!user,
+                    userKeys: user ? Object.keys(user) : [],
+                    hasUserId: !!(user && user.id)
+                });
+            }
             return res.status(400).json({
                 success: false,
                 error: 'Отсутствуют данные пользователя Telegram'
@@ -117,6 +246,15 @@ router.post('/auth/telegram', async (req, res) => {
         // TODO: Добавить атомарную операцию создания пользователя
         const userId = user.id.toString();
         const userProfile = await UserProfile.findOne({ userId });
+        
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('📱 [TELEGRAM AUTH DEBUG] User lookup', {
+                searchUserId: userId,
+                userExists: !!userProfile,
+                userOnboardingComplete: userProfile?.isOnboardingComplete,
+                userName: userProfile?.name
+            });
+        }
         
         // ИСПРАВЛЕНО: Создаем JWT токен
         const tokenPayload = {
@@ -132,6 +270,21 @@ router.post('/auth/telegram', async (req, res) => {
         };
         
         const token = jwt.sign(tokenPayload, JWT_SECRET);
+        
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('📱 [TELEGRAM AUTH DEBUG] JWT generation', {
+                tokenGenerated: !!token,
+                tokenLength: token?.length,
+                tokenPreview: token ? `${token.substring(0, 30)}...` : null,
+                tokenPayload: {
+                    userId: tokenPayload.userId,
+                    telegramUserId: tokenPayload.telegramUser.id,
+                    expiresIn: '30 days',
+                    issuedAt: new Date(tokenPayload.iat * 1000).toISOString(),
+                    expiresAt: new Date(tokenPayload.exp * 1000).toISOString()
+                }
+            });
+        }
         
         // ИСПРАВЛЕНО: Формируем ответ с реальными данными
         const authData = {
@@ -149,6 +302,18 @@ router.post('/auth/telegram', async (req, res) => {
             expiresIn: '30d'
         };
 
+        // Log final auth result
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('✅ [TELEGRAM AUTH RESULT]', {
+                success: authData.success,
+                userId: authData.user.id,
+                isOnboardingCompleted: authData.isOnboardingCompleted,
+                tokenGenerated: !!authData.token,
+                responseStructure: Object.keys(authData),
+                userFields: Object.keys(authData.user)
+            });
+        }
+
         console.log('✅ Auth Success:', {
             userId: authData.user.id,
             firstName: authData.user.firstName,
@@ -159,6 +324,14 @@ router.post('/auth/telegram', async (req, res) => {
         res.json(authData);
 
     } catch (error) {
+        if (DEBUG_AUTH || DEBUG_ALL) {
+            console.log('❌ [TELEGRAM AUTH DEBUG] Error occurred', {
+                error: error.message,
+                stack: error.stack,
+                requestBody: req.body ? Object.keys(req.body) : [],
+                errorName: error.name
+            });
+        }
         console.error('❌ Telegram Auth Error:', error);
         res.status(500).json({
             success: false,
@@ -449,9 +622,45 @@ router.get('/stats', async (req, res) => {
  */
 router.post('/quotes', async (req, res) => {
     try {
+        // 📝 QUOTES API COMPREHENSIVE DEBUG
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('📝 [QUOTES API DEBUG]', {
+                timestamp: new Date().toISOString(),
+                endpoint: req.url,
+                method: req.method,
+                authenticatedUserId: req.userId,
+                
+                // Quote data analysis
+                quoteData: {
+                    text: req.body.text?.substring(0, 50) + '...',
+                    author: req.body.author,
+                    source: req.body.source,
+                    hasText: !!req.body.text,
+                    hasAuthor: !!req.body.author,
+                    hasSource: !!req.body.source,
+                    textLength: req.body.text?.length || 0
+                },
+                
+                // User context
+                userContext: {
+                    userId: req.userId,
+                    userName: req.user?.name,
+                    userEmail: req.user?.email,
+                    isOnboardingComplete: req.user?.isOnboardingComplete
+                }
+            });
+        }
+        
         const { text, author, source } = req.body;
         
         if (!text || text.trim().length === 0) {
+            if (DEBUG_QUOTES || DEBUG_ALL) {
+                console.log('❌ [QUOTES DEBUG] Missing or empty text', {
+                    hasText: !!text,
+                    textLength: text?.length || 0,
+                    textTrimmed: text?.trim().length || 0
+                });
+            }
             return res.status(400).json({
                 success: false,
                 error: 'Text is required'
@@ -460,7 +669,23 @@ router.post('/quotes', async (req, res) => {
         
         // Проверяем лимит цитат в день
         const todayQuotes = await Quote.getTodayQuotesCount(req.userId);
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('📝 [QUOTES DEBUG] Daily limit check', {
+                userId: req.userId,
+                todayQuotes: todayQuotes,
+                dailyLimit: 10,
+                canAddQuote: todayQuotes < 10
+            });
+        }
+        
         if (todayQuotes >= 10) {
+            if (DEBUG_QUOTES || DEBUG_ALL) {
+                console.log('❌ [QUOTES DEBUG] Daily limit exceeded', {
+                    userId: req.userId,
+                    todayQuotes: todayQuotes,
+                    limit: 10
+                });
+            }
             return res.status(429).json({
                 success: false,
                 error: 'Daily limit of 10 quotes exceeded'
@@ -468,18 +693,77 @@ router.post('/quotes', async (req, res) => {
         }
         
         try {
+            // 🤖 AI ANALYSIS START DEBUG
+            if (DEBUG_AI || DEBUG_ALL) {
+                console.log('🤖 [AI ANALYSIS START]', {
+                    timestamp: new Date().toISOString(),
+                    userId: req.userId,
+                    quoteText: text?.substring(0, 50) + '...',
+                    textLength: text?.length
+                });
+            }
+            
+            const aiStartTime = Date.now();
+            
             // Пытаемся добавить цитату с AI анализом
             const result = await quoteHandler.handleQuote(req.userId, text);
             
+            const aiEndTime = Date.now();
+            
+            // 🤖 AI ANALYSIS COMPLETE DEBUG
+            if (DEBUG_AI || DEBUG_ALL) {
+                console.log('🤖 [AI ANALYSIS COMPLETE]', {
+                    timestamp: new Date().toISOString(),
+                    userId: req.userId,
+                    quoteId: result.quote?._id,
+                    processingTime: `${aiEndTime - aiStartTime}ms`,
+                    success: !!result.success,
+                    category: result.quote?.category,
+                    themes: result.quote?.themes,
+                    sentiment: result.quote?.sentiment
+                });
+            }
+            
             if (!result.success) {
+                if (DEBUG_QUOTES || DEBUG_ALL) {
+                    console.log('❌ [QUOTES DEBUG] AI processing failed', {
+                        userId: req.userId,
+                        resultMessage: result.message,
+                        resultSuccess: result.success
+                    });
+                }
                 return res.status(400).json({
                     success: false,
                     error: result.message
                 });
             }
             
+            // 💾 DATABASE DEBUG
+            if (DEBUG_DB || DEBUG_ALL) {
+                console.log('💾 [DATABASE DEBUG]', {
+                    timestamp: new Date().toISOString(),
+                    operation: 'UPDATE',
+                    table: 'userProfile',
+                    userId: req.userId,
+                    action: 'updateQuoteStats',
+                    author: result.quote.author
+                });
+            }
+            
             // Обновляем статистику пользователя
             await req.user.updateQuoteStats(result.quote.author);
+            
+            if (DEBUG_QUOTES || DEBUG_ALL) {
+                console.log('✅ [QUOTES DEBUG] Quote added successfully', {
+                    userId: req.userId,
+                    quoteId: result.quote._id,
+                    quoteText: text.substring(0, 50) + '...',
+                    category: result.quote.category,
+                    aiAnalysisTime: `${aiEndTime - aiStartTime}ms`,
+                    todayCount: result.todayCount,
+                    newAchievements: result.newAchievements?.length || 0
+                });
+            }
             
             console.log(`✅ Цитата с AI анализом добавлена: ${req.userId} - "${text.substring(0, 50)}..."`);
             
@@ -502,6 +786,17 @@ router.post('/quotes', async (req, res) => {
             });
             
         } catch (aiError) {
+            // 🤖 AI ANALYSIS ERROR DEBUG
+            if (DEBUG_AI || DEBUG_ALL) {
+                console.log('❌ [AI ANALYSIS ERROR]', {
+                    timestamp: new Date().toISOString(),
+                    userId: req.userId,
+                    error: aiError.message,
+                    errorName: aiError.name,
+                    stack: aiError.stack
+                });
+            }
+            
             // Fallback на ручное сохранение при ошибке AI
             console.warn(`⚠️ AI анализ неудачен, fallback на ручное сохранение: ${aiError.message}`);
             
@@ -514,6 +809,23 @@ router.post('/quotes', async (req, res) => {
                 themes: ['размышления'],
                 sentiment: 'neutral'
             });
+            
+            // 💾 DATABASE DEBUG - FALLBACK
+            if (DEBUG_DB || DEBUG_ALL) {
+                console.log('💾 [DATABASE DEBUG - FALLBACK]', {
+                    timestamp: new Date().toISOString(),
+                    operation: 'INSERT',
+                    table: 'quotes',
+                    userId: req.userId,
+                    fallbackReason: 'AI_ANALYSIS_FAILED',
+                    quoteData: {
+                        text: text.substring(0, 50) + '...',
+                        author: author,
+                        source: source,
+                        category: 'Другое'
+                    }
+                });
+            }
             
             await quote.save();
 
@@ -528,6 +840,15 @@ router.post('/quotes', async (req, res) => {
 
             // Обновляем статистику пользователя
             await req.user.updateQuoteStats(author);
+            
+            if (DEBUG_QUOTES || DEBUG_ALL) {
+                console.log('✅ [QUOTES DEBUG] Fallback quote saved', {
+                    userId: req.userId,
+                    quoteId: quote._id,
+                    fallbackCategory: 'Другое',
+                    manualSave: true
+                });
+            }
             
             console.log(`✅ Цитата сохранена вручную (fallback): ${req.userId} - "${text.substring(0, 50)}..."`);
             
@@ -550,6 +871,14 @@ router.post('/quotes', async (req, res) => {
         }
         
     } catch (error) {
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('❌ [QUOTES DEBUG] Endpoint error', {
+                error: error.message,
+                stack: error.stack,
+                userId: req.userId,
+                url: req.url
+            });
+        }
         console.error('❌ Add Quote Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
@@ -560,6 +889,26 @@ router.post('/quotes', async (req, res) => {
  */
 router.get('/quotes', async (req, res) => {
     try {
+        // 📝 QUOTES API DEBUG - GET
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('📝 [QUOTES API DEBUG]', {
+                timestamp: new Date().toISOString(),
+                endpoint: req.url,
+                method: req.method,
+                authenticatedUserId: req.userId,
+                
+                // Query parameters
+                queryParams: req.query,
+                filters: {
+                    hasAuthorFilter: !!req.query.author,
+                    hasSearchFilter: !!req.query.search,
+                    hasDateFilter: !!(req.query.dateFrom || req.query.dateTo),
+                    limit: req.query.limit || 20,
+                    offset: req.query.offset || 0
+                }
+            });
+        }
+        
         const { 
             limit = 20, 
             offset = 0, 
@@ -589,12 +938,55 @@ router.get('/quotes', async (req, res) => {
             if (dateTo) query.createdAt.$lte = new Date(dateTo);
         }
         
+        // 💾 DATABASE DEBUG - QUOTES QUERY
+        if (DEBUG_DB || DEBUG_ALL) {
+            console.log('💾 [DATABASE DEBUG]', {
+                timestamp: new Date().toISOString(),
+                operation: 'SELECT',
+                table: 'quotes',
+                userId: req.userId,
+                conditions: query,
+                pagination: { limit: parseInt(limit), offset: parseInt(offset) }
+            });
+        }
+        
         const quotes = await Quote.find(query)
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip(parseInt(offset));
             
         const total = await Quote.countDocuments(query);
+        
+        // 💾 DATABASE DEBUG - RESULTS
+        if (DEBUG_DB || DEBUG_ALL) {
+            console.log('💾 [DATABASE DEBUG]', {
+                timestamp: new Date().toISOString(),
+                operation: 'SELECT_RESULT',
+                table: 'quotes',
+                userId: req.userId,
+                resultCount: quotes?.length || 0,
+                totalCount: total,
+                hasMore: total > parseInt(offset) + parseInt(limit)
+            });
+        }
+        
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('✅ [QUOTES DEBUG] Quotes retrieved', {
+                userId: req.userId,
+                quotesFound: quotes.length,
+                totalQuotes: total,
+                pagination: {
+                    limit: parseInt(limit),
+                    offset: parseInt(offset),
+                    hasMore: total > parseInt(offset) + parseInt(limit)
+                },
+                filters: {
+                    author: author || null,
+                    search: search || null,
+                    dateRange: (dateFrom || dateTo) ? { from: dateFrom, to: dateTo } : null
+                }
+            });
+        }
         
         res.json({
             success: true,
@@ -619,6 +1011,14 @@ router.get('/quotes', async (req, res) => {
         });
         
     } catch (error) {
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('❌ [QUOTES DEBUG] GET quotes error', {
+                error: error.message,
+                stack: error.stack,
+                userId: req.userId,
+                query: req.query
+            });
+        }
         console.error('❌ Get Quotes Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
@@ -630,11 +1030,56 @@ router.get('/quotes', async (req, res) => {
  */
 router.get('/quotes/recent', async (req, res) => {
     try {
+        // 📝 QUOTES API DEBUG - RECENT
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('📝 [QUOTES API DEBUG]', {
+                timestamp: new Date().toISOString(),
+                endpoint: req.url,
+                method: req.method,
+                authenticatedUserId: req.userId,
+                requestedLimit: req.query.limit || 10
+            });
+        }
+        
         const { limit = 10 } = req.query;
+        
+        // 💾 DATABASE DEBUG - RECENT QUOTES
+        if (DEBUG_DB || DEBUG_ALL) {
+            console.log('💾 [DATABASE DEBUG]', {
+                timestamp: new Date().toISOString(),
+                operation: 'SELECT',
+                table: 'quotes',
+                userId: req.userId,
+                conditions: { userId: req.userId },
+                sort: { createdAt: -1 },
+                limit: parseInt(limit)
+            });
+        }
         
         const quotes = await Quote.find({ userId: req.userId })
             .sort({ createdAt: -1 })
             .limit(parseInt(limit));
+        
+        // 💾 DATABASE DEBUG - RECENT RESULTS
+        if (DEBUG_DB || DEBUG_ALL) {
+            console.log('💾 [DATABASE DEBUG]', {
+                timestamp: new Date().toISOString(),
+                operation: 'SELECT_RESULT',
+                table: 'quotes',
+                userId: req.userId,
+                resultCount: quotes?.length || 0
+            });
+        }
+        
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('✅ [QUOTES DEBUG] Recent quotes retrieved', {
+                userId: req.userId,
+                quotesFound: quotes.length,
+                requestedLimit: parseInt(limit),
+                oldestQuoteDate: quotes.length > 0 ? quotes[quotes.length - 1].createdAt : null,
+                newestQuoteDate: quotes.length > 0 ? quotes[0].createdAt : null
+            });
+        }
         
         res.json({
             success: true,
@@ -653,6 +1098,14 @@ router.get('/quotes/recent', async (req, res) => {
         });
         
     } catch (error) {
+        if (DEBUG_QUOTES || DEBUG_ALL) {
+            console.log('❌ [QUOTES DEBUG] GET recent quotes error', {
+                error: error.message,
+                stack: error.stack,
+                userId: req.userId,
+                limit: req.query.limit
+            });
+        }
         console.error('❌ Get Recent Quotes Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
