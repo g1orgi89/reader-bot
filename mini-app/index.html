@@ -151,8 +151,6 @@
     <!-- 🔧 КРИТИЧЕСКОЕ: iOS Navigation Stabilizer -->
     <script src="js/ios-navigation-stabilizer.js"></script>
     
-    <!-- 🔍 НОВОЕ: Viewport диагностика -->
-    <script src="js/utils/viewport-tracker.js"></script>
     <!-- 🔧 НОВОЕ: Динамический калькулятор viewport высоты -->
     <script src="js/utils/viewport-calculator.js"></script>
     
@@ -357,20 +355,6 @@
                 // 🔍 ИСПРАВЛЕНО: Логирование успешной инициализации
                 if (window.debugSystemFixed && window.isIOSDevice) {
                     window.debugSystemFixed.log('INIT', 'INFO', 'Reader Bot initialization completed successfully');
-                }
-                
-                // 🔍 ИСПРАВЛЕНО: Запускаем viewport tracker после инициализации приложения
-                if (window.ViewportTracker && !window.viewportTracker) {
-                    console.log('🔍 Запуск Viewport Tracker...');
-                    setTimeout(() => {
-                        window.viewportTracker = new ViewportTracker();
-                        window.viewportTracker.start();
-                        console.log('✅ Viewport Tracker активирован для диагностики');
-                        
-                        if (window.debugSystemFixed && window.isIOSDevice) {
-                            window.debugSystemFixed.log('INIT', 'INFO', 'Viewport Tracker started');
-                        }
-                    }, 3000); // Даем приложению время инициализироваться
                 }
                 
             } catch (error) {
