@@ -241,51 +241,22 @@ class DiaryPage {
      * ✨ AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!) - 🔧 ИСПРАВЛЕНО: НЕТ ДУБЛИРОВАНИЯ
      */
     renderAIInsight() {
-        // ✅ ИСПРАВЛЕНО: Проверяем флаг загрузки перед показом
-        if (this.statsLoading) {
-            return `
-                <div class="ai-insight">
-                    <div class="ai-title">
-                        <span>✨</span>
-                        <span>Анализ от Анны</span>
-                    </div>
-                    <div class="ai-text">⏳ Анализируем ваши цитаты...</div>
+    if (this.statsLoading) {
+        return `
+            <div class="ai-insight">
+                <div class="ai-title">
+                    <span>✨</span>
+                    <span>Анализ от Анны</span>
                 </div>
-            `;
-        }
-        
-        // ✅ ИСПРАВЛЕНО: Получаем последнюю добавленную цитату из state
-        const lastQuote = this.state.get('lastAddedQuote') || this.getLastAddedQuote();
-        
-        if (!lastQuote || !lastQuote.aiAnalysis) {
-            // ✅ ИСПРАВЛЕНО: Показываем более динамичный пример
-            const stats = this.state.get('stats') || {};
-            const totalQuotes = stats.totalQuotes || 0;
-            
-            if (totalQuotes === 0) {
-                return `
-                    <div class="ai-insight">
-                        <div class="ai-title">
-                            <span>✨</span>
-                            <span>Анализ от Анны</span>
-                        </div>
-                        <div class="ai-text">Добавьте свою первую цитату, и я проанализирую ваши предпочтения и настроение!</div>
-                    </div>
-                `;
-            } else {
-                return `
-                    <div class="ai-insight">
-                        <div class="ai-title">
-                            <span>✨</span>
-                            <span>Анализ от Анны</span>
-                        </div>
-                        <div class="ai-text">У вас уже ${totalQuotes} ${this.getQuoteWord(totalQuotes)}! Ваши цитаты показывают глубокий интерес к саморазвитию и поиску смысла.</div>
-                    </div>
-                `;
-            }
-        }
-        
-        // ✅ ИСПРАВЛЕНО: Показываем AI анализ последней цитаты
+                <div class="ai-text">⏳ Анализируем ваши цитаты...</div>
+            </div>
+        `;
+    }
+    
+    // ✅ ИСПРАВЛЕНИЕ: Получаем AI анализ последней цитаты
+    const lastQuote = this.state.get('lastAddedQuote');
+    
+    if (lastQuote && lastQuote.aiAnalysis && lastQuote.aiAnalysis.summary) {
         return `
             <div class="ai-insight">
                 <div class="ai-title">
@@ -293,15 +264,21 @@ class DiaryPage {
                     <span>Анализ от Анны</span>
                 </div>
                 <div class="ai-text">${lastQuote.aiAnalysis.summary}</div>
-                ${lastQuote.aiAnalysis.mood ? `
-                    <div class="ai-mood">
-                        <span class="mood-emoji">${lastQuote.aiAnalysis.mood.emoji}</span>
-                        <span class="mood-description">${lastQuote.aiAnalysis.mood.description}</span>
-                    </div>
-                ` : ''}
             </div>
         `;
     }
+    
+    // Fallback только если нет AI анализа
+    return `
+        <div class="ai-insight">
+            <div class="ai-title">
+                <span>✨</span>
+                <span>Анализ от Анны</span>
+            </div>
+            <div class="ai-text">Добавьте цитату, и я проанализирую ваши предпочтения!</div>
+        </div>
+    `;
+}
     
     /**
      * 📊 СТАТИСТИКА (ТОЧНО ИЗ КОНЦЕПТА!)
