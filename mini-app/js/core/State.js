@@ -110,13 +110,37 @@ class AppState {
      */
     init() {
         // 🌐 Отслеживаем состояние сети
-        window.addEventListener('online', () => this.setNetwork({ isOnline: true }));
-        window.addEventListener('offline', () => this.setNetwork({ isOnline: false }));
+        this.networkHandlers = {
+            online: () => this.setNetwork({ isOnline: true }),
+            offline: () => this.setNetwork({ isOnline: false })
+        };
+        
+        window.addEventListener('online', this.networkHandlers.online);
+        window.addEventListener('offline', this.networkHandlers.offline);
 
         // 💾 Загружаем сохраненное состояние
         this.loadPersistedState();
 
         this.log('🚀 AppState инициализирован');
+    }
+
+    /**
+     * 🧹 ИСПРАВЛЕНО: Очистка ресурсов для предотвращения утечек памяти
+     */
+    cleanup() {
+        // Удаляем event listeners
+        if (this.networkHandlers) {
+            window.removeEventListener('online', this.networkHandlers.online);
+            window.removeEventListener('offline', this.networkHandlers.offline);
+        }
+
+        // Очищаем подписчики
+        this.subscribers.clear();
+
+        // Очищаем историю
+        this.history = [];
+
+        this.log('🧹 AppState очищен');
     }
 
     // ===========================================
@@ -264,7 +288,7 @@ class AppState {
     }
 
     /**
-     * 🔗 НОВОЕ: Инициализировать состояние с данными Telegram пользователя
+     * 🔗 ИСПРАВЛЕНО: Инициализировать состояние с данными Telegram пользователя
      * @param {Object} telegramData - Данные пользователя от Telegram
      */
     initializeWithTelegramUser(telegramData) {
@@ -276,12 +300,29 @@ class AppState {
         // Сохраняем Telegram данные
         this.setTelegramData(telegramData);
 
+        // ИСПРАВЛЕНО: Улучшенная обработка имени пользователя
+        const firstName = telegramData.first_name?.trim() || '';
+        const lastName = telegramData.last_name?.trim() || '';
+        
+        // Формируем полное имя с проверкой на пустые значения
+        let fullName = '';
+        if (firstName && lastName) {
+            fullName = `${firstName} ${lastName}`;
+        } else if (firstName) {
+            fullName = firstName;
+        } else if (lastName) {
+            fullName = lastName;
+        } else {
+            fullName = telegramData.username || 'Пользователь';
+        }
+
         // Устанавливаем базовые данные пользователя
         this.update('user', {
             profile: {
                 id: telegramData.id,
-                firstName: telegramData.first_name || 'Пользователь',
-                lastName: telegramData.last_name || '',
+                firstName: firstName || 'Пользователь',
+                lastName: lastName || '',
+                fullName: fullName,
                 username: telegramData.username || '',
                 languageCode: telegramData.language_code || 'ru',
                 isPremium: telegramData.is_premium || false,
@@ -292,7 +333,8 @@ class AppState {
 
         console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
             id: telegramData.id,
-            firstName: telegramData.first_name,
+            fullName: fullName,
+            firstName: firstName,
             username: telegramData.username
         });
 

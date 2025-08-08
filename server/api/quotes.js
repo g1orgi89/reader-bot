@@ -36,6 +36,75 @@ const UserProfile = require('../models/userProfile');
 // ==================== ОСНОВНЫЕ РОУТЫ ====================
 
 /**
+ * GET /api/quotes/recent - Получение последних цитат пользователя
+ * КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Добавлен роут /recent ПЕРЕД /:id для предотвращения конфликта
+ */
+router.get('/recent', async (req, res) => {
+    try {
+        const userId = req.userId || req.query.userId || 'demo-user';
+        const limit = parseInt(req.query.limit) || 10;
+
+        logger.info('📝 Получение последних цитат для пользователя:', userId);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        // УЛУЧШЕННАЯ ОБРАБОТКА ОШИБОК: Валидация лимита
+        if (limit > 100) {
+            return res.status(400).json({
+                success: false,
+                message: 'Лимит не может превышать 100 записей',
+                error: 'LIMIT_TOO_HIGH'
+            });
+        }
+
+        if (limit < 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Лимит должен быть положительным числом',
+                error: 'INVALID_LIMIT'
+            });
+        }
+
+        // Получаем последние цитаты пользователя
+        const quotes = await Quote.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        // Обогащаем цитаты информацией о пользователе
+        const enrichedQuotes = quotes.map(quote => ({
+            id: quote._id.toString(),
+            text: quote.text,
+            author: quote.author,
+            source: quote.source,
+            category: quote.category,
+            sentiment: quote.sentiment,
+            themes: quote.themes || [],
+            createdAt: quote.createdAt,
+            isFavorite: quote.isFavorite || false
+        }));
+
+        res.json({
+            success: true,
+            data: {
+                quotes: enrichedQuotes,
+                total: enrichedQuotes.length,
+                userId: userId,
+                limit: limit
+            }
+        });
+
+    } catch (error) {
+        logger.error('❌ Ошибка получения последних цитат:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Ошибка получения последних цитат',
+            error: error.message
+        });
+    }
+});
+
+/**
  * GET /api/quotes - Получение списка цитат с фильтрацией
  */
 router.get('/', async (req, res) => {
@@ -183,24 +252,63 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     try {
-        const { text, author, source, userId = 'demo-user' } = req.body;
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Используем req.userId из middleware аутентификации
+        const { text, author, source } = req.body;
+        const userId = req.userId || req.body.userId || 'demo-user';
 
         logger.info('📝 Создание новой цитаты:', { text, author, source, userId });
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Валидация
+        // УЛУЧШЕННАЯ ВАЛИДАЦИЯ
         if (!text || text.trim().length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Текст цитаты не может быть пустым'
+                message: 'Текст цитаты не может быть пустым',
+                error: 'EMPTY_TEXT'
             });
         }
 
         if (text.length > 1000) {
             return res.status(400).json({
                 success: false,
-                message: 'Текст цитаты не может превышать 1000 символов'
+                message: 'Текст цитаты не может превышать 1000 символов',
+                error: 'TEXT_TOO_LONG'
+            });
+        }
+
+        // Валидация автора если указан
+        if (author && author.length > 100) {
+            return res.status(400).json({
+                success: false,
+                message: 'Имя автора не может превышать 100 символов',
+                error: 'AUTHOR_TOO_LONG'
+            });
+        }
+
+        // Валидация источника если указан
+        if (source && source.length > 200) {
+            return res.status(400).json({
+                success: false,
+                message: 'Источник не может превышать 200 символов',
+                error: 'SOURCE_TOO_LONG'
+            });
+        }
+
+        // БЕЗОПАСНОСТЬ: Проверяем что пользователь не превышает лимит цитат в день
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const todayQuotesCount = await Quote.countDocuments({
+            userId: userId,
+            createdAt: { $gte: todayStart }
+        });
+
+        if (todayQuotesCount >= 50) { // Лимит 50 цитат в день
+            return res.status(429).json({
+                success: false,
+                message: 'Превышен дневной лимит цитат (50 в день)',
+                error: 'DAILY_LIMIT_EXCEEDED'
             });
         }
 
