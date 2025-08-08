@@ -34,14 +34,10 @@
             options = { ...options };
             options.headers = { ...options.headers };
             
-            // Replace Bearer token with Basic Auth
-            if (options.headers['Authorization'] && options.headers['Authorization'].startsWith('Bearer')) {
-                options.headers['Authorization'] = createBasicAuthHeader();
-                console.log('🔧 Auth header fixed to Basic Auth');
-            } else if (!options.headers['Authorization']) {
-                // Add Basic Auth if no authorization header exists
-                options.headers['Authorization'] = createBasicAuthHeader();
-                console.log('🔧 Basic Auth header added');
+            // Remove any Authorization headers since we're using userId parameter now
+            if (options.headers['Authorization']) {
+                delete options.headers['Authorization'];
+                console.log('🔧 Removed Authorization header (now using userId parameter)');
             }
         }
         

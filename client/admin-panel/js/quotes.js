@@ -94,6 +94,7 @@ class QuotesManager {
         const params = new URLSearchParams({
             page: this.currentPage,
             limit: this.currentLimit,
+            userId: 'admin-user', // Add userId parameter for admin access
             ...this.filters
         });
 
@@ -116,7 +117,7 @@ class QuotesManager {
      * @returns {Promise<Object>} Статистика
      */
     async fetchStatistics() {
-        const response = await fetch(`${this.apiPrefix}/quotes/statistics?period=${this.filters.period}`);
+        const response = await fetch(`${this.apiPrefix}/quotes/statistics?period=${this.filters.period}&userId=admin-user`);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -135,7 +136,7 @@ class QuotesManager {
      * @returns {Promise<Object>} Аналитика
      */
     async fetchAnalytics() {
-        const response = await fetch(`${this.apiPrefix}/quotes/analytics?period=${this.filters.period}`);
+        const response = await fetch(`${this.apiPrefix}/quotes/analytics?period=${this.filters.period}&userId=admin-user`);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -494,7 +495,7 @@ class QuotesManager {
             modal.style.display = 'flex';
 
             // Загружаем детальную информацию
-            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}`);
+            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}?userId=admin-user`);
 
             if (!response.ok) {
                 throw new Error('Ошибка загрузки информации о цитате');
@@ -644,7 +645,7 @@ class QuotesManager {
         try {
             console.log('🤖 Запуск AI анализа цитаты:', quoteId);
 
-            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}/analyze`, {
+            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}/analyze?userId=admin-user`, {
                 method: 'POST'
             });
 
@@ -677,7 +678,7 @@ class QuotesManager {
         try {
             console.log('🗑️ Удаление цитаты:', quoteId);
 
-            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}`, {
+            const response = await fetch(`${this.apiPrefix}/quotes/${quoteId}?userId=admin-user`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
@@ -712,7 +713,7 @@ class QuotesManager {
         try {
             console.log('📊 Экспорт цитат');
 
-            const response = await fetch(`${this.apiPrefix}/quotes/export`, {
+            const response = await fetch(`${this.apiPrefix}/quotes/export?userId=admin-user`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -748,7 +749,7 @@ class QuotesManager {
         try {
             console.log('🔍 Поиск похожих цитат для:', quoteId);
 
-            const response = await fetch(`${this.apiPrefix}/quotes/search/similar/${quoteId}`);
+            const response = await fetch(`${this.apiPrefix}/quotes/search/similar/${quoteId}?userId=admin-user`);
 
             if (!response.ok) {
                 throw new Error('Ошибка поиска');

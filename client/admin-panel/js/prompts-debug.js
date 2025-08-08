@@ -132,21 +132,11 @@ function diagnoseApiRequest(endpoint, options = {}) {
         note: '🔧 ВСЕ промпты требуют аутентификацию'
     });
     
-    // 🔧 ВСЕГДА добавляем аутентификацию
+    // 🔧 No authentication headers needed - using userId parameter now
     DEBUG_COUNTERS.authAttempts++;
-    debugLog('AUTH_ATTEMPT', `Попытка аутентификации #${DEBUG_COUNTERS.authAttempts}`);
+    debugLog('AUTH_ATTEMPT', `Попытка аутентификации #${DEBUG_COUNTERS.authAttempts} - теперь через userId параметр`);
     
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-        debugLog('AUTH_ATTEMPT', 'Добавлен Bearer токен', {
-            tokenPrefix: token.substring(0, 20) + '...',
-            headerSet: true
-        });
-    } else {
-        headers['Authorization'] = 'Basic ' + btoa('admin:password123');
-        debugLog('AUTH_ATTEMPT', 'Используется Basic Auth fallback');
-    }
+    debugLog('AUTH_ATTEMPT', 'Аутентификация через userId параметр в URL вместо заголовков');
     
     // Content-Type логика
     if (!(options.body instanceof FormData)) {
@@ -164,8 +154,8 @@ function diagnoseApiRequest(endpoint, options = {}) {
         finalOptions: { ...options, headers },
         metadata: {
             isPublic: false,
-            hasAuth: !!headers['Authorization'],
-            authType: headers['Authorization'] ? headers['Authorization'].split(' ')[0] : 'none'
+            hasAuth: false, // No longer using Authorization headers
+            authType: 'userId-param' // Using userId parameter instead
         }
     };
 }
