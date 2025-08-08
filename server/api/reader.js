@@ -278,29 +278,6 @@ router.post('/auth/complete-onboarding', async (req, res) => {
     }
 });
 
-/**
- * @description Debug endpoint для viewport данных
- * @route POST /api/reader/debug/viewport
- */
-router.post('/debug/viewport', async (req, res) => {
-    try {
-        console.log('🔧 Debug Viewport:', req.body);
-        
-        res.json({
-            success: true,
-            message: 'Viewport data received',
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error) {
-        console.error('❌ Debug Viewport Error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Debug error'
-        });
-    }
-});
-
 // ===========================================
 // 👤 ПРОФИЛЬ И СТАТИСТИКА
 // ===========================================
