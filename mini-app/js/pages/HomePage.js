@@ -123,7 +123,11 @@ class HomePage {
      */
     async loadUserStats() {
         try {
-            const stats = await this.api.getStats();
+            // ✅ ИСПРАВЛЕНО: Получаем userId из состояния
+            const profile = this.state.get('user.profile');
+            const userId = profile?.telegramId || profile?.id || 'demo-user';
+            
+            const stats = await this.api.getStats(userId);
             return {
                 totalQuotes: stats.totalQuotes || 47,
                 currentStreak: stats.currentStreak || 12,
@@ -193,8 +197,12 @@ class HomePage {
      */
     async loadUserProfile() {
         try {
-            const profile = await this.api.getProfile();
-            return profile;
+            // ✅ ИСПРАВЛЕНО: Получаем userId из состояния
+            const profile = this.state.get('user.profile');
+            const userId = profile?.telegramId || profile?.id || 'demo-user';
+            
+            const apiProfile = await this.api.getProfile(userId);
+            return apiProfile;
         } catch (error) {
             console.error('❌ Ошибка загрузки профиля:', error);
             const telegramUser = this.telegram.getUser();

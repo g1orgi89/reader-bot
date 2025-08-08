@@ -247,6 +247,8 @@ class ReaderApp {
             this.state.update('user', {
                 profile: {
                     ...authResponse.user,
+                    id: telegramUser.id, // ✅ ИСПРАВЛЕНО: Убеждаемся что ID установлен
+                    telegramId: telegramUser.id, // ✅ ИСПРАВЛЕНО: Дублируем для совместимости
                     firstName: authResponse.user.firstName || telegramUser.first_name || 'Пользователь',
                     lastName: authResponse.user.lastName || telegramUser.last_name || '',
                     username: authResponse.user.username || telegramUser.username || '',
@@ -373,8 +375,9 @@ class ReaderApp {
         let initialRoute = '/home';
         
         try {
-            // Получаем userId для проверки онбординга
-            const userId = profile?.id || 'demo-user';
+            // Получаем userId для проверки онбординга - используем Telegram ID
+            const userId = profile?.telegramId || profile?.id || 'demo-user';
+            console.log('🔍 Используем userId для проверки онбординга:', userId);
             
             // Проверяем статус онбординга через API
             const onboardingStatus = await this.api.checkOnboardingStatus(userId);
@@ -396,8 +399,11 @@ class ReaderApp {
             }
         } catch (error) {
             console.warn('⚠️ Ошибка проверки статуса онбординга через API:', error);
-            // Fallback на локальную проверку
-            if (!profile?.isOnboardingCompleted) {
+            // Fallback: используем локальную проверку только в debug режиме
+            const isDebugMode = this.state.get('debugMode');
+            if (isDebugMode && profile?.isOnboardingCompleted) {
+                console.log('🏠 Debug Fallback: Пользователь завершил онбординг локально');
+            } else if (!profile?.isOnboardingCompleted) {
                 initialRoute = '/onboarding';
                 console.log('🎯 Fallback: Перенаправляем на онбординг');
             }
@@ -633,7 +639,7 @@ class ReaderApp {
         if (initialized) {
             this.state.update('user.profile', {
                 isDebug: true,
-                isOnboardingCompleted: false
+                isOnboardingCompleted: false // ✅ ИСПРАВЛЕНО: Возвращаем правильное поведение
             });
             
             console.log('🧪 Создан локальный debug пользователь:', {
@@ -645,10 +651,11 @@ class ReaderApp {
             this.state.update('user', {
                 profile: {
                     id: 12345,
+                    telegramId: 12345, // ✅ ИСПРАВЛЕНО: Добавляем telegramId для совместимости
                     firstName: 'Тестер Debug',
                     username: 'debug_user',
                     isDebug: true,
-                    isOnboardingCompleted: false
+                    isOnboardingCompleted: false // ✅ ИСПРАВЛЕНО: Возвращаем правильное поведение
                 },
                 isAuthenticated: true
             });

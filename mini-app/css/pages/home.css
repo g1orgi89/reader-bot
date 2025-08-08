@@ -35,92 +35,123 @@
 }
 
 /* ============================================================================
-   👤 ВСТРОЕННЫЙ БЛОК АВАТАРА (НОВОЕ! ТОЛЬКО НА ГЛАВНОЙ)
+   👤 ВСТРОЕННЫЙ БЛОК АВАТАРА (INSTAGRAM-STYLE REDESIGN)
    ============================================================================ */
 
 .user-header-inline {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    color: white;
-    padding: 16px;
+    background: var(--surface);
+    color: var(--text-primary);
+    padding: 20px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-radius: var(--border-radius);
-    margin-bottom: 16px;
-    box-shadow: 0 4px 12px var(--shadow-color);
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px var(--shadow-color);
     transition: all var(--transition-normal);
 }
 
 .user-header-inline:hover {
-    box-shadow: 0 6px 20px var(--shadow-color-strong);
+    box-shadow: 0 4px 12px var(--shadow-color-strong);
     transform: translateY(-1px);
 }
 
 .user-info-inline {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
+    flex: 1;
 }
 
-/* 👤 Простые инициалы пользователя */
+/* 👤 Instagram-style Large Avatar */
 .user-avatar-inline {
-    width: 48px;
-    height: 48px;
+    width: 68px;
+    height: 68px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-secondary, #E8E5E0);
-    color: var(--text-primary, #2C1810);
-    font-weight: 600;
-    font-size: 18px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    font-weight: 700;
+    font-size: 24px;
     text-transform: uppercase;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 2px solid var(--primary-color, #D2452C);
+    box-shadow: 0 4px 12px rgba(210, 69, 44, 0.3);
+    border: 3px solid var(--surface);
+    transition: all var(--transition-normal);
+    cursor: pointer;
+    position: relative;
+}
+
+.user-avatar-inline::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
 }
 
 .user-avatar-inline:hover {
-    background: rgba(255,255,255,0.3);
     transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(210, 69, 44, 0.4);
 }
 
 .user-details-inline {
     flex: 1;
+    min-width: 0; /* Для корректного truncate */
 }
 
 .user-name-inline {
     margin: 0;
-    font-size: 15px;
-    font-weight: 500;
+    font-size: 18px;
+    font-weight: 600;
     line-height: 1.2;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .user-status-inline {
     margin: 0;
-    font-size: 12px;
-    opacity: 0.8;
+    font-size: 14px;
+    color: var(--text-secondary);
     line-height: 1.2;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .menu-button-inline {
-    background: rgba(255,255,255,0.1);
-    border: none;
-    color: white;
-    font-size: 18px;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    color: var(--text-primary);
+    font-size: 20px;
     cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
+    padding: 0;
+    border-radius: 50%;
     transition: all var(--transition-normal);
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px var(--shadow-color);
 }
 
 .menu-button-inline:hover {
-    background: rgba(255,255,255,0.2);
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
     transform: scale(1.05);
+    box-shadow: 0 4px 8px var(--shadow-color-strong);
 }
 
 .menu-button-inline:active {
@@ -516,24 +547,34 @@
         padding: 8px;
     }
     
-    .user-avatar, .user-avatar-inline {
-        width: 32px;
-        height: 32px;
-        font-size: 14px;
-    }
-    
-    .user-details h3, .user-name-inline {
-        font-size: 14px;
-    }
-    
+    /* Instagram-style mobile responsive header */
     .user-header-inline {
-        padding: 12px;
+        padding: 16px 12px;
+        margin-bottom: 16px;
+    }
+    
+    .user-info-inline {
+        gap: 12px;
+    }
+    
+    .user-avatar-inline {
+        width: 60px;
+        height: 60px;
+        font-size: 20px;
+    }
+    
+    .user-name-inline {
+        font-size: 16px;
+    }
+    
+    .user-status-inline {
+        font-size: 13px;
     }
     
     .menu-button-inline {
-        width: 32px;
-        height: 32px;
-        font-size: 16px;
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
     }
 }
 

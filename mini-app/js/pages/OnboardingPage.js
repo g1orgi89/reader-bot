@@ -124,7 +124,12 @@ class OnboardingPage {
     async init() {
         // Проверяем статус онбординга через API
         try {
-            const onboardingStatus = await this.api.checkOnboardingStatus();
+            // ✅ ИСПРАВЛЕНО: Получаем userId из состояния приложения
+            const profile = this.state.get('user.profile');
+            const userId = profile?.telegramId || profile?.id || 'demo-user';
+            console.log('🔍 OnboardingPage: Используем userId для проверки:', userId);
+            
+            const onboardingStatus = await this.api.checkOnboardingStatus(userId);
             console.log('📊 OnboardingPage: Статус онбординга:', onboardingStatus);
             
             if (onboardingStatus.completed) {
