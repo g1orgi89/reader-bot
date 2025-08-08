@@ -109,14 +109,17 @@ class ReaderApp {
         console.log('🔄 Инициализация сервисов...');
         
         // Создаем состояние приложения
+        // eslint-disable-next-line no-undef
         this.state = new AppState();
         await this.state.init();
         
         // Создаем API сервис
+        // eslint-disable-next-line no-undef
         this.api = new ApiService();
         
         // Создаем Telegram сервис
         if (typeof TelegramService !== 'undefined') {
+            // eslint-disable-next-line no-undef
             this.telegram = new TelegramService();
         } else {
             console.warn('⚠️ TelegramService не найден, будет создан заглушка');
@@ -125,6 +128,7 @@ class ReaderApp {
         
         // ИСПРАВЛЕНО: Создаем роутер с передачей ссылки на App
         if (typeof AppRouter !== 'undefined') {
+            // eslint-disable-next-line no-undef
             this.router = new AppRouter({
                 container: document.getElementById('page-content'),
                 state: this.state,
@@ -420,6 +424,7 @@ class ReaderApp {
         
         // Инициализация нижней навигации
         if (typeof BottomNavigation !== 'undefined') {
+            // eslint-disable-next-line no-undef
             const bottomNav = new BottomNavigation();
             if (typeof bottomNav.init === 'function') {
                 bottomNav.init();
@@ -430,6 +435,7 @@ class ReaderApp {
         
         // Инициализация верхнего меню
         if (typeof TopMenu !== 'undefined') {
+            // eslint-disable-next-line no-undef
             this.topMenu = new TopMenu({
                 app: this,
                 api: this.api,

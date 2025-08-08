@@ -37,7 +37,8 @@ const API_CACHE_PATTERNS = [
 // Offline страница
 const OFFLINE_PAGE = '/offline.html';
 
-// Время жизни кэша (в миллисекундах)
+// Время жизни кэша (в миллисекундах) - используется для будущих возможностей
+// eslint-disable-next-line no-unused-vars
 const CACHE_EXPIRY = {
     STATIC: 24 * 60 * 60 * 1000,     // 24 часа для статических файлов
     API: 10 * 60 * 1000,             // 10 минут для API данных

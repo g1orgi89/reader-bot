@@ -212,7 +212,8 @@ class ApiService {
         const data = options.body ? JSON.parse(options.body) : null;
         
         // Удаляем метод и body из options, чтобы передать остальные параметры
-        const { method: _, body: __, ...restOptions } = options;
+        // eslint-disable-next-line no-unused-vars
+        const { method: _method, body: _body, ...restOptions } = options;
         
         return this.request(method, endpoint, data, restOptions);
     }
