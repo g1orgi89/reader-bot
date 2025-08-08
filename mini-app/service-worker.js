@@ -98,14 +98,14 @@ self.addEventListener('activate', (event) => {
 });
 
 /**
- * Событие перехвата fetch запросов
+ * Событие перехвата fetch запросов с comprehensive JWT debugging
  */
 self.addEventListener('fetch', (event) => {
     const request = event.request;
     const url = new URL(request.url);
     
-    // Игнорируем не-GET запросы для кэширования
-    if (request.method !== 'GET') {
+    // Игнорируем не-GET запросы для кэширования (но логируем API запросы)
+    if (request.method !== 'GET' && !url.pathname.startsWith('/api/reader/')) {
         return;
     }
     
@@ -114,11 +114,42 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
+    // 🔧 SERVICE WORKER DEBUG для API requests
+    if (url.pathname.startsWith('/api/reader/')) {
+        console.log('🔧 [SERVICE WORKER DEBUG]', {
+            timestamp: new Date().toISOString(),
+            method: request.method,
+            url: request.url,
+            pathname: url.pathname,
+            
+            // Headers analysis
+            requestHeaders: Object.fromEntries(request.headers.entries()),
+            hasAuthorizationHeader: request.headers.has('authorization'),
+            authHeaderValue: request.headers.get('authorization') ? 
+                           `${request.headers.get('authorization').substring(0, 50)}...` : null,
+            
+            // Service Worker context
+            serviceWorkerVersion: CACHE_VERSION,
+            cacheStrategyUsed: 'network-first',
+            
+            // Request analysis
+            hasBody: request.method === 'POST' || request.method === 'PUT',
+            contentType: request.headers.get('content-type'),
+            
+            // Auth specific checks
+            isAuthEndpoint: url.pathname.includes('/auth/'),
+            isProtectedEndpoint: url.pathname.includes('/quotes') || 
+                               url.pathname.includes('/reports') || 
+                               url.pathname.includes('/profile') ||
+                               url.pathname.includes('/community')
+        });
+    }
+    
     event.respondWith(handleFetchRequest(request, url));
 });
 
 /**
- * Обработка fetch запросов с различными стратегиями кэширования
+ * Обработка fetch запросов с различными стратегиями кэширования и JWT debugging
  * @param {Request} request - Запрос
  * @param {URL} url - URL запроса
  * @returns {Promise<Response>} Ответ
@@ -127,14 +158,14 @@ async function handleFetchRequest(request, url) {
     const pathname = url.pathname;
     
     try {
+        // Специальная обработка для API requests с JWT
+        if (isApiRequest(pathname)) {
+            return await handleApiRequestWithAuth(request, url);
+        }
+        
         // Стратегия для статических файлов: Cache First
         if (isStaticResource(pathname)) {
             return await cacheFirst(request);
-        }
-        
-        // Стратегия для API: Network First с fallback на кэш
-        if (isApiRequest(pathname)) {
-            return await networkFirst(request);
         }
         
         // Стратегия для изображений: Cache First
@@ -160,6 +191,169 @@ async function handleFetchRequest(request, url) {
         
         throw error;
     }
+}
+
+/**
+ * Специальная обработка API запросов с JWT аутентификацией
+ * @param {Request} request - Запрос
+ * @param {URL} url - URL запроса
+ * @returns {Promise<Response>} Ответ
+ */
+async function handleApiRequestWithAuth(request, url) {
+    try {
+        // 🔧 SW AUTH TOKEN DEBUG
+        const authToken = await getAuthToken();
+        
+        console.log('🔧 [SW AUTH TOKEN DEBUG]', {
+            timestamp: new Date().toISOString(),
+            endpoint: url.pathname,
+            method: request.method,
+            authTokenFromStorage: !!authToken,
+            tokenLength: authToken?.length,
+            tokenPreview: authToken ? `${authToken.substring(0, 30)}...` : null,
+            requestNeedsAuth: isProtectedEndpoint(url.pathname),
+            
+            // Request headers analysis
+            originalHasAuth: request.headers.has('authorization'),
+            originalAuthHeader: request.headers.has('authorization') ? 
+                              `${request.headers.get('authorization').substring(0, 50)}...` : null,
+            
+            // Decision making
+            willAddAuthHeader: authToken && !request.headers.has('authorization'),
+            authRequired: isProtectedEndpoint(url.pathname)
+        });
+
+        // Clone request and add auth header if needed
+        if (authToken && !request.headers.has('authorization') && isProtectedEndpoint(url.pathname)) {
+            const modifiedRequest = new Request(request, {
+                headers: {
+                    ...Object.fromEntries(request.headers.entries()),
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            console.log('🔧 [SW AUTH HEADER ADDED]', {
+                timestamp: new Date().toISOString(),
+                endpoint: url.pathname,
+                originalHadAuth: request.headers.has('authorization'),
+                modifiedHasAuth: modifiedRequest.headers.has('authorization'),
+                addedAuthHeader: true,
+                tokenPreview: `${authToken.substring(0, 30)}...`
+            });
+
+            // Use network first strategy with modified request
+            return await networkFirstWithAuthHandling(modifiedRequest, url);
+        }
+        
+        // For requests that already have auth or don't need it
+        return await networkFirstWithAuthHandling(request, url);
+        
+    } catch (error) {
+        console.error('🔧 [SW ERROR DEBUG]', {
+            timestamp: new Date().toISOString(),
+            errorMessage: error.message,
+            errorType: error.constructor.name,
+            url: request.url,
+            method: request.method,
+            endpoint: url.pathname
+        });
+        throw error;
+    }
+}
+
+/**
+ * Network First с обработкой auth ошибок
+ * @param {Request} request - Запрос (возможно модифицированный)
+ * @param {URL} url - URL запроса
+ * @returns {Promise<Response>} Ответ
+ */
+async function networkFirstWithAuthHandling(request, url) {
+    const cache = await caches.open(CACHE_NAME);
+    
+    try {
+        console.log('🌐 SW Network First with Auth:', url.pathname);
+        const networkResponse = await fetch(request);
+        
+        // 🔧 SW RESPONSE DEBUG
+        console.log('🔧 [SW RESPONSE DEBUG]', {
+            timestamp: new Date().toISOString(),
+            endpoint: url.pathname,
+            status: networkResponse.status,
+            statusText: networkResponse.statusText,
+            ok: networkResponse.ok,
+            
+            // Auth specific analysis
+            isAuthError: networkResponse.status === 401,
+            isServerError: networkResponse.status >= 500,
+            isForbidden: networkResponse.status === 403,
+            
+            // Response headers
+            responseHeaders: Object.fromEntries(networkResponse.headers.entries()),
+            hasAuthChallenge: networkResponse.headers.has('www-authenticate')
+        });
+        
+        // Кэшируем успешные ответы (но не auth endpoints)
+        if (networkResponse.ok && !url.pathname.includes('/auth/')) {
+            cache.put(request, networkResponse.clone());
+        }
+        
+        // Особая обработка auth ошибок
+        if (networkResponse.status === 401) {
+            console.error('🔧 [SW AUTH ERROR]', {
+                timestamp: new Date().toISOString(),
+                endpoint: url.pathname,
+                message: 'Authentication failed',
+                possibleCauses: [
+                    'JWT token expired',
+                    'JWT token invalid',
+                    'Token not sent in headers',
+                    'Backend auth middleware error'
+                ],
+                recommendations: [
+                    'Check token in storage',
+                    'Check if token is being sent',
+                    'Check backend logs',
+                    'Try re-authentication'
+                ]
+            });
+        }
+        
+        return networkResponse;
+        
+    } catch (error) {
+        console.log('💾 SW Network failed, trying cache:', url.pathname);
+        const cachedResponse = await cache.match(request);
+        
+        if (cachedResponse) {
+            console.log('🔧 [SW CACHE FALLBACK]', {
+                timestamp: new Date().toISOString(),
+                endpoint: url.pathname,
+                fallbackReason: 'Network error',
+                errorMessage: error.message
+            });
+            return cachedResponse;
+        }
+        
+        throw error;
+    }
+}
+
+/**
+ * Проверка, требует ли endpoint аутентификации
+ * @param {string} pathname - Путь URL
+ * @returns {boolean} Требует ли аутентификации
+ */
+function isProtectedEndpoint(pathname) {
+    const protectedPaths = [
+        '/quotes',
+        '/reports', 
+        '/profile',
+        '/community',
+        '/stats',
+        '/achievements'
+    ];
+    
+    return protectedPaths.some(path => pathname.includes(path));
 }
 
 /**
@@ -336,36 +530,130 @@ self.addEventListener('sync', (event) => {
 });
 
 /**
- * Получить JWT токен из storage для аутентификации
+ * Получить JWT токен из storage для аутентификации с comprehensive debugging
  */
 async function getAuthToken() {
     try {
-        // Пробуем получить токен из различных источников
+        let token = null;
+        const storageAttempts = [];
         
         // 1. Проверяем sessionStorage
-        if (typeof sessionStorage !== 'undefined') {
-            const token = sessionStorage.getItem('reader_auth_token');
-            if (token) return token;
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                token = sessionStorage.getItem('reader_auth_token');
+                storageAttempts.push({
+                    storage: 'sessionStorage',
+                    key: 'reader_auth_token',
+                    found: !!token,
+                    tokenLength: token?.length
+                });
+                if (token) {
+                    console.log('🔧 [SW STORAGE DEBUG] Token found in sessionStorage');
+                    return token;
+                }
+            }
+        } catch (sessionError) {
+            storageAttempts.push({
+                storage: 'sessionStorage',
+                error: sessionError.message
+            });
         }
         
         // 2. Проверяем localStorage  
-        if (typeof localStorage !== 'undefined') {
-            const token = localStorage.getItem('reader_auth_token');
-            if (token) return token;
+        try {
+            if (typeof localStorage !== 'undefined') {
+                token = localStorage.getItem('reader_auth_token');
+                storageAttempts.push({
+                    storage: 'localStorage',
+                    key: 'reader_auth_token',
+                    found: !!token,
+                    tokenLength: token?.length
+                });
+                if (token) {
+                    console.log('🔧 [SW STORAGE DEBUG] Token found in localStorage');
+                    return token;
+                }
+            }
+        } catch (localError) {
+            storageAttempts.push({
+                storage: 'localStorage',
+                error: localError.message
+            });
         }
         
-        // 3. Проверяем IndexedDB (для более надежного хранения)
-        // TODO: Implement IndexedDB token retrieval if needed
+        // 3. Проверяем альтернативные ключи
+        const alternativeKeys = ['authToken', 'jwt_token', 'auth_token', 'token'];
+        for (const key of alternativeKeys) {
+            try {
+                // sessionStorage
+                if (typeof sessionStorage !== 'undefined') {
+                    const altToken = sessionStorage.getItem(key);
+                    if (altToken) {
+                        storageAttempts.push({
+                            storage: 'sessionStorage',
+                            key: key,
+                            found: true,
+                            tokenLength: altToken.length,
+                            alternative: true
+                        });
+                        console.log(`🔧 [SW STORAGE DEBUG] Token found in sessionStorage with alternative key: ${key}`);
+                        return altToken;
+                    }
+                }
+                
+                // localStorage
+                if (typeof localStorage !== 'undefined') {
+                    const altToken = localStorage.getItem(key);
+                    if (altToken) {
+                        storageAttempts.push({
+                            storage: 'localStorage',
+                            key: key,
+                            found: true,
+                            tokenLength: altToken.length,
+                            alternative: true
+                        });
+                        console.log(`🔧 [SW STORAGE DEBUG] Token found in localStorage with alternative key: ${key}`);
+                        return altToken;
+                    }
+                }
+            } catch (error) {
+                storageAttempts.push({
+                    storage: 'both',
+                    key: key,
+                    error: error.message,
+                    alternative: true
+                });
+            }
+        }
+        
+        // Логируем все попытки поиска токена
+        console.log('🔧 [SW STORAGE DEBUG] Token search complete', {
+            timestamp: new Date().toISOString(),
+            totalAttempts: storageAttempts.length,
+            storageAttempts: storageAttempts,
+            tokenFound: false,
+            recommendedActions: [
+                'Check if user is authenticated',
+                'Check if token was properly saved after auth',
+                'Check API service setAuthToken method',
+                'Check frontend auth flow'
+            ]
+        });
         
         return null;
     } catch (error) {
-        console.warn('⚠️ Не удалось получить токен аутентификации:', error);
+        console.error('🔧 [SW STORAGE ERROR]', {
+            timestamp: new Date().toISOString(),
+            errorMessage: error.message,
+            errorType: error.constructor.name,
+            stackTrace: error.stack?.substring(0, 200)
+        });
         return null;
     }
 }
 
 /**
- * Синхронизация цитат при восстановлении соединения
+ * Синхронизация цитат при восстановлении соединения с comprehensive debugging
  */
 async function syncQuotes() {
     try {
@@ -374,10 +662,25 @@ async function syncQuotes() {
         // Получаем несинхронизированные цитаты из IndexedDB
         const pendingQuotes = await getPendingQuotes();
         
+        console.log('🔧 [SW SYNC DEBUG]', {
+            timestamp: new Date().toISOString(),
+            pendingQuotesCount: pendingQuotes.length,
+            syncStarted: true
+        });
+
         for (const quote of pendingQuotes) {
             try {
-                // ИСПРАВЛЕНИЕ: Получаем JWT токен для аутентификации
+                // 🔧 SW SYNC QUOTE DEBUG
                 const authToken = await getAuthToken();
+                
+                console.log('🔧 [SW SYNC QUOTE DEBUG]', {
+                    timestamp: new Date().toISOString(),
+                    quoteId: quote.id,
+                    hasAuthToken: !!authToken,
+                    tokenLength: authToken?.length,
+                    tokenPreview: authToken ? `${authToken.substring(0, 30)}...` : null,
+                    quoteText: quote.text?.substring(0, 50) + '...'
+                });
                 
                 // Подготавливаем заголовки
                 const headers = { 'Content-Type': 'application/json' };
@@ -385,24 +688,62 @@ async function syncQuotes() {
                     headers['Authorization'] = `Bearer ${authToken}`;
                 }
                 
-                // ИСПРАВЛЕНИЕ: Используем правильный endpoint для Reader API
+                console.log('🔧 [SW SYNC REQUEST DEBUG]', {
+                    timestamp: new Date().toISOString(),
+                    endpoint: '/api/reader/quotes',
+                    method: 'POST',
+                    headers: Object.keys(headers),
+                    hasAuthHeader: !!headers['Authorization'],
+                    quoteId: quote.id
+                });
+                
+                // Используем правильный endpoint для Reader API
                 const response = await fetch('/api/reader/quotes', {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(quote)
                 });
                 
+                console.log('🔧 [SW SYNC RESPONSE DEBUG]', {
+                    timestamp: new Date().toISOString(),
+                    quoteId: quote.id,
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    isAuthError: response.status === 401
+                });
+                
                 if (response.ok) {
                     await removePendingQuote(quote.id);
                     console.log('✅ Цитата синхронизирована:', quote.id);
+                } else {
+                    console.error('❌ Ошибка синхронизации цитаты:', {
+                        quoteId: quote.id,
+                        status: response.status,
+                        statusText: response.statusText
+                    });
                 }
             } catch (error) {
-                console.error('❌ Ошибка синхронизации цитаты:', error);
+                console.error('❌ Ошибка синхронизации цитаты:', {
+                    quoteId: quote.id,
+                    error: error.message,
+                    errorType: error.constructor.name
+                });
             }
         }
         
+        console.log('🔧 [SW SYNC COMPLETE]', {
+            timestamp: new Date().toISOString(),
+            totalQuotes: pendingQuotes.length,
+            syncCompleted: true
+        });
+        
     } catch (error) {
-        console.error('❌ Ошибка синхронизации цитат:', error);
+        console.error('❌ Ошибка синхронизации цитат:', {
+            error: error.message,
+            errorType: error.constructor.name,
+            timestamp: new Date().toISOString()
+        });
     }
 }
 

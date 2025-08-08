@@ -174,9 +174,32 @@ class ReaderApp {
     }
 
     /**
-     * 🔐 Аутентификация пользователя через Telegram
+     * 🔐 Handle Telegram authentication (alias method for compatibility)
+     * ДОБАВЛЕНО: Alias метод для совместимости с требованиями спецификации
+     */
+    async handleTelegramAuth() {
+        return await this.authenticateUser();
+    }
+
+    /**
+     * 🔐 Аутентификация пользователя через Telegram с comprehensive debugging
      */
     async authenticateUser() {
+        // 📱 APP AUTH START DEBUG
+        if (window.DebugUtils?.shouldLog('auth')) {
+            window.DebugUtils.log('auth', '📱', 'APP AUTH START DEBUG', {
+                telegramWebAppAvailable: !!window.Telegram?.WebApp,
+                telegramDataExists: !!this.getTelegramData(),
+                currentAuthToken: !!this.api.authToken,
+                debugModeActive: this.state.get('debugMode'),
+                
+                // Environment context
+                hostname: window.location.hostname,
+                protocol: window.location.protocol,
+                userAgent: navigator.userAgent.substring(0, 100)
+            });
+        }
+
         console.log('🔄 Аутентификация пользователя...');
         
         try {
@@ -206,6 +229,29 @@ class ReaderApp {
                 // Fallback на старый метод
                 telegramUser = this.telegram.getUser();
                 initData = this.telegram.getInitData();
+            }
+
+            // 📱 TELEGRAM DATA DEBUG
+            if (window.DebugUtils?.shouldLog('telegram')) {
+                const telegramDataLength = initData?.length || 0;
+                const telegramDataPreview = initData ? `${initData.substring(0, 100)}...` : null;
+                
+                window.DebugUtils.log('telegram', '📱', 'TELEGRAM DATA DEBUG', {
+                    telegramDataLength: telegramDataLength,
+                    telegramDataPreview: telegramDataPreview,
+                    userIdFromTelegram: telegramUser?.id,
+                    userDataKeys: telegramUser ? Object.keys(telegramUser) : [],
+                    userFirstName: telegramUser?.first_name,
+                    userUsername: telegramUser?.username,
+                    userLanguageCode: telegramUser?.language_code,
+                    userIsPremium: telegramUser?.is_premium,
+                    
+                    // Telegram WebApp context
+                    webAppVersion: window.Telegram?.WebApp?.version,
+                    webAppPlatform: window.Telegram?.WebApp?.platform,
+                    webAppViewportHeight: window.Telegram?.WebApp?.viewportHeight,
+                    webAppIsExpanded: window.Telegram?.WebApp?.isExpanded
+                });
             }
             
             // ИСПРАВЛЕНО: Более мягкая проверка данных Telegram с respect к окружению
@@ -269,6 +315,18 @@ class ReaderApp {
                 },
                 isAuthenticated: true
             });
+
+            // 📱 POST-AUTH API TEST
+            if (window.DebugUtils?.shouldLog('auth')) {
+                setTimeout(() => {
+                    window.DebugUtils.log('auth', '📱', 'POST-AUTH API TEST', {
+                        hasAuthToken: !!this.api.authToken,
+                        willTestApiCall: true,
+                        authTokenPreview: this.api.authToken && window.DebugUtils.createTokenPreview ?
+                                        window.DebugUtils.createTokenPreview(this.api.authToken) : null
+                    });
+                }, 1000);
+            }
             
             console.log('✅ Пользователь аутентифицирован:', {
                 name: authResponse.user.firstName || telegramUser.first_name,
@@ -277,6 +335,24 @@ class ReaderApp {
             
         } catch (error) {
             console.error('❌ Ошибка аутентификации:', error);
+            
+            // 📱 AUTH ERROR DEBUG
+            if (window.DebugUtils?.shouldLog('auth')) {
+                window.DebugUtils.log('auth', '📱', 'AUTH ERROR DEBUG', {
+                    errorMessage: error.message,
+                    errorType: error.constructor.name,
+                    stackTrace: error.stack?.substring(0, 300),
+                    
+                    // Environment context
+                    isDevelopment: this.isEnvironmentDevelopment(),
+                    hasApiToken: !!this.api.authToken,
+                    telegramWebAppAvailable: !!window.Telegram?.WebApp,
+                    
+                    // Network context
+                    networkOnline: navigator.onLine,
+                    currentUrl: window.location.href
+                });
+            }
             
             // ИСПРАВЛЕНО: Различаем между development и production окружением
             const isDevelopment = this.isEnvironmentDevelopment();
@@ -784,6 +860,28 @@ class ReaderApp {
             }).catch(() => {
                 // Игнорируем ошибки отправки ошибок
             });
+        }
+    }
+
+    /**
+     * 📱 Получение данных Telegram для инициализации
+     * @returns {string|null} - Telegram initData
+     */
+    getTelegramData() {
+        try {
+            if (this.telegram && typeof this.telegram.getInitData === 'function') {
+                return this.telegram.getInitData();
+            }
+            
+            // Fallback: пытаемся получить напрямую из Telegram WebApp
+            if (window.Telegram?.WebApp?.initData) {
+                return window.Telegram.WebApp.initData;
+            }
+            
+            return null;
+        } catch (error) {
+            console.warn('⚠️ Ошибка получения Telegram данных:', error);
+            return null;
         }
     }
 

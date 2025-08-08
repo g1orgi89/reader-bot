@@ -89,28 +89,81 @@ class ApiService {
     }
 
     /**
-     * 🔐 Устанавливает токен аутентификации
+     * 🔐 Устанавливает токен аутентификации с comprehensive debugging
      */
     setAuthToken(token) {
+        // 📱 AUTH TOKEN SET DEBUG
+        if (window.DebugUtils?.shouldLog('auth')) {
+            window.DebugUtils.log('auth', '📱', 'AUTH TOKEN SET DEBUG', {
+                hadPreviousToken: !!this.authToken,
+                newTokenReceived: !!token,
+                newTokenLength: token?.length,
+                newTokenPreview: token && window.DebugUtils.createTokenPreview ? 
+                               window.DebugUtils.createTokenPreview(token) : null,
+                tokenType: token ? 'JWT' : null,
+                previousTokenPreview: this.authToken && window.DebugUtils.createTokenPreview ?
+                                    window.DebugUtils.createTokenPreview(this.authToken) : null
+            });
+        }
+
         this.authToken = token;
         
         // ИСПРАВЛЕНИЕ: Сохраняем токен в storage для доступа из service worker
         try {
             if (typeof sessionStorage !== 'undefined') {
                 sessionStorage.setItem('reader_auth_token', token);
+                
+                if (window.DebugUtils?.shouldLog('storage')) {
+                    window.DebugUtils.log('storage', '💾', 'Token saved to sessionStorage', {
+                        key: 'reader_auth_token',
+                        tokenLength: token?.length
+                    });
+                }
             }
             if (typeof localStorage !== 'undefined') {
                 localStorage.setItem('reader_auth_token', token);
+                
+                if (window.DebugUtils?.shouldLog('storage')) {
+                    window.DebugUtils.log('storage', '💾', 'Token saved to localStorage', {
+                        key: 'reader_auth_token',
+                        tokenLength: token?.length
+                    });
+                }
             }
         } catch (error) {
             console.warn('⚠️ Не удалось сохранить токен в storage:', error);
+            
+            if (window.DebugUtils?.shouldLog('auth')) {
+                window.DebugUtils.log('auth', '⚠️', 'Token storage failed', {
+                    error: error.message,
+                    hasSessionStorage: typeof sessionStorage !== 'undefined',
+                    hasLocalStorage: typeof localStorage !== 'undefined'
+                });
+            }
+        }
+        
+        // Verify token was set correctly
+        if (window.DebugUtils?.shouldLog('auth')) {
+            window.DebugUtils.log('auth', '📱', 'AUTH TOKEN VERIFY DEBUG', {
+                tokenSetSuccessfully: !!this.authToken,
+                storedTokenLength: this.authToken?.length,
+                storedTokenPreview: this.authToken && window.DebugUtils.createTokenPreview ? 
+                                  window.DebugUtils.createTokenPreview(this.authToken) : null,
+                tokensMatch: token === this.authToken,
+                
+                // Verify storage
+                sessionStorageHasToken: typeof sessionStorage !== 'undefined' && 
+                                      !!sessionStorage.getItem('reader_auth_token'),
+                localStorageHasToken: typeof localStorage !== 'undefined' && 
+                                    !!localStorage.getItem('reader_auth_token')
+            });
         }
         
         console.log('🔑 Токен аутентификации установлен и сохранен в storage');
     }
 
     /**
-     * 🔗 Получает заголовки для запросов
+     * 🔗 Получает заголовки для запросов с comprehensive debugging
      */
     getHeaders() {
         const headers = {
@@ -122,21 +175,104 @@ class ApiService {
             headers['Authorization'] = `Bearer ${this.authToken}`;
         }
 
+        // 📱 HEADERS GENERATION DEBUG
+        if (window.DebugUtils?.shouldLog('headers', 'verbose')) {
+            window.DebugUtils.log('headers', '📱', 'HEADERS GENERATION DEBUG', {
+                hasAuthToken: !!this.authToken,
+                authTokenLength: this.authToken?.length,
+                generatedHeaders: Object.keys(headers),
+                hasAuthorizationHeader: !!headers['Authorization'],
+                authHeaderPreview: headers['Authorization'] && window.DebugUtils.createTokenPreview ?
+                                 window.DebugUtils.createTokenPreview(headers['Authorization']) : null,
+                
+                // Token validation
+                authTokenFromStorage: {
+                    sessionStorage: typeof sessionStorage !== 'undefined' && 
+                                  !!sessionStorage.getItem('reader_auth_token'),
+                    localStorage: typeof localStorage !== 'undefined' && 
+                                !!localStorage.getItem('reader_auth_token')
+                },
+                
+                // Header structure
+                contentType: headers['Content-Type'],
+                accept: headers['Accept']
+            });
+        }
+
         return headers;
     }
 
     /**
-     * 📡 Универсальный HTTP клиент с обработкой ошибок
-     * ИСПРАВЛЕНО: Убраны все debug заглушки - только реальный API
+     * 📡 Универсальный метод для API запросов (alias для request)
+     * ДОБАВЛЕНО: Alias метод согласно требованиям спецификации
+     */
+    async makeRequest(endpoint, options = {}) {
+        // Извлекаем метод из options или используем GET по умолчанию
+        const method = options.method || 'GET';
+        const data = options.body ? JSON.parse(options.body) : null;
+        
+        // Удаляем метод и body из options, чтобы передать остальные параметры
+        const { method: _, body: __, ...restOptions } = options;
+        
+        return this.request(method, endpoint, data, restOptions);
+    }
+
+    /**
+     * 📡 Универсальный HTTP клиент с обработкой ошибок и comprehensive debugging
+     * ДОБАВЛЕНО: Полная JWT chain диагностика согласно требованиям
      */
     async request(method, endpoint, data = null, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
         const cacheKey = `${method}:${endpoint}:${JSON.stringify(data)}`;
+        const requestStartTime = performance.now();
+
+        // 📱 COMPREHENSIVE FRONTEND API DEBUG
+        if (window.DebugUtils?.shouldLog('api')) {
+            window.DebugUtils.log('api', '📱', 'FRONTEND API DEBUG', {
+                method: method || 'GET',
+                endpoint: endpoint,
+                fullUrl: url,
+                
+                // Auth token analysis
+                hasAuthToken: !!this.authToken,
+                authTokenType: this.authToken ? 'JWT' : null,
+                authTokenLength: this.authToken?.length,
+                authTokenPreview: this.authToken && window.DebugUtils.createTokenPreview ? 
+                                window.DebugUtils.createTokenPreview(this.authToken) : null,
+                
+                // Headers analysis  
+                requestHeaders: this.getHeaders(),
+                hasAuthorizationHeader: !!this.getHeaders()['Authorization'],
+                authHeaderValue: this.getHeaders()['Authorization'] && window.DebugUtils.createTokenPreview ?
+                               window.DebugUtils.createTokenPreview(this.getHeaders()['Authorization']) : null,
+                
+                // Request body
+                hasBody: !!data,
+                bodyKeys: data ? Object.keys(data) : [],
+                bodyPreview: data ? JSON.stringify(data).substring(0, 100) + '...' : null,
+                
+                // Browser context
+                userAgent: navigator.userAgent.substring(0, 100),
+                isTelegramWebApp: !!window.Telegram?.WebApp,
+                telegramVersion: window.Telegram?.WebApp?.version,
+                
+                // Request options
+                requestOptions: Object.keys(options),
+                cacheKey: cacheKey,
+                attempt: 1
+            });
+        }
 
         // 💾 Проверяем кэш для GET запросов
         if (method === 'GET' && this.cache.has(cacheKey)) {
             const cached = this.cache.get(cacheKey);
             if (Date.now() - cached.timestamp < this.cacheTimeout) {
+                if (window.DebugUtils?.shouldLog('api')) {
+                    window.DebugUtils.log('api', '📦', 'Cache hit', { 
+                        endpoint,
+                        cacheAge: Date.now() - cached.timestamp
+                    });
+                }
                 console.log('📦 Возвращаем из кэша', { endpoint });
                 return cached.data;
             }
@@ -146,6 +282,15 @@ class ApiService {
         let lastError;
         for (let attempt = 1; attempt <= this.config.retries; attempt++) {
             try {
+                if (window.DebugUtils?.shouldLog('api', 'verbose') && attempt > 1) {
+                    window.DebugUtils.log('api', '🔄', 'Retry attempt', {
+                        attempt,
+                        maxRetries: this.config.retries,
+                        endpoint,
+                        previousError: lastError?.message
+                    });
+                }
+
                 console.log(`📤 ${method} ${endpoint}`, { data, attempt });
 
                 // 🌐 Формируем запрос
@@ -168,6 +313,29 @@ class ApiService {
                 const response = await fetch(url, requestOptions);
                 clearTimeout(timeoutId);
 
+                // 📱 FRONTEND RESPONSE DEBUG
+                if (window.DebugUtils?.shouldLog('api')) {
+                    const requestEndTime = performance.now();
+                    window.DebugUtils.log('api', '📱', 'FRONTEND RESPONSE DEBUG', {
+                        endpoint: endpoint,
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: response.ok,
+                        responseHeaders: Object.fromEntries(response.headers.entries()),
+                        
+                        // Auth specific
+                        isAuthError: response.status === 401,
+                        isServerError: response.status >= 500,
+                        
+                        // Performance
+                        requestDuration: Math.round(requestEndTime - requestStartTime),
+                        attempt: attempt,
+                        
+                        // Network status
+                        networkOnline: navigator.onLine
+                    });
+                }
+
                 // ✅ Обрабатываем ответ
                 const result = await this.handleResponse(response, endpoint);
 
@@ -179,11 +347,35 @@ class ApiService {
                     });
                 }
 
+                if (window.DebugUtils?.shouldLog('api', 'verbose')) {
+                    window.DebugUtils.log('api', '✅', 'Request successful', {
+                        endpoint,
+                        resultKeys: result ? Object.keys(result) : [],
+                        cached: method === 'GET'
+                    });
+                }
+
                 console.log(`📥 ${method} ${endpoint} успешно`, { result });
                 return result;
 
             } catch (error) {
                 lastError = error;
+                
+                // 📱 FRONTEND ERROR DEBUG
+                if (window.DebugUtils?.shouldLog('api')) {
+                    window.DebugUtils.log('api', '📱', 'FRONTEND ERROR DEBUG', {
+                        endpoint: endpoint,
+                        status: error.status || 'network_error',
+                        errorMessage: error.message?.substring(0, 200),
+                        errorType: error.constructor.name,
+                        hasAuthToken: !!this.authToken,
+                        sentAuthHeader: !!this.getHeaders()['Authorization'],
+                        attempt: attempt,
+                        maxRetries: this.config.retries,
+                        willRetry: attempt < this.config.retries
+                    });
+                }
+
                 console.log(`❌ ${method} ${endpoint} ошибка`, { error: error.message, attempt });
 
                 // 🔄 Ждем перед повторной попыткой
@@ -191,6 +383,19 @@ class ApiService {
                     await this.delay(this.config.retryDelay * attempt);
                 }
             }
+        }
+
+        // 📱 FRONTEND NETWORK ERROR (final)
+        if (window.DebugUtils?.shouldLog('api')) {
+            window.DebugUtils.log('api', '📱', 'FRONTEND NETWORK ERROR', {
+                endpoint: endpoint,
+                errorMessage: lastError?.message,
+                errorType: lastError?.constructor.name,
+                hasAuthToken: !!this.authToken,
+                networkStatus: navigator.onLine ? 'online' : 'offline',
+                allRetriesExhausted: true,
+                totalAttempts: this.config.retries
+            });
         }
 
         // 💥 Выбрасываем последнюю ошибку после всех попыток
@@ -237,10 +442,30 @@ class ApiService {
     // ===========================================
 
     /**
-     * 🔑 Аутентификация через Telegram - ИСПРАВЛЕНО: Только реальный API
+     * 🔑 Аутентификация через Telegram с comprehensive debugging
      */
     async authenticateWithTelegram(telegramData, user) {
         try {
+            // 📱 TELEGRAM AUTH START DEBUG
+            if (window.DebugUtils?.shouldLog('auth')) {
+                window.DebugUtils.log('auth', '📱', 'TELEGRAM AUTH START DEBUG', {
+                    hasInitData: !!telegramData,
+                    initDataLength: telegramData?.length,
+                    initDataPreview: telegramData ? `${telegramData.substring(0, 100)}...` : null,
+                    
+                    // User data analysis
+                    userId: user?.id,
+                    userFirstName: user?.first_name,
+                    userUsername: user?.username,
+                    userKeys: user ? Object.keys(user) : [],
+                    
+                    // Current auth state
+                    currentlyHasToken: !!this.authToken,
+                    currentTokenPreview: this.authToken && window.DebugUtils.createTokenPreview ?
+                                       window.DebugUtils.createTokenPreview(this.authToken) : null
+                });
+            }
+
             console.log('🔐 Отправляем данные на /auth/telegram:', {
                 hasInitData: !!telegramData,
                 userId: user?.id,
@@ -252,13 +477,64 @@ class ApiService {
                 user
             });
 
+            // 📱 AUTH RESULT DEBUG
+            if (window.DebugUtils?.shouldLog('auth')) {
+                window.DebugUtils.log('auth', '📱', 'AUTH RESULT DEBUG', {
+                    authSuccess: !!response.success,
+                    tokenReceived: !!response.token,
+                    tokenLength: response.token?.length,
+                    tokenPreview: response.token && window.DebugUtils.createTokenPreview ? 
+                                window.DebugUtils.createTokenPreview(response.token) : null,
+                    userId: response.userId,
+                    isOnboardingCompleted: response.isOnboardingCompleted,
+                    responseKeys: response ? Object.keys(response) : [],
+                    userDataKeys: response.user ? Object.keys(response.user) : []
+                });
+            }
+
             if (response.token) {
                 this.setAuthToken(response.token);
+                
+                // 📱 TOKEN VERIFICATION DEBUG  
+                if (window.DebugUtils?.shouldLog('auth')) {
+                    window.DebugUtils.log('auth', '📱', 'TOKEN VERIFICATION DEBUG', {
+                        tokenSetInApi: !!this.authToken,
+                        apiTokenLength: this.authToken?.length,
+                        apiTokenPreview: this.authToken && window.DebugUtils.createTokenPreview ? 
+                                       window.DebugUtils.createTokenPreview(this.authToken) : null,
+                        tokensMatch: response.token === this.authToken,
+                        
+                        // Storage verification
+                        tokenInSessionStorage: typeof sessionStorage !== 'undefined' && 
+                                             !!sessionStorage.getItem('reader_auth_token'),
+                        tokenInLocalStorage: typeof localStorage !== 'undefined' && 
+                                           !!localStorage.getItem('reader_auth_token')
+                    });
+                }
+                
                 console.log('✅ Токен аутентификации сохранен');
             }
 
             return response;
         } catch (error) {
+            // 📱 AUTH ERROR DEBUG
+            if (window.DebugUtils?.shouldLog('auth')) {
+                window.DebugUtils.log('auth', '📱', 'AUTH ERROR DEBUG', {
+                    errorMessage: error.message,
+                    errorType: error.constructor.name,
+                    errorStatus: error.status,
+                    stackTrace: error.stack?.substring(0, 300),
+                    
+                    // Request context
+                    hadInitData: !!telegramData,
+                    hadUserData: !!user,
+                    
+                    // Network context
+                    networkOnline: navigator.onLine,
+                    currentUrl: window.location.href
+                });
+            }
+            
             console.log('❌ Ошибка аутентификации', { error: error.message });
             
             // ИСПРАВЛЕНО: Более детальная информация об ошибке
