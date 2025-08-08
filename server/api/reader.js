@@ -217,6 +217,7 @@ router.get('/auth/onboarding-status', async (req, res) => {
 /**
  * @description Завершение онбординга
  * @route POST /api/reader/auth/complete-onboarding
+ * 🚨 ИСПРАВЛЕНО: Устранена race condition при создании пользователей
  */
 router.post('/auth/complete-onboarding', async (req, res) => {
     try {
@@ -228,44 +229,71 @@ router.post('/auth/complete-onboarding', async (req, res) => {
                 error: 'Missing required fields: user, answers, email, source'
             });
         }
+
+        const userId = user.id.toString();
+
+        // ИСПРАВЛЕНО: Используем атомарную операцию findOneAndUpdate с upsert
+        // для предотвращения race conditions при одновременном создании пользователей
+        const userProfile = await UserProfile.findOneAndUpdate(
+            { userId }, // фильтр для поиска
+            {
+                $setOnInsert: {
+                    // Данные устанавливаются только при создании нового документа
+                    userId,
+                    name: answers.question1_name || answers.name,
+                    email: email,
+                    testResults: {
+                        question1_name: answers.question1_name || answers.name,
+                        question2_lifestyle: answers.question2_lifestyle || answers.lifestyle,
+                        question3_time: answers.question3_time || answers.timeForSelf,
+                        question4_priorities: answers.question4_priorities || answers.priorities,
+                        question5_reading_feeling: answers.question5_reading_feeling || answers.readingFeelings,
+                        question6_phrase: answers.question6_phrase || answers.closestPhrase,
+                        question7_reading_time: answers.question7_reading_time || answers.readingTime,
+                        completedAt: new Date()
+                    },
+                    source: source,
+                    telegramUsername: user.username,
+                    telegramData: {
+                        firstName: user.first_name,
+                        lastName: user.last_name,
+                        languageCode: user.language_code,
+                        chatId: user.id.toString()
+                    },
+                    isOnboardingComplete: true,
+                    registeredAt: new Date(),
+                    createdAt: new Date()
+                },
+                $set: {
+                    // Всегда обновляем timestamp последнего обновления
+                    updatedAt: new Date()
+                }
+            },
+            {
+                upsert: true, // создать если не существует
+                new: true,    // вернуть обновленный документ
+                runValidators: true // проверить валидацию схемы
+            }
+        );
+
+        // Проверяем, был ли пользователь создан сейчас или уже существовал
+        const wasJustCreated = userProfile.createdAt.getTime() === userProfile.updatedAt.getTime();
         
-        const existingUser = await UserProfile.findOne({ userId: user.id.toString() });
-        if (existingUser) {
+        if (!wasJustCreated && userProfile.isOnboardingComplete) {
+            console.log(`⚠️ Пользователь ${userId} уже завершил онбординг`);
             return res.status(400).json({
                 success: false,
-                error: 'User already completed onboarding'
+                error: 'User already completed onboarding',
+                user: {
+                    userId: userProfile.userId,
+                    name: userProfile.name,
+                    email: userProfile.email,
+                    isOnboardingComplete: userProfile.isOnboardingComplete
+                }
             });
         }
-        
-        const userProfile = new UserProfile({
-            userId: user.id.toString(),
-            name: answers.question1_name || answers.name,
-            email: email,
-            testResults: {
-                question1_name: answers.question1_name || answers.name,
-                question2_lifestyle: answers.question2_lifestyle || answers.lifestyle,
-                question3_time: answers.question3_time || answers.timeForSelf,
-                question4_priorities: answers.question4_priorities || answers.priorities,
-                question5_reading_feeling: answers.question5_reading_feeling || answers.readingFeelings,
-                question6_phrase: answers.question6_phrase || answers.closestPhrase,
-                question7_reading_time: answers.question7_reading_time || answers.readingTime,
-                completedAt: new Date()
-            },
-            source: source,
-            telegramUsername: user.username,
-            telegramData: {
-                firstName: user.first_name,
-                lastName: user.last_name,
-                languageCode: user.language_code,
-                chatId: user.id.toString()
-            },
-            isOnboardingComplete: true,
-            registeredAt: new Date()
-        });
-        
-        await userProfile.save();
-        
-        console.log(`✅ Пользователь создан: ${userProfile.userId} (${userProfile.name})`);
+
+        console.log(`✅ Пользователь ${wasJustCreated ? 'создан' : 'обновлен'}: ${userProfile.userId} (${userProfile.name})`);
         
         res.json({
             success: true,
@@ -279,7 +307,35 @@ router.post('/auth/complete-onboarding', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Ошибка онбординга:', error);
-        res.status(500).json({ success: false, error: error.message });
+        
+        // ИСПРАВЛЕНО: Обрабатываем ошибки дубликатов (E11000)
+        if (error.code === 11000) {
+            console.warn(`⚠️ Попытка создания дубликата пользователя ${req.body.user?.id}`);
+            
+            // Если возникла ошибка дубликата, находим существующего пользователя
+            try {
+                const existingUser = await UserProfile.findOne({ userId: req.body.user.id.toString() });
+                if (existingUser && existingUser.isOnboardingComplete) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'User already completed onboarding',
+                        user: {
+                            userId: existingUser.userId,
+                            name: existingUser.name,
+                            email: existingUser.email,
+                            isOnboardingComplete: true
+                        }
+                    });
+                }
+            } catch (findError) {
+                console.error('Ошибка поиска существующего пользователя:', findError);
+            }
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error during onboarding'
+        });
     }
 });
 
