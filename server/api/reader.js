@@ -482,7 +482,8 @@ router.get('/quotes', async (req, res) => {
             dateTo 
         } = req.query;
         
-        const query = { userId: userId };
+        const isAdmin = req.query.isAdmin === 'true';
+const query = isAdmin ? {} : { userId: userId };
         
         if (author) {
             query.author = new RegExp(author, 'i');
@@ -1429,6 +1430,43 @@ router.get('/health', (req, res) => {
         message: 'Reader API is working',
         timestamp: new Date().toISOString()
     });
+});
+
+/**
+ * @description Статистика цитат для админки
+ */
+router.get('/quotes/statistics', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (userId !== 'admin-user') {
+            return res.status(401).json({ error: 'Admin access required' });
+        }
+        const totalQuotes = await Quote.countDocuments();
+        res.json({
+            success: true,
+            statistics: { total: totalQuotes, today: 0, thisWeek: 0 }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * @description Аналитика цитат для админки
+ */
+router.get('/quotes/analytics', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (userId !== 'admin-user') {
+            return res.status(401).json({ error: 'Admin access required' });
+        }
+        res.json({
+            success: true,
+            analytics: { topAuthors: [], topCategories: [], trends: [] }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 module.exports = router;
