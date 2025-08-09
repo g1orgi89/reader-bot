@@ -34,6 +34,17 @@ class ApiService {
         });
     }
 
+    // 🆔 Получение id 
+    getCurrentUserId() {
+        if (window.appState?.getCurrentUserId) {
+            return window.appState.getCurrentUserId();
+        }
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            return window.Telegram.WebApp.initDataUnsafe.user.id;
+        }
+        return 'demo-user'; // fallback
+    }
+    
     /**
      * 🔗 Получает заголовки для запросов
      */
@@ -188,7 +199,8 @@ class ApiService {
     /**
      * 📊 Проверка статуса онбординга
      */
-    async checkOnboardingStatus(userId = 'demo-user') {
+    async checkOnboardingStatus(userId = null) {
+        userId = userId || this.getCurrentUserId();
         try {
             return await this.request('GET', `/auth/onboarding-status?userId=${userId}`);
         } catch (error) {
@@ -217,21 +229,24 @@ class ApiService {
     /**
      * 📋 Получить профиль пользователя
      */
-    async getProfile(userId = 'demo-user') {
+    async getProfile(userId = null) {
+        userId = userId || this.getCurrentUserId();
         return this.request('GET', `/profile?userId=${userId}`);
     }
 
     /**
      * ✏️ Обновить профиль пользователя
      */
-    async updateProfile(profileData, userId = 'demo-user') {
+    async updateProfile(profileData, userId = null) {
+        userId = userId || this.getCurrentUserId();
         return this.request('PUT', '/profile', { ...profileData, userId });
     }
 
     /**
      * 📊 Получить статистику пользователя
      */
-    async getStats(userId = 'demo-user') {
+    async getStats(userId = null) {
+        userId = userId || this.getCurrentUserId();
         try {
             const result = await this.request('GET', `/stats?userId=${userId}`);
             
@@ -282,7 +297,8 @@ class ApiService {
     /**
      * ➕ Добавить новую цитату
      */
-    async addQuote(quoteData, userId = 'demo-user') {
+    async addQuote(quoteData, userId = null) {
+        userId = userId || this.getCurrentUserId();
         this.clearQuotesCache();
         return this.request('POST', '/quotes', { ...quoteData, userId });
     }
@@ -290,7 +306,8 @@ class ApiService {
     /**
      * 📖 Получить цитаты пользователя
      */
-    async getQuotes(options = {}, userId = 'demo-user') {
+    async getQuotes(options = {}, userId = null) {
+        userId = userId || this.getCurrentUserId();
         const params = new URLSearchParams();
         
         params.append('userId', userId);
@@ -325,14 +342,16 @@ class ApiService {
     /**
      * 🕐 Получить последние цитаты
      */
-    async getRecentQuotes(limit = 10, userId = 'demo-user') {
+    async getRecentQuotes(limit = 10, userId = null) {
+        userId = userId || this.getCurrentUserId();
         return this.request('GET', `/quotes/recent?limit=${limit}&userId=${userId}`);
     }
 
     /**
      * ✏️ Обновить цитату
      */
-    async updateQuote(quoteId, updateData, userId = 'demo-user') {
+    async updateQuote(quoteId, updateData, userId = null) {
+        userId = userId || this.getCurrentUserId();
         this.clearQuotesCache();
         return this.request('PUT', `/quotes/${quoteId}`, { ...updateData, userId });
     }
@@ -340,7 +359,8 @@ class ApiService {
     /**
      * 🗑️ Удалить цитату
      */
-    async deleteQuote(quoteId, userId = 'demo-user') {
+    async deleteQuote(quoteId, userId = null) {
+        userId = userId || this.getCurrentUserId();
         this.clearQuotesCache();
         return this.request('DELETE', `/quotes/${quoteId}?userId=${userId}`);
     }
@@ -348,7 +368,8 @@ class ApiService {
     /**
      * 🔍 Поиск цитат
      */
-    async searchQuotes(query, options = {}, userId = 'demo-user') {
+    async searchQuotes(query, options = {}, userId = null) {
+        userId = userId || this.getCurrentUserId();
         const params = new URLSearchParams({ q: query, userId });
         
         if (options.limit) params.append('limit', options.limit);
@@ -364,7 +385,8 @@ class ApiService {
     /**
      * 📅 Получить еженедельные отчеты
      */
-    async getWeeklyReports(options = {}, userId = 'demo-user') {
+    async getWeeklyReports(options = {}, userId = null) {
+        userId = userId || this.getCurrentUserId();
         const params = new URLSearchParams({ userId });
         
         if (options.limit) params.append('limit', options.limit);
@@ -377,14 +399,16 @@ class ApiService {
     /**
      * 📈 Получить конкретный еженедельный отчет
      */
-    async getWeeklyReport(reportId, userId = 'demo-user') {
+    async getWeeklyReport(reportId, userId = null) {
+        userId = userId || this.getCurrentUserId();
         return this.request('GET', `/reports/weekly/${reportId}?userId=${userId}`);
     }
 
     /**
      * 📅 Получить месячные отчеты
      */
-    async getMonthlyReports(options = {}, userId = 'demo-user') {
+    async getMonthlyReports(options = {}, userId = null) {
+        userId = userId || this.getCurrentUserId();
         const params = new URLSearchParams({ userId });
         
         if (options.limit) params.append('limit', options.limit);
@@ -397,7 +421,8 @@ class ApiService {
     /**
      * 📊 Получить конкретный месячный отчет
      */
-    async getMonthlyReport(reportId, userId = 'demo-user') {
+    async getMonthlyReport(reportId, userId = null) {
+        userId = userId || this.getCurrentUserId();
         return this.request('GET', `/reports/monthly/${reportId}?userId=${userId}`);
     }
 
