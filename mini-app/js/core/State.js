@@ -288,7 +288,7 @@ class AppState {
     }
 
     /**
-     * 🚀 Инициализация пользователя из Telegram данных
+     * 🚀 ИСПРАВЛЕНО: Инициализация пользователя из Telegram данных
      * @param {Object} telegramData - Данные от Telegram
      * @returns {boolean} - Успех инициализации
      */
@@ -302,17 +302,20 @@ class AppState {
         const lastName = telegramData.last_name || '';
         const fullName = `${firstName} ${lastName}`.trim();
 
-        // 🔧 ИСПРАВЛЕНИЕ: СОХРАНЯЕМ telegramData В STATE!
+        // 🔧 ИСПРАВЛЕНИЕ: ПРАВИЛЬНО СОХРАНЯЕМ ВСЕ ДАННЫЕ!
         this.update('user', {
             profile: {
                 id: telegramData.id,
+                telegramId: telegramData.id, // ✅ ДУБЛИРУЕМ ДЛЯ СОВМЕСТИМОСТИ
                 firstName: firstName,
                 lastName: lastName,
                 fullName: fullName,
+                name: fullName || firstName, // ✅ ДОБАВЛЯЕМ name для HomePage
                 username: telegramData.username,
-                language: telegramData.language_code || 'ru'
+                language: telegramData.language_code || 'ru',
+                initials: this.getInitials(fullName || firstName) // ✅ ДОБАВЛЯЕМ initials
             },
-            telegramData: telegramData,
+            telegramData: telegramData, // ✅ СОХРАНЯЕМ ПОЛНЫЕ telegramData!
             isAuthenticated: true
         });
 
@@ -325,6 +328,7 @@ class AppState {
 
         return true;
     }
+    
     /**
      * 🔗 Алиас для совместимости с App.js
      * @param {Object} telegramUser - Данные пользователя от Telegram
@@ -335,23 +339,33 @@ class AppState {
     }
 
     /**
-     * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
+     * 🆔 ИСПРАВЛЕНО: Получить ID текущего пользователя для API вызовов
      * @returns {number|null} - ID пользователя или null
      */
     getCurrentUserId() {
         const profile = this.get('user.profile');
         const telegramData = this.get('user.telegramData');
         
-        // 🔍 ПОКАЗЫВАЕМ ЧТО ВНУТРИ
-        if (window.Telegram?.WebApp?.showAlert) {
-            window.Telegram.WebApp.showAlert(
-                `Profile: ${JSON.stringify(profile)}\n` +
-                `TelegramData: ${JSON.stringify(telegramData)}`
-            );
+        // ✅ ИСПРАВЛЕНО: Убран отладочный alert
+        console.log('🔍 State: getCurrentUserId:', {
+            profile: profile,
+            telegramData: telegramData,
+            profileId: profile?.id,
+            telegramId: telegramData?.id
+        });
+        
+        // ✅ ИСПРАВЛЕНО: Проверяем несколько источников для userId
+        const userId = profile?.id || profile?.telegramId || telegramData?.id;
+        
+        // ✅ НОВОЕ: Fallback - получаем прямо из Telegram WebApp
+        if (!userId && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            const telegramUserId = window.Telegram.WebApp.initDataUnsafe.user.id;
+            console.log('🔧 State: Fallback userId из Telegram WebApp:', telegramUserId);
+            return telegramUserId;
         }
         
-        // Оригинальная логика
-        return profile?.id || telegramData?.id || null;
+        console.log('🆔 State: Возвращаем userId:', userId);
+        return userId || null;
     }
 
     /**
@@ -786,6 +800,18 @@ class AppState {
      */
     clearHistory() {
         this.history = [];
+    }
+
+    /**
+     * ✨ НОВОЕ: Получить инициалы из имени
+     */
+    getInitials(name) {
+        if (!name) return 'У';
+        return name.split(' ')
+            .map(word => word.charAt(0))
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
     }
 }
 
