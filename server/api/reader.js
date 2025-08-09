@@ -24,10 +24,12 @@ const quoteHandler = new QuoteHandler();
  * Supports both query parameters and request body
  */
 function getUserId(req) {
-    if (req.query.isAdmin === 'true') {
+    const userId = req.query.userId || req.body.userId;
+    // Если userId явно admin-user, считаем админом
+    if (userId === 'admin-user' || req.query.isAdmin === 'true') {
         return 'admin-user';
     }
-    return req.query.userId || req.body.userId || 'demo-user';
+    return userId || 'demo-user';
 }
 
 /**
