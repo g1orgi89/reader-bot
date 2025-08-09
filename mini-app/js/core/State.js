@@ -342,10 +342,7 @@ class AppState {
     }
 
     /**
-     * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
-     * @returns {number|null} - ID пользователя или null
-     */
-     🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
+ * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
  * @returns {number|null} - ID пользователя или null
  */
 getCurrentUserId() {
@@ -362,7 +359,7 @@ getCurrentUserId() {
     
     // Оригинальная логика
     return profile?.id || telegramData?.id || null;
-} 
+}
 
     /**
      * 🚪 Выход пользователя
