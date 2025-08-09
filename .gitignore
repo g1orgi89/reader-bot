@@ -144,3 +144,69 @@ ecosystem.config.js.local
 test-*.html
 debug-*.js
 *test*.html
+
+# Security and sensitive files
+*.pem
+*.p12
+*.crt
+*.csr
+*.key
+*.pfx
+*.p7b
+.env.production
+.env.staging
+.env.local
+.env.*.local
+config/secrets.json
+secrets/
+private/
+credentials/
+
+# Backup files with potential sensitive data
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.tmp
+*~
+
+# Database dumps and backups
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+
+# Log files that might contain sensitive information
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# Security scanning reports
+security-report.json
+audit-report.json
+vulnerability-report.json
+
+# IDE and editor files that might contain sensitive info
+.vscode/settings.json
+.idea/workspace.xml
+*.swp
+*.swo
+
+# OS generated files with metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Additional development artifacts
+coverage/
+.nyc_output/
+test-results/
+junit.xml
