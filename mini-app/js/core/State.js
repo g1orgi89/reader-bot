@@ -345,13 +345,24 @@ class AppState {
      * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
      * @returns {number|null} - ID пользователя или null
      */
-    getCurrentUserId() {
-        const profile = this.get('user.profile');
-        const telegramData = this.get('user.telegramData');
-        
-        // Приоритет: профиль, затем Telegram данные
-        return profile?.id || telegramData?.id || null;
+     🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
+ * @returns {number|null} - ID пользователя или null
+ */
+getCurrentUserId() {
+    const profile = this.get('user.profile');
+    const telegramData = this.get('user.telegramData');
+    
+    // 🔍 ПОКАЗЫВАЕМ ЧТО ВНУТРИ
+    if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(
+            `Profile: ${JSON.stringify(profile)}\n` +
+            `TelegramData: ${JSON.stringify(telegramData)}`
+        );
     }
+    
+    // Оригинальная логика
+    return profile?.id || telegramData?.id || null;
+} 
 
     /**
      * 🚪 Выход пользователя
