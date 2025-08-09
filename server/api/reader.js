@@ -25,10 +25,19 @@ const quoteHandler = new QuoteHandler();
  */
 function getUserId(req) {
     const userId = req.query.userId || req.body.userId;
-    // Если userId явно admin-user, считаем админом
+    console.log('🔍 AUTH DEBUG:', { 
+        userId, 
+        isAdmin: req.query.isAdmin, 
+        url: req.originalUrl,
+        query: req.query,
+        body: req.body
+    });
+    
     if (userId === 'admin-user' || req.query.isAdmin === 'true') {
+        console.log('✅ ADMIN ACCESS GRANTED');
         return 'admin-user';
     }
+    console.log('❌ RETURNING:', userId || 'demo-user');
     return userId || 'demo-user';
 }
 
@@ -478,6 +487,7 @@ router.get('/quotes', async (req, res) => {
         const { 
             limit = 20, 
             offset = 0, 
+            page = 1,
             author, 
             search, 
             dateFrom, 
@@ -485,7 +495,19 @@ router.get('/quotes', async (req, res) => {
         } = req.query;
         
         const isAdmin = req.query.isAdmin === 'true';
-const query = isAdmin ? {} : { userId: userId };
+        
+        // If admin access is requested, verify authentication
+        if (isAdmin && userId !== 'admin-user') {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+        
+        // Use page-based pagination if page is provided
+        const actualOffset = page > 1 ? (parseInt(page) - 1) * parseInt(limit) : parseInt(offset);
+        
+        const query = isAdmin ? {} : { userId: userId };
         
         if (author) {
             query.author = new RegExp(author, 'i');
@@ -508,7 +530,7 @@ const query = isAdmin ? {} : { userId: userId };
         const quotes = await Quote.find(query)
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
-            .skip(parseInt(offset));
+            .skip(actualOffset);
             
         const total = await Quote.countDocuments(query);
         
@@ -524,13 +546,16 @@ const query = isAdmin ? {} : { userId: userId };
                 sentiment: quote.sentiment,
                 isEdited: quote.isEdited,
                 editedAt: quote.editedAt,
-                createdAt: quote.createdAt
+                createdAt: quote.createdAt,
+                userId: isAdmin ? quote.userId : undefined // Include userId for admin view
             })),
             pagination: {
                 total,
                 limit: parseInt(limit),
-                offset: parseInt(offset),
-                hasMore: total > parseInt(offset) + parseInt(limit)
+                offset: actualOffset,
+                page: parseInt(page),
+                hasMore: total > actualOffset + parseInt(limit),
+                totalPages: Math.ceil(total / parseInt(limit))
             }
         });
         
@@ -1441,15 +1466,72 @@ router.get('/quotes/statistics', async (req, res) => {
     try {
         const userId = getUserId(req);
         if (userId !== 'admin-user') {
-            return res.status(401).json({ error: 'Admin access required' });
+            return res.status(401).json({ 
+                success: false,
+                error: 'Authentication required' 
+            });
         }
-        const totalQuotes = await Quote.countDocuments();
+
+        const { period = '7d' } = req.query;
+        
+        // Calculate date range based on period
+        const now = new Date();
+        let startDate = new Date();
+        
+        switch (period) {
+            case '24h':
+                startDate.setDate(now.getDate() - 1);
+                break;
+            case '7d':
+                startDate.setDate(now.getDate() - 7);
+                break;
+            case '30d':
+                startDate.setDate(now.getDate() - 30);
+                break;
+            case '90d':
+                startDate.setDate(now.getDate() - 90);
+                break;
+            default:
+                startDate.setDate(now.getDate() - 7);
+        }
+
+        // Get real statistics from database
+        const [totalQuotes, periodQuotes, todayQuotes] = await Promise.all([
+            Quote.countDocuments(),
+            Quote.countDocuments({ 
+                createdAt: { $gte: startDate } 
+            }),
+            Quote.countDocuments({ 
+                createdAt: { 
+                    $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+                    $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+                } 
+            })
+        ]);
+
+        // Get weekly stats for trend analysis
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(now.getDate() - 7);
+        const thisWeekQuotes = await Quote.countDocuments({ 
+            createdAt: { $gte: oneWeekAgo } 
+        });
+
         res.json({
             success: true,
-            statistics: { total: totalQuotes, today: 0, thisWeek: 0 }
+            statistics: { 
+                total: totalQuotes, 
+                today: todayQuotes, 
+                thisWeek: thisWeekQuotes,
+                period: periodQuotes,
+                periodLabel: period
+            }
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('❌ Quotes Statistics Error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: error.message 
+        });
     }
 });
 
@@ -1460,14 +1542,121 @@ router.get('/quotes/analytics', async (req, res) => {
     try {
         const userId = getUserId(req);
         if (userId !== 'admin-user') {
-            return res.status(401).json({ error: 'Admin access required' });
+            return res.status(401).json({ 
+                success: false,
+                error: 'Authentication required' 
+            });
         }
+
+        const { period = '7d' } = req.query;
+        
+        // Calculate date range based on period
+        const now = new Date();
+        let startDate = new Date();
+        
+        switch (period) {
+            case '24h':
+                startDate.setDate(now.getDate() - 1);
+                break;
+            case '7d':
+                startDate.setDate(now.getDate() - 7);
+                break;
+            case '30d':
+                startDate.setDate(now.getDate() - 30);
+                break;
+            case '90d':
+                startDate.setDate(now.getDate() - 90);
+                break;
+            default:
+                startDate.setDate(now.getDate() - 7);
+        }
+
+        // Get top authors from real data
+        const topAuthors = await Quote.aggregate([
+            { 
+                $match: { 
+                    createdAt: { $gte: startDate },
+                    author: { $ne: null, $ne: "" }
+                } 
+            },
+            { 
+                $group: { 
+                    _id: "$author", 
+                    count: { $sum: 1 } 
+                } 
+            },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]);
+
+        // Get top categories from real data
+        const topCategories = await Quote.aggregate([
+            { 
+                $match: { 
+                    createdAt: { $gte: startDate },
+                    category: { $ne: null, $ne: "" }
+                } 
+            },
+            { 
+                $group: { 
+                    _id: "$category", 
+                    count: { $sum: 1 } 
+                } 
+            },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]);
+
+        // Get daily trends (for the last 14 days to show trend)
+        const twoWeeksAgo = new Date();
+        twoWeeksAgo.setDate(now.getDate() - 14);
+        
+        const dailyTrends = await Quote.aggregate([
+            { 
+                $match: { 
+                    createdAt: { $gte: twoWeeksAgo } 
+                } 
+            },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: "$createdAt" },
+                        month: { $month: "$createdAt" },
+                        day: { $dayOfMonth: "$createdAt" }
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
+        ]);
+
+        // Transform trends data for frontend
+        const trends = dailyTrends.map(trend => ({
+            date: new Date(trend._id.year, trend._id.month - 1, trend._id.day).toISOString().split('T')[0],
+            quotes: trend.count
+        }));
+
         res.json({
             success: true,
-            analytics: { topAuthors: [], topCategories: [], trends: [] }
+            analytics: { 
+                topAuthors: topAuthors.map(author => ({
+                    name: author._id,
+                    count: author.count
+                })), 
+                topCategories: topCategories.map(category => ({
+                    name: category._id,
+                    count: category.count
+                })), 
+                trends,
+                periodLabel: period
+            }
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('❌ Quotes Analytics Error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: error.message 
+        });
     }
 });
 
