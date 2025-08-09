@@ -132,7 +132,7 @@ class OnboardingPage {
             const onboardingStatus = await this.api.checkOnboardingStatus(userId);
             console.log('📊 OnboardingPage: Статус онбординга:', onboardingStatus);
             
-            if (onboardingStatus.completed) {
+            if (onboardingStatus.completed) || onboardingStatus.completed) {
                 // Перенаправляем на главную страницу
                 this.app.router.navigate('/home');
                 return;
@@ -146,15 +146,17 @@ class OnboardingPage {
             });
             
             // Fallback: проверяем локальное состояние
-            const onboardingCompleted = this.state.get('user.isOnboardingCompleted');
+            const onboardingCompleted = this.state.get('user.isOnboardingCompleted') || this.state.get('user.profile.isOnboardingCompleted');
             console.log('🔄 OnboardingPage: Fallback проверка завершения онбординга:', onboardingCompleted);
-            if (onboardingCompleted) {
+            if (onboardingCompleted) { 
                 console.log('✅ OnboardingPage: Fallback - пользователь завершил онбординг, перенаправляем на /home');
                 this.app.router.navigate('/home');
                 return;
             }
         }
-        
+        console.log('🔍 DEBUG: onboardingCompleted =', onboardingCompleted);
+        console.log('🔍 DEBUG: user state =', this.state.get('user'));
+       
         // Получаем данные пользователя из Telegram
         this.prefillUserData();
     }
@@ -776,7 +778,7 @@ class OnboardingPage {
      */
     onShow() {
         // Проверяем, не завершен ли уже онбординг
-        const onboardingCompleted = this.state.get('user.isOnboardingCompleted');
+        const onboardingCompleted = this.state.get('user.isOnboardingCompleted') || this.state.get('user.profile.isOnboardingCompleted');
         if (onboardingCompleted) {
             this.app.router.navigate('/home');
             return;
