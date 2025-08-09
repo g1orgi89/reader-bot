@@ -288,59 +288,44 @@ class AppState {
     }
 
     /**
-     * 🔗 ИСПРАВЛЕНО: Инициализировать состояние с данными Telegram пользователя
-     * @param {Object} telegramData - Данные пользователя от Telegram
-     */
-    initializeWithTelegramUser(telegramData) {
-        if (!telegramData || !telegramData.id) {
-            console.warn('⚠️ State: Некорректные данные Telegram пользователя');
-            return false;
-        }
-
-        // Сохраняем Telegram данные
-        this.setTelegramData(telegramData);
-
-        // ИСПРАВЛЕНО: Улучшенная обработка имени пользователя
-        const firstName = telegramData.first_name?.trim() || '';
-        const lastName = telegramData.last_name?.trim() || '';
-        
-        // Формируем полное имя с проверкой на пустые значения
-        let fullName = '';
-        if (firstName && lastName) {
-            fullName = `${firstName} ${lastName}`;
-        } else if (firstName) {
-            fullName = firstName;
-        } else if (lastName) {
-            fullName = lastName;
-        } else {
-            fullName = telegramData.username || 'Пользователь';
-        }
-
-        // Устанавливаем базовые данные пользователя
-        this.update('user', {
-            profile: {
-                id: telegramData.id,
-                firstName: firstName || 'Пользователь',
-                lastName: lastName || '',
-                fullName: fullName,
-                username: telegramData.username || '',
-                languageCode: telegramData.language_code || 'ru',
-                isPremium: telegramData.is_premium || false,
-                isOnboardingCompleted: false // По умолчанию онбординг не завершен
-            },
-            isAuthenticated: true
-        });
-
-        console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
-            id: telegramData.id,
-            fullName: fullName,
-            firstName: firstName,
-            username: telegramData.username
-        });
-
-        return true;
+ * 🚀 Инициализация пользователя из Telegram данных
+ * @param {Object} telegramData - Данные от Telegram
+ * @returns {boolean} - Успех инициализации
+ */
+initializeFromTelegram(telegramData) {
+    if (!telegramData || !telegramData.id) {
+        console.warn('⚠️ State: Нет данных пользователя от Telegram');
+        return false;
     }
 
+    const firstName = telegramData.first_name || '';
+    const lastName = telegramData.last_name || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    // 🔧 ИСПРАВЛЕНИЕ: СОХРАНЯЕМ telegramData В STATE!
+    this.update('user', {
+        profile: {
+            id: telegramData.id,
+            firstName: firstName,
+            lastName: lastName,
+            fullName: fullName,
+            username: telegramData.username,
+            language: telegramData.language_code || 'ru'
+        },
+        telegramData: telegramData,  // ← ВОТ ЭТО ДОБАВИТЬ!
+        isAuthenticated: true
+    });
+
+    console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
+        id: telegramData.id,
+        fullName: fullName,
+        firstName: firstName,
+        username: telegramData.username
+    });
+
+    return true;
+}
+        
     /**
  * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
  * @returns {number|null} - ID пользователя или null
