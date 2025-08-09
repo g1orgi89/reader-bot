@@ -132,7 +132,7 @@ class OnboardingPage {
             const onboardingStatus = await this.api.checkOnboardingStatus(userId);
             console.log('📊 OnboardingPage: Статус онбординга:', onboardingStatus);
             
-            if (onboardingStatus.completed) || onboardingStatus.completed) {
+            if (onboardingStatus.completed || onboardingStatus.completed) {
                 // Перенаправляем на главную страницу
                 this.app.router.navigate('/home');
                 return;
