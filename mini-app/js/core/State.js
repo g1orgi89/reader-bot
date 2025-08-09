@@ -288,69 +288,71 @@ class AppState {
     }
 
     /**
- * 🚀 Инициализация пользователя из Telegram данных
- * @param {Object} telegramData - Данные от Telegram
- * @returns {boolean} - Успех инициализации
- */
-initializeFromTelegram(telegramData) {
-    if (!telegramData || !telegramData.id) {
-        console.warn('⚠️ State: Нет данных пользователя от Telegram');
-        return false;
-    }
+     * 🚀 Инициализация пользователя из Telegram данных
+     * @param {Object} telegramData - Данные от Telegram
+     * @returns {boolean} - Успех инициализации
+     */
+    initializeFromTelegram(telegramData) {
+        if (!telegramData || !telegramData.id) {
+            console.warn('⚠️ State: Нет данных пользователя от Telegram');
+            return false;
+        }
 
-    const firstName = telegramData.first_name || '';
-    const lastName = telegramData.last_name || '';
-    const fullName = `${firstName} ${lastName}`.trim();
+        const firstName = telegramData.first_name || '';
+        const lastName = telegramData.last_name || '';
+        const fullName = `${firstName} ${lastName}`.trim();
 
-    // 🔧 ИСПРАВЛЕНИЕ: СОХРАНЯЕМ telegramData В STATE!
-    this.update('user', {
-        profile: {
+        // 🔧 ИСПРАВЛЕНИЕ: СОХРАНЯЕМ telegramData В STATE!
+        this.update('user', {
+            profile: {
+                id: telegramData.id,
+                firstName: firstName,
+                lastName: lastName,
+                fullName: fullName,
+                username: telegramData.username,
+                language: telegramData.language_code || 'ru'
+            },
+            telegramData: telegramData,
+            isAuthenticated: true
+        });
+
+        console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
             id: telegramData.id,
-            firstName: firstName,
-            lastName: lastName,
             fullName: fullName,
-            username: telegramData.username,
-            language: telegramData.language_code || 'ru'
-        },
-        telegramData: telegramData,  // ← ВОТ ЭТО ДОБАВИТЬ!
-        isAuthenticated: true
-    });
+            firstName: firstName,
+            username: telegramData.username
+        });
 
-    console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
-        id: telegramData.id,
-        fullName: fullName,
-        firstName: firstName,
-        username: telegramData.username
-    });
-
-    return true;
-}
-         /**
- * 🔗 Алиас для совместимости с App.js
- * @param {Object} telegramUser - Данные пользователя от Telegram
- * @returns {boolean} - Успех инициализации
- */
-initializeWithTelegramUser(telegramUser) {
-    return this.initializeFromTelegram(telegramUser);
-}
- * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
- * @returns {number|null} - ID пользователя или null
- */
-getCurrentUserId() {
-    const profile = this.get('user.profile');
-    const telegramData = this.get('user.telegramData');
-    
-    // 🔍 ПОКАЗЫВАЕМ ЧТО ВНУТРИ
-    if (window.Telegram?.WebApp?.showAlert) {
-        window.Telegram.WebApp.showAlert(
-            `Profile: ${JSON.stringify(profile)}\n` +
-            `TelegramData: ${JSON.stringify(telegramData)}`
-        );
+        return true;
     }
-    
-    // Оригинальная логика
-    return profile?.id || telegramData?.id || null;
-}
+    /**
+     * 🔗 Алиас для совместимости с App.js
+     * @param {Object} telegramUser - Данные пользователя от Telegram
+     * @returns {boolean} - Успех инициализации
+     */
+    initializeWithTelegramUser(telegramUser) {
+        return this.initializeFromTelegram(telegramUser);
+    }
+
+    /**
+     * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
+     * @returns {number|null} - ID пользователя или null
+     */
+    getCurrentUserId() {
+        const profile = this.get('user.profile');
+        const telegramData = this.get('user.telegramData');
+        
+        // 🔍 ПОКАЗЫВАЕМ ЧТО ВНУТРИ
+        if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert(
+                `Profile: ${JSON.stringify(profile)}\n` +
+                `TelegramData: ${JSON.stringify(telegramData)}`
+            );
+        }
+        
+        // Оригинальная логика
+        return profile?.id || telegramData?.id || null;
+    }
 
     /**
      * 🚪 Выход пользователя
