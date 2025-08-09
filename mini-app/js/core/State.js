@@ -325,8 +325,14 @@ initializeFromTelegram(telegramData) {
 
     return true;
 }
-        
-    /**
+         /**
+ * 🔗 Алиас для совместимости с App.js
+ * @param {Object} telegramUser - Данные пользователя от Telegram
+ * @returns {boolean} - Успех инициализации
+ */
+initializeWithTelegramUser(telegramUser) {
+    return this.initializeFromTelegram(telegramUser);
+}
  * 🆔 НОВОЕ: Получить ID текущего пользователя для API вызовов
  * @returns {number|null} - ID пользователя или null
  */
