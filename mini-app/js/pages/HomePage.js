@@ -490,7 +490,7 @@ class HomePage {
     /**
      * 📊 Обработчик клика по статистике
      */
-    handleStatClick(statType) {
+    handleStatClick(_statType) {
         this.telegram.hapticFeedback('light');
         this.app.router.navigate('/reports');
     }

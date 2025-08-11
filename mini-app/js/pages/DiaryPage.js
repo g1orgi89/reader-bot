@@ -376,7 +376,6 @@ class DiaryPage {
      */
     renderQuotesStats() {
         const stats = this.state.get('stats') || {};
-        const quotes = this.state.get('quotes.items') || [];
         
         return `
             <div class="stats-summary">
@@ -831,7 +830,7 @@ class DiaryPage {
             // ✅ ИСПРАВЛЕНО: Обновляем локально и через API
             const newFavoriteState = !quote.isFavorite;
             quote.isFavorite = newFavoriteState;
-            this.state.set('quotes.items', [...quotes]);
+            this.state.set('quotes.items', [...this.state.get('quotes.items')]);
             
             // ✅ НОВОЕ: Вызываем API для сохранения на сервере (для будущей реализации)
             try {
@@ -926,13 +925,13 @@ class DiaryPage {
         });
     }
     
-    updateQuotesUI(quotes) {
+    updateQuotesUI(_quotes) {
         if (this.activeTab === 'my-quotes') {
             this.rerender();
         }
     }
-    
-    updateStatsUI(stats) {
+
+    updateStatsUI(_stats) {
         if (this.activeTab === 'add') {
             this.rerender();
         }
@@ -1228,12 +1227,6 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
 
             // ✅ НОВОЕ: Простое меню через confirm/prompt (для MVP)
             // TODO: В будущем заменить на красивое выпадающее меню
-            const actions = [
-                '✏️ Редактировать',
-                '🗑️ Удалить',
-                '📋 Копировать',
-                '❌ Отмена'
-            ];
             
             const truncatedText = quote.text.substring(0, 100) + (quote.text.length > 100 ? '...' : '');
             const choice = prompt(
