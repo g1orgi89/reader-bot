@@ -296,9 +296,22 @@ class ReaderApp {
         }
         
         try {
-            // Получаем userId из состояния
-            const userId = this.state.get('user.profile.id') || 'demo-user';
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId для загрузки данных
+            let userId = null;
+            try {
+                userId = this.state.getCurrentUserId();
+                if (!userId || userId === 'demo-user') {
+                    console.log('⚠️ App: Нет валидного userId для загрузки данных');
+                    return; // Не загружаем данные без валидного userId
+                }
+            } catch (error) {
+                console.log('⚠️ App: Не удалось получить userId из состояния:', error);
+                return;
+            }
             
+            console.log('📊 App: Загружаем данные для userId:', userId);
+            
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId во все API вызовы
             // Загружаем профиль пользователя
             const profile = await this.api.getProfile(userId);
             
@@ -375,27 +388,51 @@ class ReaderApp {
         let initialRoute = '/home';
         
         try {
-            // Получаем userId для проверки онбординга - используем Telegram ID
-            const userId = profile?.telegramId || profile?.id || 'demo-user';
-            console.log('🔍 Используем userId для проверки онбординга:', userId);
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId для проверки онбординга
+            const profile = this.state.get('user.profile');
+            let userId = null;
             
-            // Проверяем статус онбординга через API
-            const onboardingStatus = await this.api.checkOnboardingStatus(userId);
-            console.log('📊 Статус онбординга от API:', onboardingStatus);
-            
-            // Если онбординг не завершен - показываем онбординг
-            if (!onboardingStatus.completed) {
-                initialRoute = '/onboarding';
-                console.log('🎯 API: Перенаправляем на онбординг');
-            } else {
-                // Обновляем состояние пользователя с данными от API
-                if (onboardingStatus.user) {
-                    this.state.update('user.profile', {
-                        ...onboardingStatus.user,
-                        isOnboardingCompleted: true
-                    });
+            // Пытаемся получить userId, но не блокируем если его нет
+            try {
+                userId = this.state.getCurrentUserId();
+                if (!userId || userId === 'demo-user') {
+                    console.log('⚠️ App: Нет валидного userId, используем состояние профиля');
                 }
-                console.log('🏠 API: Перенаправляем на главную страницу');
+            } catch (error) {
+                console.log('⚠️ App: Не удалось получить userId из состояния:', error);
+            }
+            
+            // Если есть валидный userId, проверяем через API
+            if (userId && userId !== 'demo-user') {
+                console.log('🔍 Используем userId для проверки онбординга:', userId);
+                
+                // Проверяем статус онбординга через API
+                const onboardingStatus = await this.api.checkOnboardingStatus(userId);
+                console.log('📊 Статус онбординга от API:', onboardingStatus);
+                
+                // Если онбординг не завершен - показываем онбординг
+                if (!onboardingStatus.completed) {
+                    initialRoute = '/onboarding';
+                    console.log('🎯 API: Перенаправляем на онбординг');
+                } else {
+                    // Обновляем состояние пользователя с данными от API
+                    if (onboardingStatus.user) {
+                        this.state.update('user.profile', {
+                            ...onboardingStatus.user,
+                            isOnboardingCompleted: true
+                        });
+                    }
+                    console.log('🏠 API: Перенаправляем на главную страницу');
+                }
+            } else {
+                // Fallback: используем локальную проверку только в debug режиме
+                const isDebugMode = this.state.get('debugMode');
+                if (isDebugMode && profile?.isOnboardingCompleted) {
+                    console.log('🏠 Debug Fallback: Пользователь завершил онбординг локально');
+                } else if (!profile?.isOnboardingCompleted) {
+                    initialRoute = '/onboarding';
+                    console.log('🎯 Fallback: Перенаправляем на онбординг');
+                }
             }
         } catch (error) {
             console.warn('⚠️ Ошибка проверки статуса онбординга через API:', error);
@@ -729,10 +766,17 @@ class ReaderApp {
         if (!this.isInitialized || this.state.get('debugMode')) return;
         
         try {
-            // Получаем userId из состояния
-            const userId = this.state.get('user.profile.id') || 'demo-user';
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед обновлением
+            const userId = this.state.getCurrentUserId();
             
-            // Обновляем только критичные данные
+            if (!userId || userId === 'demo-user') {
+                console.log('⚠️ App: Нет валидного userId для обновления данных');
+                return;
+            }
+            
+            console.log('🔄 App: Обновляем данные для userId:', userId);
+            
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const stats = await this.api.getStats(userId);
             this.state.setStats(stats);
         } catch (error) {
