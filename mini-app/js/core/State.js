@@ -332,10 +332,7 @@ class AppState {
             },
             isAuthenticated: true
         });
-
-        console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
-            id: telegramData.id,
-
+        
         console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
             id: telegramData.id,
             fullName: fullName,
