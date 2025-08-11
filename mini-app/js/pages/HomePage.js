@@ -52,7 +52,12 @@ class HomePage {
         const startTime = Date.now();
         
         while (Date.now() - startTime < timeout) {
-            const userId = this.state.getCurrentUserId();
+            let userId = this.state.getCurrentUserId();
+            
+            // ✅ FIX: Accept numeric string userId and coerce to number
+            if (typeof userId === 'string' && /^\d+$/.test(userId)) {
+                userId = parseInt(userId, 10);
+            }
             
             // Проверяем что userId валидный и не равен demo-user
             if (userId && userId !== 'demo-user' && typeof userId === 'number') {
@@ -137,7 +142,39 @@ class HomePage {
                 this.state.set('stats.lastUpdate', Date.now());
             }
             if (topBooks) this.state.set('catalog.books', topBooks);
-            if (profile) this.state.set('user.profile', profile);
+            
+            // ✅ FIX: Merge profile data instead of overwriting to avoid clobbering existing valid data
+            if (profile) {
+                const prev = this.state.get('user.profile') || {};
+                const pick = (oldVal, newVal) => (newVal !== undefined && newVal !== null && String(newVal).trim() !== '' ? newVal : oldVal);
+                
+                // Compute name from new profile, but only use it if it's explicitly provided or computed from non-empty firstName/lastName
+                let computedName = '';
+                if (profile.name) {
+                    computedName = profile.name;
+                } else if (profile.firstName || profile.lastName) {
+                    computedName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+                } else if (profile.username && !prev.name) {
+                    // Only use username as fallback if there's no existing name
+                    computedName = profile.username;
+                }
+                
+                const merged = {
+                    ...prev,
+                    ...profile,
+                    id: profile.id || prev.id || userId,
+                    name: pick(prev?.name, computedName),
+                    firstName: pick(prev?.firstName, profile.firstName),
+                    lastName: pick(prev?.lastName, profile.lastName),
+                    username: pick(prev?.username, profile.username)
+                };
+                
+                if (merged.name) {
+                    merged.initials = this.getInitials(merged.name);
+                }
+                
+                this.state.set('user.profile', merged);
+            }
             
             this.dataLoaded = true;
             console.log('✅ HomePage: Данные загружены успешно');
@@ -242,11 +279,16 @@ class HomePage {
             
             // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const apiProfile = await this.api.getProfile(userId);
-            return apiProfile;
+            
+            // ✅ FIX: Unpack API response to return flat profile object, not wrapper
+            const profile = apiProfile?.user || apiProfile?.result?.user || apiProfile || {};
+            if (!profile.id) profile.id = userId;
+            return profile;
         } catch (error) {
             console.error('❌ Ошибка загрузки профиля:', error);
             const telegramUser = this.telegram.getUser();
             return {
+                id: userId,
                 name: telegramUser?.first_name || 'Анна М.',
                 username: telegramUser?.username || null,
                 initials: this.getInitials(telegramUser?.first_name || 'Анна М.')
@@ -541,22 +583,29 @@ class HomePage {
     updateUserInfoUI(profile) {
         if (!profile) return;
 
-    // Собираем имя по приоритету: name → firstName+lastName → username → ''
-        const name =
-        profile.name ||
-        [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
-        profile.username ||
-        '';
+        // Собираем имя по приоритету: name → firstName+lastName → username → ''
+        const computed = profile.name ||
+            [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
+            profile.username ||
+            '';
 
         const userAvatar = document.querySelector('.user-avatar-inline');
         const userName = document.querySelector('.user-name-inline');
 
-        if (userAvatar) {
-        userAvatar.textContent = name ? this.getInitials(name) : '';
-        }
-
+        // ✅ FIX: Do not overwrite DOM with empty values
         if (userName) {
-        userName.textContent = name;
+            const currentName = userName.textContent || '';
+            const nameToShow = computed || currentName;
+            
+            // Only update if we have a meaningful name to show
+            if (nameToShow.trim()) {
+                userName.textContent = nameToShow;
+                
+                // Update avatar initials based on the name we're showing
+                if (userAvatar) {
+                    userAvatar.textContent = this.getInitials(nameToShow);
+                }
+            }
         }
     }
 
