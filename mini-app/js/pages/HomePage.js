@@ -270,7 +270,7 @@ class HomePage {
                 ${this.renderWelcomeSection()}
                 ${this.renderStatsGrid(stats)}
                 ${this.renderMainCTA()}
-                <!-- ${this.renderTopBooks(books)} -->
+                ${this.renderTopBooks(books)} -->
                 ${this.renderProgressSection(stats)}
                 ${this.renderError()}
             </div>
