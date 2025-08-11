@@ -348,8 +348,8 @@ class HomePage {
      * 🔥 Рендер топ книг недели
      */
     renderTopBooks(books) {
+        if (!Array.isArray(books)) books = [];
         const topBooks = books.slice(0, 3);
-        
         return `
             <div class="top-books-section">
                 <div class="section-title">🔥 Топ 3 разбора недели</div>
@@ -527,12 +527,14 @@ class HomePage {
     updateTopBooksUI(books) {
         const topBooksList = document.getElementById('top-books-list');
         if (!topBooksList || !books) return;
-        
+        if (!Array.isArray(books)) books = [];
         const topBooks = books.slice(0, 3);
         topBooksList.innerHTML = topBooks.length > 0 ? 
             topBooks.map((book, index) => this.renderBookItem(book, index + 1)).join('') :
             this.renderEmptyBooks();
-        
+        this.attachBookEventListeners();
+    }   
+    
         // Перенавешивание обработчиков для новых элементов
         this.attachBookEventListeners();
     }
