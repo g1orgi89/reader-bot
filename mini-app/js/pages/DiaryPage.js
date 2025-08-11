@@ -727,7 +727,7 @@ class DiaryPage {
             
             // ✅ ИСПРАВЛЕНО: Обновляем state немедленно
             const existingQuotes = this.state.get('quotes.items') || [];
-            this.state.set('quotes.items', [savedQuote, ...existingQuotes]);
+            this.state.set('quotes.items', [savedQuote.data, ...existingQuotes]);
             
             // ✅ ИСПРАВЛЕНО: Обновляем статистику
             const currentStats = this.state.get('stats') || {};
