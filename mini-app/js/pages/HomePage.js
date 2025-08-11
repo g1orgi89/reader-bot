@@ -262,6 +262,8 @@ class HomePage {
         const stats = this.state.get('stats') || {};
         const books = this.state.get('catalog.books') || [];
         
+        console.log('[DEBUG] HomePage.js render: Profile data before rendering - profile:', user, 'profile.name:', user.name, 'profile.userId:', user.userId || user.id);
+        
         return `
             <div class="content">
                 ${this.renderUserHeader(user)}
