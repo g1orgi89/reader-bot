@@ -330,8 +330,12 @@ class ReaderApp {
             
             // Обновляем состояние
             this.state.update('user', {
-                profile: profile.user
+                profile: {
+                    ...this.state.get('user.profile'),
+                    ...profile.user
+                }
             });
+            
             this.state.setStats(stats);
             this.state.setRecentQuotes(recentQuotes.quotes || []);
             
