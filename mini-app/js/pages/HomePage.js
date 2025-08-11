@@ -281,20 +281,23 @@ class HomePage {
      * 👤 Рендер встроенного блока с аватаром и меню (ТОЛЬКО на главной!)
      */
     renderUserHeader(user) {
-        const initials = user.initials || this.getInitials(user.name || 'Анна М.');
-        const name = user.name || 'Анна М.';
-        
+        const name =
+            user.name ||
+            [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+            user.username ||
+            '';
+        const initials = name ? this.getInitials(name) : '';
         return `
             <div class="user-header-inline">
                 <div class="user-info-inline">
-                    <div class="user-avatar-inline">${initials}</div>
-                    <div class="user-details-inline">
-                        <h3 class="user-name-inline">${name}</h3>
-                        <p class="user-status-inline">Ваш дневник мудрости</p>
-                    </div>
+                <div class="user-avatar-inline">${initials}</div>
+                <div class="user-details-inline">
+                    <h3 class="user-name-inline">${name}</h3>
+                    <p class="user-status-inline">Ваш дневник мудрости</p>
                 </div>
-                <button class="menu-button-inline" id="homeMenuBtn">☰</button>
             </div>
+            <button class="menu-button-inline" id="homeMenuBtn">☰</button>
+        </div>
         `;
     }
     
@@ -539,20 +542,26 @@ class HomePage {
      */
     updateUserInfoUI(profile) {
         if (!profile) return;
-        
-        // Обновляем встроенный блок на главной странице
+
+    // Собираем имя по приоритету: name → firstName+lastName → username → ''
+        const name =
+        profile.name ||
+        [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
+        profile.username ||
+        '';
+
         const userAvatar = document.querySelector('.user-avatar-inline');
         const userName = document.querySelector('.user-name-inline');
-        
+
         if (userAvatar) {
-            userAvatar.textContent = profile.initials || this.getInitials(profile.name);
+        userAvatar.textContent = name ? this.getInitials(name) : '';
         }
-        
+
         if (userName) {
-            userName.textContent = profile.name || 'Пользователь';
+        userName.textContent = name;
         }
     }
-    
+
     /**
      * ⏳ Обновление состояния загрузки
      */
