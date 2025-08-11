@@ -54,6 +54,36 @@ class DiaryPage {
         this.setupSubscriptions();
         // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init, будет в onShow
     }
+
+    /**
+     * 🔄 Ожидание валидного userId для предотвращения гонки условий
+     * @param {number} timeout - Максимальное время ожидания в миллисекундах
+     * @returns {Promise<string>} - Валидный userId
+     */
+    async waitForValidUserId(timeout = 10000) {
+        const startTime = Date.now();
+        
+        while (Date.now() - startTime < timeout) {
+            const userId = this.state.getCurrentUserId();
+            
+            // Проверяем что userId валидный и не равен demo-user
+            if (userId && userId !== 'demo-user' && typeof userId === 'number') {
+                console.log('✅ DiaryPage: Получен валидный userId:', userId);
+                return userId;
+            }
+            
+            // Также принимаем demo-user только в debug режиме
+            if (userId === 'demo-user' && this.state.get('debugMode')) {
+                console.log('🧪 DiaryPage: Используем demo-user в debug режиме');
+                return userId;
+            }
+            
+            // Ждем 100ms перед следующей проверкой
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        throw new Error('Timeout: не удалось получить валидный userId');
+    }
     
     setupSubscriptions() {
         const quotesSubscription = this.state.subscribe('quotes', (quotes) => {
@@ -71,13 +101,17 @@ class DiaryPage {
         console.log('📖 DiaryPage: loadInitialData начата');
         
         try {
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед загрузкой данных
+            const userId = await this.waitForValidUserId();
+            console.log('📖 DiaryPage: Используем userId:', userId);
+            
             // ✅ ИСПРАВЛЕНО: Загружаем только если не загружено
             if (!this.quotesLoaded && !this.quotesLoading) {
-                await this.loadQuotes();
+                await this.loadQuotes(false, userId);
             }
             
             if (!this.statsLoaded && !this.statsLoading) {
-                await this.loadStats();
+                await this.loadStats(userId);
             }
             
             console.log('✅ DiaryPage: Данные загружены');
@@ -86,7 +120,7 @@ class DiaryPage {
         }
     }
     
-    async loadQuotes(reset = false) {
+    async loadQuotes(reset = false, userId = null) {
         // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
         if (this.quotesLoading) {
             console.log('🔄 DiaryPage: Цитаты уже загружаются, пропускаем');
@@ -96,6 +130,12 @@ class DiaryPage {
         try {
             this.quotesLoading = true;
             console.log('📚 DiaryPage: Загружаем цитаты');
+            
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId если не передан
+            if (!userId) {
+                userId = await this.waitForValidUserId();
+            }
+            console.log('📚 DiaryPage: Загружаем цитаты для userId:', userId);
             
             if (reset) {
                 this.currentPage = 1;
@@ -117,7 +157,8 @@ class DiaryPage {
                 params.dateFrom = weekAgo.toISOString();
             }
             
-            const response = await this.api.getQuotes(params);
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
+            const response = await this.api.getQuotes(params, userId);
             // ✅ ИСПРАВЛЕНО: Правильно извлекаем цитаты из ответа API
             const quotes = response.data?.quotes || response.quotes || response.items || response || [];
             
@@ -145,7 +186,7 @@ class DiaryPage {
         }
     }
     
-    async loadStats() {
+    async loadStats(userId = null) {
         // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
         if (this.statsLoading) {
             console.log('🔄 DiaryPage: Статистика уже загружается, пропускаем');
@@ -156,7 +197,14 @@ class DiaryPage {
             this.statsLoading = true;
             console.log('📊 DiaryPage: Загружаем статистику');
             
-            const stats = await this.api.getStats();
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId если не передан
+            if (!userId) {
+                userId = await this.waitForValidUserId();
+            }
+            console.log('📊 DiaryPage: Загружаем статистику для userId:', userId);
+            
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
+            const stats = await this.api.getStats(userId);
             this.state.set('stats', stats);
             this.state.set('stats.lastUpdate', Date.now()); // ✅ НОВОЕ: Время обновления
             this.statsLoaded = true; // ✅ НОВОЕ: Помечаем как загруженное
@@ -328,7 +376,6 @@ class DiaryPage {
      */
     renderQuotesStats() {
         const stats = this.state.get('stats') || {};
-        const quotes = this.state.get('quotes.items') || [];
         
         return `
             <div class="stats-summary">
@@ -623,9 +670,13 @@ class DiaryPage {
         this.telegram.hapticFeedback('light');
         this.rerender();
         
-        // ✅ ИСПРАВЛЕНО: Умная загрузка при переключении табов
+        // ✅ ИСПРАВЛЕНО: Умная загрузка при переключении табов с userId
         if (tabName === 'my-quotes' && !this.quotesLoaded) {
-            this.loadQuotes(true);
+            this.waitForValidUserId().then(userId => {
+                this.loadQuotes(true, userId);
+            }).catch(error => {
+                console.error('❌ Ошибка загрузки при переключении таба:', error);
+            });
         }
     }
     
@@ -634,6 +685,10 @@ class DiaryPage {
         
         try {
             this.telegram.hapticFeedback('medium');
+            
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед сохранением
+            const userId = await this.waitForValidUserId();
+            console.log('💾 DiaryPage: Сохраняем цитату для userId:', userId);
             
             const quoteData = {
                 text: this.formData.text.trim(),
@@ -647,8 +702,8 @@ class DiaryPage {
                 saveBtn.textContent = '💾 Сохраняем...';
             }
             
-            // ✅ ИСПРАВЛЕНО: Сохраняем цитату и получаем результат с AI анализом
-            const savedQuote = await this.api.addQuote(quoteData);
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
+            const savedQuote = await this.api.addQuote(quoteData, userId);
             this.log('✅ Цитата сохранена:', savedQuote);
             
             // ✅ ИСПРАВЛЕНО: Обрабатываем AI анализ из ответа
@@ -731,7 +786,15 @@ class DiaryPage {
         this.currentFilter = filter;
         this.telegram.hapticFeedback('light');
         this.updateFilterUI();
-        await this.loadQuotes(true);
+        
+        try {
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед загрузкой
+            const userId = await this.waitForValidUserId();
+            await this.loadQuotes(true, userId);
+        } catch (error) {
+            console.error('❌ Ошибка применения фильтра:', error);
+        }
+        
         this.rerender();
     }
     
@@ -767,7 +830,7 @@ class DiaryPage {
             // ✅ ИСПРАВЛЕНО: Обновляем локально и через API
             const newFavoriteState = !quote.isFavorite;
             quote.isFavorite = newFavoriteState;
-            this.state.set('quotes.items', [...quotes]);
+            this.state.set('quotes.items', [...this.state.get('quotes.items')]);
             
             // ✅ НОВОЕ: Вызываем API для сохранения на сервере (для будущей реализации)
             try {
@@ -798,11 +861,15 @@ class DiaryPage {
         try {
             this.log('🔍 Выполняем поиск:', this.searchQuery);
             
-            // ✅ ИСПРАВЛЕНО: Используем основной API endpoint с параметром search
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед поиском
+            const userId = await this.waitForValidUserId();
+            console.log('🔍 DiaryPage: Выполняем поиск для userId:', userId);
+            
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const searchResults = await this.api.getQuotes({
                 search: this.searchQuery.trim(),
                 limit: 50
-            });
+            }, userId);
             
             // ✅ ИСПРАВЛЕНО: Сохраняем результаты в state
             this.state.set('searchResults', searchResults.data?.quotes || searchResults.quotes || searchResults.items || []);
@@ -858,13 +925,13 @@ class DiaryPage {
         });
     }
     
-    updateQuotesUI(quotes) {
+    updateQuotesUI(_quotes) {
         if (this.activeTab === 'my-quotes') {
             this.rerender();
         }
     }
-    
-    updateStatsUI(stats) {
+
+    updateStatsUI(_stats) {
         if (this.activeTab === 'add') {
             this.rerender();
         }
@@ -1054,11 +1121,15 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
         // Обновляем state
         this.state.set('quotes.items', [...quotes]);
         
-        // ✅ ИСПРАВЛЕНО: Всегда используем реальный API
+        // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед обновлением
+        const validUserId = await this.waitForValidUserId();
+        console.log('✏️ DiaryPage: Обновляем цитату для userId:', validUserId);
+        
+        // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
         await this.api.updateQuote(quoteId, {
             text: newText.trim(),
             author: newAuthor.trim()
-        });
+        }, validUserId);
         console.log('✅ Цитата обновлена на сервере');
         
         // Обновляем UI
@@ -1111,9 +1182,13 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
             };
             this.state.set('stats', updatedStats);
             
-            // ✅ ИСПРАВЛЕНО: Всегда используем реальный API
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед удалением
+            const validUserId = await this.waitForValidUserId();
+            console.log('🗑️ DiaryPage: Удаляем цитату для userId:', validUserId);
+            
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             try {
-                await this.api.deleteQuote(quoteId);
+                await this.api.deleteQuote(quoteId, validUserId);
                 console.log('✅ Цитата удалена с сервера');
             } catch (error) {
                 console.error('❌ Ошибка удаления цитаты с сервера:', error);
@@ -1152,12 +1227,6 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
 
             // ✅ НОВОЕ: Простое меню через confirm/prompt (для MVP)
             // TODO: В будущем заменить на красивое выпадающее меню
-            const actions = [
-                '✏️ Редактировать',
-                '🗑️ Удалить',
-                '📋 Копировать',
-                '❌ Отмена'
-            ];
             
             const truncatedText = quote.text.substring(0, 100) + (quote.text.length > 100 ? '...' : '');
             const choice = prompt(

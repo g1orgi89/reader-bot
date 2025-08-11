@@ -42,6 +42,36 @@ class HomePage {
     init() {
         this.setupSubscriptions();
     }
+
+    /**
+     * 🔄 Ожидание валидного userId для предотвращения гонки условий
+     * @param {number} timeout - Максимальное время ожидания в миллисекундах
+     * @returns {Promise<string>} - Валидный userId
+     */
+    async waitForValidUserId(timeout = 10000) {
+        const startTime = Date.now();
+        
+        while (Date.now() - startTime < timeout) {
+            const userId = this.state.getCurrentUserId();
+            
+            // Проверяем что userId валидный и не равен demo-user
+            if (userId && userId !== 'demo-user' && typeof userId === 'number') {
+                console.log('✅ HomePage: Получен валидный userId:', userId);
+                return userId;
+            }
+            
+            // Также принимаем demo-user только в debug режиме
+            if (userId === 'demo-user' && this.state.get('debugMode')) {
+                console.log('🧪 HomePage: Используем demo-user в debug режиме');
+                return userId;
+            }
+            
+            // Ждем 100ms перед следующей проверкой
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        throw new Error('Timeout: не удалось получить валидный userId');
+    }
     
     /**
      * 📡 Настройка подписок на изменения состояния
@@ -90,11 +120,15 @@ class HomePage {
             
             console.log('📊 HomePage: Начинаем загрузку данных');
             
-            // Параллельная загрузка данных
+            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед загрузкой данных
+            const userId = await this.waitForValidUserId();
+            console.log('📊 HomePage: Используем userId:', userId);
+            
+            // Параллельная загрузка данных с передачей userId
             const [stats, topBooks, profile] = await Promise.all([
-                this.loadUserStats(),
+                this.loadUserStats(userId),
                 this.loadTopBooks(), 
-                this.loadUserProfile()
+                this.loadUserProfile(userId)
             ]);
             
             // Обновление состояния
@@ -121,12 +155,15 @@ class HomePage {
     /**
      * 📈 Загрузка статистики пользователя
      */
-    async loadUserStats() {
+    async loadUserStats(userId = null) {
         try {
-            // ✅ ИСПРАВЛЕНО: Получаем userId из состояния
-            const profile = this.state.get('user.profile');
-            const userId = profile?.telegramId || profile?.id || 'demo-user';
+            // ✅ ИСПРАВЛЕНО: Используем переданный userId или ждем валидный
+            if (!userId) {
+                userId = await this.waitForValidUserId();
+            }
+            console.log('📈 HomePage: Загружаем статистику для userId:', userId);
             
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const stats = await this.api.getStats(userId);
             return {
                 totalQuotes: stats.totalQuotes || 47,
@@ -195,12 +232,15 @@ class HomePage {
     /**
      * 👤 Загрузка профиля пользователя
      */
-    async loadUserProfile() {
+    async loadUserProfile(userId = null) {
         try {
-            // ✅ ИСПРАВЛЕНО: Получаем userId из состояния
-            const profile = this.state.get('user.profile');
-            const userId = profile?.telegramId || profile?.id || 'demo-user';
+            // ✅ ИСПРАВЛЕНО: Используем переданный userId или ждем валидный
+            if (!userId) {
+                userId = await this.waitForValidUserId();
+            }
+            console.log('👤 HomePage: Загружаем профиль для userId:', userId);
             
+            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const apiProfile = await this.api.getProfile(userId);
             return apiProfile;
         } catch (error) {
@@ -450,7 +490,7 @@ class HomePage {
     /**
      * 📊 Обработчик клика по статистике
      */
-    handleStatClick(statType) {
+    handleStatClick(_statType) {
         this.telegram.hapticFeedback('light');
         this.app.router.navigate('/reports');
     }
