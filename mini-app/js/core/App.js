@@ -329,12 +329,12 @@ class ReaderApp {
             const recentQuotes = await this.api.getRecentQuotes(5, userId);
             
             // Обновляем состояние
-            this.state.update('user', {
-                profile: {
-                    ...this.state.get('user.profile'),
-                    ...profile.user
-                }
-            });
+            const prevProfile = this.state.get('user.profile') || {};
+            const newProfile = { ...prevProfile, ...profile.user };
+            if (!newProfile.name) {
+            newProfile.name = prevProfile.name || 'Пользователь';
+            }
+            this.state.update('user', { profile: newProfile });
             
             this.state.setStats(stats);
             this.state.setRecentQuotes(recentQuotes.quotes || []);
