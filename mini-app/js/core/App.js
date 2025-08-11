@@ -243,19 +243,26 @@ class ReaderApp {
             }
             
             console.log('✅ Аутентификация успешна');
+
+            const firstName = authResponse.user.firstName || telegramUser.first_name || '';
+const lastName = authResponse.user.lastName || telegramUser.last_name || '';
+const fullName = (firstName && lastName) ? `${firstName} ${lastName}` : (firstName || lastName);
+const name = fullName || authResponse.user.username || telegramUser.username || 'Пользователь';
             
             this.state.update('user', {
-                profile: {
-                    ...authResponse.user,
-                    id: telegramUser.id, // ✅ ИСПРАВЛЕНО: Убеждаемся что ID установлен
-                    telegramId: telegramUser.id, // ✅ ИСПРАВЛЕНО: Дублируем для совместимости
-                    firstName: authResponse.user.firstName || telegramUser.first_name || 'Пользователь',
-                    lastName: authResponse.user.lastName || telegramUser.last_name || '',
-                    username: authResponse.user.username || telegramUser.username || '',
-                    isOnboardingCompleted: authResponse.isOnboardingCompleted || false
-                },
-                isAuthenticated: true
-            });
+    profile: {
+        ...authResponse.user,
+        id: telegramUser.id,
+        telegramId: telegramUser.id,
+        firstName,
+        lastName,
+        fullName,
+        name, // <-- добавь это поле!
+        username: authResponse.user.username || telegramUser.username || '',
+        isOnboardingCompleted: authResponse.isOnboardingCompleted || false
+    },
+    isAuthenticated: true
+});
             
             console.log('✅ Пользователь аутентифицирован:', {
                 name: authResponse.user.firstName || telegramUser.first_name,
