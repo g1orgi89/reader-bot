@@ -319,19 +319,19 @@ class AppState {
         // Устанавливаем базовые данные пользователя
          // Устанавливаем базовые данные пользователя
         this.update('user', {
-    profile: {
-        id: telegramData.id,
-        firstName: firstName || 'Пользователь',
-        lastName: lastName || '',
-        fullName: fullName,
-        name: fullName || telegramData.username || 'Пользователь', // ← ДОБАВЬ ЭТУ СТРОКУ
-        username: telegramData.username || '',
-        languageCode: telegramData.language_code || 'ru',
-        isPremium: telegramData.is_premium || false,
-        isOnboardingCompleted: false // По умолчанию онбординг не завершен
-    },
-    isAuthenticated: true
-});
+            profile: {
+                id: telegramData.id,
+                firstName: firstName || 'Пользователь',
+                lastName: lastName || '',
+                fullName: fullName,
+                name: fullName || telegramData.username || 'Пользователь', // ← ДОБАВЬ ЭТУ СТРОКУ
+                username: telegramData.username || '',
+                languageCode: telegramData.language_code || 'ru',
+                isPremium: telegramData.is_premium || false,
+                isOnboardingCompleted: false // По умолчанию онбординг не завершен
+            },
+            isAuthenticated: true
+        });
 
         console.log('✅ State: Пользователь инициализирован с Telegram данными:', {
             id: telegramData.id,
