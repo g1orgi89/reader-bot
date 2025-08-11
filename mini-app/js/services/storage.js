@@ -344,6 +344,7 @@ class StorageService {
      * 👤 Сохранить данные пользователя
      */
     setUserData(userId, key, value, permanent = true) {
+        console.log('[DEBUG] storage.js setUserData: Writing user profile - userId:', userId, 'key:', key, 'value:', value, 'permanent:', permanent);
         const storageKey = this.generateKey('user', key, userId);
         const storageType = permanent ? 'localStorage' : 'sessionStorage';
         const ttl = permanent ? this.config.cacheTTL.profile : null;
@@ -354,6 +355,7 @@ class StorageService {
      * 👤 Получить данные пользователя
      */
     getUserData(userId, key, checkSession = true) {
+        console.log('[DEBUG] storage.js getUserData: Reading user profile - userId:', userId, 'key:', key, 'checkSession:', checkSession);
         const storageKey = this.generateKey('user', key, userId);
         
         // Сначала проверяем localStorage
@@ -364,6 +366,7 @@ class StorageService {
             data = this.getItem('sessionStorage', storageKey);
         }
         
+        console.log('[DEBUG] storage.js getUserData: Retrieved data:', data);
         return data;
     }
 

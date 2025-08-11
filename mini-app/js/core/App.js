@@ -321,6 +321,7 @@ class ReaderApp {
             // ✅ ИСПРАВЛЕНО: Явно передаем userId во все API вызовы
             // Загружаем профиль пользователя
             const profile = await this.api.getProfile(userId);
+            console.log('[DEBUG] App.js loadUserData: Profile loaded from backend:', profile);
             
             // Загружаем статистику
             const stats = await this.api.getStats(userId);
@@ -334,7 +335,9 @@ class ReaderApp {
             if (!newProfile.name) {
             newProfile.name = prevProfile.name || 'Пользователь';
             }
+            console.log('[DEBUG] App.js loadUserData: Profile merged - prevProfile:', prevProfile, 'newProfile:', newProfile);
             this.state.update('user', { profile: newProfile });
+            console.log('[DEBUG] App.js loadUserData: State updated with profile:', this.state.get('user.profile'));
             
             this.state.setStats(stats);
             this.state.setRecentQuotes(recentQuotes.quotes || []);
