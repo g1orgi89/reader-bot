@@ -152,7 +152,6 @@ p {
     scroll-behavior: smooth;
     padding: 16px;
     box-sizing: border-box;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 🔧 СПЕЦИАЛЬНОЕ ИСПРАВЛЕНИЕ ДЛЯ TELEGRAM WEB APP */
@@ -167,7 +166,6 @@ p {
 /* ✅ iOS ИСПРАВЛЕНИЯ */
 @supports (padding: max(0px)) {
     .content {
-        padding-bottom: max(16px, env(safe-area-inset-bottom));
         height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
         max-height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
         min-height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
@@ -193,7 +191,6 @@ p {
     }
     .content {
         padding: 12px;
-        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         height: calc(100vh - var(--bottom-nav-height, 60px));
         max-height: calc(100vh - var(--bottom-nav-height, 60px));
         min-height: calc(100vh - var(--bottom-nav-height, 60px));
@@ -205,7 +202,6 @@ p {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding-bottom: var(--bottom-nav-height, 60px);
     overflow-y: auto;
     overflow-x: hidden;
 }

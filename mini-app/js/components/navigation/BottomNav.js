@@ -242,22 +242,7 @@ class BottomNav {
             this.navigateToPage(route, navId);
         });
 
-        // 📱 Touch события для мобильных устройств
-        this.element.addEventListener('touchstart', (e) => {
-            const navItem = e.target.closest('.nav-item');
-            if (navItem) {
-                navItem.style.transform = 'scale(0.95)';
-            }
-        });
-
-        this.element.addEventListener('touchend', (e) => {
-            const navItem = e.target.closest('.nav-item');
-            if (navItem) {
-                setTimeout(() => {
-                    navItem.style.transform = '';
-                }, 150);
-            }
-        });
+        // Touch feedback is handled by CSS :active pseudo-class
     }
 
     /**
@@ -365,7 +350,8 @@ class BottomNav {
     setVisible(visible) {
         if (!this.element) return;
         
-        this.element.style.transform = visible ? 'translateY(0)' : 'translateY(100%)';
+        // Use CSS class instead of inline styles
+        document.body.classList.toggle('nav-hidden', !visible);
     }
 
     /**
