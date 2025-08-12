@@ -2,69 +2,53 @@
  * 🍎 iOS Navigation Fix - Instagram-style always-raised bottom navigation
  * 
  * Features:
- * - Root scroll isolation (mobile only)
- * - Always-raised navigation with internal top strip
- * - Seam protection during rubber-band bounce
+ * - Root scroll isolation (mobile only, when content container exists)
+ * - Always-raised navigation with internal top strip (96px height)
  * - Safe-area handling (internal padding, not external gap)
  * - No transforms on .bottom-nav except when hidden
  * - Touch-device only via media queries
+ * - No overlay belts covering content
  */
 
 /* ============================================================================
-   📱 MOBILE-ONLY ROOT SCROLL ISOLATION
+   📱 MOBILE-ONLY ROOT SCROLL ISOLATION (CONDITIONAL)
    ============================================================================ */
 
 @media (hover: none) and (pointer: coarse) {
-  /* Root elements should not scroll on mobile - delegate to content layer */
-  html, body {
+  /* Root elements should not scroll on mobile ONLY when content container exists */
+  html.has-content-container, 
+  html.has-content-container body {
     height: 100%;
     overflow: hidden;
     background: var(--bg-primary);
   }
   
   /* Content layer handles all scrolling */
-  .page-content {
+  .page-content, .page-body, .content, .app-content, .screen-content {
     min-height: 100dvh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     background: var(--bg-primary);
     /* Ensure content doesn't overlap with nav - include strip height */
-    padding-bottom: calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 6px + var(--spacing-xs, 4px));
+    padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
   }
   
-  /* Fallback for older browsers without dvh support */
-  @supports not (height: 100dvh) {
-    .page-content {
-      min-height: 100vh;
-    }
-  }
-  
-  /* Alternative selectors for content if .page-content doesn't exist */
-  .page-body, .content {
+  /* Additional content selectors */
+  #app .content {
     min-height: 100dvh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     background: var(--bg-primary);
-    padding-bottom: calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 6px + var(--spacing-xs, 4px));
+    padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
   }
   
-  /* ========================================================================
-     🛡️ SEAM PROTECTION BELT
-     ======================================================================== */
-  
-  /* Seam protection positioned above the nav to prevent white bounce */
-  html::after {
-    content: "";
-    position: fixed;
-    bottom: var(--bottom-nav-height, 60px);
-    left: 0;
-    right: 0;
-    height: 100px; /* Generous height to cover bounce area */
-    background: var(--bg-primary);
-    z-index: 999; /* Above content, below nav */
-    pointer-events: none;
+  /* Fallback for older browsers without dvh support */
+  @supports not (height: 100dvh) {
+    .page-content, .page-body, .content, .app-content, .screen-content, #app .content {
+      min-height: 100vh;
+    }
   }
 }
 
@@ -77,7 +61,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--bottom-nav-height, 60px);
+  min-height: 96px;
   z-index: 1000;
   background-color: var(--bg-card);
   border-top: 1px solid var(--bg-secondary);
@@ -96,13 +80,6 @@
   
   /* No animations on the container itself */
   animation: none;
-  
-  /* Fill bottom safe-area with primary background */
-  background-image: linear-gradient(to bottom, 
-    var(--bg-card), 
-    var(--bg-card) calc(100% - env(safe-area-inset-bottom, 0px)), 
-    var(--bg-primary) calc(100% - env(safe-area-inset-bottom, 0px)), 
-    var(--bg-primary));
 }
 
 /* Hide navigation when keyboard is visible (only toggle allowed) */
@@ -122,7 +99,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 6px; /* Using fallback value since --spacing-2xs doesn't exist */
+    height: var(--spacing-2xs, 6px);
     background: var(--bg-primary);
     pointer-events: none;
     z-index: 1;
@@ -130,10 +107,19 @@
   
   /* Push down navigation content when raised to sit below strip */
   html.nav-raised .bottom-nav {
-    padding-top: calc(var(--spacing-xs, 4px) + 6px);
+    padding-top: calc(var(--spacing-2xs, 6px) + var(--spacing-xs, 8px));
     display: flex;
     align-items: center;
     justify-content: space-around;
+  }
+  
+  /* Center nav items vertically in the taller bar */
+  html.nav-raised .bottom-nav .nav-items {
+    display: flex;
+    width: 100%;
+    justify-content: space-around;
+    align-items: center;
+    height: calc(96px - var(--spacing-2xs, 6px) - var(--spacing-xs, 8px) - env(safe-area-inset-bottom, 0px));
   }
   
   /* Ensure nav items are properly centered vertically below the strip */
@@ -150,7 +136,7 @@
   
   /* Ensure nav icons and labels have proper spacing */
   html.nav-raised .bottom-nav .nav-icon {
-    margin-bottom: var(--spacing-xs, 4px);
+    margin-bottom: var(--spacing-xs, 8px);
   }
   
   html.nav-raised .bottom-nav .nav-label {
@@ -182,8 +168,8 @@ html, body, #app, .app-container, .page-content, .page-body, .content {
 
 /* Desktop behavior unchanged - basic content padding only */
 @media (hover: hover) and (pointer: fine) {
-  .page-content, .page-body, .content {
-    padding-bottom: calc(var(--bottom-nav-height, 60px) + var(--spacing-md, 16px));
+  .page-content, .page-body, .content, .app-content, .screen-content, #app .content {
+    padding-bottom: calc(var(--bottom-nav-height, 96px) + var(--spacing-md, 16px));
     min-height: auto;
     overflow-y: visible;
   }

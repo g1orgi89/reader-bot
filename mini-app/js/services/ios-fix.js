@@ -58,26 +58,35 @@ class IOSFixService {
    * Setup root scroll isolation for mobile
    */
   setupRootScrollIsolation() {
-    // Ensure html/body don't scroll
-    const html = document.documentElement;
-    const body = document.body;
-    
-    html.style.height = '100%';
-    html.style.overflow = 'hidden';
-    body.style.height = '100%';
-    body.style.overflow = 'hidden';
-    
-    // Ensure content container has proper scrolling
+    // Find content container via selectors
     const contentContainer = document.querySelector('.page-content') || 
                            document.querySelector('.page-body') || 
-                           document.querySelector('.content');
+                           document.querySelector('.content') ||
+                           document.querySelector('.app-content') ||
+                           document.querySelector('.screen-content') ||
+                           document.querySelector('#app .content');
     
     if (contentContainer) {
+      // Content container found - apply root scroll isolation
+      const html = document.documentElement;
+      const body = document.body;
+      
+      html.style.height = '100%';
+      html.style.overflow = 'hidden';
+      body.style.height = '100%';
+      body.style.overflow = 'hidden';
+      
+      // Mark that we have a content container for CSS targeting
+      html.classList.add('has-content-container');
+      
+      // Ensure content container has proper scrolling
       contentContainer.style.overflowY = 'auto';
       contentContainer.style.webkitOverflowScrolling = 'touch';
-      console.log('✅ Root scroll isolation configured');
+      
+      console.log('✅ Root scroll isolation configured with content container');
     } else {
-      console.warn('⚠️ No content container found for scroll isolation');
+      // No content container found - leave root scroll intact
+      console.log('ℹ️ No content container found - keeping root scroll on html/body');
     }
   }
 
