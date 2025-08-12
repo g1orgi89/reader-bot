@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>iOS Navigation Fix Demo</title>
+    
+    <!-- Load required CSS -->
+    <link rel="stylesheet" href="../css/variables.css">
+    <link rel="stylesheet" href="../css/ios-navigation-fix.css">
+    
+    <style>
+        /* Demo-specific styles */
+        body {
+            margin: 0;
+            font-family: var(--font-family-primary);
+            background: var(--bg-primary);
+        }
+        
+        .demo-content {
+            padding: var(--spacing-md);
+        }
+        
+        .demo-section {
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .demo-title {
+            color: var(--primary-color);
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .demo-text {
+            color: var(--text-primary);
+            line-height: var(--line-height-normal);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .demo-input {
+            width: 100%;
+            padding: var(--spacing-sm);
+            border: 1px solid var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-base);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .demo-button {
+            background: var(--primary-color);
+            color: var(--text-inverse);
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-base);
+            cursor: pointer;
+            margin-right: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .demo-status {
+            background: var(--bg-secondary);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+        }
+        
+        /* Fake bottom nav for demo */
+        .bottom-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: var(--spacing-xs) var(--spacing-sm);
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: var(--spacing-xs);
+            border-radius: var(--radius-sm);
+            transition: color 0.2s ease;
+        }
+        
+        .nav-item.active {
+            color: var(--primary-color);
+        }
+        
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+        
+        .nav-label {
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+        }
+        
+        /* Large content for testing scroll */
+        .content-spacer {
+            height: 200vh;
+            background: linear-gradient(to bottom, var(--bg-primary), var(--bg-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: var(--font-size-lg);
+        }
+    </style>
+</head>
+<body>
+    <!-- Main content container -->
+    <div class="page-content">
+        <div class="demo-content">
+            <div class="demo-section">
+                <h1 class="demo-title">🍎 iOS Navigation Fix Demo</h1>
+                <p class="demo-text">
+                    This demo page tests the iOS navigation fixes. On touch devices, you should see:
+                </p>
+                <ul class="demo-text">
+                    <li>Always-raised bottom navigation with internal top strip</li>
+                    <li>No white seams during rubber-band bounce</li>
+                    <li>Root scroll isolation (content scrolls, not html/body)</li>
+                    <li>Navigation hides when focusing inputs</li>
+                    <li>Safe-area handling inside the navigation bar</li>
+                </ul>
+            </div>
+            
+            <div class="demo-section">
+                <h2 class="demo-title">📱 Device Detection</h2>
+                <p class="demo-text">Current device type:</p>
+                <div id="device-status" class="demo-status">Loading...</div>
+            </div>
+            
+            <div class="demo-section">
+                <h2 class="demo-title">⌨️ Keyboard Test</h2>
+                <p class="demo-text">Focus these inputs to test keyboard handling:</p>
+                <input type="text" class="demo-input" placeholder="Text input (should hide nav)">
+                <textarea class="demo-input" rows="3" placeholder="Textarea (should hide nav)"></textarea>
+                <button class="demo-button" onclick="toggleNav()">Toggle Nav Hidden</button>
+                <button class="demo-button" onclick="toggleRaised()">Toggle Raised</button>
+            </div>
+            
+            <div class="demo-section">
+                <h2 class="demo-title">📊 Service Status</h2>
+                <div id="service-status" class="demo-status">Loading...</div>
+                <button class="demo-button" onclick="updateStatus()">Refresh Status</button>
+            </div>
+            
+            <div class="demo-section">
+                <h2 class="demo-title">🎯 Scroll Test</h2>
+                <p class="demo-text">
+                    Scroll rapidly and release to test rubber-band bounce protection.
+                    The content below extends far beyond the viewport.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Large content area for scroll testing -->
+        <div class="content-spacer">
+            Scroll Content Area<br>
+            Test rubber-band bounce here
+        </div>
+    </div>
+    
+    <!-- Fake bottom navigation -->
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+            <span class="nav-label">Home</span>
+        </a>
+        <a href="#" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            </svg>
+            <span class="nav-label">Diary</span>
+        </a>
+        <a href="#" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+            </svg>
+            <span class="nav-label">Reports</span>
+        </a>
+        <a href="#" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            </svg>
+            <span class="nav-label">Catalog</span>
+        </a>
+    </nav>
+    
+    <!-- Load iOS fix service -->
+    <script src="../js/services/ios-fix.js"></script>
+    
+    <script>
+        // Demo control functions
+        function toggleNav() {
+            const service = getIOSFixService();
+            if (service) {
+                const isHidden = document.documentElement.classList.contains('nav-hidden');
+                service.setNavHidden(!isHidden);
+            }
+            updateStatus();
+        }
+        
+        function toggleRaised() {
+            const service = getIOSFixService();
+            if (service) {
+                const isRaised = document.documentElement.classList.contains('nav-raised');
+                service.setNavRaised(!isRaised);
+            }
+            updateStatus();
+        }
+        
+        function updateStatus() {
+            const service = getIOSFixService();
+            const deviceStatus = document.getElementById('device-status');
+            const serviceStatus = document.getElementById('service-status');
+            
+            // Device detection
+            const isTouchDevice = window.isTouchDevice ? window.isTouchDevice() : false;
+            const mediaQuery = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+            
+            deviceStatus.textContent = `Touch Device: ${isTouchDevice}
+Media Query Match: ${mediaQuery}
+User Agent: ${navigator.userAgent}
+Platform: ${navigator.platform}
+Touch Points: ${navigator.maxTouchPoints || 0}`;
+            
+            // Service status
+            if (service) {
+                const status = service.getStatus();
+                serviceStatus.textContent = `Service Status: ${JSON.stringify(status, null, 2)}
+HTML Classes: ${document.documentElement.className}
+Body Classes: ${document.body.className}`;
+            } else {
+                serviceStatus.textContent = 'Service not initialized (not a touch device)';
+            }
+        }
+        
+        // Update status when page loads and periodically
+        document.addEventListener('DOMContentLoaded', updateStatus);
+        setInterval(updateStatus, 2000);
+        
+        // Log events for debugging
+        document.addEventListener('focusin', (e) => {
+            console.log('Focus in:', e.target);
+        });
+        
+        document.addEventListener('focusout', (e) => {
+            console.log('Focus out:', e.target);
+        });
+        
+        // Test viewport changes
+        window.addEventListener('resize', () => {
+            console.log('Viewport resize:', window.innerWidth, 'x', window.innerHeight);
+        });
+        
+        console.log('🧪 iOS Navigation Demo loaded');
+        console.log('📱 Device detection functions available: toggleNav(), toggleRaised(), updateStatus()');
+    </script>
+</body>
+</html>

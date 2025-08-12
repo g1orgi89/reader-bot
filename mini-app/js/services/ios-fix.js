@@ -1,158 +1,193 @@
 /**
- * Updated iOS fixes (mobile-only raised state, no inline styles on .bottom-nav)
+ * 🍎 iOS Navigation Fix Service - Touch-only with keyboard handling
+ * 
+ * Features:
+ * - Touch device detection via media queries
+ * - Automatic nav-raised class on init for touch devices  
+ * - Keyboard focus/blur handling only (no scroll-based logic)
+ * - Root scroll isolation setup
+ * - No inline style mutations on .bottom-nav
+ * 
+ * @author Reader Bot Team
  */
-const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-class IOSFixes {
+/**
+ * Detects if device is touch-capable using media queries
+ * @returns {boolean} True if touch device
+ */
+const isTouchDevice = () => {
+  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+};
+
+/**
+ * iOS Navigation Fix Service Class
+ */
+class IOSFixService {
   constructor() {
-    this.isIOSDevice = isIOS();
-    this.keyboardVisible = false;
-    this.originalViewportHeight = window.innerHeight;
-    if (this.isIOSDevice) this.init();
+    this.isTouchDevice = isTouchDevice();
+    this.isInitialized = false;
+    
+    // Only initialize on touch devices
+    if (this.isTouchDevice) {
+      this.init();
+    }
   }
 
+  /**
+   * Initialize iOS fixes for touch devices only
+   */
   init() {
-    this.setupViewportFix();
-    this.setupSafeAreaSupport();
-    this.setupScrollFixes();
+    if (this.isInitialized) return;
+    
+    console.log('🍎 Initializing iOS navigation fixes for touch device');
+    
+    // Add nav-raised class immediately on touch devices
+    document.documentElement.classList.add('nav-raised');
+    
+    // Setup root scroll isolation
+    this.setupRootScrollIsolation();
+    
+    // Setup keyboard handling (focus/blur only)
     this.setupKeyboardHandling();
-    this.setupTelegramSpecificFixes();
-    this.setupRaisedNavOnScroll(); // NEW
-    console.log('🍎 iOS фиксы активированы');
+    
+    this.isInitialized = true;
+    console.log('✅ iOS navigation fixes initialized');
   }
 
-  setupViewportFix() {
-    const updateVH = () => {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-      const diff = this.originalViewportHeight - window.innerHeight;
-      this.keyboardVisible = diff > 150;
-      document.documentElement.classList.toggle('keyboard-visible', this.keyboardVisible);
-    };
-    window.addEventListener('resize', updateVH);
-    window.addEventListener('orientationchange', () => setTimeout(updateVH, 100));
-    updateVH();
-  }
-
-  setupSafeAreaSupport() {
-    if (CSS.supports('top: env(safe-area-inset-top)')) {
-      document.documentElement.classList.add('supports-safe-area');
-      const style = document.createElement('style');
-      style.textContent = `:root{--safe-area-top: env(safe-area-inset-top,0px);--safe-area-bottom: env(safe-area-inset-bottom,0px);--safe-area-left: env(safe-area-inset-left,0px);--safe-area-right: env(safe-area-inset-right,0px);}`;
-      document.head.appendChild(style);
-    }
-  }
-
-  setupScrollFixes() {
-    document.body.addEventListener('touchmove', (e) => {
-      const scrollable = e.target.closest('.scrollable, .modal-content, .page-content, .content');
-      if (!scrollable) e.preventDefault();
-    }, { passive: false });
-  }
-
-  setupKeyboardHandling() {
-    let t;
-    window.addEventListener('resize', () => {
-      clearTimeout(t);
-      t = setTimeout(() => this.handleKeyboardToggle(), 100);
-    });
-    document.addEventListener('focusin', (e) => {
-      if (e.target.matches('input, textarea')) this.handleInputFocus(e.target);
-    });
-    document.addEventListener('focusout', (e) => {
-      if (e.target.matches('input, textarea')) this.handleInputBlur(e.target);
-    });
-  }
-
-  handleKeyboardToggle() {
-    const root = document.documentElement;
-    if (this.keyboardVisible) {
-      root.classList.add('nav-hidden');
-      if (window.Telegram?.WebApp?.expand) window.Telegram.WebApp.expand();
+  /**
+   * Setup root scroll isolation for mobile
+   */
+  setupRootScrollIsolation() {
+    // Ensure html/body don't scroll
+    const html = document.documentElement;
+    const body = document.body;
+    
+    html.style.height = '100%';
+    html.style.overflow = 'hidden';
+    body.style.height = '100%';
+    body.style.overflow = 'hidden';
+    
+    // Ensure content container has proper scrolling
+    const contentContainer = document.querySelector('.page-content') || 
+                           document.querySelector('.page-body') || 
+                           document.querySelector('.content');
+    
+    if (contentContainer) {
+      contentContainer.style.overflowY = 'auto';
+      contentContainer.style.webkitOverflowScrolling = 'touch';
+      console.log('✅ Root scroll isolation configured');
     } else {
-      root.classList.remove('nav-hidden');
+      console.warn('⚠️ No content container found for scroll isolation');
     }
   }
 
-  handleInputFocus(input) {
-    setTimeout(() => {
-      const rect = input.getBoundingClientRect();
-      const vh = window.innerHeight;
-      if (rect.bottom > vh * 0.5) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
-    input.classList.add('input-focused');
+  /**
+   * Setup keyboard handling - hide/show nav on focus/blur only
+   */
+  setupKeyboardHandling() {
+    // Hide navigation on input focus
+    window.addEventListener('focusin', (event) => {
+      const target = event.target;
+      
+      // Only handle actual input elements
+      if (target && (target.matches('input, textarea, select') || target.contentEditable === 'true')) {
+        document.documentElement.classList.add('nav-hidden');
+        console.log('🔒 Navigation hidden for keyboard input');
+      }
+    });
+
+    // Show navigation on input blur
+    window.addEventListener('focusout', (event) => {
+      const target = event.target;
+      
+      // Only handle actual input elements
+      if (target && (target.matches('input, textarea, select') || target.contentEditable === 'true')) {
+        // Small delay to prevent flicker when switching between inputs
+        setTimeout(() => {
+          // Check if another input is now focused
+          const activeElement = document.activeElement;
+          const isStillFocusedOnInput = activeElement && 
+            (activeElement.matches('input, textarea, select') || activeElement.contentEditable === 'true');
+          
+          if (!isStillFocusedOnInput) {
+            document.documentElement.classList.remove('nav-hidden');
+            console.log('🔓 Navigation shown after keyboard dismiss');
+          }
+        }, 100);
+      }
+    });
+
+    console.log('✅ Keyboard handling configured');
   }
-  handleInputBlur(input) {
-    input.classList.remove('input-focused');
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
-  }
 
-  setupTelegramSpecificFixes() {
-    const tg = window.Telegram?.WebApp;
-    if (!tg) return;
-    tg.expand?.();
-    tg.setHeaderColor?.('#D2452C');
-    tg.setBackgroundColor?.('#F5F2EC');
-    tg.onEvent?.('themeChanged', () => this.updateThemeColors());
-  }
-  updateThemeColors() {
-    const tg = window.Telegram.WebApp;
-    const isDark = tg.colorScheme === 'dark';
-    document.body.classList.toggle('dark-theme', isDark);
-    tg.setHeaderColor?.(isDark ? '#E85A42' : '#D2452C');
-    tg.setBackgroundColor?.(isDark ? '#1A1A1A' : '#F5F2EC');
-  }
-
-  // NEW: mobile-only raised state toggle without touching .bottom-nav
-  setupRaisedNavOnScroll() {
-    const isMobilePointer = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-    if (!isMobilePointer) return; // desktop unaffected
-
-    const root = document.documentElement;
-    const scroller = document.getElementById('page-content') || window;
-    let lastY = 0;
-    let ticking = false;
-
-    const getY = () => scroller === window ? window.scrollY : scroller.scrollTop;
-
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = getY();
-        const delta = y - lastY;
-        if (y > 16 && delta > 2) {
-          root.classList.add('nav-raised');
-        } else if (delta < -2) {
-          root.classList.remove('nav-raised');
-        }
-        lastY = y;
-        ticking = false;
-      });
+  /**
+   * Get current service status
+   * @returns {Object} Service status information
+   */
+  getStatus() {
+    return {
+      isTouchDevice: this.isTouchDevice,
+      isInitialized: this.isInitialized,
+      navRaised: document.documentElement.classList.contains('nav-raised'),
+      navHidden: document.documentElement.classList.contains('nav-hidden')
     };
-
-    (scroller === window ? window : scroller).addEventListener('scroll', onScroll, { passive: true });
   }
 
-  addIOSStyles() {
-    const style = document.createElement('style');
-    style.id = 'ios-fixes-styles';
-    style.textContent = `
-      .ios-device{ height: 100dvh; overflow-x: hidden; }
-      .modal-overlay{ height: 100dvh; height: calc(var(--vh, 1vh) * 100); }
-      .keyboard-visible .bottom-nav{ transition: transform 0.3s ease; }
-      .supports-safe-area .header, .supports-safe-area .home-header, .supports-safe-area .page-header{ padding-top: calc(16px + var(--safe-area-top)); }
-      .supports-safe-area .bottom-nav{ padding-bottom: calc(8px + var(--safe-area-bottom)); }
-      .scrollable, .modal-content, .content{ -webkit-overflow-scrolling: touch; overflow-y: auto; }
-    `;
-    document.head.appendChild(style);
-    if (this.isIOSDevice) document.documentElement.classList.add('ios-device');
+  /**
+   * Force enable/disable nav-raised state (for testing)
+   * @param {boolean} enabled - Whether to enable raised state
+   */
+  setNavRaised(enabled) {
+    if (!this.isTouchDevice) {
+      console.warn('⚠️ Nav raised state only available on touch devices');
+      return;
+    }
+    
+    document.documentElement.classList.toggle('nav-raised', enabled);
+    console.log(`🔧 Nav raised state ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Force hide/show navigation (for testing)
+   * @param {boolean} hidden - Whether to hide navigation
+   */
+  setNavHidden(hidden) {
+    document.documentElement.classList.toggle('nav-hidden', hidden);
+    console.log(`🔧 Navigation ${hidden ? 'hidden' : 'shown'} via manual control`);
   }
 }
 
-let iosFixes = null;
-function initIOSFixes(){ if(isIOS() && !iosFixes){ iosFixes = new IOSFixes(); iosFixes.addIOSStyles(); window.iosFixes = iosFixes; } }
-function isIOSFixesActive(){ return iosFixes !== null; }
-if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', initIOSFixes); } else { initIOSFixes(); }
-window.IOSFixes = IOSFixes; window.initIOSFixes = initIOSFixes; window.isIOSFixesActive = isIOSFixesActive; window.isIOS = isIOS;
+// Initialize service instance
+let iosFixService = null;
+
+/**
+ * Initialize iOS fixes if not already done
+ * @returns {IOSFixService|null} Service instance or null if not touch device
+ */
+function initIOSFixes() {
+  if (!iosFixService) {
+    iosFixService = new IOSFixService();
+  }
+  return iosFixService;
+}
+
+/**
+ * Get iOS fix service instance
+ * @returns {IOSFixService|null} Service instance or null if not initialized
+ */
+function getIOSFixService() {
+  return iosFixService;
+}
+
+// Auto-initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initIOSFixes);
+} else {
+  initIOSFixes();
+}
+
+// Export for global access
+window.IOSFixService = IOSFixService;
+window.initIOSFixes = initIOSFixes;
+window.getIOSFixService = getIOSFixService;
+window.isTouchDevice = isTouchDevice;
