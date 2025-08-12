@@ -37,6 +37,7 @@
     "diagnose": "node diagnose-mongodb.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:nav": "bash -c 'echo \"🔍 Checking navigation hygiene...\"; JS_MUTATIONS=$(grep -R \"bottom-nav\" mini-app/js | grep -E \"\\.style\\.[^s]|classList.*bottom-nav|setAttribute.*bottom-nav\" | grep -v \"setProperty\" || true); CSS_DUPLICATES=$(grep -R \"\\\\.bottom-nav\" mini-app/css | grep -v \"components/navigation.css\" | grep -v \"ios-navigation-fix.css\" || true); if [ -n \"$JS_MUTATIONS\" ]; then echo \"❌ Found JS style mutations on .bottom-nav:\"; echo \"$JS_MUTATIONS\"; exit 1; fi; if [ -n \"$CSS_DUPLICATES\" ]; then echo \"❌ Found duplicate CSS rules:\"; echo \"$CSS_DUPLICATES\"; exit 1; fi; echo \"✅ Navigation hygiene check passed\"'",
     "migrate": "node scripts/dbMigration.js",
     "export-reports": "node scripts/exportReports.js",
     "deploy": "npm run lint && npm test && npm run build",
