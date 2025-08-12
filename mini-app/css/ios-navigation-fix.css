@@ -1,69 +1,145 @@
 /**
- * iOS/mobile sane fix (unified)
- * - Unified background to avoid white bounce
- * - Fixed bottom nav with safe-area padding
- * - Content bottom padding under nav
- * - Mobile-only "raised" state: top internal strip; icons sit lower and centered
+ * iOS Navigation Fix - Instagram-style always-raised mobile navigation
+ * - Root scroll isolation on mobile for proper navigation anchoring
+ * - Seam protection with beige background to prevent white rubber-band gaps
+ * - Always-raised bottom nav with internal top strip and centered icons (mobile only)
+ * - No inline style mutations on .bottom-nav; only class toggling on html
+ * - Desktop behavior unchanged
  */
 
-html, body, #app, .app-container, .page-content {
-  background: var(--bg-primary);
+/* ============================================================================
+   📱 MOBILE-ONLY ROOT SCROLL ISOLATION
+   ============================================================================ */
+@media (hover: none) and (pointer: coarse) {
+  /* Root scroll isolation - we scroll only the content layer */
+  html, body {
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  
+  /* Content layer handles all scrolling */
+  .page-content {
+    min-height: 100dvh;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    background: var(--bg-primary);
+    /* Protect content from overlapping with nav + strip + air */
+    padding-bottom: calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 16px);
+  }
+  
+  @supports not (height: 100dvh) {
+    .page-content { min-height: 100vh; }
+  }
 }
 
-/* Content never overlaps the nav */
-.page-content {
-  padding-bottom: calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px));
-  min-height: 100dvh;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
-}
-@supports not (height: 100dvh) {
-  .page-content { min-height: 100vh; }
+/* ============================================================================
+   🎨 SEAM PROTECTION (iOS RUBBER-BAND PREVENTION)
+   ============================================================================ */
+@media (hover: none) and (pointer: coarse) {
+  /* Beige belt above navigation to cover bounce artifacts */
+  html::after {
+    content: "";
+    position: fixed;
+    bottom: var(--bottom-nav-height, 60px);
+    left: 0;
+    right: 0;
+    height: 100px; /* Cover bounce area */
+    background: var(--bg-primary);
+    z-index: 999; /* Above content, below nav */
+    pointer-events: none;
+  }
 }
 
-/* Fixed nav base (no transforms on the container itself) */
+/* ============================================================================
+   🧭 BOTTOM NAVIGATION BASE (UNIVERSAL)
+   ============================================================================ */
 .bottom-nav {
   position: fixed !important;
-  left: 0; right: 0; bottom: 0 !important;
-  height: var(--bottom-nav-height, 60px) !important;
+  left: 0;
+  right: 0;
+  bottom: 0 !important;
+  min-height: var(--bottom-nav-height, 60px);
   z-index: 1000 !important;
-  background: var(--bg-card);
+  background-color: var(--bg-card);
   border-top: 1px solid var(--bg-secondary);
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Fill bottom safe-area with beige to match page background */
+  background-image: linear-gradient(to bottom, 
+    var(--bg-card) 0%, 
+    var(--bg-card) calc(100% - env(safe-area-inset-bottom, 0px)), 
+    var(--bg-primary) 100%);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  /* No transforms except when hidden */
   transform: none !important;
   will-change: auto !important;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
 
-/* Optional hide via class (e.g., when keyboard is visible) */
-.nav-hidden .bottom-nav { transform: translateY(100%) !important; }
+/* Hide navigation via class toggle only */
+.nav-hidden .bottom-nav {
+  transform: translateY(100%) !important;
+}
 
-/* Mobile-only: raised state with internal top strip; icons move lower */
+/* ============================================================================
+   📱 MOBILE-ONLY: INSTAGRAM-STYLE ALWAYS-RAISED STATE
+   ============================================================================ */
 @media (hover: none) and (pointer: coarse) {
-  :root { --nav-raised-strip: 8px; }
-
-  .bottom-nav { position: fixed; }
-  .bottom-nav { padding-top: var(--spacing-xs); }
-
-  /* When raised: create an internal top strip and push content down inside the nav */
-  .nav-raised .bottom-nav {
-    padding-top: calc(var(--spacing-xs) + var(--nav-raised-strip));
+  :root {
+    --nav-raised-strip: 6px;
+    --nav-raised-air: 4px;
   }
+
+  /* Always-raised state with internal top strip */
+  .nav-raised .bottom-nav {
+    padding-top: calc(var(--spacing-xs, 4px) + var(--nav-raised-strip) + var(--nav-raised-air));
+  }
+  
+  /* Internal thin top strip (beige) inside the nav */
   .nav-raised .bottom-nav::before {
     content: "";
     position: absolute;
-    top: 0; left: 0; right: 0;
+    top: 0;
+    left: 0;
+    right: 0;
     height: var(--nav-raised-strip);
-    background: linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0));
+    background: var(--bg-primary);
     pointer-events: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   }
 
-  /* Ensure nav items sit visually centered below the strip */
-  .bottom-nav .nav-item { margin-top: 0; }
+  /* Ensure nav items are centered below the strip */
+  .nav-raised .bottom-nav .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0;
+  }
+  
+  /* Prevent icon highlights from touching the strip */
+  .nav-raised .bottom-nav .nav-icon,
+  .nav-raised .bottom-nav .nav-label {
+    margin-top: var(--spacing-xs, 4px);
+  }
 }
 
-/* Ensure no unexpected animations on the nav container itself */
-.bottom-nav, .bottom-nav::before, .bottom-nav::after {
+/* ============================================================================
+   🖥️ DESKTOP UNCHANGED - BASIC FIXED POSITIONING
+   ============================================================================ */
+@media (hover: hover) and (pointer: fine) {
+  /* Desktop behavior remains unchanged */
+  .page-content {
+    padding-bottom: calc(var(--bottom-nav-height, 60px) + 16px);
+  }
+}
+
+/* ============================================================================
+   🛡️ PREVENT UNEXPECTED ANIMATIONS
+   ============================================================================ */
+.bottom-nav,
+.bottom-nav::before,
+.bottom-nav::after {
   animation: none;
 }
