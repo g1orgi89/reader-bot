@@ -452,70 +452,7 @@
     padding: 0;
 }
 
-/* ============================================================================
-   🧩 НИЖНЯЯ НАВИГАЦИЯ
-   ============================================================================ */
 
-.bottom-nav {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--surface);
-    display: flex;
-    border-top: 1px solid var(--border);
-    height: 60px;
-    transition: all var(--transition-normal);
-}
-
-.nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all var(--transition-normal);
-    padding: 8px 4px;
-    color: var(--text-muted);
-    position: relative;
-    background: none;
-    border: none;
-}
-
-.nav-item.active {
-    color: var(--primary-color);
-}
-
-.nav-item.active::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 30px;
-    height: 3px;
-    background: var(--primary-color);
-    border-radius: 0 0 3px 3px;
-    transition: background var(--transition-normal);
-}
-
-.nav-item:hover:not(.active) {
-    color: var(--text-secondary);
-    background: var(--background-light);
-}
-
-.nav-icon {
-    width: 18px;
-    height: 18px;
-    margin-bottom: 2px;
-    stroke-width: 2;
-}
-
-.nav-label {
-    font-size: 9px;
-    font-weight: 500;
-}
 
 /* ============================================================================
    📱 МОБИЛЬНАЯ АДАПТАЦИЯ
