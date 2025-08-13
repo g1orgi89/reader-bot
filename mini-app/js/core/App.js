@@ -374,10 +374,7 @@ class ReaderApp {
                 state: this.state,
                 telegram: this.telegram
             });
-            if (typeof this.topMenu.init === 'function') {
-                this.topMenu.init();
-            }
-            console.log('✅ TopMenu инициализирован');
+            console.log('✅ TopMenu инициализирован с drawer pattern');
         } else {
             console.warn('⚠️ TopMenu класс не найден');
         }
@@ -532,17 +529,17 @@ class ReaderApp {
     showTopMenu() {
         console.log('🔄 Показываем верхнее меню...');
         
-        if (this.topMenu && typeof this.topMenu.show === 'function') {
-            this.topMenu.show();
+        if (this.topMenu && typeof this.topMenu.open === 'function') {
+            this.topMenu.open();
             console.log('✅ Верхнее меню показано');
         } else {
-            console.warn('⚠️ TopMenu не инициализирован или не имеет метода show()');
+            console.warn('⚠️ TopMenu не инициализирован или не имеет метода open()');
             
             // Fallback: простое уведомление
             if (this.telegram && typeof this.telegram.showAlert === 'function') {
                 this.telegram.showAlert('Меню пока не доступно');
             } else {
-                alert('Меню пока не доступно');
+                console.log('Меню пока не доступно');
             }
         }
     }
@@ -551,8 +548,8 @@ class ReaderApp {
      * 📋 Скрыть верхнее меню
      */
     hideTopMenu() {
-        if (this.topMenu && typeof this.topMenu.hide === 'function') {
-            this.topMenu.hide();
+        if (this.topMenu && typeof this.topMenu.close === 'function') {
+            this.topMenu.close();
             console.log('✅ Верхнее меню скрыто');
         }
     }
@@ -564,8 +561,18 @@ class ReaderApp {
         if (this.topMenu && typeof this.topMenu.toggle === 'function') {
             this.topMenu.toggle();
         } else {
-            // Если нет метода toggle, используем show
+            // Если нет метода toggle, используем open
             this.showTopMenu();
+        }
+    }
+
+    /**
+     * 🔧 Привязать верхнее меню к кнопке
+     * @param {HTMLElement} buttonEl - Кнопка для привязки
+     */
+    attachTopMenuToButton(buttonEl) {
+        if (this.topMenu && typeof this.topMenu.attachToButton === 'function') {
+            this.topMenu.attachToButton(buttonEl);
         }
     }
 
