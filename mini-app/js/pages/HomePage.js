@@ -530,6 +530,12 @@ class HomePage {
         // Haptic feedback
         this.telegram.hapticFeedback('medium');
         
+        // Only show menu if we're on home page
+        if (!this.app || !this.app.isHome || !this.app.isHome()) {
+            console.warn('⚠️ TopMenu available only on HomePage');
+            return;
+        }
+        
         // Вызываем меню через app
         if (this.app && typeof this.app.showTopMenu === 'function') {
             this.app.showTopMenu();
