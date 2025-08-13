@@ -524,6 +524,32 @@ class ReaderApp {
         
         console.log('✅ Hash router initialized');
     }
+
+    /**
+     * 🔄 Normalize route path for consistent navigation
+     * @param {string} route - Raw route path (may include #)
+     * @returns {string} - Normalized route with leading /
+     */
+    normalizeRoute(route) {
+        if (!route || typeof route !== 'string') {
+            return '/home';
+        }
+        
+        // Strip any leading #
+        let normalized = route.replace(/^#+/, '');
+        
+        // Ensure starts with /
+        if (!normalized.startsWith('/')) {
+            normalized = '/' + normalized;
+        }
+        
+        // Fall back to /home when empty
+        if (normalized === '/' || normalized === '') {
+            normalized = '/home';
+        }
+        
+        return normalized;
+    }
     
     /**
      * 📱 Setup Telegram BackButton integration
@@ -546,7 +572,8 @@ class ReaderApp {
      * 🔄 Handle hash changes for navigation
      */
     handleHashChange() {
-        const hash = window.location.hash.slice(1) || '/home';
+        const rawHash = window.location.hash.slice(1) || '';
+        const hash = this.normalizeRoute(rawHash);
         console.log('🧭 Hash changed to:', hash);
         
         // Clean up TopMenu if navigating away from HomePage
@@ -585,7 +612,8 @@ class ReaderApp {
      * @param {string} route - Route to navigate to
      */
     navigate(route) {
-        window.location.hash = route;
+        const normalizedRoute = this.normalizeRoute(route);
+        window.location.hash = normalizedRoute;
     }
     
     /**
@@ -593,7 +621,8 @@ class ReaderApp {
      * @returns {boolean}
      */
     isHome() {
-        const hash = window.location.hash.slice(1) || '/home';
+        const rawHash = window.location.hash.slice(1) || '';
+        const hash = this.normalizeRoute(rawHash);
         return hash === '/home';
     }
     
@@ -604,7 +633,9 @@ class ReaderApp {
     updateBackButtonVisibility(route) {
         if (!window.Telegram?.WebApp?.BackButton) return;
         
-        if (route === '/home' || route === '' || route === '/') {
+        const normalizedRoute = this.normalizeRoute(route);
+        
+        if (normalizedRoute === '/home' || normalizedRoute === '' || normalizedRoute === '/') {
             // Hide BackButton on home page
             window.Telegram.WebApp.BackButton.hide();
         } else {
