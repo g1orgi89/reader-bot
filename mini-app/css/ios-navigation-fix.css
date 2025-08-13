@@ -14,8 +14,22 @@
    🎨 GLOBAL BACKGROUND SAFEGUARD (CRITICAL FOR LIGHT THEME)
    ============================================================================ */
 
+/* ============================================================================
+   🎨 GLOBAL BACKGROUND SAFEGUARD (CRITICAL FOR LIGHT THEME)
+   ============================================================================ */
+
 /* Ensure beige background is maintained globally, preventing white flashes */
 html, body, #app {
+  background-color: var(--bg-primary) !important;
+  background-image: none !important;
+}
+
+/* Additional safeguards for common containers */
+.app-container, 
+.page-container, 
+.main-content, 
+.screen, 
+.view {
   background-color: var(--bg-primary) !important;
   background-image: none !important;
 }
@@ -153,7 +167,7 @@ html, body, #app {
     margin-top: 0;
   }
   
-  /* Ensure navbar label text doesn't wrap and keeps compact line-height on mobile */
+  /* Keep nav labels from wrapping on mobile */
   .bottom-nav .nav-label {
     white-space: nowrap;
     line-height: 1.2;
@@ -182,23 +196,89 @@ html, body, #app, .app-container, .page-content, .page-body, .content {
   background: var(--bg-primary);
 }
 
-/* Desktop behavior unchanged - basic content padding only */
+/* ============================================================================
+   🖥️ DESKTOP-ONLY GUARDS - HIDE MOBILE NAVIGATION COMPLETELY
+   ============================================================================ */
+
+/* Primary desktop detection via hover/pointer capabilities */
 @media (hover: hover) and (pointer: fine) {
-  /* Hide mobile bottom nav completely on desktop to prevent duplication */
-  .bottom-nav {
+  /* Hide ONLY the mobile bottom nav and its visual artefacts */
+  .bottom-nav, 
+  .bottom-nav::before, 
+  .bottom-nav::after, 
+  .bottom-nav .nav-shadow {
     display: none !important;
+    content: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
   }
   
-  /* Hide raised nav strip on desktop */
-  html.nav-raised .bottom-nav::before {
-    display: none !important;
-  }
-  
-  /* Remove mobile padding-bottom from content containers on desktop */
-  .page-content, .page-body, .content, .app-content, .screen-content, #app .content {
-    padding-bottom: var(--spacing-md, 16px);
+  /* Remove any mobile-only padding-bottom on content containers */
+  .page-content, 
+  .page-body, 
+  .content, 
+  .app-content, 
+  .screen-content, 
+  #app .content {
+    padding-bottom: 0 !important;
     min-height: auto;
     overflow-y: visible;
     overscroll-behavior-y: auto;
+  }
+  
+  /* Ensure desktop header/navigation elements remain visible */
+  .desktop-nav, 
+  .app-header, 
+  .header, 
+  .top-bar {
+    display: revert !important;
+    visibility: revert !important;
+  }
+  
+  /* Remove the extra top "Reader Bot" placeholder bar on desktop if present */
+  .mobile-title, 
+  .mobile-header, 
+  [data-role="mobile-header"] {
+    display: none !important;
+  }
+}
+
+/* Fallback desktop detection via minimum width for webviews that misreport hover/pointer */
+@media (min-width: 821px) {
+  /* Hide ONLY the mobile bottom nav and its visual artefacts */
+  .bottom-nav, 
+  .bottom-nav::before, 
+  .bottom-nav::after, 
+  .bottom-nav .nav-shadow {
+    display: none !important;
+    content: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+  
+  /* Remove any mobile-only padding-bottom on content containers */
+  .page-content, 
+  .page-body, 
+  .content, 
+  .app-content, 
+  .screen-content, 
+  #app .content {
+    padding-bottom: 0 !important;
+  }
+  
+  /* Ensure desktop header/navigation elements remain visible */
+  .desktop-nav, 
+  .app-header, 
+  .header, 
+  .top-bar {
+    display: revert !important;
+    visibility: revert !important;
+  }
+  
+  /* Remove the extra top "Reader Bot" placeholder bar on desktop if present */
+  .mobile-title, 
+  .mobile-header, 
+  [data-role="mobile-header"] {
+    display: none !important;
   }
 }
