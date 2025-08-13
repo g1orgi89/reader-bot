@@ -1,15 +1,19 @@
 /**
- * 🔝 TopMenu.js - Верхнее меню с выдвижной панелью Telegram Mini App
+ * 🔝 TopMenu.js - Верхнее меню с drawer выдвижной панелью
  * 
- * Компонент верхнего меню с кнопкой "⋯" и выдвижной панелью справа.
+ * Компонент верхнего меню использующий drawer pattern из modals.css
  * Включает: Профиль, Достижения, Настройки, Помощь, О приложении
  * 
- * Дизайн: Соответствует концепту меню модалок app.txt
- * Архитектура: Следует паттернам существующих компонентов
+ * Особенности:
+ * - Использует drawer-right + drawer-backdrop из modals.css
+ * - Подписывается на изменения состояния пользователя
+ * - Автоматическое закрытие при навигации
+ * - Haptic feedback через Telegram
+ * - Accessibility support
  * 
  * @class TopMenu
- * @author Claude Sonnet 4
- * @created 2025-07-28
+ * @author Claude Assistant
+ * @version 2.0.0 - Refactored to use drawer pattern
  */
 
 /**
@@ -24,46 +28,46 @@
 /**
  * @typedef {Object} UserInfo
  * @property {string} name - Имя пользователя
- * @property {string} role - Роль пользователя
- * @property {string} avatar - Аватар (буква)
+ * @property {string} initials - Инициалы
  * @property {Object} stats - Статистика пользователя
  */
 
 class TopMenu {
     /**
      * Создает экземпляр верхнего меню
-     * @param {Object} app - Основное приложение
-     * @param {Object} api - API клиент
-     * @param {Object} state - Глобальное состояние
-     * @param {Object} telegram - Telegram интеграция
+     * @param {Object} options - Параметры инициализации
+     * @param {Object} options.app - Основное приложение
+     * @param {Object} options.api - API клиент
+     * @param {Object} options.state - Глобальное состояние
+     * @param {Object} options.telegram - Telegram интеграция
      */
-    constructor(app, api, state, telegram) {
+    constructor(options) {
+        const { app, api, state, telegram } = options;
+        
         this.app = app;
         this.api = api;
         this.state = state;
         this.telegram = telegram;
         
         this.isOpen = false;
-        this.element = null;
-        this.overlay = null;
+        this.drawer = null;
+        this.backdrop = null;
+        this.triggerButton = null;
         this.subscriptions = [];
         
-        // 👤 Данные пользователя (из состояния или Telegram)
-        this.userInfo = this.getUserInfo();
-        
-        // 📋 Конфигурация меню (из концепта модалок)
+        // 📋 Конфигурация меню
         this.menuItems = [
             {
                 id: 'profile',
-                label: 'Мой профиль',
+                label: 'Профиль',
                 icon: this.getProfileIcon(),
-                action: 'openProfile'
+                action: 'profile'
             },
             {
                 id: 'achievements',
-                label: 'Мои достижения',
+                label: 'Достижения',
                 icon: this.getAchievementsIcon(),
-                action: 'openAchievements'
+                action: 'achievements'
             },
             {
                 id: 'divider1',
@@ -73,19 +77,19 @@ class TopMenu {
                 id: 'settings',
                 label: 'Настройки',
                 icon: this.getSettingsIcon(),
-                action: 'openSettings'
+                action: 'settings'
             },
             {
                 id: 'help',
                 label: 'Помощь',
                 icon: this.getHelpIcon(),
-                action: 'openHelp'
+                action: 'help'
             },
             {
                 id: 'about',
                 label: 'О приложении',
                 icon: this.getAboutIcon(),
-                action: 'openAbout'
+                action: 'about'
             }
         ];
         
@@ -93,360 +97,74 @@ class TopMenu {
     }
 
     /**
-     * Инициализация компонента
+     * 🚀 Инициализация компонента
      */
     init() {
-        this.createElement();
+        this.createDrawerElements();
         this.attachEventListeners();
         this.subscribeToStateChanges();
         
-        console.log('TopMenu: Инициализирован с', this.menuItems.length - 1, 'пунктами меню');
+        console.log('✅ TopMenu: Инициализирован с drawer pattern');
     }
 
     /**
-     * 👤 Получение информации о пользователе
-     * @returns {UserInfo} Информация о пользователе
+     * 🏗️ Создание элементов drawer согласно modals.css
      */
-    getUserInfo() {
-        // Приоритет: состояние приложения > Telegram > заглушка
-        if (this.state?.user) {
-            return {
-                name: this.state.user.name || 'Пользователь',
-                role: this.getUserRole(),
-                avatar: this.getInitials(this.state.user.name),
-                stats: this.state.user.stats || {}
-            };
-        }
-        
-        // Из Telegram Web App
-        if (this.telegram?.user) {
-            const fullName = `${this.telegram.user.first_name} ${this.telegram.user.last_name || ''}`.trim();
-            return {
-                name: fullName || this.telegram.user.username || 'Пользователь',
-                role: 'Читатель',
-                avatar: this.getInitials(fullName),
-                stats: {}
-            };
-        }
-        
-        // Заглушка
-        return {
-            name: 'Анна М.',
-            role: 'Читатель активист',
-            avatar: 'А',
-            stats: {
-                quotes: 47,
-                streak: 12,
-                achievements: 2
-            }
-        };
+    createDrawerElements() {
+        // Создаем drawer
+        this.drawer = document.createElement('div');
+        this.drawer.className = 'drawer drawer-right';
+        this.drawer.id = 'topMenuDrawer';
+        this.drawer.setAttribute('role', 'dialog');
+        this.drawer.setAttribute('aria-modal', 'true');
+        this.drawer.setAttribute('aria-labelledby', 'topMenuTitle');
+        this.drawer.innerHTML = this.renderDrawerContent();
+
+        // Создаем backdrop как sibling элемент для CSS селектора .drawer.active + .drawer-backdrop
+        this.backdrop = document.createElement('div');
+        this.backdrop.className = 'drawer-backdrop';
+        this.backdrop.id = 'topMenuBackdrop';
+
+        // Добавляем в DOM в правильном порядке для CSS селектора
+        document.body.appendChild(this.drawer);
+        document.body.appendChild(this.backdrop);
     }
 
     /**
-     * 🎭 Получение роли пользователя
-     * @returns {string} Роль пользователя
-     */
-    getUserRole() {
-        if (!this.state?.user?.stats) return 'Читатель';
-        
-        const stats = this.state.user.stats;
-        const quotesCount = stats.quotesCount || 0;
-        
-        if (quotesCount >= 100) return 'Мастер цитат';
-        if (quotesCount >= 50) return 'Читатель активист';
-        if (quotesCount >= 25) return 'Коллекционер мудрости';
-        if (quotesCount >= 10) return 'Начинающий мыслитель';
-        
-        return 'Читатель';
-    }
-
-    /**
-     * 🔤 Получение инициалов из имени
-     * @param {string} name - Полное имя
-     * @returns {string} Инициалы
-     */
-    getInitials(name) {
-        if (!name) return '?';
-        
-        const words = name.trim().split(' ');
-        if (words.length === 1) return words[0][0]?.toUpperCase() || '?';
-        
-        return `${words[0][0]?.toUpperCase() || ''}${words[1][0]?.toUpperCase() || ''}`;
-    }
-
-    /**
-     * 🏗️ Создание DOM элемента меню
-     */
-    createElement() {
-        // Кнопка меню (встраивается в header страниц)
-        this.element = document.createElement('button');
-        this.element.className = 'menu-button';
-        this.element.innerHTML = '⋯';
-        
-        // Overlay с выдвижной панелью
-        this.createOverlay();
-    }
-
-    /**
-     * 🌊 Создание overlay с выдвижной панелью
-     */
-    createOverlay() {
-        this.overlay = document.createElement('div');
-        this.overlay.className = 'menu-overlay';
-        this.overlay.innerHTML = this.renderOverlay();
-        
-        // Добавляем в body
-        document.body.appendChild(this.overlay);
-    }
-
-    /**
-     * 🎨 Рендер overlay с выдвижной панелью
+     * 🎨 Рендер содержимого drawer
      * @returns {string} HTML разметка
      */
-    renderOverlay() {
+    renderDrawerContent() {
+        const userInfo = this.getUserInfo();
         const menuItemsHTML = this.menuItems.map(item => 
-            item.isDivider ? this.renderDivider() : this.renderMenuItem(item)
+            item.isDivider ? '<div class="menu-divider"></div>' : this.renderMenuItem(item)
         ).join('');
 
         return `
-            <style>
-                .menu-button {
-                    background: rgba(255,255,255,0.1);
-                    border: none;
-                    color: white;
-                    font-size: 18px;
-                    cursor: pointer;
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    transition: all 0.3s ease;
-                    position: relative;
-                    user-select: none;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                
-                .menu-button:hover {
-                    background: rgba(255,255,255,0.2);
-                }
-                
-                .menu-button.active {
-                    background: rgba(255,255,255,0.3);
-                }
-                
-                .menu-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0,0,0,0.5);
-                    opacity: 0;
-                    visibility: hidden;
-                    transition: all 0.3s ease;
-                    z-index: 1000;
-                }
-                
-                .menu-overlay.show {
-                    opacity: 1;
-                    visibility: visible;
-                }
-                
-                .menu-panel {
-                    position: absolute;
-                    top: 0;
-                    right: 0;
-                    width: 280px;
-                    height: 100%;
-                    background: var(--surface, #FFFFFF);
-                    transform: translateX(100%);
-                    transition: transform 0.3s ease;
-                    box-shadow: -4px 0 20px rgba(0,0,0,0.1);
-                    overflow-y: auto;
-                }
-                
-                .menu-overlay.show .menu-panel {
-                    transform: translateX(0);
-                }
-                
-                .menu-header {
-                    background: linear-gradient(135deg, var(--primary-color, #D2452C), var(--primary-dark, #B53A23));
-                    color: white;
-                    padding: 20px 16px;
-                    position: relative;
-                }
-                
-                .menu-close {
-                    position: absolute;
-                    top: 16px;
-                    right: 16px;
-                    background: none;
-                    border: none;
-                    color: white;
-                    font-size: 20px;
-                    cursor: pointer;
-                    padding: 4px;
-                    border-radius: 4px;
-                    transition: background 0.3s ease;
-                }
-                
-                .menu-close:hover {
-                    background: rgba(255,255,255,0.2);
-                }
-                
-                .menu-user-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin-bottom: 8px;
-                }
-                
-                .menu-user-avatar {
-                    width: 48px;
-                    height: 48px;
-                    border-radius: 50%;
-                    background: rgba(255,255,255,0.2);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 18px;
-                    font-weight: 600;
-                    border: 2px solid rgba(255,255,255,0.3);
-                }
-                
-                .menu-user-details h3 {
-                    font-size: 16px;
-                    margin: 0 0 2px 0;
-                    font-weight: 600;
-                }
-                
-                .menu-user-details p {
-                    font-size: 12px;
-                    margin: 0;
-                    opacity: 0.8;
-                }
-                
-                .menu-stats {
-                    font-size: 11px;
-                    opacity: 0.9;
-                    margin-top: 4px;
-                }
-                
-                .menu-items {
-                    padding: 8px 0;
-                }
-                
-                .menu-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                    padding: 16px 20px;
-                    color: var(--text-primary, #2D2D2D);
-                    text-decoration: none;
-                    transition: all 0.3s ease;
-                    border: none;
-                    background: none;
-                    width: 100%;
-                    text-align: left;
-                    cursor: pointer;
-                    font-family: inherit;
-                    font-size: 14px;
-                    user-select: none;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                
-                .menu-item:hover {
-                    background: var(--background-light, #FAF8F3);
-                    color: var(--primary-color, #D2452C);
-                }
-                
-                .menu-item:active {
-                    transform: scale(0.98);
-                }
-                
-                .menu-icon {
-                    width: 20px;
-                    height: 20px;
-                    color: var(--text-secondary, #666666);
-                    transition: color 0.3s ease;
-                    flex-shrink: 0;
-                }
-                
-                .menu-item:hover .menu-icon {
-                    color: var(--primary-color, #D2452C);
-                }
-                
-                .menu-text {
-                    font-weight: 500;
-                }
-                
-                .menu-divider {
-                    height: 1px;
-                    background: var(--border, #E6E0D6);
-                    margin: 8px 20px;
-                }
-                
-                /* 🌙 Темная тема */
-                body.dark-theme .menu-panel {
-                    background: var(--surface, #2A2A2A);
-                }
-                
-                body.dark-theme .menu-item {
-                    color: var(--text-primary, #F0F0F0);
-                }
-                
-                body.dark-theme .menu-item:hover {
-                    background: var(--background-light, #242424);
-                    color: var(--primary-color, #E85A42);
-                }
-                
-                body.dark-theme .menu-divider {
-                    background: var(--border, #404040);
-                }
-                
-                /* 📱 Мобильная адаптация */
-                @media (max-width: 480px) {
-                    .menu-panel {
-                        width: 100%;
-                        max-width: 320px;
-                    }
-                }
-            </style>
+            <div class="drawer-header">
+                <button class="drawer-close" aria-label="Закрыть меню">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <h2 id="topMenuTitle" class="drawer-title">Меню</h2>
+            </div>
             
-            <div class="menu-panel">
-                <div class="menu-header">
-                    <button class="menu-close">&times;</button>
-                    <div class="menu-user-info">
-                        <div class="menu-user-avatar">${this.userInfo.avatar}</div>
-                        <div class="menu-user-details">
-                            <h3>${this.userInfo.name}</h3>
-                            <p>${this.userInfo.role}</p>
-                        </div>
+            <div class="drawer-body">
+                <div class="menu-user-info">
+                    <div class="user-avatar">${userInfo.initials}</div>
+                    <div class="user-details">
+                        <h3 class="user-name">${userInfo.name}</h3>
+                        <p class="user-stats">${this.formatUserStats(userInfo.stats)}</p>
                     </div>
-                    <div class="menu-stats">${this.formatUserStats()}</div>
                 </div>
                 
-                <div class="menu-items">
+                <nav class="menu-items" role="navigation">
                     ${menuItemsHTML}
-                </div>
+                </nav>
             </div>
         `;
-    }
-
-    /**
-     * 📊 Форматирование статистики пользователя
-     * @returns {string} Отформатированная статистика
-     */
-    formatUserStats() {
-        const stats = this.userInfo.stats;
-        if (!stats || Object.keys(stats).length === 0) {
-            return 'Начинающий читатель • Добро пожаловать!';
-        }
-        
-        const parts = [];
-        if (stats.quotes) parts.push(`${stats.quotes} цитат`);
-        if (stats.streak) parts.push(`${stats.streak} дней подряд`);
-        if (stats.achievements) parts.push(`${stats.achievements} достижения`);
-        
-        return parts.join(' • ') || 'Активный читатель';
     }
 
     /**
@@ -457,52 +175,35 @@ class TopMenu {
     renderMenuItem(item) {
         return `
             <button class="menu-item" data-action="${item.action}" data-menu-id="${item.id}">
-                <div class="menu-icon">
+                <span class="menu-icon">
                     ${item.icon}
-                </div>
+                </span>
                 <span class="menu-text">${item.label}</span>
             </button>
         `;
     }
 
     /**
-     * ➖ Рендер разделителя меню
-     * @returns {string} HTML разделителя
-     */
-    renderDivider() {
-        return '<div class="menu-divider"></div>';
-    }
-
-    /**
      * 🎧 Подключение обработчиков событий
      */
     attachEventListeners() {
-        if (!this.element || !this.overlay) return;
-
-        // 👆 Клик по кнопке меню
-        this.element.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.toggle();
-        });
-
-        // 👆 Клик по overlay для закрытия
-        this.overlay.addEventListener('click', (e) => {
-            if (e.target === this.overlay) {
-                this.close();
-            }
-        });
+        if (!this.drawer || !this.backdrop) return;
 
         // ❌ Кнопка закрытия
-        const closeButton = this.overlay.querySelector('.menu-close');
+        const closeButton = this.drawer.querySelector('.drawer-close');
         if (closeButton) {
             closeButton.addEventListener('click', () => {
                 this.close();
             });
         }
 
+        // 👆 Клик по backdrop для закрытия
+        this.backdrop.addEventListener('click', () => {
+            this.close();
+        });
+
         // 📋 Обработка кликов по пунктам меню
-        const menuItems = this.overlay.querySelectorAll('.menu-item');
+        const menuItems = this.drawer.querySelectorAll('.menu-item');
         menuItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 const action = e.currentTarget.dataset.action;
@@ -513,15 +214,65 @@ class TopMenu {
         });
 
         // ⌨️ Закрытие по ESC
-        document.addEventListener('keydown', (e) => {
+        this.escHandler = (e) => {
             if (e.key === 'Escape' && this.isOpen) {
                 this.close();
             }
-        });
+        };
+        document.addEventListener('keydown', this.escHandler);
+
+        // 🧭 Закрытие при навигации (если доступен router)
+        this.navigationHandler = () => {
+            if (this.isOpen) {
+                this.close();
+            }
+        };
+        
+        // Подписываемся на изменения hash для автозакрытия
+        window.addEventListener('hashchange', this.navigationHandler);
     }
 
     /**
-     * 🎭 Переключение состояния меню
+     * 📖 Открытие меню
+     */
+    open() {
+        if (this.isOpen) return;
+        
+        this.isOpen = true;
+        this.drawer.classList.add('active');
+        
+        // ⚡ Haptic feedback
+        if (this.telegram?.hapticFeedback) {
+            try {
+                this.telegram.hapticFeedback('light');
+            } catch (error) {
+                console.warn('TopMenu: Haptic feedback недоступен');
+            }
+        }
+        
+        // 🔒 Блокируем скролл страницы
+        document.body.classList.add('modal-open');
+        
+        console.log('✅ TopMenu: Меню открыто');
+    }
+
+    /**
+     * 📕 Закрытие меню
+     */
+    close() {
+        if (!this.isOpen) return;
+        
+        this.isOpen = false;
+        this.drawer.classList.remove('active');
+        
+        // 🔓 Разблокируем скролл страницы
+        document.body.classList.remove('modal-open');
+        
+        console.log('✅ TopMenu: Меню закрыто');
+    }
+
+    /**
+     * 🔄 Переключение состояния меню
      */
     toggle() {
         if (this.isOpen) {
@@ -532,230 +283,144 @@ class TopMenu {
     }
 
     /**
-     * 📖 Открытие меню
+     * 👁️ Метод onHide для lifecycle управления
      */
-    open() {
-        if (this.isOpen) return;
-        
-        this.isOpen = true;
-        this.element.classList.add('active');
-        this.overlay.classList.add('show');
-        
-        // ⚡ Haptic feedback
-        if (this.telegram?.hapticFeedback) {
-            this.telegram.hapticFeedback('light');
-        }
-        
-        // 🔒 Блокируем скролл страницы
-        document.body.style.overflow = 'hidden';
-        
-        console.log('TopMenu: Меню открыто');
+    onHide() {
+        this.close();
     }
 
     /**
-     * 📕 Закрытие меню
+     * 🔧 Привязка к внешней кнопке (helper для интеграции)
+     * @param {HTMLElement} buttonEl - Кнопка-триггер
      */
-    close() {
-        if (!this.isOpen) return;
+    attachToButton(buttonEl) {
+        if (!buttonEl) return;
         
-        this.isOpen = false;
-        this.element.classList.remove('active');
-        this.overlay.classList.remove('show');
+        this.triggerButton = buttonEl;
+        buttonEl.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggle();
+        });
         
-        // 🔓 Разблокируем скролл страницы
-        document.body.style.overflow = '';
-        
-        console.log('TopMenu: Меню закрыто');
+        console.log('✅ TopMenu: Привязан к кнопке', buttonEl);
     }
 
     /**
      * 🎯 Обработка действий меню
      * @param {string} action - Действие
-     * @param {string} menuId - ID пункта меню
+     * @param {string} _menuId - ID пункта меню (не используется)
      */
-    handleMenuAction(action, menuId) {
+    handleMenuAction(action, _menuId) {
         try {
             // ⚡ Haptic feedback
             if (this.telegram?.hapticFeedback) {
-                this.telegram.hapticFeedback('light');
+                try {
+                    this.telegram.hapticFeedback('light');
+                } catch (error) {
+                    console.warn('TopMenu: Haptic feedback недоступен');
+                }
             }
 
-            // 📕 Закрываем меню
+            // 📕 Закрываем меню ПЕРЕД выполнением действия
             this.close();
 
             // 🎯 Выполняем действие
-            switch (action) {
-                case 'openProfile':
-                    this.openProfileModal();
-                    break;
-                case 'openAchievements':
-                    this.openAchievementsModal();
-                    break;
-                case 'openSettings':
-                    this.openSettingsModal();
-                    break;
-                case 'openHelp':
-                    this.openHelpModal();
-                    break;
-                case 'openAbout':
-                    this.openAboutModal();
-                    break;
-                default:
-                    console.warn('TopMenu: Неизвестное действие', action);
+            if (this.app?.openModal && typeof this.app.openModal === 'function') {
+                // Используем модальные окна через app
+                this.app.openModal(action);
+            } else {
+                // Fallback: навигация по routes
+                this.navigateToRoute(action);
             }
 
-            console.log('TopMenu: Выполнено действие', action);
+            console.log('✅ TopMenu: Выполнено действие', action);
             
         } catch (error) {
-            console.error('TopMenu: Ошибка выполнения действия', error);
+            console.error('❌ TopMenu: Ошибка выполнения действия', error);
             
             // ❌ Haptic feedback при ошибке
             if (this.telegram?.hapticFeedback) {
-                this.telegram.hapticFeedback('error');
+                try {
+                    this.telegram.hapticFeedback('error');
+                } catch (error) {
+                    console.warn('TopMenu: Error haptic feedback недоступен');
+                }
             }
         }
     }
 
     /**
-     * 👤 Открытие модального окна профиля
+     * 🧭 Навигация к маршруту (fallback)
+     * @param {string} action - Действие для навигации
      */
-    openProfileModal() {
-        // TODO: Реализовать модальное окно профиля
-        if (this.app?.openModal) {
-            this.app.openModal('profile', this.userInfo);
-        } else {
-            console.log('TopMenu: Открытие профиля пользователя', this.userInfo);
-            // Временное уведомление
-            this.showTemporaryNotification('👤 Профиль в разработке');
-        }
-    }
+    navigateToRoute(action) {
+        const routes = {
+            'profile': '/profile',
+            'achievements': '/achievements', 
+            'settings': '/settings',
+            'help': '/help',
+            'about': '/about'
+        };
 
-    /**
-     * 🏆 Открытие модального окна достижений
-     */
-    openAchievementsModal() {
-        // TODO: Реализовать модальное окно достижений
-        if (this.app?.openModal) {
-            this.app.openModal('achievements');
-        } else {
-            console.log('TopMenu: Открытие достижений');
-            this.showTemporaryNotification('🏆 Достижения в разработке');
-        }
-    }
-
-    /**
-     * ⚙️ Открытие модального окна настроек
-     */
-    openSettingsModal() {
-        // TODO: Реализовать модальное окно настроек
-        if (this.app?.openModal) {
-            this.app.openModal('settings');
-        } else {
-            console.log('TopMenu: Открытие настроек');
-            this.showTemporaryNotification('⚙️ Настройки в разработке');
-        }
-    }
-
-    /**
-     * ❓ Открытие модального окна помощи
-     */
-    openHelpModal() {
-        // TODO: Реализовать модальное окно помощи
-        if (this.app?.openModal) {
-            this.app.openModal('help');
-        } else {
-            console.log('TopMenu: Открытие помощи');
-            this.showTemporaryNotification('❓ Помощь в разработке');
-        }
-    }
-
-    /**
-     * ℹ️ Открытие модального окна "О приложении"
-     */
-    openAboutModal() {
-        // TODO: Реализовать модальное окно "О приложении"
-        if (this.app?.openModal) {
-            this.app.openModal('about');
-        } else {
-            console.log('TopMenu: Открытие информации о приложении');
-            this.showTemporaryNotification('ℹ️ О приложении в разработке');
-        }
-    }
-
-    /**
-     * 📢 Временное уведомление (заглушка)
-     * @param {string} message - Сообщение
-     */
-    showTemporaryNotification(message) {
-        // Простое уведомление до реализации Toast компонента
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--primary-color, #D2452C);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            z-index: 2000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
+        const route = routes[action];
+        if (route) {
+            // Используем router если доступен
+            if (this.app?.router?.navigate) {
+                this.app.router.navigate(route);
+            } else {
+                // Fallback: простая навигация
+                window.location.hash = route;
             }
-        }, 3000);
+        } else {
+            console.warn('TopMenu: Неизвестный маршрут для действия', action);
+        }
     }
 
     /**
      * 🔄 Подписка на изменения состояния
      */
     subscribeToStateChanges() {
-        // Подписываемся на изменения пользователя
-        if (this.state?.subscribe) {
-            const subscription = this.state.subscribe('user', (newUser) => {
-                this.userInfo = this.getUserInfo();
-                this.updateUserInfo();
-            });
-            this.subscriptions.push(subscription);
-        }
+        if (!this.state?.subscribe) return;
+
+        // Подписываемся на изменения профиля пользователя
+        const profileSubscription = this.state.subscribe('user.profile', () => {
+            this.updateUserInfo();
+        });
+        this.subscriptions.push(profileSubscription);
+
+        // Подписываемся на изменения статистики
+        const statsSubscription = this.state.subscribe('stats', () => {
+            this.updateUserInfo();
+        });
+        this.subscriptions.push(statsSubscription);
+
+        // Подписываемся на изменения достижений
+        const achievementsSubscription = this.state.subscribe('achievements.items', () => {
+            this.updateUserInfo();
+        });
+        this.subscriptions.push(achievementsSubscription);
+
+        console.log('✅ TopMenu: Подписки на состояние установлены');
     }
 
     /**
      * 🔄 Обновление информации о пользователе в UI
      */
     updateUserInfo() {
-        if (!this.overlay) return;
-        
-        const avatar = this.overlay.querySelector('.menu-user-avatar');
-        const name = this.overlay.querySelector('.menu-user-details h3');
-        const role = this.overlay.querySelector('.menu-user-details p');
-        const stats = this.overlay.querySelector('.menu-stats');
-        
-        if (avatar) avatar.textContent = this.userInfo.avatar;
-        if (name) name.textContent = this.userInfo.name;
-        if (role) role.textContent = this.userInfo.role;
-        if (stats) stats.textContent = this.formatUserStats();
-    }
+        if (!this.drawer) return;
 
-    /**
-     * 🔄 Lifecycle: Показ компонента
-     */
-    onShow() {
-        // Компонент всегда видим, но может понадобиться для анимаций
-    }
+        const userInfo = this.getUserInfo();
+        
+        const avatar = this.drawer.querySelector('.user-avatar');
+        const name = this.drawer.querySelector('.user-name');
+        const stats = this.drawer.querySelector('.user-stats');
+        
+        if (avatar) avatar.textContent = userInfo.initials;
+        if (name) name.textContent = userInfo.name;
+        if (stats) stats.textContent = this.formatUserStats(userInfo.stats);
 
-    /**
-     * 🔄 Lifecycle: Скрытие компонента
-     */
-    onHide() {
-        this.close();
+        console.log('🔄 TopMenu: Информация о пользователе обновлена');
     }
 
     /**
@@ -765,7 +430,15 @@ class TopMenu {
         // Закрываем меню
         this.close();
 
-        // Отписываемся от событий
+        // Удаляем обработчики событий
+        if (this.escHandler) {
+            document.removeEventListener('keydown', this.escHandler);
+        }
+        if (this.navigationHandler) {
+            window.removeEventListener('hashchange', this.navigationHandler);
+        }
+
+        // Отписываемся от состояния
         this.subscriptions.forEach(unsubscribe => {
             if (typeof unsubscribe === 'function') {
                 unsubscribe();
@@ -774,21 +447,102 @@ class TopMenu {
         this.subscriptions = [];
 
         // Удаляем DOM элементы
-        if (this.overlay && this.overlay.parentNode) {
-            this.overlay.parentNode.removeChild(this.overlay);
+        if (this.drawer && this.drawer.parentNode) {
+            this.drawer.parentNode.removeChild(this.drawer);
+        }
+        if (this.backdrop && this.backdrop.parentNode) {
+            this.backdrop.parentNode.removeChild(this.backdrop);
         }
         
-        if (this.element && this.element.parentNode) {
-            this.element.parentNode.removeChild(this.element);
-        }
+        this.drawer = null;
+        this.backdrop = null;
+        this.triggerButton = null;
         
-        this.element = null;
-        this.overlay = null;
-        
-        console.log('TopMenu: Компонент уничтожен');
+        console.log('🧹 TopMenu: Компонент уничтожен');
     }
 
-    // 🎨 SVG ИКОНКИ (из концепта модалок)
+    /**
+     * 👤 Получение информации о пользователе
+     * @returns {UserInfo} Информация о пользователе
+     */
+    getUserInfo() {
+        // Получаем данные из состояния
+        const userProfile = this.state?.get('user.profile');
+        const stats = this.state?.get('stats');
+        const achievementsCount = this.state?.get('achievements.items')?.length || 0;
+        
+        if (userProfile) {
+            return {
+                name: userProfile.name || userProfile.firstName || 'Пользователь',
+                initials: this.getInitials(userProfile.name || userProfile.firstName),
+                stats: {
+                    totalQuotes: stats?.totalQuotes || 0,
+                    currentStreak: stats?.currentStreak || 0,
+                    achievementsCount
+                }
+            };
+        }
+        
+        // Fallback из Telegram данных
+        const telegramData = this.state?.get('user.telegramData');
+        if (telegramData) {
+            const fullName = `${telegramData.first_name} ${telegramData.last_name || ''}`.trim();
+            return {
+                name: fullName || telegramData.username || 'Пользователь',
+                initials: this.getInitials(fullName),
+                stats: {
+                    totalQuotes: 0,
+                    currentStreak: 0,
+                    achievementsCount: 0
+                }
+            };
+        }
+        
+        // Заглушка для отладки
+        return {
+            name: 'Тестер',
+            initials: 'Т',
+            stats: {
+                totalQuotes: 0,
+                currentStreak: 0,
+                achievementsCount: 0
+            }
+        };
+    }
+
+    /**
+     * 🔤 Получение инициалов из имени (до двух слов)
+     * @param {string} name - Полное имя
+     * @returns {string} Инициалы
+     */
+    getInitials(name) {
+        if (!name) return '?';
+        
+        const words = name.trim().split(' ').filter(word => word.length > 0);
+        if (words.length === 0) return '?';
+        if (words.length === 1) return words[0][0]?.toUpperCase() || '?';
+        
+        // Берем первые буквы первых двух слов
+        return `${words[0][0]?.toUpperCase() || ''}${words[1][0]?.toUpperCase() || ''}`;
+    }
+
+    /**
+     * 📊 Форматирование статистики пользователя
+     * @param {Object} stats - Статистика пользователя
+     * @returns {string} Отформатированная статистика
+     */
+    formatUserStats(stats) {
+        if (!stats) return 'Начинающий читатель';
+        
+        const parts = [];
+        if (stats.totalQuotes > 0) parts.push(`${stats.totalQuotes} цитат`);
+        if (stats.currentStreak > 0) parts.push(`${stats.currentStreak} дней подряд`);
+        if (stats.achievementsCount > 0) parts.push(`${stats.achievementsCount} достижений`);
+        
+        return parts.length > 0 ? parts.join(' • ') : 'Начинающий читатель';
+    }
+
+    // 🎨 SVG ИКОНКИ
 
     /**
      * 👤 Иконка профиля
@@ -796,7 +550,7 @@ class TopMenu {
      */
     getProfileIcon() {
         return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
             </svg>
@@ -809,7 +563,7 @@ class TopMenu {
      */
     getAchievementsIcon() {
         return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
                 <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
                 <path d="M4 22h16"/>
@@ -826,7 +580,7 @@ class TopMenu {
      */
     getSettingsIcon() {
         return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.79a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
@@ -839,7 +593,7 @@ class TopMenu {
      */
     getHelpIcon() {
         return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                 <point cx="12" cy="17" r="1"/>
@@ -853,7 +607,7 @@ class TopMenu {
      */
     getAboutIcon() {
         return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
                 <path d="M12 16v-4"/>
                 <path d="M12 8h.01"/>
@@ -867,5 +621,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = TopMenu;
 } else {
     window.TopMenu = TopMenu;
-}// ⬆️ ВЕРХНЕЕ МЕНЮ
-// Меню "..." + модалки
+}
