@@ -627,13 +627,14 @@ class HomePage {
             // Only update if we have a meaningful name to show
             if (nameToShow.trim()) {
                 userName.textContent = nameToShow;
-                
-                // Update avatar based on the name and new avatar URL
-                if (userAvatarContainer) {
-                    const initials = this.getInitials(nameToShow);
-                    userAvatarContainer.outerHTML = this.renderUserAvatar(profile.avatarUrl, initials);
-                }
             }
+        }
+
+        // Update avatar separately
+        if (userAvatarContainer) {
+            const initials = this.getInitials(computed || userName?.textContent || '');
+            const newAvatarHTML = this.renderUserAvatar(profile.avatarUrl, initials);
+            userAvatarContainer.outerHTML = newAvatarHTML;
         }
     }
 

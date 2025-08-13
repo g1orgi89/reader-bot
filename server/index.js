@@ -506,6 +506,23 @@ app.use('/mini-app', express.static(path.join(__dirname, '../mini-app'), {
   }
 }));
 
+// 🖼️ Статические файлы для загрузок (аватары)
+logger.info('🖼️ Setting up uploads static files...');
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: (res, filePath) => {
+    // Устанавливаем правильные MIME типы для изображений
+    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (filePath.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (filePath.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');
+    }
+    // Добавляем заголовки кэширования для изображений
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 часа
+  }
+}));
+
 // Static files для основного клиента
 app.use(express.static(path.join(__dirname, '../client'), {
   setHeaders: (res, filePath) => {

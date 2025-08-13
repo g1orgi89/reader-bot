@@ -181,6 +181,15 @@ const userProfileSchema = new mongoose.Schema({
     match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     // Email ОБЯЗАТЕЛЬНО после теста
   },
+  about: {
+    type: String,
+    maxlength: 200
+    // Описание пользователя "О себе"
+  },
+  avatarUrl: {
+    type: String
+    // URL загруженного аватара
+  },
   testResults: {
     type: testResultsSchema,
     required: true

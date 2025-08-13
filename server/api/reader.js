@@ -1085,6 +1085,198 @@ router.get('/community/leaderboard', async (req, res) => {
 });
 
 /**
+ * @description Обновление профиля пользователя
+ * @route PUT /api/reader/profile
+ */
+router.put('/profile', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const updateData = req.body;
+        
+        // Удаляем userId из данных обновления, чтобы избежать его перезаписи
+        delete updateData.userId;
+        
+        // Разрешенные поля для обновления
+        const allowedFields = ['name', 'email', 'about', 'avatarUrl', 'preferences', 'settings'];
+        const filteredUpdateData = {};
+        
+        for (const field of allowedFields) {
+            if (updateData[field] !== undefined) {
+                filteredUpdateData[field] = updateData[field];
+            }
+        }
+        
+        // Добавляем timestamp обновления
+        filteredUpdateData.updatedAt = new Date();
+        
+        const updatedUser = await UserProfile.findOneAndUpdate(
+            { userId },
+            { $set: filteredUpdateData },
+            { new: true, runValidators: true }
+        );
+        
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            user: {
+                userId: updatedUser.userId,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                about: updatedUser.about,
+                avatarUrl: updatedUser.avatarUrl,
+                isOnboardingComplete: updatedUser.isOnboardingComplete,
+                registeredAt: updatedUser.registeredAt,
+                updatedAt: updatedUser.updatedAt,
+                source: updatedUser.source,
+                preferences: updatedUser.preferences,
+                settings: updatedUser.settings
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Update Profile Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || 'Failed to update profile'
+        });
+    }
+});
+
+/**
+ * @description Загрузка аватара пользователя
+ * @route POST /api/reader/profile/avatar
+ */
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
+
+// Конфигурация multer для загрузки аватаров
+const avatarStorage = multer.diskStorage({
+    destination: async (req, file, cb) => {
+        const uploadDir = path.join(__dirname, '../../uploads/avatars');
+        try {
+            await fs.mkdir(uploadDir, { recursive: true });
+            cb(null, uploadDir);
+        } catch (error) {
+            cb(error);
+        }
+    },
+    filename: (req, file, cb) => {
+        const userId = req.body.userId || 'unknown';
+        const extension = path.extname(file.originalname);
+        const filename = `avatar_${userId}_${Date.now()}${extension}`;
+        cb(null, filename);
+    }
+});
+
+const avatarUpload = multer({
+    storage: avatarStorage,
+    limits: {
+        fileSize: 3 * 1024 * 1024, // 3MB
+        files: 1
+    },
+    fileFilter: (req, file, cb) => {
+        // Проверяем тип файла
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Unsupported file type. Use JPG, PNG or WebP'), false);
+        }
+    }
+});
+
+router.post('/profile/avatar', avatarUpload.single('avatar'), async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'No file uploaded'
+            });
+        }
+        
+        // Формируем URL для аватара
+        const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+        
+        // Обновляем профиль пользователя
+        const updatedUser = await UserProfile.findOneAndUpdate(
+            { userId },
+            { 
+                $set: { 
+                    avatarUrl: avatarUrl,
+                    updatedAt: new Date()
+                }
+            },
+            { new: true }
+        );
+        
+        if (!updatedUser) {
+            // Удаляем загруженный файл если пользователь не найден
+            try {
+                await fs.unlink(req.file.path);
+            } catch (unlinkError) {
+                console.error('Error deleting uploaded file:', unlinkError);
+            }
+            
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Avatar uploaded successfully',
+            avatarUrl: avatarUrl,
+            user: {
+                userId: updatedUser.userId,
+                avatarUrl: updatedUser.avatarUrl
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Avatar Upload Error:', error);
+        
+        // Удаляем загруженный файл в случае ошибки
+        if (req.file) {
+            try {
+                await fs.unlink(req.file.path);
+            } catch (unlinkError) {
+                console.error('Error deleting uploaded file:', unlinkError);
+            }
+        }
+        
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({
+                success: false,
+                error: 'File too large. Maximum size is 3MB'
+            });
+        }
+        
+        if (error.message === 'Unsupported file type. Use JPG, PNG or WebP') {
+            return res.status(415).json({
+                success: false,
+                error: error.message
+            });
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || 'Failed to upload avatar'
+        });
+    }
+});
+
+/**
  * @description Базовая проверка работоспособности API
  * @route GET /api/reader/health
  */

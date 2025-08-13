@@ -418,7 +418,8 @@ class TopMenu {
         
         // Обновляем аватар
         if (avatarContainer) {
-            avatarContainer.outerHTML = this.renderUserAvatar();
+            const newAvatarHTML = this.renderUserAvatar();
+            avatarContainer.outerHTML = newAvatarHTML;
         }
         
         if (name) name.textContent = userInfo.name;
