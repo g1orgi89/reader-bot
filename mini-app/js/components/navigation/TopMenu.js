@@ -153,7 +153,7 @@ class TopMenu {
             
             <div class="drawer-body">
                 <div class="menu-user-info">
-                    <div class="user-avatar">${userInfo.initials}</div>
+                    ${this.renderUserAvatar()}
                     <div class="user-details">
                         <h3 class="user-name">${userInfo.name}</h3>
                         <p class="user-stats">${this.formatUserStats(userInfo.stats)}</p>
@@ -412,15 +412,48 @@ class TopMenu {
 
         const userInfo = this.getUserInfo();
         
-        const avatar = this.drawer.querySelector('.user-avatar');
+        const avatarContainer = this.drawer.querySelector('.user-avatar');
         const name = this.drawer.querySelector('.user-name');
         const stats = this.drawer.querySelector('.user-stats');
         
-        if (avatar) avatar.textContent = userInfo.initials;
+        // Обновляем аватар
+        if (avatarContainer) {
+            avatarContainer.outerHTML = this.renderUserAvatar();
+        }
+        
         if (name) name.textContent = userInfo.name;
         if (stats) stats.textContent = this.formatUserStats(userInfo.stats);
 
         console.log('🔄 TopMenu: Информация о пользователе обновлена');
+    }
+
+    /**
+     * 🖼️ Рендер аватара пользователя с поддержкой изображений
+     */
+    renderUserAvatar() {
+        const profile = this.state?.get('user.profile');
+        const avatarUrl = profile?.avatarUrl;
+        const telegramPhotoUrl = this.telegram?.getUser()?.photo_url;
+        const userInfo = this.getUserInfo();
+        
+        // Определяем источник изображения по приоритету
+        const imageUrl = avatarUrl || telegramPhotoUrl;
+        
+        if (imageUrl) {
+            return `
+                <div class="user-avatar">
+                    <img class="menu-user-avatar-img" src="${imageUrl}" alt="Аватар" 
+                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                    <div class="user-avatar-fallback">${userInfo.initials}</div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="user-avatar fallback">
+                    <div class="user-avatar-fallback">${userInfo.initials}</div>
+                </div>
+            `;
+        }
     }
 
     /**

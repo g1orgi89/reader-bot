@@ -329,18 +329,45 @@ class HomePage {
             user.username ||
             '';
         const initials = name ? this.getInitials(name) : '';
+        
         return `
             <div class="user-header-inline">
                 <div class="user-info-inline">
-                <div class="user-avatar-inline">${initials}</div>
-                <div class="user-details-inline">
-                    <h3 class="user-name-inline">${name}</h3>
-                    <p class="user-status-inline">Ваш дневник мудрости</p>
+                    ${this.renderUserAvatar(user.avatarUrl, initials)}
+                    <div class="user-details-inline">
+                        <h3 class="user-name-inline">${name}</h3>
+                        <p class="user-status-inline">Ваш дневник мудрости</p>
+                    </div>
                 </div>
+                <button class="menu-button-inline" id="homeMenuBtn">☰</button>
             </div>
-            <button class="menu-button-inline" id="homeMenuBtn">☰</button>
-        </div>
         `;
+    }
+
+    /**
+     * 🖼️ Рендер аватара с поддержкой изображений
+     */
+    renderUserAvatar(avatarUrl, initials) {
+        const telegramPhotoUrl = this.telegram.getUser()?.photo_url;
+        
+        // Определяем источник изображения по приоритету
+        const imageUrl = avatarUrl || telegramPhotoUrl;
+        
+        if (imageUrl) {
+            return `
+                <div class="user-avatar-inline">
+                    <img class="user-avatar-img" src="${imageUrl}" alt="Аватар" 
+                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                    <div class="user-avatar-fallback">${initials || 'А'}</div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="user-avatar-inline fallback">
+                    <div class="user-avatar-fallback">${initials || 'А'}</div>
+                </div>
+            `;
+        }
     }
     
     /**
@@ -589,7 +616,7 @@ class HomePage {
             profile.username ||
             '';
 
-        const userAvatar = document.querySelector('.user-avatar-inline');
+        const userAvatarContainer = document.querySelector('.user-avatar-inline');
         const userName = document.querySelector('.user-name-inline');
 
         // ✅ FIX: Do not overwrite DOM with empty values
@@ -601,9 +628,10 @@ class HomePage {
             if (nameToShow.trim()) {
                 userName.textContent = nameToShow;
                 
-                // Update avatar initials based on the name we're showing
-                if (userAvatar) {
-                    userAvatar.textContent = this.getInitials(nameToShow);
+                // Update avatar based on the name and new avatar URL
+                if (userAvatarContainer) {
+                    const initials = this.getInitials(nameToShow);
+                    userAvatarContainer.outerHTML = this.renderUserAvatar(profile.avatarUrl, initials);
                 }
             }
         }

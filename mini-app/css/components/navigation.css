@@ -204,6 +204,44 @@
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
     flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Menu user avatar image */
+.menu-user-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+}
+
+/* Menu user avatar fallback */
+.user-avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    border-radius: 50%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+/* Show fallback when avatar has fallback class or image is hidden */
+.user-avatar.fallback .menu-user-avatar-img,
+.user-avatar .menu-user-avatar-img[style*="display: none"] {
+    display: none !important;
 }
 
 .user-details {
