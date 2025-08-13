@@ -1,0 +1,332 @@
+/**
+ * ⚙️ НАСТРОЙКИ - settings.css
+ * Стили для страницы настроек приложения
+ * Используются только переменные из variables.css, мобильно-ориентированный дизайн
+ */
+
+/* ============================================================================
+   📱 ОСНОВНАЯ СТРУКТУРА НАСТРОЕК
+   ============================================================================ */
+
+.settings-page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: var(--spacing-md) var(--spacing-sm);
+}
+
+.settings-header {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.settings-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-xs);
+}
+
+.settings-subtitle {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* ============================================================================
+   📋 ГРУППЫ НАСТРОЕК
+   ============================================================================ */
+
+.settings-section {
+    background: var(--bg-card);
+    border-radius: var(--border-radius-md);
+    margin-bottom: var(--spacing-md);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+}
+
+.settings-section-title {
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settings-item {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px; /* Touch target */
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.settings-item:hover {
+    background: var(--bg-hover);
+}
+
+.settings-item-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.settings-item-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: var(--spacing-sm);
+    color: var(--accent-primary);
+}
+
+.settings-item-text {
+    flex: 1;
+}
+
+.settings-item-title {
+    font-size: var(--font-size-base);
+    margin-bottom: 2px;
+}
+
+.settings-item-description {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+.settings-item-control {
+    margin-left: var(--spacing-sm);
+}
+
+/* ============================================================================
+   🔘 ПЕРЕКЛЮЧАТЕЛИ И КОНТРОЛЫ
+   ============================================================================ */
+
+.settings-toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-full);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.settings-toggle.active {
+    background: var(--accent-primary);
+}
+
+.settings-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.settings-toggle.active .settings-toggle-thumb {
+    transform: translateX(20px);
+}
+
+.settings-select {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--border-light);
+    border-radius: var(--border-radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    min-width: 100px;
+}
+
+.settings-button {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    min-height: 36px; /* Touch target */
+}
+
+.settings-button:hover {
+    background: var(--accent-secondary);
+}
+
+.settings-button.secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.settings-button.secondary:hover {
+    background: var(--bg-hover);
+}
+
+.settings-button.danger {
+    background: var(--error-color, #dc3545);
+}
+
+.settings-button.danger:hover {
+    background: var(--error-hover, #c82333);
+}
+
+/* ============================================================================
+   📊 СТАТИСТИКА И ИНФОРМАЦИЯ
+   ============================================================================ */
+
+.settings-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+}
+
+.settings-info-item {
+    text-align: center;
+}
+
+.settings-info-value {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--accent-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.settings-info-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .settings-page {
+        padding: var(--spacing-sm);
+    }
+    
+    .settings-item {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .settings-item-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+    
+    .settings-item-control {
+        margin-left: 0;
+        margin-top: var(--spacing-xs);
+        align-self: flex-end;
+    }
+    
+    .settings-info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .settings-select {
+        min-width: 80px;
+        font-size: var(--font-size-xs);
+    }
+    
+    .settings-button {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: var(--font-size-xs);
+    }
+}
+
+/* ============================================================================
+   🎯 СОСТОЯНИЯ И ИНТЕРАКТИВНОСТЬ
+   ============================================================================ */
+
+.settings-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+}
+
+.settings-error {
+    text-align: center;
+    padding: var(--spacing-lg);
+    color: var(--text-secondary);
+}
+
+.settings-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.settings-item.disabled:hover {
+    background: transparent;
+}
+
+/* ============================================================================
+   🔒 ОПАСНЫЕ ДЕЙСТВИЯ
+   ============================================================================ */
+
+.settings-danger-zone {
+    background: var(--bg-card);
+    border: 1px solid var(--error-color, #dc3545);
+    border-radius: var(--border-radius-md);
+    margin-top: var(--spacing-lg);
+    overflow: hidden;
+}
+
+.settings-danger-title {
+    padding: var(--spacing-md);
+    background: rgba(220, 53, 69, 0.1);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-sm);
+    color: var(--error-color, #dc3545);
+    border-bottom: 1px solid var(--error-color, #dc3545);
+}
+
+.settings-danger-item {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settings-danger-item:last-child {
+    border-bottom: none;
+}
+
+/* ============================================================================
+   🔧 ACCESSIBILITY
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .settings-item,
+    .settings-toggle,
+    .settings-toggle-thumb,
+    .settings-button {
+        transition: none;
+    }
+}
+
+.settings-item:focus {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: -2px;
+}
+
+.settings-toggle:focus {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.settings-button:focus {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}

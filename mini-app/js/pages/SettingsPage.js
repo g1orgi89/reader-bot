@@ -63,7 +63,14 @@ class SettingsPage {
             // Load from local state first
             this.settings = this.state.get('settings') || this.getDefaultSettings();
             
-            const userId = this.state.getCurrentUserId();
+            // Get userId with fallback methods
+            let userId = null;
+            if (this.state && typeof this.state.getCurrentUserId === 'function') {
+                userId = this.state.getCurrentUserId();
+            } else if (this.state && this.state.get) {
+                userId = this.state.get('user.profile.id') || this.state.get('user.telegramData.id');
+            }
+            
             if (!userId || userId === 'demo-user') {
                 return;
             }
@@ -368,7 +375,14 @@ class SettingsPage {
         try {
             this.saving = true;
             
-            const userId = this.state.getCurrentUserId();
+            // Get userId with fallback methods
+            let userId = null;
+            if (this.state && typeof this.state.getCurrentUserId === 'function') {
+                userId = this.state.getCurrentUserId();
+            } else if (this.state && this.state.get) {
+                userId = this.state.get('user.profile.id') || this.state.get('user.telegramData.id');
+            }
+            
             if (!userId || userId === 'demo-user') {
                 return; // Only save locally for demo users
             }
