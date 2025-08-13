@@ -299,17 +299,20 @@ class AppRouter {
     async navigate(path, options = {}) {
         const normalizedPath = this.normalizePath(path);
         console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`);
-        
+
         // Предотвращаем дублирование навигации
         if (this.isNavigating) {
-            console.log('⚠️ Router: Навигация уже выполняется, игнорируем');
-            return;
+        console.log('⚠️ Router: Навигация уже выполняется, откладываем повтор через 100мс');
+        setTimeout(() => {
+            this.navigate(path, options);
+        }, 100);
+        return;
         }
 
         // Не переходим на ту же страницу
         if (this.currentRoute === normalizedPath && !options.replace) {
-            console.log('⚠️ Router: Уже на этой странице, игнорируем');
-            return;
+        console.log('⚠️ Router: Уже на этой странице, игнорируем');
+        return;
         }
 
         // Проверяем существование маршрута
