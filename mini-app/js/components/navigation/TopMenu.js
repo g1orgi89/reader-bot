@@ -35,14 +35,28 @@
 class TopMenu {
     /**
      * Создает экземпляр верхнего меню
-     * @param {Object} options - Параметры инициализации
+     * @param {Object|App} options - Параметры инициализации или App instance (backward compatible)
      * @param {Object} options.app - Основное приложение
      * @param {Object} options.api - API клиент
      * @param {Object} options.state - Глобальное состояние
      * @param {Object} options.telegram - Telegram интеграция
      */
     constructor(options) {
-        const { app, api, state, telegram } = options;
+        // Backward compatibility: support both new TopMenu(app) and new TopMenu({ app })
+        let app, api, state, telegram;
+        
+        if (options && typeof options === 'object' && options.api && options.state) {
+            // New style: { app, api, state, telegram }
+            ({ app, api, state, telegram } = options);
+        } else if (options && typeof options === 'object' && options.router) {
+            // Legacy style: direct app object
+            app = options;
+            api = options.api;
+            state = options.state;
+            telegram = options.telegram;
+        } else {
+            throw new Error('TopMenu: Invalid constructor arguments');
+        }
         
         this.app = app;
         this.api = api;
@@ -359,8 +373,17 @@ class TopMenu {
 
         const route = routes[action];
         if (route) {
-            // Use hash-based navigation for consistency
-            window.location.hash = route;
+            // Prefer app.navigate if available, else use app.router.navigate, else fallback to hash
+            if (this.app && typeof this.app.navigate === 'function') {
+                this.app.navigate(route);
+            } else if (typeof window.appNavigate === 'function') {
+                window.appNavigate(route);
+            } else if (this.app && this.app.router && typeof this.app.router.navigate === 'function') {
+                this.app.router.navigate(route);
+            } else {
+                // Safe fallback only - update location.hash (no history overwrite)
+                window.location.hash = route;
+            }
         } else {
             console.warn('TopMenu: Неизвестный маршрут для действия', action);
         }
