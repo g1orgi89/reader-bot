@@ -82,6 +82,35 @@
     transition: all var(--transition-normal);
     cursor: pointer;
     position: relative;
+    overflow: hidden;
+}
+
+/* Аватар изображение */
+.user-avatar-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    z-index: 2;
+}
+
+/* Инициалы (показываются когда нет изображения или оно не загрузилось) */
+.user-avatar-initials {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+/* Состояние когда нужно показать инициалы */
+.user-avatar-inline.show-initials .user-avatar-img {
+    display: none;
 }
 
 .user-avatar-inline::after {

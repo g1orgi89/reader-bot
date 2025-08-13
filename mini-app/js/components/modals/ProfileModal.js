@@ -24,6 +24,10 @@ class ProfileModal {
         this.stats = {};
         this.saving = false;
         
+        // Состояние загрузки аватара
+        this.avatarUploading = false;
+        this.avatarPreview = null;
+        
         // Подписки на изменения состояния
         this.subscriptions = [];
         
@@ -190,13 +194,46 @@ class ProfileModal {
      * 👤 Рендер шапки профиля
      */
     renderProfileHeader() {
-        const { name, initials } = this.profileData;
+        const { name, initials, avatarUrl } = this.profileData;
         const { totalQuotes, currentStreak, achievements } = this.stats;
+        
+        // Получаем Telegram аватар как fallback
+        const telegramUser = this.telegram.getUser();
+        const telegramPhotoUrl = telegramUser?.photo_url || telegramUser?.photoUrl;
+        
+        // Определяем что показывать в аватаре
+        const showImage = avatarUrl || telegramPhotoUrl;
+        const displayInitials = initials || this.getInitials(name) || '👤';
         
         return `
             <div class="profile-header">
-                <div class="profile-avatar" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));">
-                    ${initials || this.getInitials(name) || '👤'}
+                <div class="profile-avatar-container">
+                    <div class="profile-avatar" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));">
+                        ${showImage ? `
+                            <img 
+                                src="${avatarUrl || telegramPhotoUrl}" 
+                                alt="Аватар ${name || 'пользователя'}"
+                                class="profile-avatar-img"
+                                onerror="this.style.display='none'; this.parentElement.classList.add('show-initials')"
+                                onload="this.parentElement.classList.remove('show-initials')"
+                            >
+                            <span class="profile-avatar-initials">${displayInitials}</span>
+                        ` : `
+                            <span class="profile-avatar-initials">${displayInitials}</span>
+                        `}
+                    </div>
+                    <button class="profile-avatar-edit" id="editAvatarBtn" ${this.avatarUploading ? 'disabled' : ''}>
+                        ${this.avatarUploading ? '⏳' : '📷'}
+                        <span class="profile-avatar-edit-text">
+                            ${this.avatarUploading ? 'Загрузка...' : 'Изменить фото'}
+                        </span>
+                    </button>
+                    <input 
+                        type="file" 
+                        id="avatarInput" 
+                        accept="image/*" 
+                        style="display: none;"
+                    >
                 </div>
                 <div class="profile-name">${name || 'Пользователь'}</div>
                 <div class="profile-role">
@@ -386,6 +423,19 @@ class ProfileModal {
             retakeTestBtn.addEventListener('click', () => this.handleRetakeTest());
         }
         
+        // Редактирование аватара
+        const editAvatarBtn = document.getElementById('editAvatarBtn');
+        const avatarInput = document.getElementById('avatarInput');
+        if (editAvatarBtn && avatarInput) {
+            editAvatarBtn.addEventListener('click', () => {
+                if (!this.avatarUploading) {
+                    avatarInput.click();
+                }
+            });
+            
+            avatarInput.addEventListener('change', (e) => this.handleAvatarSelection(e));
+        }
+        
         // Автосохранение при вводе
         const form = document.getElementById('profileForm');
         if (form) {
@@ -453,8 +503,223 @@ class ProfileModal {
     }
     
     /**
-     * 🔄 Обработчик пересдачи теста
+     * 📸 Обработчик выбора аватара
      */
+    async handleAvatarSelection(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        try {
+            // Haptic feedback
+            this.triggerHaptic('medium');
+            
+            // Валидация файла
+            const validation = this.validateAvatarFile(file);
+            if (!validation.isValid) {
+                throw new Error(validation.error);
+            }
+            
+            // Показываем предварительный просмотр
+            this.avatarPreview = await this.createImagePreview(file);
+            this.updateAvatarPreview();
+            
+            // Обрабатываем изображение
+            const processedBlob = await this.processImage(file);
+            
+            // Загружаем аватар
+            await this.uploadAvatar(processedBlob);
+            
+        } catch (error) {
+            console.error('❌ Ошибка обработки аватара:', error);
+            this.showErrorMessage(error.message || 'Не удалось загрузить аватар');
+            this.triggerHaptic('heavy');
+        } finally {
+            // Очищаем input для повторного выбора того же файла
+            event.target.value = '';
+        }
+    }
+    
+    /**
+     * ✅ Валидация файла аватара
+     */
+    validateAvatarFile(file) {
+        // Проверка типа файла
+        if (!file.type.startsWith('image/')) {
+            return {
+                isValid: false,
+                error: 'Выберите изображение (JPEG, PNG, WebP)'
+            };
+        }
+        
+        // Проверка размера файла (3MB)
+        const maxSize = 3 * 1024 * 1024; // 3MB
+        if (file.size > maxSize) {
+            return {
+                isValid: false,
+                error: 'Размер файла не должен превышать 3 МБ'
+            };
+        }
+        
+        return { isValid: true };
+    }
+    
+    /**
+     * 🖼️ Создание предварительного просмотра
+     */
+    createImagePreview(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
+            reader.readAsDataURL(file);
+        });
+    }
+    
+    /**
+     * 🔄 Обработка изображения (resize и compress)
+     */
+    async processImage(file) {
+        return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = () => {
+                // Целевой размер
+                const targetSize = 512;
+                canvas.width = targetSize;
+                canvas.height = targetSize;
+                
+                // Вычисляем размеры для обрезки (square crop)
+                const size = Math.min(img.width, img.height);
+                const x = (img.width - size) / 2;
+                const y = (img.height - size) / 2;
+                
+                // Рисуем изображение с обрезкой и изменением размера
+                ctx.drawImage(img, x, y, size, size, 0, 0, targetSize, targetSize);
+                
+                // Конвертируем в blob с компрессией
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Не удалось обработать изображение'));
+                        }
+                    },
+                    'image/jpeg',
+                    0.8 // Качество сжатия
+                );
+            };
+            
+            img.onerror = () => reject(new Error('Не удалось загрузить изображение'));
+            img.src = URL.createObjectURL(file);
+        });
+    }
+    
+    /**
+     * ☁️ Загрузка аватара на сервер
+     */
+    async uploadAvatar(blob) {
+        try {
+            this.avatarUploading = true;
+            this.updateAvatarEditButton();
+            
+            console.log('📸 Загружаем аватар...');
+            
+            // Получаем userId
+            const userId = this.state.getCurrentUserId();
+            
+            // Загружаем аватар
+            const result = await this.api.uploadAvatar(blob, userId);
+            
+            // Обновляем профиль с новым URL аватара
+            if (result.url || result.avatarUrl) {
+                const avatarUrl = result.url || result.avatarUrl;
+                await this.api.updateProfile({ avatarUrl }, userId);
+                
+                // Обновляем локальное состояние
+                this.profileData.avatarUrl = avatarUrl;
+                this.state.set('user.profile.avatarUrl', avatarUrl);
+                
+                // Обновляем UI
+                this.updateProfileHeaderUI();
+                
+                // Показываем успех
+                this.showSuccessMessage('Аватар успешно обновлен!');
+                this.triggerHaptic('light');
+                
+                console.log('✅ Аватар загружен:', avatarUrl);
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки аватара:', error);
+            this.showErrorMessage(error.message || 'Не удалось загрузить аватар');
+            this.triggerHaptic('heavy');
+        } finally {
+            this.avatarUploading = false;
+            this.avatarPreview = null;
+            this.updateAvatarEditButton();
+        }
+    }
+    
+    /**
+     * 🔄 Обновление кнопки редактирования аватара
+     */
+    updateAvatarEditButton() {
+        const editBtn = document.getElementById('editAvatarBtn');
+        if (!editBtn) return;
+        
+        editBtn.disabled = this.avatarUploading;
+        
+        const icon = editBtn.querySelector('span:first-child') || editBtn;
+        const text = editBtn.querySelector('.profile-avatar-edit-text');
+        
+        if (this.avatarUploading) {
+            icon.textContent = '⏳';
+            if (text) text.textContent = 'Загрузка...';
+        } else {
+            icon.textContent = '📷';
+            if (text) text.textContent = 'Изменить фото';
+        }
+    }
+    
+    /**
+     * 🖼️ Обновление предварительного просмотра аватара
+     */
+    updateAvatarPreview() {
+        const avatarContainer = document.querySelector('.profile-avatar');
+        if (!avatarContainer || !this.avatarPreview) return;
+        
+        // Временно показываем предварительный просмотр
+        const existingImg = avatarContainer.querySelector('.profile-avatar-img');
+        if (existingImg) {
+            existingImg.src = this.avatarPreview;
+        } else {
+            const img = document.createElement('img');
+            img.src = this.avatarPreview;
+            img.className = 'profile-avatar-img';
+            img.alt = 'Предварительный просмотр аватара';
+            avatarContainer.appendChild(img);
+            
+            const initials = avatarContainer.querySelector('.profile-avatar-initials');
+            if (initials) initials.style.display = 'none';
+        }
+    }
+    
+    /**
+     * 🔄 Обновление UI шапки профиля
+     */
+    updateProfileHeaderUI() {
+        if (!this.isVisible) return;
+        
+        // Обновляем содержимое модального окна
+        if (this.modal) {
+            this.modal.setContent(this.renderContent());
+            // Перенавешиваем обработчики событий
+            this.attachEventListeners();
+        }
+    }
     handleRetakeTest() {
         // Haptic feedback
         this.triggerHaptic('medium');
@@ -717,6 +982,8 @@ class ProfileModal {
         
         // Сбрасываем состояние
         this.saving = false;
+        this.avatarUploading = false;
+        this.avatarPreview = null;
     }
     
     /**

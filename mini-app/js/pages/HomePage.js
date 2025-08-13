@@ -329,17 +329,38 @@ class HomePage {
             user.username ||
             '';
         const initials = name ? this.getInitials(name) : '';
+        
+        // Получаем Telegram аватар как fallback
+        const telegramUser = this.telegram.getUser();
+        const telegramPhotoUrl = telegramUser?.photo_url || telegramUser?.photoUrl;
+        
+        // Определяем что показывать в аватаре
+        const showImage = user.avatarUrl || telegramPhotoUrl;
+        
         return `
             <div class="user-header-inline">
                 <div class="user-info-inline">
-                <div class="user-avatar-inline">${initials}</div>
-                <div class="user-details-inline">
-                    <h3 class="user-name-inline">${name}</h3>
-                    <p class="user-status-inline">Ваш дневник мудрости</p>
+                    <div class="user-avatar-inline">
+                        ${showImage ? `
+                            <img 
+                                src="${user.avatarUrl || telegramPhotoUrl}" 
+                                alt="Аватар ${name}"
+                                class="user-avatar-img"
+                                onerror="this.style.display='none'; this.parentElement.classList.add('show-initials')"
+                                onload="this.parentElement.classList.remove('show-initials')"
+                            >
+                            <span class="user-avatar-initials">${initials}</span>
+                        ` : `
+                            <span class="user-avatar-initials">${initials}</span>
+                        `}
+                    </div>
+                    <div class="user-details-inline">
+                        <h3 class="user-name-inline">${name}</h3>
+                        <p class="user-status-inline">Ваш дневник мудрости</p>
+                    </div>
                 </div>
+                <button class="menu-button-inline" id="homeMenuBtn">☰</button>
             </div>
-            <button class="menu-button-inline" id="homeMenuBtn">☰</button>
-        </div>
         `;
     }
     
@@ -601,9 +622,28 @@ class HomePage {
             if (nameToShow.trim()) {
                 userName.textContent = nameToShow;
                 
-                // Update avatar initials based on the name we're showing
+                // Update avatar - both image and initials based on the name we're showing
                 if (userAvatar) {
-                    userAvatar.textContent = this.getInitials(nameToShow);
+                    // Получаем Telegram аватар как fallback
+                    const telegramUser = this.telegram.getUser();
+                    const telegramPhotoUrl = telegramUser?.photo_url || telegramUser?.photoUrl;
+                    
+                    // Определяем что показывать в аватаре
+                    const showImage = profile.avatarUrl || telegramPhotoUrl;
+                    const initials = this.getInitials(nameToShow);
+                    
+                    userAvatar.innerHTML = showImage ? `
+                        <img 
+                            src="${profile.avatarUrl || telegramPhotoUrl}" 
+                            alt="Аватар ${nameToShow}"
+                            class="user-avatar-img"
+                            onerror="this.style.display='none'; this.parentElement.classList.add('show-initials')"
+                            onload="this.parentElement.classList.remove('show-initials')"
+                        >
+                        <span class="user-avatar-initials">${initials}</span>
+                    ` : `
+                        <span class="user-avatar-initials">${initials}</span>
+                    `;
                 }
             }
         }

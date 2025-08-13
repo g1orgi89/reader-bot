@@ -229,6 +229,40 @@ class ApiService {
     }
 
     /**
+     * 📸 Загрузить аватар пользователя
+     */
+    async uploadAvatar(fileOrBlob, userId = 'demo-user') {
+        try {
+            console.log('📸 Загружаем аватар для userId:', userId);
+            
+            // Создаем FormData для multipart/form-data
+            const formData = new FormData();
+            formData.append('avatar', fileOrBlob, 'avatar.jpg');
+            formData.append('userId', userId);
+            
+            const url = `${this.baseURL}/profile/avatar`;
+            
+            // Используем fetch напрямую для FormData (не JSON)
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                // НЕ устанавливаем Content-Type - браузер сам установит с boundary
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            const result = await this.handleResponse(response, '/profile/avatar');
+            console.log('✅ Аватар загружен успешно:', result);
+            
+            return result;
+        } catch (error) {
+            console.error('❌ Ошибка загрузки аватара:', error);
+            throw new Error(`Не удалось загрузить аватар: ${error.message}`);
+        }
+    }
+
+    /**
      * 📊 Получить статистику пользователя
      */
     async getStats(userId = 'demo-user') {

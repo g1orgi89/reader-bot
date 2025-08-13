@@ -54,12 +54,6 @@ class Modal {
      * 🎨 Создание DOM элементов
      */
     createElement() {
-        // Создание backdrop
-        if (this.options.backdrop) {
-            this.backdrop = document.createElement('div');
-            this.backdrop.className = 'modal-backdrop';
-        }
-        
         // Создание модального окна
         this.element = document.createElement('div');
         this.element.className = this.getClasses();
@@ -107,8 +101,8 @@ class Modal {
         const footer = this.renderFooter();
         
         return `
-            <div class="modal__container">
-                <div class="modal__content">
+            <div class="modal-backdrop">
+                <div class="modal-content">
                     ${header}
                     ${body}
                     ${footer}
@@ -126,13 +120,13 @@ class Modal {
         }
         
         return `
-            <div class="modal__header">
+            <div class="modal-header">
                 ${this.options.title ? `
-                    <h3 class="modal__title" id="modal-title">${this.options.title}</h3>
+                    <h3 class="modal-title" id="modal-title">${this.options.title}</h3>
                 ` : ''}
                 ${this.options.showCloseButton ? `
-                    <button class="modal__close" aria-label="Закрыть">
-                        <svg class="modal__close-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <button class="modal-close" aria-label="Закрыть">
+                        <svg class="modal-close-icon" viewBox="0 0 24 24" width="24" height="24">
                             <path stroke="currentColor" stroke-width="2" stroke-linecap="round" 
                                   d="M18 6L6 18M6 6l12 12"/>
                         </svg>
@@ -147,7 +141,7 @@ class Modal {
      */
     renderBody() {
         return `
-            <div class="modal__body">
+            <div class="modal-body">
                 ${this.options.content}
             </div>
         `;
@@ -162,13 +156,13 @@ class Modal {
         }
         
         return `
-            <div class="modal__footer">
+            <div class="modal-footer">
                 ${this.options.buttons.map((button, index) => `
-                    <button class="modal__button modal__button--${button.variant || 'default'}" 
+                    <button class="modal-button modal-button--${button.variant || 'default'}" 
                             data-button-index="${index}"
                             ${button.disabled ? 'disabled' : ''}>
-                        ${button.icon ? `<span class="modal__button-icon">${button.icon}</span>` : ''}
-                        <span class="modal__button-text">${button.text}</span>
+                        ${button.icon ? `<span class="modal-button-icon">${button.icon}</span>` : ''}
+                        <span class="modal-button-text">${button.text}</span>
                     </button>
                 `).join('')}
             </div>
@@ -181,14 +175,14 @@ class Modal {
     attachEventListeners() {
         // Кнопка закрытия
         if (this.options.showCloseButton) {
-            const closeButton = this.element.querySelector('.modal__close');
+            const closeButton = this.element.querySelector('.modal-close');
             if (closeButton) {
                 closeButton.addEventListener('click', () => this.close());
             }
         }
         
         // Кнопки в футере
-        const footerButtons = this.element.querySelectorAll('.modal__button');
+        const footerButtons = this.element.querySelectorAll('.modal-button');
         footerButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 const buttonIndex = parseInt(button.dataset.buttonIndex);
@@ -197,9 +191,9 @@ class Modal {
         });
         
         // Backdrop клик
-        if (this.backdrop && this.options.closeOnBackdrop) {
-            this.backdrop.addEventListener('click', (e) => {
-                if (e.target === this.backdrop) {
+        if (this.options.closeOnBackdrop) {
+            this.element.addEventListener('click', (e) => {
+                if (e.target === this.element) {
                     this.close();
                 }
             });
@@ -317,17 +311,11 @@ class Modal {
         }
         
         // Добавляем элементы в DOM
-        if (this.backdrop) {
-            document.body.appendChild(this.backdrop);
-        }
         document.body.appendChild(this.element);
         
         // Анимация появления
         requestAnimationFrame(() => {
-            if (this.backdrop) {
-                this.backdrop.classList.add('modal-backdrop--show');
-            }
-            this.element.classList.add('modal--show');
+            this.element.classList.add('active');
         });
         
         // Фокус
@@ -353,16 +341,10 @@ class Modal {
         if (!this.isOpen) return;
         
         // Анимация исчезновения
-        if (this.backdrop) {
-            this.backdrop.classList.remove('modal-backdrop--show');
-        }
-        this.element.classList.remove('modal--show');
+        this.element.classList.remove('active');
         
         // Удаление из DOM после анимации
         setTimeout(() => {
-            if (this.backdrop && this.backdrop.parentNode) {
-                this.backdrop.parentNode.removeChild(this.backdrop);
-            }
             if (this.element && this.element.parentNode) {
                 this.element.parentNode.removeChild(this.element);
             }
@@ -411,7 +393,7 @@ class Modal {
      */
     setContent(content) {
         this.options.content = content;
-        const bodyElement = this.element.querySelector('.modal__body');
+        const bodyElement = this.element.querySelector('.modal-body');
         if (bodyElement) {
             bodyElement.innerHTML = content;
         }
@@ -422,7 +404,7 @@ class Modal {
      */
     setTitle(title) {
         this.options.title = title;
-        const titleElement = this.element.querySelector('.modal__title');
+        const titleElement = this.element.querySelector('.modal-title');
         if (titleElement) {
             titleElement.textContent = title;
         }
@@ -433,7 +415,7 @@ class Modal {
      */
     setButtons(buttons) {
         this.options.buttons = buttons;
-        const footerElement = this.element.querySelector('.modal__footer');
+        const footerElement = this.element.querySelector('.modal-footer');
         if (footerElement) {
             footerElement.innerHTML = this.renderFooter();
             this.attachEventListeners();

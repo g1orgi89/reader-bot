@@ -717,3 +717,97 @@
 .form-textarea:focus {
     transform: translateY(-1px);
 }
+
+/* ============================================================================
+   📸 PROFILE AVATAR UPLOAD STYLES  
+   ============================================================================ */
+
+.profile-avatar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.profile-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    font-weight: 700;
+    font-size: 32px;
+    text-transform: uppercase;
+    box-shadow: 0 6px 20px rgba(210, 69, 44, 0.3);
+    border: 4px solid var(--surface);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Изображение аватара */
+.profile-avatar-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    z-index: 2;
+}
+
+/* Инициалы аватара */
+.profile-avatar-initials {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+/* Состояние когда нужно показать инициалы */
+.profile-avatar.show-initials .profile-avatar-img {
+    display: none;
+}
+
+/* Кнопка редактирования аватара */
+.profile-avatar-edit {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-normal);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    box-shadow: var(--shadow-sm);
+}
+
+.profile-avatar-edit:hover:not(:disabled) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.profile-avatar-edit:disabled {
+    opacity: var(--disabled-opacity);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.profile-avatar-edit-text {
+    font-size: var(--font-size-xs);
+}

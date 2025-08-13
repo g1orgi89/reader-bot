@@ -110,10 +110,13 @@ class TopMenu {
     getUserInfo() {
         // Приоритет: состояние приложения > Telegram > заглушка
         if (this.state?.user) {
+            const profile = this.state.get('user.profile') || this.state.user;
             return {
-                name: this.state.user.name || 'Пользователь',
+                name: profile.name || 'Пользователь',
                 role: this.getUserRole(),
-                avatar: this.getInitials(this.state.user.name),
+                avatar: this.getInitials(profile.name),
+                avatarUrl: profile.avatarUrl,
+                telegramPhotoUrl: this.telegram?.getUser()?.photo_url || this.telegram?.getUser()?.photoUrl,
                 stats: this.state.user.stats || {}
             };
         }
@@ -125,6 +128,8 @@ class TopMenu {
                 name: fullName || this.telegram.user.username || 'Пользователь',
                 role: 'Читатель',
                 avatar: this.getInitials(fullName),
+                avatarUrl: null,
+                telegramPhotoUrl: this.telegram.user.photo_url || this.telegram.user.photoUrl,
                 stats: {}
             };
         }
@@ -134,6 +139,8 @@ class TopMenu {
             name: 'Анна М.',
             role: 'Читатель активист',
             avatar: 'А',
+            avatarUrl: null,
+            telegramPhotoUrl: null,
             stats: {
                 quotes: 47,
                 streak: 12,
@@ -310,6 +317,36 @@ class TopMenu {
                     font-size: 18px;
                     font-weight: 600;
                     border: 2px solid rgba(255,255,255,0.3);
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                /* Изображение аватара в меню */
+                .menu-user-avatar-img {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    border-radius: 50%;
+                    z-index: 2;
+                }
+
+                /* Инициалы аватара в меню */
+                .menu-user-avatar-initials {
+                    position: relative;
+                    z-index: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                /* Состояние когда нужно показать инициалы в меню */
+                .menu-user-avatar.show-initials .menu-user-avatar-img {
+                    display: none;
                 }
                 
                 .menu-user-details h3 {
@@ -415,7 +452,20 @@ class TopMenu {
                 <div class="menu-header">
                     <button class="menu-close">&times;</button>
                     <div class="menu-user-info">
-                        <div class="menu-user-avatar">${this.userInfo.avatar}</div>
+                        <div class="menu-user-avatar">
+                            ${this.userInfo.avatarUrl || this.userInfo.telegramPhotoUrl ? `
+                                <img 
+                                    src="${this.userInfo.avatarUrl || this.userInfo.telegramPhotoUrl}" 
+                                    alt="Аватар ${this.userInfo.name}"
+                                    class="menu-user-avatar-img"
+                                    onerror="this.style.display='none'; this.parentElement.classList.add('show-initials')"
+                                    onload="this.parentElement.classList.remove('show-initials')"
+                                >
+                                <span class="menu-user-avatar-initials">${this.userInfo.avatar}</span>
+                            ` : `
+                                <span class="menu-user-avatar-initials">${this.userInfo.avatar}</span>
+                            `}
+                        </div>
                         <div class="menu-user-details">
                             <h3>${this.userInfo.name}</h3>
                             <p>${this.userInfo.role}</p>
@@ -620,13 +670,17 @@ class TopMenu {
      * 👤 Открытие модального окна профиля
      */
     openProfileModal() {
-        // TODO: Реализовать модальное окно профиля
-        if (this.app?.openModal) {
-            this.app.openModal('profile', this.userInfo);
+        // Интеграция с ProfileModal
+        if (this.app && this.app.profileModal) {
+            this.app.profileModal.show();
+        } else if (window.ProfileModal) {
+            // Fallback: создаем ProfileModal напрямую
+            const profileModal = new window.ProfileModal(this.app);
+            profileModal.show();
         } else {
             console.log('TopMenu: Открытие профиля пользователя', this.userInfo);
             // Временное уведомление
-            this.showTemporaryNotification('👤 Профиль в разработке');
+            this.showTemporaryNotification('👤 ProfileModal не найден');
         }
     }
 
@@ -738,7 +792,23 @@ class TopMenu {
         const role = this.overlay.querySelector('.menu-user-details p');
         const stats = this.overlay.querySelector('.menu-stats');
         
-        if (avatar) avatar.textContent = this.userInfo.avatar;
+        // Обновляем аватар
+        if (avatar) {
+            const showImage = this.userInfo.avatarUrl || this.userInfo.telegramPhotoUrl;
+            avatar.innerHTML = showImage ? `
+                <img 
+                    src="${this.userInfo.avatarUrl || this.userInfo.telegramPhotoUrl}" 
+                    alt="Аватар ${this.userInfo.name}"
+                    class="menu-user-avatar-img"
+                    onerror="this.style.display='none'; this.parentElement.classList.add('show-initials')"
+                    onload="this.parentElement.classList.remove('show-initials')"
+                >
+                <span class="menu-user-avatar-initials">${this.userInfo.avatar}</span>
+            ` : `
+                <span class="menu-user-avatar-initials">${this.userInfo.avatar}</span>
+            `;
+        }
+        
         if (name) name.textContent = this.userInfo.name;
         if (role) role.textContent = this.userInfo.role;
         if (stats) stats.textContent = this.formatUserStats();
