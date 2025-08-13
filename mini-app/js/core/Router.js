@@ -286,7 +286,8 @@ class AppRouter {
      */
     handleInitialRoute() {
         // В Telegram Mini App используем hash роутинг
-        const hash = window.location.hash.slice(1) || '/home';
+        const rawHash = window.location.hash.slice(1) || '';
+        const hash = this.normalizePath(rawHash);
         this.navigate(hash, { replace: true });
     }
 
@@ -296,7 +297,8 @@ class AppRouter {
      * @param {NavigationOptions} options - Опции навигации
      */
     async navigate(path, options = {}) {
-        console.log(`🧭 Router: Навигация к ${path}`);
+        const normalizedPath = this.normalizePath(path);
+        console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`);
         
         // Предотвращаем дублирование навигации
         if (this.isNavigating) {
@@ -305,15 +307,15 @@ class AppRouter {
         }
 
         // Не переходим на ту же страницу
-        if (this.currentRoute === path && !options.replace) {
+        if (this.currentRoute === normalizedPath && !options.replace) {
             console.log('⚠️ Router: Уже на этой странице, игнорируем');
             return;
         }
 
         // Проверяем существование маршрута
-        const route = this.routes.get(path);
+        const route = this.routes.get(normalizedPath);
         if (!route) {
-            console.warn(`⚠️ Router: Маршрут ${path} не найден, редирект на /home`);
+            console.warn(`⚠️ Router: Маршрут ${normalizedPath} не найден, редирект на /home`);
             return this.navigate('/home', { replace: true });
         }
 
@@ -340,13 +342,13 @@ class AppRouter {
             await this.createComponent(route, options.state);
             
             // Обновляем URL и историю
-            this.updateUrl(path, options.replace);
+            this.updateUrl(normalizedPath, options.replace);
             
             // Обновляем UI
             this.updateUI(route);
             
             // Сохраняем текущий маршрут
-            this.currentRoute = path;
+            this.currentRoute = normalizedPath;
             
             // Анимация входа для новой страницы
             await this.animatePageEnter();
@@ -357,10 +359,10 @@ class AppRouter {
                 console.log(`✅ Router: onShow вызван для ${route.title}`);
             }
             
-            console.log(`✅ Router: Навигация к ${path} завершена`);
+            console.log(`✅ Router: Навигация к ${normalizedPath} завершена`);
             
         } catch (error) {
-            console.error(`❌ Router: Ошибка навигации к ${path}:`, error);
+            console.error(`❌ Router: Ошибка навигации к ${normalizedPath}:`, error);
             this.handleNavigationError(error);
         } finally {
             // Сбрасываем флаг навигации
@@ -573,13 +575,14 @@ class AppRouter {
      * @param {boolean} replace - Заменить текущую запись в истории
      */
     updateUrl(path, replace = false) {
-        const url = `#${path}`;
+        const normalizedPath = this.normalizePath(path);
+        const url = `#${normalizedPath}`;
         
         if (replace) {
-            window.history.replaceState({ path }, '', url);
+            window.history.replaceState({ path: normalizedPath }, '', url);
         } else {
-            window.history.pushState({ path }, '', url);
-            this.history.push(path);
+            window.history.pushState({ path: normalizedPath }, '', url);
+            this.history.push(normalizedPath);
         }
     }
 
@@ -652,7 +655,8 @@ class AppRouter {
     handlePopState(event) {
         console.log('📡 Router: Обработка popstate');
         
-        const path = event.state?.path || '/home';
+        const rawPath = event.state?.path || '';
+        const path = this.normalizePath(rawPath);
         
         // Навигируем без добавления в историю
         this.navigate(path, { replace: true });
@@ -746,6 +750,32 @@ class AppRouter {
         this.isNavigating = false;
         
         console.log('✅ Router: Очистка завершена');
+    }
+
+    /**
+     * 🔄 Normalize path for consistent routing
+     * @param {string} path - Raw path (may include #)
+     * @returns {string} - Normalized path with leading /
+     */
+    normalizePath(path) {
+        if (!path || typeof path !== 'string') {
+            return '/home';
+        }
+        
+        // Strip any leading #
+        let normalized = path.replace(/^#+/, '');
+        
+        // Ensure starts with /
+        if (!normalized.startsWith('/')) {
+            normalized = '/' + normalized;
+        }
+        
+        // Fall back to /home when empty
+        if (normalized === '/' || normalized === '') {
+            normalized = '/home';
+        }
+        
+        return normalized;
     }
 }
 
