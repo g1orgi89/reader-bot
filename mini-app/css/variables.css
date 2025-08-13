@@ -163,6 +163,13 @@
    📱 МОБИЛЬНЫЕ ПЕРЕМЕННЫЕ
    ============================================================================ */
 
+/* Mobile-only font size increase for better readability */
+@media (hover: none) and (pointer: coarse) {
+  html {
+    font-size: 17px;
+  }
+}
+
 :root {
     /* 📐 Адаптивные размеры */
     --mobile-padding: var(--spacing-md);       /* Отступы на мобильных */

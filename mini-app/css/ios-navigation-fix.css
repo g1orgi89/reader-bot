@@ -11,6 +11,16 @@
  */
 
 /* ============================================================================
+   🎨 GLOBAL BACKGROUND SAFEGUARD (CRITICAL FOR LIGHT THEME)
+   ============================================================================ */
+
+/* Ensure beige background is maintained globally, preventing white flashes */
+html, body, #app {
+  background-color: var(--bg-primary) !important;
+  background-image: none !important;
+}
+
+/* ============================================================================
    📱 MOBILE-ONLY ROOT SCROLL ISOLATION (CONDITIONAL)
    ============================================================================ */
 
@@ -142,6 +152,12 @@
   html.nav-raised .bottom-nav .nav-label {
     margin-top: 0;
   }
+  
+  /* Ensure navbar label text doesn't wrap and keeps compact line-height on mobile */
+  .bottom-nav .nav-label {
+    white-space: nowrap;
+    line-height: 1.2;
+  }
 }
 
 /* ============================================================================
@@ -168,9 +184,21 @@ html, body, #app, .app-container, .page-content, .page-body, .content {
 
 /* Desktop behavior unchanged - basic content padding only */
 @media (hover: hover) and (pointer: fine) {
+  /* Hide mobile bottom nav completely on desktop to prevent duplication */
+  .bottom-nav {
+    display: none !important;
+  }
+  
+  /* Hide raised nav strip on desktop */
+  html.nav-raised .bottom-nav::before {
+    display: none !important;
+  }
+  
+  /* Remove mobile padding-bottom from content containers on desktop */
   .page-content, .page-body, .content, .app-content, .screen-content, #app .content {
-    padding-bottom: calc(var(--bottom-nav-height, 96px) + var(--spacing-md, 16px));
+    padding-bottom: var(--spacing-md, 16px);
     min-height: auto;
     overflow-y: visible;
+    overscroll-behavior-y: auto;
   }
 }
