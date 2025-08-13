@@ -394,6 +394,10 @@ class ReaderApp {
     async initializeRouting() {
         console.log('🔄 Инициализация роутинга...');
         
+        // Setup hash router and Telegram BackButton integration
+        this.setupHashRouter();
+        this.setupTelegramBackButton();
+        
         // Определяем начальную страницу
         const profile = this.state.get('user.profile');
         let initialRoute = '/home';
@@ -517,6 +521,97 @@ class ReaderApp {
         }
         
         console.log('✅ Приложение полностью готово к работе');
+    }
+
+    /**
+     * 🔧 Setup hash router for navigation
+     */
+    setupHashRouter() {
+        // Handle hash changes
+        this.handleHashChange = this.handleHashChange.bind(this);
+        window.addEventListener('hashchange', this.handleHashChange);
+        
+        console.log('✅ Hash router initialized');
+    }
+    
+    /**
+     * 📱 Setup Telegram BackButton integration
+     */
+    setupTelegramBackButton() {
+        if (!this.telegram || !window.Telegram?.WebApp?.BackButton) {
+            console.warn('⚠️ Telegram BackButton not available');
+            return;
+        }
+        
+        // Handle BackButton clicks
+        window.Telegram.WebApp.BackButton.onClick(() => {
+            this.handleBackButtonClick();
+        });
+        
+        console.log('✅ Telegram BackButton initialized');
+    }
+    
+    /**
+     * 🔄 Handle hash changes for navigation
+     */
+    handleHashChange() {
+        const hash = window.location.hash.slice(1) || '/home';
+        console.log('🧭 Hash changed to:', hash);
+        
+        if (this.router) {
+            this.router.navigate(hash, { replace: true });
+        }
+        
+        // Update BackButton visibility
+        this.updateBackButtonVisibility(hash);
+    }
+    
+    /**
+     * ⬅️ Handle Telegram BackButton clicks
+     */
+    handleBackButtonClick() {
+        console.log('⬅️ BackButton clicked');
+        
+        // Haptic feedback
+        if (this.telegram?.hapticFeedback) {
+            this.telegram.hapticFeedback('light');
+        }
+        
+        // Navigate to home
+        this.navigate('/home');
+    }
+    
+    /**
+     * 🧭 Navigate to a route
+     * @param {string} route - Route to navigate to
+     */
+    navigate(route) {
+        window.location.hash = route;
+    }
+    
+    /**
+     * 🏠 Check if current route is home
+     * @returns {boolean}
+     */
+    isHome() {
+        const hash = window.location.hash.slice(1) || '/home';
+        return hash === '/home';
+    }
+    
+    /**
+     * 📱 Update Telegram BackButton visibility
+     * @param {string} route - Current route
+     */
+    updateBackButtonVisibility(route) {
+        if (!window.Telegram?.WebApp?.BackButton) return;
+        
+        if (route === '/home' || route === '' || route === '/') {
+            // Hide BackButton on home page
+            window.Telegram.WebApp.BackButton.hide();
+        } else {
+            // Show BackButton on inner pages
+            window.Telegram.WebApp.BackButton.show();
+        }
     }
 
     // ===========================================

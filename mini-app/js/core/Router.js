@@ -216,6 +216,53 @@ class AppRouter {
             requiresAuth: true,
             showBottomNav: false
         });
+        
+        // ✨ NEW ROUTES: Menu navigation pages
+        
+        // Profile page
+        this.routes.set('/profile', {
+            path: '/profile',
+            component: ProfilePage,
+            title: 'Профиль',
+            requiresAuth: true,
+            showBottomNav: false
+        });
+        
+        // Achievements page  
+        this.routes.set('/achievements', {
+            path: '/achievements',
+            component: AchievementsPage,
+            title: 'Достижения',
+            requiresAuth: true,
+            showBottomNav: false
+        });
+        
+        // Settings page
+        this.routes.set('/settings', {
+            path: '/settings',
+            component: SettingsPage,
+            title: 'Настройки', 
+            requiresAuth: true,
+            showBottomNav: false
+        });
+        
+        // About page
+        this.routes.set('/about', {
+            path: '/about',
+            component: AboutPage,
+            title: 'О приложении',
+            requiresAuth: true,
+            showBottomNav: false
+        });
+        
+        // Help page
+        this.routes.set('/help', {
+            path: '/help',
+            component: HelpPage,
+            title: 'Помощь',
+            requiresAuth: true,
+            showBottomNav: false
+        });
 
         console.log(`✅ Router: Зарегистрировано ${this.routes.size} маршрутов`);
     }

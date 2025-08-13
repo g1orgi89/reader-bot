@@ -325,14 +325,8 @@ class TopMenu {
             // 📕 Закрываем меню ПЕРЕД выполнением действия
             this.close();
 
-            // 🎯 Выполняем действие
-            if (this.app?.openModal && typeof this.app.openModal === 'function') {
-                // Используем модальные окна через app
-                this.app.openModal(action);
-            } else {
-                // Fallback: навигация по routes
-                this.navigateToRoute(action);
-            }
+            // 🎯 Выполняем действие - always navigate to routes
+            this.navigateToRoute(action);
 
             console.log('✅ TopMenu: Выполнено действие', action);
             
@@ -351,7 +345,7 @@ class TopMenu {
     }
 
     /**
-     * 🧭 Навигация к маршруту (fallback)
+     * 🧭 Навигация к маршруту 
      * @param {string} action - Действие для навигации
      */
     navigateToRoute(action) {
@@ -365,13 +359,8 @@ class TopMenu {
 
         const route = routes[action];
         if (route) {
-            // Используем router если доступен
-            if (this.app?.router?.navigate) {
-                this.app.router.navigate(route);
-            } else {
-                // Fallback: простая навигация
-                window.location.hash = route;
-            }
+            // Use hash-based navigation for consistency
+            window.location.hash = route;
         } else {
             console.warn('TopMenu: Неизвестный маршрут для действия', action);
         }
