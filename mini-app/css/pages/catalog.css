@@ -575,3 +575,40 @@
     width: 300px;
     height: 300px;
 }
+
+/* ===== Mobile readable bump (+1px for micro sizes, variables for common sizes) ===== */
+@media (hover: none) and (pointer: coarse) {
+  /* Tiny texts */
+  .book-badge { font-size: 10px; }              /* 9 -> 10 */
+  .book-meta-item { font-size: 11px; }          /* 10 -> 11 */
+  .promo-text { font-size: 11px; }              /* 10 -> 11 */
+  .promo-button { font-size: 11px; }            /* 10 -> 11 */
+  .top-promo-timer { font-size: 11px; }         /* 10 -> 11 */
+  .discount-badge { font-size: 11px; }          /* 10 -> 11 */
+
+  /* Remap to variables so scale applies */
+  .book-title { font-size: var(--font-size-xs); }     /* 12 -> 13 */
+  .book-author { font-size: 11px; }                   /* 10 -> 11 */
+  .book-description { font-size: 12px; }              /* 11 -> 12 */
+  .book-price { font-size: var(--font-size-sm); }     /* sm scales */
+  .buy-button { font-size: 12px; }                    /* 11 -> 12 */
+  .filter-tab { font-size: 11px; }                    /* 10 -> 11 */
+  .book-cover { font-size: 10px; }                    /* 9 -> 10 */
+}
+
+/* Fallback by width */
+@media (max-width: 480px) {
+  .book-badge { font-size: 10px; }
+  .book-meta-item { font-size: 11px; }
+  .promo-text { font-size: 11px; }
+  .promo-button { font-size: 11px; }
+  .top-promo-timer { font-size: 11px; }
+  .discount-badge { font-size: 11px; }
+  .book-title { font-size: var(--font-size-xs); }
+  .book-author { font-size: 11px; }
+  .book-description { font-size: 12px; }
+  .book-price { font-size: var(--font-size-sm); }
+  .buy-button { font-size: 12px; }
+  .filter-tab { font-size: 11px; }
+  .book-cover { font-size: 10px; }
+}

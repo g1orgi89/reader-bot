@@ -352,3 +352,26 @@
         box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
     }
 }
+
+/* ===== Mobile readable bump (+1px for micro sizes, variables for common sizes) ===== */
+@media (hover: none) and (pointer: coarse) {
+  .community-stat-label { font-size: 11px; }      /* 10 -> 11 */
+  .rank-badge { font-size: 13px; }                /* 12 -> 13 */
+  .user-name { font-size: var(--font-size-xs); }  /* 12 -> 13 */
+  .user-stats, .user-achievement { font-size: 11px; } /* 10 -> 11 */
+
+  .mvp-community-title { font-size: var(--font-size-xs); } /* 11 -> 13 */
+  .mvp-community-text { font-size: var(--font-size-xs); }  /* 12 -> 13 */
+  .mvp-community-author { font-size: 11px; }      /* 10 -> 11 */
+}
+
+/* Fallback by width */
+@media (max-width: 480px) {
+  .community-stat-label { font-size: 11px; }
+  .rank-badge { font-size: 13px; }
+  .user-name { font-size: var(--font-size-xs); }
+  .user-stats, .user-achievement { font-size: 11px; }
+  .mvp-community-title { font-size: var(--font-size-xs); }
+  .mvp-community-text { font-size: var(--font-size-xs); }
+  .mvp-community-author { font-size: 11px; }
+}

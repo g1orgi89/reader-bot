@@ -310,3 +310,31 @@
         box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
     }
 }
+
+/* ===== Mobile readable bump (+1px for micro sizes, variables for common sizes) ===== */
+@media (hover: none) and (pointer: coarse) {
+  .report-title { font-size: var(--font-size-sm); }   /* 13 -> 15 */
+  .stat-value { font-size: var(--font-size-base); }   /* 16 -> 17 */
+  .stat-name { font-size: 10px; }                     /* 9 -> 10 */
+  .report-themes { font-size: 11px; }                 /* 10 -> 11 */
+
+  .ai-title { font-size: var(--font-size-xs); }       /* 12 -> 13 */
+  .ai-text { font-size: 12px; }                       /* 11 -> 12 */
+
+  .promo-title { font-size: var(--font-size-xs); }    /* 12 -> 13 */
+  .promo-text { font-size: 11px; }                    /* 10 -> 11 */
+  .promo-btn { font-size: 11px; }                     /* 10 -> 11 */
+}
+
+/* Fallback by width */
+@media (max-width: 480px) {
+  .report-title { font-size: var(--font-size-sm); }
+  .stat-value { font-size: var(--font-size-base); }
+  .stat-name { font-size: 10px; }
+  .report-themes { font-size: 11px; }
+  .ai-title { font-size: var(--font-size-xs); }
+  .ai-text { font-size: 12px; }
+  .promo-title { font-size: var(--font-size-xs); }
+  .promo-text { font-size: 11px; }
+  .promo-btn { font-size: 11px; }
+}

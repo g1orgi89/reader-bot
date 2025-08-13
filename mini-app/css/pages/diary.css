@@ -640,3 +640,48 @@
         box-shadow: 0 2px 12px rgba(232, 90, 66, 0.12);
     }
 }
+
+/* ===== Mobile readable bump (+1px for micro sizes, variables for common sizes) ===== */
+@media (hover: none) and (pointer: coarse) {
+  .tab { font-size: 12px; }                       /* 11 -> 12 (mobile 10 -> 12) */
+  .form-label { font-size: var(--font-size-xs); } /* 12 -> 13 */
+  .form-input, .form-textarea { font-size: var(--font-size-sm); } /* 13 -> 15 */
+  .save-btn { font-size: var(--font-size-sm); }   /* 13 -> 15 */
+
+  .ai-title { font-size: var(--font-size-xs); }   /* 12 -> 13 */
+  .ai-text { font-size: 12px; }                   /* 11 -> 12 */
+
+  .stats-summary { font-size: 12px; }             /* 11 -> 12 */
+
+  .filter-tab { font-size: 11px; }                /* 10 -> 11 */
+
+  .quote-text { font-size: var(--font-size-xs); } /* 12 -> 13 (mobile 11 -> 13) */
+  .quote-meta { font-size: 11px; }                /* 10 -> 11 */
+  .quote-date { font-size: 10px; }                /* 9 -> 10 */
+  .quote-action { font-size: var(--font-size-sm); } /* 12 -> 15 */
+
+  .search-input { font-size: var(--font-size-sm); }  /* 13 -> 15 */
+  .search-filter { font-size: 11px; }               /* 10 -> 11 */
+  .search-stats { font-size: 12px; }                /* 11 -> 12 */
+  .search-tips { font-size: 11px; }                 /* 10 -> 11 */
+}
+
+/* Fallback by width */
+@media (max-width: 480px) {
+  .tab { font-size: 12px; }
+  .form-label { font-size: var(--font-size-xs); }
+  .form-input, .form-textarea { font-size: var(--font-size-sm); }
+  .save-btn { font-size: var(--font-size-sm); }
+  .ai-title { font-size: var(--font-size-xs); }
+  .ai-text { font-size: 12px; }
+  .stats-summary { font-size: 12px; }
+  .filter-tab { font-size: 11px; }
+  .quote-text { font-size: var(--font-size-xs); }
+  .quote-meta { font-size: 11px; }
+  .quote-date { font-size: 10px; }
+  .quote-action { font-size: var(--font-size-sm); }
+  .search-input { font-size: var(--font-size-sm); }
+  .search-filter { font-size: 11px; }
+  .search-stats { font-size: 12px; }
+  .search-tips { font-size: 11px; }
+}
