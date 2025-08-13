@@ -609,3 +609,53 @@ body.dark-theme {
         box-shadow var(--transition-normal),
         transform var(--transition-normal);
 }
+
+/* ===== Mobile readable tweaks (use variables where possible, +1px for micro text) ===== */
+@media (hover: none) and (pointer: coarse) {
+  .page-title h2 { font-size: var(--font-size-base); }   /* ~16 -> 17 */
+  .page-title p { font-size: 12px; }                    /* 11 -> 12 */
+
+  .user-name-inline { font-size: var(--font-size-base); } /* mobile had 16 -> 17 */
+  .user-status-inline { font-size: var(--font-size-sm); } /* 13 -> 15 */
+
+  .section-title { font-size: var(--font-size-sm); }
+
+  .stat-number { font-size: var(--font-size-xl); }      /* 20 -> 21 */
+  .stat-label { font-size: 12px; }                      /* 11 -> 12 */
+
+  .main-cta { font-size: var(--font-size-sm); }         /* 13 -> 15 */
+
+  .book-title { font-size: var(--font-size-xs); }       /* 12 -> 13 */
+  .book-author { font-size: 11px; }                     /* 10 -> 11 */
+  .book-sales { font-size: 11px; }                      /* 10 -> 11 */
+  .book-rank { font-size: 12px; }                       /* 11 -> 12 */
+
+  .progress-title { font-size: var(--font-size-xs); }   /* 12 -> 13 */
+  .progress-text { font-size: 12px; }                   /* 11 -> 12 */
+
+  .empty-books { font-size: var(--font-size-xs); }      /* 12 -> 13 */
+
+  .error-message { font-size: var(--font-size-xs); }    /* 12 -> 13 */
+  .error-message button { font-size: var(--font-size-sm); } /* 14 -> 15 */
+}
+
+/* Fallback by width */
+@media (max-width: 480px) {
+  .page-title h2 { font-size: var(--font-size-base); }
+  .page-title p { font-size: 12px; }
+  .user-name-inline { font-size: var(--font-size-base); }
+  .user-status-inline { font-size: var(--font-size-sm); }
+  .section-title { font-size: var(--font-size-sm); }
+  .stat-number { font-size: var(--font-size-xl); }
+  .stat-label { font-size: 12px; }
+  .main-cta { font-size: var(--font-size-sm); }
+  .book-title { font-size: var(--font-size-xs); }
+  .book-author { font-size: 11px; }
+  .book-sales { font-size: 11px; }
+  .book-rank { font-size: 12px; }
+  .progress-title { font-size: var(--font-size-xs); }
+  .progress-text { font-size: 12px; }
+  .empty-books { font-size: var(--font-size-xs); }
+  .error-message { font-size: var(--font-size-xs); }
+  .error-message button { font-size: var(--font-size-sm); }
+}
