@@ -64,18 +64,30 @@ class ProfilePage {
         try {
             this.loading = true;
             
-            const userId = this.state.getCurrentUserId();
+            // Get userId with fallback methods
+            let userId = null;
+            if (this.state && typeof this.state.getCurrentUserId === 'function') {
+                userId = this.state.getCurrentUserId();
+            } else if (this.state && this.state.get) {
+                userId = this.state.get('user.profile.id') || this.state.get('user.telegramData.id');
+            }
+            
             if (!userId || userId === 'demo-user') {
                 // Use local data
-                this.profileData = this.state.get('user.profile') || {};
+                this.profileData = this.state?.get('user.profile') || {};
                 return;
             }
             
-            // Load from API
-            const profile = await this.api.getProfile(userId);
-            if (profile) {
-                this.profileData = profile.user || profile;
-                this.state.update('user.profile', this.profileData);
+            // Load from API if available
+            try {
+                const profile = await this.api.getProfile(userId);
+                if (profile) {
+                    this.profileData = profile.user || profile;
+                    this.state?.update('user.profile', this.profileData);
+                }
+            } catch (apiError) {
+                console.warn('⚠️ API недоступен, используем локальные данные');
+                this.profileData = this.state?.get('user.profile') || {};
             }
             
         } catch (error) {
