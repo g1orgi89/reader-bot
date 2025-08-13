@@ -374,12 +374,17 @@ class ReaderApp {
                 state: this.state,
                 telegram: this.telegram
             });
-            if (typeof this.topMenu.init === 'function') {
-                this.topMenu.init();
-            }
             console.log('✅ TopMenu инициализирован');
         } else {
             console.warn('⚠️ TopMenu класс не найден');
+        }
+        
+        // Инициализация модального окна профиля
+        if (typeof ProfileModal !== 'undefined') {
+            this.profileModal = new ProfileModal(this);
+            console.log('✅ ProfileModal инициализирован');
+        } else {
+            console.warn('⚠️ ProfileModal класс не найден');
         }
         
         // Настраиваем обработчики событий

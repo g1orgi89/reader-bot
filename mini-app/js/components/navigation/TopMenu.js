@@ -32,16 +32,17 @@
 class TopMenu {
     /**
      * Создает экземпляр верхнего меню
-     * @param {Object} app - Основное приложение
-     * @param {Object} api - API клиент
-     * @param {Object} state - Глобальное состояние
-     * @param {Object} telegram - Telegram интеграция
+     * @param {Object} options - Опции инициализации
+     * @param {Object} options.app - Основное приложение
+     * @param {Object} options.api - API клиент  
+     * @param {Object} options.state - Глобальное состояние
+     * @param {Object} options.telegram - Telegram интеграция
      */
-    constructor(app, api, state, telegram) {
-        this.app = app;
-        this.api = api;
-        this.state = state;
-        this.telegram = telegram;
+    constructor(options = {}) {
+        this.app = options.app || options;
+        this.api = options.api || options.app?.api;
+        this.state = options.state || options.app?.state;
+        this.telegram = options.telegram || options.app?.telegram;
         
         this.isOpen = false;
         this.element = null;
@@ -673,14 +674,16 @@ class TopMenu {
         // Интеграция с ProfileModal
         if (this.app && this.app.profileModal) {
             this.app.profileModal.show();
-        } else if (window.ProfileModal) {
-            // Fallback: создаем ProfileModal напрямую
-            const profileModal = new window.ProfileModal(this.app);
-            profileModal.show();
         } else {
-            console.log('TopMenu: Открытие профиля пользователя', this.userInfo);
-            // Временное уведомление
-            this.showTemporaryNotification('👤 ProfileModal не найден');
+            console.log('TopMenu: ProfileModal не найден в app, создаем новый');
+            // Fallback: создаем ProfileModal напрямую если не найден
+            if (window.ProfileModal) {
+                const profileModal = new window.ProfileModal(this.app);
+                profileModal.show();
+            } else {
+                console.warn('⚠️ ProfileModal класс не найден');
+                this.showTemporaryNotification('👤 ProfileModal недоступен');
+            }
         }
     }
 

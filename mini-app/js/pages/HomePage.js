@@ -524,11 +524,11 @@ class HomePage {
         // Haptic feedback
         this.telegram.hapticFeedback('medium');
         
-        // Вызываем меню через app
-        if (this.app && typeof this.app.showTopMenu === 'function') {
-            this.app.showTopMenu();
+        // Открываем TopMenu через app
+        if (this.app && this.app.topMenu) {
+            this.app.topMenu.open();
         } else {
-            console.warn('⚠️ showTopMenu недоступен');
+            console.warn('⚠️ TopMenu не найден в app');
             if (this.telegram && typeof this.telegram.showAlert === 'function') {
                 this.telegram.showAlert('Меню пока не доступно');
             } else {
