@@ -366,18 +366,9 @@ class ReaderApp {
             console.warn('⚠️ BottomNavigation класс не найден');
         }
         
-        // Инициализация верхнего меню
-        if (typeof TopMenu !== 'undefined') {
-            this.topMenu = new TopMenu({
-                app: this,
-                api: this.api,
-                state: this.state,
-                telegram: this.telegram
-            });
-            console.log('✅ TopMenu инициализирован с drawer pattern');
-        } else {
-            console.warn('⚠️ TopMenu класс не найден');
-        }
+        // TopMenu will be initialized only on HomePage - not globally
+        // Keep the reference available for HomePage to use
+        this.topMenu = null;
         
         // Настраиваем обработчики событий
         this.setupEventListeners();
@@ -461,8 +452,8 @@ class ReaderApp {
             }
         }
         
-        // Устанавливаем нужный hash ПЕРЕД инициализацией роутера
-        window.location.hash = initialRoute;
+        // Do not force initial route - preserve existing navigation behavior
+        // Let the router handle the current hash or default route naturally
         
         if (this.router && typeof this.router.init === 'function') {
             try {
@@ -558,8 +549,16 @@ class ReaderApp {
         const hash = window.location.hash.slice(1) || '/home';
         console.log('🧭 Hash changed to:', hash);
         
-        if (this.router) {
-            this.router.navigate(hash, { replace: true });
+        // Clean up TopMenu if navigating away from HomePage
+        if (hash !== '/home' && this.topMenu) {
+            console.log('🧹 Cleaning up TopMenu when leaving HomePage');
+            this.topMenu.destroy();
+            this.topMenu = null;
+        }
+        
+        // Let the router handle navigation naturally without forcing replace
+        if (this.router && this.router.navigate) {
+            this.router.navigate(hash);
         }
         
         // Update BackButton visibility
@@ -619,10 +618,27 @@ class ReaderApp {
     // ===========================================
 
     /**
-     * 📋 Показать верхнее меню
+     * 📋 Показать верхнее меню (только на HomePage)
      */
     showTopMenu() {
         console.log('🔄 Показываем верхнее меню...');
+        
+        // Only show menu if we're on HomePage
+        if (!this.isHome()) {
+            console.warn('⚠️ TopMenu доступно только на главной странице');
+            return;
+        }
+        
+        // Initialize TopMenu if not already initialized
+        if (!this.topMenu && typeof TopMenu !== 'undefined') {
+            this.topMenu = new TopMenu({
+                app: this,
+                api: this.api,
+                state: this.state,
+                telegram: this.telegram
+            });
+            console.log('✅ TopMenu инициализирован для HomePage');
+        }
         
         if (this.topMenu && typeof this.topMenu.open === 'function') {
             this.topMenu.open();
@@ -653,10 +669,16 @@ class ReaderApp {
      * 🔄 Переключить состояние верхнего меню
      */
     toggleTopMenu() {
+        // Only available on HomePage
+        if (!this.isHome()) {
+            console.warn('⚠️ TopMenu доступно только на главной странице');
+            return;
+        }
+        
         if (this.topMenu && typeof this.topMenu.toggle === 'function') {
             this.topMenu.toggle();
         } else {
-            // Если нет метода toggle, используем open
+            // If no toggle method or TopMenu not initialized, use showTopMenu
             this.showTopMenu();
         }
     }
@@ -666,6 +688,23 @@ class ReaderApp {
      * @param {HTMLElement} buttonEl - Кнопка для привязки
      */
     attachTopMenuToButton(buttonEl) {
+        // Only available on HomePage
+        if (!this.isHome()) {
+            console.warn('⚠️ TopMenu доступно только на главной странице');
+            return;
+        }
+        
+        // Initialize TopMenu if needed
+        if (!this.topMenu && typeof TopMenu !== 'undefined') {
+            this.topMenu = new TopMenu({
+                app: this,
+                api: this.api,
+                state: this.state,
+                telegram: this.telegram
+            });
+            console.log('✅ TopMenu инициализирован для кнопки');
+        }
+        
         if (this.topMenu && typeof this.topMenu.attachToButton === 'function') {
             this.topMenu.attachToButton(buttonEl);
         }
