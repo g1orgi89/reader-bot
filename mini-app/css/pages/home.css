@@ -82,6 +82,44 @@
     transition: all var(--transition-normal);
     cursor: pointer;
     position: relative;
+    overflow: hidden;
+}
+
+/* Avatar image styling */
+.user-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+}
+
+/* Fallback when image fails to load or is not set */
+.user-avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    font-weight: 700;
+    font-size: 24px;
+    text-transform: uppercase;
+    border-radius: 50%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+/* Show fallback when avatar has fallback class or image is hidden */
+.user-avatar-inline.fallback .user-avatar-img,
+.user-avatar-inline .user-avatar-img[style*="display: none"] {
+    display: none !important;
 }
 
 .user-avatar-inline::after {

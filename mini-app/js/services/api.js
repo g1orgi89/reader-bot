@@ -229,6 +229,69 @@ class ApiService {
     }
 
     /**
+     * 🖼️ Загрузить аватар пользователя
+     */
+    async uploadAvatar(fileOrBlob, userId = 'demo-user') {
+        try {
+            // Создаем FormData для загрузки файла
+            const formData = new FormData();
+            formData.append('avatar', fileOrBlob);
+            formData.append('userId', userId);
+
+            console.log('🖼️ Загружаем аватар для пользователя:', userId);
+
+            // Используем специальную версию request без JSON Content-Type
+            const url = `${this.baseURL}/profile/avatar`;
+            
+            // Retry логика для файлов
+            let lastError;
+            for (let attempt = 1; attempt <= this.config.retries; attempt++) {
+                try {
+                    const requestOptions = {
+                        method: 'POST',
+                        body: formData
+                        // НЕ устанавливаем Content-Type - браузер сделает это автоматически с boundary
+                    };
+
+                    // Добавляем timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+                    requestOptions.signal = controller.signal;
+
+                    const response = await fetch(url, requestOptions);
+                    clearTimeout(timeoutId);
+
+                    const result = await this.handleResponse(response, '/profile/avatar');
+                    
+                    console.log('✅ Аватар загружен успешно:', result);
+                    return result;
+
+                } catch (error) {
+                    lastError = error;
+                    console.log(`❌ Попытка ${attempt} загрузки аватара неудачна:`, error.message);
+
+                    if (attempt < this.config.retries) {
+                        await this.delay(this.config.retryDelay * attempt);
+                    }
+                }
+            }
+
+            throw lastError;
+
+        } catch (error) {
+            console.error('❌ Ошибка загрузки аватара:', error);
+            
+            if (error.status === 413) {
+                throw new Error('Файл слишком большой. Максимальный размер: 3MB');
+            } else if (error.status === 415) {
+                throw new Error('Неподдерживаемый формат файла. Используйте JPG, PNG или WebP');
+            } else {
+                throw new Error(`Не удалось загрузить аватар: ${error.message}`);
+            }
+        }
+    }
+
+    /**
      * 📊 Получить статистику пользователя
      */
     async getStats(userId = 'demo-user') {
