@@ -14,6 +14,11 @@ class ReaderApp {
         this.appContainer = document.getElementById('app');
         this.loadingScreen = document.getElementById('loading-screen');
         this.topMenu = null;
+        
+        // === ONBOARDING STABILITY START ===
+        // Флаг для предотвращения множественных navigate('/onboarding')
+        this._onboardingGateApplied = false;
+        // === ONBOARDING STABILITY END ===
 
         if (!this.appContainer || !this.loadingScreen) {
             throw new Error('❌ Критические элементы DOM не найдены');
@@ -228,24 +233,33 @@ class ReaderApp {
         this.setupHashRouter();
         this.setupTelegramBackButton();
 
-        const profile = this.state.get('user.profile');
+        // === ONBOARDING STABILITY START ===
+        // Определяем стартовый маршрут ДО инициализации роутера
+        // чтобы избежать гонки /home → /onboarding
         let initialRoute = '/home';
+        let onboardingCheckCompleted = false;
+        
         try {
-            const prof = this.state.get('user.profile');
+            const profile = this.state.get('user.profile');
             let userId = null;
+            
             try {
                 userId = this.state.getCurrentUserId();
                 if (!userId || userId === 'demo-user') {
                     console.log('⚠️ App: Нет валидного userId, fallback профиля');
                 }
             } catch {}
+            
             if (userId && userId !== 'demo-user') {
                 console.log('🔍 Проверяем онбординг для userId:', userId);
                 const onboardingStatus = await this.api.checkOnboardingStatus(userId);
                 console.log('📊 Статус онбординга:', onboardingStatus);
+                onboardingCheckCompleted = true;
+                
                 if (!onboardingStatus.completed) {
                     initialRoute = '/onboarding';
-                    console.log('🎯 API: Онбординг не завершен');
+                    this._onboardingGateApplied = true;
+                    console.log('🎯 STABILITY: API показал онбординг не завершен, стартуем с /onboarding');
                 } else {
                     if (onboardingStatus.user) {
                         this.state.update('user.profile', {
@@ -253,33 +267,43 @@ class ReaderApp {
                             isOnboardingCompleted: true
                         });
                     }
-                    console.log('🏠 API: Онбординг завершен, можно /home');
+                    console.log('🏠 STABILITY: API показал онбординг завершен, можно /home');
                 }
             } else {
                 const isDebugMode = this.state.get('debugMode');
-                if (!isDebugMode && !prof?.isOnboardingCompleted) {
+                if (!isDebugMode && !profile?.isOnboardingCompleted) {
                     initialRoute = '/onboarding';
-                    console.log('🎯 Fallback: онбординг локально не завершен');
+                    this._onboardingGateApplied = true;
+                    console.log('🎯 STABILITY: Fallback - онбординг локально не завершен, стартуем с /onboarding');
                 }
             }
         } catch (error) {
             console.warn('⚠️ Ошибка проверки онбординга:', error);
             const isDebugMode = this.state.get('debugMode');
+            const profile = this.state.get('user.profile');
             if (!isDebugMode && !profile?.isOnboardingCompleted) {
                 initialRoute = '/onboarding';
+                this._onboardingGateApplied = true;
+                console.log('🎯 STABILITY: Ошибка API - fallback к /onboarding');
             }
         }
+        // === ONBOARDING STABILITY END ===
 
         if (this.router?.init) {
             try {
                 await this.router.init();
-                console.log('✅ Роутинг инициализирован, начальная страница (расчёт):', initialRoute);
+                console.log('✅ Роутинг инициализирован, стартовый маршрут:', initialRoute);
 
+                // === ONBOARDING STABILITY START ===
+                // Применяем стартовый маршрут только если он не /home или если нет текущего маршрута
                 const currentRoute = this.normalizeRoute(window.location.hash.slice(1) || '');
-                if (initialRoute !== '/home' && currentRoute !== initialRoute) {
-                    console.log('[App] Переключаем стартовый маршрут на', initialRoute, '(вместо', currentRoute, ')');
+                if (initialRoute !== '/home' || !currentRoute || currentRoute === '/home') {
+                    console.log('🧭 STABILITY: Применяем стартовый маршрут', initialRoute, '(текущий:', currentRoute, ')');
                     this.router.navigate(initialRoute, { replace: true });
+                } else {
+                    console.log('🔄 STABILITY: Оставляем текущий маршрут', currentRoute);
                 }
+                // === ONBOARDING STABILITY END ===
             } catch (error) {
                 console.error('❌ Ошибка инициализации роутера:', error);
                 this.showBasicContent();
