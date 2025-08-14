@@ -114,8 +114,9 @@ class AppRouter {
 
     /**
      * 🚀 Инициализация роутера
+     * @param {string} initialRoute - Начальный маршрут для перехода
      */
-    async init() {
+    async init(initialRoute) {
         console.log('🔄 Router: Начало инициализации');
         
         // Регистрируем все маршруты
@@ -124,8 +125,8 @@ class AppRouter {
         // Настраиваем обработчики событий
         this.setupEventListeners();
         
-        // Обрабатываем текущий URL
-        this.handleInitialRoute();
+        // Обрабатываем текущий URL с возможным переопределением
+        this.handleInitialRoute(initialRoute);
         
         this.isInitialized = true;
         console.log('✅ Router: Инициализация завершена');
@@ -283,8 +284,16 @@ class AppRouter {
 
     /**
      * 🏠 Обработка начального маршрута
+     * @param {string} initialOverride - Переопределение начального маршрута из App
      */
-    handleInitialRoute() {
+    handleInitialRoute(initialOverride) {
+        // Если App передал переопределение - используем его
+        if (initialOverride) {
+            console.log('🎯 Router: Используем переопределение начального маршрута:', initialOverride);
+            this.navigate(initialOverride, { replace: true });
+            return;
+        }
+
         // В Telegram Mini App используем hash роутинг
         const rawHash = window.location.hash.slice(1);
         if (rawHash) {

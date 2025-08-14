@@ -862,8 +862,19 @@ class OnboardingPage {
             return false;
         }
         
-        // Источник обязателен
-        return this.contactData.source && this.contactData.source.length > 0;
+        // Источник обязателен, но если пользователь дошел до завершения без выбора источника,
+        // применяем автоматический fallback только один раз
+        if (!this.contactData.source || this.contactData.source.length === 0) {
+            // Автоматический fallback только если мы на этапе завершения
+            if (this.currentStep > this.totalSteps) {
+                this.contactData.source = 'telegram';
+                console.log('🔧 OnboardingPage: Автоматически установлен source=telegram для завершения');
+                return true;
+            }
+            return false;
+        }
+        
+        return true;
     }
     
     /**
@@ -1095,6 +1106,11 @@ class OnboardingPage {
         // Переустанавливаем обработчики событий только для обновленных элементов
         this.attachEventListeners();
         
+        // Если мы на этапе завершения, сразу обновляем состояние кнопки навигации
+        if (this.currentStep > this.totalSteps) {
+            this.updateNavigationButton();
+        }
+        
         // Отмечаем что анимация уже была проиграна
         if (!this._animationPlayed) {
             this._animationPlayed = true;
@@ -1136,13 +1152,6 @@ class OnboardingPage {
      * Вызывается при показе страницы
      */
     onShow() {
-        // Проверяем, не завершен ли уже онбординг
-        const onboardingCompleted = this.state.get('user.profile.isOnboardingCompleted');
-        if (onboardingCompleted) {
-            this.app.router.navigate('/home');
-            return;
-        }
-        
         // Автофокус на поле ввода для текущего вопроса
         setTimeout(() => {
             const input = document.getElementById('questionInput');
