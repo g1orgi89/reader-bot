@@ -196,7 +196,10 @@
     width: 48px;
     height: 48px;
     border-radius: var(--radius-round);
-    background: var(--primary-color);
+    background: linear-gradient(135deg,
+        var(--primary-color, #D2452C),
+        var(--primary-light, #E5674F)
+    );
     color: var(--text-inverse);
     display: flex;
     align-items: center;
@@ -227,7 +230,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    background: linear-gradient(135deg,
+        var(--primary-color, #D2452C),
+        var(--primary-light, #E5674F)
+    );
     color: var(--text-inverse);
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
