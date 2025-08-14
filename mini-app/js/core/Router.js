@@ -577,20 +577,24 @@ class AppRouter {
         this.currentComponent = null;
     }
 
-    /**
-     * 🔗 Обновление URL в адресной строке
-     * @param {string} path - Новый путь
-     * @param {boolean} replace - Заменить текущую запись в истории
-     */
     updateUrl(path, replace = false) {
         const normalizedPath = this.normalizePath(path);
         const url = `#${normalizedPath}`;
-        
+    
         if (replace) {
             window.history.replaceState({ path: normalizedPath }, '', url);
         } else {
             window.history.pushState({ path: normalizedPath }, '', url);
             this.history.push(normalizedPath);
+        }
+
+        // ✅ Обновляем Telegram BackButton (поскольку hashchange не сработает)
+        if (this.app && typeof this.app.updateBackButtonVisibility === 'function') {
+        try {
+            this.app.updateBackButtonVisibility(normalizedPath);
+            } catch (e) {
+            console.warn('Router: updateBackButtonVisibility failed:', e);
+            }
         }
     }
 
