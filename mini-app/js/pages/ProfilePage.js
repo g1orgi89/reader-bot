@@ -108,7 +108,6 @@ class ProfilePage {
             <div class="content">
                 ${this.renderHeader()}
                 ${this.renderProfileCard(profile)}
-                ${this.renderActionsSection()}
                 ${this.renderError()}
             </div>
         `;
@@ -127,7 +126,7 @@ class ProfilePage {
     }
     
     /**
-     * 👤 Рендер карточки профиля
+     * 👤 Рендер компактной карточки профиля
      */
     renderProfileCard(profile) {
         const name = profile.name || 
@@ -138,66 +137,48 @@ class ProfilePage {
         const avatarUrl = profile.avatarUrl;
         
         return `
-            <div class="profile-card">
-                <div class="profile-avatar-section">
-                    <div class="profile-avatar-container">
-                        <div class="profile-avatar-large" id="profileAvatar">
-                            ${avatarUrl ? 
-                                `<img src="${avatarUrl}" alt="Аватар" onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
-                                 <div class="avatar-fallback">${initials}</div>` :
-                                `<div class="avatar-fallback">${initials}</div>`
-                            }
-                        </div>
+            <div class="profile-compact">
+                <div class="profile-top-inline">
+                    <div class="profile-avatar-inline ${!avatarUrl ? 'fallback' : ''}" id="profileAvatar">
+                        ${avatarUrl ? 
+                            `<img src="${avatarUrl}" alt="Аватар" onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />` : ''
+                        }
+                        <div class="avatar-fallback">${initials}</div>
                     </div>
-                    <button class="btn btn-primary btn-sm" id="uploadAvatarBtn" ${this.uploadingAvatar ? 'disabled' : ''}>
+                    
+                    <div class="profile-name-row">
+                        <div class="profile-name">${name}</div>
+                    </div>
+                    
+                    <button class="profile-change-photo-btn" id="uploadAvatarBtn" ${this.uploadingAvatar ? 'disabled' : ''}>
                         ${this.uploadingAvatar ? '⏳ Загрузка...' : '📷 Изменить фото'}
                     </button>
                     <input type="file" id="avatarInput" accept="image/*" style="display: none;">
                 </div>
                 
-                <div class="profile-info">
-                    <div class="profile-field">
-                        <label class="field-label">Имя:</label>
-                        <div class="field-value">${name}</div>
-                    </div>
+                <div class="profile-email-row" id="emailRow">
+                    <span class="email-text" id="emailDisplay">${email}</span>
+                    <button class="email-edit-icon" id="editEmailBtn">✏️</button>
                     
-                    <div class="profile-field">
-                        <label class="field-label">Email:</label>
-                        <div class="field-value editable" id="emailField">
-                            <span class="email-display" id="emailDisplay">${email}</span>
-                            <button class="btn btn-link btn-sm" id="editEmailBtn">✏️</button>
-                        </div>
-                        <input type="email" class="field-input" id="emailInput" value="${email}" style="display: none;">
-                        <div class="field-actions" id="emailActions" style="display: none;">
-                            <button class="btn btn-success btn-sm" id="saveEmailBtn">💾 Сохранить</button>
-                            <button class="btn btn-secondary btn-sm" id="cancelEmailBtn">❌ Отмена</button>
-                        </div>
+                    <input type="email" class="profile-email-input" id="emailInput" value="${email}" style="display: none;">
+                    <div class="profile-email-actions" id="emailActions" style="display: none;">
+                        <button class="btn-icon btn-save" id="saveEmailBtn">💾</button>
+                        <button class="btn-icon btn-cancel" id="cancelEmailBtn">❌</button>
                     </div>
                 </div>
-            </div>
-        `;
-    }
-    
-
-    /**
-     * ⚡ Рендер секции действий
-     */
-    renderActionsSection() {
-        return `
-            <div class="actions-section">
-                <h3>⚡ Действия</h3>
-                <div class="actions-grid">
-                    <button class="btn btn-primary btn-block" id="viewAchievementsBtn">
+                
+                <div class="profile-actions-compact">
+                    <button class="btn btn-primary" id="viewAchievementsBtn">
                         🏆 Мои достижения
                     </button>
-                    <button class="btn btn-warning btn-block" id="resetTestBtn">
+                    <button class="btn btn-warning" id="resetTestBtn">
                         🔄 Перезапустить тест
                     </button>
                 </div>
             </div>
         `;
     }
-    
+
     /**
      * ⚠️ Рендер ошибки
      */
@@ -286,7 +267,7 @@ class ProfilePage {
     }
     
     /**
-     * 📁 Обработчик выбора файла аватара
+     * 📁 Обработчик выбора файла аватара с мгновенным превью
      */
     async handleAvatarFileSelect(event) {
         const file = event.target.files[0];
@@ -304,6 +285,10 @@ class ProfilePage {
             return;
         }
         
+        // Создаем мгновенное превью
+        const previewUrl = URL.createObjectURL(file);
+        this.showAvatarPreview(previewUrl);
+        
         try {
             this.uploadingAvatar = true;
             this.updateUploadButtonState();
@@ -312,11 +297,12 @@ class ProfilePage {
             const result = await this.api.uploadAvatar(file, userId);
             
             if (result.success) {
-                // Обновляем данные профиля
+                // Обновляем данные профиля с окончательной URL от сервера
                 this.profileData.avatarUrl = result.avatarUrl;
                 this.state?.update('user.profile.avatarUrl', result.avatarUrl);
                 
-                // Обновляем UI
+                // Очищаем превью и обновляем UI с финальным аватаром
+                this.clearAvatarPreview();
                 this.updateAvatarDisplay();
                 
                 // Haptic feedback успеха
@@ -331,6 +317,9 @@ class ProfilePage {
             console.error('❌ Ошибка загрузки аватара:', error);
             this.showError(error.message || 'Не удалось загрузить аватар');
             
+            // В случае ошибки удаляем превью
+            this.clearAvatarPreview();
+            
             // Haptic feedback ошибки
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('heavy');
@@ -339,8 +328,40 @@ class ProfilePage {
             this.uploadingAvatar = false;
             this.updateUploadButtonState();
             
+            // Освобождаем память
+            URL.revokeObjectURL(previewUrl);
+            
             // Очищаем input для возможности повторной загрузки того же файла
             event.target.value = '';
+        }
+    }
+    
+    /**
+     * 🖼️ Показать мгновенное превью аватара
+     */
+    showAvatarPreview(previewUrl) {
+        const avatarContainer = document.getElementById('profileAvatar');
+        if (!avatarContainer) return;
+        
+        // Удаляем существующий превью если есть
+        this.clearAvatarPreview();
+        
+        // Создаем элемент превью
+        const previewOverlay = document.createElement('div');
+        previewOverlay.className = 'avatar-preview-overlay';
+        previewOverlay.style.backgroundImage = `url(${previewUrl})`;
+        previewOverlay.id = 'avatarPreview';
+        
+        avatarContainer.appendChild(previewOverlay);
+    }
+    
+    /**
+     * 🧹 Очистить превью аватара
+     */
+    clearAvatarPreview() {
+        const previewOverlay = document.getElementById('avatarPreview');
+        if (previewOverlay) {
+            previewOverlay.remove();
         }
     }
     
@@ -469,6 +490,16 @@ class ProfilePage {
             const result = await this.api.resetTest(userId);
             
             if (result.success) {
+                // Обновляем локальное состояние приложения
+                this.state?.update('user.isOnboardingComplete', false);
+                this.state?.update('user.testResults', null);
+                
+                // Очищаем любые данные о завершенном тесте из localStorage
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.removeItem('onboardingComplete');
+                    localStorage.removeItem('testResults');
+                }
+                
                 // Haptic feedback успеха
                 if (this.telegram?.hapticFeedback) {
                     this.telegram.hapticFeedback('light');
@@ -479,10 +510,17 @@ class ProfilePage {
                     this.telegram.showAlert('Тест сброшен! Перенаправляем на прохождение...');
                 }
                 
-                // Небольшая задержка перед перенаправлением
+                // Немедленно перенаправляем на онбординг
                 setTimeout(() => {
-                    window.location.hash = '/onboarding';
-                }, 1500);
+                    // Используем замену истории для полной перезагрузки состояния
+                    window.location.hash = '#/onboarding';
+                    // Принудительно перезагружаем страницу если онбординг не запустился
+                    setTimeout(() => {
+                        if (window.location.hash !== '#/onboarding') {
+                            window.location.reload();
+                        }
+                    }, 500);
+                }, 1000);
                 
                 console.log('✅ Тест сброшен успешно');
             }

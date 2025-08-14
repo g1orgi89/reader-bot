@@ -45,6 +45,222 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* ============================================================================
+   🎯 COMPACT PROFILE LAYOUT
+   ============================================================================ */
+
+.profile-compact {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light, #e0e0e0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-top-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.profile-avatar-inline {
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius-round);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    font-size: 24px;
+    font-weight: var(--font-weight-bold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.profile-avatar-inline img {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-round);
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+}
+
+.profile-avatar-inline.fallback img {
+    display: none;
+}
+
+.profile-avatar-inline .avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: var(--font-weight-bold);
+    z-index: 1;
+}
+
+.profile-name-row {
+    flex: 1;
+    min-width: 120px;
+}
+
+.profile-name-row .profile-name {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.profile-email-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.profile-email-row .email-text {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    flex: 1;
+    min-width: 120px;
+}
+
+.profile-email-row .email-edit-icon {
+    background: transparent;
+    border: none;
+    color: var(--primary-color);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--duration-fast);
+}
+
+.profile-email-row .email-edit-icon:hover {
+    background: rgba(210, 69, 44, 0.1);
+}
+
+.profile-email-input {
+    flex: 1;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-width: 120px;
+}
+
+.profile-email-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(210, 69, 44, 0.2);
+}
+
+.profile-email-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.profile-email-actions .btn-icon {
+    background: transparent;
+    border: none;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--duration-fast);
+}
+
+.profile-email-actions .btn-save {
+    color: var(--success-color);
+}
+
+.profile-email-actions .btn-save:hover {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.profile-email-actions .btn-cancel {
+    color: var(--error-color);
+}
+
+.profile-email-actions .btn-cancel:hover {
+    background: rgba(244, 67, 54, 0.1);
+}
+
+.profile-change-photo-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--duration-fast);
+    white-space: nowrap;
+}
+
+.profile-change-photo-btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(210, 69, 44, 0.3);
+}
+
+.profile-change-photo-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.profile-actions-compact {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.profile-actions-compact .btn {
+    flex: 1;
+    min-width: 140px;
+}
+
+/* Avatar preview overlay for instant feedback */
+.avatar-preview-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    border-radius: var(--radius-round);
+    z-index: 3;
+    opacity: 0.9;
+}
+
+.avatar-preview-overlay::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-round);
+}
+
 .profile-avatar-section {
     text-align: center;
     margin-bottom: var(--spacing-lg);
@@ -310,6 +526,56 @@
     
     .profile-card {
         padding: var(--spacing-md);
+    }
+    
+    .profile-compact {
+        padding: var(--spacing-sm);
+    }
+    
+    .profile-top-inline {
+        gap: var(--spacing-sm);
+    }
+    
+    .profile-avatar-inline {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+    
+    .profile-avatar-inline .avatar-fallback {
+        font-size: 20px;
+    }
+    
+    .profile-name-row .profile-name {
+        font-size: var(--font-size-base);
+    }
+    
+    .profile-change-photo-btn {
+        font-size: var(--font-size-xs);
+        padding: var(--spacing-xs);
+    }
+    
+    .profile-actions-compact {
+        flex-direction: column;
+    }
+    
+    .profile-actions-compact .btn {
+        min-width: auto;
+    }
+    
+    .profile-email-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+    
+    .profile-email-row .email-text {
+        min-width: auto;
+    }
+    
+    .profile-email-input {
+        min-width: auto;
+        width: 100%;
     }
     
     .profile-avatar-large {
