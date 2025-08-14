@@ -487,43 +487,52 @@ class ProfilePage {
         
         try {
             const userId = this.state.getCurrentUserId();
-            const result = await this.api.resetTest(userId);
             
-            if (result.success) {
-                // Обновляем локальное состояние приложения
-                this.state?.update('user.isOnboardingComplete', false);
-                this.state?.update('user.testResults', null);
-                
-                // Очищаем любые данные о завершенном тесте из localStorage
-                if (typeof localStorage !== 'undefined') {
-                    localStorage.removeItem('onboardingComplete');
-                    localStorage.removeItem('testResults');
+            // RETAKE: Опциональный вызов backend reset (если API доступен)
+            try {
+                const result = await this.api.resetTest(userId);
+                if (result.success) {
+                    console.log('✅ Backend reset выполнен успешно');
                 }
-                
-                // Haptic feedback успеха
-                if (this.telegram?.hapticFeedback) {
-                    this.telegram.hapticFeedback('light');
-                }
-                
-                // Показываем сообщение и перенаправляем на онбординг
-                if (this.telegram?.showAlert) {
-                    this.telegram.showAlert('Тест сброшен! Перенаправляем на прохождение...');
-                }
-                
-                // Немедленно перенаправляем на онбординг
-                setTimeout(() => {
-                    // Используем замену истории для полной перезагрузки состояния
-                    window.location.hash = '#/onboarding';
-                    // Принудительно перезагружаем страницу если онбординг не запустился
-                    setTimeout(() => {
-                        if (window.location.hash !== '#/onboarding') {
-                            window.location.reload();
-                        }
-                    }, 500);
-                }, 1000);
-                
-                console.log('✅ Тест сброшен успешно');
+            } catch (apiError) {
+                console.warn('⚠️ Backend reset недоступен, продолжаем с локальным сбросом:', apiError.message);
             }
+            
+            // RETAKE: Обновляем локальное состояние приложения
+            this.state?.set('user.profile.isOnboardingCompleted', false);
+            this.state?.set('user.testResults', null);
+            
+            // RETAKE: Устанавливаем флаг принудительного повторного прохождения
+            this.state?.set('onboarding.forceRetake', true);
+            
+            // RETAKE: Очищаем только специфичные ключи localStorage
+            if (typeof localStorage !== 'undefined') {
+                localStorage.removeItem('onboardingComplete');
+                localStorage.removeItem('testResults');
+            }
+            
+            // Haptic feedback успеха
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('light');
+            }
+            
+            // Показываем сообщение и перенаправляем на онбординг
+            if (this.telegram?.showAlert) {
+                this.telegram.showAlert('Тест сброшен! Перенаправляем на прохождение...');
+            }
+            
+            // RETAKE: Перенаправляем на онбординг в режиме повторного прохождения
+            setTimeout(() => {
+                // Навигация с query параметром retake=1
+                if (this.app.router && typeof this.app.router.navigate === 'function') {
+                    this.app.router.navigate('/onboarding?retake=1');
+                } else {
+                    // Fallback через hash
+                    window.location.hash = '#/onboarding?retake=1';
+                }
+            }, 1000);
+            
+            console.log('✅ Тест сброшен успешно, режим повторного прохождения активирован');
             
         } catch (error) {
             console.error('❌ Ошибка сброса теста:', error);
