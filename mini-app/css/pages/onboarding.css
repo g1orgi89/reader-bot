@@ -667,3 +667,16 @@
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* ============================================================================
+   9. RETAKE MODE STYLING
+   ============================================================================ */
+
+/* RETAKE: Иконка ♻ для режима повторного прохождения */
+.onboarding-page.is-retake .onboarding-title::after {
+    content: ' ♻';
+    color: var(--primary-color);
+    font-size: 0.9em;
+    margin-left: var(--spacing-sm);
+    opacity: 0.8;
+}

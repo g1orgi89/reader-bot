@@ -23,6 +23,9 @@ class OnboardingPage {
         this.loading = false;
         this.error = null;
         
+        // RETAKE: Режим повторного прохождения
+        this.isRetakeMode = false;
+        
         // Данные теста - 7 вопросов из технического задания
         this.questions = [
             {
@@ -122,6 +125,9 @@ class OnboardingPage {
      * 🔧 Инициализация страницы
      */
     async init() {
+        // RETAKE: Проверяем режим повторного прохождения
+        this.detectRetakeMode();
+        
         // Проверяем статус онбординга через API
         try {
             // ✅ ИСПРАВЛЕНО: Получаем userId из состояния приложения
@@ -132,17 +138,24 @@ class OnboardingPage {
             const onboardingStatus = await this.api.checkOnboardingStatus(userId);
             console.log('📊 OnboardingPage: Статус онбординга:', onboardingStatus);
             
-            if (onboardingStatus.completed) {
+            // RETAKE: Только редиректим если завершен И НЕ в режиме повторного прохождения
+            if (onboardingStatus.completed && !this.isRetakeMode) {
                 // Перенаправляем на главную страницу
                 this.app.router.navigate('/home');
                 return;
+            }
+            
+            // RETAKE: Если в режиме повторного прохождения, предзаполняем предыдущие ответы
+            if (this.isRetakeMode && onboardingStatus.completed) {
+                this.prefillPreviousAnswers(onboardingStatus);
             }
         } catch (error) {
             console.warn('⚠️ OnboardingPage: Ошибка проверки статуса онбординга:', error);
             
             // Fallback: проверяем локальное состояние
             const onboardingCompleted = this.state.get('user.profile.isOnboardingCompleted');
-            if (onboardingCompleted) {
+            // RETAKE: Только редиректим если завершен И НЕ в режиме повторного прохождения
+            if (onboardingCompleted && !this.isRetakeMode) {
                 this.app.router.navigate('/home');
                 return;
             }
@@ -150,6 +163,52 @@ class OnboardingPage {
         
         // Получаем данные пользователя из Telegram
         this.prefillUserData();
+    }
+    
+    /**
+     * 🔄 RETAKE: Определение режима повторного прохождения
+     */
+    detectRetakeMode() {
+        // Проверяем URL параметр retake=1 или retake=true
+        const urlParams = new URLSearchParams(window.location.search);
+        const retakeParam = urlParams.get('retake');
+        const isRetakeFromUrl = retakeParam === '1' || retakeParam === 'true';
+        
+        // Проверяем флаг в состоянии приложения
+        const forceRetakeFlag = this.state.get('onboarding.forceRetake');
+        
+        this.isRetakeMode = isRetakeFromUrl || forceRetakeFlag;
+        
+        console.log('🔄 OnboardingPage: Режим повторного прохождения:', this.isRetakeMode, {
+            urlParam: retakeParam,
+            stateFlag: forceRetakeFlag
+        });
+        
+        // Устанавливаем флаг в состоянии для последующего использования
+        if (this.isRetakeMode) {
+            this.state.set('onboarding.isRetake', true);
+        }
+    }
+    
+    /**
+     * 📋 RETAKE: Предзаполнение предыдущих ответов
+     */
+    prefillPreviousAnswers(onboardingStatus) {
+        if (onboardingStatus.answers) {
+            console.log('📋 OnboardingPage: Предзаполняем предыдущие ответы:', onboardingStatus.answers);
+            this.answers = { ...onboardingStatus.answers };
+        } else if (onboardingStatus.testResults) {
+            console.log('📋 OnboardingPage: Предзаполняем из testResults:', onboardingStatus.testResults);
+            this.answers = { ...onboardingStatus.testResults };
+        }
+        
+        // Также пытаемся получить контактные данные
+        if (onboardingStatus.email) {
+            this.contactData.email = onboardingStatus.email;
+        }
+        if (onboardingStatus.source) {
+            this.contactData.source = onboardingStatus.source;
+        }
     }
     
     /**
@@ -188,8 +247,11 @@ class OnboardingPage {
      * 🎨 Генерация HTML разметки страницы
      */
     render() {
+        // RETAKE: Добавляем CSS класс для режима повторного прохождения
+        const retakeClass = this.isRetakeMode ? ' is-retake' : '';
+        
         return `
-            <div class="onboarding-page">
+            <div class="onboarding-page${retakeClass}">
                 ${this.renderHeader()}
                 ${this.renderProgress()}
                 <div class="onboarding-content-wrapper">
@@ -204,6 +266,31 @@ class OnboardingPage {
      * 📱 Рендер шапки
      */
     renderHeader() {
+        // RETAKE: Разные заголовки для режима повторного прохождения
+        if (this.isRetakeMode) {
+            const titles = [
+                'Повторное прохождение',
+                'Знакомство', 'Знакомство', 'Ваш ритм жизни', 'Ваши приоритеты',
+                'Ваше чтение', 'Ваша философия', 'Ваш ритм',
+                'Готово!'
+            ];
+            
+            const subtitles = [
+                'Обновляем ваш профиль для лучших рекомендаций',
+                'Расскажите о себе', 'Расскажите о себе', 'Понимаем ваши потребности', 'Что важно сейчас',
+                'Понимаем ваш опыт', 'Что вам ближе', 'Последний вопрос',
+                'Профиль обновлен'
+            ];
+            
+            return `
+                <div class="onboarding-header">
+                    <div class="onboarding-title">${titles[this.currentStep]}</div>
+                    <div class="onboarding-subtitle">${subtitles[this.currentStep]}</div>
+                </div>
+            `;
+        }
+        
+        // Обычные заголовки для первого прохождения
         const titles = [
             'Добро пожаловать!',
             'Знакомство', 'Знакомство', 'Ваш ритм жизни', 'Ваши приоритеты',
@@ -669,7 +756,8 @@ class OnboardingPage {
                 answers: this.answers,            // ✅ OK
                 email: this.contactData.email,    // ✅ Backend ожидает "email"
                 source: this.contactData.source,  // ✅ Backend ожидает "source"
-                telegramData: telegramData
+                telegramData: telegramData,
+                retake: this.isRetakeMode         // RETAKE: Передаем флаг повторного прохождения
             };
             
             // Отправка данных на сервер
@@ -677,15 +765,28 @@ class OnboardingPage {
             
             // Обновление состояния пользователя
             this.state.update('user.profile', {
-                isOnboardingCompleted: true
+                isOnboardingCompleted: true,
+                // RETAKE: Обновляем timestamp последнего онбординга
+                lastOnboardingAt: new Date().toISOString()
             });
             this.state.set('user.onboardingData', onboardingData);
+            
+            // RETAKE: Очищаем флаги повторного прохождения
+            if (this.isRetakeMode) {
+                this.state.remove('onboarding.forceRetake');
+                this.state.remove('onboarding.isRetake');
+            }
             
             // Haptic feedback успеха
             this.telegram.hapticFeedback('success');
             
+            // RETAKE: Разные сообщения для первого прохождения и повторного
+            const successMessage = this.isRetakeMode 
+                ? '✅ Обновлено!' 
+                : '✅ Добро пожаловать в сообщество читателей!';
+            
             // Показ уведомления об успехе
-            this.showSuccess('✅ Добро пожаловать в сообщество читателей!');
+            this.showSuccess(successMessage);
             
             // Задержка перед переходом
             setTimeout(() => {
@@ -726,6 +827,10 @@ class OnboardingPage {
     rerender() {
         const container = document.querySelector('.onboarding-page');
         if (container) {
+            // RETAKE: Сохраняем CSS класс повторного прохождения при перерендере
+            const retakeClass = this.isRetakeMode ? ' is-retake' : '';
+            container.className = `onboarding-page${retakeClass}`;
+            
             container.innerHTML = `
                 ${this.renderHeader()}
                 ${this.renderProgress()}
