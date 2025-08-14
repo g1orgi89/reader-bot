@@ -526,7 +526,7 @@ class OnboardingPage {
             case 'radio':
                 return `
                     <div class="answer-options">
-                        ${question.options.map((option, index) => `
+                        ${question.options.map((option) => `
                             <button class="answer-option ${currentAnswer === option ? 'selected' : ''}" 
                                     data-value="${option}">
                                 ${option}
@@ -1182,7 +1182,6 @@ class OnboardingPage {
             
             // === ONBOARDING STABILITY START ===
             // Добавляем data-animated флаг для управления анимациями
-            const animatedAttr = this._animationPlayed ? ' data-animated="true"' : '';
             container.className = `onboarding-page${retakeClass}`;
             if (this._animationPlayed) {
                 container.setAttribute('data-animated', 'true');
