@@ -522,16 +522,16 @@ class ProfilePage {
             }
             
             // RETAKE: Перенаправляем на онбординг в режиме повторного прохождения немедленно
-            // Используем минимальную задержку для обеспечения стабильности UI (100-150ms)
+            // Используем минимальную задержку для обеспечения стабильности UI
             setTimeout(() => {
                 // Навигация с query параметром retake=1 и флагом force для немедленного перехода
                 if (this.app.router && typeof this.app.router.navigate === 'function') {
-                    this.app.router.navigate('/onboarding?retake=1', { force: true });
+                    this.app.router.navigate('/onboarding?retake=1', { force: true, replace: true });
                 } else {
                     // Fallback через hash
                     window.location.hash = '#/onboarding?retake=1';
                 }
-            }, 150);
+            }, 100); // Сокращаем задержку до минимума
             
             console.log('✅ Тест сброшен успешно, режим повторного прохождения активирован');
             
