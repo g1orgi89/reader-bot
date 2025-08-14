@@ -181,6 +181,11 @@ const userProfileSchema = new mongoose.Schema({
     match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     // Email ОБЯЗАТЕЛЬНО после теста
   },
+  avatarUrl: {
+    type: String,
+    default: null
+    // URL загруженного аватара пользователя
+  },
   testResults: {
     type: testResultsSchema,
     required: true
@@ -452,6 +457,35 @@ userProfileSchema.methods = {
     }
     
     return this;
+  },
+
+  /**
+   * Сбросить результаты теста (для перезапуска)
+   * Обнуляет только testResults, сохраняет пользователя и статистику
+   * @returns {Promise<UserProfile>}
+   */
+  async resetTestResults() {
+    // Очищаем все поля testResults
+    this.testResults = {
+      question1_name: null,
+      question2_lifestyle: null,
+      question3_time: null,
+      question4_priorities: null,
+      question5_reading_feeling: null,
+      question6_phrase: null,
+      question7_reading_time: null,
+      completedAt: null
+    };
+    
+    // Сбрасываем статус завершения онбординга
+    this.isOnboardingComplete = false;
+    
+    // Обновляем состояние бота на начальное
+    this.botState.currentState = 'start';
+    this.botState.stateData = null;
+    this.botState.stateUpdatedAt = new Date();
+    
+    return this.save();
   },
 
   /**

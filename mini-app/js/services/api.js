@@ -225,7 +225,7 @@ class ApiService {
      * ✏️ Обновить профиль пользователя
      */
     async updateProfile(profileData, userId = 'demo-user') {
-        return this.request('PUT', '/profile', { ...profileData, userId });
+        return this.request('PATCH', `/profile?userId=${userId}`, profileData);
     }
 
     /**
@@ -233,50 +233,28 @@ class ApiService {
      */
     async uploadAvatar(fileOrBlob, userId = 'demo-user') {
         try {
-            // Создаем FormData для загрузки файла
-            const formData = new FormData();
-            formData.append('avatar', fileOrBlob);
-            formData.append('userId', userId);
-
             console.log('🖼️ Загружаем аватар для пользователя:', userId);
 
-            // Используем специальную версию request без JSON Content-Type
-            const url = `${this.baseURL}/profile/avatar`;
+            let base64Data;
             
-            // Retry логика для файлов
-            let lastError;
-            for (let attempt = 1; attempt <= this.config.retries; attempt++) {
-                try {
-                    const requestOptions = {
-                        method: 'POST',
-                        body: formData
-                        // НЕ устанавливаем Content-Type - браузер сделает это автоматически с boundary
-                    };
-
-                    // Добавляем timeout
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
-                    requestOptions.signal = controller.signal;
-
-                    const response = await fetch(url, requestOptions);
-                    clearTimeout(timeoutId);
-
-                    const result = await this.handleResponse(response, '/profile/avatar');
-                    
-                    console.log('✅ Аватар загружен успешно:', result);
-                    return result;
-
-                } catch (error) {
-                    lastError = error;
-                    console.log(`❌ Попытка ${attempt} загрузки аватара неудачна:`, error.message);
-
-                    if (attempt < this.config.retries) {
-                        await this.delay(this.config.retryDelay * attempt);
-                    }
-                }
+            // Обрабатываем разные типы входных данных
+            if (fileOrBlob instanceof Blob || fileOrBlob instanceof File) {
+                // Конвертируем файл в base64
+                base64Data = await this.fileToBase64(fileOrBlob);
+            } else if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
+                // Уже base64 data URL
+                base64Data = fileOrBlob;
+            } else {
+                throw new Error('Unsupported file format');
             }
 
-            throw lastError;
+            // Отправляем как JSON с base64 данными
+            const result = await this.request('POST', `/profile/avatar?userId=${userId}`, {
+                image: base64Data
+            });
+            
+            console.log('✅ Аватар загружен успешно:', result);
+            return result;
 
         } catch (error) {
             console.error('❌ Ошибка загрузки аватара:', error);
@@ -289,6 +267,36 @@ class ApiService {
                 throw new Error(`Не удалось загрузить аватар: ${error.message}`);
             }
         }
+    }
+
+    /**
+     * 🔄 Перезапустить тест пользователя
+     */
+    async resetTest(userId = 'demo-user') {
+        try {
+            console.log('🔄 Сбрасываем тест для пользователя:', userId);
+            
+            const result = await this.request('POST', `/profile/reset-test?userId=${userId}`);
+            
+            console.log('✅ Тест сброшен успешно:', result);
+            return result;
+
+        } catch (error) {
+            console.error('❌ Ошибка сброса теста:', error);
+            throw new Error(`Не удалось сбросить тест: ${error.message}`);
+        }
+    }
+
+    /**
+     * 🔧 Конвертировать файл в base64
+     */
+    async fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     }
 
     /**
