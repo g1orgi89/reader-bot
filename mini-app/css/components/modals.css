@@ -751,7 +751,7 @@ body.modal-open {
     margin-bottom: var(--spacing-lg);
 }
 
-.profile-avatar {
+..profile-avatar {
     width: 120px;
     height: 120px;
     border-radius: 50%;
@@ -760,6 +760,14 @@ body.modal-open {
     box-shadow: 0 4px 12px rgba(210, 69, 44, 0.3);
     border: 4px solid var(--bg-card);
     transition: all var(--duration-normal) var(--ease-out);
+    background: linear-gradient(135deg,
+        var(--primary-color, #D2452C),
+        var(--primary-light, #E5674F)
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
 }
 
 .profile-avatar:hover {
@@ -786,7 +794,10 @@ body.modal-open {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    background: linear-gradient(135deg,
+        var(--primary-color, #D2452C),
+        var(--primary-light, #E5674F)
+    );
     color: white;
     font-weight: 700;
     font-size: 36px;
