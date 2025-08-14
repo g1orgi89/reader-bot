@@ -46,7 +46,7 @@ router.get('/health', (req, res) => {
  */
 router.post('/auth/telegram', async (req, res) => {
     try {
-        const { telegramData, user } = req.body;
+        const { user } = req.body;
         
         if (!user || !user.id) {
             return res.status(400).json({
@@ -132,7 +132,7 @@ router.get('/auth/onboarding-status', async (req, res) => {
  */
 router.post('/auth/complete-onboarding', async (req, res) => {
     try {
-        const { telegramData, user, answers, email, source } = req.body;
+        const { user, answers, email, source } = req.body;
         
         if (!user || !user.id || !answers || !email || !source) {
             return res.status(400).json({
@@ -1108,7 +1108,6 @@ router.get('/recommendations', async (req, res) => {
         
         // Анализируем предпочтения пользователя
         const userThemes = user?.preferences?.mainThemes || [];
-        const favoriteCategories = user?.statistics?.favoriteAuthors || [];
         
         // Получаем рекомендации на основе тем
         let recommendations = await BookCatalog.getRecommendationsByThemes(userThemes, 3);
