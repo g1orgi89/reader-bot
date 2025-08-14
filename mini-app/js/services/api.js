@@ -190,11 +190,32 @@ class ApiService {
      */
     async checkOnboardingStatus(userId = 'demo-user') {
         try {
-            return await this.request('GET', `/auth/onboarding-status?userId=${userId}`);
+            const response = await this.request('GET', `/auth/onboarding-status?userId=${userId}`);
+            
+            // Backward compatibility: provide fallback to old keys during deploy
+            if (response && response.success) {
+                return {
+                    ...response,
+                    // New unified field
+                    isOnboardingComplete: response.isOnboardingComplete,
+                    // Backward-safe fallbacks (for cached clients that might still expect them)
+                    completed: response.isOnboardingComplete,
+                    isCompleted: response.isOnboardingComplete,
+                    isOnboardingCompleted: response.isOnboardingComplete
+                };
+            }
+            
+            return response;
         } catch (error) {
             console.log('❌ Ошибка проверки статуса онбординга', { error: error.message });
             // Fallback: считаем что онбординг не пройден
-            return { completed: false };
+            return { 
+                success: false,
+                isOnboardingComplete: false,
+                completed: false,
+                isCompleted: false,
+                isOnboardingCompleted: false
+            };
         }
     }
 
@@ -203,7 +224,14 @@ class ApiService {
      */
     async completeOnboarding(onboardingData) {
         try {
-            return await this.request('POST', '/auth/complete-onboarding', onboardingData);
+            const response = await this.request('POST', '/auth/complete-onboarding', onboardingData);
+            
+            // Handle both successful completion and already completed cases
+            if (response && response.success) {
+                return response;
+            }
+            
+            throw new Error(response?.message || 'Неизвестная ошибка при завершении онбординга');
         } catch (error) {
             console.log('❌ Ошибка завершения онбординга', { error: error.message });
             throw new Error('Не удалось сохранить данные онбординга');
@@ -284,6 +312,33 @@ class ApiService {
         } catch (error) {
             console.error('❌ Ошибка сброса теста:', error);
             throw new Error(`Не удалось сбросить тест: ${error.message}`);
+        }
+    }
+
+    /**
+     * 🔄 Сбросить онбординг (новый унифицированный метод)
+     */
+    async resetOnboarding(userId = 'demo-user') {
+        try {
+            console.log('🔄 Сбрасываем онбординг для пользователя:', userId);
+            
+            // Пытаемся использовать новый endpoint
+            try {
+                const result = await this.request('POST', `/auth/reset-onboarding?userId=${userId}`);
+                console.log('✅ Онбординг сброшен через новый endpoint:', result);
+                return result;
+            } catch (newEndpointError) {
+                console.warn('⚠️ Новый endpoint недоступен, fallback на старый:', newEndpointError.message);
+                
+                // Fallback на старый endpoint если новый недоступен
+                const fallbackResult = await this.resetTest(userId);
+                console.log('✅ Онбординг сброшен через fallback endpoint:', fallbackResult);
+                return fallbackResult;
+            }
+
+        } catch (error) {
+            console.error('❌ Ошибка сброса онбординга:', error);
+            throw new Error(`Не удалось сбросить онбординг: ${error.message}`);
         }
     }
 

@@ -22,9 +22,10 @@ const quoteHandler = new QuoteHandler();
 /**
  * Simple userId extraction from request
  * Supports both query parameters and request body
+ * Always returns String for consistency
  */
 function getUserId(req) {
-    return req.query.userId || req.body.userId || 'demo-user';
+    return String(req.query.userId || req.body.userId || 'demo-user');
 }
 
 /**
@@ -66,9 +67,9 @@ router.post('/auth/telegram', async (req, res) => {
                 lastName: user.last_name || '',
                 username: user.username || '',
                 telegramId: user.id,
-                isOnboardingCompleted: userProfile ? userProfile.isOnboardingComplete : false
+                isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false
             },
-            isOnboardingCompleted: userProfile ? userProfile.isOnboardingComplete : false
+            isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false
         };
 
         res.json(authData);
@@ -87,35 +88,48 @@ router.post('/auth/telegram', async (req, res) => {
  * @route GET /api/reader/auth/onboarding-status
  */
 router.get('/auth/onboarding-status', async (req, res) => {
-    try {
-        const userId = getUserId(req);
-        const userProfile = await UserProfile.findOne({ userId });
-        
-        const isOnboardingComplete = userProfile ? userProfile.isOnboardingComplete : false;
-        
-        res.json({
-            success: true,
-            isOnboardingComplete, // NEW: Top-level field for unified access
-            // Legacy fields for backward compatibility
-            isCompleted: isOnboardingComplete,
-            completed: isOnboardingComplete,
-            user: userProfile ? {
-                userId: userProfile.userId,
-                name: userProfile.name,
-                email: userProfile.email,
-                isOnboardingComplete: userProfile.isOnboardingComplete,
-                // Legacy field for backward compatibility
-                isOnboardingCompleted: userProfile.isOnboardingComplete
-            } : null
-        });
+  try {
+    const userId = getUserId(req);
 
-    } catch (error) {
-        console.error('❌ Onboarding Status Error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Ошибка проверки статуса онбординга'
-        });
+    // Если не удалось определить пользователя — возвращаем "пустой" статус
+    if (!userId) {
+      return res.json({
+        success: true,
+        isOnboardingComplete: false,
+        // Legacy поля (временно)
+        isCompleted: false,
+        completed: false,
+        isOnboardingCompleted: false,
+        user: null
+      });
     }
+
+    const userProfile = await UserProfile.findOne({ userId });
+
+    const isOnboardingComplete = !!(userProfile && userProfile.isOnboardingComplete);
+
+    return res.json({
+      success: true,
+      isOnboardingComplete,            // unified новое поле
+      // Legacy (оставляем временно для старого фронта / сторонних вызовов)
+      isCompleted: isOnboardingComplete,
+      completed: isOnboardingComplete,
+      isOnboardingCompleted: isOnboardingComplete,
+      user: userProfile ? {
+        userId: userProfile.userId,
+        name: userProfile.name,
+        email: userProfile.email,
+        isOnboardingComplete: userProfile.isOnboardingComplete
+      } : null
+    });
+
+  } catch (error) {
+    console.error('❌ Onboarding Status Error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'ONBOARDING_STATUS_FAILED'
+    });
+  }
 });
 
 /**
@@ -331,10 +345,114 @@ router.post('/auth/complete-onboarding', async (req, res) => {
             }
         );
 
-        // Проверяем, был ли пользователь создан сейчас или уже существовал
+                // Проверяем, был ли пользователь создан сейчас или уже существовал
         const wasJustCreated = !existingProfile;
+
+        // Если профиль НЕ только что создан
+        if (!wasJustCreated) {
+
+          // 1) Повторный вызов без forceRetake при уже завершённом онбординге → идемпотентный ответ
+          if (userProfile.isOnboardingComplete && !forceRetake) {
+            console.log(`⚠️ Пользователь ${userId} уже завершил онбординг (idempotent)`);
+            return res.status(200).json({
+              success: true,
+              alreadyCompleted: true,
+              user: {
+                userId: userProfile.userId,
+                name: userProfile.name,
+                email: userProfile.email,
+                isOnboardingComplete: true
+              }
+            });
+          }
+
+          // Общий конструктор testResults
+          const buildTestResults = (isRetake) => {
+            const now = new Date();
+            return {
+              question1_name: answers.question1_name || answers.name,
+              question2_lifestyle: answers.question2_lifestyle || answers.lifestyle,
+              question3_time: answers.question3_time || answers.timeForSelf,
+              question4_priorities: answers.question4_priorities || answers.priorities,
+              question5_reading_feeling: answers.question5_reading_feeling || answers.readingFeelings,
+              question6_phrase: answers.question6_phrase || answers.closestPhrase,
+              question7_reading_time: answers.question7_reading_time || answers.readingTime,
+              // completedAt фиксируем при первом завершении (если вдруг не было)
+              completedAt: userProfile.testResults?.completedAt || now,
+              ...(isRetake ? { retakeAt: now } : {})
+            };
+          };
+
+          // 2) Retake (forceRetake === true)
+          if (forceRetake) {
+            console.log(`🔄 RETAKE: принудительное обновление пользователя ${userId}`);
+            await UserProfile.updateOne(
+              { userId },
+              {
+                $set: {
+                  name: (answers.question1_name || answers.name) || userProfile.name,
+                  email: sanitizedEmail || userProfile.email,
+                  source: sanitizedSource || userProfile.source,
+                  testResults: buildTestResults(true),
+                  isOnboardingComplete: true,
+                  updatedAt: new Date()
+                }
+              }
+            );
+            userProfile = await UserProfile.findOne({ userId });
+          } else {
+            // 3) Первый догоняющий completion (профиль существовал, но флаг был false)
+            await UserProfile.updateOne(
+              { userId },
+              {
+                $set: {
+                  name: (answers.question1_name || answers.name) || userProfile.name,
+                  email: sanitizedEmail || userProfile.email,
+                  source: sanitizedSource || userProfile.source,
+                  testResults: buildTestResults(false),
+                  isOnboardingComplete: true,
+                  updatedAt: new Date()
+                }
+              }
+            );
+            userProfile = await UserProfile.findOne({ userId });
+          }
+        }
+
+        console.log(`✅ Пользователь ${wasJustCreated ? 'создан' : (forceRetake ? 'обновлён (retake)' : 'обновлён')}: ${userProfile.userId} (${userProfile.name})`);
+
+        return res.json({
+          success: true,
+          ...(forceRetake ? { retake: true } : {}),
+          user: {
+            userId: userProfile.userId,
+            name: userProfile.name,
+            email: userProfile.email,
+            isOnboardingComplete: true
+          },
+          message: wasJustCreated
+            ? 'Онбординг успешно завершён'
+            : (forceRetake ? 'Онбординг обновлён (retake)' : 'Статус онбординга подтверждён')
+        });
+
+/**
+ * @description Сброс онбординга
+ * @route POST /api/reader/auth/reset-onboarding
+ */
+router.post('/auth/reset-onboarding', async (req, res) => {
+    try {
+        const userId = getUserId(req);
         
-        console.log(`✅ Пользователь ${wasJustCreated ? 'создан' : 'обновлен'}: ${userProfile.userId} (${userProfile.name})`);
+        const userProfile = await UserProfile.findOne({ userId });
+        if (!userProfile) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        // Используем новый метод для сброса результатов теста
+        await userProfile.resetTestResults();
         
         res.json({
             success: true,
@@ -343,15 +461,13 @@ router.post('/auth/complete-onboarding', async (req, res) => {
                 name: userProfile.name,
                 email: userProfile.email,
                 isOnboardingComplete: userProfile.isOnboardingComplete
-            },
-            message: wasJustCreated ? 'Онбординг успешно завершен' : 'Онбординг успешно обновлен'
+            }
         });
     } catch (error) {
-        console.error('❌ Ошибка онбординга:', error);
-        
+        console.error('❌ Reset Onboarding Error:', error);
         res.status(500).json({ 
             success: false, 
-            error: 'Internal server error during onboarding'
+            error: 'Internal server error during onboarding reset'
         });
     }
 });

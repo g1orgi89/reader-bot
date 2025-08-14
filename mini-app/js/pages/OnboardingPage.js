@@ -207,14 +207,14 @@ class OnboardingPage {
             this._statusLoaded = true;
             
             // RETAKE: Только редиректим если завершен И НЕ в режиме повторного прохождения
-            if (onboardingStatus.completed && !this.isRetakeMode) {
+            if (onboardingStatus.isOnboardingComplete && !this.isRetakeMode) {
                 // Перенаправляем на главную страницу
                 this.app.router.navigate('/home');
                 return;
             }
             
             // RETAKE: Если в режиме повторного прохождения, предзаполняем предыдущие ответы
-            if (this.isRetakeMode && onboardingStatus.completed) {
+            if (this.isRetakeMode && onboardingStatus.isOnboardingComplete) {
                 this.prefillPreviousAnswers(onboardingStatus);
             }
         } catch (error) {
@@ -1203,15 +1203,14 @@ class OnboardingPage {
             // Haptic feedback успеха
             this.triggerHapticFeedback('success');
             
-            // RETAKE: Разные сообщения для первого прохождения, повторного и уже завершенного
-            let successMessage;
-            if (isAlreadyCompleted) {
-                successMessage = '✅ Вы уже завершили регистрацию!';
-            } else if (this.isRetakeMode) {
-                successMessage = '✅ Обновлено!';
-            } else {
-                successMessage = '✅ Добро пожаловать в сообщество читателей!';
-            }
+            // RETAKE / IDEMPOTENT: сообщения для уже завершённого, ретейка и первого прохождения
+            const successMessage = isAlreadyCompleted
+              ? '✅ Онбординг уже завершён!'
+              : this.isRetakeMode
+                ? '✅ Ответы обновлены!'
+                : '✅ Добро пожаловать в сообщество читателей!';
+
+            statusEl.textContent = successMessage;
             
             // Показ уведомления об успехе
             this.showSuccess(successMessage);

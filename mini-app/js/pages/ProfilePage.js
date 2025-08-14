@@ -490,9 +490,17 @@ class ProfilePage {
             
             // RETAKE: Опциональный вызов backend reset (если API доступен)
             try {
-                const result = await this.api.resetTest(userId);
+                const result = await this.api.resetOnboarding(userId);
                 if (result.success) {
                     console.log('✅ Backend reset выполнен успешно');
+                    
+                    // Update state based on server response
+                    if (result.user) {
+                        this.state?.update('user.profile', {
+                            ...result.user,
+                            isOnboardingComplete: result.user.isOnboardingComplete || false
+                        });
+                    }
                 }
             } catch (apiError) {
                 console.warn('⚠️ Backend reset недоступен, продолжаем с локальным сбросом:', apiError.message);
