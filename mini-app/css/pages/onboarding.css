@@ -680,3 +680,34 @@
     margin-left: var(--spacing-sm);
     opacity: 0.8;
 }
+
+/* === RETAKE FIX START === */
+/* RETAKE: Специальные стили для экрана завершения в режиме повторного прохождения */
+.completion-screen.retake-mode {
+    background: linear-gradient(135deg, rgba(210, 69, 44, 0.05), rgba(210, 69, 44, 0.02));
+    border: 1px solid rgba(210, 69, 44, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    margin: var(--spacing-lg) 0;
+}
+
+.completion-screen.retake-mode .completion-title {
+    color: var(--primary-color);
+    position: relative;
+}
+
+.completion-screen.retake-mode .completion-title::before {
+    content: '🔄';
+    margin-right: var(--spacing-sm);
+    font-size: 0.9em;
+}
+
+/* Убираем повторные анимации в режиме повторного прохождения */
+.onboarding-page.is-retake .onboarding-content-wrapper {
+    animation: none;
+}
+
+.onboarding-page.is-retake .no-repeat-anim {
+    animation: none !important;
+}
+/* === RETAKE FIX END === */

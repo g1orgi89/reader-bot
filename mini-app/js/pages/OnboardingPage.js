@@ -26,6 +26,11 @@ class OnboardingPage {
         // RETAKE: Режим повторного прохождения
         this.isRetakeMode = false;
         
+        // === RETAKE FIX START ===
+        // Защита от двойных переходов между шагами
+        this.transitioning = false;
+        // === RETAKE FIX END ===
+        
         // Данные теста - 7 вопросов из технического задания
         this.questions = [
             {
@@ -442,6 +447,28 @@ class OnboardingPage {
     renderCompletion() {
         const userName = this.answers.name || 'Друг';
         
+        // === RETAKE FIX START ===
+        // В режиме повторного прохождения не показываем форму контактов
+        if (this.isRetakeMode) {
+            return `
+                <div class="completion-screen retake-mode">
+                    <div class="completion-title">${userName}, ваш профиль обновлен!</div>
+                    <div class="completion-description">
+                        Спасибо за актуализацию ваших данных. Теперь я смогу давать еще более точные персональные рекомендации.
+                        <br><br>
+                        Готовы продолжить работу с обновленным профилем?
+                    </div>
+                    
+                    <div class="anna-signature">
+                        "Регулярное обновление профиля помогает мне лучше понимать ваши изменения и потребности!"
+                        <br><br>
+                        — Анна Бусел
+                    </div>
+                </div>
+            `;
+        }
+        // === RETAKE FIX END ===
+        
         return `
             <div class="completion-screen">
                 <div class="completion-title">${userName}, спасибо за ответы!</div>
@@ -524,16 +551,50 @@ class OnboardingPage {
      * 🎯 Навешивание обработчиков событий
      */
     attachEventListeners() {
-        // Кнопка навигации
-        this.attachNavigationListener();
+        // === RETAKE FIX START ===
+        // Удаляем старый делегированный обработчик если существует
+        if (this.delegatedClickHandler) {
+            const container = document.querySelector('.onboarding-page');
+            if (container) {
+                container.removeEventListener('click', this.delegatedClickHandler);
+            }
+        }
         
-        // Поля ввода
+        // Создаем единый делегированный обработчик для всех кликов
+        this.delegatedClickHandler = (event) => {
+            const target = event.target;
+            
+            // Кнопка навигации
+            if (target.classList.contains('next-button') || target.id === 'startBtn' || 
+                target.id === 'nextBtn' || target.id === 'completeBtn') {
+                this.handleNavigation();
+                return;
+            }
+            
+            // Варианты ответов (кроме источников)
+            if (target.classList.contains('answer-option') && !target.classList.contains('source-option')) {
+                this.handleAnswerOptionClick(target);
+                return;
+            }
+            
+            // Опции источников
+            if (target.classList.contains('source-option')) {
+                this.handleSourceOptionClick(target);
+                return;
+            }
+        };
+        
+        // Привязываем делегированный обработчик к корневому элементу
+        const container = document.querySelector('.onboarding-page');
+        if (container) {
+            container.addEventListener('click', this.delegatedClickHandler);
+        }
+        // === RETAKE FIX END ===
+        
+        // Поля ввода (обрабатываем отдельно, так как нужны события input/keypress)
         this.attachInputListeners();
         
-        // Варианты ответов (radio buttons)
-        this.attachOptionListeners();
-        
-        // Контактная форма
+        // Контактная форма email (если присутствует)
         this.attachContactListeners();
     }
     
@@ -590,6 +651,47 @@ class OnboardingPage {
             });
         });
     }
+    
+    // === RETAKE FIX START ===
+    /**
+     * 🎯 Обработчик клика по варианту ответа (для делегированных событий)
+     */
+    handleAnswerOptionClick(option) {
+        // Убираем выделение с других опций
+        const options = document.querySelectorAll('.answer-option:not(.source-option)');
+        options.forEach(opt => opt.classList.remove('selected'));
+        
+        // Выделяем текущую опцию
+        option.classList.add('selected');
+        
+        // Сохраняем ответ
+        const value = option.dataset.value;
+        this.saveCurrentAnswer(value);
+        this.updateNavigationButton();
+        
+        // Haptic feedback
+        this.telegram.hapticFeedback('light');
+    }
+    
+    /**
+     * 📱 Обработчик клика по опции источника (для делегированных событий)
+     */
+    handleSourceOptionClick(option) {
+        // Убираем выделение с других опций
+        const sourceOptions = document.querySelectorAll('.source-option');
+        sourceOptions.forEach(opt => opt.classList.remove('selected'));
+        
+        // Выделяем текущую опцию
+        option.classList.add('selected');
+        
+        // Сохраняем источник
+        this.contactData.source = option.dataset.source;
+        this.updateNavigationButton();
+        
+        // Haptic feedback
+        this.telegram.hapticFeedback('light');
+    }
+    // === RETAKE FIX END ===
     
     /**
      * 📧 Обработчики контактной формы
@@ -648,6 +750,21 @@ class OnboardingPage {
      * ➡️ Переход к следующему шагу
      */
     nextStep() {
+        // === RETAKE FIX START ===
+        // Защита от двойных переходов
+        if (this.transitioning) {
+            console.log('🚫 OnboardingPage: Переход уже в процессе, игнорируем');
+            return;
+        }
+        
+        this.transitioning = true;
+        
+        // Освобождаем блокировку через 150ms
+        setTimeout(() => {
+            this.transitioning = false;
+        }, 150);
+        // === RETAKE FIX END ===
+        
         this.currentStep++;
         this.rerender();
     }
@@ -684,6 +801,13 @@ class OnboardingPage {
      * ✅ Проверка валидности контактных данных
      */
     isContactDataValid() {
+        // === RETAKE FIX START ===
+        // В режиме повторного прохождения пропускаем валидацию контактов
+        if (this.isRetakeMode) {
+            return true;
+        }
+        // === RETAKE FIX END ===
+        
         // Email не обязателен, но если введен - должен быть валидным
         if (this.contactData.email && !this.isValidEmail(this.contactData.email)) {
             return false;
@@ -715,6 +839,19 @@ class OnboardingPage {
         } else if (this.currentStep > 0) {
             disabled = !this.isCurrentStepValid();
         }
+        
+        // === RETAKE FIX START ===
+        // Отладочное логирование для диагностики состояния кнопки
+        console.log('🔘 OnboardingPage: updateNavigationButton', {
+            currentStep: this.currentStep,
+            totalSteps: this.totalSteps,
+            loading: this.loading,
+            isRetakeMode: this.isRetakeMode,
+            isContactDataValid: this.isContactDataValid(),
+            isCurrentStepValid: this.isCurrentStepValid(),
+            disabled: disabled
+        });
+        // === RETAKE FIX END ===
         
         button.disabled = disabled;
     }
@@ -759,6 +896,23 @@ class OnboardingPage {
                 telegramData: telegramData,
                 retake: this.isRetakeMode         // RETAKE: Передаем флаг повторного прохождения
             };
+            
+            // === RETAKE FIX START ===
+            // В режиме повторного прохождения инжектируем email из профиля если локальный пустой
+            if (this.isRetakeMode && (!this.contactData.email || this.contactData.email.trim() === '')) {
+                const profileEmail = this.state.get('user.profile.email');
+                if (profileEmail) {
+                    onboardingData.email = profileEmail;
+                    console.log('📧 OnboardingPage: Инжектирован email из профиля:', profileEmail);
+                }
+            }
+            
+            // В режиме повторного прохождения не отправляем source или ставим undefined
+            if (this.isRetakeMode) {
+                onboardingData.source = undefined;
+                console.log('📱 OnboardingPage: Source пропущен для режима повторного прохождения');
+            }
+            // === RETAKE FIX END ===
             
             // Отправка данных на сервер
             await this.api.completeOnboarding(onboardingData);
@@ -831,6 +985,9 @@ class OnboardingPage {
             const retakeClass = this.isRetakeMode ? ' is-retake' : '';
             container.className = `onboarding-page${retakeClass}`;
             
+            // === RETAKE FIX START ===
+            // Обновляем только внутренний HTML, сохраняя корневой контейнер
+            // для предотвращения пересоздания делегированных обработчиков
             container.innerHTML = `
                 ${this.renderHeader()}
                 ${this.renderProgress()}
@@ -839,7 +996,9 @@ class OnboardingPage {
                 </div>
                 ${this.renderNavigationButton()}
             `;
+            // Переустанавливаем обработчики событий один раз
             this.attachEventListeners();
+            // === RETAKE FIX END ===
         }
     }
     
@@ -905,6 +1064,17 @@ class OnboardingPage {
      * 🧹 Очистка при уничтожении
      */
     destroy() {
+        // === RETAKE FIX START ===
+        // Очищаем делегированный обработчик событий
+        if (this.delegatedClickHandler) {
+            const container = document.querySelector('.onboarding-page');
+            if (container) {
+                container.removeEventListener('click', this.delegatedClickHandler);
+            }
+            this.delegatedClickHandler = null;
+        }
+        // === RETAKE FIX END ===
+        
         // Очистка состояния компонента
         this.loading = false;
         this.error = null;
