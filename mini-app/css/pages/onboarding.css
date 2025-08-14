@@ -36,31 +36,60 @@
 /* 📄 Главный контейнер - использует естественный скролл документа */
 .onboarding-page {
     min-height: 100vh;
+    max-height: 100vh; /* Ограничиваем высоту для включения скролла */
     background: var(--bg-primary);
     padding: var(--spacing-lg) var(--spacing-md);
     max-width: var(--onboarding-content-max-width);
     margin: 0 auto;
     display: flex;
     flex-direction: column;
+    /* Включаем вертикальный скролл для переполнения */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
     /* Достаточный отступ снизу для sticky кнопки + safe area + навигация */
     padding-bottom: calc(
         var(--button-height) + 
         var(--spacing-xl) + 
         var(--bottom-nav-height) + 
-        env(safe-area-inset-bottom, 0px)
+        env(safe-area-inset-bottom, 0px) +
+        var(--spacing-lg) /* Дополнительный отступ для контактной формы */
     );
+}
+
+/* 📦 Контейнер контента с ограничением высоты */
+.onboarding-content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 200px); /* Оставляем место для header, progress, button */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 🔄 Динамический контент */
+.onboarding-dynamic {
+    flex: 1;
+    min-height: 0; /* Позволяет flex item сжиматься */
 }
 
 /* 📱 Мобильные адаптации для меньших экранов */
 @media (max-width: 480px) {
     .onboarding-page {
         padding: var(--spacing-md);
+        max-height: 100vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         padding-bottom: calc(
             var(--button-height) + 
             var(--spacing-lg) + 
             var(--bottom-nav-height) + 
-            env(safe-area-inset-bottom, 0px)
+            env(safe-area-inset-bottom, 0px) +
+            var(--spacing-xl) /* Больший отступ для мобильных */
         );
+    }
+    
+    .onboarding-content-wrapper {
+        max-height: calc(100vh - 180px); /* Меньше места для UI на мобильных */
     }
 }
 
@@ -347,6 +376,8 @@
     padding: var(--spacing-xl);
     box-shadow: var(--shadow-md);
     border: 1px solid var(--bg-secondary);
+    /* Обеспечиваем видимость на всех экранах */
+    margin-bottom: var(--spacing-lg);
 }
 
 .form-group {
@@ -363,6 +394,30 @@
     font-weight: var(--font-weight-medium);
     color: var(--text-primary);
     margin-bottom: var(--spacing-sm);
+}
+
+/* 📱 Опции источников - гибкая сетка */
+.contact-form .answer-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+}
+
+.contact-form .source-option {
+    flex: 0 0 calc(50% - var(--spacing-sm) / 2); /* 2 колонки на мобильных */
+    min-height: var(--onboarding-option-min-height);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 💻 Адаптация для больших экранов */
+@media (min-width: 480px) {
+    .contact-form .source-option {
+        flex: 0 0 calc(33.333% - var(--spacing-sm) * 2 / 3); /* 3 колонки */
+    }
 }
 
 /* ============================================================================

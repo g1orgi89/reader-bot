@@ -126,9 +126,50 @@ router.get('/auth/onboarding-status', async (req, res) => {
 });
 
 /**
+ * @description Нормализация входных данных онбординга
+ * Преобразует различные варианты source в соответствии с enum схемы
+ */
+function normalizeOnboardingInput(email, source) {
+    // Нормализация email
+    const normalizedEmail = email ? email.trim() : '';
+    
+    // Карта нормализации источников
+    const sourceMapping = {
+        // Прямые соответствия (уже корректные)
+        'Instagram': 'Instagram',
+        'Telegram': 'Telegram', 
+        'YouTube': 'YouTube',
+        'Threads': 'Threads',
+        'Друзья': 'Друзья',
+        'Другое': 'Другое',
+        
+        // Проблематичные варианты для нормализации
+        'telegram': 'Telegram',        // lowercase -> правильный case
+        'От друзей': 'Друзья',        // локализованная строка -> enum значение
+        'от друзей': 'Друзья',        // lowercase вариант
+        'instagram': 'Instagram',      // lowercase
+        'youtube': 'YouTube',          // lowercase
+        'threads': 'Threads',          // lowercase
+        'другое': 'Другое',           // lowercase
+        'друзья': 'Друзья'            // lowercase
+    };
+    
+    // Нормализация source с fallback на 'Другое'
+    const normalizedSource = source && sourceMapping[source] 
+        ? sourceMapping[source] 
+        : 'Другое';
+    
+    return {
+        email: normalizedEmail,
+        source: normalizedSource
+    };
+}
+
+/**
  * @description Завершение онбординга
  * @route POST /api/reader/auth/complete-onboarding
  * 🚨 ИСПРАВЛЕНО: Устранена race condition при создании пользователей
+ * 🔧 ДОБАВЛЕНО: Нормализация и валидация входных данных
  */
 router.post('/auth/complete-onboarding', async (req, res) => {
     try {
@@ -141,9 +182,31 @@ router.post('/auth/complete-onboarding', async (req, res) => {
             });
         }
 
-        // Sanitize email and source with defaults
-        const sanitizedEmail = email || '';
-        const sanitizedSource = source || 'telegram';
+        // Нормализация и валидация входных данных
+        const { email: normalizedEmail, source: normalizedSource } = normalizeOnboardingInput(email, source);
+        
+        // Валидация email (должен быть непустым)
+        if (!normalizedEmail || normalizedEmail.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'EMAIL_REQUIRED',
+                message: 'Email адрес обязателен для завершения регистрации'
+            });
+        }
+        
+        // Проверка валидности email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(normalizedEmail)) {
+            return res.status(400).json({
+                success: false,
+                error: 'EMAIL_INVALID',
+                message: 'Некорректный формат email адреса'
+            });
+        }
+
+        // Используем нормализованные значения
+        const sanitizedEmail = normalizedEmail;
+        const sanitizedSource = normalizedSource;
 
         const userId = user.id.toString();
 

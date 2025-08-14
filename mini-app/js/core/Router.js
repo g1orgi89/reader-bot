@@ -105,6 +105,10 @@ class AppRouter {
         this.telegram = telegram;
         this.app = app;
         
+        // Навигационная защита от дублирования
+        this._lastNavigationPath = null;
+        this._lastNavigationTime = 0;
+        
         // Привязываем методы к контексту
         this.handlePopState = this.handlePopState.bind(this);
         this.handleNavigation = this.handleNavigation.bind(this);
@@ -314,12 +318,17 @@ class AppRouter {
         const normalizedPath = this.normalizePath(path);
         console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`);
 
-        // Предотвращаем дублирование навигации
+        // Усиленная защита от дублирования навигации
         if (this.isNavigating && !options.force) {
-            console.log('⚠️ Router: Навигация уже выполняется, откладываем повтор через 100мс');
-            setTimeout(() => {
-                this.navigate(path, options);
-            }, 100);
+            console.log('⚠️ Router: Навигация уже выполняется, игнорируем повторный вызов');
+            return;
+        }
+        
+        // Проверяем на избыточные переходы на тот же путь
+        if (this._lastNavigationPath === normalizedPath && 
+            Date.now() - this._lastNavigationTime < 500 && 
+            !options.force) {
+            console.log('⚠️ Router: Игнорируем дублированный переход на тот же путь');
             return;
         }
 
@@ -328,6 +337,10 @@ class AppRouter {
             console.log('⚠️ Router: Уже на этой странице, игнорируем');
             return;
         }
+
+        // Сохраняем информацию о последней навигации
+        this._lastNavigationPath = normalizedPath;
+        this._lastNavigationTime = Date.now();
 
         // Проверяем существование маршрута
         const route = this.routes.get(normalizedPath);

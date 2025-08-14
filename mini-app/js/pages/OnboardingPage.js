@@ -141,6 +141,9 @@ class OnboardingPage {
         // RETAKE: Проверяем режим повторного прохождения
         this.detectRetakeMode();
         
+        // Устанавливаем guard против выхода из онбординга
+        this.setupPopstateGuard();
+        
         // === ONBOARDING STABILITY START ===
         // Проверяем, не применен ли уже onboarding gate в App.js
         // чтобы избежать дублирующих navigate('/onboarding')
@@ -211,6 +214,60 @@ class OnboardingPage {
         // Устанавливаем флаг в состоянии для последующего использования
         if (this.isRetakeMode) {
             this.state.set('onboarding.isRetake', true);
+        }
+    }
+    
+    /**
+     * 🚪 Установка защиты от выхода из онбординга через кнопку "Назад"
+     */
+    setupPopstateGuard() {
+        // Проверяем, не установлен ли уже guard
+        if (this._popstateGuardActive) {
+            return;
+        }
+        
+        this._popstateGuardActive = true;
+        
+        // Обработчик popstate событий (кнопка "Назад" браузера)
+        this._popstateHandler = (event) => {
+            // Проверяем, завершен ли онбординг
+            const isOnboardingComplete = this.state.get('user.profile.isOnboardingCompleted');
+            
+            // Если онбординг не завершен и мы не в режиме retake, блокируем выход
+            if (!isOnboardingComplete && !this.isRetakeMode) {
+                console.log('🚪 OnboardingPage: Блокируем выход из незавершенного онбординга');
+                
+                // Предотвращаем навигацию назад
+                event.preventDefault();
+                history.pushState(null, null, window.location.pathname);
+                
+                // Показываем предупреждение пользователю
+                if (this.telegram && this.telegram.showAlert) {
+                    this.telegram.showAlert('Пожалуйста, завершите тест для продолжения работы с ботом');
+                }
+                
+                return false;
+            }
+        };
+        
+        // Устанавливаем слушатель
+        window.addEventListener('popstate', this._popstateHandler);
+        
+        // Добавляем состояние в историю для корректной работы guard
+        history.pushState(null, null, window.location.pathname);
+        
+        console.log('🚪 OnboardingPage: Popstate guard установлен');
+    }
+    
+    /**
+     * 🚪 Снятие защиты от выхода из онбординга
+     */
+    removePopstateGuard() {
+        if (this._popstateHandler && this._popstateGuardActive) {
+            window.removeEventListener('popstate', this._popstateHandler);
+            this._popstateHandler = null;
+            this._popstateGuardActive = false;
+            console.log('🚪 OnboardingPage: Popstate guard снят');
         }
     }
     
@@ -549,7 +606,7 @@ class OnboardingPage {
                 <div class="form-group">
                     <label class="form-label">📱 Откуда узнали о боте?</label>
                     <div class="answer-options">
-                        ${['Instagram', 'Telegram', 'YouTube', 'Threads', 'От друзей', 'Другое'].map(source => `
+                        ${['Instagram', 'Telegram', 'YouTube', 'Threads', 'Друзья', 'Другое'].map(source => `
                             <button class="answer-option source-option ${this.contactData.source === source ? 'selected' : ''}" 
                                     data-source="${source}">
                                 ${source}
@@ -873,20 +930,21 @@ class OnboardingPage {
         }
         // === RETAKE FIX END ===
         
-        // Email не обязателен, но если введен - должен быть валидным
-        if (this.contactData.email && !this.isValidEmail(this.contactData.email)) {
+        // Собираем актуальные данные из формы
+        const contactData = this.gatherContactData();
+        
+        // Email обязателен
+        if (!contactData.email || contactData.email.length === 0) {
             return false;
         }
         
-        // Источник обязателен, но если пользователь дошел до завершения без выбора источника,
-        // применяем автоматический fallback только один раз
-        if (!this.contactData.source || this.contactData.source.length === 0) {
-            // Автоматический fallback только если мы на этапе завершения
-            if (this.currentStep > this.totalSteps) {
-                this.contactData.source = 'telegram';
-                console.log('🔧 OnboardingPage: Автоматически установлен source=telegram для завершения');
-                return true;
-            }
+        // Email должен быть валидным
+        if (!this.isValidEmail(contactData.email)) {
+            return false;
+        }
+        
+        // Источник обязателен
+        if (!contactData.source || contactData.source.length === 0) {
             return false;
         }
         
@@ -899,6 +957,44 @@ class OnboardingPage {
     isValidEmail(email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
+    }
+    
+    /**
+     * 📊 Сбор и нормализация контактных данных
+     * Обеспечивает соответствие с backend enum
+     */
+    gatherContactData() {
+        const emailInput = document.getElementById('emailInput');
+        const currentEmail = emailInput ? emailInput.value.trim() : this.contactData.email;
+        
+        // Карта нормализации источников (совпадает с серверной)
+        const sourceMapping = {
+            'Instagram': 'Instagram',
+            'Telegram': 'Telegram', 
+            'YouTube': 'YouTube',
+            'Threads': 'Threads',
+            'Друзья': 'Друзья',
+            'Другое': 'Другое',
+            
+            // Проблематичные варианты для нормализации
+            'telegram': 'Telegram',
+            'От друзей': 'Друзья',        // локализованная строка -> enum значение
+            'от друзей': 'Друзья',
+            'instagram': 'Instagram',
+            'youtube': 'YouTube',
+            'threads': 'Threads',
+            'другое': 'Другое',
+            'друзья': 'Друзья'
+        };
+        
+        // Нормализация source с fallback
+        const rawSource = this.contactData.source || 'Другое';
+        const normalizedSource = sourceMapping[rawSource] || 'Другое';
+        
+        return {
+            email: currentEmail,
+            source: normalizedSource
+        };
     }
     
     /**
@@ -965,7 +1061,7 @@ class OnboardingPage {
             this.loading = true;
             this.updateNavigationButton();
             
-            // Подготовка данных для отправки
+            // Подготовка данных для отправки с нормализацией
             let telegramData = null;
             
             // Безопасное получение данных Telegram
@@ -978,17 +1074,20 @@ class OnboardingPage {
                 }
             }
             
+            // Собираем и нормализуем контактные данные
+            const contactData = this.gatherContactData();
+            
             const onboardingData = {
                 user: telegramData,               // ✅ Backend ожидает "user"
                 answers: this.answers,            // ✅ OK
-                email: this.contactData.email,    // ✅ Backend ожидает "email"
-                source: this.contactData.source,  // ✅ Backend ожидает "source"
+                email: contactData.email,         // ✅ Нормализованный email
+                source: contactData.source,       // ✅ Нормализованный source
                 telegramData: telegramData
             };
             
             // === RETAKE FIX START ===
             // В режиме повторного прохождения инжектируем email из профиля если локальный пустой
-            if (this.isRetakeMode && (!this.contactData.email || this.contactData.email.trim() === '')) {
+            if (this.isRetakeMode && (!contactData.email || contactData.email.trim() === '')) {
                 const profileEmail = this.state.get('user.profile.email');
                 if (profileEmail) {
                     onboardingData.email = profileEmail;
@@ -1002,15 +1101,14 @@ class OnboardingPage {
                 console.log('🔄 OnboardingPage: Добавлен forceRetake флаг для повторного прохождения');
             }
             
-            // Устанавливаем дефолтный source если отсутствует
-            if (!onboardingData.source) {
-                onboardingData.source = 'telegram';
-                console.log('📱 OnboardingPage: Установлен дефолтный source: telegram');
-            }
+            console.log('📤 OnboardingPage: Отправляем нормализованные данные:', onboardingData);
             // === RETAKE FIX END ===
             
             // Отправка данных на сервер
             await this.api.completeOnboarding(onboardingData);
+            
+            // Снимаем popstate guard после успешного завершения
+            this.removePopstateGuard();
             
             // Обновление состояния пользователя
             this.state.update('user.profile', {
@@ -1212,6 +1310,9 @@ class OnboardingPage {
      * 🧹 Очистка при уничтожении
      */
     destroy() {
+        // Снимаем popstate guard
+        this.removePopstateGuard();
+        
         // === RETAKE FIX START ===
         // Очищаем делегированный обработчик событий
         if (this.delegatedClickHandler) {
