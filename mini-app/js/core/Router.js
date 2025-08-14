@@ -286,11 +286,16 @@ class AppRouter {
      */
     handleInitialRoute() {
         // В Telegram Mini App используем hash роутинг
-        const rawHash = window.location.hash.slice(1) || '';
-        const hash = this.normalizePath(rawHash);
-        this.navigate(hash, { replace: true });
+        const rawHash = window.location.hash.slice(1);
+        if (rawHash) {
+            const hash = this.normalizePath(rawHash);
+            this.navigate(hash, { replace: true });
+        } else {
+            // Если hash пустой — стартуем с главной
+            this.navigate('/home', { replace: true });
+        }
     }
-
+    
     /**
      * 🧭 Навигация к указанному маршруту
      * @param {string} path - Путь назначения
