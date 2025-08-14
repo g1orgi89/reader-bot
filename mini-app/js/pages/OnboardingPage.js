@@ -1177,7 +1177,11 @@ class OnboardingPage {
             // === RETAKE FIX END ===
             
             // Отправка данных на сервер
-            await this.api.completeOnboarding(onboardingData);
+            const response = await this.api.completeOnboarding(onboardingData);
+            
+            // Handle both successful completion and already completed cases
+            const isAlreadyCompleted = response && response.alreadyCompleted;
+            console.log('📊 Ответ от сервера:', response, { isAlreadyCompleted });
             
             // Снимаем popstate guard после успешного завершения
             this.removePopstateGuard();
@@ -1199,10 +1203,15 @@ class OnboardingPage {
             // Haptic feedback успеха
             this.triggerHapticFeedback('success');
             
-            // RETAKE: Разные сообщения для первого прохождения и повторного
-            const successMessage = this.isRetakeMode 
-                ? '✅ Обновлено!' 
-                : '✅ Добро пожаловать в сообщество читателей!';
+            // RETAKE: Разные сообщения для первого прохождения, повторного и уже завершенного
+            let successMessage;
+            if (isAlreadyCompleted) {
+                successMessage = '✅ Вы уже завершили регистрацию!';
+            } else if (this.isRetakeMode) {
+                successMessage = '✅ Обновлено!';
+            } else {
+                successMessage = '✅ Добро пожаловать в сообщество читателей!';
+            }
             
             // Показ уведомления об успехе
             this.showSuccess(successMessage);
