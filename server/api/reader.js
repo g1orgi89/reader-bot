@@ -88,30 +88,48 @@ router.post('/auth/telegram', async (req, res) => {
  * @route GET /api/reader/auth/onboarding-status
  */
 router.get('/auth/onboarding-status', async (req, res) => {
-    try {
-        const userId = getUserId(req);
-        const userProfile = await UserProfile.findOne({ userId });
-        
-        const isOnboardingComplete = userProfile ? userProfile.isOnboardingComplete : false;
-        
-        res.json({
-            success: true,
-            isOnboardingComplete,
-            user: userProfile ? {
-                userId: userProfile.userId,
-                name: userProfile.name,
-                email: userProfile.email,
-                isOnboardingComplete: userProfile.isOnboardingComplete
-            } : null
-        });
+  try {
+    const userId = getUserId(req);
 
-    } catch (error) {
-        console.error('❌ Onboarding Status Error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Ошибка проверки статуса онбординга'
-        });
+    // Если не удалось определить пользователя — возвращаем "пустой" статус
+    if (!userId) {
+      return res.json({
+        success: true,
+        isOnboardingComplete: false,
+        // Legacy поля (временно)
+        isCompleted: false,
+        completed: false,
+        isOnboardingCompleted: false,
+        user: null
+      });
     }
+
+    const userProfile = await UserProfile.findOne({ userId });
+
+    const isOnboardingComplete = !!(userProfile && userProfile.isOnboardingComplete);
+
+    return res.json({
+      success: true,
+      isOnboardingComplete,            // unified новое поле
+      // Legacy (оставляем временно для старого фронта / сторонних вызовов)
+      isCompleted: isOnboardingComplete,
+      completed: isOnboardingComplete,
+      isOnboardingCompleted: isOnboardingComplete,
+      user: userProfile ? {
+        userId: userProfile.userId,
+        name: userProfile.name,
+        email: userProfile.email,
+        isOnboardingComplete: userProfile.isOnboardingComplete
+      } : null
+    });
+
+  } catch (error) {
+    console.error('❌ Onboarding Status Error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'ONBOARDING_STATUS_FAILED'
+    });
+  }
 });
 
 /**
@@ -182,51 +200,120 @@ router.post('/auth/complete-onboarding', async (req, res) => {
             isForceRetake: !!forceRetake
         });
 
-        // Нормализация и валидация входных данных
+        // Нормализация входных данных
         const { email: normalizedEmail, source: normalizedSource } = normalizeOnboardingInput(email, source);
         
-        // Валидация email (должен быть непустым)
-        if (!normalizedEmail || normalizedEmail.length === 0) {
-            console.log('❌ Email validation failed:', { 
-                originalEmail: email, 
-                normalizedEmail, 
-                reason: 'empty_or_missing' 
-            });
-            return res.status(400).json({
-                success: false,
-                error: 'EMAIL_REQUIRED',
-                message: 'Email адрес обязателен для завершения регистрации'
-            });
-        }
+        const userId = user.id.toString();
+
+        // Сначала проверяем существующего пользователя
+        const existingProfile = await UserProfile.findOne({ userId });
         
-        // Проверка валидности email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(normalizedEmail)) {
-            console.log('❌ Email format validation failed:', { 
-                email: normalizedEmail, 
-                reason: 'invalid_format' 
-            });
-            return res.status(400).json({
-                success: false,
-                error: 'EMAIL_INVALID',
-                message: 'Некорректный формат email адреса'
-            });
+        // Валидация email - обязателен только для новых пользователей или если не установлен forceRetake
+        const isFirstCompletion = !existingProfile || !existingProfile.isOnboardingComplete;
+        
+        if (isFirstCompletion && !forceRetake) {
+            if (!normalizedEmail || normalizedEmail.length === 0) {
+                console.log('❌ Email validation failed:', { 
+                    originalEmail: email, 
+                    normalizedEmail, 
+                    reason: 'empty_or_missing_first_completion' 
+                });
+                return res.status(400).json({
+                    success: false,
+                    error: 'EMAIL_REQUIRED',
+                    message: 'Email адрес обязателен для завершения регистрации'
+                });
+            }
+            
+            // Проверка валидности email для первого завершения
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(normalizedEmail)) {
+                console.log('❌ Email format validation failed:', { 
+                    email: normalizedEmail, 
+                    reason: 'invalid_format' 
+                });
+                return res.status(400).json({
+                    success: false,
+                    error: 'EMAIL_INVALID',
+                    message: 'Некорректный формат email адреса'
+                });
+            }
         }
 
         // Используем нормализованные значения
         const sanitizedEmail = normalizedEmail;
         const sanitizedSource = normalizedSource;
 
-        const userId = user.id.toString();
+        // Scenario c: Existing user & isOnboardingComplete=true & !forceRetake -> return alreadyCompleted
+        if (existingProfile && existingProfile.isOnboardingComplete && !forceRetake) {
+            console.log(`⚠️ Пользователь ${userId} уже завершил онбординг - возвращаем alreadyCompleted`);
+            return res.status(200).json({
+                success: true,
+                alreadyCompleted: true,
+                user: {
+                    userId: existingProfile.userId,
+                    name: existingProfile.name,
+                    email: existingProfile.email,
+                    isOnboardingComplete: existingProfile.isOnboardingComplete
+                }
+            });
+        }
 
-        // ИСПРАВЛЕНО: Используем атомарную операцию findOneAndUpdate с upsert
-        // для предотвращения race conditions при одновременном создании пользователей
+        // Scenario d: Existing user & forceRetake=true -> update with retakeAt
+        if (existingProfile && forceRetake) {
+            console.log(`🔄 RETAKE: Принудительное обновление пользователя ${userId}`);
+            
+            const updatedProfile = await UserProfile.findOneAndUpdate(
+                { userId },
+                {
+                    $set: {
+                        name: answers.question1_name || answers.name,
+                        email: sanitizedEmail || existingProfile.email, // сохраняем существующий email если новый пустой
+                        testResults: {
+                            question1_name: answers.question1_name || answers.name,
+                            question2_lifestyle: answers.question2_lifestyle || answers.lifestyle,
+                            question3_time: answers.question3_time || answers.timeForSelf,
+                            question4_priorities: answers.question4_priorities || answers.priorities,
+                            question5_reading_feeling: answers.question5_reading_feeling || answers.readingFeelings,
+                            question6_phrase: answers.question6_phrase || answers.closestPhrase,
+                            question7_reading_time: answers.question7_reading_time || answers.readingTime,
+                            completedAt: new Date(),
+                            retakeAt: new Date() // отмечаем время повторного прохождения
+                        },
+                        source: sanitizedSource || existingProfile.source, // сохраняем существующий source если новый пустой
+                        isOnboardingComplete: true,
+                        updatedAt: new Date()
+                    }
+                },
+                { new: true, runValidators: true }
+            );
+            
+            console.log(`✅ Пользователь обновлен (retake): ${updatedProfile.userId} (${updatedProfile.name})`);
+            
+            return res.json({
+                success: true,
+                retake: true,
+                user: {
+                    userId: updatedProfile.userId,
+                    name: updatedProfile.name,
+                    email: updatedProfile.email,
+                    isOnboardingComplete: updatedProfile.isOnboardingComplete
+                },
+                message: 'Онбординг успешно пройден повторно'
+            });
+        }
+
+        // Scenario a & b: New user OR existing user with isOnboardingComplete=false
         const userProfile = await UserProfile.findOneAndUpdate(
             { userId }, // фильтр для поиска
             {
                 $setOnInsert: {
                     // Данные устанавливаются только при создании нового документа
                     userId,
+                    createdAt: new Date()
+                },
+                $set: {
+                    // Данные обновляются всегда (для новых и существующих пользователей)
                     name: answers.question1_name || answers.name,
                     email: sanitizedEmail,
                     testResults: {
@@ -248,11 +335,6 @@ router.post('/auth/complete-onboarding', async (req, res) => {
                         chatId: user.id.toString()
                     },
                     isOnboardingComplete: true,
-                    registeredAt: new Date(),
-                    createdAt: new Date()
-                },
-                $set: {
-                    // Всегда обновляем timestamp последнего обновления
                     updatedAt: new Date()
                 }
             },
@@ -263,106 +345,95 @@ router.post('/auth/complete-onboarding', async (req, res) => {
             }
         );
 
-        // Проверяем, был ли пользователь создан сейчас или уже существовал
-        const wasJustCreated = userProfile.createdAt.getTime() === userProfile.updatedAt.getTime();
-        
-        // RETAKE: Если пользователь уже завершил онбординг и forceRetake не установлен
-        if (!wasJustCreated && userProfile.isOnboardingComplete && !forceRetake) {
-            console.log(`⚠️ Пользователь ${userId} уже завершил онбординг`);
+                // Проверяем, был ли пользователь создан сейчас или уже существовал
+        const wasJustCreated = !existingProfile;
+
+        // Если профиль НЕ только что создан
+        if (!wasJustCreated) {
+
+          // 1) Повторный вызов без forceRetake при уже завершённом онбординге → идемпотентный ответ
+          if (userProfile.isOnboardingComplete && !forceRetake) {
+            console.log(`⚠️ Пользователь ${userId} уже завершил онбординг (idempotent)`);
             return res.status(200).json({
-                success: true,
-                alreadyCompleted: true,
-                user: {
-                    userId: userProfile.userId,
-                    name: userProfile.name,
-                    email: userProfile.email,
-                    isOnboardingComplete: userProfile.isOnboardingComplete
-                }
-            });
-        }
-
-        // RETAKE: Если forceRetake установлен, обновляем существующего пользователя
-        if (!wasJustCreated && forceRetake) {
-            console.log(`🔄 RETAKE: Принудительное обновление пользователя ${userId}`);
-            
-            // Обновляем данные при повторном прохождении
-            await UserProfile.findOneAndUpdate(
-                { userId },
-                {
-                    $set: {
-                        name: answers.question1_name || answers.name,
-                        email: sanitizedEmail || userProfile.email, // сохраняем существующий email если новый пустой
-                        testResults: {
-                            question1_name: answers.question1_name || answers.name,
-                            question2_lifestyle: answers.question2_lifestyle || answers.lifestyle,
-                            question3_time: answers.question3_time || answers.timeForSelf,
-                            question4_priorities: answers.question4_priorities || answers.priorities,
-                            question5_reading_feeling: answers.question5_reading_feeling || answers.readingFeelings,
-                            question6_phrase: answers.question6_phrase || answers.closestPhrase,
-                            question7_reading_time: answers.question7_reading_time || answers.readingTime,
-                            completedAt: new Date(),
-                            retakeAt: new Date() // отмечаем время повторного прохождения
-                        },
-                        source: sanitizedSource || userProfile.source, // сохраняем существующий source если новый пустой
-                        isOnboardingComplete: true,
-                        updatedAt: new Date()
-                    }
-                }
-            );
-        }
-
-        console.log(`✅ Пользователь ${wasJustCreated ? 'создан' : (forceRetake ? 'обновлен (retake)' : 'обновлен')}: ${userProfile.userId} (${userProfile.name})`);
-        
-        const responseData = {
-            success: true,
-            user: {
+              success: true,
+              alreadyCompleted: true,
+              user: {
                 userId: userProfile.userId,
                 name: userProfile.name,
                 email: userProfile.email,
                 isOnboardingComplete: true
-            },
-            message: forceRetake ? 'Онбординг успешно пройден повторно' : 'Онбординг успешно завершен'
-        };
+              }
+            });
+          }
 
-        // RETAKE: Добавляем флаг retake в ответ если это повторное прохождение
-        if (forceRetake) {
-            responseData.retake = true;
-        }
+          // Общий конструктор testResults
+          const buildTestResults = (isRetake) => {
+            const now = new Date();
+            return {
+              question1_name: answers.question1_name || answers.name,
+              question2_lifestyle: answers.question2_lifestyle || answers.lifestyle,
+              question3_time: answers.question3_time || answers.timeForSelf,
+              question4_priorities: answers.question4_priorities || answers.priorities,
+              question5_reading_feeling: answers.question5_reading_feeling || answers.readingFeelings,
+              question6_phrase: answers.question6_phrase || answers.closestPhrase,
+              question7_reading_time: answers.question7_reading_time || answers.readingTime,
+              // completedAt фиксируем при первом завершении (если вдруг не было)
+              completedAt: userProfile.testResults?.completedAt || now,
+              ...(isRetake ? { retakeAt: now } : {})
+            };
+          };
 
-        res.json(responseData);
-    } catch (error) {
-        console.error('❌ Ошибка онбординга:', error);
-        
-        // ИСПРАВЛЕНО: Обрабатываем ошибки дубликатов (E11000)
-        if (error.code === 11000) {
-            console.warn(`⚠️ Попытка создания дубликата пользователя ${req.body.user?.id}`);
-            
-            // Если возникла ошибка дубликата, находим существующего пользователя
-            try {
-                const existingUser = await UserProfile.findOne({ userId: req.body.user.id.toString() });
-                if (existingUser && existingUser.isOnboardingComplete) {
-                    return res.status(200).json({
-                        success: true,
-                        alreadyCompleted: true,
-                        user: {
-                            userId: existingUser.userId,
-                            name: existingUser.name,
-                            email: existingUser.email,
-                            isOnboardingComplete: true
-                        }
-                    });
+          // 2) Retake (forceRetake === true)
+          if (forceRetake) {
+            console.log(`🔄 RETAKE: принудительное обновление пользователя ${userId}`);
+            await UserProfile.updateOne(
+              { userId },
+              {
+                $set: {
+                  name: (answers.question1_name || answers.name) || userProfile.name,
+                  email: sanitizedEmail || userProfile.email,
+                  source: sanitizedSource || userProfile.source,
+                  testResults: buildTestResults(true),
+                  isOnboardingComplete: true,
+                  updatedAt: new Date()
                 }
-            } catch (findError) {
-                console.error('Ошибка поиска существующего пользователя:', findError);
-            }
+              }
+            );
+            userProfile = await UserProfile.findOne({ userId });
+          } else {
+            // 3) Первый догоняющий completion (профиль существовал, но флаг был false)
+            await UserProfile.updateOne(
+              { userId },
+              {
+                $set: {
+                  name: (answers.question1_name || answers.name) || userProfile.name,
+                  email: sanitizedEmail || userProfile.email,
+                  source: sanitizedSource || userProfile.source,
+                  testResults: buildTestResults(false),
+                  isOnboardingComplete: true,
+                  updatedAt: new Date()
+                }
+              }
+            );
+            userProfile = await UserProfile.findOne({ userId });
+          }
         }
-        
-        res.status(500).json({ 
-            success: false, 
-            error: 'Internal server error during onboarding'
+
+        console.log(`✅ Пользователь ${wasJustCreated ? 'создан' : (forceRetake ? 'обновлён (retake)' : 'обновлён')}: ${userProfile.userId} (${userProfile.name})`);
+
+        return res.json({
+          success: true,
+          ...(forceRetake ? { retake: true } : {}),
+          user: {
+            userId: userProfile.userId,
+            name: userProfile.name,
+            email: userProfile.email,
+            isOnboardingComplete: true
+          },
+          message: wasJustCreated
+            ? 'Онбординг успешно завершён'
+            : (forceRetake ? 'Онбординг обновлён (retake)' : 'Статус онбординга подтверждён')
         });
-    }
-});
 
 /**
  * @description Сброс онбординга

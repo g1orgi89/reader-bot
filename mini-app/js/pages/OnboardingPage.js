@@ -1203,12 +1203,14 @@ class OnboardingPage {
             // Haptic feedback успеха
             this.triggerHapticFeedback('success');
             
-            // RETAKE: Разные сообщения для первого прохождения и повторного
-            const successMessage = isAlreadyCompleted 
-                ? '✅ Данные уже сохранены!' 
-                : this.isRetakeMode 
-                    ? '✅ Обновлено!' 
-                    : '✅ Добро пожаловать в сообщество читателей!';
+            // RETAKE / IDEMPOTENT: сообщения для уже завершённого, ретейка и первого прохождения
+            const successMessage = isAlreadyCompleted
+              ? '✅ Онбординг уже завершён!'
+              : this.isRetakeMode
+                ? '✅ Ответы обновлены!'
+                : '✅ Добро пожаловать в сообщество читателей!';
+
+            statusEl.textContent = successMessage;
             
             // Показ уведомления об успехе
             this.showSuccess(successMessage);
