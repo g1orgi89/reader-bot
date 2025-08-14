@@ -291,19 +291,9 @@ class ReaderApp {
 
         if (this.router?.init) {
             try {
-                await this.router.init();
+                await this.router.init(initialRoute);
                 console.log('✅ Роутинг инициализирован, стартовый маршрут:', initialRoute);
 
-                // === ONBOARDING STABILITY START ===
-                // Применяем стартовый маршрут только если он не /home или если нет текущего маршрута
-                const currentRoute = this.normalizeRoute(window.location.hash.slice(1) || '');
-                if (initialRoute !== '/home' || !currentRoute || currentRoute === '/home') {
-                    console.log('🧭 STABILITY: Применяем стартовый маршрут', initialRoute, '(текущий:', currentRoute, ')');
-                    this.router.navigate(initialRoute, { replace: true });
-                } else {
-                    console.log('🔄 STABILITY: Оставляем текущий маршрут', currentRoute);
-                }
-                // === ONBOARDING STABILITY END ===
             } catch (error) {
                 console.error('❌ Ошибка инициализации роутера:', error);
                 this.showBasicContent();
