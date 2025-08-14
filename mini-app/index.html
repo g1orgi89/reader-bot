@@ -443,5 +443,48 @@
         
         console.log('🔍 Глобальные debug функции доступны: getDebugStats(), recheckDebugServer()');
     </script>
+<!-- Инициализация (ОРИГИНАЛНЫЙ КОД ВОССТАНОВЛЕН) -->
+    <script>
+        /* ... тут твой существующий большой скрипт (не трогаешь) ... */
+    </script>
+
+    <!-- 👉 ДОБАВЛЯЕМ ЭТОТ СКРИПТ ДЛЯ ФИКСА ЦВЕТА -->
+    <script>
+    (function(){
+      const VARS = {
+        '--primary-color':'#D2452C',
+        '--primary-light':'#E5674F',
+        '--primary-dark':'#B73A24'
+      };
+      function apply(){
+        for (const k in VARS) {
+          document.documentElement.style.setProperty(k, VARS[k], 'important');
+        }
+      }
+      function strip(){
+        if (document.documentElement.classList.contains('night')) {
+          document.documentElement.classList.remove('night');
+        }
+      }
+      function fix(){
+        strip();
+        apply();
+      }
+      // сразу
+      fix();
+      // несколько повторов (ловим поздние правки Telegram)
+      let n=0;
+      const interval = setInterval(()=>{
+        fix();
+        if (++n>20) clearInterval(interval); // ~3 сек
+      },150);
+      // если Telegram пошлёт смену темы
+      try {
+        window.Telegram?.WebApp?.onEvent('themeChanged', fix);
+      } catch(e){}
+      // ручной вызов из консоли: forceBrand()
+      window.forceBrand = fix;
+    })();
+    </script>
 </body>
 </html>
