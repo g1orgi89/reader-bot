@@ -31,6 +31,14 @@ class OnboardingPage {
         this.transitioning = false;
         // === RETAKE FIX END ===
         
+        // === ONBOARDING STABILITY START ===
+        // Навигационная блокировка для предотвращения двойных кликов
+        this._navLock = false;
+        this._navLockTimeout = null;
+        // Флаг анимации для отключения повторных анимаций
+        this._animationPlayed = false;
+        // === ONBOARDING STABILITY END ===
+        
         // Данные теста - 7 вопросов из технического задания
         this.questions = [
             {
@@ -132,6 +140,17 @@ class OnboardingPage {
     async init() {
         // RETAKE: Проверяем режим повторного прохождения
         this.detectRetakeMode();
+        
+        // === ONBOARDING STABILITY START ===
+        // Проверяем, не применен ли уже onboarding gate в App.js
+        // чтобы избежать дублирующих navigate('/onboarding')
+        const onboardingGateApplied = this.app._onboardingGateApplied;
+        if (onboardingGateApplied) {
+            console.log('🚪 OnboardingPage: Onboarding gate уже применен в App.js, пропускаем повторную проверку');
+            this.prefillUserData();
+            return;
+        }
+        // === ONBOARDING STABILITY END ===
         
         // Проверяем статус онбординга через API
         try {
@@ -255,12 +274,19 @@ class OnboardingPage {
         // RETAKE: Добавляем CSS класс для режима повторного прохождения
         const retakeClass = this.isRetakeMode ? ' is-retake' : '';
         
+        // === ONBOARDING STABILITY START ===
+        // Добавляем data-animated флаг для управления анимациями
+        const animatedAttr = this._animationPlayed ? ' data-animated="true"' : '';
+        // === ONBOARDING STABILITY END ===
+        
         return `
-            <div class="onboarding-page${retakeClass}">
+            <div class="onboarding-page${retakeClass}"${animatedAttr}>
                 ${this.renderHeader()}
                 ${this.renderProgress()}
                 <div class="onboarding-content-wrapper">
-                    ${this.renderCurrentStep()}
+                    <div class="onboarding-dynamic">
+                        ${this.renderCurrentStep()}
+                    </div>
                 </div>
                 ${this.renderNavigationButton()}
             </div>
@@ -730,6 +756,24 @@ class OnboardingPage {
      * 🎯 Обработка навигации
      */
     async handleNavigation() {
+        // === ONBOARDING STABILITY START ===
+        // Debounce защита от двойных кликов (200-250ms)
+        if (this._navLock) {
+            console.log('🚫 OnboardingPage: Навигация заблокирована (debounce), игнорируем');
+            return;
+        }
+        
+        this._navLock = true;
+        
+        // Освобождаем блокировку через 250ms
+        if (this._navLockTimeout) {
+            clearTimeout(this._navLockTimeout);
+        }
+        this._navLockTimeout = setTimeout(() => {
+            this._navLock = false;
+        }, 250);
+        // === ONBOARDING STABILITY END ===
+        
         this.telegram.hapticFeedback('medium');
         
         if (this.currentStep === 0) {
@@ -766,7 +810,22 @@ class OnboardingPage {
         // === RETAKE FIX END ===
         
         this.currentStep++;
-        this.rerender();
+        
+        // === ONBOARDING STABILITY START ===
+        // Используем частичный перерендер вместо полного для предотвращения повторных анимаций
+        if (this.currentStep > 1) {
+            this.partialRerender();
+        } else {
+            this.rerender();
+        }
+        
+        // После завершения (когда currentStep > totalSteps) обновляем кнопку навигации
+        if (this.currentStep > this.totalSteps) {
+            setTimeout(() => {
+                this.updateNavigationButton();
+            }, 100);
+        }
+        // === ONBOARDING STABILITY END ===
     }
     
     /**
@@ -978,12 +1037,23 @@ class OnboardingPage {
     /**
      * 🔄 Перерендер страницы
      */
+    /**
+     * 🔄 Полный перерендер страницы
+     */
     rerender() {
         const container = document.querySelector('.onboarding-page');
         if (container) {
             // RETAKE: Сохраняем CSS класс повторного прохождения при перерендере
             const retakeClass = this.isRetakeMode ? ' is-retake' : '';
+            
+            // === ONBOARDING STABILITY START ===
+            // Добавляем data-animated флаг для управления анимациями
+            const animatedAttr = this._animationPlayed ? ' data-animated="true"' : '';
             container.className = `onboarding-page${retakeClass}`;
+            if (this._animationPlayed) {
+                container.setAttribute('data-animated', 'true');
+            }
+            // === ONBOARDING STABILITY END ===
             
             // === RETAKE FIX START ===
             // Обновляем только внутренний HTML, сохраняя корневой контейнер
@@ -992,7 +1062,9 @@ class OnboardingPage {
                 ${this.renderHeader()}
                 ${this.renderProgress()}
                 <div class="onboarding-content-wrapper">
-                    ${this.renderCurrentStep()}
+                    <div class="onboarding-dynamic">
+                        ${this.renderCurrentStep()}
+                    </div>
                 </div>
                 ${this.renderNavigationButton()}
             `;
@@ -1000,6 +1072,48 @@ class OnboardingPage {
             this.attachEventListeners();
             // === RETAKE FIX END ===
         }
+    }
+    
+    /**
+     * 🔄 Частичный перерендер - обновляет только динамический контент
+     * Используется для предотвращения пересоздания анимаций
+     * 
+     * @JSDoc Метод для минимального обновления контента без потери анимаций
+     */
+    partialRerender() {
+        // === ONBOARDING STABILITY START ===
+        const dynamicContainer = document.querySelector('.onboarding-dynamic');
+        const progressSection = document.querySelector('.progress-section');
+        const navigationButton = document.querySelector('.next-button');
+        
+        if (dynamicContainer) {
+            // Обновляем только динамический контент
+            dynamicContainer.innerHTML = this.renderCurrentStep();
+            console.log('🔄 OnboardingPage: Частичный перерендер выполнен');
+        }
+        
+        if (progressSection) {
+            // Обновляем прогресс-бар
+            progressSection.outerHTML = this.renderProgress();
+        }
+        
+        if (navigationButton) {
+            // Обновляем кнопку навигации
+            navigationButton.outerHTML = this.renderNavigationButton();
+        }
+        
+        // Переустанавливаем обработчики событий только для обновленных элементов
+        this.attachEventListeners();
+        
+        // Отмечаем что анимация уже была проиграна
+        if (!this._animationPlayed) {
+            this._animationPlayed = true;
+            const container = document.querySelector('.onboarding-page');
+            if (container) {
+                container.setAttribute('data-animated', 'true');
+            }
+        }
+        // === ONBOARDING STABILITY END ===
     }
     
     /**
@@ -1074,6 +1188,16 @@ class OnboardingPage {
             this.delegatedClickHandler = null;
         }
         // === RETAKE FIX END ===
+        
+        // === ONBOARDING STABILITY START ===
+        // Очищаем таймаут навигационной блокировки
+        if (this._navLockTimeout) {
+            clearTimeout(this._navLockTimeout);
+            this._navLockTimeout = null;
+        }
+        this._navLock = false;
+        this._animationPlayed = false;
+        // === ONBOARDING STABILITY END ===
         
         // Очистка состояния компонента
         this.loading = false;

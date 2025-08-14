@@ -710,4 +710,23 @@
 .onboarding-page.is-retake .no-repeat-anim {
     animation: none !important;
 }
+
+/* === ONBOARDING STABILITY START === */
+/* Отключение анимаций после первого воспроизведения */
+.onboarding-page[data-animated="true"] .onboarding-content-wrapper {
+    animation: none !important;
+}
+
+.onboarding-page[data-animated="true"] .onboarding-dynamic {
+    animation: none !important;
+}
+
+.onboarding-page[data-animated="true"] .question-container {
+    animation: none !important;
+}
+
+.onboarding-page[data-animated="true"] .completion-screen {
+    animation: none !important;
+}
+/* === ONBOARDING STABILITY END === */
 /* === RETAKE FIX END === */
