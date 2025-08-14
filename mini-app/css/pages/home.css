@@ -64,10 +64,10 @@
     flex: 1;
 }
 
-/* 👤 Instagram-style Large Avatar */
+/* 👤 Instagram-style Large Avatar (ENLARGED) */
 .user-avatar-inline {
-    width: 68px;
-    height: 68px;
+    width: 102px;
+    height: 102px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -78,10 +78,10 @@
     );
     color: white;
     font-weight: 700;
-    font-size: 24px;
+    font-size: 36px;
     text-transform: uppercase;
-    box-shadow: 0 4px 12px rgba(210, 69, 44, 0.3);
-    border: 3px solid var(--surface);
+    box-shadow: 0 6px 20px rgba(210, 69, 44, 0.4);
+    border: 4px solid var(--surface);
     transition: all var(--transition-normal);
     cursor: pointer;
     position: relative;
@@ -113,7 +113,7 @@
     );
     color: white;
     font-weight: 700;
-    font-size: 24px;
+    font-size: 36px;
     text-transform: uppercase;
     border-radius: 50%;
     position: absolute;
@@ -131,9 +131,9 @@
 .user-avatar-inline::after {
     content: '';
     position: absolute;
-    inset: -3px;
+    inset: -4px;
     border-radius: 50%;
-    padding: 2px;
+    padding: 3px;
     background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: xor;
@@ -141,7 +141,7 @@
 
 .user-avatar-inline:hover {
     transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(210, 69, 44, 0.4);
+    box-shadow: 0 8px 24px rgba(210, 69, 44, 0.5);
 }
 
 .user-details-inline {
@@ -151,7 +151,7 @@
 
 .user-name-inline {
     margin: 0;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
     line-height: 1.2;
     color: var(--text-primary);
@@ -291,7 +291,35 @@
 }
 
 /* ============================================================================
-   📊 СТАТИСТИКА 2X2 СЕТКА
+   📊 INLINE СТАТИСТИКА (ЗАМЕНЯЕТ СЕТКУ 2x2)
+   ============================================================================ */
+
+.stats-inline {
+    text-align: center;
+    margin: 16px 0;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all var(--transition-normal);
+    cursor: pointer;
+}
+
+.stats-inline:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--shadow-color-strong);
+}
+
+.stat-summary {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    transition: color var(--transition-normal);
+}
+
+/* ============================================================================
+   📊 СТАРАЯ СТАТИСТИКА 2X2 СЕТКА (СОХРАНЯЕТСЯ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ)
    ============================================================================ */
 
 .stats-grid {
@@ -354,6 +382,102 @@
     background: var(--primary-light);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px var(--shadow-color-strong);
+}
+
+/* ============================================================================
+   💫 ПОСЛЕДНИЕ ЦИТАТЫ (НОВАЯ СЕКЦИЯ)
+   ============================================================================ */
+
+.recent-quotes-section {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin: 16px 0;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all var(--transition-normal);
+}
+
+.recent-quote-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    background: var(--background-light);
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-normal);
+    cursor: pointer;
+}
+
+.recent-quote-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    border-color: var(--primary-color);
+}
+
+.quote-text {
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    font-style: italic;
+    transition: color var(--transition-normal);
+}
+
+.quote-author {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-align: right;
+    transition: color var(--transition-normal);
+}
+
+.empty-recent-quotes {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+/* 💀 Скелетон для загрузки последних цитат */
+.recent-quote-item.skeleton {
+    cursor: default;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.recent-quote-item.skeleton:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--border-light);
+}
+
+.skeleton-line {
+    height: 16px;
+    background: linear-gradient(90deg, var(--border) 25%, var(--border-light) 50%, var(--border) 75%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    animation: skeleton-shimmer 1.5s infinite;
+}
+
+.skeleton-line-short {
+    height: 14px;
+    width: 60%;
+    background: linear-gradient(90deg, var(--border) 25%, var(--border-light) 50%, var(--border) 75%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    animation: skeleton-shimmer 1.5s infinite;
+    margin-left: auto;
+}
+
+@keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
 }
 
 /* ============================================================================
@@ -539,13 +663,13 @@
     }
     
     .user-avatar-inline {
-        width: 60px;
-        height: 60px;
-        font-size: 20px;
+        width: 80px;
+        height: 80px;
+        font-size: 28px;
     }
     
     .user-name-inline {
-        font-size: 16px;
+        font-size: 18px;
     }
     
     .user-status-inline {
@@ -556,6 +680,28 @@
         width: 40px;
         height: 40px;
         font-size: 18px;
+    }
+    
+    /* Recent quotes mobile adjustments */
+    .recent-quotes-section {
+        padding: 12px;
+    }
+    
+    .recent-quote-item {
+        padding: 10px;
+    }
+    
+    .quote-text {
+        font-size: 13px;
+    }
+    
+    .quote-author {
+        font-size: 11px;
+    }
+    
+    .empty-recent-quotes {
+        padding: 20px;
+        font-size: 13px;
     }
 }
 
@@ -678,6 +824,11 @@ body.dark-theme {
   .progress-text { font-size: 12px; }                   /* 11 -> 12 */
 
   .empty-books { font-size: var(--font-size-xs); }      /* 12 -> 13 */
+
+  .stat-summary { font-size: var(--font-size-base); }
+  .quote-text { font-size: var(--font-size-sm); }
+  .quote-author { font-size: 12px; }
+  .empty-recent-quotes { font-size: var(--font-size-sm); }
 
   .error-message { font-size: var(--font-size-xs); }    /* 12 -> 13 */
   .error-message button { font-size: var(--font-size-sm); } /* 14 -> 15 */
