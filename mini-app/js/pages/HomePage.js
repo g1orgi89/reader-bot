@@ -422,7 +422,7 @@ class HomePage {
         return `
             <div class="content">
                 ${this.renderUserHeader(user)}
-                ${this.renderWelcomeSection()}
+                <!-- ${this.renderWelcomeSection()}  УДАЛЕНО -->
                 ${this.renderStatsInline(stats)}
                 ${this.renderMainCTA()}
                 ${this.renderRecentQuotesSection()}
