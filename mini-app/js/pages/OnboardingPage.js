@@ -192,7 +192,7 @@ class OnboardingPage {
             <div class="onboarding-page">
                 ${this.renderHeader()}
                 ${this.renderProgress()}
-                <div class="content">
+                <div class="onboarding-content-wrapper">
                     ${this.renderCurrentStep()}
                 </div>
                 ${this.renderNavigationButton()}
@@ -729,7 +729,7 @@ class OnboardingPage {
             container.innerHTML = `
                 ${this.renderHeader()}
                 ${this.renderProgress()}
-                <div class="content">
+                <div class="onboarding-content-wrapper">
                     ${this.renderCurrentStep()}
                 </div>
                 ${this.renderNavigationButton()}

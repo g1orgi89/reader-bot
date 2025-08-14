@@ -3,6 +3,9 @@
  * @fileoverview Стили для страницы онбординг теста Reader Bot
  * @description Тест из 7 вопросов с прогресс-баром и валидацией
  * @author Reader Development Team
+ * 
+ * ✅ РЕФАКТОРИНГ: Убраны конфликтующие правила высоты, дубли padding-bottom,
+ * внутренний scroll-контейнер. Добавлен sticky .next-button для мобильных.
  */
 
 /* ============================================================================
@@ -27,10 +30,10 @@
 }
 
 /* ============================================================================
-   2. ОСНОВНЫЕ БЛОКИ СТРАНИЦЫ
+   2. ОСНОВНОЙ LAYOUT - ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ
    ============================================================================ */
 
-/* 📄 Главный контейнер */
+/* 📄 Главный контейнер - использует естественный скролл документа */
 .onboarding-page {
     min-height: 100vh;
     background: var(--bg-primary);
@@ -39,7 +42,31 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
+    /* Достаточный отступ снизу для sticky кнопки + safe area + навигация */
+    padding-bottom: calc(
+        var(--button-height) + 
+        var(--spacing-xl) + 
+        var(--bottom-nav-height) + 
+        env(safe-area-inset-bottom, 0px)
+    );
 }
+
+/* 📱 Мобильные адаптации для меньших экранов */
+@media (max-width: 480px) {
+    .onboarding-page {
+        padding: var(--spacing-md);
+        padding-bottom: calc(
+            var(--button-height) + 
+            var(--spacing-lg) + 
+            var(--bottom-nav-height) + 
+            env(safe-area-inset-bottom, 0px)
+        );
+    }
+}
+
+/* ============================================================================
+   3. КОМПОНЕНТЫ СТРАНИЦЫ
+   ============================================================================ */
 
 /* 📱 Шапка онбординга */
 .onboarding-header {
@@ -120,7 +147,14 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-md);
+}
+
+/* Контентная обертка для управляемых отступов */
+.onboarding-content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 /* 👋 Приветственный экран */
@@ -282,61 +316,6 @@
     box-shadow: var(--shadow-primary);
 }
 
-
-
-/* 🔘 Кнопка навигации */
-.next-button {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-    border: none;
-    border-radius: var(--radius-md);
-    padding: var(--spacing-md) var(--spacing-2xl);
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    font-family: var(--font-family-primary);
-    cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-    min-height: var(--button-height);
-    margin-top: auto;
-    box-shadow: var(--shadow-primary);
-    position: relative;
-    overflow: hidden;
-}
-
-.next-button:hover:not(:disabled) {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-primary-lg);
-}
-
-.next-button:active:not(:disabled) {
-    transform: translateY(0);
-}
-
-.next-button:disabled {
-    background: var(--text-muted);
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: var(--shadow-sm);
-    opacity: var(--disabled-opacity);
-}
-
-.next-button::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: -20px;
-    width: 20px;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transform: translateY(-50%);
-    transition: left var(--duration-slow) var(--ease-out);
-}
-
-.next-button:hover:not(:disabled)::before {
-    left: 110%;
-}
-
 /* ✍️ Подпись Анны */
 .anna-signature {
     background: var(--bg-overlay);
@@ -387,12 +366,108 @@
 }
 
 /* ============================================================================
-   3. МОБИЛЬНАЯ АДАПТАЦИЯ
+   4. STICKY НАВИГАЦИОННАЯ КНОПКА
+   ============================================================================ */
+
+/* 🔘 Кнопка навигации - теперь sticky и всегда видима */
+.next-button {
+    position: fixed;
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    max-width: calc(var(--onboarding-content-max-width) - var(--spacing-md) * 2);
+    margin: 0 auto;
+    
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-2xl);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    font-family: var(--font-family-primary);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+    min-height: var(--button-height);
+    box-shadow: var(--shadow-primary);
+    z-index: var(--z-index-dropdown);
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Центрирование кнопки для узких экранов */
+@media (min-width: calc(var(--onboarding-content-max-width) + var(--spacing-md) * 2)) {
+    .next-button {
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(var(--onboarding-content-max-width) - var(--spacing-md) * 2);
+    }
+}
+
+.next-button:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-primary-lg);
+}
+
+/* Компенсируем translateY для центрированных кнопок */
+@media (min-width: calc(var(--onboarding-content-max-width) + var(--spacing-md) * 2)) {
+    .next-button:hover:not(:disabled) {
+        transform: translateX(-50%) translateY(-2px);
+    }
+}
+
+.next-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+@media (min-width: calc(var(--onboarding-content-max-width) + var(--spacing-md) * 2)) {
+    .next-button:active:not(:disabled) {
+        transform: translateX(-50%);
+    }
+}
+
+.next-button:disabled {
+    background: var(--text-muted);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: var(--shadow-sm);
+    opacity: var(--disabled-opacity);
+}
+
+@media (min-width: calc(var(--onboarding-content-max-width) + var(--spacing-md) * 2)) {
+    .next-button:disabled {
+        transform: translateX(-50%);
+    }
+}
+
+.next-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -20px;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transform: translateY(-50%);
+    transition: left var(--duration-slow) var(--ease-out);
+}
+
+.next-button:hover:not(:disabled)::before {
+    left: 110%;
+}
+
+/* ============================================================================
+   5. МОБИЛЬНАЯ АДАПТАЦИЯ
    ============================================================================ */
 
 @media (max-width: 480px) {
-    .onboarding-page {
-        padding: var(--spacing-md);
+    .next-button {
+        bottom: calc(var(--bottom-nav-height) + var(--spacing-sm) + env(safe-area-inset-bottom, 0px));
+        font-size: var(--font-size-base);
+        padding: var(--spacing-sm) var(--spacing-lg);
     }
     
     .onboarding-title {
@@ -422,11 +497,6 @@
         font-size: var(--font-size-sm);
     }
     
-    .next-button {
-        font-size: var(--font-size-base);
-        padding: var(--spacing-sm) var(--spacing-lg);
-    }
-    
     .anna-signature {
         padding: var(--spacing-md);
         font-size: var(--font-size-sm);
@@ -437,15 +507,8 @@
     }
 }
 
-/* iPhone X и более новые модели */
-@media (max-width: 480px) and (max-height: 896px) {
-    .onboarding-page {
-        padding-bottom: calc(var(--spacing-lg) + var(--safe-area-bottom));
-    }
-}
-
 /* ============================================================================
-   4. АНИМАЦИИ
+   6. АНИМАЦИИ
    ============================================================================ */
 
 @keyframes progress-shine {
@@ -496,7 +559,7 @@
 }
 
 /* ============================================================================
-   5. ТЕМНАЯ ТЕМА
+   7. ТЕМНАЯ ТЕМА
    ============================================================================ */
 
 @media (prefers-color-scheme: dark) {
@@ -547,8 +610,42 @@
 }
 
 /* ============================================================================
-   ДОПОЛНИТЕЛЬНЫЕ УТИЛИТАРНЫЕ КЛАССЫ
+   8. ACCESSIBILITY И UX УЛУЧШЕНИЯ
    ============================================================================ */
+
+/* ✅ Accessibility улучшения */
+.answer-option:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.next-button:focus {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+}
+
+/* 🚫 Состояния ошибок */
+.question-input.error,
+.question-textarea.error {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
+}
+
+/* 📱 Touch targets для лучшего UX */
+@media (pointer: coarse) {
+    .answer-option {
+        min-height: var(--touch-target-min);
+    }
+    
+    .question-input,
+    .question-textarea {
+        min-height: var(--touch-target-min);
+    }
+    
+    .next-button {
+        min-height: var(--touch-target-min);
+    }
+}
 
 /* 🎯 Состояния загрузки */
 .onboarding-page.loading .next-button {
@@ -570,103 +667,3 @@
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
-
-/* 🚫 Состояния ошибок */
-.question-input.error,
-.question-textarea.error {
-    border-color: var(--error-color);
-    box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
-}
-
-/* ✅ Accessibility улучшения */
-.answer-option:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
-
-.next-button:focus {
-    outline: 2px solid var(--primary-light);
-    outline-offset: 2px;
-}
-
-/* 📱 Touch targets для лучшего UX */
-@media (pointer: coarse) {
-    .answer-option {
-        min-height: var(--touch-target-min);
-    }
-    
-    .question-input,
-    .question-textarea {
-        min-height: var(--touch-target-min);
-    }
-    
-    .next-button {
-        min-height: var(--touch-target-min);
-    }
-}
-
-/* --- MOBILE SCROLL FIX --- */
-.onboarding-page { 
-    min-height: 100dvh; 
-    height: 100%; 
-    overflow-y: auto; 
-    -webkit-overflow-scrolling: touch; 
-    padding-bottom: calc(var(--spacing-2xl) + env(safe-area-inset-bottom, 0px)); 
-}
-
-@supports (height: 100svh) { 
-    .onboarding-page { 
-        min-height: 100svh; 
-    } 
-}
-
-.next-button { 
-    margin-top: var(--spacing-xl); 
-    width: 100%; 
-}
-
-@media (max-width: 480px) { 
-    .onboarding-page { 
-        padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom, 0px)); 
-    } 
-    
-    .next-button { 
-        margin-top: var(--spacing-lg); 
-    } 
-}
-
-/* ============================================================================ 
-   💡 ONBOARDING SCROLL / SAFE-AREA FIX
-   ============================================================================ */
-.onboarding-page {
-    min-height: 0 !important;
-    height: auto !important;
-    flex: 1 1 auto;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-    padding-bottom: calc(
-        var(--bottom-nav-height, 60px) +
-        var(--spacing-xl) +
-        env(safe-area-inset-bottom, 0px)
-    ) !important;
-}
-@media (max-width: 480px) {
-  .onboarding-page {
-    padding-bottom: calc(
-      var(--bottom-nav-height, 60px) +
-      var(--spacing-lg) +
-      env(safe-area-inset-bottom, 0px)
-    ) !important;
-  }
-}
-.onboarding-page .next-button {
-    margin-top: var(--spacing-xl) !important;
-    width: 100%;
-    box-sizing: border-box;
-}
-@media (max-width:480px){
-  .onboarding-page .next-button { margin-top: var(--spacing-lg) !important; }
-}
-/* (Опционально для будущего PR: sticky footer вариант) */
