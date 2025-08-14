@@ -276,6 +276,7 @@ router.get('/profile', async (req, res) => {
                 userId: user.userId,
                 name: user.name,
                 email: user.email,
+                avatarUrl: user.avatarUrl,
                 isOnboardingComplete: user.isOnboardingComplete,
                 registeredAt: user.registeredAt,
                 source: user.source,
@@ -285,6 +286,147 @@ router.get('/profile', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Profile Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @description Обновление профиля пользователя
+ * @route PATCH /api/reader/profile
+ */
+router.patch('/profile', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { email, name, avatarUrl } = req.body;
+        
+        const user = await UserProfile.findOne({ userId });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        // Валидация email если передан
+        if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid email format'
+                });
+            }
+            user.email = email.toLowerCase().trim();
+        }
+        
+        // Обновление имени если передано
+        if (name) {
+            user.name = name.trim();
+        }
+        
+        // Обновление аватара если передан
+        if (avatarUrl !== undefined) {
+            user.avatarUrl = avatarUrl;
+        }
+        
+        await user.save();
+        
+        res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            user: {
+                userId: user.userId,
+                name: user.name,
+                email: user.email,
+                avatarUrl: user.avatarUrl,
+                isOnboardingComplete: user.isOnboardingComplete
+            }
+        });
+    } catch (error) {
+        console.error('❌ Profile Update Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @description Загрузка аватара пользователя
+ * @route POST /api/reader/profile/avatar
+ */
+router.post('/profile/avatar', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { image } = req.body;
+        
+        if (!image || !image.startsWith('data:image/')) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid image data. Expected base64 data URL'
+            });
+        }
+        
+        const user = await UserProfile.findOne({ userId });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        // В простой реализации сохраняем base64 напрямую
+        // В продакшне здесь должна быть загрузка в облачное хранилище
+        user.avatarUrl = image;
+        await user.save();
+        
+        res.json({
+            success: true,
+            message: 'Avatar uploaded successfully',
+            avatarUrl: user.avatarUrl,
+            user: {
+                userId: user.userId,
+                name: user.name,
+                email: user.email,
+                avatarUrl: user.avatarUrl
+            }
+        });
+    } catch (error) {
+        console.error('❌ Avatar Upload Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @description Сброс результатов теста
+ * @route POST /api/reader/profile/reset-test
+ */
+router.post('/profile/reset-test', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        
+        const user = await UserProfile.findOne({ userId });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        // Используем новый метод для сброса теста
+        await user.resetTestResults();
+        
+        res.json({
+            success: true,
+            message: 'Test results have been reset successfully',
+            user: {
+                userId: user.userId,
+                name: user.name,
+                email: user.email,
+                avatarUrl: user.avatarUrl,
+                isOnboardingComplete: user.isOnboardingComplete,
+                testResults: user.testResults
+            }
+        });
+    } catch (error) {
+        console.error('❌ Reset Test Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
