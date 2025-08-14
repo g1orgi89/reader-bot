@@ -634,3 +634,39 @@
         margin-top: var(--spacing-lg); 
     } 
 }
+
+/* ============================================================================ 
+   💡 ONBOARDING SCROLL / SAFE-AREA FIX
+   ============================================================================ */
+.onboarding-page {
+    min-height: 0 !important;
+    height: auto !important;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    padding-bottom: calc(
+        var(--bottom-nav-height, 60px) +
+        var(--spacing-xl) +
+        env(safe-area-inset-bottom, 0px)
+    ) !important;
+}
+@media (max-width: 480px) {
+  .onboarding-page {
+    padding-bottom: calc(
+      var(--bottom-nav-height, 60px) +
+      var(--spacing-lg) +
+      env(safe-area-inset-bottom, 0px)
+    ) !important;
+  }
+}
+.onboarding-page .next-button {
+    margin-top: var(--spacing-xl) !important;
+    width: 100%;
+    box-sizing: border-box;
+}
+@media (max-width:480px){
+  .onboarding-page .next-button { margin-top: var(--spacing-lg) !important; }
+}
+/* (Опционально для будущего PR: sticky footer вариант) */
