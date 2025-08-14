@@ -1,7 +1,7 @@
 /**
  * 👤 ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ - profile.css
- * Стили для страницы профиля пользователя
- * Используются только переменные из variables.css, мобильно-ориентированный дизайн
+ * Переработанные стили для новой версии страницы профиля
+ * Фокус на аватаре, email и управлении тестом
  */
 
 /* ============================================================================
@@ -15,134 +15,288 @@
     padding: var(--spacing-md) var(--spacing-sm);
 }
 
-.profile-header {
+.page-header {
     text-align: center;
     margin-bottom: var(--spacing-lg);
 }
 
-.profile-avatar {
-    width: 80px;
-    height: 80px;
+.page-header h1 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.page-header p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* ============================================================================
+   👤 КАРТОЧКА ПРОФИЛЯ
+   ============================================================================ */
+
+.profile-card {
+    background: var(--bg-card);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-avatar-section {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.profile-avatar-container {
+    display: inline-block;
+    position: relative;
+    margin-bottom: var(--spacing-md);
+}
+
+.profile-avatar-large {
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
-    margin: 0 auto var(--spacing-md);
+    margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent-primary);
+    background: linear-gradient(135deg, var(--primary-color, #D2452C), var(--primary-light, #E5674F));
     color: white;
-    font-size: var(--font-size-xl);
+    font-size: 48px;
     font-weight: var(--font-weight-bold);
+    position: relative;
+    overflow: hidden;
+    border: 4px solid white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.profile-avatar img {
+.profile-avatar-large img {
     width: 100%;
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
 }
 
-.profile-name {
-    font-size: var(--font-size-lg);
+.avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
     font-weight: var(--font-weight-bold);
-    margin-bottom: var(--spacing-xs);
+    z-index: 1;
 }
 
-.profile-status {
-    color: var(--text-secondary);
-    font-size: var(--font-size-sm);
+.profile-avatar-large.fallback img {
+    display: none;
 }
 
 /* ============================================================================
-   📊 СТАТИСТИКА ПРОФИЛЯ
+   📝 ПОЛЯ ПРОФИЛЯ
    ============================================================================ */
 
-.profile-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
+.profile-info {
+    margin-top: var(--spacing-lg);
 }
 
-.stat-item {
-    background: var(--bg-card);
-    border-radius: var(--border-radius-md);
-    padding: var(--spacing-md);
-    text-align: center;
-    border: 1px solid var(--border-light);
-}
-
-.stat-number {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--accent-primary);
-    margin-bottom: var(--spacing-xs);
-}
-
-.stat-label {
-    font-size: var(--font-size-xs);
-    color: var(--text-secondary);
-}
-
-/* ============================================================================
-   ⚙️ НАСТРОЙКИ ПРОФИЛЯ
-   ============================================================================ */
-
-.profile-section {
-    background: var(--bg-card);
-    border-radius: var(--border-radius-md);
+.profile-field {
     margin-bottom: var(--spacing-md);
-    overflow: hidden;
-    border: 1px solid var(--border-light);
-}
-
-.profile-section-title {
     padding: var(--spacing-md);
     background: var(--bg-secondary);
-    font-weight: var(--font-weight-medium);
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border-light);
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--border-light);
 }
 
-.profile-item {
-    padding: var(--spacing-md);
-    border-bottom: 1px solid var(--border-light);
+.field-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.field-value {
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 44px; /* Touch target */
+}
+
+.field-value.editable {
     cursor: pointer;
-    transition: background-color 0.2s ease;
 }
 
-.profile-item:last-child {
-    border-bottom: none;
-}
-
-.profile-item:hover {
-    background: var(--bg-hover);
-}
-
-.profile-item-content {
-    display: flex;
-    align-items: center;
+.email-display {
     flex: 1;
 }
 
-.profile-item-icon {
-    width: 20px;
-    height: 20px;
-    margin-right: var(--spacing-sm);
-    color: var(--accent-primary);
-}
-
-.profile-item-text {
+.field-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius-sm);
     font-size: var(--font-size-base);
+    margin-top: var(--spacing-xs);
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
-.profile-item-arrow {
-    color: var(--text-secondary);
+.field-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(210, 69, 44, 0.2);
+}
+
+.field-actions {
+    margin-top: var(--spacing-sm);
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* ============================================================================
+   ⚡ СЕКЦИЯ ДЕЙСТВИЙ
+   ============================================================================ */
+
+.actions-section {
+    background: var(--bg-card);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.actions-section h3 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.actions-grid {
+    display: grid;
+    gap: var(--spacing-sm);
+}
+
+/* ============================================================================
+   🔘 КНОПКИ
+   ============================================================================ */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: var(--touch-target-min, 44px);
+    gap: var(--spacing-xs);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--primary-color, #D2452C);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-dark, #B73A26);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(210, 69, 44, 0.3);
+}
+
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+}
+
+.btn-success {
+    background: var(--success-color, #28a745);
+    color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: var(--success-dark, #218838);
+}
+
+.btn-warning {
+    background: var(--warning-color, #ffc107);
+    color: var(--text-dark, #212529);
+}
+
+.btn-warning:hover:not(:disabled) {
+    background: var(--warning-dark, #e0a800);
+}
+
+.btn-link {
+    background: transparent;
+    color: var(--primary-color, #D2452C);
+    padding: var(--spacing-xs);
     font-size: var(--font-size-sm);
+}
+
+.btn-link:hover:not(:disabled) {
+    background: rgba(210, 69, 44, 0.1);
+}
+
+.btn-sm {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    min-height: 36px;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+/* ============================================================================
+   ⚠️ СООБЩЕНИЯ ОБ ОШИБКАХ
+   ============================================================================ */
+
+.error-message {
+    background: var(--error-bg, #f8d7da);
+    color: var(--error-color, #721c24);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--error-border, #f5c6cb);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+}
+
+.error-message button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    font-size: var(--font-size-base);
+    margin-left: var(--spacing-sm);
 }
 
 /* ============================================================================
@@ -154,23 +308,30 @@
         padding: var(--spacing-sm);
     }
     
-    .profile-avatar {
-        width: 60px;
-        height: 60px;
-        font-size: var(--font-size-lg);
+    .profile-card {
+        padding: var(--spacing-md);
     }
     
-    .profile-stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: var(--spacing-xs);
+    .profile-avatar-large {
+        width: 100px;
+        height: 100px;
+        font-size: 40px;
     }
     
-    .stat-item {
-        padding: var(--spacing-sm);
+    .avatar-fallback {
+        font-size: 40px;
     }
     
-    .profile-item {
-        padding: var(--spacing-sm) var(--spacing-md);
+    .actions-section {
+        padding: var(--spacing-md);
+    }
+    
+    .field-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        font-size: var(--font-size-sm);
     }
 }
 
@@ -183,20 +344,8 @@
     align-items: center;
     justify-content: center;
     min-height: 200px;
-}
-
-.profile-error {
-    text-align: center;
-    padding: var(--spacing-lg);
+    font-size: var(--font-size-lg);
     color: var(--text-secondary);
-}
-
-.profile-edit-mode .profile-item {
-    padding-right: 40px;
-}
-
-.profile-edit-mode .profile-item-arrow {
-    display: none;
 }
 
 /* ============================================================================
@@ -204,12 +353,17 @@
    ============================================================================ */
 
 @media (prefers-reduced-motion: reduce) {
-    .profile-item {
+    .btn {
         transition: none;
     }
 }
 
-.profile-item:focus {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: -2px;
+.btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.field-input:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }

@@ -1,13 +1,12 @@
 /**
  * 👤 ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ - ProfilePage.js
  * 
- * Полноэкранная страница профиля пользователя
- * Функциональность:
- * - Отображение данных профиля (имя, email, статистика)
- * - Редактирование основных данных
- * - Статистика достижений пользователя
- * - Интеграция с API и State Management
- * - Использует существующий дизайн-систему
+ * Переработанная страница профиля согласно новым требованиям:
+ * - Загрузка/смена аватара
+ * - Просмотр и изменение email
+ * - Перезапуск теста (сброс только ответов)
+ * - Только кнопка достижений и перезапуска теста
+ * - Убрана лишняя статистика и действия
  */
 
 class ProfilePage {
@@ -22,6 +21,7 @@ class ProfilePage {
         this.error = null;
         this.profileData = {};
         this.editing = false;
+        this.uploadingAvatar = false;
         
         // Подписки на изменения состояния
         this.subscriptions = [];
@@ -103,13 +103,11 @@ class ProfilePage {
      */
     render() {
         const profile = this.profileData;
-        const stats = this.state.get('stats') || {};
         
         return `
             <div class="content">
                 ${this.renderHeader()}
                 ${this.renderProfileCard(profile)}
-                ${this.renderStatsSection(stats)}
                 ${this.renderActionsSection()}
                 ${this.renderError()}
             </div>
@@ -122,8 +120,8 @@ class ProfilePage {
     renderHeader() {
         return `
             <div class="page-header">
-                <h1>👤 Профиль</h1>
-                <p>Управление вашими данными</p>
+                <h1>👤 Мой профиль</h1>
+                <p>Управление аватаром, email и тестом</p>
             </div>
         `;
     }
@@ -135,52 +133,52 @@ class ProfilePage {
         const name = profile.name || 
                     [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
                     profile.username || 'Пользователь';
+        const email = profile.email || 'Не указан';
         const initials = this.getInitials(name);
+        const avatarUrl = profile.avatarUrl;
         
         return `
             <div class="profile-card">
-                <div class="profile-avatar-large">${initials}</div>
+                <div class="profile-avatar-section">
+                    <div class="profile-avatar-container">
+                        <div class="profile-avatar-large" id="profileAvatar">
+                            ${avatarUrl ? 
+                                `<img src="${avatarUrl}" alt="Аватар" onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                                 <div class="avatar-fallback">${initials}</div>` :
+                                `<div class="avatar-fallback">${initials}</div>`
+                            }
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="uploadAvatarBtn" ${this.uploadingAvatar ? 'disabled' : ''}>
+                        ${this.uploadingAvatar ? '⏳ Загрузка...' : '📷 Изменить фото'}
+                    </button>
+                    <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                </div>
+                
                 <div class="profile-info">
-                    <h2 class="profile-name">${name}</h2>
-                    <p class="profile-username">@${profile.username || 'user'}</p>
-                    ${profile.bio ? `<p class="profile-bio">${profile.bio}</p>` : ''}
-                </div>
-                <button class="btn btn-secondary btn-sm" id="editProfileBtn">
-                    ✏️ Редактировать
-                </button>
-            </div>
-        `;
-    }
-    
-    /**
-     * 📊 Рендер секции статистики
-     */
-    renderStatsSection(stats) {
-        return `
-            <div class="stats-section">
-                <h3>📈 Ваша статистика</h3>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.totalQuotes || 0}</div>
-                        <div class="stat-label">Цитат собрано</div>
+                    <div class="profile-field">
+                        <label class="field-label">Имя:</label>
+                        <div class="field-value">${name}</div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.currentStreak || 0}</div>
-                        <div class="stat-label">Дней подряд</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.longestStreak || 0}</div>
-                        <div class="stat-label">Лучшая серия</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.favoriteAuthors?.length || 0}</div>
-                        <div class="stat-label">Любимых авторов</div>
+                    
+                    <div class="profile-field">
+                        <label class="field-label">Email:</label>
+                        <div class="field-value editable" id="emailField">
+                            <span class="email-display" id="emailDisplay">${email}</span>
+                            <button class="btn btn-link btn-sm" id="editEmailBtn">✏️</button>
+                        </div>
+                        <input type="email" class="field-input" id="emailInput" value="${email}" style="display: none;">
+                        <div class="field-actions" id="emailActions" style="display: none;">
+                            <button class="btn btn-success btn-sm" id="saveEmailBtn">💾 Сохранить</button>
+                            <button class="btn btn-secondary btn-sm" id="cancelEmailBtn">❌ Отмена</button>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
     }
     
+
     /**
      * ⚡ Рендер секции действий
      */
@@ -188,12 +186,14 @@ class ProfilePage {
         return `
             <div class="actions-section">
                 <h3>⚡ Действия</h3>
-                <button class="btn btn-primary btn-block" id="viewAchievementsBtn">
-                    🏆 Посмотреть достижения
-                </button>
-                <button class="btn btn-secondary btn-block" id="exportDataBtn">
-                    📤 Экспорт данных
-                </button>
+                <div class="actions-grid">
+                    <button class="btn btn-primary btn-block" id="viewAchievementsBtn">
+                        🏆 Мои достижения
+                    </button>
+                    <button class="btn btn-warning btn-block" id="resetTestBtn">
+                        🔄 Перезапустить тест
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -216,10 +216,44 @@ class ProfilePage {
      * 📱 Навешивание обработчиков событий
      */
     attachEventListeners() {
-        // Кнопка редактирования профиля
-        const editBtn = document.getElementById('editProfileBtn');
-        if (editBtn) {
-            editBtn.addEventListener('click', () => this.handleEditProfile());
+        // Кнопка загрузки аватара
+        const uploadBtn = document.getElementById('uploadAvatarBtn');
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', () => this.handleUploadAvatar());
+        }
+        
+        // Скрытый input для файла аватара
+        const avatarInput = document.getElementById('avatarInput');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', (e) => this.handleAvatarFileSelect(e));
+        }
+        
+        // Кнопка редактирования email
+        const editEmailBtn = document.getElementById('editEmailBtn');
+        if (editEmailBtn) {
+            editEmailBtn.addEventListener('click', () => this.handleEditEmail());
+        }
+        
+        // Кнопки сохранения/отмены email
+        const saveEmailBtn = document.getElementById('saveEmailBtn');
+        const cancelEmailBtn = document.getElementById('cancelEmailBtn');
+        if (saveEmailBtn) {
+            saveEmailBtn.addEventListener('click', () => this.handleSaveEmail());
+        }
+        if (cancelEmailBtn) {
+            cancelEmailBtn.addEventListener('click', () => this.handleCancelEmail());
+        }
+        
+        // Enter на поле email
+        const emailInput = document.getElementById('emailInput');
+        if (emailInput) {
+            emailInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    this.handleSaveEmail();
+                } else if (e.key === 'Escape') {
+                    this.handleCancelEmail();
+                }
+            });
         }
         
         // Кнопка просмотра достижений
@@ -228,28 +262,181 @@ class ProfilePage {
             achievementsBtn.addEventListener('click', () => this.handleViewAchievements());
         }
         
-        // Кнопка экспорта данных
-        const exportBtn = document.getElementById('exportDataBtn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.handleExportData());
+        // Кнопка сброса теста
+        const resetTestBtn = document.getElementById('resetTestBtn');
+        if (resetTestBtn) {
+            resetTestBtn.addEventListener('click', () => this.handleResetTest());
         }
     }
     
     /**
-     * ✏️ Обработчик редактирования профиля
+     * 📷 Обработчик загрузки аватара
      */
-    handleEditProfile() {
+    handleUploadAvatar() {
         // Haptic feedback
         if (this.telegram?.hapticFeedback) {
             this.telegram.hapticFeedback('light');
         }
         
-        // TODO: Implement edit functionality or navigate to edit page
-        console.log('Edit profile clicked');
-        
-        if (this.telegram?.showAlert) {
-            this.telegram.showAlert('Редактирование профиля будет доступно в следующих версиях');
+        // Открываем диалог выбора файла
+        const avatarInput = document.getElementById('avatarInput');
+        if (avatarInput) {
+            avatarInput.click();
         }
+    }
+    
+    /**
+     * 📁 Обработчик выбора файла аватара
+     */
+    async handleAvatarFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Проверяем тип файла
+        if (!file.type.startsWith('image/')) {
+            this.showError('Пожалуйста, выберите изображение');
+            return;
+        }
+        
+        // Проверяем размер файла (макс 3MB)
+        if (file.size > 3 * 1024 * 1024) {
+            this.showError('Файл слишком большой. Максимальный размер: 3MB');
+            return;
+        }
+        
+        try {
+            this.uploadingAvatar = true;
+            this.updateUploadButtonState();
+            
+            const userId = this.state.getCurrentUserId();
+            const result = await this.api.uploadAvatar(file, userId);
+            
+            if (result.success) {
+                // Обновляем данные профиля
+                this.profileData.avatarUrl = result.avatarUrl;
+                this.state?.update('user.profile.avatarUrl', result.avatarUrl);
+                
+                // Обновляем UI
+                this.updateAvatarDisplay();
+                
+                // Haptic feedback успеха
+                if (this.telegram?.hapticFeedback) {
+                    this.telegram.hapticFeedback('light');
+                }
+                
+                console.log('✅ Аватар обновлен');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки аватара:', error);
+            this.showError(error.message || 'Не удалось загрузить аватар');
+            
+            // Haptic feedback ошибки
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('heavy');
+            }
+        } finally {
+            this.uploadingAvatar = false;
+            this.updateUploadButtonState();
+            
+            // Очищаем input для возможности повторной загрузки того же файла
+            event.target.value = '';
+        }
+    }
+    
+    /**
+     * ✏️ Обработчик редактирования email
+     */
+    handleEditEmail() {
+        // Haptic feedback
+        if (this.telegram?.hapticFeedback) {
+            this.telegram.hapticFeedback('light');
+        }
+        
+        const emailDisplay = document.getElementById('emailDisplay');
+        const emailInput = document.getElementById('emailInput');
+        const emailActions = document.getElementById('emailActions');
+        const editBtn = document.getElementById('editEmailBtn');
+        
+        // Переключаем в режим редактирования
+        if (emailDisplay) emailDisplay.style.display = 'none';
+        if (editBtn) editBtn.style.display = 'none';
+        if (emailInput) {
+            emailInput.style.display = 'inline-block';
+            emailInput.focus();
+            emailInput.select();
+        }
+        if (emailActions) emailActions.style.display = 'block';
+    }
+    
+    /**
+     * 💾 Обработчик сохранения email
+     */
+    async handleSaveEmail() {
+        const emailInput = document.getElementById('emailInput');
+        if (!emailInput) return;
+        
+        const newEmail = emailInput.value.trim();
+        
+        // Валидация email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newEmail)) {
+            this.showError('Введите корректный email адрес');
+            emailInput.focus();
+            return;
+        }
+        
+        try {
+            const userId = this.state.getCurrentUserId();
+            const result = await this.api.updateProfile({ email: newEmail }, userId);
+            
+            if (result.success) {
+                // Обновляем данные профиля
+                this.profileData.email = newEmail;
+                this.state?.update('user.profile.email', newEmail);
+                
+                // Обновляем UI
+                this.updateEmailDisplay(newEmail);
+                this.handleCancelEmail(); // Выходим из режима редактирования
+                
+                // Haptic feedback успеха
+                if (this.telegram?.hapticFeedback) {
+                    this.telegram.hapticFeedback('light');
+                }
+                
+                console.log('✅ Email обновлен');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка обновления email:', error);
+            this.showError(error.message || 'Не удалось обновить email');
+            
+            // Haptic feedback ошибки
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('heavy');
+            }
+        }
+    }
+    
+    /**
+     * ❌ Обработчик отмены редактирования email
+     */
+    handleCancelEmail() {
+        const emailDisplay = document.getElementById('emailDisplay');
+        const emailInput = document.getElementById('emailInput');
+        const emailActions = document.getElementById('emailActions');
+        const editBtn = document.getElementById('editEmailBtn');
+        
+        // Возвращаем исходное значение
+        if (emailInput) {
+            emailInput.value = this.profileData.email || '';
+        }
+        
+        // Переключаем обратно в режим просмотра
+        if (emailDisplay) emailDisplay.style.display = 'inline';
+        if (editBtn) editBtn.style.display = 'inline';
+        if (emailInput) emailInput.style.display = 'none';
+        if (emailActions) emailActions.style.display = 'none';
     }
     
     /**
@@ -265,18 +452,49 @@ class ProfilePage {
     }
     
     /**
-     * 📤 Обработчик экспорта данных
+     * 🔄 Обработчик сброса теста
      */
-    handleExportData() {
+    async handleResetTest() {
         if (this.telegram?.hapticFeedback) {
-            this.telegram.hapticFeedback('light');
+            this.telegram.hapticFeedback('medium');
         }
         
-        // TODO: Implement data export functionality
-        console.log('Export data clicked');
+        // Подтверждение от пользователя
+        const confirmed = confirm('Вы уверены, что хотите перезапустить тест? Все ваши ответы будут удалены, но профиль и статистика сохранятся.');
         
-        if (this.telegram?.showAlert) {
-            this.telegram.showAlert('Экспорт данных будет доступен в следующих версиях');
+        if (!confirmed) return;
+        
+        try {
+            const userId = this.state.getCurrentUserId();
+            const result = await this.api.resetTest(userId);
+            
+            if (result.success) {
+                // Haptic feedback успеха
+                if (this.telegram?.hapticFeedback) {
+                    this.telegram.hapticFeedback('light');
+                }
+                
+                // Показываем сообщение и перенаправляем на онбординг
+                if (this.telegram?.showAlert) {
+                    this.telegram.showAlert('Тест сброшен! Перенаправляем на прохождение...');
+                }
+                
+                // Небольшая задержка перед перенаправлением
+                setTimeout(() => {
+                    window.location.hash = '/onboarding';
+                }, 1500);
+                
+                console.log('✅ Тест сброшен успешно');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка сброса теста:', error);
+            this.showError(error.message || 'Не удалось сбросить тест');
+            
+            // Haptic feedback ошибки
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('heavy');
+            }
         }
     }
     
@@ -285,37 +503,91 @@ class ProfilePage {
      */
     updateProfileUI() {
         // Update profile info if page is rendered
-        const nameEl = document.querySelector('.profile-name');
-        const usernameEl = document.querySelector('.profile-username');
-        const avatarEl = document.querySelector('.profile-avatar-large');
+        const emailDisplay = document.getElementById('emailDisplay');
         
-        if (nameEl && this.profileData.name) {
-            nameEl.textContent = this.profileData.name;
+        if (emailDisplay && this.profileData.email) {
+            emailDisplay.textContent = this.profileData.email;
         }
         
-        if (usernameEl && this.profileData.username) {
-            usernameEl.textContent = '@' + this.profileData.username;
-        }
+        // Обновляем аватар
+        this.updateAvatarDisplay();
+    }
+    
+    /**
+     * 🖼️ Обновление отображения аватара
+     */
+    updateAvatarDisplay() {
+        const avatarContainer = document.getElementById('profileAvatar');
+        if (!avatarContainer) return;
         
-        if (avatarEl && this.profileData.name) {
-            avatarEl.textContent = this.getInitials(this.profileData.name);
+        const { avatarUrl, name } = this.profileData;
+        const initials = this.getInitials(name) || '👤';
+        
+        if (avatarUrl) {
+            avatarContainer.innerHTML = `
+                <img src="${avatarUrl}" alt="Аватар" onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                <div class="avatar-fallback">${initials}</div>
+            `;
+            avatarContainer.classList.remove('fallback');
+        } else {
+            avatarContainer.innerHTML = `
+                <div class="avatar-fallback">${initials}</div>
+            `;
+            avatarContainer.classList.add('fallback');
         }
     }
     
     /**
-     * 📊 Обновление UI статистики
+     * 📧 Обновление отображения email
      */
-    updateStatsUI(stats) {
-        // Update stats if page is rendered
-        const statItems = document.querySelectorAll('.stat-number');
-        if (statItems.length >= 4) {
-            statItems[0].textContent = stats.totalQuotes || 0;
-            statItems[1].textContent = stats.currentStreak || 0;
-            statItems[2].textContent = stats.longestStreak || 0;
-            statItems[3].textContent = stats.favoriteAuthors?.length || 0;
+    updateEmailDisplay(newEmail) {
+        const emailDisplay = document.getElementById('emailDisplay');
+        if (emailDisplay) {
+            emailDisplay.textContent = newEmail;
         }
     }
     
+    /**
+     * ⏳ Обновление состояния кнопки загрузки
+     */
+    updateUploadButtonState() {
+        const uploadBtn = document.getElementById('uploadAvatarBtn');
+        if (!uploadBtn) return;
+        
+        if (this.uploadingAvatar) {
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '⏳ Загрузка...';
+        } else {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = '📷 Изменить фото';
+        }
+    }
+    
+    /**
+     * ⚠️ Показать ошибку
+     */
+    showError(message) {
+        this.error = message;
+        
+        // Обновляем UI ошибки если элемент существует
+        const errorEl = document.getElementById('errorMessage');
+        if (errorEl) {
+            errorEl.innerHTML = `
+                <span>⚠️ ${message}</span>
+                <button onclick="this.parentElement.style.display='none'">✕</button>
+            `;
+            errorEl.style.display = 'block';
+            
+            // Автоматически скрываем через 5 секунд
+            setTimeout(() => {
+                if (errorEl.style.display !== 'none') {
+                    errorEl.style.display = 'none';
+                }
+            }, 5000);
+        }
+    }
+    
+
     /**
      * 🔤 Получение инициалов из имени
      */
