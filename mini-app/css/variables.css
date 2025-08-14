@@ -259,3 +259,10 @@ body[data-theme="telegram"] {
     --font-size-3xl: 34px;
   }
 }
+
+/* 🔒 Фикс бренда поверх Telegram night темы */
+.night {
+  --primary-color: #D2452C !important;
+  --primary-light: #E5674F !important;
+  --primary-dark: #B73A24 !important;
+}
