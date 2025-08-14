@@ -313,6 +313,15 @@ class AppRouter {
     async navigate(path, options = {}) {
         const normalizedPath = this.normalizePath(path);
         console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`);
+        
+        // RETAKE: Логирование для режима повторного прохождения
+        if (path.includes('retake=1') || options.force) {
+            console.log('🔄 RETAKE: Специальная навигация обнаружена:', {
+                path: path,
+                force: options.force,
+                retakeParam: path.includes('retake=1')
+            });
+        }
 
         // Предотвращаем дублирование навигации
         if (this.isNavigating && !options.force) {
