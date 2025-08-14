@@ -499,7 +499,7 @@ class ProfilePage {
             }
             
             // RETAKE: Обновляем локальное состояние приложения
-            this.state?.set('user.profile.isOnboardingCompleted', false);
+            this.state?.set('user.profile.isOnboardingComplete', false);
             this.state?.set('user.testResults', null);
             
             // RETAKE: Устанавливаем флаг принудительного повторного прохождения

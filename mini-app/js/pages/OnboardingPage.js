@@ -31,6 +31,10 @@ class OnboardingPage {
         this.transitioning = false;
         // === RETAKE FIX END ===
         
+        // Haptic feedback debouncing
+        this.lastHapticAt = 0;
+        this.hapticDebounceMs = 120;
+        
         // === ONBOARDING STABILITY START ===
         // Навигационная блокировка для предотвращения двойных кликов
         this._navLock = false;
@@ -131,14 +135,48 @@ class OnboardingPage {
             source: '' // Откуда узнали о боте
         };
         
+        // Parse query parameters early to set isRetakeMode before any status checks
+        this.parseQuery();
+        
         this.init();
+    }
+    
+    /**
+     * 🔍 Parse URL query parameters early
+     */
+    parseQuery() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const retakeParam = urlParams.get('retake');
+        const isRetakeFromUrl = retakeParam === '1' || retakeParam === 'true';
+        
+        // Check flag in application state
+        const forceRetakeFlag = this.state.get('onboarding.forceRetake');
+        
+        this.isRetakeMode = isRetakeFromUrl || forceRetakeFlag;
+        
+        console.log('🔍 OnboardingPage: Early retake mode detection:', this.isRetakeMode, {
+            urlParam: retakeParam,
+            stateFlag: forceRetakeFlag
+        });
+        
+        // Set flag in state for later use
+        if (this.isRetakeMode) {
+            this.state.set('onboarding.isRetake', true);
+        }
     }
     
     /**
      * 🔧 Инициализация страницы
      */
     async init() {
-        // RETAKE: Проверяем режим повторного прохождения
+        // Guard against duplicate status checks
+        if (this._statusLoaded) {
+            console.log('📊 OnboardingPage: Status already loaded, skipping duplicate check');
+            this.prefillUserData();
+            return;
+        }
+        
+        // RETAKE: Проверяем режим повторного прохождения (redundant but keeping for compatibility)
         this.detectRetakeMode();
         
         // Устанавливаем guard против выхода из онбординга
@@ -165,6 +203,9 @@ class OnboardingPage {
             const onboardingStatus = await this.api.checkOnboardingStatus(userId);
             console.log('📊 OnboardingPage: Статус онбординга:', onboardingStatus);
             
+            // Mark status as loaded to prevent duplicate calls
+            this._statusLoaded = true;
+            
             // RETAKE: Только редиректим если завершен И НЕ в режиме повторного прохождения
             if (onboardingStatus.completed && !this.isRetakeMode) {
                 // Перенаправляем на главную страницу
@@ -180,7 +221,7 @@ class OnboardingPage {
             console.warn('⚠️ OnboardingPage: Ошибка проверки статуса онбординга:', error);
             
             // Fallback: проверяем локальное состояние
-            const onboardingCompleted = this.state.get('user.profile.isOnboardingCompleted');
+            const onboardingCompleted = this.state.get('user.profile.isOnboardingComplete');
             // RETAKE: Только редиректим если завершен И НЕ в режиме повторного прохождения
             if (onboardingCompleted && !this.isRetakeMode) {
                 this.app.router.navigate('/home');
@@ -231,7 +272,7 @@ class OnboardingPage {
         // Обработчик popstate событий (кнопка "Назад" браузера)
         this._popstateHandler = (event) => {
             // Проверяем, завершен ли онбординг
-            const isOnboardingComplete = this.state.get('user.profile.isOnboardingCompleted');
+            const isOnboardingComplete = this.state.get('user.profile.isOnboardingComplete');
             
             // Если онбординг не завершен и мы не в режиме retake, блокируем выход
             if (!isOnboardingComplete && !this.isRetakeMode) {
@@ -759,7 +800,7 @@ class OnboardingPage {
         this.updateNavigationButton();
         
         // Haptic feedback
-        this.telegram.hapticFeedback('light');
+        this.triggerHapticFeedback('light');
     }
     
     /**
@@ -778,7 +819,7 @@ class OnboardingPage {
         this.updateNavigationButton();
         
         // Haptic feedback
-        this.telegram.hapticFeedback('light');
+        this.triggerHapticFeedback('light');
     }
     // === RETAKE FIX END ===
     
@@ -810,7 +851,7 @@ class OnboardingPage {
                 this.updateNavigationButton();
                 
                 // Haptic feedback
-                this.telegram.hapticFeedback('light');
+                this.triggerHapticFeedback('light');
             });
         });
     }
@@ -837,7 +878,7 @@ class OnboardingPage {
         }, 250);
         // === ONBOARDING STABILITY END ===
         
-        this.telegram.hapticFeedback('medium');
+        this.triggerHapticFeedback('medium');
         
         if (this.currentStep === 0) {
             // Начало теста
@@ -930,21 +971,33 @@ class OnboardingPage {
         }
         // === RETAKE FIX END ===
         
+        // Check if we're at completion step and contact form should be present
+        if (this.currentStep > this.totalSteps) {
+            const emailInput = document.getElementById('emailInput');
+            if (!emailInput) {
+                console.warn('⚠️ OnboardingPage: Email input not found, form not properly mounted');
+                return false;
+            }
+        }
+        
         // Собираем актуальные данные из формы
         const contactData = this.gatherContactData();
         
         // Email обязателен
-        if (!contactData.email || contactData.email.length === 0) {
+        if (!contactData.email || contactData.email.trim().length === 0) {
+            console.log('📧 OnboardingPage: Email is missing or empty');
             return false;
         }
         
         // Email должен быть валидным
         if (!this.isValidEmail(contactData.email)) {
+            console.log('📧 OnboardingPage: Email format is invalid');
             return false;
         }
         
         // Источник обязателен
         if (!contactData.source || contactData.source.length === 0) {
+            console.log('📱 OnboardingPage: Source is missing');
             return false;
         }
         
@@ -964,8 +1017,18 @@ class OnboardingPage {
      * Обеспечивает соответствие с backend enum
      */
     gatherContactData() {
+        // Always read from DOM first if available, then fallback to stored state
         const emailInput = document.getElementById('emailInput');
-        const currentEmail = emailInput ? emailInput.value.trim() : this.contactData.email;
+        let currentEmail = this.contactData.email || '';
+        
+        if (emailInput) {
+            currentEmail = emailInput.value.trim();
+            // Update stored state to keep in sync
+            this.contactData.email = currentEmail;
+        } else if (this.currentStep > this.totalSteps) {
+            // If we're at completion step but no input found, this is a problem
+            console.warn('⚠️ OnboardingPage: Email input missing at completion step');
+        }
         
         // Карта нормализации источников (совпадает с серверной)
         const sourceMapping = {
@@ -1074,6 +1137,15 @@ class OnboardingPage {
                 }
             }
             
+            // Ensure completion form is properly mounted
+            this.ensureCompletionFormMounted();
+            
+            // Re-validate just before sending
+            if (!this.isContactDataValid()) {
+                this.showError('Пожалуйста, заполните обязательные поля корректно');
+                return;
+            }
+            
             // Собираем и нормализуем контактные данные
             const contactData = this.gatherContactData();
             
@@ -1112,7 +1184,7 @@ class OnboardingPage {
             
             // Обновление состояния пользователя
             this.state.update('user.profile', {
-                isOnboardingCompleted: true,
+                isOnboardingComplete: true,
                 // RETAKE: Обновляем timestamp последнего онбординга
                 lastOnboardingAt: new Date().toISOString()
             });
@@ -1125,7 +1197,7 @@ class OnboardingPage {
             }
             
             // Haptic feedback успеха
-            this.telegram.hapticFeedback('success');
+            this.triggerHapticFeedback('success');
             
             // RETAKE: Разные сообщения для первого прохождения и повторного
             const successMessage = this.isRetakeMode 
@@ -1143,6 +1215,8 @@ class OnboardingPage {
         } catch (error) {
             console.error('❌ Ошибка завершения онбординга:', error);
             this.showError('Не удалось сохранить данные. Попробуйте еще раз.');
+        } finally {
+            // Always reset loading state in finally block
             this.loading = false;
             this.updateNavigationButton();
         }
@@ -1304,6 +1378,41 @@ class OnboardingPage {
             answers: this.answers,
             contactData: this.contactData
         });
+    }
+    
+    /**
+     * 📝 Ensure completion form is mounted when at completion step
+     */
+    ensureCompletionFormMounted() {
+        if (this.currentStep <= this.totalSteps) {
+            return; // Not at completion step
+        }
+        
+        const emailInput = document.getElementById('emailInput');
+        if (emailInput) {
+            return; // Form is already mounted
+        }
+        
+        console.warn('⚠️ OnboardingPage: Completion form not mounted, re-rendering');
+        this.rerender();
+    }
+    
+    /**
+     * 📳 Debounced haptic feedback to prevent spam
+     * @param {string} type - Type of haptic feedback ('light', 'medium', 'heavy', 'success')
+     */
+    triggerHapticFeedback(type = 'light') {
+        const now = Date.now();
+        if (now - this.lastHapticAt < this.hapticDebounceMs) {
+            console.log('📳 OnboardingPage: Haptic feedback debounced');
+            return;
+        }
+        
+        this.lastHapticAt = now;
+        
+        if (this.telegram && this.telegram.hapticFeedback) {
+            this.telegram.hapticFeedback(type);
+        }
     }
     
     /**
