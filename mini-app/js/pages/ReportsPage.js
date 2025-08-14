@@ -47,11 +47,69 @@ class ReportsPage {
     setupSubscriptions() {
         // Подписки на изменения состояния, если необходимо
     }
+
+    /**
+     * 🔄 Ожидание валидного userId для предотвращения гонки условий
+     * @param {number} timeout - Максимальное время ожидания в миллисекундах
+     * @returns {Promise<string>} - Валидный userId
+     */
+    async waitForValidUserId(timeout = 4000) {
+        const startTime = Date.now();
+        
+        while (Date.now() - startTime < timeout) {
+            let userId = this.state.getCurrentUserId();
+            
+            // ✅ FIX: Accept numeric string userId and coerce to number
+            if (typeof userId === 'string' && /^\d+$/.test(userId)) {
+                userId = parseInt(userId, 10);
+            }
+            
+            // Проверяем что userId валидный и не равен demo-user
+            if (userId && userId !== 'demo-user' && typeof userId === 'number') {
+                console.log('✅ ReportsPage: Получен валидный userId:', userId);
+                return userId;
+            }
+            
+            // Также принимаем demo-user только в debug режиме
+            if (userId === 'demo-user' && this.state.get('debugMode')) {
+                console.log('🧪 ReportsPage: Используем demo-user в debug режиме');
+                return userId;
+            }
+            
+            // Ждем 100ms перед следующей проверкой
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // Timeout reached, return demo-user for fallback
+        console.warn('⏰ ReportsPage: Timeout waiting for userId, using demo-user fallback');
+        return 'demo-user';
+    }
+
+    /**
+     * 📊 Применение fallback статистики
+     * @param {string} reason - Причина применения fallback
+     */
+    applyFallbackStats(reason) {
+        console.warn(`📊 ReportsPage: Применяем fallback статистику (${reason})`);
+        
+        this.reportData.statistics = {
+            quotes: 7,
+            authors: 5,
+            days: 6,
+            goal: 85
+        };
+        
+        // Устанавливаем флаги для предотвращения повторных попыток
+        this.reportsLoaded = true;
+        this.state.set('reports.lastUpdate', Date.now());
+        
+        console.log('✅ ReportsPage: Fallback статистика применена');
+    }
     
     async loadReportData() {
         // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
-        if (this.reportsLoading) {
-            console.log('🔄 ReportsPage: Отчеты уже загружаются, пропускаем');
+        if (this.reportsLoading || this.reportsLoaded) {
+            console.log('🔄 ReportsPage: Отчеты уже загружаются или загружены, пропускаем');
             return;
         }
         
@@ -59,24 +117,44 @@ class ReportsPage {
             this.reportsLoading = true;
             console.log('📊 ReportsPage: Загружаем данные отчета...');
             
-            // Загружаем актуальные данные для отчета
-            const stats = await this.api.getStats();
-            if (stats) {
-                this.reportData.statistics = {
-                    quotes: stats.thisWeek || 7,
-                    authors: stats.uniqueAuthors || 5,
-                    days: stats.activeDays || 6,
-                    goal: Math.min(Math.round((stats.thisWeek / 7) * 100), 100) || 85
-                };
+            // ✅ Ждем валидный userId
+            const userId = await this.waitForValidUserId();
+            
+            // ✅ Если получили demo-user после timeout - применяем fallback
+            if (userId === 'demo-user') {
+                console.warn('⚠️ ReportsPage: Получен demo-user, применяем fallback статистику');
+                this.applyFallbackStats('demo-user');
+                return;
             }
             
-            this.reportsLoaded = true;
-            this.state.set('reports.lastUpdate', Date.now());
-            console.log('✅ ReportsPage: Данные отчета загружены');
+            // ✅ Загружаем данные с explicit userId
+            console.log('📡 ReportsPage: Загружаем статистику для userId:', userId);
+            const stats = await this.api.getStats(userId);
+            
+            if (stats && stats.success) {
+                this.reportData.statistics = {
+                    quotes: stats.stats?.totalQuotes || stats.thisWeek || 7,
+                    authors: stats.stats?.favoriteAuthors?.length || stats.uniqueAuthors || 5,
+                    days: stats.stats?.currentStreak || stats.activeDays || 6,
+                    goal: Math.min(Math.round(((stats.stats?.totalQuotes || stats.thisWeek || 7) / 7) * 100), 100) || 85
+                };
+                
+                this.reportsLoaded = true;
+                this.state.set('reports.lastUpdate', Date.now());
+                console.log('✅ ReportsPage: Данные отчета загружены');
+            } else {
+                this.applyFallbackStats('invalid-response');
+            }
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных отчета:', error);
-            // Используем примеры из концепта как fallback
+            
+            // ✅ Обработка разных типов ошибок
+            if (error.message && error.message.includes('404')) {
+                this.applyFallbackStats('404');
+            } else {
+                this.applyFallbackStats('error');
+            }
         } finally {
             this.reportsLoading = false;
         }
@@ -181,13 +259,13 @@ class ReportsPage {
     onShow() {
         console.log('📊 ReportsPage: onShow - БЕЗ ШАПКИ!');
         
-        // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
-        if (!this.reportsLoaded) {
+        // ✅ ИСПРАВЛЕНО: Умная загрузка - не загружаем если уже загружено или загружается
+        if (!this.reportsLoaded && !this.reportsLoading) {
             console.log('🔄 ReportsPage: Первый показ, загружаем данные');
             this.loadReportData().then(() => {
                 this.rerender();
             });
-        } else {
+        } else if (this.reportsLoaded && !this.reportsLoading) {
             // Проверяем актуальность данных (10 минут)
             const lastUpdate = this.state.get('reports.lastUpdate');
             const now = Date.now();
@@ -201,6 +279,8 @@ class ReportsPage {
             } else {
                 console.log('✅ ReportsPage: Данные актуальны');
             }
+        } else {
+            console.log('🔄 ReportsPage: Загрузка уже в процессе, ожидаем');
         }
     }
     
