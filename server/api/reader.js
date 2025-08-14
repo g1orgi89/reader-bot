@@ -22,9 +22,10 @@ const quoteHandler = new QuoteHandler();
 /**
  * Simple userId extraction from request
  * Supports both query parameters and request body
+ * Always returns String for consistency
  */
 function getUserId(req) {
-    return req.query.userId || req.body.userId || 'demo-user';
+    return String(req.query.userId || req.body.userId || 'demo-user');
 }
 
 /**
@@ -66,9 +67,9 @@ router.post('/auth/telegram', async (req, res) => {
                 lastName: user.last_name || '',
                 username: user.username || '',
                 telegramId: user.id,
-                isOnboardingCompleted: userProfile ? userProfile.isOnboardingComplete : false
+                isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false
             },
-            isOnboardingCompleted: userProfile ? userProfile.isOnboardingComplete : false
+            isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false
         };
 
         res.json(authData);
@@ -91,28 +92,16 @@ router.get('/auth/onboarding-status', async (req, res) => {
         const userId = getUserId(req);
         const userProfile = await UserProfile.findOne({ userId });
         
-        if (userProfile && userProfile.isOnboardingComplete) {
-            return res.json({
-                success: true,
-                isCompleted: true,
-                completed: true,
-                user: {
-                    userId: userProfile.userId,
-                    name: userProfile.name,
-                    email: userProfile.email,
-                    isOnboardingCompleted: true
-                }
-            });
-        }
+        const isOnboardingComplete = userProfile ? userProfile.isOnboardingComplete : false;
         
         res.json({
             success: true,
-            isCompleted: false,
-            completed: false,
+            isOnboardingComplete,
             user: userProfile ? {
                 userId: userProfile.userId,
                 name: userProfile.name,
-                isOnboardingCompleted: false
+                email: userProfile.email,
+                isOnboardingComplete: userProfile.isOnboardingComplete
             } : null
         });
 
@@ -280,9 +269,9 @@ router.post('/auth/complete-onboarding', async (req, res) => {
         // RETAKE: Если пользователь уже завершил онбординг и forceRetake не установлен
         if (!wasJustCreated && userProfile.isOnboardingComplete && !forceRetake) {
             console.log(`⚠️ Пользователь ${userId} уже завершил онбординг`);
-            return res.status(400).json({
-                success: false,
-                error: 'User already completed onboarding',
+            return res.status(200).json({
+                success: true,
+                alreadyCompleted: true,
                 user: {
                     userId: userProfile.userId,
                     name: userProfile.name,
@@ -352,9 +341,9 @@ router.post('/auth/complete-onboarding', async (req, res) => {
             try {
                 const existingUser = await UserProfile.findOne({ userId: req.body.user.id.toString() });
                 if (existingUser && existingUser.isOnboardingComplete) {
-                    return res.status(400).json({
-                        success: false,
-                        error: 'User already completed onboarding',
+                    return res.status(200).json({
+                        success: true,
+                        alreadyCompleted: true,
                         user: {
                             userId: existingUser.userId,
                             name: existingUser.name,
@@ -371,6 +360,43 @@ router.post('/auth/complete-onboarding', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Internal server error during onboarding'
+        });
+    }
+});
+
+/**
+ * @description Сброс онбординга
+ * @route POST /api/reader/auth/reset-onboarding
+ */
+router.post('/auth/reset-onboarding', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        
+        const userProfile = await UserProfile.findOne({ userId });
+        if (!userProfile) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        // Используем новый метод для сброса результатов теста
+        await userProfile.resetTestResults();
+        
+        res.json({
+            success: true,
+            user: {
+                userId: userProfile.userId,
+                name: userProfile.name,
+                email: userProfile.email,
+                isOnboardingComplete: userProfile.isOnboardingComplete
+            }
+        });
+    } catch (error) {
+        console.error('❌ Reset Onboarding Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error during onboarding reset'
         });
     }
 });

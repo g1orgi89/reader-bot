@@ -207,14 +207,14 @@ class OnboardingPage {
             this._statusLoaded = true;
             
             // RETAKE: Только редиректим если завершен И НЕ в режиме повторного прохождения
-            if (onboardingStatus.completed && !this.isRetakeMode) {
+            if (onboardingStatus.isOnboardingComplete && !this.isRetakeMode) {
                 // Перенаправляем на главную страницу
                 this.app.router.navigate('/home');
                 return;
             }
             
             // RETAKE: Если в режиме повторного прохождения, предзаполняем предыдущие ответы
-            if (this.isRetakeMode && onboardingStatus.completed) {
+            if (this.isRetakeMode && onboardingStatus.isOnboardingComplete) {
                 this.prefillPreviousAnswers(onboardingStatus);
             }
         } catch (error) {
@@ -1177,7 +1177,11 @@ class OnboardingPage {
             // === RETAKE FIX END ===
             
             // Отправка данных на сервер
-            await this.api.completeOnboarding(onboardingData);
+            const response = await this.api.completeOnboarding(onboardingData);
+            
+            // Handle both successful completion and already completed cases
+            const isAlreadyCompleted = response && response.alreadyCompleted;
+            console.log('📊 Ответ от сервера:', response, { isAlreadyCompleted });
             
             // Снимаем popstate guard после успешного завершения
             this.removePopstateGuard();
@@ -1200,9 +1204,11 @@ class OnboardingPage {
             this.triggerHapticFeedback('success');
             
             // RETAKE: Разные сообщения для первого прохождения и повторного
-            const successMessage = this.isRetakeMode 
-                ? '✅ Обновлено!' 
-                : '✅ Добро пожаловать в сообщество читателей!';
+            const successMessage = isAlreadyCompleted 
+                ? '✅ Данные уже сохранены!' 
+                : this.isRetakeMode 
+                    ? '✅ Обновлено!' 
+                    : '✅ Добро пожаловать в сообщество читателей!';
             
             // Показ уведомления об успехе
             this.showSuccess(successMessage);

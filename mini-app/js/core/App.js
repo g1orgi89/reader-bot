@@ -155,7 +155,7 @@ class ReaderApp {
                     fullName,
                     name,
                     username: authResponse.user.username || telegramUser.username || '',
-                    isOnboardingComplete: authResponse.isOnboardingCompleted || false
+                    isOnboardingComplete: authResponse.user.isOnboardingComplete || authResponse.isOnboardingComplete || false
                 },
                 isAuthenticated: true
             });
@@ -256,7 +256,7 @@ class ReaderApp {
                 console.log('📊 Статус онбординга:', onboardingStatus);
                 onboardingCheckCompleted = true;
                 
-                if (!onboardingStatus.completed) {
+                if (!onboardingStatus.isOnboardingComplete) {
                     initialRoute = '/onboarding';
                     this._onboardingGateApplied = true;
                     console.log('🎯 STABILITY: API показал онбординг не завершен, стартуем с /onboarding');
@@ -526,7 +526,7 @@ class ReaderApp {
                         username: authResponse.user.username || debugTelegramData.username,
                         telegramId: debugTelegramData.id,
                         isDebug: true,
-                        isOnboardingComplete: authResponse.isOnboardingCompleted || false
+                        isOnboardingComplete: authResponse.user.isOnboardingComplete || authResponse.isOnboardingComplete || false
                     },
                     isAuthenticated: true
                 });
