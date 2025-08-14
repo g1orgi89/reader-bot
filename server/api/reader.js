@@ -182,11 +182,27 @@ router.post('/auth/complete-onboarding', async (req, res) => {
             });
         }
 
+        // Log incoming request for debugging (sanitized)
+        console.log('📤 Complete onboarding request:', {
+            hasUser: !!user,
+            userId: user?.id,
+            hasAnswers: !!answers,
+            hasEmail: !!email,
+            emailLength: email?.length || 0,
+            hasSource: !!source,
+            isForceRetake: !!forceRetake
+        });
+
         // Нормализация и валидация входных данных
         const { email: normalizedEmail, source: normalizedSource } = normalizeOnboardingInput(email, source);
         
         // Валидация email (должен быть непустым)
         if (!normalizedEmail || normalizedEmail.length === 0) {
+            console.log('❌ Email validation failed:', { 
+                originalEmail: email, 
+                normalizedEmail, 
+                reason: 'empty_or_missing' 
+            });
             return res.status(400).json({
                 success: false,
                 error: 'EMAIL_REQUIRED',
@@ -197,6 +213,10 @@ router.post('/auth/complete-onboarding', async (req, res) => {
         // Проверка валидности email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(normalizedEmail)) {
+            console.log('❌ Email format validation failed:', { 
+                email: normalizedEmail, 
+                reason: 'invalid_format' 
+            });
             return res.status(400).json({
                 success: false,
                 error: 'EMAIL_INVALID',

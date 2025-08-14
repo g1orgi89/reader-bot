@@ -155,7 +155,7 @@ class ReaderApp {
                     fullName,
                     name,
                     username: authResponse.user.username || telegramUser.username || '',
-                    isOnboardingCompleted: authResponse.isOnboardingCompleted || false
+                    isOnboardingComplete: authResponse.isOnboardingCompleted || false
                 },
                 isAuthenticated: true
             });
@@ -264,14 +264,14 @@ class ReaderApp {
                     if (onboardingStatus.user) {
                         this.state.update('user.profile', {
                             ...onboardingStatus.user,
-                            isOnboardingCompleted: true
+                            isOnboardingComplete: true
                         });
                     }
                     console.log('🏠 STABILITY: API показал онбординг завершен, можно /home');
                 }
             } else {
                 const isDebugMode = this.state.get('debugMode');
-                if (!isDebugMode && !profile?.isOnboardingCompleted) {
+                if (!isDebugMode && !profile?.isOnboardingComplete) {
                     initialRoute = '/onboarding';
                     this._onboardingGateApplied = true;
                     console.log('🎯 STABILITY: Fallback - онбординг локально не завершен, стартуем с /onboarding');
@@ -281,7 +281,7 @@ class ReaderApp {
             console.warn('⚠️ Ошибка проверки онбординга:', error);
             const isDebugMode = this.state.get('debugMode');
             const profile = this.state.get('user.profile');
-            if (!isDebugMode && !profile?.isOnboardingCompleted) {
+            if (!isDebugMode && !profile?.isOnboardingComplete) {
                 initialRoute = '/onboarding';
                 this._onboardingGateApplied = true;
                 console.log('🎯 STABILITY: Ошибка API - fallback к /onboarding');
@@ -526,7 +526,7 @@ class ReaderApp {
                         username: authResponse.user.username || debugTelegramData.username,
                         telegramId: debugTelegramData.id,
                         isDebug: true,
-                        isOnboardingCompleted: authResponse.isOnboardingCompleted || false
+                        isOnboardingComplete: authResponse.isOnboardingCompleted || false
                     },
                     isAuthenticated: true
                 });
@@ -542,7 +542,7 @@ class ReaderApp {
         if (initialized) {
             this.state.update('user.profile', {
                 isDebug: true,
-                isOnboardingCompleted: false
+                isOnboardingComplete: false
             });
         } else {
             this.state.update('user', {
@@ -552,7 +552,7 @@ class ReaderApp {
                     firstName: 'Тестер Debug',
                     username: 'debug_user',
                     isDebug: true,
-                    isOnboardingCompleted: false
+                    isOnboardingComplete: false
                 },
                 isAuthenticated: true
             });

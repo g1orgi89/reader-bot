@@ -43,9 +43,12 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    /* Включаем вертикальный скролл для переполнения */
+    /* Включаем вертикальный скролл для переполнения с скрытым scrollbar */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
+    /* Скрытие scrollbar для мобильных */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE и Edge */
     /* Достаточный отступ снизу для sticky кнопки + safe area + навигация */
     padding-bottom: calc(
         var(--button-height) + 
@@ -56,6 +59,11 @@
     );
 }
 
+/* Скрытие scrollbar для WebKit браузеров */
+.onboarding-page::-webkit-scrollbar {
+    display: none;
+}
+
 /* 📦 Контейнер контента с ограничением высоты */
 .onboarding-content-wrapper {
     flex: 1;
@@ -64,6 +72,14 @@
     max-height: calc(100vh - 200px); /* Оставляем место для header, progress, button */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    /* Скрытие scrollbar */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE и Edge */
+}
+
+/* Скрытие scrollbar для WebKit браузеров */
+.onboarding-content-wrapper::-webkit-scrollbar {
+    display: none;
 }
 
 /* 🔄 Динамический контент */

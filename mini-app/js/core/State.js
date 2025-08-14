@@ -328,7 +328,7 @@ class AppState {
                 username: telegramData.username || '',
                 languageCode: telegramData.language_code || 'ru',
                 isPremium: telegramData.is_premium || false,
-                isOnboardingCompleted: false // По умолчанию онбординг не завершен
+                isOnboardingComplete: false // По умолчанию онбординг не завершен
             },
             isAuthenticated: true
         });
