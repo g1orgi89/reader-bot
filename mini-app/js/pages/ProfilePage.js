@@ -516,21 +516,22 @@ class ProfilePage {
                 this.telegram.hapticFeedback('light');
             }
             
-            // Показываем сообщение и перенаправляем на онбординг
+            // Показываем сообщение
             if (this.telegram?.showAlert) {
                 this.telegram.showAlert('Тест сброшен! Перенаправляем на прохождение...');
             }
             
-            // RETAKE: Перенаправляем на онбординг в режиме повторного прохождения
+            // RETAKE: Перенаправляем на онбординг в режиме повторного прохождения немедленно
+            // Используем минимальную задержку для обеспечения стабильности UI (100-150ms)
             setTimeout(() => {
-                // Навигация с query параметром retake=1
+                // Навигация с query параметром retake=1 и флагом force для немедленного перехода
                 if (this.app.router && typeof this.app.router.navigate === 'function') {
-                    this.app.router.navigate('/onboarding?retake=1');
+                    this.app.router.navigate('/onboarding?retake=1', { force: true });
                 } else {
                     // Fallback через hash
                     window.location.hash = '#/onboarding?retake=1';
                 }
-            }, 1000);
+            }, 150);
             
             console.log('✅ Тест сброшен успешно, режим повторного прохождения активирован');
             

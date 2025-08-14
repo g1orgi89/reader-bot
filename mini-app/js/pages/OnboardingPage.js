@@ -218,20 +218,36 @@ class OnboardingPage {
      * 📋 RETAKE: Предзаполнение предыдущих ответов
      */
     prefillPreviousAnswers(onboardingStatus) {
+        console.log('📋 OnboardingPage: Предзаполняем предыдущие ответы в режиме retake:', onboardingStatus);
+        
         if (onboardingStatus.answers) {
-            console.log('📋 OnboardingPage: Предзаполняем предыдущие ответы:', onboardingStatus.answers);
+            console.log('📋 OnboardingPage: Предзаполняем из answers:', onboardingStatus.answers);
             this.answers = { ...onboardingStatus.answers };
         } else if (onboardingStatus.testResults) {
             console.log('📋 OnboardingPage: Предзаполняем из testResults:', onboardingStatus.testResults);
             this.answers = { ...onboardingStatus.testResults };
         }
         
-        // Также пытаемся получить контактные данные
+        // RETAKE: Предзаполняем контактные данные для повторного прохождения
         if (onboardingStatus.email) {
             this.contactData.email = onboardingStatus.email;
+            console.log('📧 OnboardingPage: Предзаполнен email:', onboardingStatus.email);
+        } else {
+            // Пытаемся получить email из профиля пользователя
+            const profileEmail = this.state.get('user.profile.email');
+            if (profileEmail) {
+                this.contactData.email = profileEmail;
+                console.log('📧 OnboardingPage: Email предзаполнен из профиля:', profileEmail);
+            }
         }
+        
         if (onboardingStatus.source) {
             this.contactData.source = onboardingStatus.source;
+            console.log('📱 OnboardingPage: Предзаполнен source:', onboardingStatus.source);
+        } else {
+            // Очищаем source в режиме retake, чтобы пользователь мог заново выбрать
+            this.contactData.source = '';
+            console.log('📱 OnboardingPage: Source очищен для повторного выбора');
         }
     }
     
@@ -886,9 +902,23 @@ class OnboardingPage {
     }
     
     /**
-     * 🔄 Обновление состояния кнопки навигации
+     * 🔄 Обновление состояния кнопки навигации (с debounce защитой)
      */
     updateNavigationButton() {
+        // Debounce защита от множественных вызовов
+        if (this._updateButtonTimeout) {
+            clearTimeout(this._updateButtonTimeout);
+        }
+        
+        this._updateButtonTimeout = setTimeout(() => {
+            this._updateNavigationButtonNow();
+        }, 50);
+    }
+    
+    /**
+     * 🔄 Непосредственное обновление состояния кнопки навигации
+     */
+    _updateNavigationButtonNow() {
         const button = document.querySelector('.next-button');
         if (!button) return;
         
@@ -953,8 +983,7 @@ class OnboardingPage {
                 answers: this.answers,            // ✅ OK
                 email: this.contactData.email,    // ✅ Backend ожидает "email"
                 source: this.contactData.source,  // ✅ Backend ожидает "source"
-                telegramData: telegramData,
-                retake: this.isRetakeMode         // RETAKE: Передаем флаг повторного прохождения
+                telegramData: telegramData
             };
             
             // === RETAKE FIX START ===
@@ -967,10 +996,16 @@ class OnboardingPage {
                 }
             }
             
-            // В режиме повторного прохождения не отправляем source или ставим undefined
+            // RETAKE: Добавляем forceRetake флаг если в режиме повторного прохождения
             if (this.isRetakeMode) {
-                onboardingData.source = undefined;
-                console.log('📱 OnboardingPage: Source пропущен для режима повторного прохождения');
+                onboardingData.forceRetake = true;
+                console.log('🔄 OnboardingPage: Добавлен forceRetake флаг для повторного прохождения');
+            }
+            
+            // Устанавливаем дефолтный source если отсутствует
+            if (!onboardingData.source) {
+                onboardingData.source = 'telegram';
+                console.log('📱 OnboardingPage: Установлен дефолтный source: telegram');
             }
             // === RETAKE FIX END ===
             
@@ -1194,6 +1229,13 @@ class OnboardingPage {
             clearTimeout(this._navLockTimeout);
             this._navLockTimeout = null;
         }
+        
+        // Очищаем таймаут обновления кнопки
+        if (this._updateButtonTimeout) {
+            clearTimeout(this._updateButtonTimeout);
+            this._updateButtonTimeout = null;
+        }
+        
         this._navLock = false;
         this._animationPlayed = false;
         // === ONBOARDING STABILITY END ===

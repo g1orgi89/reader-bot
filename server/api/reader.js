@@ -132,14 +132,18 @@ router.get('/auth/onboarding-status', async (req, res) => {
  */
 router.post('/auth/complete-onboarding', async (req, res) => {
     try {
-        const { telegramData, user, answers, email, source } = req.body;
+        const { telegramData, user, answers, email, source, forceRetake } = req.body;
         
-        if (!user || !user.id || !answers || !email || !source) {
+        if (!user || !user.id || !answers) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: user, answers, email, source'
+                error: 'Missing required fields: user, answers'
             });
         }
+
+        // Sanitize email and source with defaults
+        const sanitizedEmail = email || '';
+        const sanitizedSource = source || 'telegram';
 
         const userId = user.id.toString();
 
@@ -152,7 +156,7 @@ router.post('/auth/complete-onboarding', async (req, res) => {
                     // Данные устанавливаются только при создании нового документа
                     userId,
                     name: answers.question1_name || answers.name,
-                    email: email,
+                    email: sanitizedEmail,
                     testResults: {
                         question1_name: answers.question1_name || answers.name,
                         question2_lifestyle: answers.question2_lifestyle || answers.lifestyle,
@@ -163,7 +167,7 @@ router.post('/auth/complete-onboarding', async (req, res) => {
                         question7_reading_time: answers.question7_reading_time || answers.readingTime,
                         completedAt: new Date()
                     },
-                    source: source,
+                    source: sanitizedSource,
                     telegramUsername: user.username,
                     telegramData: {
                         firstName: user.first_name,
@@ -190,7 +194,8 @@ router.post('/auth/complete-onboarding', async (req, res) => {
         // Проверяем, был ли пользователь создан сейчас или уже существовал
         const wasJustCreated = userProfile.createdAt.getTime() === userProfile.updatedAt.getTime();
         
-        if (!wasJustCreated && userProfile.isOnboardingComplete) {
+        // RETAKE: Если пользователь уже завершил онбординг и forceRetake не установлен
+        if (!wasJustCreated && userProfile.isOnboardingComplete && !forceRetake) {
             console.log(`⚠️ Пользователь ${userId} уже завершил онбординг`);
             return res.status(400).json({
                 success: false,
@@ -204,9 +209,39 @@ router.post('/auth/complete-onboarding', async (req, res) => {
             });
         }
 
-        console.log(`✅ Пользователь ${wasJustCreated ? 'создан' : 'обновлен'}: ${userProfile.userId} (${userProfile.name})`);
+        // RETAKE: Если forceRetake установлен, обновляем существующего пользователя
+        if (!wasJustCreated && forceRetake) {
+            console.log(`🔄 RETAKE: Принудительное обновление пользователя ${userId}`);
+            
+            // Обновляем данные при повторном прохождении
+            await UserProfile.findOneAndUpdate(
+                { userId },
+                {
+                    $set: {
+                        name: answers.question1_name || answers.name,
+                        email: sanitizedEmail || userProfile.email, // сохраняем существующий email если новый пустой
+                        testResults: {
+                            question1_name: answers.question1_name || answers.name,
+                            question2_lifestyle: answers.question2_lifestyle || answers.lifestyle,
+                            question3_time: answers.question3_time || answers.timeForSelf,
+                            question4_priorities: answers.question4_priorities || answers.priorities,
+                            question5_reading_feeling: answers.question5_reading_feeling || answers.readingFeelings,
+                            question6_phrase: answers.question6_phrase || answers.closestPhrase,
+                            question7_reading_time: answers.question7_reading_time || answers.readingTime,
+                            completedAt: new Date(),
+                            retakeAt: new Date() // отмечаем время повторного прохождения
+                        },
+                        source: sanitizedSource || userProfile.source, // сохраняем существующий source если новый пустой
+                        isOnboardingComplete: true,
+                        updatedAt: new Date()
+                    }
+                }
+            );
+        }
+
+        console.log(`✅ Пользователь ${wasJustCreated ? 'создан' : (forceRetake ? 'обновлен (retake)' : 'обновлен')}: ${userProfile.userId} (${userProfile.name})`);
         
-        res.json({
+        const responseData = {
             success: true,
             user: {
                 userId: userProfile.userId,
@@ -214,8 +249,15 @@ router.post('/auth/complete-onboarding', async (req, res) => {
                 email: userProfile.email,
                 isOnboardingComplete: true
             },
-            message: 'Онбординг успешно завершен'
-        });
+            message: forceRetake ? 'Онбординг успешно пройден повторно' : 'Онбординг успешно завершен'
+        };
+
+        // RETAKE: Добавляем флаг retake в ответ если это повторное прохождение
+        if (forceRetake) {
+            responseData.retake = true;
+        }
+
+        res.json(responseData);
     } catch (error) {
         console.error('❌ Ошибка онбординга:', error);
         
