@@ -102,11 +102,29 @@ class HomePage {
             this.updateLoadingState(loading);
         });
         
+        // Подписка на изменения последних цитат
+        const recentQuotesSubscription = this.state.subscribe('quotes.recent', () => {
+            this.updateRecentQuotesUI();
+        });
+        
+        // Подписка на изменения всех цитат (для обновления последних)
+        const quotesSubscription = this.state.subscribe('quotes.items', (quotes) => {
+            // Если новая цитата добавлена, обновляем последние цитаты
+            if (quotes && quotes.length > 0) {
+                const lastAddedQuote = this.state.get('quotes.lastAdded');
+                if (lastAddedQuote) {
+                    this.loadRecentQuotes();
+                }
+            }
+        });
+        
         this.subscriptions.push(
             statsSubscription,
             catalogSubscription, 
             userSubscription,
-            loadingSubscription
+            loadingSubscription,
+            recentQuotesSubscription,
+            quotesSubscription
         );
     }
     
@@ -130,10 +148,11 @@ class HomePage {
             console.log('📊 HomePage: Используем userId:', userId);
             
             // Параллельная загрузка данных с передачей userId
-            const [stats, topBooks, profile] = await Promise.all([
+            const [stats, topBooks, profile, recentQuotes] = await Promise.all([
                 this.loadUserStats(userId),
                 this.loadTopBooks(), 
-                this.loadUserProfile(userId)
+                this.loadUserProfile(userId),
+                this.loadRecentQuotes(userId)
             ]);
             
             // Обновление состояния
@@ -224,8 +243,102 @@ class HomePage {
     }
     
     /**
-     * 📚 Загрузка топ книг из каталога
+     * 🕐 Загрузка последних цитат
      */
+    async loadRecentQuotes(userId = null) {
+        try {
+            // ✅ ИСПРАВЛЕНО: Используем переданный userId или ждем валидный
+            if (!userId) {
+                userId = await this.waitForValidUserId();
+            }
+            console.log('🕐 HomePage: Загружаем последние цитаты для userId:', userId);
+            
+            this.state.set('quotes.recentLoading', true);
+            
+            // Пытаемся загрузить через API
+            const result = await this.api.getRecentQuotes(3, userId);
+            const quotes = result?.quotes || result?.items || result || [];
+            
+            this.state.setRecentQuotes(quotes);
+            this.state.set('quotes.recentLoading', false);
+            
+            return quotes;
+        } catch (error) {
+            console.error('❌ Ошибка загрузки последних цитат:', error);
+            
+            // Fallback: берем из state.get('quotes.items') и сортируем по дате
+            const allQuotes = this.state.get('quotes.items') || [];
+            const sortedQuotes = allQuotes
+                .filter(quote => quote.createdAt || quote.dateAdded)
+                .sort((a, b) => {
+                    const dateA = new Date(a.createdAt || a.dateAdded);
+                    const dateB = new Date(b.createdAt || b.dateAdded);
+                    return dateB - dateA; // По убыванию (новые сначала)
+                })
+                .slice(0, 3);
+            
+            this.state.setRecentQuotes(sortedQuotes);
+            this.state.set('quotes.recentLoading', false);
+            
+            return sortedQuotes;
+        }
+    }
+    
+    /**
+     * 🔄 Обновление UI последних цитат без перестройки страницы
+     */
+    updateRecentQuotesUI() {
+        const recentQuotesList = document.getElementById('recent-quotes-list');
+        if (!recentQuotesList) return;
+        
+        const recentQuotes = this.state.get('quotes.recent') || [];
+        const isLoading = this.state.get('quotes.recentLoading') || false;
+        
+        recentQuotesList.innerHTML = isLoading ? 
+            this.renderRecentQuotesLoading() : 
+            this.renderRecentQuotesList(recentQuotes);
+            
+        // Перенавешиваем обработчики
+        this.attachRecentQuoteEvents();
+    }
+    
+    /**
+     * 📱 Навешивание обработчиков для последних цитат
+     */
+    attachRecentQuoteEvents() {
+        const quoteItems = document.querySelectorAll('.recent-quote-item');
+        quoteItems.forEach(item => {
+            if (!item.classList.contains('skeleton')) {
+                item.addEventListener('click', () => {
+                    const quoteId = item.dataset.quoteId;
+                    this.handleRecentQuoteClick(quoteId);
+                });
+            }
+        });
+    }
+    
+    /**
+     * 📝 Обработчик клика по последней цитате
+     */
+    handleRecentQuoteClick(quoteId) {
+        if (!quoteId) return;
+        
+        this.telegram.hapticFeedback('light');
+        // Переходим на страницу дневника с фокусом на цитате
+        this.app.router.navigate(`/diary?quote=${quoteId}`);
+    }
+    
+    /**
+     * 🔄 Инициализация последних цитат (вызывается после первого mount)
+     */
+    async initRecentQuotes() {
+        try {
+            await this.loadRecentQuotes();
+            this.updateRecentQuotesUI();
+        } catch (error) {
+            console.error('❌ Ошибка инициализации последних цитат:', error);
+        }
+    }
     async loadTopBooks() {
         try {
             const books = await this.api.getCatalog({ 
@@ -310,8 +423,9 @@ class HomePage {
             <div class="content">
                 ${this.renderUserHeader(user)}
                 ${this.renderWelcomeSection()}
-                ${this.renderStatsGrid(stats)}
+                ${this.renderStatsInline(stats)}
                 ${this.renderMainCTA()}
+                ${this.renderRecentQuotesSection()}
                 ${this.renderTopBooks(books)} 
                 ${this.renderProgressSection(stats)}
                 ${this.renderError()}
@@ -336,7 +450,6 @@ class HomePage {
                     ${this.renderUserAvatar(user.avatarUrl, initials)}
                     <div class="user-details-inline">
                         <h3 class="user-name-inline">${name}</h3>
-                        <p class="user-status-inline">Ваш дневник мудрости</p>
                     </div>
                 </div>
                 <button class="menu-button-inline" id="homeMenuBtn">☰</button>
@@ -383,21 +496,103 @@ class HomePage {
     }
     
     /**
-     * 📊 Рендер сетки статистики 2x2
+     * 📊 Рендер инлайн статистики (заменяет сетку)
      */
-    renderStatsGrid(stats) {
+    renderStatsInline(stats) {
         const loading = stats.loading || this.loading;
+        const totalQuotes = loading ? '⏳' : (stats.totalQuotes || 47);
+        const currentStreak = loading ? '⏳' : (stats.currentStreak || 12);
+        
+        if (loading) {
+            return `
+                <div class="stats-inline" id="statsInline">
+                    <span class="stat-summary">⏳ Загружаем статистику...</span>
+                </div>
+            `;
+        }
+        
+        const quotesWord = this.getQuoteWord(totalQuotes);
+        const daysWord = this.getDayWord(currentStreak);
         
         return `
-            <div class="stats-grid" id="statsGrid">
-                <div class="stat-card" data-stat="quotes">
-                    <div class="stat-number">${loading ? '⏳' : (stats.totalQuotes || 47)}</div>
-                    <div class="stat-label">Цитат собрано</div>
+            <div class="stats-inline" id="statsInline">
+                <span class="stat-summary">${totalQuotes} ${quotesWord} • ${currentStreak} ${daysWord} подряд</span>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🕐 Рендер секции "Ваши последние цитаты"
+     */
+    renderRecentQuotesSection() {
+        const recentQuotes = this.state.get('quotes.recent') || [];
+        const isLoading = this.state.get('quotes.recentLoading') || false;
+        
+        return `
+            <div class="recent-quotes-section" id="recentQuotesSection">
+                <div class="section-title">💫 Ваши последние цитаты</div>
+                <div id="recent-quotes-list">
+                    ${isLoading ? this.renderRecentQuotesLoading() : this.renderRecentQuotesList(recentQuotes)}
                 </div>
-                <div class="stat-card" data-stat="streak">
-                    <div class="stat-number">${loading ? '⏳' : (stats.currentStreak || 12)}</div>
-                    <div class="stat-label">Дней подряд</div>
-                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🔄 Рендер списка последних цитат
+     */
+    renderRecentQuotesList(quotes) {
+        if (!Array.isArray(quotes) || quotes.length === 0) {
+            return this.renderEmptyRecentQuotes();
+        }
+        
+        const recentQuotes = quotes.slice(0, 3);
+        return recentQuotes.map(quote => this.renderRecentQuoteItem(quote)).join('');
+    }
+    
+    /**
+     * 📝 Рендер элемента последней цитаты
+     */
+    renderRecentQuoteItem(quote) {
+        const text = quote.text || '';
+        const author = quote.author || '';
+        const truncatedText = text.length > 120 ? text.substring(0, 120) + '...' : text;
+        
+        return `
+            <div class="recent-quote-item" data-quote-id="${quote._id || quote.id}">
+                <div class="quote-text">"${truncatedText}"</div>
+                ${author ? `<div class="quote-author">— ${author}</div>` : ''}
+            </div>
+        `;
+    }
+    
+    /**
+     * ⏳ Рендер загрузки последних цитат (скелетон)
+     */
+    renderRecentQuotesLoading() {
+        return `
+            <div class="recent-quote-item skeleton">
+                <div class="quote-text skeleton-line"></div>
+                <div class="quote-author skeleton-line-short"></div>
+            </div>
+            <div class="recent-quote-item skeleton">
+                <div class="quote-text skeleton-line"></div>
+                <div class="quote-author skeleton-line-short"></div>
+            </div>
+            <div class="recent-quote-item skeleton">
+                <div class="quote-text skeleton-line"></div>
+                <div class="quote-author skeleton-line-short"></div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 📭 Рендер пустого состояния последних цитат
+     */
+    renderEmptyRecentQuotes() {
+        return `
+            <div class="empty-recent-quotes">
+                <p>✍️ Добавьте первую цитату, чтобы она появилась здесь</p>
             </div>
         `;
     }
@@ -405,6 +600,13 @@ class HomePage {
     /**
      * ✍️ Рендер главной CTA кнопки
      */
+    renderMainCTA() {
+        return `
+            <button class="main-cta" id="addQuoteBtn">
+                ✍️ Добавить новую цитату
+            </button>
+        `;
+    }
     renderMainCTA() {
         return `
             <button class="main-cta" id="addQuoteBtn">
@@ -513,7 +715,13 @@ class HomePage {
             });
         });
         
-        // Клики по статистике
+        // Клик по инлайн статистике
+        const statsInline = document.getElementById('statsInline');
+        if (statsInline) {
+            statsInline.addEventListener('click', () => this.handleStatClick('inline'));
+        }
+        
+        // Клики по старой статистике (обратная совместимость)
         const statCards = document.querySelectorAll('.stat-card');
         statCards.forEach(card => {
             card.addEventListener('click', () => {
@@ -521,6 +729,9 @@ class HomePage {
                 this.handleStatClick(statType);
             });
         });
+        
+        // Обработчики для последних цитат
+        this.attachRecentQuoteEvents();
     }
     
     /**
@@ -576,6 +787,24 @@ class HomePage {
     updateStatsUI(stats) {
         if (!stats) return;
         
+        // Поддержка нового инлайн формата
+        const statsInline = document.getElementById('statsInline');
+        if (statsInline) {
+            const loading = stats.loading || this.loading;
+            const totalQuotes = loading ? '⏳' : (stats.totalQuotes || 47);
+            const currentStreak = loading ? '⏳' : (stats.currentStreak || 12);
+            
+            if (loading) {
+                statsInline.innerHTML = '<span class="stat-summary">⏳ Загружаем статистику...</span>';
+            } else {
+                const quotesWord = this.getQuoteWord(totalQuotes);
+                const daysWord = this.getDayWord(currentStreak);
+                statsInline.innerHTML = `<span class="stat-summary">${totalQuotes} ${quotesWord} • ${currentStreak} ${daysWord} подряд</span>`;
+            }
+            return;
+        }
+        
+        // Поддержка старого формата сетки (обратная совместимость)
         const statsGrid = document.getElementById('statsGrid');
         if (!statsGrid) return;
         
@@ -680,6 +909,48 @@ class HomePage {
      */
     
     /**
+     * Получение правильной формы слова "цитата" в зависимости от числа
+     */
+    getQuoteWord(count) {
+        const num = Math.abs(count);
+        const lastDigit = num % 10;
+        const lastTwoDigits = num % 100;
+        
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+            return 'цитат';
+        }
+        
+        if (lastDigit === 1) {
+            return 'цитата';
+        } else if (lastDigit >= 2 && lastDigit <= 4) {
+            return 'цитаты';
+        } else {
+            return 'цитат';
+        }
+    }
+    
+    /**
+     * Получение правильной формы слова "день" в зависимости от числа
+     */
+    getDayWord(count) {
+        const num = Math.abs(count);
+        const lastDigit = num % 10;
+        const lastTwoDigits = num % 100;
+        
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+            return 'дней';
+        }
+        
+        if (lastDigit === 1) {
+            return 'день';
+        } else if (lastDigit >= 2 && lastDigit <= 4) {
+            return 'дня';
+        } else {
+            return 'дней';
+        }
+    }
+    
+    /**
      * Получение инициалов из имени
      */
     getInitials(name) {
@@ -747,7 +1018,10 @@ class HomePage {
         // Умная загрузка данных
         if (!this.dataLoaded) {
             console.log('🔄 HomePage: Первый показ, загружаем данные');
-            this.loadInitialData();
+            this.loadInitialData().then(() => {
+                // Инициализируем последние цитаты после загрузки основных данных
+                this.initRecentQuotes();
+            });
         } else {
             // Проверяем актуальность данных (только если прошло больше 10 минут)
             const lastUpdate = this.state.get('stats.lastUpdate');
@@ -756,9 +1030,13 @@ class HomePage {
             
             if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
                 console.log('🔄 HomePage: Данные устарели, обновляем');
-                this.loadInitialData();
+                this.loadInitialData().then(() => {
+                    this.initRecentQuotes();
+                });
             } else {
                 console.log('✅ HomePage: Данные актуальны, пропускаем загрузку');
+                // Все равно обновляем последние цитаты, так как они могли измениться
+                this.initRecentQuotes();
             }
         }
     }
