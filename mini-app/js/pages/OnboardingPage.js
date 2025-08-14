@@ -625,16 +625,6 @@ class OnboardingPage {
     }
     
     /**
-     * ➡️ Обработчик кнопки навигации
-     */
-    attachNavigationListener() {
-        const navButton = document.querySelector('.next-button');
-        if (navButton) {
-            navButton.addEventListener('click', () => this.handleNavigation());
-        }
-    }
-    
-    /**
      * 📝 Обработчики полей ввода
      */
     attachInputListeners() {
