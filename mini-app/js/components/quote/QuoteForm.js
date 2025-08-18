@@ -377,7 +377,7 @@ class QuoteForm {
                     </div>
                     <div class="quote-form__ai-content">
                         <div class="quote-form__ai-insight">
-                            ${this.escapeHtml(this.aiAnalysis.insight)}
+                            ${this.escapeHtml(this.aiAnalysis.insights || this.aiAnalysis.insight || 'Анализ недоступен')}
                         </div>
                         ${this.aiAnalysis.recommendations ? `
                             <div class="quote-form__ai-recommendations">
@@ -669,13 +669,27 @@ class QuoteForm {
             }
 
             // Выполняем анализ
-            const analysis = await this.api.analyzeQuote({
-                text: this.formData.text,
-                author: this.formData.author,
-                source: this.formData.source
-            });
+            const result = await this.api.analyzeQuote(this.formData.text, this.formData.author);
 
-            this.aiAnalysis = analysis;
+            // Extract analysis from result.data.analysis with fallbacks
+            let analysis;
+            if (result && result.data && result.data.analysis) {
+                analysis = result.data.analysis;
+            } else if (result && result.analysis) {
+                analysis = result.analysis;
+            } else if (result) {
+                analysis = result;
+            } else {
+                throw new Error('No analysis data in response');
+            }
+
+            // Normalize analysis to ensure consistent structure
+            this.aiAnalysis = {
+                category: typeof analysis.category === 'string' ? analysis.category : 'wisdom',
+                themes: Array.isArray(analysis.themes) ? analysis.themes.slice(0, 3) : ['размышления'],
+                sentiment: ['positive', 'neutral', 'negative'].includes(analysis.sentiment) ? analysis.sentiment : 'neutral',
+                insights: analysis.insights || analysis.insight || 'Интересная мысль для размышления'
+            };
 
             // Сохраняем в кэш
             if (this.storage) {
@@ -692,7 +706,9 @@ class QuoteForm {
             console.error('Ошибка AI-анализа:', error);
             this.aiAnalysis = {
                 category: 'wisdom',
-                insight: 'Не удалось проанализировать цитату. Попробуйте позже.',
+                themes: ['размышления'],
+                sentiment: 'neutral',
+                insights: 'Не удалось проанализировать цитату. Попробуйте позже.',
                 error: true
             };
         } finally {

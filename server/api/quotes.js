@@ -90,6 +90,7 @@ router.get('/recent', async (req, res) => {
             category: quote.category,
             sentiment: quote.sentiment,
             themes: quote.themes || [],
+            insights: quote.insights, // FIXED: Include insights in recent quotes
             createdAt: quote.createdAt,
             isFavorite: quote.isFavorite || false
         }));
@@ -224,6 +225,7 @@ router.get('/', async (req, res) => {
             category: quote.category,
             sentiment: quote.sentiment,
             themes: quote.themes || [],
+            insights: quote.insights, // FIXED: Include insights in quotes list
             weekNumber: quote.weekNumber,
             monthNumber: quote.monthNumber,
             createdAt: quote.createdAt,
@@ -381,6 +383,7 @@ router.post('/', async (req, res) => {
             savedQuote.category = analysis.category;
             savedQuote.themes = analysis.themes;
             savedQuote.sentiment = analysis.sentiment;
+            savedQuote.insights = analysis.insights; // FIXED: Persist insights on creation
             
             // Сохраняем обновленную цитату
             await savedQuote.save();
@@ -439,6 +442,7 @@ router.post('/', async (req, res) => {
                     category: savedQuote.category,
                     sentiment: savedQuote.sentiment,
                     themes: savedQuote.themes,
+                    insights: savedQuote.insights, // FIXED: Include insights in fallback
                     createdAt: savedQuote.createdAt,
                     weekNumber: savedQuote.weekNumber
                 }

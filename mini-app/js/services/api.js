@@ -434,11 +434,27 @@ class ApiService {
     /**
      * 🤖 Анализ цитаты через AI
      */
-    async analyzeQuote(text, author = null) {
-        return this.request('POST', '/quotes/analyze', {
-            text: text,
-            author: author
-        });
+    async analyzeQuote(textOrOptions, author = null) {
+        // Support both signatures: analyzeQuote(text, author) and analyzeQuote({ text, author })
+        let requestData;
+        
+        if (typeof textOrOptions === 'string') {
+            // analyzeQuote(text, author) format
+            requestData = {
+                text: textOrOptions,
+                author: author
+            };
+        } else if (typeof textOrOptions === 'object' && textOrOptions.text) {
+            // analyzeQuote({ text, author, source }) format
+            requestData = {
+                text: textOrOptions.text,
+                author: textOrOptions.author || null
+            };
+        } else {
+            throw new Error('Invalid arguments: expected (text, author) or ({ text, author })');
+        }
+
+        return this.request('POST', '/quotes/analyze', requestData);
     }
 
     /**

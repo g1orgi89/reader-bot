@@ -707,19 +707,34 @@ class DiaryPage {
             this.log('✅ Цитата сохранена:', savedQuote);
             
             // ✅ ИСПРАВЛЕНО: Обрабатываем AI анализ из ответа
-            if (savedQuote.aiAnalysis) {
+            const data = savedQuote?.data || savedQuote;
+            const aiAnalysis = data?.aiAnalysis;
+            
+            if (aiAnalysis) {
                 this.state.set('lastAddedQuote', {
-                    ...savedQuote,
-                    aiAnalysis: savedQuote.aiAnalysis
+                    ...data,
+                    aiAnalysis: aiAnalysis
                 });
                 
                 // Показываем персональный ответ Анны вместо стандартного
-                if (savedQuote.aiAnalysis.summary && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-                    window.showNotification(savedQuote.aiAnalysis.summary, 'success', 5000);
+                if (aiAnalysis.summary && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+                    window.showNotification(aiAnalysis.summary, 'success', 5000);
+                }
+            } else if (data?.insights) {
+                // Fallback: если AI анализ недоступен, но есть insights
+                this.state.set('lastAddedQuote', {
+                    ...data,
+                    aiAnalysis: {
+                        summary: data.insights
+                    }
+                });
+                
+                if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+                    window.showNotification(data.insights, 'success', 5000);
                 }
             } else {
                 // Fallback для случая, когда AI анализ недоступен
-                this.state.set('lastAddedQuote', savedQuote);
+                this.state.set('lastAddedQuote', data);
                 if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
                     window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
                 }
