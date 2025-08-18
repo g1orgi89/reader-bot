@@ -34,10 +34,13 @@ window.MyQuotesView = class MyQuotesView {
           if (m.type !== 'childList') continue;
           m.addedNodes.forEach((node) => {
             if (node.nodeType !== 1) return;
-            if (node.matches?.('.quote-card')) {
+            // Check if the node itself is a quote card
+            if (node.matches?.('.quote-card, .quote-item, [data-quote-id]')) {
               this._ensureKebabForCard(node);
             }
-            node.querySelectorAll?.('.quote-card')?.forEach((card) => this._ensureKebabForCard(card));
+            // Check for quote cards within the added node
+            const cards = node.querySelectorAll?.('.quote-card, .quote-item, [data-quote-id]');
+            cards?.forEach((card) => this._ensureKebabForCard(card));
           });
         }
       });
@@ -48,11 +51,16 @@ window.MyQuotesView = class MyQuotesView {
   }
 
   _ensureKebabButtons() {
-    this.root.querySelectorAll('.quote-card').forEach((card) => this._ensureKebabForCard(card));
+    // Find all quote cards regardless of their specific class
+    const cards = this.root.querySelectorAll('.quote-card, .quote-item, [data-quote-id]');
+    cards.forEach((card) => this._ensureKebabForCard(card));
   }
 
   _ensureKebabForCard(card) {
-    if (!card?.classList?.contains('quote-card')) return;
+    // Support multiple card types: .quote-card, .quote-item, or elements with data-quote-id
+    if (!card || (!card.classList?.contains('quote-card') && 
+                  !card.classList?.contains('quote-item') && 
+                  !card.hasAttribute('data-quote-id'))) return;
     if (!card.querySelector('.quote-kebab')) {
       const kebab = document.createElement('button');
       kebab.className = 'quote-kebab';
@@ -75,7 +83,8 @@ window.MyQuotesView = class MyQuotesView {
   _onClick(e) {
     const kebabBtn = e.target.closest('.quote-kebab');
     if (kebabBtn) {
-      const card = e.target.closest('.quote-card');
+      // Support multiple card container types
+      const card = e.target.closest('.quote-card, .quote-item, [data-quote-id]');
       if (!card) return;
       card.classList.toggle('expanded');
       this._haptic('impact', 'light');
@@ -85,7 +94,8 @@ window.MyQuotesView = class MyQuotesView {
 
     const actionBtn = e.target.closest('.action-btn');
     if (actionBtn) {
-      const card = e.target.closest('.quote-card');
+      // Support multiple card container types
+      const card = e.target.closest('.quote-card, .quote-item, [data-quote-id]');
       if (!card) return;
       const id =
         card.dataset.id ||
