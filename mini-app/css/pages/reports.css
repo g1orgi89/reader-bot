@@ -129,6 +129,23 @@
     line-height: 1.4;
 }
 
+/* ✅ НОВОЕ: Состояния для AI анализа */
+.ai-loading {
+    opacity: 0.7;
+    font-style: italic;
+    color: var(--text-secondary, #666666);
+}
+
+.ai-empty {
+    opacity: 0.8;
+    font-style: italic;
+    color: var(--text-secondary, #666666);
+    background: var(--background-light, #F9F9F9);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px dashed var(--border-light, #E0E0E0);
+}
+
 /* ============================================================================
    🎯 ПРОМО СЕКЦИЯ
    ============================================================================ */
