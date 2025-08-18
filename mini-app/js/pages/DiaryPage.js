@@ -413,13 +413,18 @@ class DiaryPage {
     renderQuoteItem(quote) {
         const isFavorite = quote.isFavorite || false;
         const author = quote.author ? `— ${quote.author}` : '';
+        const heartIcon = isFavorite ? '❤️' : '🤍';
         
         return `
             <div class="quote-card my-quotes" data-id="${quote._id || quote.id}" data-quote-id="${quote._id || quote.id}">
                 <button class="quote-kebab" aria-label="menu" title="Действия">…</button>
                 <div class="quote-text">${quote.text}</div>
                 ${author ? `<div class="quote-author">${author}</div>` : ''}
-                <div class="quote-actions-inline"></div>
+                <div class="quote-actions-inline">
+                    <button class="action-btn" data-action="edit" aria-label="Редактировать цитату" title="Редактировать">✏️</button>
+                    <button class="action-btn" data-action="favorite" aria-label="Добавить в избранное" title="Избранное">${heartIcon}</button>
+                    <button class="action-btn action-delete" data-action="delete" aria-label="Удалить цитату" title="Удалить">🗑️</button>
+                </div>
             </div>
         `;
     }
@@ -557,10 +562,7 @@ class DiaryPage {
         this.attachQuoteActionListeners();
         this.attachSearchListeners();
         
-        // Mount MyQuotesView if we're on my-quotes tab
-        if (this.activeTab === 'my-quotes') {
-            this.mountMyQuotesView();
-        }
+        // Note: MyQuotesView mounting removed for reliability - kebab functionality is now self-contained
     }
     
     attachTabListeners() {
@@ -616,6 +618,7 @@ class DiaryPage {
     }
     
     attachQuoteActionListeners() {
+        // Keep existing logic for search tab
         const quoteActions = document.querySelectorAll('.quote-action[data-action]');
         quoteActions.forEach(action => {
             action.addEventListener('click', (e) => {
@@ -629,6 +632,54 @@ class DiaryPage {
                 }
             });
         });
+
+        // Add event delegation for my-quotes tab kebab and actions
+        const myQuotesContainer = document.querySelector('.my-quotes-container');
+        const container = myQuotesContainer || document.getElementById('page-content');
+        
+        if (container && !container.hasAttribute('data-quote-delegation')) {
+            container.setAttribute('data-quote-delegation', 'true');
+            
+            container.addEventListener('click', (e) => {
+                // Handle kebab button clicks
+                const kebabBtn = e.target.closest('.quote-kebab');
+                if (kebabBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const card = kebabBtn.closest('.quote-card, .quote-item, [data-quote-id]');
+                    if (card) {
+                        card.classList.toggle('expanded');
+                        this.telegram.hapticFeedback('light');
+                    }
+                    return;
+                }
+
+                // Handle action button clicks
+                const actionBtn = e.target.closest('.action-btn[data-action]');
+                if (actionBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const card = actionBtn.closest('.quote-card, .quote-item, [data-quote-id]');
+                    if (card) {
+                        const quoteId = card.dataset.id || card.dataset.quoteId || card.getAttribute('data-quote-id');
+                        const action = actionBtn.dataset.action;
+                        
+                        if (quoteId && action) {
+                            if (action === 'edit') {
+                                this.editQuote(quoteId);
+                            } else if (action === 'delete') {
+                                this.deleteQuote(quoteId);
+                            } else if (action === 'favorite') {
+                                this.toggleFavorite(quoteId, card, actionBtn);
+                            }
+                        }
+                    }
+                    return;
+                }
+            });
+        }
     }
     
     attachSearchListeners() {
@@ -673,8 +724,7 @@ class DiaryPage {
         this.telegram.hapticFeedback('light');
         this.rerender();
         
-        // Управление MyQuotesView при переключении табов
-        this.handleMyQuotesViewForTab(tabName, previousTab);
+        // Note: MyQuotesView management removed for reliability - kebab functionality is now self-contained
         
         // ✅ ИСПРАВЛЕНО: Умная загрузка при переключении табов с userId
         if (tabName === 'my-quotes' && !this.quotesLoaded) {
@@ -890,7 +940,7 @@ class DiaryPage {
         }
     }
     
-    async toggleFavorite(quoteId) {
+    async toggleFavorite(quoteId, card = null, btn = null) {
         try {
             const quotes = this.state.get('quotes.items') || [];
             const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
@@ -901,6 +951,12 @@ class DiaryPage {
             const newFavoriteState = !quote.isFavorite;
             quote.isFavorite = newFavoriteState;
             this.state.set('quotes.items', [...this.state.get('quotes.items')]);
+            
+            // Immediately update UI if card and button are provided
+            if (card && btn) {
+                card.classList.toggle('liked', newFavoriteState);
+                btn.textContent = newFavoriteState ? '❤️' : '🤍';
+            }
             
             // ✅ НОВОЕ: Вызываем API для сохранения на сервере (для будущей реализации)
             try {
@@ -914,11 +970,25 @@ class DiaryPage {
             }
             
             this.telegram.hapticFeedback('success');
-            this.rerender();
+            
+            // Only rerender if immediate UI update wasn't done
+            if (!card || !btn) {
+                this.rerender();
+            }
             
         } catch (error) {
             console.error('❌ Ошибка обновления избранного:', error);
             this.telegram.hapticFeedback('error');
+            
+            // Rollback UI changes if they were made
+            if (card && btn) {
+                const quotes = this.state.get('quotes.items') || [];
+                const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+                if (quote) {
+                    card.classList.toggle('liked', quote.isFavorite);
+                    btn.textContent = quote.isFavorite ? '❤️' : '🤍';
+                }
+            }
         }
     }
     
