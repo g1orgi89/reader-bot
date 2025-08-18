@@ -46,12 +46,24 @@ window.MyQuotesView = class MyQuotesView {
     if (!actions) {
       actions = document.createElement('div');
       actions.className = 'quote-actions-inline';
+      
+      // Check if card is liked to show correct heart icon
+      const isLiked = card.classList.contains('liked');
+      const heartIcon = isLiked ? '❤️' : '🤍';
+      
       actions.innerHTML = `
-        <button class="action-btn" data-action="edit">Редактировать</button>
-        <button class="action-btn" data-action="like">Лайк</button>
-        <button class="action-btn action-delete" data-action="delete">Удалить</button>
+        <button class="action-btn" data-action="edit" aria-label="Редактировать цитату" title="Редактировать">✏️</button>
+        <button class="action-btn" data-action="like" aria-label="Добавить в избранное" title="Избранное">${heartIcon}</button>
+        <button class="action-btn action-delete" data-action="delete" aria-label="Удалить цитату" title="Удалить">🗑️</button>
       `;
       card.appendChild(actions);
+    } else {
+      // Update heart icon if actions already exist
+      const likeBtn = actions.querySelector('[data-action="like"]');
+      if (likeBtn) {
+        const isLiked = card.classList.contains('liked');
+        likeBtn.textContent = isLiked ? '❤️' : '🤍';
+      }
     }
   }
 
@@ -84,6 +96,12 @@ window.MyQuotesView = class MyQuotesView {
     card.classList.toggle('liked', newLikedState);
     this._haptic('impact', 'light');
     
+    // Update heart icon immediately
+    const likeBtn = card.querySelector('[data-action="like"]');
+    if (likeBtn) {
+      likeBtn.textContent = newLikedState ? '❤️' : '🤍';
+    }
+    
     // Пытаемся обновить на сервере
     window.QuoteService.toggleFavorite(id, newLikedState).then(() => {
       document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
@@ -91,6 +109,10 @@ window.MyQuotesView = class MyQuotesView {
       console.error('Failed to toggle favorite:', error);
       // Откатываем изменение UI при ошибке
       card.classList.toggle('liked', isLiked);
+      // Revert heart icon on error
+      if (likeBtn) {
+        likeBtn.textContent = isLiked ? '❤️' : '🤍';
+      }
       this._haptic('notification', 'error');
     });
   }
@@ -101,6 +123,9 @@ window.MyQuotesView = class MyQuotesView {
       if (!HF) return;
       if (type === 'impact') HF.impactOccurred(style || 'light');
       if (type === 'notification') HF.notificationOccurred(style || 'success');
-    } catch {}
+    } catch (error) {
+      // Telegram WebApp may not be available in all environments
+      console.debug('Haptic feedback not available:', error);
+    }
   }
 };
