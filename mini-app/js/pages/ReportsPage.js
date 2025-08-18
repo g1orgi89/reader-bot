@@ -68,7 +68,7 @@ class ReportsPage {
      * @param {number} timeout - Максимальное время ожидания в миллисекундах
      * @returns {Promise<string>} - Валидный userId
      */
-    async waitForValidUserId(timeout = 4000) {
+    async waitForValidUserId(timeout = 10000) {
         const startTime = Date.now();
         
         while (Date.now() - startTime < timeout) {
@@ -85,6 +85,19 @@ class ReportsPage {
                 return userId;
             }
             
+            // Try TelegramService.getUser()
+            if (this.telegram && typeof this.telegram.getUser === 'function') {
+                try {
+                    const telegramUser = this.telegram.getUser();
+                    if (telegramUser && telegramUser.id && telegramUser.id !== 'demo-user') {
+                        console.log('✅ ReportsPage: Получен userId из TelegramService:', telegramUser.id);
+                        return telegramUser.id;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ ReportsPage: Ошибка получения пользователя из TelegramService:', error);
+                }
+            }
+            
             // Также принимаем demo-user только в debug режиме
             if (userId === 'demo-user' && this.state.get('debugMode')) {
                 console.log('🧪 ReportsPage: Используем demo-user в debug режиме');
@@ -95,8 +108,26 @@ class ReportsPage {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
         
+        // Dev fallbacks before giving up
+        console.warn('⏰ ReportsPage: Timeout waiting for userId, trying dev fallbacks');
+        
+        // URL parameter fallback
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('userId')) {
+            const urlUserId = urlParams.get('userId');
+            console.log('✅ ReportsPage: Используем userId из URL:', urlUserId);
+            return urlUserId;
+        }
+        
+        // localStorage fallback
+        if (localStorage.getItem('APP_DEV_USER_ID')) {
+            const storageUserId = localStorage.getItem('APP_DEV_USER_ID');
+            console.log('✅ ReportsPage: Используем userId из localStorage:', storageUserId);
+            return storageUserId;
+        }
+        
         // Timeout reached, return demo-user for fallback
-        console.warn('⏰ ReportsPage: Timeout waiting for userId, using demo-user fallback');
+        console.warn('⏰ ReportsPage: All fallbacks exhausted, using demo-user fallback');
         return 'demo-user';
     }
 
