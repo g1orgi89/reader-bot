@@ -677,6 +677,7 @@ router.post('/quotes', async (req, res) => {
           category: result.quote.category,
           themes: result.quote.themes,
           sentiment: result.quote.sentiment,
+          insights: result.quote.insights,
           isEdited: result.quote.isEdited,
           editedAt: result.quote.editedAt,
           createdAt: result.quote.createdAt
@@ -695,7 +696,8 @@ router.post('/quotes', async (req, res) => {
         source: source ? source.trim() : null,
         category: 'Другое',
         themes: ['размышления'],
-        sentiment: 'neutral'
+        sentiment: 'neutral',
+        insights: 'Интересная мысль для размышления'
       });
       await quote.save();
 
@@ -719,6 +721,7 @@ router.post('/quotes', async (req, res) => {
           category: quote.category,
           themes: quote.themes,
           sentiment: quote.sentiment,
+          insights: quote.insights,
           isEdited: quote.isEdited,
           editedAt: quote.editedAt,
           createdAt: quote.createdAt
@@ -786,6 +789,7 @@ router.get('/quotes', async (req, res) => {
         category: q.category,
         themes: q.themes,
         sentiment: q.sentiment,
+        insights: q.insights,
         isEdited: q.isEdited,
         editedAt: q.editedAt,
         createdAt: q.createdAt
@@ -827,6 +831,7 @@ router.get('/quotes/recent', async (req, res) => {
         category: q.category,
         themes: q.themes,
         sentiment: q.sentiment,
+        insights: q.insights,
         isEdited: q.isEdited,
         editedAt: q.editedAt,
         createdAt: q.createdAt
@@ -865,6 +870,7 @@ router.get('/quotes/:id', async (req, res) => {
         category: quote.category,
         themes: quote.themes,
         sentiment: quote.sentiment,
+        insights: quote.insights,
         isEdited: quote.isEdited,
         editedAt: quote.editedAt,
         createdAt: quote.createdAt,
@@ -913,6 +919,7 @@ router.put('/quotes/:id', async (req, res) => {
       quote.category = analysis.category;
       quote.themes = analysis.themes;
       quote.sentiment = analysis.sentiment;
+      quote.insights = analysis.insights;
       quote.isEdited = true;
       quote.editedAt = new Date();
       await quote.save();
@@ -936,6 +943,7 @@ router.put('/quotes/:id', async (req, res) => {
         category: quote.category,
         themes: quote.themes,
         sentiment: quote.sentiment,
+        insights: quote.insights,
         isEdited: quote.isEdited,
         editedAt: quote.editedAt,
         createdAt: quote.createdAt

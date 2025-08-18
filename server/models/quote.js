@@ -74,6 +74,11 @@ const quoteSchema = new mongoose.Schema({
     maxlength: 100
     // AI-определенные темы
   }],
+  insights: {
+    type: String,
+    maxlength: 1000
+    // AI-сгенерированные инсайты от Анны
+  },
   isEdited: {
     type: Boolean,
     default: false
