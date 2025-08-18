@@ -46,12 +46,44 @@ window.QuoteService = {
    * @returns {Promise<Array>} Массив последних цитат
    */
   async getLatestQuotes(limit = 3) {
+    // Derive userId from available sources
+    let userId = 'demo-user';
+    
+    // Try App.state first
+    if (window.App && window.App.state && typeof window.App.state.getCurrentUserId === 'function') {
+      const stateUserId = window.App.state.getCurrentUserId();
+      if (stateUserId && stateUserId !== 'demo-user') {
+        userId = stateUserId;
+      }
+    }
+    
+    // Try Telegram WebApp
+    if (userId === 'demo-user' && window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+      userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+    }
+    
+    // Dev fallbacks
+    if (userId === 'demo-user') {
+      // URL parameter fallback
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('userId')) {
+        userId = urlParams.get('userId');
+      }
+      
+      // localStorage fallback
+      if (userId === 'demo-user' && localStorage.getItem('APP_DEV_USER_ID')) {
+        userId = localStorage.getItem('APP_DEV_USER_ID');
+      }
+    }
+    
     const params = new URLSearchParams({ 
       limit: String(limit), 
-      sort: '-createdAt' 
+      sort: '-createdAt',
+      userId: String(userId)
     });
     const res = await fetch(`/api/reader/quotes?${params.toString()}`, { 
-      method: 'GET' 
+      method: 'GET',
+      credentials: 'include'
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
