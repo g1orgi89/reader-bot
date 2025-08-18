@@ -209,7 +209,10 @@ class ReaderApp {
             console.log('[DEBUG] state updated profile:', this.state.get('user.profile'));
 
             this.state.setStats(stats);
-            this.state.setRecentQuotes(recentQuotes.quotes || []);
+            
+            // Extract quotes using the same safe pattern as HomePage and DiaryPage
+            const quotes = recentQuotes.data?.quotes || recentQuotes.quotes || recentQuotes.items || recentQuotes.data || recentQuotes;
+            this.state.setRecentQuotes(Array.isArray(quotes) ? quotes : []);
             console.log('✅ Пользовательские данные загружены');
         } catch (e) {
             console.error('⚠️ Ошибка загрузки пользовательских данных:', e);

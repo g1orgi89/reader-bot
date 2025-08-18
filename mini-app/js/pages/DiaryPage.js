@@ -907,8 +907,9 @@ class DiaryPage {
                 limit: 50
             }, userId);
             
-            // ✅ ИСПРАВЛЕНО: Сохраняем результаты в state
-            this.state.set('searchResults', searchResults.data?.quotes || searchResults.quotes || searchResults.items || []);
+            // ✅ ИСПРАВЛЕНО: Сохраняем результаты в state с полным safe pattern
+            const quotes = searchResults.data?.quotes || searchResults.quotes || searchResults.items || searchResults.data || searchResults;
+            this.state.set('searchResults', Array.isArray(quotes) ? quotes : []);
             this.updateSearchResults();
             
         } catch (error) {
