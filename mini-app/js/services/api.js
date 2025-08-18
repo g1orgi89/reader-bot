@@ -35,13 +35,97 @@ class ApiService {
     }
 
     /**
-     * 🔗 Получает заголовки для запросов
+     * 🔗 Получает заголовки для запросов с аутентификацией
      */
     getHeaders() {
-        return {
+        const headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         };
+
+        // 🔑 Добавляем заголовки аутентификации
+        const userId = this.resolveUserId();
+        const initData = this.resolveTelegramInitData();
+
+        if (userId) {
+            headers['X-User-Id'] = userId;
+        }
+
+        if (initData) {
+            headers['Authorization'] = `tma ${initData}`;
+        }
+
+        return headers;
+    }
+
+    /**
+     * 🆔 Разрешает ID пользователя из различных источников
+     * Приоритет: App state → Telegram initDataUnsafe → localStorage
+     */
+    resolveUserId() {
+        try {
+            // Проверяем доступность window
+            if (typeof window === 'undefined') {
+                return 'demo-user';
+            }
+
+            // 1. Попытка получить из App state
+            if (window.appState) {
+                const userId = window.appState.getCurrentUserId();
+                if (userId) {
+                    return String(userId);
+                }
+            }
+
+            // 2. Попытка получить из Telegram initDataUnsafe
+            if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                return String(window.Telegram.WebApp.initDataUnsafe.user.id);
+            }
+
+            // 3. Fallback на localStorage (с проверкой доступности)
+            if (typeof localStorage !== 'undefined') {
+                const storedUserId = localStorage.getItem('reader-user-id');
+                if (storedUserId) {
+                    return storedUserId;
+                }
+            }
+
+            // 4. Финальный fallback
+            return 'demo-user';
+        } catch (error) {
+            console.warn('⚠️ ApiService: Ошибка разрешения userId:', error);
+            return 'demo-user';
+        }
+    }
+
+    /**
+     * 📱 Разрешает Telegram initData для аутентификации
+     */
+    resolveTelegramInitData() {
+        try {
+            // Проверяем доступность window
+            if (typeof window === 'undefined') {
+                return null;
+            }
+
+            // Получаем initData из Telegram WebApp
+            if (window.Telegram?.WebApp?.initData) {
+                return window.Telegram.WebApp.initData;
+            }
+
+            // Fallback на localStorage (с проверкой доступности)
+            if (typeof localStorage !== 'undefined') {
+                const storedInitData = localStorage.getItem('reader-telegram-initdata');
+                if (storedInitData) {
+                    return storedInitData;
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.warn('⚠️ ApiService: Ошибка разрешения initData:', error);
+            return null;
+        }
     }
 
     /**
@@ -816,8 +900,10 @@ class ApiService {
     }
 }
 
-// 🌍 Глобальный экспорт
-window.ApiService = ApiService;
+// 🌍 Глобальный экспорт (только если window доступен)
+if (typeof window !== 'undefined') {
+    window.ApiService = ApiService;
+}
 
 // 📱 Экспорт для модульной системы
 if (typeof module !== 'undefined' && module.exports) {
