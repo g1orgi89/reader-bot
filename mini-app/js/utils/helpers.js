@@ -42,6 +42,19 @@ function truncateText(text, maxLength) {
 }
 
 /**
+ * Экранирует HTML символы для безопасного отображения
+ * @param {string} text - Исходный текст
+ * @returns {string} Экранированный текст
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') return '';
+    
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Извлекает инициалы из имени пользователя
  * @param {string} fullName - Полное имя
  * @returns {string} Инициалы
@@ -105,4 +118,27 @@ function calculateProgress(current, target) {
 }
 
 // 🌐 ЭКСПОРТ (для использования в других модулях)
-// В будущем здесь будет экспорт всех функций
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        formatDate,
+        getRelativeTime,
+        truncateText,
+        escapeHtml,
+        getInitials,
+        showNotification,
+        groupBy,
+        debounce,
+        calculateProgress
+    };
+} else {
+    // Глобальные функции для браузера
+    window.formatDate = formatDate;
+    window.getRelativeTime = getRelativeTime;
+    window.truncateText = truncateText;
+    window.escapeHtml = escapeHtml;
+    window.getInitials = getInitials;
+    window.showNotification = showNotification;
+    window.groupBy = groupBy;
+    window.debounce = debounce;
+    window.calculateProgress = calculateProgress;
+}

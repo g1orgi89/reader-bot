@@ -166,10 +166,10 @@ class ReportsPage {
                 if (reports.length > 0) {
                     this.weeklyReport = reports[0];
                     
-                    // ✅ Обновляем AI анализ из еженедельного отчета
+                    // ✅ Обновляем AI анализ из еженедельного отчета для обратной совместимости
                     const analysis = this.weeklyReport.analysis;
                     if (analysis) {
-                        // Используем summary или insights как fallback
+                        // Приоритет для backward compatibility: summary → insights
                         this.reportData.aiAnalysis = analysis.summary || analysis.insights || this.reportData.aiAnalysis;
                     }
                     
@@ -252,8 +252,43 @@ class ReportsPage {
      * 💡 AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!) - ОБНОВЛЕНО ДЛЯ ЕЖЕНЕДЕЛЬНЫХ ОТЧЕТОВ
      */
     renderAIAnalysis() {
-        // ✅ Получаем данные анализа из еженедельного отчета или fallback
-        const analysisText = this.reportData.aiAnalysis;
+        // ✅ Если загрузка еще идет
+        if (this.reportsLoading) {
+            return `
+                <div class="ai-insight">
+                    <div class="ai-header">
+                        <div class="ai-title">✨ Анализ от Анны</div>
+                    </div>
+                    <div class="ai-text ai-loading">🔄 Анализируем ваши цитаты...</div>
+                </div>
+            `;
+        }
+        
+        // ✅ Получаем данные анализа с правильной иерархией fallback
+        let analysisText = '';
+        if (this.weeklyReport?.analysis) {
+            // Приоритет: insights → summary → legacy aiAnalysis
+            analysisText = this.weeklyReport.analysis.insights || 
+                          this.weeklyReport.analysis.summary || 
+                          this.reportData.aiAnalysis;
+        } else {
+            analysisText = this.reportData.aiAnalysis;
+        }
+        
+        // ✅ Если нет данных для анализа
+        if (!analysisText || analysisText.trim() === '') {
+            return `
+                <div class="ai-insight">
+                    <div class="ai-header">
+                        <div class="ai-title">✨ Анализ от Анны</div>
+                    </div>
+                    <div class="ai-text ai-empty">📝 Пока недостаточно данных для анализа. Добавьте больше цитат, и я смогу предоставить персональный анализ!</div>
+                </div>
+            `;
+        }
+        
+        // ✅ Безопасное экранирование HTML
+        const safeAnalysisText = window.escapeHtml ? window.escapeHtml(analysisText) : analysisText;
         
         // ✅ Получаем эмоциональный тон из еженедельного отчета
         const emotionalTone = this.weeklyReport?.analysis?.emotionalTone;
@@ -262,7 +297,7 @@ class ReportsPage {
         // ✅ Формируем chip с эмоциональным тоном
         const toneChip = emotionalTone ? `
             <div class="ai-tone-chip">
-                ${toneEmoji ? `${toneEmoji} ` : ''}${emotionalTone}
+                ${toneEmoji ? `${toneEmoji} ` : ''}${window.escapeHtml ? window.escapeHtml(emotionalTone) : emotionalTone}
             </div>
         ` : '';
         
@@ -272,7 +307,7 @@ class ReportsPage {
                     <div class="ai-title">✨ Анализ от Анны</div>
                     ${toneChip}
                 </div>
-                <div class="ai-text">${analysisText}</div>
+                <div class="ai-text">${safeAnalysisText}</div>
             </div>
         `;
     }

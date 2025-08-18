@@ -512,7 +512,7 @@ class ApiService {
         if (options.limit) params.append('limit', options.limit);
         if (options.offset) params.append('offset', options.offset);
 
-        const endpoint = `/reports/weekly?${params.toString()}`;
+        const endpoint = `/api/reader/reports/weekly?${params.toString()}`;
         return this.request('GET', endpoint);
     }
 
