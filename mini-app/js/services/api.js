@@ -518,12 +518,16 @@ class ApiService {
     }
 
     /**
-     * 📈 Получить конкретный еженедельный отчет
+     * 📈 Получить конкретный еженедельный отчет по ID
+     * Бэкенд не предоставляет GET /reports/weekly/:reportId,
+     * поэтому эмитируем через загрузку списка и поиск нужного id.
      */
     async getWeeklyReport(reportId, userId = 'demo-user') {
-        return this.request('GET', `/reports/weekly/${reportId}?userId=${userId}`);
+        const resp = await this.getWeeklyReports({ limit: 10 }, userId);
+        const reports = resp?.reports || resp?.data?.reports || [];
+        return reports.find(r => r.id === reportId) || null;
     }
-
+    
     /**
      * 📅 Получить месячные отчеты
      */
