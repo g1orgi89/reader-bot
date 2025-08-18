@@ -1015,47 +1015,55 @@ router.post('/:id/reanalyze', async (req, res) => {
 });
 
 /**
- * DELETE /api/quotes/:id - Удаление цитаты
+ * DELETE /api/quotes/:id - Удаление цитаты текущего пользователя
  */
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { reason = 'Удалено администратором' } = req.body;
+        const userId = req.userId || req.user?.id || req.body?.userId;
 
-        logger.info('🗑️ Удаление цитаты:', id, 'Причина:', reason);
+        logger.info('🗑️ Удаление цитаты:', id, 'Пользователь:', userId);
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required',
+                message: 'User ID not found. Please authenticate first.'
+            });
+        }
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // Находим и удаляем цитату
-        const deletedQuote = await Quote.findByIdAndDelete(id);
-
-        if (!deletedQuote) {
+        // Находим цитату и проверяем владельца
+        const quote = await Quote.findById(id);
+        if (!quote) {
             return res.status(404).json({
                 success: false,
                 message: 'Цитата не найдена'
             });
         }
 
+        // Проверяем, что пользователь является владельцем цитаты
+        if (String(quote.userId) !== String(userId)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Нет прав для удаления данной цитаты'
+            });
+        }
+
+        // Удаляем цитату
+        await Quote.deleteOne({ _id: id });
+
         // Логируем удаление для аудита
-        logger.info('🗑️ Цитата удалена:', {
+        logger.info('🗑️ Цитата удалена пользователем:', {
             id,
-            text: deletedQuote.text,
-            author: deletedQuote.author,
-            userId: deletedQuote.userId,
-            reason,
-            deletedBy: 'admin'
+            text: quote.text,
+            author: quote.author,
+            userId: quote.userId,
+            deletedBy: userId
         });
 
-        res.json({
-            success: true,
-            message: 'Цитата успешно удалена',
-            data: {
-                id,
-                deletedAt: new Date().toISOString(),
-                deletedBy: 'admin',
-                reason
-            }
-        });
+        res.status(204).end();
 
     } catch (error) {
         logger.error('❌ Ошибка удаления цитаты:', error);

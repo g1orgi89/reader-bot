@@ -8,6 +8,11 @@
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
+    <!-- Подключаем рукописный шрифт Neucha (кириллица) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Neucha&display=swap" rel="stylesheet">
+    
     <!-- 🎨 CSS стили в правильном порядке (ИСПРАВЛЕНО) -->
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/reset.css">
@@ -19,6 +24,7 @@
     <link rel="stylesheet" href="css/components/cards.css">
     <link rel="stylesheet" href="css/components/forms.css">
     <link rel="stylesheet" href="css/components/modals.css">
+    <link rel="stylesheet" href="css/components/quote-card.css">
     
     <!-- Страницы CSS -->
     <link rel="stylesheet" href="css/pages/home.css">
@@ -107,6 +113,9 @@
         <!-- 📄 КОНТЕЙНЕР ДЛЯ СОДЕРЖИМОГО СТРАНИЦ (БЕЗ ХЕДЕРОВ!) -->
         <div id="page-content" class="page-content">
             <!-- Здесь будет содержимое текущей страницы -->
+            
+            <!-- Блок последних цитат на главной (добавляется динамически) -->
+            <section id="home-latest-quotes" class="home-latest-quotes" style="display: none;"></section>
         </div>
 
         <!-- 📱 НИЖНЯЯ НАВИГАЦИЯ -->
@@ -246,6 +255,13 @@
     <script src="js/pages/SettingsPage.js"></script>
     <script src="js/pages/AboutPage.js"></script>
     <script src="js/pages/HelpPage.js"></script>
+    
+    <!-- Services for quotes -->
+    <script src="js/services/QuoteService.js"></script>
+    
+    <!-- Views for quotes -->
+    <script src="js/views/MyQuotesView.js"></script>
+    <script src="js/views/HomeView.js"></script>
     
     <!-- Инициализация (ОРИГИНАЛНЫЙ КОД ВОССТАНОВЛЕН) -->
     <script>
