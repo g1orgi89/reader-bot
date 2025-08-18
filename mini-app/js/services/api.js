@@ -507,12 +507,13 @@ class ApiService {
      * 📅 Получить еженедельные отчеты
      */
     async getWeeklyReports(options = {}, userId = 'demo-user') {
-        const params = new URLSearchParams({ userId });
-        
+        const params = new URLSearchParams();
         if (options.limit) params.append('limit', options.limit);
         if (options.offset) params.append('offset', options.offset);
 
-        const endpoint = `/reports/weekly?${params.toString()}`;
+    // Используем path-параметр, т.к. /reports/weekly?userId=... на проде отсутствует
+        const qs = params.toString();
+        const endpoint = `/reports/weekly/${encodeURIComponent(String(userId))}${qs ? `?${qs}` : ''}`;
         return this.request('GET', endpoint);
     }
 
