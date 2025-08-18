@@ -5,6 +5,7 @@
   color: var(--text-primary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-md);
+  padding-right: calc(var(--spacing-md) + 52px); /* Add right padding to prevent kebab overlap: 16px base + 52px for kebab (44px + 8px spacing) */
   margin-bottom: var(--spacing-md);
   border: 1px solid var(--bg-secondary);
   transition: all var(--duration-normal) var(--ease-out);
@@ -97,16 +98,20 @@
 
 /* Кнопки действий внутри инлайн‑меню */
 .quote-card .action-btn {
+  min-width: 44px;  /* Ensure minimum touch target width */
   min-height: 44px;
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--spacing-sm); /* Reduce padding for icon-only buttons */
   border-radius: var(--radius-md);
   border: 1px solid var(--bg-secondary);
   background: var(--bg-card);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-lg); /* Larger font size for emoji icons */
   cursor: pointer;
   transition: all var(--duration-normal) var(--ease-out);
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .quote-card .action-btn:hover {
@@ -127,6 +132,15 @@
 .quote-card .action-delete:hover {
   background: var(--error-color);
   color: var(--text-inverse);
+}
+
+/* Liked state for quote cards */
+.quote-card.liked {
+  border-color: var(--primary-color);
+}
+
+.quote-card.liked .quote-kebab {
+  color: var(--primary-color);
 }
 
 /* Стили для блока последних цитат на главной */
