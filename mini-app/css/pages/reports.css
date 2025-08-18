@@ -99,13 +99,28 @@
     box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
 }
 
+.ai-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
 .ai-title {
     font-size: 12px;
     font-weight: 600;
-    margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.ai-tone-chip {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 4px 8px;
+    font-size: 9px;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 .ai-text {
@@ -194,6 +209,11 @@
     
     .ai-title {
         font-size: 11px;
+    }
+    
+    .ai-tone-chip {
+        font-size: 8px;
+        padding: 3px 6px;
     }
     
     .ai-text {
@@ -319,6 +339,7 @@
   .report-themes { font-size: 11px; }                 /* 10 -> 11 */
 
   .ai-title { font-size: var(--font-size-xs); }       /* 12 -> 13 */
+  .ai-tone-chip { font-size: 9px; }                   /* 9 -> 9 */
   .ai-text { font-size: 12px; }                       /* 11 -> 12 */
 
   .promo-title { font-size: var(--font-size-xs); }    /* 12 -> 13 */
@@ -333,6 +354,7 @@
   .stat-name { font-size: 10px; }
   .report-themes { font-size: 11px; }
   .ai-title { font-size: var(--font-size-xs); }
+  .ai-tone-chip { font-size: 9px; }
   .ai-text { font-size: 12px; }
   .promo-title { font-size: var(--font-size-xs); }
   .promo-text { font-size: 11px; }

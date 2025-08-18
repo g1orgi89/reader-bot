@@ -23,6 +23,9 @@ class ReportsPage {
         this.reportsLoaded = false;
         this.reportsLoading = false;
         
+        // ✅ НОВОЕ: Хранение еженедельного отчета
+        this.weeklyReport = null;
+        
         // Данные отчета (точно из концепта)
         this.reportData = {
             statistics: {
@@ -34,6 +37,18 @@ class ReportsPage {
             topics: "психология, саморазвитие, отношения",
             aiAnalysis: "Ваши цитаты показывают активный поиск внутренней гармонии. Рекомендую углубиться в тему саморазвития.",
             recommendations: "На основе ваших цитат и интересов сообщества"
+        };
+        
+        // ✅ НОВОЕ: Маппинг эмоциональных тонов
+        this.emotionalToneEmojis = {
+            'позитивный': '😊',
+            'нейтральный': '😌',
+            'задумчивый': '🤔',
+            'вдохновляющий': '✨',
+            'меланхоличный': '😔',
+            'энергичный': '⚡',
+            'размышляющий': '💭',
+            'вдохновленный': '🌟'
         };
         
         this.init();
@@ -129,8 +144,12 @@ class ReportsPage {
             
             // ✅ Загружаем данные с explicit userId
             console.log('📡 ReportsPage: Загружаем статистику для userId:', userId);
-            const stats = await this.api.getStats(userId);
+            const [stats, weeklyReports] = await Promise.all([
+                this.api.getStats(userId),
+                this.api.getWeeklyReports({ limit: 1 }, userId)
+            ]);
             
+            // ✅ Обработка статистики
             if (stats && stats.success) {
                 this.reportData.statistics = {
                     quotes: stats.stats?.totalQuotes || stats.thisWeek || 7,
@@ -138,7 +157,31 @@ class ReportsPage {
                     days: stats.stats?.currentStreak || stats.activeDays || 6,
                     goal: Math.min(Math.round(((stats.stats?.totalQuotes || stats.thisWeek || 7) / 7) * 100), 100) || 85
                 };
-                
+            }
+            
+            // ✅ Обработка еженедельного отчета
+            if (weeklyReports && weeklyReports.success) {
+                // Обработка разных форматов ответа
+                const reports = weeklyReports.reports || weeklyReports.data?.reports || [];
+                if (reports.length > 0) {
+                    this.weeklyReport = reports[0];
+                    
+                    // ✅ Обновляем AI анализ из еженедельного отчета
+                    const analysis = this.weeklyReport.analysis;
+                    if (analysis) {
+                        // Используем summary или insights как fallback
+                        this.reportData.aiAnalysis = analysis.summary || analysis.insights || this.reportData.aiAnalysis;
+                    }
+                    
+                    console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
+                } else {
+                    console.log('📊 ReportsPage: Еженедельные отчеты не найдены, используем fallback');
+                }
+            } else {
+                console.log('📊 ReportsPage: Ошибка загрузки еженедельных отчетов, используем fallback');
+            }
+            
+            if (stats && stats.success) {
                 this.reportsLoaded = true;
                 this.state.set('reports.lastUpdate', Date.now());
                 console.log('✅ ReportsPage: Данные отчета загружены');
@@ -206,13 +249,30 @@ class ReportsPage {
     }
     
     /**
-     * 💡 AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!)
+     * 💡 AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!) - ОБНОВЛЕНО ДЛЯ ЕЖЕНЕДЕЛЬНЫХ ОТЧЕТОВ
      */
     renderAIAnalysis() {
+        // ✅ Получаем данные анализа из еженедельного отчета или fallback
+        const analysisText = this.reportData.aiAnalysis;
+        
+        // ✅ Получаем эмоциональный тон из еженедельного отчета
+        const emotionalTone = this.weeklyReport?.analysis?.emotionalTone;
+        const toneEmoji = emotionalTone ? this.emotionalToneEmojis[emotionalTone] : null;
+        
+        // ✅ Формируем chip с эмоциональным тоном
+        const toneChip = emotionalTone ? `
+            <div class="ai-tone-chip">
+                ${toneEmoji ? `${toneEmoji} ` : ''}${emotionalTone}
+            </div>
+        ` : '';
+        
         return `
             <div class="ai-insight">
-                <div class="ai-title">💡 Анализ от Анны</div>
-                <div class="ai-text">${this.reportData.aiAnalysis}</div>
+                <div class="ai-header">
+                    <div class="ai-title">✨ Анализ от Анны</div>
+                    ${toneChip}
+                </div>
+                <div class="ai-text">${analysisText}</div>
             </div>
         `;
     }
