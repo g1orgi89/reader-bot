@@ -47,6 +47,9 @@ class DiaryPage {
         // ✅ НОВОЕ: Debug режим (синхронизируется с API)
         this.debug = this.api?.debug || false;
         
+        // ✅ НОВОЕ: Флаг для глобального обработчика кликов по цитатам
+        this._globalQuoteDelegationAttached = false;
+        
         this.init();
     }
     
@@ -55,6 +58,15 @@ class DiaryPage {
         // Добавляем обработчик события редактирования цитат
         this._onQuoteEdit = this._onQuoteEdit.bind(this);
         document.addEventListener('quotes:edit', this._onQuoteEdit, false);
+        
+        // ✅ НОВОЕ: Добавляем глобальный обработчик кликов по цитатам
+        if (!this._globalQuoteDelegationAttached) {
+            this._handleGlobalQuoteClick = this._handleGlobalQuoteClick.bind(this);
+            document.addEventListener('click', this._handleGlobalQuoteClick, false);
+            this._globalQuoteDelegationAttached = true;
+            console.log('✅ DiaryPage: Глобальный обработчик кликов по цитатам подключен');
+        }
+        
         // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init, будет в onShow
     }
 
@@ -618,7 +630,7 @@ class DiaryPage {
     }
     
     attachQuoteActionListeners() {
-        // Keep existing logic for search tab
+        // Keep existing logic for search tab only
         const quoteActions = document.querySelectorAll('.quote-action[data-action]');
         quoteActions.forEach(action => {
             action.addEventListener('click', (e) => {
@@ -633,53 +645,8 @@ class DiaryPage {
             });
         });
 
-        // Add event delegation for my-quotes tab kebab and actions
-        const myQuotesContainer = document.querySelector('.my-quotes-container');
-        const container = myQuotesContainer || document.getElementById('page-content');
-        
-        if (container && !container.hasAttribute('data-quote-delegation')) {
-            container.setAttribute('data-quote-delegation', 'true');
-            
-            container.addEventListener('click', (e) => {
-                // Handle kebab button clicks
-                const kebabBtn = e.target.closest('.quote-kebab');
-                if (kebabBtn) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const card = kebabBtn.closest('.quote-card, .quote-item, [data-quote-id]');
-                    if (card) {
-                        card.classList.toggle('expanded');
-                        this.telegram.hapticFeedback('light');
-                    }
-                    return;
-                }
-
-                // Handle action button clicks
-                const actionBtn = e.target.closest('.action-btn[data-action]');
-                if (actionBtn) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const card = actionBtn.closest('.quote-card, .quote-item, [data-quote-id]');
-                    if (card) {
-                        const quoteId = card.dataset.id || card.dataset.quoteId || card.getAttribute('data-quote-id');
-                        const action = actionBtn.dataset.action;
-                        
-                        if (quoteId && action) {
-                            if (action === 'edit') {
-                                this.editQuote(quoteId);
-                            } else if (action === 'delete') {
-                                this.deleteQuote(quoteId);
-                            } else if (action === 'favorite') {
-                                this.toggleFavorite(quoteId, card, actionBtn);
-                            }
-                        }
-                    }
-                    return;
-                }
-            });
-        }
+        // ✅ ИСПРАВЛЕНО: Удалена контейнер-уровневая делегация для my-quotes
+        // Теперь используется глобальная делегация из _handleGlobalQuoteClick
     }
     
     attachSearchListeners() {
@@ -1228,6 +1195,13 @@ class DiaryPage {
         // Отписываемся от события редактирования цитат
         document.removeEventListener('quotes:edit', this._onQuoteEdit, false);
         
+        // ✅ НОВОЕ: Удаляем глобальный обработчик кликов по цитатам
+        if (this._globalQuoteDelegationAttached) {
+            document.removeEventListener('click', this._handleGlobalQuoteClick, false);
+            this._globalQuoteDelegationAttached = false;
+            console.log('✅ DiaryPage: Глобальный обработчик кликов по цитатам отключен');
+        }
+        
         // Unmount MyQuotesView if mounted
         this.unmountMyQuotesView();
         
@@ -1249,6 +1223,58 @@ class DiaryPage {
             }
         } catch (err) {
             console.debug('quotes:edit handler error:', err);
+        }
+    }
+
+    /**
+     * 🔗 Глобальный обработчик кликов по цитатам (выживает при rerenders)
+     */
+    _handleGlobalQuoteClick(e) {
+        // Проверяем, что клик произошел внутри .my-quotes-container
+        const myQuotesContainer = e.target.closest('.my-quotes-container');
+        if (!myQuotesContainer) {
+            return; // Игнорируем клики вне контейнера
+        }
+
+        // Обработка кликов по кебаб-кнопке
+        const kebabBtn = e.target.closest('.quote-kebab');
+        if (kebabBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const card = kebabBtn.closest('.quote-card, .quote-item, [data-quote-id]');
+            if (card) {
+                card.classList.toggle('expanded');
+                this.telegram.hapticFeedback('light');
+            }
+            return;
+        }
+
+        // Обработка кликов по кнопкам действий
+        const actionBtn = e.target.closest('.action-btn[data-action]') || e.target.closest('[data-action]');
+        if (actionBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const card = actionBtn.closest('.quote-card, .quote-item, [data-quote-id]');
+            if (card) {
+                const quoteId = card.dataset.id || card.dataset.quoteId || card.getAttribute('data-quote-id');
+                const action = actionBtn.dataset.action;
+                
+                if (quoteId && action) {
+                    if (action === 'edit') {
+                        this.editQuote(quoteId);
+                    } else if (action === 'delete') {
+                        this.deleteQuote(quoteId);
+                    } else if (action === 'favorite' || action === 'like') {
+                        // Поддерживаем оба варианта названий для совместимости
+                        this.toggleFavorite(quoteId, card, actionBtn);
+                    } else if (action === 'more') {
+                        this.showQuoteMenu(quoteId);
+                    }
+                }
+            }
+            return;
         }
     }
 
