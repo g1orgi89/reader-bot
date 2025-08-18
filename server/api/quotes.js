@@ -894,6 +894,7 @@ router.post('/:id/analyze', async (req, res) => {
         quote.category = analysis.category;
         quote.themes = analysis.themes;
         quote.sentiment = analysis.sentiment;
+        quote.insights = analysis.insights;
         await quote.save();
 
         res.json({
@@ -986,6 +987,7 @@ router.post('/:id/reanalyze', async (req, res) => {
         quote.category = analysis.category;
         quote.themes = analysis.themes;
         quote.sentiment = analysis.sentiment;
+        quote.insights = analysis.insights;
         await quote.save();
 
         res.json({

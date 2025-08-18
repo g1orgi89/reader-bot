@@ -25,6 +25,81 @@ const promptService = require('./promptService');
  */
 
 /**
+ * Safe JSON extraction from LLM responses that may contain markdown fences
+ * @param {string} text - Raw response text that may contain JSON
+ * @returns {Object} Parsed JSON object
+ * @throws {Error} If no valid JSON found
+ */
+function safeJsonExtract(text) {
+  if (!text || typeof text !== 'string') {
+    throw new Error('Invalid input text for JSON extraction');
+  }
+
+  // First try direct JSON parse
+  try {
+    return JSON.parse(text);
+  } catch (directParseError) {
+    // Try to extract JSON from markdown code fences
+    const fencedMatch = text.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+    if (fencedMatch) {
+      try {
+        return JSON.parse(fencedMatch[1].trim());
+      } catch (fencedParseError) {
+        // Fall through to bracket extraction
+      }
+    }
+
+    // Try to extract JSON by finding outermost braces
+    const openBrace = text.indexOf('{');
+    const closeBrace = text.lastIndexOf('}');
+    
+    if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
+      try {
+        const extracted = text.slice(openBrace, closeBrace + 1);
+        return JSON.parse(extracted);
+      } catch (bracketParseError) {
+        // Fall through to error
+      }
+    }
+
+    throw new Error(`Failed to extract valid JSON from text: ${directParseError.message}`);
+  }
+}
+
+/**
+ * Normalize and validate analysis result
+ * @param {Object} analysis - Raw analysis object
+ * @returns {Object} Normalized analysis
+ */
+function normalizeAnalysis(analysis) {
+  const themes = Array.isArray(analysis.themes) && analysis.themes.length > 0 
+    ? analysis.themes.slice(0, 3) 
+    : ['размышления'];
+    
+  return {
+    category: typeof analysis.category === 'string' ? analysis.category : 'Другое',
+    themes: themes,
+    sentiment: ['positive', 'neutral', 'negative'].includes(analysis.sentiment) ? analysis.sentiment : 'neutral',
+    insights: typeof analysis.insights === 'string' ? analysis.insights : 'Интересная мысль для размышления'
+  };
+}
+
+/**
+ * Wrap a promise with a timeout
+ * @param {Promise} promise - Promise to wrap
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise} Promise that rejects on timeout
+ */
+function withTimeout(promise, timeout) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Operation timed out')), timeout)
+    )
+  ]);
+}
+
+/**
  * Сервис обработки цитат с геймификацией
  */
 class QuoteHandler {
@@ -213,7 +288,7 @@ class QuoteHandler {
 
 Доступные категории: ${categoriesList}
 
-Верни JSON с анализом:
+Верни ТОЛЬКО чистый JSON без markdown кода или комментариев:
 {
   "category": "одна из доступных категорий",
   "themes": ["тема1", "тема2"],
@@ -222,21 +297,25 @@ class QuoteHandler {
 }`;
       }
 
-      // Отправляем промпт в claudeService.generateResponse
-      const response = await claudeService.generateResponse(prompt, {
-        platform: 'telegram',
-        userId: 'quote_analysis'
-      });
+      // Отправляем промпт в claudeService.generateResponse с таймаутом
+      const response = await withTimeout(
+        claudeService.generateResponse(prompt, {
+          platform: 'telegram',
+          userId: 'quote_analysis'
+        }),
+        5000 // 5 секунд таймаут
+      );
       
-      // Парсим и валидируем возвращаемый JSON с анализом (category, themes, sentiment, insights)
-      const analysis = JSON.parse(response.message);
+      // Безопасно парсим JSON с обработкой markdown блоков
+      const rawAnalysis = safeJsonExtract(response.message);
+      const analysis = normalizeAnalysis(rawAnalysis);
       
       // Валидация результата с БД категориями
       return {
         category: await this._validateCategory(analysis.category, text),
-        themes: Array.isArray(analysis.themes) ? analysis.themes.slice(0, 3) : ['размышления'],
-        sentiment: ['positive', 'neutral', 'negative'].includes(analysis.sentiment) ? analysis.sentiment : 'neutral',
-        insights: analysis.insights || 'Интересная мысль для размышления'
+        themes: analysis.themes,
+        sentiment: analysis.sentiment,
+        insights: analysis.insights
       };
       
     } catch (error) {
@@ -368,7 +447,8 @@ class QuoteHandler {
       source: parsedQuote.source,
       category: analysis.category,
       themes: analysis.themes,
-      sentiment: analysis.sentiment
+      sentiment: analysis.sentiment,
+      insights: analysis.insights
     });
 
     return await quote.save();
@@ -654,3 +734,6 @@ class QuoteHandler {
 }
 
 module.exports = QuoteHandler;
+module.exports.safeJsonExtract = safeJsonExtract;
+module.exports.normalizeAnalysis = normalizeAnalysis;
+module.exports.withTimeout = withTimeout;

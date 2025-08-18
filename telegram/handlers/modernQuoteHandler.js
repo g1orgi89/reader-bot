@@ -8,6 +8,48 @@ const logger = require('../../server/utils/logger');
 const { UserProfile, Quote } = require('../../server/models');
 const claudeService = require('../../server/services/claude');
 
+/**
+ * Safe JSON extraction from LLM responses that may contain markdown fences
+ * @param {string} text - Raw response text that may contain JSON
+ * @returns {Object} Parsed JSON object
+ * @throws {Error} If no valid JSON found
+ */
+function safeJsonExtract(text) {
+  if (!text || typeof text !== 'string') {
+    throw new Error('Invalid input text for JSON extraction');
+  }
+
+  // First try direct JSON parse
+  try {
+    return JSON.parse(text);
+  } catch (directParseError) {
+    // Try to extract JSON from markdown code fences
+    const fencedMatch = text.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+    if (fencedMatch) {
+      try {
+        return JSON.parse(fencedMatch[1].trim());
+      } catch (fencedParseError) {
+        // Fall through to bracket extraction
+      }
+    }
+
+    // Try to extract JSON by finding outermost braces
+    const openBrace = text.indexOf('{');
+    const closeBrace = text.lastIndexOf('}');
+    
+    if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
+      try {
+        const extracted = text.slice(openBrace, closeBrace + 1);
+        return JSON.parse(extracted);
+      } catch (bracketParseError) {
+        // Fall through to error
+      }
+    }
+
+    throw new Error(`Failed to extract valid JSON from text: ${directParseError.message}`);
+  }
+}
+
 class ModernQuoteHandler {
   constructor() {
     this.dailyQuoteLimit = 10;
@@ -151,7 +193,7 @@ class ModernQuoteHandler {
 Цитата: "${text}"
 Автор: ${author || 'Неизвестен'}
 
-Верни JSON с анализом:
+Верни ТОЛЬКО чистый JSON без markdown кода или комментариев:
 {
   "category": "одна из: Саморазвитие, Любовь, Философия, Мотивация, Мудрость, Творчество, Отношения",
   "themes": ["тема1", "тема2"],
@@ -164,7 +206,7 @@ class ModernQuoteHandler {
         userId: 'quote_analysis'
       });
       
-      return JSON.parse(response.message);
+      return safeJsonExtract(response.message);
     } catch (error) {
       logger.error(`Error analyzing quote: ${error.message}`);
       
