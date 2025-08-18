@@ -574,12 +574,21 @@ router.get('/weekly/:userId', checkModelsAvailable, async (req, res) => {
           id: report._id,
           weekNumber: report.weekNumber,
           year: report.year,
-          quotesCount: report.quotes ? report.quotes.length : 0,
+          quotesCount: Array.isArray(report.quotes) ? report.quotes.length : (report.quotesCount || 0),
           sentAt: report.sentAt,
           isRead: report.isRead,
           feedback: report.feedback,
+          // Keep legacy top-level fields
           dominantThemes: report.analysis?.dominantThemes || [],
-          emotionalTone: report.analysis?.emotionalTone || 'neutral'
+          emotionalTone: report.analysis?.emotionalTone || '',
+          // NEW: full analysis block
+          analysis: {
+            summary: report.analysis?.summary || '',
+            insights: report.analysis?.insights || '',
+            emotionalTone: report.analysis?.emotionalTone || '',
+            dominantThemes: report.analysis?.dominantThemes || []
+          },
+          recommendations: report.recommendations || []
         })),
         total: reports.length
       }

@@ -1073,7 +1073,7 @@ router.delete('/quotes/:id', async (req, res) => {
 // ===========================================
 
 /**
- * @description Получение еженедельных отчётов
+ * @description Получение еженедельных отчётов (query-based для обратной совместимости)
  * @route GET /api/reader/reports/weekly
  */
 router.get('/reports/weekly', async (req, res) => {
@@ -1103,6 +1103,56 @@ router.get('/reports/weekly', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Get Weekly Reports Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Получение еженедельных отчётов по path-параметру (совместимо с продом)
+ * @route GET /api/reader/reports/weekly/:userId
+ */
+router.get('/reports/weekly/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 10 } = req.query;
+
+    const reports = await WeeklyReport.find({ userId })
+      .populate('quotes', 'text author category')
+      .sort({ sentAt: -1 })
+      .limit(parseInt(limit))
+      .lean();
+
+    const mapReport = (r) => ({
+      id: r._id,
+      weekNumber: r.weekNumber,
+      year: r.year,
+      quotesCount: Array.isArray(r.quotes) ? r.quotes.length : (r.quotesCount || 0),
+      sentAt: r.sentAt,
+      isRead: r.isRead,
+      feedback: r.feedback,
+      // Backward compatibility top-level fields
+      dominantThemes: r.analysis?.dominantThemes || [],
+      emotionalTone: r.analysis?.emotionalTone || '',
+      // Full analysis block for Mini App UI
+      analysis: {
+        summary: r.analysis?.summary || '',
+        insights: r.analysis?.insights || '',
+        emotionalTone: r.analysis?.emotionalTone || '',
+        dominantThemes: r.analysis?.dominantThemes || []
+      },
+      recommendations: r.recommendations || []
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        userId,
+        reports: reports.map(mapReport),
+        total: reports.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get Weekly Reports (path) Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

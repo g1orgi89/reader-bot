@@ -65,8 +65,47 @@ Content-Type: application/json
 
 ### Отчеты пользователя
 ```http
-GET /api/reports/weekly/123456789?limit=10
+GET /api/reader/reports/weekly/{userId}?limit=10
 ```
+
+Пример ответа:
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "1798451247",
+    "reports": [
+      {
+        "id": "68a32b3f4021c0f453d96ad8",
+        "weekNumber": 34,
+        "year": 2025,
+        "quotesCount": 14,
+        "sentAt": "2025-08-18T13:31:43.523Z",
+        "isRead": false,
+        "dominantThemes": ["Жизнь", "Любовь"],
+        "emotionalTone": "позитивный",
+        "analysis": {
+          "summary": "Короткое резюме недели...",
+          "insights": "Длинный подробный анализ недели...",
+          "emotionalTone": "позитивный",
+          "dominantThemes": ["Жизнь", "Любовь"]
+        },
+        "recommendations": []
+      }
+    ],
+    "total": 1
+  }
+}
+```
+
+> Примечание: Для обратной совместимости поля dominantThemes и emotionalTone дублируются на верхнем уровне и внутри analysis.
+
+### Отчеты пользователя (администраторский доступ)
+```http
+GET /api/reports/weekly/{userId}?limit=10
+```
+
+Возвращает тот же формат, что и выше, с полным объектом analysis.
 
 ### Добавление обратной связи
 ```http
