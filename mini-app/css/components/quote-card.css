@@ -1,5 +1,7 @@
 /* Базовые стили карточки цитаты */
-.quote-card {
+.quote-card,
+.quote-item,
+[data-quote-id] {
   position: relative;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -11,13 +13,17 @@
   transition: all var(--duration-normal) var(--ease-out);
 }
 
-.quote-card:hover {
+.quote-card:hover,
+.quote-item:hover,
+[data-quote-id]:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
 /* Текст цитаты — рукописный шрифт */
 .quote-card .quote-text,
+.quote-item .quote-text,
+[data-quote-id] .quote-text,
 .my-quotes .quote-text,
 .recent-quote-item .quote-text {
   font-family: 'Neucha', cursive;
@@ -29,6 +35,10 @@
 /* Убираем декоративные оранжевые кавычки */
 .quote-card .quote-text::before,
 .quote-card .quote-text::after,
+.quote-item .quote-text::before,
+.quote-item .quote-text::after,
+[data-quote-id] .quote-text::before,
+[data-quote-id] .quote-text::after,
 .my-quotes .quote-text::before,
 .my-quotes .quote-text::after,
 .recent-quote-item .quote-text::before,
@@ -45,6 +55,8 @@
 
 /* Автор цитаты */
 .quote-card .quote-author,
+.quote-item .quote-author,
+[data-quote-id] .quote-author,
 .my-quotes .quote-author,
 .recent-quote-item .quote-author {
   font-size: var(--font-size-sm);
@@ -54,7 +66,9 @@
 }
 
 /* Кнопка «…» (kebab) */
-.quote-card .quote-kebab {
+.quote-card .quote-kebab,
+.quote-item .quote-kebab,
+[data-quote-id] .quote-kebab {
   position: absolute;
   top: var(--spacing-sm);
   right: var(--spacing-sm);
@@ -74,16 +88,22 @@
   transition: background-color var(--duration-normal) var(--ease-out);
 }
 
-.quote-card .quote-kebab:hover {
+.quote-card .quote-kebab:hover,
+.quote-item .quote-kebab:hover,
+[data-quote-id] .quote-kebab:hover {
   background: var(--bg-secondary);
 }
 
-.quote-card .quote-kebab:active {
+.quote-card .quote-kebab:active,
+.quote-item .quote-kebab:active,
+[data-quote-id] .quote-kebab:active {
   transform: scale(0.95);
 }
 
 /* Инлайн‑меню действий (по умолчанию скрыто) */
-.quote-card .quote-actions-inline {
+.quote-card .quote-actions-inline,
+.quote-item .quote-actions-inline,
+[data-quote-id] .quote-actions-inline {
   display: none;
   margin-top: var(--spacing-md);
   gap: var(--spacing-sm);
@@ -91,13 +111,17 @@
 }
 
 /* Показываем инлайн‑меню, когда карточка в состоянии expanded */
-.quote-card.expanded .quote-actions-inline {
+.quote-card.expanded .quote-actions-inline,
+.quote-item.expanded .quote-actions-inline,
+[data-quote-id].expanded .quote-actions-inline {
   display: flex;
   align-items: center;
 }
 
 /* Кнопки действий внутри инлайн‑меню */
-.quote-card .action-btn {
+.quote-card .action-btn,
+.quote-item .action-btn,
+[data-quote-id] .action-btn {
   min-width: 44px;  /* Ensure minimum touch target width */
   min-height: 44px;
   padding: 0 var(--spacing-sm); /* Reduce padding for icon-only buttons */
@@ -114,32 +138,44 @@
   justify-content: center;
 }
 
-.quote-card .action-btn:hover {
+.quote-card .action-btn:hover,
+.quote-item .action-btn:hover,
+[data-quote-id] .action-btn:hover {
   background: var(--bg-secondary);
   transform: translateY(-1px);
 }
 
-.quote-card .action-btn:active {
+.quote-card .action-btn:active,
+.quote-item .action-btn:active,
+[data-quote-id] .action-btn:active {
   transform: scale(0.95);
 }
 
 /* Акцент удаления */
-.quote-card .action-delete {
+.quote-card .action-delete,
+.quote-item .action-delete,
+[data-quote-id] .action-delete {
   color: var(--error-color);
   border-color: var(--error-color);
 }
 
-.quote-card .action-delete:hover {
+.quote-card .action-delete:hover,
+.quote-item .action-delete:hover,
+[data-quote-id] .action-delete:hover {
   background: var(--error-color);
   color: var(--text-inverse);
 }
 
 /* Liked state for quote cards */
-.quote-card.liked {
+.quote-card.liked,
+.quote-item.liked,
+[data-quote-id].liked {
   border-color: var(--primary-color);
 }
 
-.quote-card.liked .quote-kebab {
+.quote-card.liked .quote-kebab,
+.quote-item.liked .quote-kebab,
+[data-quote-id].liked .quote-kebab {
   color: var(--primary-color);
 }
 
@@ -219,16 +255,22 @@
 
 /* Мобильная адаптация */
 @media (max-width: 768px) {
-  .quote-card .action-btn {
+  .quote-card .action-btn,
+  .quote-item .action-btn,
+  [data-quote-id] .action-btn {
     font-size: var(--font-size-xs);
     padding: 0 var(--spacing-sm);
   }
   
-  .quote-card .quote-actions-inline {
+  .quote-card .quote-actions-inline,
+  .quote-item .quote-actions-inline,
+  [data-quote-id] .quote-actions-inline {
     gap: var(--spacing-xs);
   }
   
   .quote-card .quote-text,
+  .quote-item .quote-text,
+  [data-quote-id] .quote-text,
   .my-quotes .quote-text,
   .recent-quote-item .quote-text {
     font-size: var(--font-size-base);
@@ -237,7 +279,9 @@
 
 /* Темная тема поддержка */
 @media (prefers-color-scheme: dark) {
-  .quote-card .action-btn {
+  .quote-card .action-btn,
+  .quote-item .action-btn,
+  [data-quote-id] .action-btn {
     border-color: var(--text-muted);
   }
   

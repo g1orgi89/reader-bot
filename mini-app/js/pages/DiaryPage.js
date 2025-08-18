@@ -556,6 +556,11 @@ class DiaryPage {
         this.attachFilterListeners();
         this.attachQuoteActionListeners();
         this.attachSearchListeners();
+        
+        // Mount MyQuotesView if we're on my-quotes tab
+        if (this.activeTab === 'my-quotes') {
+            this.mountMyQuotesView();
+        }
     }
     
     attachTabListeners() {
@@ -682,25 +687,51 @@ class DiaryPage {
     }
 
     /**
+     * Mount MyQuotesView on the current my-quotes container
+     */
+    mountMyQuotesView() {
+        // Only mount if MyQuotesView is available and not already mounted
+        if (typeof window.MyQuotesView === 'undefined' || this._myQuotesView) {
+            return;
+        }
+        
+        // Find the my-quotes container
+        const container = document.querySelector('.my-quotes-container');
+        if (container) {
+            this._myQuotesView = new window.MyQuotesView(container);
+            this._myQuotesView.mount();
+            console.log('✅ MyQuotesView mounted on container');
+        } else {
+            console.warn('⚠️ .my-quotes-container not found for MyQuotesView');
+        }
+    }
+    
+    /**
+     * Unmount MyQuotesView
+     */
+    unmountMyQuotesView() {
+        if (this._myQuotesView) {
+            this._myQuotesView.unmount();
+            this._myQuotesView = null;
+            console.log('✅ MyQuotesView unmounted');
+        }
+    }
+
+    /**
      * Управление MyQuotesView при переключении табов
      */
     handleMyQuotesViewForTab(currentTab, previousTab) {
         // Размонтируем при уходе с my-quotes
-        if (previousTab === 'my-quotes' && this.myQuotesView) {
-            this.myQuotesView.unmount();
-            this.myQuotesView = null;
+        if (previousTab === 'my-quotes') {
+            this.unmountMyQuotesView();
         }
         
         // Монтируем при переходе на my-quotes
-        if (currentTab === 'my-quotes' && typeof window.MyQuotesView !== 'undefined') {
-            // Даём время на рендер, затем ищем контейнер
+        if (currentTab === 'my-quotes') {
+            // Даём время на рендер, затем монтируем
             setTimeout(() => {
-                const container = document.querySelector('.tab-content') || document.querySelector('.my-quotes-container');
-                if (container) {
-                    this.myQuotesView = new window.MyQuotesView(container);
-                    this.myQuotesView.mount();
-                }
-            }, 100);
+                this.mountMyQuotesView();
+            }, 50);
         }
     }
     
@@ -1126,6 +1157,9 @@ class DiaryPage {
         
         // Отписываемся от события редактирования цитат
         document.removeEventListener('quotes:edit', this._onQuoteEdit, false);
+        
+        // Unmount MyQuotesView if mounted
+        this.unmountMyQuotesView();
         
         // ✅ НОВОЕ: Сбрасываем флаги загрузки
         this.quotesLoaded = false;
