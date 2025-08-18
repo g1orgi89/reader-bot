@@ -90,6 +90,7 @@ router.get('/recent', async (req, res) => {
             category: quote.category,
             sentiment: quote.sentiment,
             themes: quote.themes || [],
+            insights: quote.insights, // FIXED: Include insights in recent quotes
             createdAt: quote.createdAt,
             isFavorite: quote.isFavorite || false
         }));
@@ -224,6 +225,7 @@ router.get('/', async (req, res) => {
             category: quote.category,
             sentiment: quote.sentiment,
             themes: quote.themes || [],
+            insights: quote.insights, // FIXED: Include insights in quotes list
             weekNumber: quote.weekNumber,
             monthNumber: quote.monthNumber,
             createdAt: quote.createdAt,
