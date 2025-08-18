@@ -8,12 +8,52 @@
 const mongoose = require('mongoose');
 
 /**
- * @typedef {import('../types/reader').WeeklyReport} WeeklyReport
- * @typedef {import('../types/reader').WeeklyAnalysis} WeeklyAnalysis
- * @typedef {import('../types/reader').BookRecommendation} BookRecommendation
- * @typedef {import('../types/reader').PromoCodeData} PromoCodeData
- * @typedef {import('../types/reader').FeedbackData} FeedbackData
+ * Normalize emotional tone to enum-safe value
+ * - lowercases
+ * - replaces "ё" -> "е"
+ * - maps common synonyms to enum values
  */
+const ALLOWED_TONES = [
+  'позитивный',
+  'нейтральный',
+  'задумчивый',
+  'вдохновляющий',
+  'меланхоличный',
+  'энергичный',
+  'размышляющий',
+  'вдохновленный'
+];
+
+function normalizeEmotionalTone(value) {
+  if (!value) return 'размышляющий';
+  let tone = String(value).trim().toLowerCase();
+  tone = tone.replace(/ё/g, 'е');
+
+  // прямые попадания
+  if (ALLOWED_TONES.includes(tone)) return tone;
+
+  // маппинг синонимов/вариантов
+  const map = {
+    // русские варианты
+    'рефлексивный': 'размышляющий',
+    'вдохновенный': 'вдохновляющий',
+    'вдохновленый': 'вдохновленный', // частая опечатка
+    // англ к русским (на всякий случай)
+    'positive': 'позитивный',
+    'neutral': 'нейтральный',
+    'thoughtful': 'задумчивый',
+    'inspiring': 'вдохновляющий',
+    'melancholic': 'меланхоличный',
+    'energetic': 'энергичный',
+    'reflective': 'размышляющий',
+    'inspired': 'вдохновленный'
+  };
+
+  if (map[tone]) return map[tone];
+
+  // дефолт, чтобы не падать на сохранении
+  return 'размышляющий';
+}
 
 /**
  * Схема анализа недели
@@ -32,7 +72,8 @@ const weeklyAnalysisSchema = new mongoose.Schema({
   emotionalTone: {
     type: String,
     required: true,
-    enum: ['позитивный', 'нейтральный', 'задумчивый', 'вдохновляющий', 'меланхоличный', 'энергичный', 'размышляющий', 'вдохновленный']
+    enum: ALLOWED_TONES,
+    set: normalizeEmotionalTone
     // Эмоциональный тон недели
   },
   insights: {
