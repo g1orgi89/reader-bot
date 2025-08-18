@@ -197,12 +197,28 @@ class ReportsPage {
                 if (reports.length > 0) {
                     this.weeklyReport = reports[0];
                     
-                    // ✅ Обновляем AI анализ из еженедельного отчета для обратной совместимости
-                    const analysis = this.weeklyReport.analysis;
-                    if (analysis) {
-                        // Приоритет для backward compatibility: summary → insights
-                        this.reportData.aiAnalysis = analysis.summary || analysis.insights || this.reportData.aiAnalysis;
+                    // НОРМАЛИЗАЦИЯ: гарантируем наличие вложенного analysis
+                    const wr = this.weeklyReport || {};
+                    const normalizedAnalysis = {
+                        summary: (wr.analysis?.summary) || wr.summary || '',
+                        insights: (wr.analysis?.insights) || wr.insights || '',
+                        emotionalTone: (wr.analysis?.emotionalTone) || wr.emotionalTone || '',
+                        dominantThemes: (wr.analysis?.dominantThemes) || wr.dominantThemes || []
+                    };
+                    this.weeklyReport.analysis = normalizedAnalysis;
+
+                    // Обновляем текст анализа для рендера (приоритет: insights → summary → fallback)
+                    if (normalizedAnalysis.insights || normalizedAnalysis.summary) {
+                        this.reportData.aiAnalysis =
+                            normalizedAnalysis.insights || normalizedAnalysis.summary || this.reportData.aiAnalysis;
                     }
+
+                    // Обновляем темы ("Темы: …") из dominantThemes, если есть
+                    if (Array.isArray(normalizedAnalysis.dominantThemes) && normalizedAnalysis.dominantThemes.length) {
+                        this.reportData.topics = normalizedAnalysis.dominantThemes.join(', ');
+                    }
+
+                    console.log('✅ ReportsPage: Нормализованный анализ', this.weeklyReport.analysis);
                     
                     console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
                 } else {
