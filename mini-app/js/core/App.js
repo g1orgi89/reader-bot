@@ -225,7 +225,41 @@ class ReaderApp {
         this.topMenu = null;
         this.setupEventListeners();
         this.applyThemeStyles();
+        
+        // Инициализация View компонентов для цитат
+        this.initializeQuoteViews();
+        
         console.log('✅ UI инициализирован');
+    }
+
+    /**
+     * Инициализация View для главной и «Моих цитат»
+     */
+    initializeQuoteViews() {
+        try {
+            // Импортируем модули динамически когда они доступны
+            if (typeof window.HomeView !== 'undefined') {
+                const homeRoot = document.body;
+                if (document.getElementById('home-latest-quotes')) {
+                    this.homeView = new window.HomeView(homeRoot);
+                    this.homeView.mount();
+                    console.log('✅ HomeView инициализирован');
+                }
+            }
+
+            if (typeof window.MyQuotesView !== 'undefined') {
+                const myQuotesRoot = document.querySelector('.my-quotes') || 
+                                   document.querySelector('[data-tab-content="my-quotes"]') ||
+                                   document.querySelector('#my-quotes-container');
+                if (myQuotesRoot) {
+                    this.myQuotesView = new window.MyQuotesView(myQuotesRoot);
+                    this.myQuotesView.mount();
+                    console.log('✅ MyQuotesView инициализирован');
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Ошибка инициализации Quote Views:', error);
+        }
     }
 
     async initializeRouting() {

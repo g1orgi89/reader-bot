@@ -1,0 +1,235 @@
+/* Базовые стили карточки цитаты */
+.quote-card {
+  position: relative;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid var(--bg-secondary);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.quote-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Текст цитаты — рукописный шрифт */
+.quote-card .quote-text,
+.my-quotes .quote-text,
+.recent-quote-item .quote-text {
+  font-family: 'Neucha', cursive;
+  line-height: 1.4;
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Убираем декоративные оранжевые кавычки */
+.quote-card .quote-text::before,
+.quote-card .quote-text::after,
+.my-quotes .quote-text::before,
+.my-quotes .quote-text::after,
+.recent-quote-item .quote-text::before,
+.recent-quote-item .quote-text::after {
+  content: none !important;
+}
+
+/* Скрываем любые декоративные кавычки если они отдельными элементами */
+.quote-icon,
+.quote-quotes,
+.decorative-quotes {
+  display: none !important;
+}
+
+/* Автор цитаты */
+.quote-card .quote-author,
+.my-quotes .quote-author,
+.recent-quote-item .quote-author {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: var(--spacing-xs);
+}
+
+/* Кнопка «…» (kebab) */
+.quote-card .quote-kebab {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 20px;
+  line-height: 44px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--duration-normal) var(--ease-out);
+}
+
+.quote-card .quote-kebab:hover {
+  background: var(--bg-secondary);
+}
+
+.quote-card .quote-kebab:active {
+  transform: scale(0.95);
+}
+
+/* Инлайн‑меню действий (по умолчанию скрыто) */
+.quote-card .quote-actions-inline {
+  display: none;
+  margin-top: var(--spacing-md);
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+/* Показываем инлайн‑меню, когда карточка в состоянии expanded */
+.quote-card.expanded .quote-actions-inline {
+  display: flex;
+  align-items: center;
+}
+
+/* Кнопки действий внутри инлайн‑меню */
+.quote-card .action-btn {
+  min-height: 44px;
+  padding: 0 var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bg-secondary);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  white-space: nowrap;
+}
+
+.quote-card .action-btn:hover {
+  background: var(--bg-secondary);
+  transform: translateY(-1px);
+}
+
+.quote-card .action-btn:active {
+  transform: scale(0.95);
+}
+
+/* Акцент удаления */
+.quote-card .action-delete {
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.quote-card .action-delete:hover {
+  background: var(--error-color);
+  color: var(--text-inverse);
+}
+
+/* Стили для блока последних цитат на главной */
+.home-latest-quotes {
+  margin: var(--spacing-lg) 0;
+}
+
+.recent-quotes-section {
+  margin: var(--spacing-lg) 0;
+}
+
+.section-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.recent-quote-item {
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--bg-secondary);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.recent-quote-item:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.recent-quote-item:active {
+  transform: scale(0.98);
+}
+
+.empty-recent-quotes {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Skeleton loading для последних цитат */
+.recent-quote-item.skeleton {
+  pointer-events: none;
+}
+
+.skeleton-line {
+  height: 20px;
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-primary) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.skeleton-line-short {
+  height: 16px;
+  width: 60%;
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-primary) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+  .quote-card .action-btn {
+    font-size: var(--font-size-xs);
+    padding: 0 var(--spacing-sm);
+  }
+  
+  .quote-card .quote-actions-inline {
+    gap: var(--spacing-xs);
+  }
+  
+  .quote-card .quote-text,
+  .my-quotes .quote-text,
+  .recent-quote-item .quote-text {
+    font-size: var(--font-size-base);
+  }
+}
+
+/* Темная тема поддержка */
+@media (prefers-color-scheme: dark) {
+  .quote-card .action-btn {
+    border-color: var(--text-muted);
+  }
+  
+  .skeleton-line,
+  .skeleton-line-short {
+    background: linear-gradient(90deg, var(--text-muted) 25%, var(--bg-primary) 50%, var(--text-muted) 75%);
+    background-size: 200% 100%;
+  }
+}

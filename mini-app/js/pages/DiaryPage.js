@@ -351,9 +351,11 @@ class DiaryPage {
         const loading = this.state.get('quotes.loading');
         
         return `
-            ${this.renderFilters()}
-            ${this.renderQuotesStats()}
-            ${this.renderQuotesList(quotes, loading)}
+            <div class="my-quotes-container">
+                ${this.renderFilters()}
+                ${this.renderQuotesStats()}
+                ${this.renderQuotesList(quotes, loading)}
+            </div>
         `;
     }
     
@@ -403,26 +405,18 @@ class DiaryPage {
     }
     
     /**
-     * 📝 КАРТОЧКА ЦИТАТЫ (ТОЧНО ИЗ КОНЦЕПТА!)
+     * 📝 КАРТОЧКА ЦИТАТЫ (ОБНОВЛЕНО: с kebab меню и новыми стилями!)
      */
     renderQuoteItem(quote) {
         const isFavorite = quote.isFavorite || false;
+        const author = quote.author ? `— ${quote.author}` : '';
         
         return `
-            <div class="quote-item" data-quote-id="${quote._id || quote.id}">
-                <div class="quote-text">"${quote.text}"</div>
-                <div class="quote-meta">
-                    <span style="font-weight: 500; color: var(--text-primary); transition: color var(--transition-normal);">${quote.author}</span>
-                    <div class="quote-actions">
-                        <button class="quote-action" 
-                                data-action="favorite" 
-                                style="color: ${isFavorite ? 'var(--primary-color)' : 'var(--text-muted)'};">
-                            ${isFavorite ? '❤️' : '❤️'}
-                        </button>
-                        <button class="quote-action" data-action="edit">✏️</button>
-                        <button class="quote-action" data-action="more">⋯</button>
-                    </div>
-                </div>
+            <div class="quote-card my-quotes" data-id="${quote._id || quote.id}" data-quote-id="${quote._id || quote.id}">
+                <button class="quote-kebab" aria-label="menu" title="Действия">…</button>
+                <div class="quote-text">${quote.text}</div>
+                ${author ? `<div class="quote-author">${author}</div>` : ''}
+                <div class="quote-actions-inline"></div>
             </div>
         `;
     }
@@ -666,9 +660,13 @@ class DiaryPage {
      * 🔧 ОБРАБОТЧИКИ ДЕЙСТВИЙ
      */
     switchTab(tabName) {
+        const previousTab = this.activeTab;
         this.activeTab = tabName;
         this.telegram.hapticFeedback('light');
         this.rerender();
+        
+        // Управление MyQuotesView при переключении табов
+        this.handleMyQuotesViewForTab(tabName, previousTab);
         
         // ✅ ИСПРАВЛЕНО: Умная загрузка при переключении табов с userId
         if (tabName === 'my-quotes' && !this.quotesLoaded) {
@@ -677,6 +675,29 @@ class DiaryPage {
             }).catch(error => {
                 console.error('❌ Ошибка загрузки при переключении таба:', error);
             });
+        }
+    }
+
+    /**
+     * Управление MyQuotesView при переключении табов
+     */
+    handleMyQuotesViewForTab(currentTab, previousTab) {
+        // Размонтируем при уходе с my-quotes
+        if (previousTab === 'my-quotes' && this.myQuotesView) {
+            this.myQuotesView.unmount();
+            this.myQuotesView = null;
+        }
+        
+        // Монтируем при переходе на my-quotes
+        if (currentTab === 'my-quotes' && typeof window.MyQuotesView !== 'undefined') {
+            // Даём время на рендер, затем ищем контейнер
+            setTimeout(() => {
+                const container = document.querySelector('.tab-content') || document.querySelector('.my-quotes-container');
+                if (container) {
+                    this.myQuotesView = new window.MyQuotesView(container);
+                    this.myQuotesView.mount();
+                }
+            }, 100);
         }
     }
     
