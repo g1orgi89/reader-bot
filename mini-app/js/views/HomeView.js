@@ -14,30 +14,80 @@ window.HomeView = class HomeView {
     if (!this.root) return;
     this.latestContainer = document.getElementById('home-latest-quotes');
     document.addEventListener('quotes:changed', this._onQuotesChanged, false);
-    // Add click event delegation for kebab and action buttons
-    if (this.root) {
-      this.root.addEventListener('click', this._onClick, false);
-    }
+    // Делегирование кликов по «…» и action-кнопкам
+    this.root.addEventListener('click', this._onClick, false);
     this.renderLatestQuotes();
   }
 
   unmount() {
     document.removeEventListener('quotes:changed', this._onQuotesChanged, false);
-    if (this.root) {
-      this.root.removeEventListener('click', this._onClick, false);
+    if (this.root) this.root.removeEventListener('click', this._onClick, false);
+  }
+
+  _getUserId() {
+    return (
+      window?.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+      window?.App?.state?.get?.('user.id') ||
+      localStorage.getItem('userId')
+    );
+  }
+
+  // Берём последние N цитат из общего состояния (если там уже есть «Мои цитаты»)
+  _pickLatestFromState(limit = 3) {
+    try {
+      const items = window?.App?.state?.get?.('quotes.items') || [];
+      if (!Array.isArray(items) || items.length === 0) return [];
+      return items
+        .filter(q => q?.createdAt || q?.dateAdded)
+        .sort((a, b) => new Date(b.createdAt || b.dateAdded) - new Date(a.createdAt || a.dateAdded))
+        .slice(0, limit);
+    } catch {
+      return [];
     }
   }
 
   async renderLatestQuotes() {
     if (!this.latestContainer) return;
     try {
-      const latest = await window.QuoteService.getLatestQuotes(3);
-      this.latestContainer.innerHTML = this._renderLatestQuotesSection(latest);
+      // 1) Пробуем отрендерить из уже загруженных «Моих цитат»
+      const fromState = this._pickLatestFromState(3);
+      if (fromState.length) {
+        this.latestContainer.innerHTML = this._renderLatestQuotesSection(fromState);
+        this.latestContainer.style.display = 'block';
+        return;
+      }
+
+      // 2) Если в состоянии пусто — идём в API с userId и безопасным парсингом
+      const userId = this._getUserId();
+      
+      // Пробуем сначала через QuoteService.getLatestQuotes
+      let quotes = [];
+      try {
+        const latest = await window.QuoteService.getLatestQuotes(3);
+        quotes = Array.isArray(latest) ? latest : [];
+      } catch (serviceError) {
+        console.warn('QuoteService.getLatestQuotes failed, trying ApiService:', serviceError);
+        
+        // Fallback на ApiService если QuoteService не работает
+        if (window.ApiService) {
+          const api = new window.ApiService();
+          const result = await api.getRecentQuotes(3, userId);
+          quotes =
+            (result?.data?.quotes && Array.isArray(result.data.quotes) && result.data.quotes) ||
+            (Array.isArray(result?.quotes) && result.quotes) ||
+            (Array.isArray(result?.items) && result.items) ||
+            (Array.isArray(result?.data) && result.data) ||
+            (Array.isArray(result) ? result : []);
+        }
+      }
+
+      this.latestContainer.innerHTML = this._renderLatestQuotesSection(quotes);
       this.latestContainer.style.display = 'block';
     } catch (e) {
       console.error('Failed to load latest quotes', e);
-      this.latestContainer.innerHTML = '';
-      this.latestContainer.style.display = 'none';
+      // Показываем пустое состояние (не скрываем секцию), чтобы был понятный UI
+      this.latestContainer.innerHTML = this._renderLatestQuotesSection([]);
+      this.latestContainer.style.display = 'block';
     }
   }
 
@@ -68,12 +118,10 @@ window.HomeView = class HomeView {
     const author = q.author ? `— ${q.author}` : '';
     const text = q.text || '';
     const truncatedText = text.length > 120 ? text.substring(0, 120) + '...' : text;
-    
-    // Check if quote is favorited to add liked class
     const likedClass = q.isFavorite ? ' liked' : '';
-    
+
     return `
-      <article class="quote-card recent-quote-item${likedClass}" data-id="${q._id || q.id}">
+      <article class="quote-card recent-quote-item${likedClass}" data-id="${q._id || q.id}" data-quote-id="${q._id || q.id}">
         <button class="quote-kebab" aria-label="menu" title="Действия">…</button>
         <div class="quote-text">${this._escape(truncatedText)}</div>
         ${author ? `<div class="quote-author">${this._escape(author)}</div>` : ''}
@@ -114,11 +162,10 @@ window.HomeView = class HomeView {
     if (!actions) {
       actions = document.createElement('div');
       actions.className = 'quote-actions-inline';
-      
-      // Check if card is liked to show correct heart icon
+
       const isLiked = card.classList.contains('liked');
       const heartIcon = isLiked ? '❤️' : '🤍';
-      
+
       actions.innerHTML = `
         <button class="action-btn" data-action="edit" aria-label="Редактировать цитату" title="Редактировать">✏️</button>
         <button class="action-btn" data-action="like" aria-label="Добавить в избранное" title="Избранное">${heartIcon}</button>
@@ -126,7 +173,6 @@ window.HomeView = class HomeView {
       `;
       card.appendChild(actions);
     } else {
-      // Update heart icon if actions already exist
       const likeBtn = actions.querySelector('[data-action="like"]');
       if (likeBtn) {
         const isLiked = card.classList.contains('liked');
@@ -153,31 +199,29 @@ window.HomeView = class HomeView {
 
   _editQuote(card, id) {
     document.dispatchEvent(new CustomEvent('quotes:edit', { detail: { id } }));
+    if (window?.App?.router?.navigate) {
+      window.App.router.navigate(`/diary?quote=${id}&action=edit`);
+    }
     this._haptic('impact', 'light');
   }
 
   _likeQuote(card, id) {
     const isLiked = card.classList.contains('liked');
     const newLikedState = !isLiked;
-    
-    // Оптимистично обновляем UI
+
     card.classList.toggle('liked', newLikedState);
     this._haptic('impact', 'light');
-    
-    // Update heart icon immediately
+
     const likeBtn = card.querySelector('[data-action="like"]');
     if (likeBtn) {
       likeBtn.textContent = newLikedState ? '❤️' : '🤍';
     }
-    
-    // Пытаемся обновить на сервере
+
     window.QuoteService.toggleFavorite(id, newLikedState).then(() => {
       document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
     }).catch((error) => {
       console.error('Failed to toggle favorite:', error);
-      // Откатываем изменение UI при ошибке
       card.classList.toggle('liked', isLiked);
-      // Revert heart icon on error
       if (likeBtn) {
         likeBtn.textContent = isLiked ? '❤️' : '🤍';
       }
@@ -191,18 +235,12 @@ window.HomeView = class HomeView {
       if (!HF) return;
       if (type === 'impact') HF.impactOccurred(style || 'light');
       if (type === 'notification') HF.notificationOccurred(style || 'success');
-    } catch (error) {
-      // Telegram WebApp may not be available in all environments
-      console.debug('Haptic feedback not available:', error);
-    }
+    } catch (_) {}
   }
 
   _escape(s) {
-    return String(s || '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
+    const div = document.createElement('div');
+    div.textContent = s ?? '';
+    return div.innerHTML;
   }
 };

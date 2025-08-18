@@ -6,16 +6,70 @@ window.MyQuotesView = class MyQuotesView {
   constructor(root) {
     this.root = root;
     this._onClick = this._onClick.bind(this);
+    this._observer = null;
   }
 
   mount() {
     if (!this.root) return;
     this.root.addEventListener('click', this._onClick, false);
+    // Гарантируем наличие кнопки «…» у всех карточек
+    this._ensureKebabButtons();
+    // Следим за динамическими вставками карточек
+    this._observeDom();
   }
 
   unmount() {
     if (!this.root) return;
     this.root.removeEventListener('click', this._onClick, false);
+    if (this._observer) {
+      this._observer.disconnect();
+      this._observer = null;
+    }
+  }
+
+  _observeDom() {
+    try {
+      this._observer = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          if (m.type !== 'childList') continue;
+          m.addedNodes.forEach((node) => {
+            if (node.nodeType !== 1) return;
+            if (node.matches?.('.quote-card')) {
+              this._ensureKebabForCard(node);
+            }
+            node.querySelectorAll?.('.quote-card')?.forEach((card) => this._ensureKebabForCard(card));
+          });
+        }
+      });
+      this._observer.observe(this.root, { childList: true, subtree: true });
+    } catch (e) {
+      console.debug('MutationObserver not available:', e);
+    }
+  }
+
+  _ensureKebabButtons() {
+    this.root.querySelectorAll('.quote-card').forEach((card) => this._ensureKebabForCard(card));
+  }
+
+  _ensureKebabForCard(card) {
+    if (!card?.classList?.contains('quote-card')) return;
+    if (!card.querySelector('.quote-kebab')) {
+      const kebab = document.createElement('button');
+      kebab.className = 'quote-kebab';
+      kebab.setAttribute('aria-label', 'Действия');
+      kebab.title = 'Действия';
+      kebab.textContent = '…';
+      card.appendChild(kebab);
+    }
+    // Если действия уже есть, синхронизируем сердечко
+    const actions = card.querySelector('.quote-actions-inline');
+    if (actions) {
+      const likeBtn = actions.querySelector('[data-action="like"]');
+      if (likeBtn) {
+        const isLiked = card.classList.contains('liked');
+        likeBtn.textContent = isLiked ? '❤️' : '🤍';
+      }
+    }
   }
 
   _onClick(e) {
@@ -33,7 +87,13 @@ window.MyQuotesView = class MyQuotesView {
     if (actionBtn) {
       const card = e.target.closest('.quote-card');
       if (!card) return;
-      const id = card.dataset.id || card.dataset.quoteId;
+      const id =
+        card.dataset.id ||
+        card.dataset.quoteId ||
+        card.getAttribute('data-quote-id') ||
+        card.querySelector('[data-id]')?.dataset.id ||
+        card.querySelector('[data-quote-id]')?.getAttribute('data-quote-id');
+
       const action = actionBtn.dataset.action;
       if (action === 'delete') return this._deleteQuote(card, id);
       if (action === 'edit') return this._editQuote(card, id);
@@ -46,11 +106,10 @@ window.MyQuotesView = class MyQuotesView {
     if (!actions) {
       actions = document.createElement('div');
       actions.className = 'quote-actions-inline';
-      
-      // Check if card is liked to show correct heart icon
+
       const isLiked = card.classList.contains('liked');
       const heartIcon = isLiked ? '❤️' : '🤍';
-      
+
       actions.innerHTML = `
         <button class="action-btn" data-action="edit" aria-label="Редактировать цитату" title="Редактировать">✏️</button>
         <button class="action-btn" data-action="like" aria-label="Добавить в избранное" title="Избранное">${heartIcon}</button>
@@ -58,7 +117,6 @@ window.MyQuotesView = class MyQuotesView {
       `;
       card.appendChild(actions);
     } else {
-      // Update heart icon if actions already exist
       const likeBtn = actions.querySelector('[data-action="like"]');
       if (likeBtn) {
         const isLiked = card.classList.contains('liked');
@@ -84,37 +142,38 @@ window.MyQuotesView = class MyQuotesView {
   }
 
   _editQuote(card, id) {
+    // Два канала: событие + переход, чтобы гарантировать работу
     document.dispatchEvent(new CustomEvent('quotes:edit', { detail: { id } }));
+    if (window?.App?.router?.navigate) {
+      window.App.router.navigate(`/diary?quote=${id}&action=edit`);
+    }
     this._haptic('impact', 'light');
   }
 
   _likeQuote(card, id) {
     const isLiked = card.classList.contains('liked');
     const newLikedState = !isLiked;
-    
-    // Оптимистично обновляем UI
+
     card.classList.toggle('liked', newLikedState);
     this._haptic('impact', 'light');
-    
-    // Update heart icon immediately
+
     const likeBtn = card.querySelector('[data-action="like"]');
     if (likeBtn) {
       likeBtn.textContent = newLikedState ? '❤️' : '🤍';
     }
-    
-    // Пытаемся обновить на сервере
-    window.QuoteService.toggleFavorite(id, newLikedState).then(() => {
-      document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
-    }).catch((error) => {
-      console.error('Failed to toggle favorite:', error);
-      // Откатываем изменение UI при ошибке
-      card.classList.toggle('liked', isLiked);
-      // Revert heart icon on error
-      if (likeBtn) {
-        likeBtn.textContent = isLiked ? '❤️' : '🤍';
-      }
-      this._haptic('notification', 'error');
-    });
+
+    window.QuoteService.toggleFavorite(id, newLikedState)
+      .then(() => {
+        document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
+      })
+      .catch((error) => {
+        console.error('Failed to toggle favorite:', error);
+        card.classList.toggle('liked', isLiked);
+        if (likeBtn) {
+          likeBtn.textContent = isLiked ? '❤️' : '🤍';
+        }
+        this._haptic('notification', 'error');
+      });
   }
 
   _haptic(type, style) {
@@ -124,7 +183,6 @@ window.MyQuotesView = class MyQuotesView {
       if (type === 'impact') HF.impactOccurred(style || 'light');
       if (type === 'notification') HF.notificationOccurred(style || 'success');
     } catch (error) {
-      // Telegram WebApp may not be available in all environments
       console.debug('Haptic feedback not available:', error);
     }
   }

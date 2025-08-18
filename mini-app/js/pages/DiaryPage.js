@@ -52,6 +52,9 @@ class DiaryPage {
     
     init() {
         this.setupSubscriptions();
+        // Добавляем обработчик события редактирования цитат
+        this._onQuoteEdit = this._onQuoteEdit.bind(this);
+        document.addEventListener('quotes:edit', this._onQuoteEdit, false);
         // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init, будет в onShow
     }
 
@@ -1086,6 +1089,9 @@ class DiaryPage {
     onShow() {
         console.log('📖 DiaryPage: onShow - БЕЗ ШАПКИ!');
         
+        // Проверяем URL параметры для автоматического запуска редактирования
+        this._initEditFromQuery();
+        
         // ✅ ИСПРАВЛЕНО: Умная загрузка данных как в HomePage
         if (!this.quotesLoaded && !this.statsLoaded) {
             console.log('🔄 DiaryPage: Первый показ, загружаем данные');
@@ -1118,11 +1124,45 @@ class DiaryPage {
         });
         this.subscriptions = [];
         
+        // Отписываемся от события редактирования цитат
+        document.removeEventListener('quotes:edit', this._onQuoteEdit, false);
+        
         // ✅ НОВОЕ: Сбрасываем флаги загрузки
         this.quotesLoaded = false;
         this.quotesLoading = false;
         this.statsLoaded = false;
         this.statsLoading = false;
+    }
+
+    /**
+     * 🔗 Обработчик события редактирования цитат из MyQuotesView
+     */
+    _onQuoteEdit(e) {
+        try {
+            const id = e?.detail?.id;
+            if (id) {
+                this.editQuote(id);
+            }
+        } catch (err) {
+            console.debug('quotes:edit handler error:', err);
+        }
+    }
+
+    /**
+     * 🔗 Инициализация редактирования из URL параметров
+     */
+    _initEditFromQuery() {
+        try {
+            const params = new URLSearchParams(location.search);
+            const quoteId = params.get('quote');
+            const action = params.get('action');
+            if (quoteId && action === 'edit') {
+                // Небольшая задержка, чтобы успел смонтироваться UI
+                setTimeout(() => this.editQuote(quoteId), 50);
+            }
+        } catch (e) {
+            console.debug('init edit from query failed:', e);
+        }
     }
 
     /**
