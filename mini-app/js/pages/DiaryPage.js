@@ -47,8 +47,7 @@ class DiaryPage {
         // ✅ НОВОЕ: Debug режим (синхронизируется с API)
         this.debug = this.api?.debug || false;
         
-        // ✅ НОВОЕ: Флаг для глобального обработчика кликов по цитатам
-        this._globalQuoteDelegationAttached = false;
+        // Removed global quote delegation flag
         
         this.init();
     }
@@ -59,15 +58,7 @@ class DiaryPage {
         this._onQuoteEdit = this._onQuoteEdit.bind(this);
         document.addEventListener('quotes:edit', this._onQuoteEdit, false);
         
-        // ✅ НОВОЕ: Добавляем глобальный обработчик кликов по цитатам
-        if (!this._globalQuoteDelegationAttached) {
-            this._handleGlobalQuoteClick = this._handleGlobalQuoteClick.bind(this);
-            document.addEventListener('click', this._handleGlobalQuoteClick, false);
-            this._globalQuoteDelegationAttached = true;
-            console.log('✅ DiaryPage: Глобальный обработчик кликов по цитатам подключен');
-        }
-        
-        // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init, будет в onShow
+        // Removed global quote click delegation - using container-level delegation instead
     }
 
     /**
@@ -645,8 +636,16 @@ class DiaryPage {
             });
         });
 
-        // ✅ ИСПРАВЛЕНО: Удалена контейнер-уровневая делегация для my-quotes
-        // Теперь используется глобальная делегация из _handleGlobalQuoteClick
+        // ✅ RESTORED: Container-level delegation for my-quotes (reverted from PR #82)
+        const myQuotesContainer = document.querySelector('.my-quotes-container');
+        if (myQuotesContainer) {
+            // Remove any existing listeners to avoid duplicates
+            myQuotesContainer.removeEventListener('click', this._handleMyQuotesClick);
+            
+            // Bind and add the click handler
+            this._handleMyQuotesClick = this._handleMyQuotesClick.bind(this);
+            myQuotesContainer.addEventListener('click', this._handleMyQuotesClick, false);
+        }
     }
     
     attachSearchListeners() {
@@ -686,7 +685,6 @@ class DiaryPage {
      * 🔧 ОБРАБОТЧИКИ ДЕЙСТВИЙ
      */
     switchTab(tabName) {
-        const previousTab = this.activeTab;
         this.activeTab = tabName;
         this.telegram.hapticFeedback('light');
         this.rerender();
@@ -1195,17 +1193,16 @@ class DiaryPage {
         // Отписываемся от события редактирования цитат
         document.removeEventListener('quotes:edit', this._onQuoteEdit, false);
         
-        // ✅ НОВОЕ: Удаляем глобальный обработчик кликов по цитатам
-        if (this._globalQuoteDelegationAttached) {
-            document.removeEventListener('click', this._handleGlobalQuoteClick, false);
-            this._globalQuoteDelegationAttached = false;
-            console.log('✅ DiaryPage: Глобальный обработчик кликов по цитатам отключен');
+        // Remove container-level delegation if it exists
+        const myQuotesContainer = document.querySelector('.my-quotes-container');
+        if (myQuotesContainer && this._handleMyQuotesClick) {
+            myQuotesContainer.removeEventListener('click', this._handleMyQuotesClick, false);
         }
         
         // Unmount MyQuotesView if mounted
         this.unmountMyQuotesView();
         
-        // ✅ НОВОЕ: Сбрасываем флаги загрузки
+        // Reset loading flags
         this.quotesLoaded = false;
         this.quotesLoading = false;
         this.statsLoaded = false;
@@ -1213,30 +1210,10 @@ class DiaryPage {
     }
 
     /**
-     * 🔗 Обработчик события редактирования цитат из MyQuotesView
+     * 🔗 Container-level click handler for my-quotes (restored from pre-PR #82)
      */
-    _onQuoteEdit(e) {
-        try {
-            const id = e?.detail?.id;
-            if (id) {
-                this.editQuote(id);
-            }
-        } catch (err) {
-            console.debug('quotes:edit handler error:', err);
-        }
-    }
-
-    /**
-     * 🔗 Глобальный обработчик кликов по цитатам (выживает при rerenders)
-     */
-    _handleGlobalQuoteClick(e) {
-        // Проверяем, что клик произошел внутри .my-quotes-container
-        const myQuotesContainer = e.target.closest('.my-quotes-container');
-        if (!myQuotesContainer) {
-            return; // Игнорируем клики вне контейнера
-        }
-
-        // Обработка кликов по кебаб-кнопке
+    _handleMyQuotesClick(e) {
+        // Handle kebab button clicks
         const kebabBtn = e.target.closest('.quote-kebab');
         if (kebabBtn) {
             e.preventDefault();
@@ -1246,12 +1223,13 @@ class DiaryPage {
             if (card) {
                 card.classList.toggle('expanded');
                 this.telegram.hapticFeedback('light');
+                this._ensureActionsInline(card);
             }
             return;
         }
 
-        // Обработка кликов по кнопкам действий
-        const actionBtn = e.target.closest('.action-btn[data-action]') || e.target.closest('[data-action]');
+        // Handle action button clicks
+        const actionBtn = e.target.closest('.action-btn[data-action]');
         if (actionBtn) {
             e.preventDefault();
             e.stopPropagation();
@@ -1266,15 +1244,53 @@ class DiaryPage {
                         this.editQuote(quoteId);
                     } else if (action === 'delete') {
                         this.deleteQuote(quoteId);
-                    } else if (action === 'favorite' || action === 'like') {
-                        // Поддерживаем оба варианта названий для совместимости
+                    } else if (action === 'favorite') {
                         this.toggleFavorite(quoteId, card, actionBtn);
-                    } else if (action === 'more') {
-                        this.showQuoteMenu(quoteId);
                     }
                 }
             }
             return;
+        }
+    }
+
+    /**
+     * Ensure action buttons are present inline (helper method for container-level delegation)
+     */
+    _ensureActionsInline(card) {
+        let actions = card.querySelector('.quote-actions-inline');
+        if (!actions) {
+            actions = document.createElement('div');
+            actions.className = 'quote-actions-inline';
+
+            const isLiked = card.classList.contains('liked');
+            const heartIcon = isLiked ? '❤️' : '🤍';
+
+            actions.innerHTML = `
+                <button class="action-btn" data-action="edit" aria-label="Редактировать цитату" title="Редактировать">✏️</button>
+                <button class="action-btn" data-action="favorite" aria-label="Добавить в избранное" title="Избранное">${heartIcon}</button>
+                <button class="action-btn action-delete" data-action="delete" aria-label="Удалить цитату" title="Удалить">🗑️</button>
+            `;
+            card.appendChild(actions);
+        } else {
+            const likeBtn = actions.querySelector('[data-action="favorite"]');
+            if (likeBtn) {
+                const isLiked = card.classList.contains('liked');
+                likeBtn.textContent = isLiked ? '❤️' : '🤍';
+            }
+        }
+    }
+
+    /**
+     * 🔗 Обработчик события редактирования цитат из MyQuotesView
+     */
+    _onQuoteEdit(e) {
+        try {
+            const id = e?.detail?.id;
+            if (id) {
+                this.editQuote(id);
+            }
+        } catch (err) {
+            console.debug('quotes:edit handler error:', err);
         }
     }
 
