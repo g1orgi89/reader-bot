@@ -381,6 +381,7 @@ router.post('/', async (req, res) => {
             savedQuote.category = analysis.category;
             savedQuote.themes = analysis.themes;
             savedQuote.sentiment = analysis.sentiment;
+            savedQuote.insights = analysis.insights; // FIXED: Persist insights on creation
             
             // Сохраняем обновленную цитату
             await savedQuote.save();
@@ -439,6 +440,7 @@ router.post('/', async (req, res) => {
                     category: savedQuote.category,
                     sentiment: savedQuote.sentiment,
                     themes: savedQuote.themes,
+                    insights: savedQuote.insights, // FIXED: Include insights in fallback
                     createdAt: savedQuote.createdAt,
                     weekNumber: savedQuote.weekNumber
                 }
