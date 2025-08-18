@@ -257,7 +257,12 @@ class HomePage {
             
             // Пытаемся загрузить через API
             const result = await this.api.getRecentQuotes(3, userId);
-            const quotes = result?.quotes || result?.items || result || [];
+            const quotes = result.data?.quotes || result.quotes || result.items || result.data || result;
+            
+            // Ensure we only treat arrays as quotes
+            if (!Array.isArray(quotes)) {
+                throw new Error('API response does not contain valid quotes array');
+            }
             
             this.state.setRecentQuotes(quotes);
             this.state.set('quotes.recentLoading', false);
