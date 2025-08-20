@@ -110,6 +110,9 @@ backups/
 knowledge/temp/
 .vectorstore/
 
+# Generated data files (should be produced locally by scripts)
+data/bookCatalog.import.json
+
 # Test files
 test-results/
 playwright-report/
