@@ -12,7 +12,7 @@ const mongoose = require('mongoose');
  * @property {string} author - Автор книги (если применимо)
  * @property {string} description - Описание разбора
  * @property {string} price - Цена в формате "$X"
- * @property {string[]} categories - Категории для рекомендаций
+ * @property {string[]} categories - Категории для рекомендаций (14 категорий сайта)
  * @property {string[]} targetThemes - Темы цитат для рекомендаций
  * @property {string} bookSlug - Идентификатор для UTM ссылок
  * @property {boolean} isActive - Активна ли книга для рекомендаций
@@ -54,17 +54,20 @@ const bookCatalogSchema = new mongoose.Schema({
   categories: [{
     type: String,
     enum: [
-      'Саморазвитие',
-      'Любовь', 
-      'Философия',
-      'Материнство',
-      'Творчество',
-      'Семья',
-      'Счастье',
-      'Мудрость',
-      'Отношения',
-      'Карьера',
-      'Универсальное'
+      'КРИЗИСЫ',
+      'Я — ЖЕНЩИНА',
+      'ЛЮБОВЬ',
+      'ОТНОШЕНИЯ',
+      'ДЕНЬГИ',
+      'ОДИНОЧЕСТВО',
+      'СМЕРТЬ',
+      'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
+      'СМЫСЛ ЖИЗНИ',
+      'СЧАСТЬЕ',
+      'ВРЕМЯ И ПРИВЫЧКИ',
+      'ДОБРО И ЗЛО',
+      'ОБЩЕСТВО',
+      'ПОИСК СЕБЯ'
     ],
     required: true
   }],

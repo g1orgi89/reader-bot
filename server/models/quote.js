@@ -40,8 +40,8 @@ const quoteSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Саморазвитие', 'Любовь', 'Философия', 'Мотивация', 'Мудрость', 'Творчество', 'Отношения', 'Материнство', 'Карьера', 'Другое'],
-    default: 'Другое'
+    enum: ['КРИЗИСЫ', 'Я — ЖЕНЩИНА', 'ЛЮБОВЬ', 'ОТНОШЕНИЯ', 'ДЕНЬГИ', 'ОДИНОЧЕСТВО', 'СМЕРТЬ', 'СЕМЕЙНЫЕ ОТНОШЕНИЯ', 'СМЫСЛ ЖИЗНИ', 'СЧАСТЬЕ', 'ВРЕМЯ И ПРИВЫЧКИ', 'ДОБРО И ЗЛО', 'ОБЩЕСТВО', 'ПОИСК СЕБЯ', 'ДРУГОЕ'],
+    default: 'ДРУГОЕ'
     // AI-определенная категория
   },
   weekNumber: {
@@ -238,9 +238,9 @@ quoteSchema.statics = {
   async getTopAuthors(startDate = null) {
     const match = startDate ? { 
       createdAt: { $gte: startDate },
-      author: { $ne: null, $ne: '' }
+      author: { $ne: null, $nin: ['', null] }
     } : { 
-      author: { $ne: null, $ne: '' }
+      author: { $ne: null, $nin: ['', null] }
     };
 
     return this.aggregate([
