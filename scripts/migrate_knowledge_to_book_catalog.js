@@ -46,6 +46,8 @@ async function migrate() {
   }
 
   const books = [];
+  const usedSlugs = new Set();
+
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split('|').map(s => s.trim());
     if (cols.length < 8) continue;
@@ -57,8 +59,25 @@ async function migrate() {
       continue;
     }
 
+    const title = cols[1];
+    if (!title) {
+      console.warn(`Пропущена строка ${i + 1}: пустой title`);
+      continue;
+    }
+    let baseSlug = makeSlug(title);
+    if (!baseSlug) {
+      console.warn(`Пропущена строка ${i + 1}: невалидный slug (${title})`);
+      continue;
+    }
+
+    let slug = baseSlug, n = 2;
+    while (usedSlugs.has(slug)) {
+      slug = `${baseSlug}-${n++}`;
+    }
+    usedSlugs.add(slug);
+
     books.push({
-      title: cols[1],
+      title,
       author: cols[2],
       priceByn,
       buyUrl: cols[4],
@@ -67,7 +86,7 @@ async function migrate() {
       targetAudience: cols[7],
       isActive: true,
       createdAt: new Date(),
-      bookSlug: makeSlug(cols[1]),
+      bookSlug: slug,
     });
   }
 
