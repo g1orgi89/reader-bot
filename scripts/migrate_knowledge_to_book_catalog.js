@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// 1. Схема BookCatalog (пример, адаптируй под свой проект)
+// Схема для коллекции book_catalog
 const bookCatalogSchema = new mongoose.Schema({
   title: String,
   author: String,
@@ -11,51 +11,71 @@ const bookCatalogSchema = new mongoose.Schema({
   targetAudience: String,
   isActive: Boolean,
   createdAt: { type: Date, default: Date.now },
-  // другие поля по необходимости...
 });
 const BookCatalog = mongoose.model('BookCatalog', bookCatalogSchema, 'book_catalog');
 
-// 2. Схема KnowledgeDocument (минимальная для чтения content)
+// Схема для коллекции knowledge_documents
 const knowledgeSchema = new mongoose.Schema({
+  title: String,
   content: String,
 });
 const KnowledgeDocument = mongoose.model('KnowledgeDocument', knowledgeSchema, 'knowledge_documents');
 
-// 3. Основная логика
 async function migrate() {
   await mongoose.connect('mongodb://reader_bot_admin:54321Server105425@127.0.0.1:27017/reader_bot?authSource=reader_bot');
 
-  // Найти нужный документ knowledge_documents (по title или _id)
-  const knowledgeDoc = await KnowledgeDocument.findOne({ title: /Каталог разборов/i });
-  if (!knowledgeDoc) {
-    console.error('Документ не найден');
-    return;
+  // Найдём документ с каталогом разборов
+  const doc = await KnowledgeDocument.findOne({ title: /Каталог разборов/i });
+  if (!doc) {
+    console.error('Документ с каталогом разборов не найден!');
+    process.exit(1);
   }
 
-  // Парсим таблицу
-  const lines = knowledgeDoc.content.split('\n').map(line => line.trim()).filter(Boolean);
-  // Первая строка — заголовки
+  // Парсим строки таблицы
+  const lines = doc.content.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) {
+    console.error('Контент пустой или без данных.');
+    process.exit(1);
+  }
+
   const books = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split('|').map(s => s.trim());
-    if (cols.length < 8 || !cols[1]) continue; // пропускаем невалидные строки
+    if (cols.length < 8) continue; // пропускаем битые строки
+
+    // Очищаем цену и проверяем на валидность
+    const rawPrice = cols[3].replace(',', '.').replace(/[^0-9.]/g, '').trim();
+    const priceByn = Number(rawPrice);
+
+    if (!rawPrice || isNaN(priceByn)) {
+      console.warn(`Пропущена строка ${i + 1}: невалидная цена (${cols[3]})`);
+      continue;
+    }
+
     books.push({
       title: cols[1],
       author: cols[2],
-      priceByn: Number(cols[3]),
+      priceByn,
       buyUrl: cols[4],
       description: cols[5],
       categories: cols[6].split(',').map(s => s.trim()),
       targetAudience: cols[7],
       isActive: true,
-      // добавь/допиши другие нужные поля здесь
+      createdAt: new Date(),
     });
   }
 
-  // Сохраняем в book_catalog
+  if (!books.length) {
+    console.error('Не удалось распарсить ни одной книги!');
+    process.exit(1);
+  }
+
   const res = await BookCatalog.insertMany(books);
-  console.log(`Импортировано ${res.length} книг.`);
+  console.log(`Импортировано книг: ${res.length}`);
   await mongoose.disconnect();
 }
 
-migrate().catch(console.error);
+migrate().catch(e => {
+  console.error(e);
+  process.exit(1);
+});
