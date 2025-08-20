@@ -130,10 +130,9 @@ function convertToBookCatalog(csvData) {
       const priceByn = parseInt(item['Цена BYN']);
       const purchaseUrl = item['Прямая ссылка на покупку']?.trim() || null;
       const themesStr = item['Основные темы (3-5 ключевых слов)']?.trim() || '';
-      const targetAudience = item['Целевая аудитория']?.trim() || '';
       
       // Generate unique slug
-      let baseSlug = generateSlug(title);
+      const baseSlug = generateSlug(title);
       let bookSlug = baseSlug;
       let counter = 1;
       
