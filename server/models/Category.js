@@ -125,7 +125,7 @@ categorySchema.statics.findByText = async function(text) {
   }
   
   // Возвращаем категорию по умолчанию
-  return this.findOne({ name: 'Другое' }) || 
+  return this.findOne({ name: 'ДРУГОЕ' }) || 
          this.findOne({ isActive: true }).sort({ priority: -1 });
 };
 

@@ -17,6 +17,7 @@
     "db:setup": "node scripts/setup-reader-db.js",
     "db:check": "node check-database.js",
     "migrate:content": "node scripts/migrateContent.js",
+    "migrate:categories": "node scripts/migrate_website_categories.js",
     "seed:books": "node scripts/seedBooks.js",
     "test": "jest",
     "test:watch": "jest --watch",
