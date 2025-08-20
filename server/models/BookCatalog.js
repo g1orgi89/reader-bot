@@ -15,6 +15,7 @@ const mongoose = require('mongoose');
  * @property {string[]} categories - Категории для рекомендаций (14 категорий сайта)
  * @property {string[]} targetThemes - Темы цитат для рекомендаций
  * @property {string} bookSlug - Идентификатор для UTM ссылок
+ * @property {string} purchaseUrl - Прямая ссылка на покупку (опционально)
  * @property {boolean} isActive - Активна ли книга для рекомендаций
  * @property {number} priority - Приоритет в рекомендациях (1-10)
  * @property {string} reasoning - Причина рекомендации (шаблон)
@@ -114,6 +115,23 @@ const bookCatalogSchema = new mongoose.Schema({
     required: true,
     trim: true,
     maxlength: 200
+  },
+  
+  purchaseUrl: {
+    type: String,
+    trim: true,
+    validate: {
+      validator: function(v) { 
+        if (!v) return true; 
+        try { 
+          new URL(v); 
+          return true; 
+        } catch { 
+          return false; 
+        } 
+      },
+      message: 'Некорректный URL покупки'
+    }
   }
 }, {
   timestamps: true,
@@ -215,13 +233,37 @@ bookCatalogSchema.statics.getStats = async function() {
  * Виртуальное поле для полной UTM ссылки
  */
 bookCatalogSchema.virtual('utmLink').get(function() {
-  const baseUrl = process.env.ANNA_WEBSITE_URL || "https://anna-busel.com/books";
-  const utmParams = new URLSearchParams({
+  // Default UTM parameters
+  const defaultUtmParams = {
     utm_source: 'telegram_bot',
     utm_medium: 'weekly_report', 
     utm_campaign: 'reader_recommendations',
-    utm_content: this.bookSlug
-  });
+    utm_content: this.bookSlug || ''
+  };
+  
+  // If purchaseUrl is available and valid, use it
+  if (this.purchaseUrl) {
+    try {
+      const url = new URL(this.purchaseUrl);
+      const searchParams = new URLSearchParams(url.search);
+      
+      // Add UTM params, but don't override existing ones
+      Object.entries(defaultUtmParams).forEach(([key, value]) => {
+        if (!searchParams.has(key)) {
+          searchParams.set(key, value);
+        }
+      });
+      
+      url.search = searchParams.toString();
+      return url.toString();
+    } catch (error) {
+      // If URL parsing fails, fall back to default behavior
+    }
+  }
+  
+  // Fallback to base URL with UTM params
+  const baseUrl = process.env.ANNA_WEBSITE_URL || "https://anna-busel.com/books";
+  const utmParams = new URLSearchParams(defaultUtmParams);
   
   return `${baseUrl}?${utmParams.toString()}`;
 });

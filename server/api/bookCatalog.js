@@ -221,6 +221,11 @@ router.post('/', adminAuth, async (req, res) => {
     // Normalize categories before validation
     bookData.categories = normalizeCategoriesInput(bookData);
     
+    // Normalize purchaseUrl if provided
+    if (bookData.purchaseUrl) {
+      bookData.purchaseUrl = bookData.purchaseUrl.trim();
+    }
+    
     // Валидация обязательных полей
     const requiredFields = ['title', 'description', 'price', 'categories', 'bookSlug', 'reasoning'];
     for (const field of requiredFields) {
@@ -282,6 +287,11 @@ router.put('/:id', adminAuth, async (req, res) => {
     // Normalize categories if provided
     if (bookData.categories || bookData.category || bookData.theme || bookData.targetThemes) {
       bookData.categories = normalizeCategoriesInput(bookData);
+    }
+    
+    // Normalize purchaseUrl if provided
+    if (bookData.purchaseUrl) {
+      bookData.purchaseUrl = bookData.purchaseUrl.trim();
     }
     
     // Если обновляется slug, проверяем уникальность
@@ -430,6 +440,11 @@ router.post('/import', adminAuth, async (req, res) => {
 
     for (const bookData of books) {
       try {
+        // Normalize purchaseUrl if provided
+        if (bookData.purchaseUrl) {
+          bookData.purchaseUrl = bookData.purchaseUrl.trim();
+        }
+        
         const existingBook = await BookCatalog.findOne({ bookSlug: bookData.bookSlug });
         
         if (existingBook) {
