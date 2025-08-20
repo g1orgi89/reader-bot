@@ -4,7 +4,7 @@ function makeSlug(text) {
   return text
     .toString()
     .toLowerCase()
-    .replace(/[^\w\s\-]+/g, '')
+    .replace(/[^a-zа-яё0-9\s\-]+/gi, '') // теперь оставляет буквы кириллицы и латиницы
     .replace(/\s+/g, '-')
     .replace(/\-+/g, '-')
     .replace(/^\-+|\-+$/g, '');
