@@ -23,7 +23,7 @@ const KnowledgeDocument = mongoose.model('KnowledgeDocument', knowledgeSchema, '
 
 // 3. Основная логика
 async function migrate() {
-  await mongoose.connect('mongodb://localhost:27017/yourdbname'); // замени на свою строку подключения
+  await mongoose.connect('mongodb://reader_bot_admin:54321Server105425@127.0.0.1:27017/reader_bot?authSource=reader_bot');
 
   // Найти нужный документ knowledge_documents (по title или _id)
   const knowledgeDoc = await KnowledgeDocument.findOne({ title: /Каталог разборов/i });
