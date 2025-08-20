@@ -53,8 +53,18 @@ class CatalogPage {
             this.catalogLoading = true;
             console.log('📚 CatalogPage: Загружаем данные каталога...');
             
-            // Здесь может быть загрузка актуальных данных каталога
-            // Пока используем статичные данные из концепта
+            // Загружаем реальные данные каталога через API
+            const response = await this.api.getCatalog({ limit: 100 });
+            
+            if (response && response.success && response.books) {
+                // Конвертируем API данные в формат для отображения
+                this.books = response.books.map(book => this.convertApiBookToDisplayFormat(book));
+                console.log('✅ CatalogPage: Загружено книг из API:', this.books.length);
+            } else {
+                console.warn('⚠️ CatalogPage: Некорректный ответ API, используем заглушки');
+                // Fallback на статичные данные
+                this.books = this.getExampleBooks();
+            }
             
             this.catalogLoaded = true;
             this.state.set('catalog.lastUpdate', Date.now());
@@ -62,9 +72,103 @@ class CatalogPage {
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных каталога:', error);
+            // Fallback на статичные данные при ошибке
+            this.books = this.getExampleBooks();
+            console.log('📚 CatalogPage: Используем статичные данные как fallback');
         } finally {
             this.catalogLoading = false;
         }
+    }
+    
+    /**
+     * 🔄 Конвертация данных API в формат для отображения
+     */
+    convertApiBookToDisplayFormat(apiBook) {
+        return {
+            id: apiBook.id,
+            title: apiBook.title,
+            author: apiBook.author || 'Неизвестный автор',
+            description: apiBook.description,
+            coverClass: `cover-${(parseInt(apiBook.id) % 6) + 1}`, // Циклически назначаем классы обложек
+            rating: 4.5 + Math.random() * 0.5, // Случайный рейтинг 4.5-5.0
+            reviews: Math.floor(Math.random() * 200) + 50, // Случайное количество отзывов
+            duration: `${Math.floor(Math.random() * 3) + 1}.${Math.floor(Math.random() * 9)} часа`,
+            match: `${Math.floor(Math.random() * 20) + 80}% подходит`,
+            
+            // Цены - используем новые поля из API
+            price: this.formatPrice(apiBook.priceRub, apiBook.priceByn, apiBook.price),
+            oldPrice: null, // TODO: добавить логику для отображения старых цен при скидках
+            
+            // Категории
+            category: this.mapApiCategoryToFilter(apiBook.categories),
+            
+            // Дополнительные поля
+            hasDiscount: false, // TODO: добавить логику скидок
+            badge: this.generateBadge(apiBook),
+            utmLink: apiBook.utmLink
+        };
+    }
+    
+    /**
+     * 💰 Форматирование цены с поддержкой RUB/BYN
+     */
+    formatPrice(priceRub, priceByn, legacyPrice) {
+        // Приоритет: RUB > BYN > legacy price
+        if (priceRub && priceRub > 0) {
+            return `${priceRub}₽`;
+        } else if (priceByn && priceByn > 0) {
+            return `${priceByn} BYN`;
+        } else if (legacyPrice) {
+            // Конвертируем $X в рубли (примерно)
+            const dollarAmount = parseInt(legacyPrice.replace('$', ''));
+            return `${dollarAmount * 80}₽`; // Примерный курс доллара
+        }
+        return '800₽'; // Fallback цена
+    }
+    
+    /**
+     * 🏷️ Маппинг категорий API в фильтры
+     */
+    mapApiCategoryToFilter(categories) {
+        if (!categories || !Array.isArray(categories) || categories.length === 0) {
+            return 'self-development';
+        }
+        
+        const category = categories[0].toLowerCase();
+        
+        // Маппинг 14 категорий сайта в категории фильтров
+        const categoryMapping = {
+            'психология': 'psychology',
+            'любовь': 'psychology', 
+            'отношения': 'psychology',
+            'семейные отношения': 'psychology',
+            'поиск себя': 'self-development',
+            'кризисы': 'self-development',
+            'смысл жизни': 'self-development',
+            'счастье': 'self-development',
+            'время и привычки': 'self-development',
+            'добро и зло': 'classic',
+            'общество': 'classic',
+            'смерть': 'classic',
+            'одиночество': 'classic',
+            'деньги': 'psychology',
+            'я — женщина': 'psychology'
+        };
+        
+        return categoryMapping[category] || 'self-development';
+    }
+    
+    /**
+     * 🏅 Генерация badge на основе данных книги
+     */
+    generateBadge(apiBook) {
+        // Простая логика для генерации badges
+        if (apiBook.categories && apiBook.categories.includes('ПОИСК СЕБЯ')) {
+            return { type: 'top', text: 'ТОП' };
+        }
+        
+        // Можно добавить больше логики на основе других полей
+        return null;
     }
     
     /**
@@ -470,8 +574,8 @@ class CatalogPage {
         
         this.telegram.hapticFeedback('success');
         
-        // Формируем URL для покупки (как в оригинальном коде)
-        const buyUrl = `https://annabusel.org/catalog/${bookId}`;
+        // Используем реальную UTM ссылку из API если доступна
+        const buyUrl = book.utmLink || `https://anna-busel.com/books?utm_source=telegram_bot&utm_medium=mini_app&utm_campaign=catalog&utm_content=${book.id}`;
         this.telegram.openLink(buyUrl);
         
         this.showSuccess(`📚 Переходим к покупке "${book.title}"`);
@@ -534,6 +638,13 @@ class CatalogPage {
             container.innerHTML = this.render();
             this.attachEventListeners();
         }
+    }
+    
+    async rerenderWithFreshData() {
+        // Принудительно обновляем данные каталога
+        this.catalogLoaded = false;
+        await this.loadCatalogData();
+        this.rerender();
     }
     
     showSuccess(message) {

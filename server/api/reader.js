@@ -1222,6 +1222,8 @@ router.get('/catalog', async (req, res) => {
         author: b.author,
         description: b.description,
         price: b.price,
+        priceRub: b.priceRub,
+        priceByn: b.priceByn,
         categories: b.categories,
         bookSlug: b.bookSlug,
         utmLink: b.utmLink
