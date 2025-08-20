@@ -157,7 +157,7 @@ bookCatalogSchema.statics.getRecommendationsByThemes = async function(themes, li
 bookCatalogSchema.statics.getUniversalRecommendations = async function(limit = 2) {
   return this.find({
     isActive: true,
-    categories: 'Универсальное'
+    categories: 'ПОИСК СЕБЯ'  // Самая универсальная категория из 14
   })
   .sort({ priority: -1, createdAt: -1 })
   .limit(limit);
