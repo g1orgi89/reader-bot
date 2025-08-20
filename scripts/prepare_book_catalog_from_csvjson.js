@@ -61,13 +61,17 @@ function buildReasoning(title) {
   return `Разбор "${title}" поможет глубже понять идеи и применить их в жизни.`;
 }
 
-function convertItem(item) {
+function convertItem(item, index) {
   const title = String(item['Название разбора'] || '').trim();
   if (!title) return null;
 
   const link = String(item['Прямая ссылка на покупку'] || '').trim();
   const slugFromLink = slugFromUrl(link);
-  const bookSlug = slugFromLink || slugifyRu(title);
+  let bookSlug = slugFromLink || slugifyRu(title);
+  
+  // Добавляем индекс к slug для обеспечения уникальности
+  // Это будет исправлено позже в main() через deduplication
+  const originalSlug = bookSlug;
 
   const author = String(item['Автор оригинальной книги'] || '').trim() || null;
   const description = String(item['Краткое описание (2-3 предложения о чем разбор)'] || '').trim();
@@ -88,6 +92,8 @@ function convertItem(item) {
     categories: [category], // одна нормализованная категория
     targetThemes,
     bookSlug,
+    originalSlug,          // для дедупликации
+    index,                 // для дедупликации
     isActive: true,
     priority: 5,
     reasoning: buildReasoning(title)
@@ -115,7 +121,7 @@ function main() {
   }
 
   const books = data
-    .map(convertItem)
+    .map((item, index) => convertItem(item, index))
     .filter(Boolean)
     // Удалим строки без slug/описания при необходимости:
     .filter(b => b.bookSlug && b.description);
@@ -124,6 +130,40 @@ function main() {
     console.error('После конвертации не осталось валидных записей.');
     process.exit(1);
   }
+
+  // Дедупликация bookSlug - добавляем суффиксы к дубликатам
+  const slugCounts = {};
+  books.forEach(book => {
+    const originalSlug = book.originalSlug;
+    if (!slugCounts[originalSlug]) {
+      slugCounts[originalSlug] = [];
+    }
+    slugCounts[originalSlug].push(book);
+  });
+
+  // Для каждой группы дубликатов, добавляем суффиксы
+  Object.values(slugCounts).forEach(group => {
+    if (group.length > 1) {
+      group.forEach((book, index) => {
+        if (index === 0) {
+          // Первая книга остается с оригинальным slug
+          book.bookSlug = book.originalSlug;
+        } else {
+          // Последующие получают суффикс
+          book.bookSlug = `${book.originalSlug}-${index + 1}`;
+        }
+      });
+    } else {
+      // Единственная книга остается с оригинальным slug
+      group[0].bookSlug = group[0].originalSlug;
+    }
+  });
+
+  // Убираем временные поля
+  books.forEach(book => {
+    delete book.originalSlug;
+    delete book.index;
+  });
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   fs.writeFileSync(OUTPUT, JSON.stringify({ books }, null, 2), 'utf8');
