@@ -590,6 +590,8 @@ router.post('/import-from-knowledge/:id', adminAuth, async (req, res) => {
               };
               return map[char] || char;
             })
+            .replace(/-+/g, '-')  // Replace multiple dashes with single dash
+            .replace(/^-|-$/g, '') // Remove leading/trailing dashes
             .substring(0, 50);
         }
         
