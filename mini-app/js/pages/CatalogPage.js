@@ -10,6 +10,24 @@
  * ✅ ИСПРАВЛЕНО: Устранены дублирующиеся API вызовы как в HomePage и DiaryPage
  */
 
+// 14 витринных категорий каталога (точно как в бэкенде)
+const CATALOG_CATEGORIES = [
+  'КРИЗИСЫ',
+  'Я — ЖЕНЩИНА',
+  'ЛЮБОВЬ',
+  'ОТНОШЕНИЯ',
+  'ДЕНЬГИ',
+  'ОДИНОЧЕСТВО',
+  'СМЕРТЬ',
+  'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
+  'СМЫСЛ ЖИЗНИ',
+  'СЧАСТЬЕ',
+  'ВРЕМЯ И ПРИВЫЧКИ',
+  'ДОБРО И ЗЛО',
+  'ОБЩЕСТВО',
+  'ПОИСК СЕБЯ'
+];
+
 class CatalogPage {
     constructor(app) {
         this.app = app;
@@ -21,8 +39,8 @@ class CatalogPage {
         this.catalogLoaded = false;
         this.catalogLoading = false;
         
-        // Состояние фильтров (точно из концепта)
-        this.activeFilter = 'for-you'; // for-you, popular, new, classic, sales
+        // Состояние фильтров (14 категорий + ВСЕ)
+        this.activeFilter = 'ВСЕ';
         this.searchQuery = '';
         this.showSearch = false;
         
@@ -130,32 +148,10 @@ class CatalogPage {
      * 🏷️ Маппинг категорий API в фильтры
      */
     mapApiCategoryToFilter(categories) {
-        if (!categories || !Array.isArray(categories) || categories.length === 0) {
-            return 'self-development';
-        }
-        
-        const category = categories[0].toLowerCase();
-        
-        // Маппинг 14 категорий сайта в категории фильтров
-        const categoryMapping = {
-            'психология': 'psychology',
-            'любовь': 'psychology', 
-            'отношения': 'psychology',
-            'семейные отношения': 'psychology',
-            'поиск себя': 'self-development',
-            'кризисы': 'self-development',
-            'смысл жизни': 'self-development',
-            'счастье': 'self-development',
-            'время и привычки': 'self-development',
-            'добро и зло': 'classic',
-            'общество': 'classic',
-            'смерть': 'classic',
-            'одиночество': 'classic',
-            'деньги': 'psychology',
-            'я — женщина': 'psychology'
-        };
-        
-        return categoryMapping[category] || 'self-development';
+        if (!Array.isArray(categories) || categories.length === 0) return 'ПОИСК СЕБЯ';
+        const first = String(categories[0]).trim().toUpperCase();
+        const match = CATALOG_CATEGORIES.find(c => c === first);
+        return match || 'ПОИСК СЕБЯ';
     }
     
     /**
@@ -190,7 +186,7 @@ class CatalogPage {
                 oldPrice: '1,200₽',
                 price: '960₽',
                 discount: '-20%',
-                category: 'psychology',
+                category: 'ЛЮБОВЬ',
                 hasDiscount: true
             },
             {
@@ -205,7 +201,7 @@ class CatalogPage {
                 duration: '3 часа',
                 match: '94% подходит',
                 price: '1,800₽',
-                category: 'self-development'
+                category: 'ПОИСК СЕБЯ'
             },
             {
                 id: '3',
@@ -218,7 +214,7 @@ class CatalogPage {
                 duration: '1.5 часа',
                 match: '91% подходит',
                 price: '800₽',
-                category: 'classic'
+                category: 'ПОИСК СЕБЯ'
             },
             {
                 id: '4',
@@ -232,7 +228,7 @@ class CatalogPage {
                 duration: '4 часа',
                 match: '89% подходит',
                 price: '1,400₽',
-                category: 'psychology'
+                category: 'ОБЩЕСТВО'
             },
             {
                 id: '5',
@@ -245,7 +241,7 @@ class CatalogPage {
                 duration: '5 часов',
                 match: '85% подходит',
                 price: '1,600₽',
-                category: 'psychology'
+                category: 'ОБЩЕСТВО'
             },
             {
                 id: '6',
@@ -260,7 +256,7 @@ class CatalogPage {
                 oldPrice: '1,500₽',
                 price: '1,000₽',
                 discount: '-33%',
-                category: 'self-development',
+                category: 'ВРЕМЯ И ПРИВЫЧКИ',
                 hasDiscount: true
             }
         ];
@@ -276,11 +272,8 @@ class CatalogPage {
      */
     render() {
         const isSearchMode = this.showSearch;
-        const isDiscountFilter = this.activeFilter === 'sales';
-        
         return `
             <div class="content">
-                ${isDiscountFilter ? this.renderDiscountBanner() : ''}
                 ${isSearchMode ? this.renderSearchMode() : this.renderNormalMode()}
             </div>
         `;
@@ -357,20 +350,13 @@ class CatalogPage {
      * 🏷️ ФИЛЬТРЫ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderFilterTabs() {
-        const filters = [
-            { id: 'for-you', text: 'Для вас' },
-            { id: 'popular', text: 'Популярное' },
-            { id: 'new', text: 'Новинки' },
-            { id: 'classic', text: 'Классика' },
-            { id: 'sales', text: 'Скидки' }
-        ];
-        
+        const tabs = ['ВСЕ', ...CATALOG_CATEGORIES];
+        const active = this.activeFilter || 'ВСЕ';
         return `
             <div class="filter-tabs">
-                ${filters.map(filter => `
-                    <button class="filter-tab ${filter.id === this.activeFilter ? 'active' : ''}" 
-                            data-filter="${filter.id}">
-                        ${filter.text}
+                ${tabs.map(tab => `
+                    <button class="filter-tab ${tab === active ? 'active' : ''}" data-filter="${tab}">
+                        ${tab}
                     </button>
                 `).join('')}
             </div>
@@ -476,14 +462,6 @@ class CatalogPage {
      * 🚫 ПУСТОЕ СОСТОЯНИЕ
      */
     renderEmptyState() {
-        const messages = {
-            'for-you': 'Мы изучаем ваши предпочтения, чтобы предложить лучшие разборы',
-            'popular': 'Популярные разборы временно недоступны',
-            'new': 'Новых разборов пока нет, но скоро появятся!',
-            'classic': 'Классические разборы в разработке',
-            'sales': 'Акций сейчас нет, но следите за обновлениями!'
-        };
-        
         return `
             <div class="text-center py-4 px-2">
                 <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📚</div>
@@ -491,7 +469,7 @@ class CatalogPage {
                     Разборы не найдены
                 </div>
                 <div class="text-muted" style="font-size: var(--font-size-xs); line-height: var(--line-height-normal);">
-                    ${messages[this.activeFilter] || 'Попробуйте выбрать другой фильтр'}
+                    Попробуйте выбрать другую категорию или воспользоваться поиском
                 </div>
             </div>
         `;
@@ -501,20 +479,9 @@ class CatalogPage {
      * 🔧 ФИЛЬТРАЦИЯ КНИГ
      */
     getFilteredBooks() {
-        switch (this.activeFilter) {
-            case 'for-you':
-                return this.books.filter(book => ['psychology', 'self-development'].includes(book.category));
-            case 'popular':
-                return this.books.filter(book => book.badge?.type === 'popular' || book.reviews > 100);
-            case 'new':
-                return this.books.filter(book => book.badge?.type === 'new');
-            case 'classic':
-                return this.books.filter(book => book.category === 'classic');
-            case 'sales':
-                return this.books.filter(book => book.hasDiscount);
-            default:
-                return this.books;
-        }
+        const active = this.activeFilter || 'ВСЕ';
+        if (active === 'ВСЕ') return this.books || [];
+        return (this.books || []).filter(b => b.category === active);
     }
     
     /**
