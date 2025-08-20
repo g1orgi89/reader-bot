@@ -4,10 +4,11 @@ function makeSlug(text) {
   return text
     .toString()
     .toLowerCase()
-    .replace(/[^a-zа-яё0-9\s\-]+/gi, '') // теперь оставляет буквы кириллицы и латиницы
-    .replace(/\s+/g, '-')
-    .replace(/\-+/g, '-')
-    .replace(/^\-+|\-+$/g, '');
+    .replace(/ё/g, 'e')  // заменим "ё" на "e" для универсальности
+    .replace(/[^a-zа-я0-9\s-]/giu, '') // добавим флаг 'u' для Unicode!
+    .replace(/\s+/g, '-')       // пробелы на дефисы
+    .replace(/\-+/g, '-')       // несколько дефисов — один дефис
+    .replace(/^\-+|\-+$/g, ''); // дефисы в начале/конце
 }
 
 const bookCatalogSchema = new mongoose.Schema({
