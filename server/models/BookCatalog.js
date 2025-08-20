@@ -51,6 +51,18 @@ const bookCatalogSchema = new mongoose.Schema({
     default: '$10'
   },
   
+  priceRub: {
+    type: Number,
+    min: 0,
+    default: null
+  },
+  
+  priceByn: {
+    type: Number,
+    min: 0,
+    default: null
+  },
+  
   categories: [{
     type: String,
     enum: [

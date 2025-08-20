@@ -8,6 +8,7 @@ const express = require('express');
 const BookCatalog = require('../models/BookCatalog');
 const { adminAuth } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
+const { normalizeCategoriesInput } = require('../utils/categoryMapper');
 
 const router = express.Router();
 
@@ -217,6 +218,9 @@ router.post('/', adminAuth, async (req, res) => {
   try {
     const bookData = req.body;
     
+    // Normalize categories before validation
+    bookData.categories = normalizeCategoriesInput(bookData);
+    
     // Валидация обязательных полей
     const requiredFields = ['title', 'description', 'price', 'categories', 'bookSlug', 'reasoning'];
     for (const field of requiredFields) {
@@ -274,6 +278,11 @@ router.post('/', adminAuth, async (req, res) => {
 router.put('/:id', adminAuth, async (req, res) => {
   try {
     const bookData = req.body;
+    
+    // Normalize categories if provided
+    if (bookData.categories || bookData.category || bookData.theme || bookData.targetThemes) {
+      bookData.categories = normalizeCategoriesInput(bookData);
+    }
     
     // Если обновляется slug, проверяем уникальность
     if (bookData.bookSlug) {
@@ -476,6 +485,176 @@ router.get('/export', adminAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Ошибка экспорта книг',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/reader/bookCatalog/import-from-knowledge/:id
+ * Импортировать каталог из документа Knowledge
+ */
+router.post('/import-from-knowledge/:id', adminAuth, async (req, res) => {
+  try {
+    const knowledgeId = req.params.id;
+    
+    // Загружаем документ Knowledge
+    const KnowledgeDocument = require('../models/knowledge');
+    const knowledgeDoc = await KnowledgeDocument.findById(knowledgeId);
+    
+    if (!knowledgeDoc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Документ Knowledge не найден'
+      });
+    }
+    
+    // Парсим содержимое как pipe-separated таблицу
+    const content = knowledgeDoc.content;
+    const lines = content.split('\n');
+    
+    const results = {
+      created: 0,
+      updated: 0,
+      errors: []
+    };
+    
+    // Получаем курс конвертации из env переменных
+    const BYN_TO_RUB = parseFloat(process.env.BYN_TO_RUB) || 30;
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // Пропускаем пустые строки
+      if (!trimmedLine) continue;
+      
+      // Проверяем, начинается ли строка с номера и пайпа (новая строка таблицы)
+      if (!/^\s*\d+\s*\|/.test(trimmedLine)) continue;
+      
+      try {
+        // Разбиваем по пайпам
+        const columns = trimmedLine.split('|').map(col => col.trim());
+        
+        if (columns.length < 6) {
+          results.errors.push({
+            line: trimmedLine,
+            error: 'Недостаточно колонок в строке'
+          });
+          continue;
+        }
+        
+        // Извлекаем поля: № | Название | Автор | Цена BYN | Ссылка | Описание | Темы | ...
+        const [, title, author, priceBynStr, url, description, themes] = columns;
+        
+        if (!title || !priceBynStr) {
+          results.errors.push({
+            line: trimmedLine,
+            error: 'Отсутствуют обязательные поля: название или цена'
+          });
+          continue;
+        }
+        
+        // Парсим цену (поддерживаем запятую и точку как десятичный разделитель)
+        const priceByn = parseFloat(priceBynStr.replace(',', '.'));
+        if (isNaN(priceByn) || priceByn < 0) {
+          results.errors.push({
+            book: title,
+            error: 'Некорректная цена BYN'
+          });
+          continue;
+        }
+        
+        // Вычисляем цену в рублях
+        const priceRub = Math.round(priceByn * BYN_TO_RUB);
+        
+        // Извлекаем bookSlug из URL или создаем из заголовка
+        let bookSlug;
+        if (url && url.trim()) {
+          const urlParts = url.trim().split('/');
+          bookSlug = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2];
+          bookSlug = bookSlug.replace(/[^a-z0-9_-]/gi, '').toLowerCase();
+        }
+        
+        if (!bookSlug || bookSlug.length < 2) {
+          // Fallback: создаем slug из заголовка
+          bookSlug = title.toLowerCase()
+            .replace(/[^a-za-z0-9а-яё\s]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/[а-яё]/g, (char) => {
+              const map = {
+                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+                'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+                'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+                'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+                'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+              };
+              return map[char] || char;
+            })
+            .replace(/-+/g, '-')  // Replace multiple dashes with single dash
+            .replace(/^-|-$/g, '') // Remove leading/trailing dashes
+            .substring(0, 50);
+        }
+        
+        // Нормализуем категории
+        const { mapThemesToCategory } = require('../utils/categoryMapper');
+        const category = mapThemesToCategory(themes || '');
+        
+        // Разбиваем темы на массив
+        const targetThemes = themes ? themes.split(',').map(theme => theme.trim()) : [];
+        
+        // Подготавливаем данные книги
+        const bookData = {
+          title: title.trim(),
+          author: author ? author.trim() : null,
+          description: description ? description.trim() : '',
+          price: '$10', // legacy поле для обратной совместимости
+          priceRub,
+          priceByn,
+          categories: [category],
+          targetThemes,
+          bookSlug,
+          reasoning: `Разбор "${title.trim()}" поможет глубже понять основные идеи и применить их в жизни.`
+        };
+        
+        // Проверяем, существует ли книга с таким slug
+        const existingBook = await BookCatalog.findOne({ bookSlug });
+        
+        if (existingBook) {
+          // Обновляем существующую книгу
+          await BookCatalog.findByIdAndUpdate(
+            existingBook._id, 
+            bookData, 
+            { runValidators: true }
+          );
+          results.updated++;
+        } else {
+          // Создаем новую книгу
+          const book = new BookCatalog(bookData);
+          await book.save();
+          results.created++;
+        }
+        
+      } catch (error) {
+        results.errors.push({
+          line: trimmedLine,
+          error: error.message
+        });
+      }
+    }
+    
+    logger.info(`📚 Knowledge import completed: ${results.created} created, ${results.updated} updated, ${results.errors.length} errors`);
+    
+    res.json({
+      success: true,
+      data: results,
+      message: `Импорт завершен: создано ${results.created}, обновлено ${results.updated}`
+    });
+    
+  } catch (error) {
+    logger.error('Error importing from knowledge:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ошибка импорта из Knowledge',
       error: error.message
     });
   }

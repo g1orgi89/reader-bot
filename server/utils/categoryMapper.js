@@ -231,6 +231,58 @@ function getThemesForCategory(category) {
   );
 }
 
+/**
+ * Map themes to a single website category  
+ * @param {string} input - Theme or themes string (comma-separated)
+ * @returns {string} Single mapped category (defaults to 'ПОИСК СЕБЯ')
+ */
+function mapThemesToCategory(input) {
+  if (!input || typeof input !== 'string') {
+    return 'ПОИСК СЕБЯ';
+  }
+  
+  // Split by commas and try to map each theme
+  const themes = input.split(',').map(theme => theme.trim().toLowerCase());
+  
+  // Try to find the first matching theme
+  for (const theme of themes) {
+    if (THEME_TO_CATEGORY_MAP[theme]) {
+      return THEME_TO_CATEGORY_MAP[theme];
+    }
+    
+    // Partial matching - check if theme contains any of the mapped keys
+    for (const [key, category] of Object.entries(THEME_TO_CATEGORY_MAP)) {
+      if (theme.includes(key) || key.includes(theme)) {
+        return category;
+      }
+    }
+  }
+  
+  // Default fallback
+  return 'ПОИСК СЕБЯ';
+}
+
+/**
+ * Normalize categories input for BookCatalog
+ * @param {Object} body - Request body that may contain category fields
+ * @returns {string[]} Array with exactly one normalized category
+ */
+function normalizeCategoriesInput(body) {
+  // Try different input fields in order of preference
+  const input = body.category || 
+                (body.categories && body.categories[0]) || 
+                body.theme || 
+                (body.targetThemes && body.targetThemes[0]);
+  
+  if (input) {
+    const mapped = mapThemesToCategory(input);
+    return [mapped];
+  }
+  
+  // Fallback to default category
+  return ['ПОИСК СЕБЯ'];
+}
+
 module.exports = {
   THEME_TO_CATEGORY_MAP,
   WEBSITE_CATEGORIES,
@@ -238,5 +290,7 @@ module.exports = {
   getAllWebsiteCategories,
   getCategoryMappingStats,
   isValidWebsiteCategory,
-  getThemesForCategory
+  getThemesForCategory,
+  mapThemesToCategory,
+  normalizeCategoriesInput
 };
