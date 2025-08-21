@@ -60,31 +60,19 @@ window.HomeView = class HomeView {
       // 2) Если в состоянии пусто — идём в API с userId и безопасным парсингом
       const userId = this._getUserId();
       
-      // Пробуем сначала через QuoteService.getLatestQuotes
-      let quotes = [];
-      try {
-        const latest = await window.QuoteService.getLatestQuotes(3);
-        quotes = Array.isArray(latest) ? latest : [];
-      } catch (serviceError) {
-        console.warn('QuoteService.getLatestQuotes failed, trying ApiService:', serviceError);
-        
-        // Fallback на ApiService если QuoteService не работает
-        if (window.ApiService) {
-          const api = new window.ApiService();
-          const result = await api.getRecentQuotes(3, userId);
-          quotes =
-            (result?.data?.quotes && Array.isArray(result.data.quotes) && result.data.quotes) ||
-            (Array.isArray(result?.quotes) && result.quotes) ||
-            (Array.isArray(result?.items) && result.items) ||
-            (Array.isArray(result?.data) && result.data) ||
-            (Array.isArray(result) ? result : []);
-        }
-      }
+     let quotes = [];
+     try {
+       const userId = app.state.getCurrentUserId();
+       const response = await app.api.getQuotes({ limit: 3 }, userId);
+       quotes = response.data?.quotes || response.quotes || response.items || [];
+     } catch (serviceError) {
+       console.warn('ApiService.getQuotes failed:', serviceError);
+       // Можно показать ошибку, но не надо создавать новый экземпляр ApiService!
+       quotes = [];
+     }
 
-      this.latestContainer.innerHTML = this._renderLatestQuotesSection(quotes);
-      this.latestContainer.style.display = 'block';
-    } catch (e) {
-      console.error('Failed to load latest quotes', e);
+this.latestContainer.innerHTML = this._renderLatestQuotesSection(quotes);
+this.latestContainer.style.display = 'block';
       // Показываем пустое состояние (не скрываем секцию), чтобы был понятный UI
       this.latestContainer.innerHTML = this._renderLatestQuotesSection([]);
       this.latestContainer.style.display = 'block';
