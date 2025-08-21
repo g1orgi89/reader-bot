@@ -140,7 +140,8 @@ window.MyQuotesView = class MyQuotesView {
     const ok = window.confirm('Удалить эту цитату? Это действие нельзя отменить.');
     if (!ok) return;
     try {
-      await window.QuoteService.deleteQuote(id);
+      const userId = app.state.getCurrentUserId(); // Всегда бери актуальный userId
+      await app.api.deleteQuote(id, userId);       // Используй только app.api
       card.remove();
       this._haptic('notification', 'success');
       document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'deleted', id } }));
@@ -150,7 +151,7 @@ window.MyQuotesView = class MyQuotesView {
       alert('Не удалось удалить цитату. Повторите позже.');
     }
   }
-
+  
   _editQuote(card, id) {
     // Два канала: событие + переход, чтобы гарантировать работу
     document.dispatchEvent(new CustomEvent('quotes:edit', { detail: { id } }));
