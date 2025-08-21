@@ -420,6 +420,10 @@ class QuoteHandler {
    * @private
    */
   async _validateCategory(category, text) {
+    // 1. Нормализация "Другое" в любой вариации к "ДРУГОЕ"
+    if (typeof category === 'string' && category.trim().toUpperCase() === 'ДРУГОЕ') {
+    return 'ДРУГОЕ';
+    }
     try {
       if (this.Category) {
         // Проверяем, есть ли такая категория в БД
