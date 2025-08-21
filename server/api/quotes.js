@@ -358,7 +358,7 @@ router.post('/', async (req, res) => {
             text: text.trim(),
             author: author?.trim() || null,
             source: source?.trim() || null,
-            category: 'Другое', // По умолчанию, может быть изменено AI анализом
+            category: 'ДРУГОЕ', // По умолчанию, может быть изменено AI анализом
             sentiment: 'neutral', // По умолчанию
             themes: [],
             weekNumber,
@@ -544,7 +544,7 @@ router.get('/statistics', async (req, res) => {
 
         const current = currentStats[0] || { totalQuotes: 0, avgDaily: 0 };
         const previous = previousStats[0] || { totalQuotes: 0 };
-        const topCategory = topCategories[0] || { _id: 'Другое' };
+        const topCategory = topCategories[0] || { _id: 'ДРУГОЕ' };
 
         // Вычисляем изменения
         const quotesChange = current.totalQuotes - previous.totalQuotes;
@@ -556,7 +556,7 @@ router.get('/statistics', async (req, res) => {
             totalQuotes: current.totalQuotes || 0,
             totalAuthors: uniqueAuthors.length || 0,
             // ИСПРАВЛЕНО: Безопасный доступ к topCategory._id с fallback
-            popularCategory: topCategory?._id || 'Другое',
+            popularCategory: topCategory?._id || 'ДРУГОЕ',
             dailyAverage: dailyAverage || 0,
             changeStats: {
                 quotesChange: quotesChange > 0 ? `+${quotesChange}` : quotesChange.toString(),
@@ -580,7 +580,7 @@ router.get('/statistics', async (req, res) => {
             data: {
                 totalQuotes: 0,
                 totalAuthors: 0,
-                popularCategory: 'Другое',
+                popularCategory: 'ДРУГОЕ',
                 dailyAverage: 0,
                 changeStats: {
                     quotesChange: '+0',
@@ -690,18 +690,23 @@ router.get('/analytics', async (req, res) => {
 
         // Подготавливаем данные для графиков
         const categoryColors = {
-            'Саморазвитие': '#d4af37',
-            'Любовь': '#c97a7e', 
-            'Мудрость': '#81b3d3',
-            'Философия': '#a8c686',
-            'Творчество': '#deb887',
-            'Мотивация': '#cd853f',
-            'Отношения': '#f4a460',
-            'Материнство': '#dda0dd',
-            'Карьера': '#98fb98',
-            'Другое': '#d3d3d3'
+            'КРИЗИСЫ': '#d4af37',
+            'Я — ЖЕНЩИНА': '#c97a7e',
+            'ЛЮБОВЬ': '#81b3d3',
+            'ОТНОШЕНИЯ': '#a8c686',
+            'ДЕНЬГИ': '#deb887',
+            'ОДИНОЧЕСТВО': '#cd853f',
+            'СМЕРТЬ': '#f4a460',
+            'СЕМЕЙНЫЕ ОТНОШЕНИЯ': '#dda0dd',
+            'СМЫСЛ ЖИЗНИ': '#98fb98',
+            'СЧАСТЬЕ': '#ffc857',
+            'ВРЕМЯ И ПРИВЫЧКИ': '#a0c4ff',
+            'ДОБРО И ЗЛО': '#bdb2ff',
+            'ОБЩЕСТВО': '#ffb4a2',
+            'ПОИСК СЕБЯ': '#b5ead7',
+            'ДРУГОЕ': '#d3d3d3'
         };
-
+        
         const analytics = {
             categories: {
                 labels: categoriesData.map(item => item._id),
