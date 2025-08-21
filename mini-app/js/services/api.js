@@ -37,7 +37,7 @@ class ApiService {
     /**
      * 🔗 Получает заголовки для запросов с аутентификацией
      */
-    getHeaders() {
+    getHeaders(endpoint = '') {
         const headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
@@ -47,12 +47,24 @@ class ApiService {
         const userId = this.resolveUserId();
         const initData = this.resolveTelegramInitData();
 
-        if (userId) {
-            headers['X-User-Id'] = userId;
+        // Extract userId from endpoint query string if present for consistency
+        let finalUserId = userId;
+        if (endpoint) {
+            const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
+            const endpointUserId = urlParams.get('userId');
+            if (endpointUserId) {
+                finalUserId = endpointUserId;
+            }
+        }
+
+        if (finalUserId) {
+            headers['X-User-Id'] = finalUserId;
         }
 
         if (initData) {
             headers['Authorization'] = `tma ${initData}`;
+            // Include X-Telegram-Init-Data alongside Authorization
+            headers['X-Telegram-Init-Data'] = initData;
         }
 
         return headers;
@@ -133,11 +145,17 @@ class ApiService {
      * ИСПРАВЛЕНО: Убраны все debug заглушки - только реальный API
      */
     async request(method, endpoint, data = null, options = {}) {
-        const url = `${this.baseURL}${endpoint}`;
+        // Add cache-busting for quotes endpoints on GET requests
+        let finalUrl = `${this.baseURL}${endpoint}`;
+        if (method === 'GET' && endpoint.includes('/quotes')) {
+            const separator = endpoint.includes('?') ? '&' : '?';
+            finalUrl += `${separator}_t=${Date.now()}`;
+        }
+        
         const cacheKey = `${method}:${endpoint}:${JSON.stringify(data)}`;
 
-        // 💾 Проверяем кэш для GET запросов
-        if (method === 'GET' && this.cache.has(cacheKey)) {
+        // 💾 Skip cache for quotes endpoints to prevent stale data
+        if (method === 'GET' && !endpoint.includes('/quotes') && this.cache.has(cacheKey)) {
             const cached = this.cache.get(cacheKey);
             if (Date.now() - cached.timestamp < this.cacheTimeout) {
                 console.log('📦 Возвращаем из кэша', { endpoint });
@@ -151,12 +169,27 @@ class ApiService {
             try {
                 console.log(`📤 ${method} ${endpoint}`, { data, attempt });
 
-                // 🌐 Формируем запрос
+                // 🌐 Формируем запрос с правильным слиянием заголовков
+                const authHeaders = this.getHeaders(endpoint);
+                const customHeaders = options.headers || {};
+                
                 const requestOptions = {
                     method,
-                    headers: this.getHeaders(),
+                    // Merge headers correctly: auth headers take precedence
+                    headers: { ...customHeaders, ...authHeaders },
                     ...options
                 };
+                
+                // Remove headers from options to avoid duplication
+                delete requestOptions.headers;
+                requestOptions.headers = { ...customHeaders, ...authHeaders };
+                
+                // Add no-cache headers for quotes GET requests
+                if (method === 'GET' && endpoint.includes('/quotes')) {
+                    requestOptions.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+                    requestOptions.headers['Pragma'] = 'no-cache';
+                    requestOptions.headers['Expires'] = '0';
+                }
 
                 if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
                     requestOptions.body = JSON.stringify(data);
@@ -168,14 +201,14 @@ class ApiService {
                 requestOptions.signal = controller.signal;
 
                 // 🚀 Выполняем запрос
-                const response = await fetch(url, requestOptions);
+                const response = await fetch(finalUrl, requestOptions);
                 clearTimeout(timeoutId);
 
                 // ✅ Обрабатываем ответ
                 const result = await this.handleResponse(response, endpoint);
 
-                // 💾 Кэшируем GET запросы
-                if (method === 'GET') {
+                // 💾 Кэшируем только не-quotes GET запросы
+                if (method === 'GET' && !endpoint.includes('/quotes')) {
                     this.cache.set(cacheKey, {
                         data: result,
                         timestamp: Date.now()
@@ -828,9 +861,21 @@ class ApiService {
      * 🗑️ Очистка кэша цитат
      */
     clearQuotesCache() {
+        // Clear in-memory cache
         for (const key of this.cache.keys()) {
             if (key.includes('/quotes')) {
                 this.cache.delete(key);
+            }
+        }
+        
+        // Clear localStorage cache for quotes endpoints
+        if (typeof window !== 'undefined' && window.StorageService) {
+            try {
+                const storageService = new window.StorageService();
+                storageService.clearApiCache('/quotes');
+                console.log('🧹 Cleared both in-memory and localStorage cache for quotes');
+            } catch (error) {
+                console.warn('⚠️ Could not clear localStorage cache:', error);
             }
         }
     }
