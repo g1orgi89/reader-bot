@@ -200,6 +200,9 @@ class ApiService {
                 const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
                 requestOptions.signal = controller.signal;
 
+                // 👇 ВСТАВЬ СЮДА
+                requestOptions.credentials = 'include';
+
                 // 🚀 Выполняем запрос
                 const response = await fetch(finalUrl, requestOptions);
                 clearTimeout(timeoutId);
