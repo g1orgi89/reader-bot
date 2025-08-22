@@ -1,11 +1,15 @@
 function parseUserIdFromInitData(initData) {
   try {
-    const match = decodeURIComponent(initData).match(/user=({.*?})/);
-    if (match) {
-      const userObj = JSON.parse(match[1]);
-      return String(userObj.id);
+    // Не декодируй второй раз, если строка уже декодирована Express'ом
+    const params = new URLSearchParams(initData);
+    const userStr = params.get('user');
+    if (userStr) {
+      const userObj = JSON.parse(userStr);
+      if (userObj && userObj.id) return String(userObj.id);
     }
-  } catch {}
+  } catch (e) {
+    console.warn('InitData parse error:', e, initData);
+  }
   return null;
 }
 
