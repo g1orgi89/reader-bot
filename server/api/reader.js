@@ -1238,7 +1238,7 @@ router.get('/reports/monthly', telegramAuth, async (req, res) => {
  * @description Получение каталога книг
  * @route GET /api/reader/catalog
  */
-router.get('/catalog', telegramAuth, async (req, res) => {
+router.get('/catalog', async (req, res) => {
   try {
     const { category, limit = 20, offset = 0 } = req.query;
 
@@ -1284,7 +1284,7 @@ router.get('/catalog', telegramAuth, async (req, res) => {
  * @description Персональные рекомендации книг
  * @route GET /api/reader/recommendations
  */
-router.get('/recommendations', telegramAuth, async (req, res) => {
+router.get('/recommendations', async (req, res) => {
   try {
     const userId = req.userId;
     const user = await UserProfile.findOne({ userId });
