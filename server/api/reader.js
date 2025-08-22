@@ -119,7 +119,7 @@ router.post('/auth/telegram', async (req, res) => {
  */
 router.get('/auth/onboarding-status', async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = getUserId(req);
 
     if (!userId) {
       return res.json({
@@ -376,7 +376,7 @@ router.post('/auth/complete-onboarding', async (req, res) => {
  */
 router.post('/auth/reset-onboarding', async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = getUserId(req);
 
     const userProfile = await UserProfile.findOne({ userId });
     if (!userProfile) {
