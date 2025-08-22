@@ -119,7 +119,7 @@ router.post('/auth/telegram', async (req, res) => {
  */
 router.get('/auth/onboarding-status', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
 
     if (!userId) {
       return res.json({
@@ -376,7 +376,7 @@ router.post('/auth/complete-onboarding', async (req, res) => {
  */
 router.post('/auth/reset-onboarding', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
 
     const userProfile = await UserProfile.findOne({ userId });
     if (!userProfile) {
@@ -424,7 +424,7 @@ router.post('/auth/reset-onboarding', async (req, res) => {
  */
 router.get('/profile',telegramAuth, async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const user = await UserProfile.findOne({ userId });
 
     if (!user) {
@@ -460,7 +460,7 @@ router.get('/profile',telegramAuth, async (req, res) => {
  */
 router.patch('/profile', telegramAuth, async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const { email, name, avatarUrl } = req.body;
 
     const user = await UserProfile.findOne({ userId });
@@ -515,7 +515,7 @@ router.patch('/profile', telegramAuth, async (req, res) => {
  */
 router.post('/profile/avatar', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const { image } = req.body;
 
     if (!image || !image.startsWith('data:image/')) {
@@ -559,7 +559,7 @@ router.post('/profile/avatar', async (req, res) => {
  */
 router.post('/profile/reset-test', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
 
     const user = await UserProfile.findOne({ userId });
     if (!user) {
