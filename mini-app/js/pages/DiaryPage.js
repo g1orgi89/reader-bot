@@ -1410,7 +1410,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
             
             // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             try {
-                await this.api.deleteQuote(quoteId, validUserId);
+                await this.api.deleteQuote(quoteId);
                 console.log('✅ Цитата удалена с сервера');
             } catch (error) {
                 console.error('❌ Ошибка удаления цитаты с сервера:', error);
