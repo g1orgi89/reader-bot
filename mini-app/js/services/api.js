@@ -602,9 +602,9 @@ class ApiService {
     /**
      * 🗑️ Удалить цитату
      */
-    async deleteQuote(quoteId, userId = 'demo-user') {
+    async deleteQuote(quoteId) {
         this.clearQuotesCache();
-        return this.request('DELETE', `/quotes/${quoteId}?userId=${userId}`);
+        return this.request('DELETE', `/quotes/${quoteId}`);
     }
 
     /**
