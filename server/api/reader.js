@@ -422,7 +422,7 @@ router.post('/auth/reset-onboarding', async (req, res) => {
  * @description Получение профиля пользователя
  * @route GET /api/reader/profile
  */
-router.get('/profile', async (req, res) => {
+router.get('/profile',telegramAuth, async (req, res) => {
   try {
     const userId = getUserId(req);
     const user = await UserProfile.findOne({ userId });
@@ -458,7 +458,7 @@ router.get('/profile', async (req, res) => {
  * @description Обновление профиля пользователя
  * @route PATCH /api/reader/profile
  */
-router.patch('/profile', async (req, res) => {
+router.patch('/profile', telegramAuth, async (req, res) => {
   try {
     const userId = getUserId(req);
     const { email, name, avatarUrl } = req.body;
@@ -601,7 +601,7 @@ router.post('/profile/reset-test', async (req, res) => {
  * @description Получение статистики пользователя
  * @route GET /api/reader/stats
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const user = await UserProfile.findOne({ userId });
@@ -659,7 +659,7 @@ router.get('/stats', async (req, res) => {
  * @description Добавление новой цитаты с AI анализом (лимит 10/день)
  * @route POST /api/reader/quotes
  */
-router.post('/quotes', async (req, res) => {
+router.post('/quotes', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const { text, author, source } = req.body;
@@ -770,7 +770,7 @@ router.post('/quotes', async (req, res) => {
  * @description Получение цитат пользователя (пагинация / фильтры)
  * @route GET /api/reader/quotes
  */
-router.get('/quotes', async (req, res) => {
+router.get('/quotes', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const {
@@ -842,7 +842,7 @@ router.get('/quotes', async (req, res) => {
  * @description Последние цитаты
  * @route GET /api/reader/quotes/recent
  */
-router.get('/quotes/recent', async (req, res) => {
+router.get('/quotes/recent', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const { limit = 10 } = req.query;
@@ -877,7 +877,7 @@ router.get('/quotes/recent', async (req, res) => {
  * @description Детали цитаты
  * @route GET /api/reader/quotes/:id
  */
-router.get('/quotes/:id', async (req, res) => {
+router.get('/quotes/:id', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const quote = await Quote.findOne({ _id: req.params.id, userId });
@@ -925,7 +925,7 @@ router.get('/quotes/:id', async (req, res) => {
  * @description Редактирование цитаты с повторным AI анализом
  * @route PUT /api/reader/quotes/:id
  */
-router.put('/quotes/:id', async (req, res) => {
+router.put('/quotes/:id', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const { text, author, source } = req.body;
@@ -990,7 +990,7 @@ router.put('/quotes/:id', async (req, res) => {
  * @description Отдельный AI анализ текста (без сохранения)
  * @route POST /api/reader/quotes/analyze
  */
-router.post('/quotes/analyze', async (req, res) => {
+router.post('/quotes/analyze', telegramAuth, async (req, res) => {
   try {
     const { text } = req.body;
 
@@ -1028,7 +1028,7 @@ router.post('/quotes/analyze', async (req, res) => {
  * @description Поиск по цитатам (подсветка совпадений)
  * @route GET /api/reader/quotes/search
  */
-router.get('/quotes/search', async (req, res) => {
+router.get('/quotes/search', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const { q: searchQuery, limit = 20 } = req.query;
@@ -1076,7 +1076,7 @@ router.get('/quotes/search', async (req, res) => {
  * @description Удаление цитаты
  * @route DELETE /api/reader/quotes/:id
  */
-router.delete('/quotes/:id', async (req, res) => {
+router.delete('/quotes/:id', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const quote = await Quote.findOne({ _id: req.params.id, userId });
@@ -1106,9 +1106,9 @@ router.delete('/quotes/:id', async (req, res) => {
  * @description Получение еженедельных отчётов (query-based для обратной совместимости)
  * @route GET /api/reader/reports/weekly
  */
-router.get('/reports/weekly', async (req, res) => {
+router.get('/reports/weekly', telegramAuth, async (req, res) => {
   try {
-    const userId = greq.userId;
+    const userId = req.userId;
     const { limit = 5, offset = 0 } = req.query;
 
     const reports = await WeeklyReport.find({ userId })
@@ -1141,7 +1141,7 @@ router.get('/reports/weekly', async (req, res) => {
  * @description Получение еженедельных отчётов по path-параметру (совместимо с продом)
  * @route GET /api/reader/reports/weekly/:userId
  */
-router.get('/reports/weekly/:userId', async (req, res) => {
+router.get('/reports/weekly/:userId', telegramAuth, async (req, res) => {
   try {
     const { userId } = req.params;
     const { limit = 10 } = req.query;
@@ -1191,7 +1191,7 @@ router.get('/reports/weekly/:userId', async (req, res) => {
  * @description Получение месячных отчётов
  * @route GET /api/reader/reports/monthly
  */
-router.get('/reports/monthly', async (req, res) => {
+router.get('/reports/monthly', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const { limit = 3, offset = 0 } = req.query;
@@ -1230,7 +1230,7 @@ router.get('/reports/monthly', async (req, res) => {
  * @description Получение каталога книг
  * @route GET /api/reader/catalog
  */
-router.get('/catalog', async (req, res) => {
+router.get('/catalog', telegramAuth, async (req, res) => {
   try {
     const { category, limit = 20, offset = 0 } = req.query;
 
@@ -1276,7 +1276,7 @@ router.get('/catalog', async (req, res) => {
  * @description Персональные рекомендации книг
  * @route GET /api/reader/recommendations
  */
-router.get('/recommendations', async (req, res) => {
+router.get('/recommendations', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const user = await UserProfile.findOne({ userId });
@@ -1317,7 +1317,7 @@ router.get('/recommendations', async (req, res) => {
  * @description Общая статистика сообщества
  * @route GET /api/reader/community/stats
  */
-router.get('/community/stats', async (req, res) => {
+router.get('/community/stats', telegramAuth, async (req, res) => {
   try {
     const totalUsers = await UserProfile.countDocuments({ isOnboardingComplete: true });
     const totalQuotes = await Quote.countDocuments();
@@ -1357,7 +1357,7 @@ router.get('/community/stats', async (req, res) => {
  * @description Рейтинг пользователей (обезличенный)
  * @route GET /api/reader/community/leaderboard
  */
-router.get('/community/leaderboard', async (req, res) => {
+router.get('/community/leaderboard', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const { limit = 10 } = req.query;
