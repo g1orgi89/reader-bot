@@ -28,8 +28,6 @@ function telegramAuth(req, res, next) {
     return res.status(401).json({ success: false, error: 'No Telegram initData' });
   }
 
-  const userId = parseUserIdFromInitData(initData);
-
   if (!userId) {
     return res.status(401).json({ success: false, error: 'Invalid Telegram initData' });
   }
