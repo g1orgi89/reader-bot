@@ -1,3 +1,33 @@
+function parseUserIdFromInitData(initData) {
+  try {
+    const match = decodeURIComponent(initData).match(/user=({.*?})/);
+    if (match) {
+      const userObj = JSON.parse(match[1]);
+      return String(userObj.id);
+    }
+  } catch {}
+  return null;
+}
+
+function telegramAuth(req, res, next) {
+  const initData = req.headers['authorization']?.startsWith('tma ')
+    ? req.headers['authorization'].slice(4)
+    : req.headers['x-telegram-init-data'];
+
+  if (!initData) {
+    return res.status(401).json({ success: false, error: 'No Telegram initData' });
+  }
+
+  const userId = parseUserIdFromInitData(initData);
+
+  if (!userId) {
+    return res.status(401).json({ success: false, error: 'Invalid Telegram initData' });
+  }
+
+  req.userId = userId;
+  next();
+}
+
 /**
  * @fileoverview Reader Bot Mini App API Endpoints
  * @description API маршруты для Telegram Mini App
@@ -573,7 +603,7 @@ router.post('/profile/reset-test', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const user = await UserProfile.findOne({ userId });
 
     if (!user) {
@@ -631,7 +661,7 @@ router.get('/stats', async (req, res) => {
  */
 router.post('/quotes', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const { text, author, source } = req.body;
 
     if (!text || text.trim().length === 0) {
@@ -742,7 +772,7 @@ router.post('/quotes', async (req, res) => {
  */
 router.get('/quotes', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const {
       limit = 20,
       offset = 0,
@@ -814,7 +844,7 @@ router.get('/quotes', async (req, res) => {
  */
 router.get('/quotes/recent', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const { limit = 10 } = req.query;
 
     const quotes = await Quote.find({ userId })
@@ -849,7 +879,7 @@ router.get('/quotes/recent', async (req, res) => {
  */
 router.get('/quotes/:id', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const quote = await Quote.findOne({ _id: req.params.id, userId });
 
     if (!quote) {
@@ -897,7 +927,7 @@ router.get('/quotes/:id', async (req, res) => {
  */
 router.put('/quotes/:id', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const { text, author, source } = req.body;
 
     if (!text || text.trim().length === 0) {
@@ -1000,7 +1030,7 @@ router.post('/quotes/analyze', async (req, res) => {
  */
 router.get('/quotes/search', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const { q: searchQuery, limit = 20 } = req.query;
 
     if (!searchQuery || searchQuery.trim().length === 0) {
@@ -1048,7 +1078,7 @@ router.get('/quotes/search', async (req, res) => {
  */
 router.delete('/quotes/:id', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const quote = await Quote.findOne({ _id: req.params.id, userId });
 
     if (!quote) {
@@ -1078,7 +1108,7 @@ router.delete('/quotes/:id', async (req, res) => {
  */
 router.get('/reports/weekly', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = greq.userId;
     const { limit = 5, offset = 0 } = req.query;
 
     const reports = await WeeklyReport.find({ userId })
@@ -1163,7 +1193,7 @@ router.get('/reports/weekly/:userId', async (req, res) => {
  */
 router.get('/reports/monthly', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const { limit = 3, offset = 0 } = req.query;
 
     const reports = await MonthlyReport.find({ userId })
@@ -1248,7 +1278,7 @@ router.get('/catalog', async (req, res) => {
  */
 router.get('/recommendations', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const user = await UserProfile.findOne({ userId });
 
     const userThemes = user?.preferences?.mainThemes || [];
@@ -1329,7 +1359,7 @@ router.get('/community/stats', async (req, res) => {
  */
 router.get('/community/leaderboard', async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.userId;
     const { limit = 10 } = req.query;
 
     const leaderboard = await UserProfile.aggregate([
