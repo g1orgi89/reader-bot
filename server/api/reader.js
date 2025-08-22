@@ -18,6 +18,12 @@ function telegramAuth(req, res, next) {
     ? req.headers['authorization'].slice(4)
     : req.headers['x-telegram-init-data'];
 
+  console.log('[TELEGRAM AUTH] RAW:', req.headers['authorization']);
+  console.log('[TELEGRAM AUTH] INITDATA:', initData);
+
+  const userId = parseUserIdFromInitData(initData);
+  console.log('[TELEGRAM AUTH] PARSED USERID:', userId);
+  
   if (!initData) {
     return res.status(401).json({ success: false, error: 'No Telegram initData' });
   }
