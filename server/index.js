@@ -445,10 +445,13 @@ app.use((req, res, next) => {
 
 // CORS middleware
 app.use(cors({
-  origin: config.cors.origin,
-  credentials: config.cors.credentials,
-  methods: config.cors.methods,
-  allowedHeaders: config.cors.allowedHeaders
+  origin: 'https://app.unibotz.com', // твой домен, НЕ '*'
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization',
+    'X-Telegram-Init-Data', 'X-User-Id', 'Cache-Control', 'Pragma'
+  ]
 }));
 
 // JSON parser middleware
