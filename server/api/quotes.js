@@ -7,6 +7,39 @@
 const express = require('express');
 const router = express.Router();
 
+// ✅ ДОБАВИТЬ НЕДОСТАЮЩИЙ ИМПОРТ:
+function parseUserIdFromInitData(initData) {
+  try {
+    const params = new URLSearchParams(initData);
+    const userStr = params.get('user');
+    if (userStr) {
+      const userObj = JSON.parse(userStr);
+      if (userObj && userObj.id) return String(userObj.id);
+    }
+  } catch (e) {
+    console.warn('InitData parse error:', e, initData);
+  }
+  return null;
+}
+
+function telegramAuth(req, res, next) {
+  const initData = req.headers['authorization']?.startsWith('tma ')
+    ? req.headers['authorization'].slice(4)
+    : req.headers['x-telegram-init-data'];
+
+  const userId = parseUserIdFromInitData(initData);
+  
+  if (!initData || !userId) {
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Authentication required' 
+    });
+  }
+
+  req.userId = userId;
+  next();
+}
+
 // Импорт утилит
 const logger = require('../utils/logger');
 
@@ -463,7 +496,7 @@ router.post('/', async (req, res) => {
  * GET /api/quotes/statistics - Получение статистики цитат для аутентифицированного пользователя
  * 🚨 ИСПРАВЛЕНО: Добавлен фильтр по userId для показа статистики только текущего пользователя
  */
-router.get('/statistics', async (req, res) => {
+router.get('/statistics', telegramAuth, async (req, res) => {
     try {
         const { period = '7d' } = req.query;
 
@@ -763,7 +796,7 @@ router.get('/analytics', async (req, res) => {
 /**
  * GET /api/quotes/:id - Получение детальной информации о цитате
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', telegramAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -836,7 +869,7 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /api/quotes/:id/analyze - Запуск AI анализа цитаты
  */
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', telegramAuth, async (req, res) => {
     try {
         const { text, author } = req.body;
 
@@ -879,7 +912,7 @@ router.post('/analyze', async (req, res) => {
 /**
  * POST /api/quotes/:id/analyze - Повторный анализ существующей цитаты
  */
-router.post('/:id/analyze', async (req, res) => {
+router.post('/:id/analyze', telegramAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -929,7 +962,7 @@ router.post('/:id/analyze', async (req, res) => {
 /**
  * POST /api/quotes/analyze - Анализ нового текста цитаты
  */
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', telegramAuth, async (req, res) => {
     try {
         const { text, author } = req.body;
 
@@ -972,7 +1005,7 @@ router.post('/analyze', async (req, res) => {
 /**
  * POST /api/quotes/:id/reanalyze - Повторный анализ существующей цитаты
  */
-router.post('/:id/reanalyze', async (req, res) => {
+router.post('/:id/reanalyze', telegramAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -1022,7 +1055,7 @@ router.post('/:id/reanalyze', async (req, res) => {
 /**
  * DELETE /api/quotes/:id - Удаление цитаты текущего пользователя
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', telegramAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.userId || req.user?.id || req.body?.userId;
@@ -1083,7 +1116,7 @@ router.delete('/:id', async (req, res) => {
 /**
  * POST /api/quotes/:id/favorite - Toggle favorite status of a quote
  */
-router.post('/:id/favorite', async (req, res) => {
+router.post('/:id/favorite', telegramAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { isFavorite } = req.body;
@@ -1128,7 +1161,7 @@ router.post('/:id/favorite', async (req, res) => {
 /**
  * POST /api/quotes/export - Экспорт цитат
  */
-router.post('/export', async (req, res) => {
+router.post('/export', telegramAuth, async (req, res) => {
     try {
         const { 
             format = 'csv',
@@ -1185,7 +1218,7 @@ router.post('/export', async (req, res) => {
 /**
  * GET /api/quotes/search/similar/:id - Поиск похожих цитат
  */
-router.get('/search/similar/:id', async (req, res) => {
+router.get('/search/similar/:id', telegramAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { limit = 5 } = req.query;
