@@ -6,7 +6,7 @@
  * 
  * @filesize 2 KB - SPA роутинг
  * @author Claude Assistant  
- * @version 1.1.1 - ИСПРАВЛЕНЫ ССЫЛКИ НА КЛАССЫ СТРАНИЦ
+ * @version 1.1.0 - УБРАНЫ ХЕДЕРЫ ДЛЯ РЕШЕНИЯ VIEWPORT ПРОБЛЕМЫ
  */
 
 /**
@@ -113,7 +113,7 @@ class AppRouter {
         this.handlePopState = this.handlePopState.bind(this);
         this.handleNavigation = this.handleNavigation.bind(this);
         
-        console.log('✅ Router: Конструктор инициализирован - VERSION 1.1.1 - ИСПРАВЛЕНЫ ССЫЛКИ НА КЛАССЫ');
+        console.log('✅ Router: Конструктор инициализирован - VERSION 1.1.0 - БЕЗ ХЕДЕРОВ');
     }
 
     /**
@@ -166,12 +166,12 @@ class AppRouter {
     registerRoutes() {
         console.log('🔄 Router: Регистрация маршрутов');
         
-        // ✅ ИСПРАВЛЕНО: Используем window.* ссылки вместо прямых ссылок на классы
+        // ✅ Все страницы БЕЗ ХЕДЕРОВ - контент с самого верха!
         
         // Главная страница
         this.routes.set('/home', {
             path: '/home',
-            component: () => window.HomePage,
+            component: HomePage,
             title: 'Главная',
             requiresAuth: true,
             showBottomNav: true
@@ -180,7 +180,7 @@ class AppRouter {
         // Дневник цитат
         this.routes.set('/diary', {
             path: '/diary', 
-            component: () => window.DiaryPage,
+            component: DiaryPage,
             title: 'Дневник цитат',
             requiresAuth: true,
             showBottomNav: true
@@ -189,7 +189,7 @@ class AppRouter {
         // Отчеты
         this.routes.set('/reports', {
             path: '/reports',
-            component: () => window.ReportsPage, 
+            component: ReportsPage, 
             title: 'Отчеты',
             requiresAuth: true,
             showBottomNav: true
@@ -198,7 +198,7 @@ class AppRouter {
         // Каталог книг
         this.routes.set('/catalog', {
             path: '/catalog',
-            component: () => window.CatalogPage,
+            component: CatalogPage,
             title: 'Каталог книг', 
             requiresAuth: true,
             showBottomNav: true
@@ -207,7 +207,7 @@ class AppRouter {
         // Сообщество
         this.routes.set('/community', {
             path: '/community',
-            component: () => window.CommunityPage,
+            component: CommunityPage,
             title: 'Сообщество',
             requiresAuth: true,
             showBottomNav: true
@@ -216,7 +216,7 @@ class AppRouter {
         // Онбординг - БЕЗ НИЖНЕЙ НАВИГАЦИИ
         this.routes.set('/onboarding', {
             path: '/onboarding',
-            component: () => window.OnboardingPage,
+            component: OnboardingPage,
             title: 'Добро пожаловать',
             requiresAuth: true,
             showBottomNav: false
@@ -227,7 +227,7 @@ class AppRouter {
         // Profile page
         this.routes.set('/profile', {
             path: '/profile',
-            component: () => window.ProfilePage,
+            component: () => ProfilePage,
             title: 'Профиль',
             requiresAuth: true,
             showBottomNav: false
@@ -236,7 +236,7 @@ class AppRouter {
         // Achievements page  
         this.routes.set('/achievements', {
             path: '/achievements',
-            component: () => window.AchievementsPage,
+            component: () => AchievementsPage,
             title: 'Достижения',
             requiresAuth: true,
             showBottomNav: false
@@ -245,7 +245,7 @@ class AppRouter {
         // Settings page
         this.routes.set('/settings', {
             path: '/settings',
-            component: () => window.SettingsPage,
+            component: () => SettingsPage,
             title: 'Настройки', 
             requiresAuth: true,
             showBottomNav: false
@@ -254,7 +254,7 @@ class AppRouter {
         // About page
         this.routes.set('/about', {
             path: '/about',
-            component: () => window.AboutPage,
+            component: () => AboutPage,
             title: 'О приложении',
             requiresAuth: true,
             showBottomNav: false
@@ -263,7 +263,7 @@ class AppRouter {
         // Help page
         this.routes.set('/help', {
             path: '/help',
-            component: () => window.HelpPage,
+            component: () => HelpPage,
             title: 'Помощь',
             requiresAuth: true,
             showBottomNav: false
@@ -517,16 +517,9 @@ class AppRouter {
         };
 
         try {
-            // ✅ ИСПРАВЛЕНО: Получаем класс через функцию и проверяем его доступность
-            const ComponentClass = route.component();
-            
-            if (!ComponentClass) {
-                throw new Error(`❌ Router: Класс компонента для ${route.title} не найден в window`);
-            }
             
             // Создаем экземпляр компонента с правильной структурой app
-            this.currentComponent = new ComponentClass(appObject);
-            
+            this.currentComponent = new route.component(appObject);
             // Инициализируем компонент
             if (this.currentComponent && typeof this.currentComponent.init === 'function') {
                 await this.currentComponent.init();
