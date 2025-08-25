@@ -155,6 +155,78 @@ class QuoteHandler {
   }
 
   /**
+   * Получить массив targetThemes из BookCatalog по всем активным книгам
+   * @returns {Promise<string[]>}
+   */
+  async _getTargetThemesFromBookCatalog() {
+    if (!this.BookCatalog) return [];
+    const books = await this.BookCatalog.find({ isActive: true }, { targetThemes: 1 }).lean();
+    const allThemes = books.flatMap(b => b.targetThemes || []);
+    return [...new Set(allThemes.map(t => t.trim()).filter(Boolean))];
+  }
+
+  /**
+   * Получить userContext (инфо из онбординга) по userId
+   * @param {string} userId
+   * @returns {Promise<Object>}
+   */
+  async _getUserContext(userId) {
+    const profile = await UserProfile.findOne({ userId }).lean();
+    if (!profile) return {};
+    return profile.testResults || {};
+  }
+
+  /**
+   * Быстрый локальный анализ по ключевым словам (без AI)
+   * @param {string} text
+   * @param {string} author
+   * @returns {Object}
+   */
+  _quickLocalAnalysis(text, author) {
+    const textLower = text.toLowerCase();
+    const fallbackCategories = this._getFallbackCategories();
+    let category = 'ДРУГОЕ';
+    let foundThemes = [];
+
+    for (const cat of fallbackCategories) {
+      if (cat.keywords && cat.keywords.some(k => textLower.includes(k))) {
+        category = cat.name;
+        foundThemes = cat.keywords.filter(k => textLower.includes(k));
+        break;
+      }
+    }
+
+    // Простейшая сентимент-оценка
+    let sentiment = 'neutral';
+    if (textLower.match(/радост|любов|счасть|надежд/)) sentiment = 'positive';
+    if (textLower.match(/боль|страх|тяжел|тоска|печаль/)) sentiment = 'negative';
+
+    return {
+      category,
+      themes: foundThemes.length > 0 ? foundThemes.slice(0, 3) : ['размышления'],
+      sentiment,
+      insights: 'Интересная мысль для размышления.'
+    };
+  }
+
+  /**
+   * Быстрый анализ с учетом userContext (и author)
+   * @param {string} text
+   * @param {string} author
+   * @param {string} userId
+   * @param {Object} userContext
+   * @returns {Promise<Object>}
+   */
+  async quickAnalyzeQuote(text, author, userId, userContext = {}) {
+    const local = this._quickLocalAnalysis(text, author);
+    // Пример персонализации по userContext
+    let personalizedInsight = local.insights;
+    if (userContext && userContext.question4_priorities) {
+      personalizedInsight += ` (Вы писали, что для вас важно: "${userContext.question4_priorities}")`;
+    }
+    return { ...local, insights: personalizedInsight };
+  }
+  /**
    * 📋 NEW: Инициализация MongoDB моделей
    * @private
    */
