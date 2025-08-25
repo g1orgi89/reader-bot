@@ -46,27 +46,53 @@ window.HomeView = class HomeView {
     }
   }
 
-  async renderLatestQuotes() {
-    if (!this.latestContainer) return;
-    try {
-      // 1) Пробуем отрендерить из уже загруженных «Моих цитат»
-      const fromState = this._pickLatestFromState(3);
-      if (fromState.length) {
-        this.latestContainer.innerHTML = this._renderLatestQuotesSection(fromState);
-        this.latestContainer.style.display = 'block';
-        return;
-      }
+  Copilot said: Нет, у тебя снова дублируется код, и
+Нет, у тебя снова дублируется код, и из-за этого возникнет синтаксическая ошибка — лишние закрывающие скобки и повтор блока, а также несколько вызовов this.latestContainer.innerHTML = ... подряд.
+Вот правильный, чистый и рабочий вариант метода (без дублирования, с правильным try/catch):
 
-      // 2) Если в состоянии пусто — идём в API с userId и безопасным парсингом
-      const userId = this._getUserId();
-      
-     let quotes = [];
-     try {
-       const userId = app.state.getCurrentUserId();
-       const response = await app.api.getQuotes({ limit: 3 }, userId);
-       quotes = response.data?.quotes || response.quotes || response.items || [];
-     } catch (serviceError) {
-       console.warn('ApiService.getQuotes failed:', serviceError);
+JavaScript
+async renderLatestQuotes() {
+  if (!this.latestContainer) return;
+  try {
+    // 1) Пробуем отрендерить из уже загруженных «Моих цитат»
+    const fromState = this._pickLatestFromState(3);
+    if (fromState.length) {
+      this.latestContainer.innerHTML = this._renderLatestQuotesSection(fromState);
+      this.latestContainer.style.display = 'block';
+      return;
+    }
+
+    // 2) Если в состоянии пусто — идём в API с userId и безопасным парсингом
+    let quotes = [];
+    try {
+      const userId = app.state.getCurrentUserId();
+      const response = await app.api.getQuotes({ limit: 3 }, userId);
+      quotes = response.data?.quotes || response.quotes || response.items || [];
+    } catch (serviceError) {
+      console.warn('ApiService.getQuotes failed:', serviceError);
+      quotes = [];
+    }
+
+    this.latestContainer.innerHTML = this._renderLatestQuotesSection(quotes);
+    this.latestContainer.style.display = 'block';
+
+  } catch (outerError) {
+    console.error('renderLatestQuotes failed:', outerError);
+    this.latestContainer.innerHTML = this._renderLatestQuotesSection([]);
+    this.latestContainer.style.display = 'block';
+  }
+}
+
+    // Показываем пустое состояние (не скрываем секцию), чтобы был понятный UI
+    // (если нужно, можно условно показать пустую секцию)
+    // this.latestContainer.innerHTML = this._renderLatestQuotesSection([]);
+    // this.latestContainer.style.display = 'block';
+  } catch (outerError) {
+    console.error('renderLatestQuotes failed:', outerError);
+    this.latestContainer.innerHTML = this._renderLatestQuotesSection([]);
+    this.latestContainer.style.display = 'block';
+  }
+}
        // Можно показать ошибку, но не надо создавать новый экземпляр ApiService!
        quotes = [];
      }
