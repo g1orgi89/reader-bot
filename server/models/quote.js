@@ -79,6 +79,16 @@ const quoteSchema = new mongoose.Schema({
     maxlength: 1000
     // AI-сгенерированные инсайты от Анны
   },
+  isAnalyzed: {
+    type: Boolean,
+    default: false
+    // Прошел ли цитата полный AI-анализ
+  },
+  // quickAnalysis: {
+  //   type: mongoose.Schema.Types.Mixed,
+  //   default: null
+  //   // Быстрый результат анализа
+  // },
   isEdited: {
     type: Boolean,
     default: false
