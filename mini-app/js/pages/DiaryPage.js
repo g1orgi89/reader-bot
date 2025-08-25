@@ -1380,7 +1380,7 @@ async deleteQuote(quoteId) {
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
         
         if (!quote) {
-            console.error('❌ Цитата не найдена:', quoteId);
+            console.log('⚠️ Цитата уже удалена или не найдена:', quoteId);
             return;
         }
 
@@ -1412,6 +1412,9 @@ async deleteQuote(quoteId) {
             
             // 🐛 ИСПРАВЛЕНИЕ: Возвращаем цитату только если она НЕ была удалена на сервере
             if (error.status !== 404 && error.status !== 200) {
+                console.log('✅ Цитата была удалена ранее (404) - это OK');
+                return;
+            }
                 // Цитата существует на сервере, возвращаем её в UI
                 this.state.set('quotes.items', quotes);
                 this.state.set('stats', currentStats);
