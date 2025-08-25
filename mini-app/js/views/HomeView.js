@@ -46,11 +46,6 @@ window.HomeView = class HomeView {
     }
   }
 
-  Copilot said: Нет, у тебя снова дублируется код, и
-Нет, у тебя снова дублируется код, и из-за этого возникнет синтаксическая ошибка — лишние закрывающие скобки и повтор блока, а также несколько вызовов this.latestContainer.innerHTML = ... подряд.
-Вот правильный, чистый и рабочий вариант метода (без дублирования, с правильным try/catch):
-
-JavaScript
 async renderLatestQuotes() {
   if (!this.latestContainer) return;
   try {
