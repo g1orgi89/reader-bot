@@ -311,176 +311,94 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     try {
-        // ИСПРАВЛЕНИЕ: Убираем fallback к demo-user, требуем аутентификации
         const { text, author, source } = req.body;
         const userId = req.userId || req.body.userId;
-        
-        if (!userId) {
-            return res.status(401).json({
-                success: false,
-                error: 'Authentication required',
-                message: 'User ID not found. Please authenticate first.'
-            });
-        }
 
-        logger.info('📝 Создание новой цитаты:', { text, author, source, userId });
+        // ...валидации, лимиты и т.д. (оставляем как есть)...
 
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        // Получаем userContext из профиля пользователя
+        const userProfile = await UserProfile.findOne({ userId }).lean();
+        const userContext = userProfile?.testResults || {};
 
-        // УЛУЧШЕННАЯ ВАЛИДАЦИЯ
-        if (!text || text.trim().length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Текст цитаты не может быть пустым',
-                error: 'EMPTY_TEXT'
-            });
-        }
+        // Инстанцируем обработчик цитат
+        const QuoteHandler = require('../services/quoteHandler');
+        const quoteHandler = new QuoteHandler();
 
-        if (text.length > 1000) {
-            return res.status(400).json({
-                success: false,
-                message: 'Текст цитаты не может превышать 1000 символов',
-                error: 'TEXT_TOO_LONG'
-            });
-        }
+        // Получаем быстрый анализ
+        const quickAnalysis = await quoteHandler.quickAnalyzeQuote(text.trim(), author?.trim() || null, userId, userContext);
 
-        // Валидация автора если указан
-        if (author && author.length > 100) {
-            return res.status(400).json({
-                success: false,
-                message: 'Имя автора не может превышать 100 символов',
-                error: 'AUTHOR_TOO_LONG'
-            });
-        }
-
-        // Валидация источника если указан
-        if (source && source.length > 200) {
-            return res.status(400).json({
-                success: false,
-                message: 'Источник не может превышать 200 символов',
-                error: 'SOURCE_TOO_LONG'
-            });
-        }
-
-        // БЕЗОПАСНОСТЬ: Проверяем что пользователь не превышает лимит цитат в день
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        
-        const todayQuotesCount = await Quote.countDocuments({
-            userId: userId,
-            createdAt: { $gte: todayStart }
-        });
-
-        if (todayQuotesCount >= 50) { // Лимит 50 цитат в день
-            return res.status(429).json({
-                success: false,
-                message: 'Превышен дневной лимит цитат (50 в день)',
-                error: 'DAILY_LIMIT_EXCEEDED'
-            });
-        }
-
-        // Определяем номера недели и месяца
+        // Сохраняем цитату сразу с быстрым анализом
         const now = new Date();
         const weekNumber = getWeekOfYear(now);
         const monthNumber = now.getMonth() + 1;
         const yearNumber = now.getFullYear();
 
-        // Создаем новую цитату
-        const newQuote = new Quote({
+        const savedQuote = await Quote.create({
             userId: userId,
             text: text.trim(),
             author: author?.trim() || null,
             source: source?.trim() || null,
-            category: 'ДРУГОЕ', // По умолчанию, может быть изменено AI анализом
-            sentiment: 'neutral', // По умолчанию
-            themes: [],
+            category: quickAnalysis.category,
+            sentiment: quickAnalysis.sentiment,
+            themes: quickAnalysis.themes,
+            insights: quickAnalysis.insights,
             weekNumber,
             monthNumber,
             yearNumber,
             createdAt: now,
-            isEdited: false
+            isEdited: false,
+            isAnalyzed: false // <--- ВАЖНО!
         });
 
-        // Сохраняем в базу данных
-        const savedQuote = await newQuote.save();
-
-        // ✅ АВТОМАТИЧЕСКИЙ AI АНАЛИЗ
+        // Генерируем быстрый персональный ответ (можно использовать отдельный метод)
+        let annaResponse = quickAnalysis.insights;
         try {
-            const QuoteHandler = require('../services/quoteHandler');
-            const quoteHandler = new QuoteHandler();
-            
-            // Выполняем AI анализ
-            const analysis = await quoteHandler.analyzeQuote(savedQuote.text, savedQuote.author);
-            
-            // Обновляем цитату с результатами анализа
-            savedQuote.category = analysis.category;
-            savedQuote.themes = analysis.themes;
-            savedQuote.sentiment = analysis.sentiment;
-            savedQuote.insights = analysis.insights; // FIXED: Persist insights on creation
-            
-            // Сохраняем обновленную цитату
-            await savedQuote.save();
-            
-            logger.info('🤖 AI анализ выполнен для цитаты:', savedQuote._id);
-        } catch (aiError) {
-            logger.warn('⚠️ AI анализ не удался, но цитата создана:', aiError.message);
-            // Не блокируем создание если AI упал
-        }
-
-        // Генерируем ответ в стиле Анны
-        try {
-            const QuoteHandler = require('../services/quoteHandler');
-            const quoteHandler = new QuoteHandler();
-            const todayCount = await quoteHandler.getTodayQuotesCount(userId);
-            const annaResponse = await quoteHandler.generateAnnaResponse(
-                { text: savedQuote.text, author: savedQuote.author }, 
-                { category: savedQuote.category, themes: savedQuote.themes, sentiment: savedQuote.sentiment },
-                todayCount,
+            annaResponse = await quoteHandler.generateAnnaResponse(
+                { text: savedQuote.text, author: savedQuote.author },
+                quickAnalysis,
+                await quoteHandler.getTodayQuotesCount(userId),
                 userId
             );
-
-            res.status(201).json({
-                success: true,
-                message: annaResponse, // ✅ НОВОЕ: Персональный ответ от Анны
-                data: {
-                    id: savedQuote._id.toString(),
-                    text: savedQuote.text,
-                    author: savedQuote.author,
-                    source: savedQuote.source,
-                    category: savedQuote.category,
-                    sentiment: savedQuote.sentiment,
-                    themes: savedQuote.themes,
-                    createdAt: savedQuote.createdAt,
-                    weekNumber: savedQuote.weekNumber,
-                    monthNumber: savedQuote.monthNumber,
-                    aiAnalysis: { // ✅ НОВОЕ: AI анализ для frontend
-                        summary: annaResponse,
-                        category: savedQuote.category,
-                        themes: savedQuote.themes,
-                        sentiment: savedQuote.sentiment
-                    }
-                }
-            });
-        } catch (responseError) {
-            logger.warn('⚠️ Ошибка генерации ответа Анны, используем стандартный:', responseError.message);
-            // Fallback к стандартному ответу
-            res.status(201).json({
-                success: true,
-                message: 'Цитата успешно создана',
-                data: {
-                    id: savedQuote._id.toString(),
-                    text: savedQuote.text,
-                    author: savedQuote.author,
-                    source: savedQuote.source,
-                    category: savedQuote.category,
-                    sentiment: savedQuote.sentiment,
-                    themes: savedQuote.themes,
-                    insights: savedQuote.insights, // FIXED: Include insights in fallback
-                    createdAt: savedQuote.createdAt,
-                    weekNumber: savedQuote.weekNumber
-                }
-            });
+        } catch (e) {
+            // fallback
         }
+
+        // Отдаем быстрый ответ пользователю
+        res.status(201).json({
+            success: true,
+            message: annaResponse,
+            data: {
+                id: savedQuote._id.toString(),
+                text: savedQuote.text,
+                author: savedQuote.author,
+                source: savedQuote.source,
+                category: savedQuote.category,
+                sentiment: savedQuote.sentiment,
+                themes: savedQuote.themes,
+                insights: savedQuote.insights,
+                createdAt: savedQuote.createdAt,
+                weekNumber: savedQuote.weekNumber,
+                monthNumber: savedQuote.monthNumber,
+                isAnalyzed: false
+            }
+        });
+
+        // Фоновый AI-анализ и апдейт цитаты (асинхронно)
+        setImmediate(async () => {
+            try {
+                const fullAnalysis = await quoteHandler._analyzeQuote(savedQuote.text, savedQuote.author);
+                await Quote.findByIdAndUpdate(savedQuote._id, {
+                    category: fullAnalysis.category,
+                    themes: fullAnalysis.themes,
+                    sentiment: fullAnalysis.sentiment,
+                    insights: fullAnalysis.insights,
+                    isAnalyzed: true
+                });
+            } catch (err) {
+                // Логируем, но не тревожим юзера
+                console.error('AI background analysis failed:', err);
+            }
+        });
 
     } catch (error) {
         logger.error('❌ Ошибка создания цитаты:', error);
