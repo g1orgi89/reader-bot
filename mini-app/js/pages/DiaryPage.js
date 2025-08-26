@@ -307,47 +307,23 @@ class DiaryPage {
         `;
     }
 
-    // ✅ Получаем AI анализ последней цитаты
+    // ✅ ИСПРАВЛЕНО: Упрощенная логика поиска insights
     const lastQuote = this.state.get('lastAddedQuote');
     console.log('DEBUG: lastAddedQuote:', lastQuote);
     
-    if (lastQuote) {
-        if (lastQuote.insights) {
-            return `
-                <div class="ai-insight">
-                    <div class="ai-title">
-                        <span>✨</span>
-                        <span>Анализ от Анны</span>
-                    </div>
-                    <div class="ai-text">${lastQuote.insights}</div>
+    if (lastQuote && lastQuote.insights) {
+        return `
+            <div class="ai-insight">
+                <div class="ai-title">
+                    <span>✨</span>
+                    <span>Анализ от Анны</span>
                 </div>
-            `;
-        }
-        if (lastQuote.aiAnalysis && lastQuote.aiAnalysis.insights) {
-            return `
-                <div class="ai-insight">
-                    <div class="ai-title">
-                        <span>✨</span>
-                        <span>Анализ от Анны</span>
-                    </div>
-                    <div class="ai-text">${lastQuote.aiAnalysis.insights}</div>
-                </div>
-            `;
-        }
-        if (lastQuote.aiAnalysis && lastQuote.aiAnalysis.summary) {
-            return `
-                <div class="ai-insight">
-                    <div class="ai-title">
-                        <span>✨</span>
-                        <span>Анализ от Анны</span>
-                    </div>
-                    <div class="ai-text">${lastQuote.aiAnalysis.summary}</div>
-                </div>
-            `;
-        }
+                <div class="ai-text">${lastQuote.insights}</div>
+            </div>
+        `;
     }
 
-    // Fallback — если нет инсайта и summary
+    // Fallback — если нет инсайта
     return `
         <div class="ai-insight">
             <div class="ai-title">
