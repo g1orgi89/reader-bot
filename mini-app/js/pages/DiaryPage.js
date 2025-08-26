@@ -754,51 +754,71 @@ class DiaryPage {
 
     async handleSaveQuote() {
         if (!this.isFormValid()) return;
-        
+
         try {
             this.telegram.hapticFeedback('medium');
-            
-            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед сохранением
+
+            // Ждем валидный userId перед сохранением
             const userId = await this.waitForValidUserId();
             console.log('💾 DiaryPage: Сохраняем цитату для userId:', userId);
-            
+
             const quoteData = {
                 text: this.formData.text.trim(),
                 author: this.formData.author.trim(),
                 source: this.formData.source?.trim() || 'mini_app'
             };
-            
+
             const saveBtn = document.getElementById('saveQuoteBtn');
             if (saveBtn) {
                 saveBtn.disabled = true;
                 saveBtn.textContent = '💾 Сохраняем...';
             }
-            
-            // ✅ ИСПРАВЛЕНО: Правильная обработка insights из API
+
+            // --- Основное изменение ---
             const savedQuote = await this.api.addQuote(quoteData, userId);
             const data = savedQuote?.data || savedQuote;
-            console.log('DEBUG: Saved quote data:', data);          
-                
-            // Сохраняем цитату с insights (если есть)
-            // Берём инсайт либо с верхнего уровня, либо из вложенного quote
-            const insights = data.insights || data.quote?.insights;
+            console.log('DEBUG: Saved quote data:', data);
+
+            // Универсально достаем анализ
+            let insights = data.insights || data.quote?.insights;
+            let themes = data.themes || data.quote?.themes;
+            let category = data.category || data.quote?.category;
+            let sentiment = data.sentiment || data.quote?.sentiment;
+
+            // Если insights или другие поля отсутствуют, но есть message как JSON — парсим!
+            if ((!insights || !themes || !category) && typeof data.message === 'string') {
+                try {
+                    const ai = JSON.parse(data.message);
+                    insights = insights || ai.insights;
+                    themes = themes || ai.themes;
+                    category = category || ai.category;
+                    sentiment = sentiment || ai.sentiment;
+                } catch (e) {
+                    console.log('DEBUG: message не парсится как JSON', e);
+                }
+            }
+
             this.state.set('lastAddedQuote', {
                 ...data,
-                insights
+                insights,
+                themes,
+                category,
+                sentiment
             });
-            
+
             // Показываем уведомление с инсайтом от Анны
-            if (data?.insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-                window.showNotification(data.insights, 'success', 5000);
+            if (insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+                window.showNotification(insights, 'success', 5000);
             } else if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-            window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
+                window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
             }
-            
-            // ✅ ИСПРАВЛЕНО: Обновляем state немедленно
+
+            // Обновляем state quotes.items (тоже с анализом)
             const existingQuotes = this.state.get('quotes.items') || [];
-            this.state.set('quotes.items', [savedQuote.data, ...existingQuotes]);
-            
-            // ✅ ИСПРАВЛЕНО: Обновляем статистику
+            let quoteForList = { ...data, insights, themes, category, sentiment };
+            this.state.set('quotes.items', [quoteForList, ...existingQuotes]);
+
+            // Обновляем статистику
             const currentStats = this.state.get('stats') || {};
             const updatedStats = {
                 ...currentStats,
@@ -806,41 +826,36 @@ class DiaryPage {
                 thisWeek: (currentStats.thisWeek || 0) + 1
             };
             this.state.set('stats', updatedStats);
-            
-            // ✅ ИСПРАВЛЕНО: Очищаем форму
+
             this.clearForm();
-            
-            // ✅ ИСПРАВЛЕНО: Немедленно обновляем UI
             this.rerender();
-            
-            // ✅ ИСПРАВЛЕНО: Меняем состояние кнопки на "Сохранено"
+
             if (saveBtn) {
                 saveBtn.textContent = '✅ Сохранено!';
                 saveBtn.style.backgroundColor = 'var(--success-color, #22c55e)';
                 saveBtn.style.color = 'white';
-                
-                // Возвращаем обычное состояние через 2 секунды
+
                 setTimeout(() => {
-                    saveBtn.disabled = true; // Остается disabled пока форма пуста
+                    saveBtn.disabled = true;
                     saveBtn.textContent = '💾 Сохранить в дневник';
                     saveBtn.style.backgroundColor = '';
                     saveBtn.style.color = '';
                 }, 2000);
             }
-            
+
             this.telegram.hapticFeedback('success');
             this.log('✅ UI обновлен после сохранения цитаты');
-            
+
         } catch (error) {
             console.error('❌ Ошибка сохранения цитаты:', error);
             this.telegram.hapticFeedback('error');
-            
+
             const saveBtn = document.getElementById('saveQuoteBtn');
             if (saveBtn) {
                 saveBtn.textContent = '❌ Ошибка';
                 saveBtn.style.backgroundColor = 'var(--error-color, #ef4444)';
                 saveBtn.style.color = 'white';
-                
+
                 setTimeout(() => {
                     saveBtn.disabled = false;
                     saveBtn.textContent = '💾 Сохранить в дневник';
