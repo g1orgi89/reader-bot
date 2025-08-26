@@ -438,12 +438,10 @@ router.post('/', async (req, res) => {
                 todayCount,
                 userId
             );
-            // === DEBUG LOG ===
-            console.log('[DEBUG][API][addQuote] Ответ на фронт:', JSON.stringify(response, null, 2));
-            
-            res.status(201).json({
+            // Собираем объект ответа
+            const successResponse = {
                 success: true,
-                message: annaResponse, // ✅ НОВОЕ: Персональный ответ от Анны
+                message: annaResponse,
                 data: {
                     id: savedQuote._id.toString(),
                     text: savedQuote.text,
@@ -452,18 +450,45 @@ router.post('/', async (req, res) => {
                     category: savedQuote.category,
                     sentiment: savedQuote.sentiment,
                     themes: savedQuote.themes,
+                    insights: savedQuote.insights, // <-- важно!
                     createdAt: savedQuote.createdAt,
                     weekNumber: savedQuote.weekNumber,
                     monthNumber: savedQuote.monthNumber,
-                    aiAnalysis: { // ✅ НОВОЕ: AI анализ для frontend
-                        summary: annaResponse,
-                        category: savedQuote.category,
-                        themes: savedQuote.themes,
-                        sentiment: savedQuote.sentiment
+                    aiAnalysis: {
+                      summary: annaResponse,
+                      category: savedQuote.category,
+                      themes: savedQuote.themes,
+                      sentiment: savedQuote.sentiment
                     }
                 }
-            });
+            };
+            // Логируем объект, а не несуществующую переменную!
+            console.log('[DEBUG][API][addQuote] Ответ на фронт:', JSON.stringify(successResponse, null, 2));
+            res.status(201).json(successResponse);
+
         } catch (responseError) {
+            logger.warn('⚠️ Ошибка генерации ответа Анны, используем стандартный:', responseError.message);
+
+            const fallbackResponse = {
+                success: true,
+                message: 'Цитата успешно создана',
+                data: {
+                    id: savedQuote._id.toString(),
+                    text: savedQuote.text,
+                    author: savedQuote.author,
+                    source: savedQuote.source,
+                    category: savedQuote.category,
+                    sentiment: savedQuote.sentiment,
+                    themes: savedQuote.themes,
+                    insights: savedQuote.insights,
+                    createdAt: savedQuote.createdAt,
+                    weekNumber: savedQuote.weekNumber,
+                    monthNumber: savedQuote.monthNumber
+                }
+            };
+            console.log('[DEBUG][API][addQuote] Ответ на фронт (fallback):', JSON.stringify(fallbackResponse, null, 2));
+            res.status(201).json(fallbackResponse);
+        }
             logger.warn('⚠️ Ошибка генерации ответа Анны, используем стандартный:', responseError.message);
             // === DEBUG LOG ===
             console.log('[DEBUG][API][addQuote] Ответ на фронт (fallback):', JSON.stringify(response, null, 2));
