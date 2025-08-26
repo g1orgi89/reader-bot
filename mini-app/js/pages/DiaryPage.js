@@ -306,23 +306,47 @@ class DiaryPage {
             </div>
         `;
     }
-    
-    // ✅ ИСПРАВЛЕНИЕ: Получаем AI анализ последней цитаты
+
+    // ✅ Получаем AI анализ последней цитаты
     const lastQuote = this.state.get('lastAddedQuote');
-    
-    if (lastQuote && lastQuote.aiAnalysis && lastQuote.aiAnalysis.summary) {
-        return `
-            <div class="ai-insight">
-                <div class="ai-title">
-                    <span>✨</span>
-                    <span>Анализ от Анны</span>
+
+    if (lastQuote) {
+        if (lastQuote.insights) {
+            return `
+                <div class="ai-insight">
+                    <div class="ai-title">
+                        <span>✨</span>
+                        <span>Анализ от Анны</span>
+                    </div>
+                    <div class="ai-text">${lastQuote.insights}</div>
                 </div>
-                <div class="ai-text">${lastQuote.aiAnalysis.summary}</div>
-            </div>
-        `;
+            `;
+        }
+        if (lastQuote.aiAnalysis && lastQuote.aiAnalysis.insights) {
+            return `
+                <div class="ai-insight">
+                    <div class="ai-title">
+                        <span>✨</span>
+                        <span>Анализ от Анны</span>
+                    </div>
+                    <div class="ai-text">${lastQuote.aiAnalysis.insights}</div>
+                </div>
+            `;
+        }
+        if (lastQuote.aiAnalysis && lastQuote.aiAnalysis.summary) {
+            return `
+                <div class="ai-insight">
+                    <div class="ai-title">
+                        <span>✨</span>
+                        <span>Анализ от Анны</span>
+                    </div>
+                    <div class="ai-text">${lastQuote.aiAnalysis.summary}</div>
+                </div>
+            `;
+        }
     }
-    
-    // Fallback только если нет AI анализа
+
+    // Fallback — если нет инсайта и summary
     return `
         <div class="ai-insight">
             <div class="ai-title">
