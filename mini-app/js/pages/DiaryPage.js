@@ -775,6 +775,7 @@ class DiaryPage {
             }
             
             // ✅ ИСПРАВЛЕНО: Правильная обработка insights из API
+            const savedQuote = await this.api.addQuote(quoteData, userId);
             const data = savedQuote?.data || savedQuote;
             console.log('DEBUG: Saved quote data:', data);          
                 
