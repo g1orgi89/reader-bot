@@ -105,7 +105,7 @@ function safeJsonExtract(text) {
  * @param {Object} analysis - Raw analysis object
  * @returns {Object} Normalized analysis
  */
-аunction normalizeAnalysis(analysis) {
+function normalizeAnalysis(analysis) {
   let safeCategory = analysis.category;
   // Если пришёл объект (например, из Mongo), берём name
   if (typeof safeCategory === 'object' && safeCategory !== null) {
