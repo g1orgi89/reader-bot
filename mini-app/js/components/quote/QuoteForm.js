@@ -911,17 +911,23 @@ class QuoteForm {
      * Обработка сохранения
      */
     async handleSave() {
-        if (!this.validation.isValid) return;
+    if (!this.validation.isValid) return;
 
-        try {
-            this.updateLoadingState(true);
-            
-            const quoteData = {
-                text: this.formData.text.trim(),
-                author: this.formData.author.trim() || 'Неизвестный автор',
-                source: this.formData.source,
-                aiAnalysis: this.aiAnalysis
-            };
+    // 🚨 Новый код: не сохранять, пока анализ не завершён или не получен
+    if (this.options.enableAiAnalysis && (!this.aiAnalysis || this.isAnalyzing)) {
+        this.showError('Пожалуйста, дождитесь завершения анализа цитаты Анной!');
+        return;
+    }
+
+    try {
+        this.updateLoadingState(true);
+
+        const quoteData = {
+            text: this.formData.text.trim(),
+            author: this.formData.author.trim() || 'Неизвестный автор',
+            source: this.formData.source,
+            aiAnalysis: this.aiAnalysis // теперь всегда будет!
+        };
 
             let savedQuote;
             
