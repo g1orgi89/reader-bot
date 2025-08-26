@@ -105,11 +105,13 @@ function safeJsonExtract(text) {
  * @param {Object} analysis - Raw analysis object
  * @returns {Object} Normalized analysis
  */
-function normalizeAnalysis(analysis) {
+аunction normalizeAnalysis(analysis) {
   let safeCategory = analysis.category;
+  // Если пришёл объект (например, из Mongo), берём name
   if (typeof safeCategory === 'object' && safeCategory !== null) {
     safeCategory = safeCategory.name || 'ДРУГОЕ';
   }
+  // Если после этого всё ещё не строка — fallback
   if (typeof safeCategory !== 'string') {
     safeCategory = 'ДРУГОЕ';
   }
@@ -436,7 +438,7 @@ class QuoteHandler {
         // Проверяем, есть ли такая категория в БД
         const validCategory = await this.Category.validateAICategory(category);
         if (validCategory) {
-          return validCategory;
+          return validCategory.name;
         }
         
         // Если нет - используем fallback поиск по тексту
