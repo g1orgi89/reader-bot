@@ -489,39 +489,7 @@ router.post('/', async (req, res) => {
             console.log('[DEBUG][API][addQuote] Ответ на фронт (fallback):', JSON.stringify(fallbackResponse, null, 2));
             res.status(201).json(fallbackResponse);
         }
-            logger.warn('⚠️ Ошибка генерации ответа Анны, используем стандартный:', responseError.message);
-            // === DEBUG LOG ===
-            console.log('[DEBUG][API][addQuote] Ответ на фронт (fallback):', JSON.stringify(response, null, 2));
-          
-          // Fallback к стандартному ответу
-            res.status(201).json({
-                success: true,
-                message: 'Цитата успешно создана',
-                data: {
-                    id: savedQuote._id.toString(),
-                    text: savedQuote.text,
-                    author: savedQuote.author,
-                    source: savedQuote.source,
-                    category: savedQuote.category,
-                    sentiment: savedQuote.sentiment,
-                    themes: savedQuote.themes,
-                    insights: savedQuote.insights, // FIXED: Include insights in fallback
-                    createdAt: savedQuote.createdAt,
-                    weekNumber: savedQuote.weekNumber
-                }
-            });
-        }
-
-    } catch (error) {
-        logger.error('❌ Ошибка создания цитаты:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Ошибка создания цитаты',
-            error: error.message
-        });
-    }
-});
-
+            
 /**
  * GET /api/quotes/statistics - Получение статистики цитат для аутентифицированного пользователя
  * 🚨 ИСПРАВЛЕНО: Добавлен фильтр по userId для показа статистики только текущего пользователя
