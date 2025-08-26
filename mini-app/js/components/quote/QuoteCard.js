@@ -150,7 +150,7 @@ class QuoteCard {
                             <span>Анализ от Анны</span>
                         </div>
                         <div class="quote-card__ai-text">
-                            ${this.escapeHtml(this.quote.aiAnalysis.insight || 'Анализируется...')}
+                            ${this.escapeHtml(this.quote.aiAnalysis.insight || this.quote.aiAnalysis.insights || this.quote.aiAnalysis.summary || 'Анализируется...')}
                         </div>
                     </div>
                 ` : ''}
