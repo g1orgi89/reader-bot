@@ -780,11 +780,13 @@ class DiaryPage {
             console.log('DEBUG: Saved quote data:', data);          
                 
             // Сохраняем цитату с insights (если есть)
+            // Берём инсайт либо с верхнего уровня, либо из вложенного quote
+            const insights = data.insights || data.quote?.insights;
             this.state.set('lastAddedQuote', {
                 ...data,
-                insights: data.insights // ✅ Прямо из основного поля
+                insights
             });
-
+            
             // Показываем уведомление с инсайтом от Анны
             if (data?.insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
                 window.showNotification(data.insights, 'success', 5000);
