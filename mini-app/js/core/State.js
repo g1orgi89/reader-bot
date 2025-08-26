@@ -406,6 +406,7 @@ class AppState {
      * ➕ Добавить новую цитату
      */
     addQuote(quote) {
+        console.log('State.js addQuote:', quote);
         this.push('quotes.items', quote);
         this.update('quotes', {
             total: this.get('quotes.total') + 1,
