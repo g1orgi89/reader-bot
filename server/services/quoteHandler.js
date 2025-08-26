@@ -337,7 +337,7 @@ class QuoteHandler {
           platform: 'telegram',
           userId: 'quote_analysis'
         }),
-        5000 // 5 секунд таймаут
+        15000 // 5 секунд таймаут
       );
       
       // Безопасно парсим JSON с обработкой markdown блоков
