@@ -705,6 +705,9 @@ router.post('/quotes', telegramAuth, async (req, res) => {
 
       await user.updateQuoteStats(result.quote.author);
 
+      // ✅ ДОБАВИТЬ: Отладочный лог для проверки insights
+      console.log('DEBUG: Returning quote with insights:', result.quote.insights);
+      
       return res.json({
         success: true,
         quote: {
