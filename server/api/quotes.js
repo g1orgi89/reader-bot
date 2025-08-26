@@ -438,7 +438,9 @@ router.post('/', async (req, res) => {
                 todayCount,
                 userId
             );
-
+            // === DEBUG LOG ===
+            console.log('[DEBUG][API][addQuote] Ответ на фронт:', JSON.stringify(response, null, 2));
+            
             res.status(201).json({
                 success: true,
                 message: annaResponse, // ✅ НОВОЕ: Персональный ответ от Анны
@@ -463,7 +465,10 @@ router.post('/', async (req, res) => {
             });
         } catch (responseError) {
             logger.warn('⚠️ Ошибка генерации ответа Анны, используем стандартный:', responseError.message);
-            // Fallback к стандартному ответу
+            // === DEBUG LOG ===
+            console.log('[DEBUG][API][addQuote] Ответ на фронт (fallback):', JSON.stringify(response, null, 2));
+          
+          // Fallback к стандартному ответу
             res.status(201).json({
                 success: true,
                 message: 'Цитата успешно создана',
