@@ -339,6 +339,7 @@ class QuoteHandler {
         }),
         15000 // 15 секунд таймаут
       );
+      console.log('[DEBUG] Claude raw response:', response);
       
       // Безопасно парсим JSON с обработкой markdown блоков
       const rawAnalysis = safeJsonExtract(response.message);
