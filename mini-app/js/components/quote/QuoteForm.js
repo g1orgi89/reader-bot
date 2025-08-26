@@ -928,7 +928,8 @@ class QuoteForm {
             source: this.formData.source,
             aiAnalysis: this.aiAnalysis // теперь всегда будет!
         };
-
+        console.log('DEBUG: quoteData before save', quoteData);
+            
             let savedQuote;
             
             if (this.options.initialData) {
