@@ -751,65 +751,22 @@ class DiaryPage {
         }
     }
     
-    async handleSaveQuote() {
-        if (!this.isFormValid()) return;
-        
-        try {
-            this.telegram.hapticFeedback('medium');
-            
-            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед сохранением
-            const userId = await this.waitForValidUserId();
-            console.log('💾 DiaryPage: Сохраняем цитату для userId:', userId);
-            
-            const quoteData = {
-                text: this.formData.text.trim(),
-                author: this.formData.author.trim(),
-                source: this.formData.source?.trim() || 'mini_app'
-            };
-            
-            const saveBtn = document.getElementById('saveQuoteBtn');
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.textContent = '💾 Сохраняем...';
-            }
-            
-            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
-            const savedQuote = await this.api.addQuote(quoteData, userId);
-            this.log('✅ Цитата сохранена:', savedQuote);
-            
-            // ✅ ИСПРАВЛЕНО: Обрабатываем AI анализ из ответа
-            const data = savedQuote?.data || savedQuote;
-            const aiAnalysis = data?.aiAnalysis;
-            
-            if (aiAnalysis) {
-                this.state.set('lastAddedQuote', {
-                    ...data,
-                    aiAnalysis: aiAnalysis
-                });
-                
-                // Показываем персональный ответ Анны вместо стандартного
-                if (aiAnalysis.summary && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-                    window.showNotification(aiAnalysis.summary, 'success', 5000);
-                }
-            } else if (data?.insights) {
-                // Fallback: если AI анализ недоступен, но есть insights
-                this.state.set('lastAddedQuote', {
-                    ...data,
-                    aiAnalysis: {
-                        summary: data.insights
-                    }
-                });
-                
-                if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-                    window.showNotification(data.insights, 'success', 5000);
-                }
-            } else {
-                // Fallback для случая, когда AI анализ недоступен
-                this.state.set('lastAddedQuote', data);
-                if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-                    window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
-                }
-            }
+    // ✅ ИСПРАВЛЕНО: Правильная обработка insights из API
+const data = savedQuote?.data || savedQuote;
+console.log('DEBUG: Saved quote data:', data);
+
+// Сохраняем цитату с insights (если есть)
+this.state.set('lastAddedQuote', {
+    ...data,
+    insights: data.insights // ✅ Прямо из основного поля
+});
+
+// Показываем уведомление с инсайтом от Анны
+if (data?.insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+    window.showNotification(data.insights, 'success', 5000);
+} else if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+    window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
+}
             
             // ✅ ИСПРАВЛЕНО: Обновляем state немедленно
             const existingQuotes = this.state.get('quotes.items') || [];
