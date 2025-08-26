@@ -309,7 +309,8 @@ class DiaryPage {
 
     // ✅ Получаем AI анализ последней цитаты
     const lastQuote = this.state.get('lastAddedQuote');
-
+    console.log('DEBUG: lastAddedQuote:', lastQuote);
+    
     if (lastQuote) {
         if (lastQuote.insights) {
             return `
