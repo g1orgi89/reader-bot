@@ -106,12 +106,18 @@ function safeJsonExtract(text) {
  * @returns {Object} Normalized analysis
  */
 function normalizeAnalysis(analysis) {
+  let safeCategory = analysis.category;
+  if (typeof safeCategory === 'object' && safeCategory !== null) {
+    safeCategory = safeCategory.name || 'ДРУГОЕ';
+  }
+  if (typeof safeCategory !== 'string') {
+    safeCategory = 'ДРУГОЕ';
+  }
   const themes = Array.isArray(analysis.themes) && analysis.themes.length > 0 
     ? analysis.themes.slice(0, 3) 
     : ['размышления'];
-    
   return {
-    category: typeof analysis.category === 'string' ? analysis.category : 'ДРУГОЕ',
+    category: safeCategory,
     themes: themes,
     sentiment: ['positive', 'neutral', 'negative'].includes(analysis.sentiment) ? analysis.sentiment : 'neutral',
     insights: typeof analysis.insights === 'string' ? analysis.insights : 'Интересная мысль для размышления'
