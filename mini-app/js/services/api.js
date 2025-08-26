@@ -530,9 +530,12 @@ class ApiService {
      */
     async addQuote(quoteData, userId = 'demo-user') {
         this.clearQuotesCache();
-        return this.request('POST', '/quotes', { ...quoteData, userId });
+        console.log('DEBUG: addQuote → quoteData', quoteData);
+        const result = await this.request('POST', '/quotes', { ...quoteData, userId });
+        console.log('DEBUG: addQuote → result', result);
+        return result;
     }
-
+    
     /**
      * 📖 Получить цитаты пользователя
      */
