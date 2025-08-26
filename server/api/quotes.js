@@ -311,10 +311,9 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     try {
-        // ИСПРАВЛЕНИЕ: Убираем fallback к demo-user, требуем аутентификации
         const { text, author, source } = req.body;
         const userId = req.userId || req.body.userId;
-        
+
         if (!userId) {
             return res.status(401).json({
                 success: false,
@@ -324,10 +323,9 @@ router.post('/', async (req, res) => {
         }
 
         logger.info('📝 Создание новой цитаты:', { text, author, source, userId });
-
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-        // УЛУЧШЕННАЯ ВАЛИДАЦИЯ
+        // Валидация
         if (!text || text.trim().length === 0) {
             return res.status(400).json({
                 success: false,
@@ -335,7 +333,6 @@ router.post('/', async (req, res) => {
                 error: 'EMPTY_TEXT'
             });
         }
-
         if (text.length > 1000) {
             return res.status(400).json({
                 success: false,
@@ -343,8 +340,6 @@ router.post('/', async (req, res) => {
                 error: 'TEXT_TOO_LONG'
             });
         }
-
-        // Валидация автора если указан
         if (author && author.length > 100) {
             return res.status(400).json({
                 success: false,
@@ -352,8 +347,6 @@ router.post('/', async (req, res) => {
                 error: 'AUTHOR_TOO_LONG'
             });
         }
-
-        // Валидация источника если указан
         if (source && source.length > 200) {
             return res.status(400).json({
                 success: false,
@@ -362,16 +355,14 @@ router.post('/', async (req, res) => {
             });
         }
 
-        // БЕЗОПАСНОСТЬ: Проверяем что пользователь не превышает лимит цитат в день
+        // Лимит по количеству цитат в день
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
-        
         const todayQuotesCount = await Quote.countDocuments({
             userId: userId,
             createdAt: { $gte: todayStart }
         });
-
-        if (todayQuotesCount >= 50) { // Лимит 50 цитат в день
+        if (todayQuotesCount >= 50) {
             return res.status(429).json({
                 success: false,
                 message: 'Превышен дневной лимит цитат (50 в день)',
@@ -379,20 +370,19 @@ router.post('/', async (req, res) => {
             });
         }
 
-        // Определяем номера недели и месяца
         const now = new Date();
         const weekNumber = getWeekOfYear(now);
         const monthNumber = now.getMonth() + 1;
         const yearNumber = now.getFullYear();
 
-        // Создаем новую цитату
+        // Создаем цитату
         const newQuote = new Quote({
             userId: userId,
             text: text.trim(),
             author: author?.trim() || null,
             source: source?.trim() || null,
-            category: 'ДРУГОЕ', // По умолчанию, может быть изменено AI анализом
-            sentiment: 'neutral', // По умолчанию
+            category: 'ДРУГОЕ',
+            sentiment: 'neutral',
             themes: [],
             weekNumber,
             monthNumber,
@@ -401,94 +391,81 @@ router.post('/', async (req, res) => {
             isEdited: false
         });
 
-        // Сохраняем в базу данных
-        const savedQuote = await newQuote.save();
+        let savedQuote = await newQuote.save();
 
-        // ✅ АВТОМАТИЧЕСКИЙ AI АНАЛИЗ
+        // AI анализ
+        let analysis = {
+            category: savedQuote.category,
+            themes: [],
+            sentiment: savedQuote.sentiment,
+            insights: ""
+        };
         try {
             const QuoteHandler = require('../services/quoteHandler');
             const quoteHandler = new QuoteHandler();
-            
-            // Выполняем AI анализ
-            const analysis = await quoteHandler.analyzeQuote(savedQuote.text, savedQuote.author);
-            
-            // Обновляем цитату с результатами анализа
+            analysis = await quoteHandler.analyzeQuote(savedQuote.text, savedQuote.author);
             savedQuote.category = analysis.category;
             savedQuote.themes = analysis.themes;
             savedQuote.sentiment = analysis.sentiment;
-            savedQuote.insights = analysis.insights; // FIXED: Persist insights on creation
-            
-            // Сохраняем обновленную цитату
+            savedQuote.insights = analysis.insights;
             await savedQuote.save();
-            
             logger.info('🤖 AI анализ выполнен для цитаты:', savedQuote._id);
         } catch (aiError) {
             logger.warn('⚠️ AI анализ не удался, но цитата создана:', aiError.message);
-            // Не блокируем создание если AI упал
         }
 
-        // Генерируем ответ в стиле Анны
+        // Генерация ответа Анны
+        let annaResponse = 'Цитата успешно создана';
         try {
             const QuoteHandler = require('../services/quoteHandler');
             const quoteHandler = new QuoteHandler();
             const todayCount = await quoteHandler.getTodayQuotesCount(userId);
-            const annaResponse = await quoteHandler.generateAnnaResponse(
+            annaResponse = await quoteHandler.generateAnnaResponse(
                 { text: savedQuote.text, author: savedQuote.author }, 
                 { category: savedQuote.category, themes: savedQuote.themes, sentiment: savedQuote.sentiment },
                 todayCount,
                 userId
             );
-            // Собираем объект ответа
-            const successResponse = {
-                success: true,
-                message: annaResponse,
-                data: {
-                    id: savedQuote._id.toString(),
-                    text: savedQuote.text,
-                    author: savedQuote.author,
-                    source: savedQuote.source,
-                    category: savedQuote.category,
-                    sentiment: savedQuote.sentiment,
-                    themes: savedQuote.themes,
-                    insights: savedQuote.insights, // <-- важно!
-                    createdAt: savedQuote.createdAt,
-                    weekNumber: savedQuote.weekNumber,
-                    monthNumber: savedQuote.monthNumber,
-                    aiAnalysis: {
-                      summary: annaResponse,
-                      category: savedQuote.category,
-                      themes: savedQuote.themes,
-                      sentiment: savedQuote.sentiment
-                    }
-                }
-            };
-            // Логируем объект, а не несуществующую переменную!
-            console.log('[DEBUG][API][addQuote] Ответ на фронт:', JSON.stringify(successResponse, null, 2));
-            res.status(201).json(successResponse);
-
         } catch (responseError) {
             logger.warn('⚠️ Ошибка генерации ответа Анны, используем стандартный:', responseError.message);
-
-            const fallbackResponse = {
-                success: true,
-                message: 'Цитата успешно создана',
-                data: {
-                    id: savedQuote._id.toString(),
-                    text: savedQuote.text,
-                    author: savedQuote.author,
-                    source: savedQuote.source,
-                    category: savedQuote.category,
-                    sentiment: savedQuote.sentiment,
-                    themes: savedQuote.themes,
-                    insights: savedQuote.insights,
-                    createdAt: savedQuote.createdAt,
-                    weekNumber: savedQuote.weekNumber,
-                    monthNumber: savedQuote.monthNumber
-                }
-            };
-            console.log('[DEBUG][API][addQuote] Ответ на фронт (fallback):', JSON.stringify(fallbackResponse, null, 2));
-            res.status(201).json(fallbackResponse);
         }
+
+        // ОТДАЕМ ОДИН ОТВЕТ КЛИЕНТУ (НЕ ДЕЛИМ НА success/fallback, ВСЕ ПОЛЯ ЕСТЬ)
+        const response = {
+            success: true,
+            message: annaResponse,
+            data: {
+                id: savedQuote._id.toString(),
+                text: savedQuote.text,
+                author: savedQuote.author,
+                source: savedQuote.source,
+                category: savedQuote.category,
+                sentiment: savedQuote.sentiment,
+                themes: savedQuote.themes,
+                insights: savedQuote.insights,
+                createdAt: savedQuote.createdAt,
+                weekNumber: savedQuote.weekNumber,
+                monthNumber: savedQuote.monthNumber,
+                aiAnalysis: {
+                    summary: annaResponse,
+                    category: savedQuote.category,
+                    themes: savedQuote.themes,
+                    sentiment: savedQuote.sentiment
+                }
+            }
+        };
+        console.log('[DEBUG][API][addQuote] Ответ на фронт:', JSON.stringify(response, null, 2));
+        res.status(201).json(response);
+
+    } catch (error) {
+        logger.error('❌ Ошибка создания цитаты:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Ошибка создания цитаты',
+            error: error.message
+        });
+    }
+});
             
 /**
  * GET /api/quotes/statistics - Получение статистики цитат для аутентифицированного пользователя
