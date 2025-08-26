@@ -925,8 +925,9 @@ class QuoteForm {
         const quoteData = {
             text: this.formData.text.trim(),
             author: this.formData.author.trim() || 'Неизвестный автор',
-            source: this.formData.source,
-            aiAnalysis: this.aiAnalysis // теперь всегда будет!
+            source: this.formData.source
+        // aiAnalysis НЕ ОТПРАВЛЯТЬ!
+            
         };
         console.log('DEBUG: quoteData before save', quoteData);
             
