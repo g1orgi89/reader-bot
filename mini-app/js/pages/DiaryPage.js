@@ -415,6 +415,7 @@ class DiaryPage {
      * 📝 КАРТОЧКА ЦИТАТЫ (ОБНОВЛЕНО: с kebab меню и новыми стилями!)
      */
     renderQuoteItem(quote) {
+        console.log('DEBUG: Rendering quote with insights:', quote.insights); //
         const isFavorite = quote.isFavorite || false;
         const author = quote.author ? `— ${quote.author}` : '';
         const heartIcon = isFavorite ? '❤️' : '🤍';
