@@ -1460,14 +1460,20 @@ if (typeof document !== 'undefined' && !document.getElementById('quote-form-styl
             margin-left: auto;
         }
 
-        .quote-form__ai-content {
-            font-size: 13px;
-            line-height: 1.4;
-        }
-
+        .quote-form__ai-content,
         .quote-form__ai-insight {
-            margin-bottom: 12px;
-            opacity: 0.95;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-style: italic;
+            font-size: 13px;
+            color: var(--text-primary, #2D2D2D);
+            line-height: 1.5;
+            opacity: 0.92;
+        }
+        @media (max-width: 480px) {
+            .quote-form__ai-content,
+            .quote-form__ai-insight {
+            font-size: 12px;
+            }
         }
 
         .quote-form__ai-recommendations {
