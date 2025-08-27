@@ -678,6 +678,9 @@ class QuoteHandler {
    * @private
    */
   async _getBookRecommendation(category, isClassic) {
+    if (category === "ДРУГОЕ") {
+      return null;
+    }            
     try {
       if (this.BookCatalog) {
         // Получаем рекомендации из БД по категории
