@@ -415,22 +415,27 @@ class DiaryPage {
      * 📝 КАРТОЧКА ЦИТАТЫ (ОБНОВЛЕНО: с kebab меню и новыми стилями!)
      */
     renderQuoteItem(quote) {
-        console.log('DEBUG: Rendering quote with insights:', quote.insights); //
         const isFavorite = quote.isFavorite || false;
         const author = quote.author ? `— ${quote.author}` : '';
         const heartIcon = isFavorite ? '❤️' : '🤍';
-        
+
+        // Корректно берем summary и insights из новых и старых форматов
+        const summary = quote.aiAnalysis?.summary || quote.summary || '';
+        const insights = quote.insights || quote.aiAnalysis?.insights || '';
+
         return `
             <div class="quote-card my-quotes" data-id="${quote._id || quote.id}" data-quote-id="${quote._id || quote.id}">
                 <button class="quote-kebab" aria-label="menu" title="Действия">…</button>
                 <div class="quote-text">${quote.text}</div>
                 ${author ? `<div class="quote-author">${author}</div>` : ''}
+                ${summary ? `<div class="quote-summary" style="margin-top:8px;color:var(--text-primary)"><b>Ответ Анны:</b> ${summary}</div>` : ''}
+                ${insights ? `<div class="quote-insight" style="margin-top:6px;"><b>Инсайт:</b> ${insights}</div>` : ''}
                 <div class="quote-actions-inline">
                     <button class="action-btn" data-action="edit" aria-label="Редактировать цитату" title="Редактировать">✏️</button>
                     <button class="action-btn" data-action="favorite" aria-label="Добавить в избранное" title="Избранное">${heartIcon}</button>
                     <button class="action-btn action-delete" data-action="delete" aria-label="Удалить цитату" title="Удалить">🗑️</button>
                 </div>
-            </div>
+             </div>
         `;
     }
     
