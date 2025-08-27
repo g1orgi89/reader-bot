@@ -318,7 +318,7 @@ class DiaryPage {
                          <span>✨</span>
                          <span>Анализ от Анны</span>
                     </div>
-                    ${summary ? `<div class="ai-summary" style="margin-bottom:6px;color:var(--text-primary);"><b>Ответ Анны:</b> ${summary}</div>` : ''}
+                    ${summary ? `<div class="ai-text"><b>Ответ Анны:</b> ${summary}</div>` : ''}
                     ${insights ? `<div class="ai-text"><b>Инсайт:</b> ${insights}</div>` : ''}
                 </div>
             `;
