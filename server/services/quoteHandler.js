@@ -584,7 +584,7 @@ class QuoteHandler {
 
     // Собираем ответ по блокам
     let summaryParts = [
-      random(diaryLines),               о// ← ВСЕГДА первая строка!
+      random(diaryLines),                // ← ВСЕГДА первая строка!
       random(greetings),                 // ← ВСЕГДА вторая строка!
       insightLine ? insightLine : "",
       random(authorLines),
