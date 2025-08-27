@@ -336,34 +336,6 @@ class DiaryPage {
         `;
     }
 
-    // ✅ ИСПРАВЛЕНО: Упрощенная логика поиска insights
-    const lastQuote = this.state.get('lastAddedQuote');
-    console.log('DEBUG: lastAddedQuote:', lastQuote);
-    
-    if (lastQuote && lastQuote.insights) {
-        return `
-            <div class="ai-insight">
-                <div class="ai-title">
-                    <span>✨</span>
-                    <span>Анализ от Анны</span>
-                </div>
-                <div class="ai-text">${lastQuote.insights}</div>
-            </div>
-    `;
-}
-
-    // Fallback — если нет инсайта
-    return `
-        <div class="ai-insight">
-            <div class="ai-title">
-                <span>✨</span>
-                <span>Анализ от Анны</span>
-            </div>
-            <div class="ai-text">Добавьте цитату, и я проанализирую ваши предпочтения!</div>
-        </div>
-    `;
-}
-    
     /**
      * 📊 СТАТИСТИКА (ТОЧНО ИЗ КОНЦЕПТА!)
      */
