@@ -531,8 +531,10 @@ class QuoteHandler {
    */
   async generateAnnaResponse(parsedQuote, analysis, todayCount, userId) {
     let { author } = parsedQuote;
+    
     // Корректная подстановка для "Я"
-    if (author && author.trim().toLowerCase() === "я") author = "Вы";
+    const isAuthorMe = author && author.trim().toLowerCase() === "я";
+    if (isAuthorMe) author = "Вы";
     const isClassicAuthor = author && this._isClassicAuthor(author);
 
     // Получаем статистику недели
@@ -555,7 +557,13 @@ class QuoteHandler {
       "Ваша библиотека пополнилась."
     ];
 
-    const authorLines = author
+    const authorLines = isAuthorMe
+      ? [
+          "Ваши собственные мысли всегда ценны.",
+          "Люблю, когда вы делитесь своими идеями!",
+          "Отличный вклад в дневник от вас лично!"
+        ]
+      : author
       ? [
           `${author} — один из моих любимых авторов.`,
           `Я тоже люблю цитаты ${author}.`,
