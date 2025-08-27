@@ -294,47 +294,47 @@ class DiaryPage {
     /**
      * ✨ AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!) - 🔧 ИСПРАВЛЕНО: НЕТ ДУБЛИРОВАНИЯ
      */
-     renderAIInsight() {
-         if (this.statsLoading) {
-             return `
-                 <div class="ai-insight">
-                     <div class="ai-title">
+    renderAIInsight() {
+        if (this.statsLoading) {
+            return `
+                <div class="ai-insight">
+                    <div class="ai-title">
+                        <span>✨</span>
+                        <span>Анализ от Анны</span>
+                    </div>
+                    <div class="ai-text">⏳ Анализируем ваши цитаты...</div>
+                </div>
+            `;
+        }
+
+        const lastQuote = this.state.get('lastAddedQuote');
+        const summary = lastQuote?.aiAnalysis?.summary || lastQuote?.summary || '';
+        const insights = lastQuote?.insights || lastQuote?.aiAnalysis?.insights || '';
+
+        if (lastQuote && (summary || insights)) {
+            return `
+                <div class="ai-insight">
+                    <div class="ai-title">
                          <span>✨</span>
                          <span>Анализ от Анны</span>
-                     </div>
-                     <div class="ai-text">⏳ Анализируем ваши цитаты...</div>
-                 </div>
-             `;
-          }
+                    </div>
+                    ${summary ? `<div class="ai-summary" style="margin-bottom:6px;color:var(--text-primary);"><b>Ответ Анны:</b> ${summary}</div>` : ''}
+                    ${insights ? `<div class="ai-text"><b>Инсайт:</b> ${insights}</div>` : ''}
+                </div>
+            `;
+        }
 
-          const lastQuote = this.state.get('lastAddedQuote');
-          const summary = lastQuote?.aiAnalysis?.summary || lastQuote?.summary || '';
-          const insights = lastQuote?.insights || lastQuote?.aiAnalysis?.insights || '';
-
-          if (lastQuote && (summary || insights)) {
-              return `
-                  <div class="ai-insight">
-                      <div class="ai-title">
-                          <span>✨</span>
-                          <span>Анализ от Анны</span>
-                      </div>
-                      ${summary ? `<div class="ai-summary" style="margin-bottom:6px;color:var(--text-primary);"><b>Ответ Анны:</b> ${summary}</div>` : ''}
-                      ${insights ? `<div class="ai-text"><b>Инсайт:</b> ${insights}</div>` : ''}
-                  </div>
-              `;
-          }
-
-          // Fallback — если нет инсайта и summary
-          return `
-              <div class="ai-insight">
-                  <div class="ai-title">
-                      <span>✨</span>
-                      <span>Анализ от Анны</span>
-                  </div>
-                  <div class="ai-text">Добавьте цитату, и я проанализирую ваши предпочтения!</div>
-              </div>
-          `;
-      }
+        // Fallback — если нет инсайта и summary
+        return `
+            <div class="ai-insight">
+                <div class="ai-title">
+                    <span>✨</span>
+                    <span>Анализ от Анны</span>
+                </div>
+                <div class="ai-text">Добавьте цитату, и я проанализирую ваши предпочтения!</div>
+            </div>
+        `;
+    }
 
     // ✅ ИСПРАВЛЕНО: Упрощенная логика поиска insights
     const lastQuote = this.state.get('lastAddedQuote');
