@@ -584,10 +584,10 @@ class QuoteHandler {
 
     // Собираем ответ по блокам
     let summaryParts = [
-      random(greetings),
+      random(diaryLines),               о// ← ВСЕГДА первая строка!
+      random(greetings),                 // ← ВСЕГДА вторая строка!
       insightLine ? insightLine : "",
       random(authorLines),
-      Math.random() < 0.7 ? random(diaryLines) : "",
       milestone,
       `Цитат на этой неделе: ${weekQuotes}`
     ];
