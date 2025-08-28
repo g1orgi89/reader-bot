@@ -669,25 +669,7 @@ class DiaryPage {
             saveBtn.addEventListener('click', () => this.handleSaveQuote());
         }
     }
-    
-    attachFilterListeners() {
-        const filterTabs = document.querySelectorAll('.filter-tab[data-filter]');
-        filterTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const filter = tab.dataset.filter;
-                this.applyFilter(filter);
-            });
-        });
-        
-        const searchFilters = document.querySelectorAll('.search-filter[data-search-filter]');
-        searchFilters.forEach(filter => {
-            filter.addEventListener('click', () => {
-                const filterType = filter.dataset.searchFilter;
-                this.applySearchFilter(filterType);
-            });
-        });
-    }
-    
+     
     attachQuoteActionListeners() {
         // Keep existing logic for search tab only
         const quoteActions = document.querySelectorAll('.quote-action[data-action]');
