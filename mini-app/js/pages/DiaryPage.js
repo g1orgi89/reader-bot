@@ -149,7 +149,7 @@ class DiaryPage {
             }
             
             const params = {
-                page: this.currentPage,
+                offset: (this.currentPage - 1) * this.itemsPerPage,
                 limit: this.itemsPerPage,
                 sort: 'createdAt',
                 order: 'desc'
@@ -179,13 +179,14 @@ class DiaryPage {
                 this.state.set('quotes.items', [...existingQuotes, ...quotes]);
             }
             
+            const total = response.pagination?.total || quotes.length;
             this.state.update('quotes', {
-                total: response.total || quotes.length,
+                total,
                 loading: false,
-                lastUpdate: Date.now() // ✅ НОВОЕ: Время обновления
+                lastUpdate: Date.now()
             });
             
-            this.hasMore = quotes.length === this.itemsPerPage;
+            this.hasMore = (this.currentPage * this.itemsPerPage) < total;
             this.quotesLoaded = true; // ✅ НОВОЕ: Помечаем как загруженное
             
         } catch (error) {
@@ -424,16 +425,22 @@ class DiaryPage {
  }
 
     renderPagination() {
-        // Показываем пагинацию только если цитат больше чем itemsPerPage
-        const quotes = this.state.get('quotes.items') || [];
-        if (quotes.length < this.itemsPerPage && this.currentPage === 1) return '';
+        const total = this.state.get('quotes.total') || 0;
+        if (total <= this.itemsPerPage) return ''; // если всё помещается на одной странице — не показывать пагинацию
+
+        const start = (this.currentPage - 1) * this.itemsPerPage + 1;
+        const end = Math.min(this.currentPage * this.itemsPerPage, total);
+        const totalPages = Math.max(1, Math.ceil(total / this.itemsPerPage));
 
         return `
-            <div class="quotes-pagination" style="display:flex;gap:10px;justify-content:center;margin:16px 0;">
+            <div class="quotes-pagination" style="display:flex;gap:10px;justify-content:center;margin:16px 0;align-items:center;">
+                <span style="min-width: 120px; text-align:center;">
+                    Показано ${start}-${end} из ${total}
+                </span>
                 <button class="pagination-btn" id="prevPageBtn" ${this.currentPage === 1 ? 'disabled' : ''}>⬅️ Предыдущая</button>
-                <span style="align-self:center">Стр. ${this.currentPage}</span>
+                <span style="align-self:center">Стр. ${this.currentPage} из ${totalPages}</span>
                 <button class="pagination-btn" id="nextPageBtn" ${!this.hasMore ? 'disabled' : ''}>Следующая ➡️</button>
-        </div>
+            </div>
         `;
     }
     
@@ -916,6 +923,8 @@ class DiaryPage {
     
     async applyFilter(filter) {
         this.currentFilter = filter;
+        this.currentpage1;
+        
         // Сбросить filterAuthor если переключились с "по автору"
         if (filter !== 'by-author') this.filterAuthor = '';
         this.telegram.hapticFeedback('light');
@@ -927,6 +936,12 @@ class DiaryPage {
             console.error('❌ Ошибка применения фильтра:', error);
         }
         this.rerender();
+    }
+    
+    changePage(newPage) {
+    if (newPage < 1) return;
+    this.currentPage = newPage;
+    this.loadQuotes(true);
     }
     
     applySearchFilter(filter) {
