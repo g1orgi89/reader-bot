@@ -929,16 +929,6 @@ class DiaryPage {
         this.rerender();
     }
     
-            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед загрузкой
-            const userId = await this.waitForValidUserId();
-            await this.loadQuotes(true, userId);
-        } catch (error) {
-            console.error('❌ Ошибка применения фильтра:', error);
-        }
-        
-        this.rerender();
-    }
-    
     applySearchFilter(filter) {
         this.activeSearchFilter = filter;
         this.telegram.hapticFeedback('light');
