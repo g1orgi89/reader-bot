@@ -544,7 +544,7 @@ class ApiService {
         
         params.append('userId', userId);
         if (options.limit) params.append('limit', options.limit);
-        if (options.offset) params.append('offset', options.offset);
+        if (typeof options.offset !== 'undefined') params.append('offset', options.offset);
         if (options.author) params.append('author', options.author);
         if (options.search) params.append('search', options.search);
         if (options.dateFrom) params.append('dateFrom', options.dateFrom);
