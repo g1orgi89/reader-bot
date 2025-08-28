@@ -795,6 +795,10 @@ router.get('/quotes', telegramAuth, async (req, res) => {
 
     const query = { userId };
 
+    if (req.query.favorites) {
+      query.isFavorite = true;
+    }
+    
     if (author) {
       query.author = new RegExp(author, 'i');
     }
