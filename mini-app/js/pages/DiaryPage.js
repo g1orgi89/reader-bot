@@ -406,12 +406,6 @@ class DiaryPage {
             return this.renderEmptyQuotes();
         }
         
-        // ✅ ИСПРАВЛЕНО: Показываем только реальные цитаты пользователя
-        const displayQuotes = quotes;
-        
-        return displayQuotes.map(quote => this.renderQuoteItem(quote)).join('');
-    }
-
         // Показываем только реальные цитаты пользователя
     const displayQuotes = quotes;
 
