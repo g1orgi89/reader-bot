@@ -411,11 +411,18 @@ class DiaryPage {
         
         return displayQuotes.map(quote => this.renderQuoteItem(quote)).join('');
     }
-    
+
+        // Показываем только реальные цитаты пользователя
+    const displayQuotes = quotes;
+
+    // Вызываем renderQuoteItem с showAnalysis = false (по умолчанию)
+    return displayQuotes.map(quote => this.renderQuoteItem(quote, false)).join('');
+ }
+
     /**
      * 📝 КАРТОЧКА ЦИТАТЫ (ОБНОВЛЕНО: с kebab меню и новыми стилями!)
      */
-    renderQuoteItem(quote) {
+    renderQuoteItem(quote, showAnalysis = false) {
         const isFavorite = quote.isFavorite || false;
         const author = quote.author ? `— ${quote.author}` : '';
         const heartIcon = isFavorite ? '❤️' : '🤍';
