@@ -162,6 +162,9 @@ class DiaryPage {
                 weekAgo.setDate(weekAgo.getDate() - 7);
                 params.dateFrom = weekAgo.toISOString();
             }
+            if (this.currentFilter === 'by-author' && this.filterAuthor) {
+            params.author = this.filterAuthor;
+            }
             
             // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const response = await this.api.getQuotes(params, userId);
@@ -363,6 +366,7 @@ class DiaryPage {
                 ${this.renderFilters()}
                 ${this.renderQuotesStats()}
                 ${this.renderQuotesList(quotes, loading)}
+                ${this.renderPagination()}
             </div>
         `;
     }
@@ -413,6 +417,20 @@ class DiaryPage {
     return displayQuotes.map(quote => this.renderQuoteItem(quote, false)).join('');
  }
 
+    renderPagination() {
+        // Показываем пагинацию только если цитат больше чем itemsPerPage
+        const quotes = this.state.get('quotes.items') || [];
+        if (quotes.length < this.itemsPerPage && this.currentPage === 1) return '';
+
+        return `
+            <div class="quotes-pagination" style="display:flex;gap:10px;justify-content:center;margin:16px 0;">
+                <button class="pagination-btn" id="prevPageBtn" ${this.currentPage === 1 ? 'disabled' : ''}>⬅️ Предыдущая</button>
+                <span style="align-self:center">Стр. ${this.currentPage}</span>
+                <button class="pagination-btn" id="nextPageBtn" ${!this.hasMore ? 'disabled' : ''}>Следующая ➡️</button>
+        </div>
+        `;
+    }
+    
     /**
      * 📝 КАРТОЧКА ЦИТАТЫ (ОБНОВЛЕНО: с kebab меню и новыми стилями!)
      */
@@ -573,6 +591,11 @@ class DiaryPage {
         this.attachFilterListeners();
         this.attachQuoteActionListeners();
         this.attachSearchListeners();
+
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        if (prevPageBtn) prevPageBtn.addEventListener('click', () => this.changePage(this.currentPage - 1));
+        if (nextPageBtn) nextPageBtn.addEventListener('click', () => this.changePage(this.currentPage + 1));
         
         // Note: MyQuotesView mounting removed for reliability - kebab functionality is now self-contained
     }
@@ -585,6 +608,14 @@ class DiaryPage {
                 this.switchTab(tabName);
             });
         });
+    }
+
+    async changePage(newPage) {
+        if (newPage < 1) return;
+        this.currentPage = newPage;
+        const userId = await this.waitForValidUserId();
+        await this.loadQuotes(true, userId);
+        this.rerender();
     }
     
     attachFormListeners() {
