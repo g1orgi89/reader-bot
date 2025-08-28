@@ -157,7 +157,8 @@ class DiaryPage {
             
             if (this.currentFilter === 'favorites') {
                 params.favorites = true;
-            } else if (this.currentFilter === 'this-week') {
+            } 
+            if (this.currentFilter === 'this-week') {
                 const weekAgo = new Date();
                 weekAgo.setDate(weekAgo.getDate() - 7);
                 params.dateFrom = weekAgo.toISOString();
@@ -381,9 +382,14 @@ class DiaryPage {
                 <button class="filter-tab ${this.currentFilter === 'favorites' ? 'active' : ''}" data-filter="favorites">Избранные</button>
                 <button class="filter-tab ${this.currentFilter === 'this-week' ? 'active' : ''}" data-filter="this-week">Эта неделя</button>
                 <button class="filter-tab ${this.currentFilter === 'by-author' ? 'active' : ''}" data-filter="by-author">По автору</button>
+                ${
+                    this.currentFilter === 'by-author'
+                        ? `<input class="filter-author-input" id="filterAuthorInput" placeholder="Имя автора" value="${this.filterAuthor || ''}" style="margin-left:10px;max-width:150px;">`
+                        : ''
+                }
             </div>
         `;
-    }
+    }    
     
     /**
      * 📊 СТАТИСТИКА ЦИТАТ (ТОЧНО ИЗ КОНЦЕПТА!)
@@ -610,12 +616,34 @@ class DiaryPage {
         });
     }
 
-    async changePage(newPage) {
-        if (newPage < 1) return;
-        this.currentPage = newPage;
-        const userId = await this.waitForValidUserId();
-        await this.loadQuotes(true, userId);
-        this.rerender();
+    attachFilterListeners() {
+        const filterTabs = document.querySelectorAll('.filter-tab[data-filter]');
+        filterTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const filter = tab.dataset.filter;
+                this.applyFilter(filter);
+            });
+        });
+
+        // Для фильтра "По автору"
+        const filterAuthorInput = document.getElementById('filterAuthorInput');
+        if (filterAuthorInput) {
+            filterAuthorInput.addEventListener('input', async (e) => {
+                this.filterAuthor = e.target.value;
+                this.currentPage = 1;
+                await this.loadQuotes(true, await this.waitForValidUserId());
+                this.rerender();
+            });
+        }
+
+        // ... остальные search фильтры оставь как есть
+        const searchFilters = document.querySelectorAll('.search-filter[data-search-filter]');
+        searchFilters.forEach(filter => {
+            filter.addEventListener('click', () => {
+                const filterType = filter.dataset.searchFilter;
+                this.applySearchFilter(filterType);
+            });
+        });
     }
     
     attachFormListeners() {
@@ -906,10 +934,19 @@ class DiaryPage {
     
     async applyFilter(filter) {
         this.currentFilter = filter;
+        // Сбросить filterAuthor если переключились с "по автору"
+        if (filter !== 'by-author') this.filterAuthor = '';
         this.telegram.hapticFeedback('light');
         this.updateFilterUI();
-        
         try {
+            const userId = await this.waitForValidUserId();
+            await this.loadQuotes(true, userId);
+        } catch (error) {
+            console.error('❌ Ошибка применения фильтра:', error);
+        }
+        this.rerender();
+    }
+    
             // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед загрузкой
             const userId = await this.waitForValidUserId();
             await this.loadQuotes(true, userId);
@@ -946,51 +983,31 @@ class DiaryPage {
         try {
             const quotes = this.state.get('quotes.items') || [];
             const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-            
             if (!quote) return;
-            
-            // ✅ ИСПРАВЛЕНО: Обновляем локально и через API
+
             const newFavoriteState = !quote.isFavorite;
             quote.isFavorite = newFavoriteState;
-            this.state.set('quotes.items', [...this.state.get('quotes.items')]);
-            
-            // Immediately update UI if card and button are provided
+            this.state.set('quotes.items', [...quotes]);
+
+            // Правильный эндпоинт для toggle избранного!
+            try {
+                await this.api.post(`/quotes/${quoteId}/favorite`, { isFavorite: newFavoriteState });
+            } catch (apiError) {
+                // Можно обработать ошибку: например, вернуть в исходное состояние
+                quote.isFavorite = !newFavoriteState;
+                this.state.set('quotes.items', [...quotes]);
+            }
+
             if (card && btn) {
                 card.classList.toggle('liked', newFavoriteState);
                 btn.textContent = newFavoriteState ? '❤️' : '🤍';
             }
-            
-            // ✅ НОВОЕ: Вызываем API для сохранения на сервере (для будущей реализации)
-            try {
-                await this.api.post(`/quotes/${quoteId}/favorite`, { 
-                    isFavorite: newFavoriteState 
-                });
-                console.log('✅ Избранное обновлено на сервере');
-            } catch (apiError) {
-                console.log('⚠️ Избранное обновлено только локально (API endpoint не реализован):', apiError.message);
-                // Не показываем ошибку пользователю, так как локально все работает
-            }
-            
+
             this.telegram.hapticFeedback('success');
-            
-            // Only rerender if immediate UI update wasn't done
-            if (!card || !btn) {
-                this.rerender();
-            }
-            
+            if (!card || !btn) this.rerender();
         } catch (error) {
             console.error('❌ Ошибка обновления избранного:', error);
             this.telegram.hapticFeedback('error');
-            
-            // Rollback UI changes if they were made
-            if (card && btn) {
-                const quotes = this.state.get('quotes.items') || [];
-                const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-                if (quote) {
-                    card.classList.toggle('liked', quote.isFavorite);
-                    btn.textContent = quote.isFavorite ? '❤️' : '🤍';
-                }
-            }
         }
     }
     
