@@ -923,7 +923,7 @@ class DiaryPage {
     
     async applyFilter(filter) {
         this.currentFilter = filter;
-        this.currentpage1;
+        this.currentpage = 1;
         
         // Сбросить filterAuthor если переключились с "по автору"
         if (filter !== 'by-author') this.filterAuthor = '';
