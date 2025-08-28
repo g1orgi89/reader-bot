@@ -422,8 +422,8 @@ class DiaryPage {
         const heartIcon = isFavorite ? '❤️' : '🤍';
 
         // Корректно берем summary и insights из новых и старых форматов
-        const summary = quote.aiAnalysis?.summary || quote.summary || '';
-        const insights = quote.insights || quote.aiAnalysis?.insights || '';
+        const summary = showAnalysis ? (quote.aiAnalysis?.summary || quote.summary || '') : '';
+        const insights = showAnalysis ? (quote.insights || quote.aiAnalysis?.insights || '') : '';
 
         return `
             <div class="quote-card my-quotes" data-id="${quote._id || quote.id}" data-quote-id="${quote._id || quote.id}">
