@@ -685,3 +685,134 @@
   .search-stats { font-size: 12px; }
   .search-tips { font-size: 11px; }
 }
+
+/* ============================================================================
+   📄 ПАГИНАЦИЯ ЦИТАТ - СОВРЕМЕННЫЙ ДИЗАЙН
+   ============================================================================ */
+
+.quotes-pagination {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 24px 0;
+    padding: 20px;
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #E6E0D6);
+    border-radius: var(--border-radius, 12px);
+    box-shadow: 0 2px 12px var(--shadow-color, rgba(210, 69, 44, 0.08));
+}
+
+.pagination-info {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary, #666666);
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: 2px solid var(--primary-color, #D2452C);
+    border-radius: var(--border-radius-small, 8px);
+    background: var(--surface, #FFFFFF);
+    color: var(--primary-color, #D2452C);
+    font-weight: 500;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-normal, 0.3s ease);
+    min-width: 100px;
+    justify-content: center;
+}
+
+.pagination-btn:hover:not(.disabled) {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--shadow-color, rgba(210, 69, 44, 0.3));
+}
+
+.pagination-btn:active:not(.disabled) {
+    transform: translateY(0);
+}
+
+.pagination-btn.disabled,
+.pagination-btn:disabled {
+    border-color: var(--border, #E6E0D6);
+    color: var(--text-muted, #999999);
+    background: var(--background-light, #FAF8F3);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.pagination-arrow {
+    font-size: 14px;
+    font-weight: bold;
+    transition: transform var(--transition-fast, 0.2s ease);
+}
+
+.pagination-btn:hover:not(.disabled) .pagination-arrow {
+    transform: scale(1.2);
+}
+
+.pagination-current {
+    padding: 10px 14px;
+    font-weight: 600;
+    color: var(--text-primary, #2D2D2D);
+    background: var(--background-light, #FAF8F3);
+    border: 2px solid var(--border, #E6E0D6);
+    border-radius: var(--border-radius-small, 8px);
+    white-space: nowrap;
+    font-size: 11px;
+}
+
+/* 📱 МОБИЛЬНАЯ АДАПТАЦИЯ ПАГИНАЦИИ */
+@media (max-width: 640px) {
+    .pagination-controls {
+        gap: 12px;
+    }
+    
+    .pagination-btn {
+        min-width: 80px;
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+    
+    .pagination-text {
+        display: none;
+    }
+    
+    .pagination-btn {
+        min-width: 45px;
+    }
+    
+    .pagination-current {
+        padding: 8px 10px;
+        font-size: 10px;
+    }
+    
+    .quotes-pagination {
+        padding: 16px;
+        margin: 16px 0;
+    }
+}
+
+/* 🎨 ТЕМНАЯ ТЕМА */
+@media (prefers-color-scheme: dark) {
+    .quotes-pagination {
+        box-shadow: 0 2px 12px rgba(232, 90, 66, 0.12);
+    }
+    
+    .pagination-btn:hover:not(.disabled) {
+        box-shadow: 0 4px 12px rgba(232, 90, 66, 0.4);
+    }
+}
