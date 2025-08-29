@@ -167,7 +167,10 @@ class DiaryPage {
             if (this.currentFilter === 'by-author' && this.filterAuthor) {
                 params.author = this.filterAuthor;
             }
-        
+
+            // ⬇️ Вставить debug-лог здесь
+            console.log('DEBUG: currentFilter=', this.currentFilter, params);
+           
             // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const response = await this.api.getQuotes(params, userId);
 
