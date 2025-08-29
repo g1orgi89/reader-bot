@@ -426,20 +426,31 @@ class DiaryPage {
 
     renderPagination() {
         const total = this.state.get('quotes.total') || 0;
-        if (total <= this.itemsPerPage) return ''; // если всё помещается на одной странице — не показывать пагинацию
+        if (total <= this.itemsPerPage) return '';
 
+        const totalPages = Math.max(1, Math.ceil(total / this.itemsPerPage));
         const start = (this.currentPage - 1) * this.itemsPerPage + 1;
         const end = Math.min(this.currentPage * this.itemsPerPage, total);
-        const totalPages = Math.max(1, Math.ceil(total / this.itemsPerPage));
+
+        const canGoPrev = this.currentPage > 1;
+        const canGoNext = this.currentPage < totalPages;
 
         return `
-            <div class="quotes-pagination" style="display:flex;gap:10px;justify-content:center;margin:16px 0;align-items:center;">
-                <span style="min-width: 120px; text-align:center;">
-                    Показано ${start}-${end} из ${total}
-                </span>
-                <button class="pagination-btn" id="prevPageBtn" ${this.currentPage === 1 ? 'disabled' : ''}>⬅️ Предыдущая</button>
-                <span style="align-self:center">Стр. ${this.currentPage} из ${totalPages}</span>
-                <button class="pagination-btn" id="nextPageBtn" ${!this.hasMore ? 'disabled' : ''}>Следующая ➡️</button>
+            <div class="quotes-pagination">
+                <div class="pagination-info">
+                    Показано ${start}-${end} из ${total} цитат
+                </div>
+                <div class="pagination-controls">
+                    <button class="pagination-btn" id="prevPageBtn" ${!canGoPrev ? 'disabled' : ''}>
+                        ⬅️ Предыдущая
+                    </button>
+                    <span class="pagination-current">
+                        Страница ${this.currentPage} из ${totalPages}
+                    </span>
+                    <button class="pagination-btn" id="nextPageBtn" ${!canGoNext ? 'disabled' : ''}>
+                        Следующая ➡️
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -938,10 +949,28 @@ class DiaryPage {
         this.rerender();
     }
     
-    changePage(newPage) {
-    if (newPage < 1) return;
-    this.currentPage = newPage;
-    this.loadQuotes(true);
+    async changePage(newPage) {
+        if (newPage < 1) return;
+
+        const maxPage = Math.max(1, Math.ceil(this.state.get('quotes.total') / this.itemsPerPage));
+        if (newPage > maxPage) return;
+
+        // ✅ ПОКАЗЫВАЕМ индикатор загрузки В НАЧАЛЕ
+        this.state.set('quotes.loading', true);
+        this.rerender();
+
+        this.currentPage = newPage;
+
+        try {
+            const userId = await this.waitForValidUserId();
+            await this.loadQuotes(false, userId); // ✅ ИСПРАВЛЕНО: false вместо true
+        } catch (error) {
+            console.error('❌ Ошибка переключения страницы:', error);
+        } finally {
+            // ✅ УБИРАЕМ индикатор загрузки В КОНЦЕ (в любом случае)
+            this.state.set('quotes.loading', false);
+            this.rerender(); // ✅ Финальный рендер с новыми данными
+        }
     }
     
     applySearchFilter(filter) {
