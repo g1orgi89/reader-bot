@@ -132,29 +132,30 @@ class DiaryPage {
             console.log('🔄 DiaryPage: Цитаты уже загружаются, пропускаем');
             return;
         }
-        
+    
         try {
             this.quotesLoading = true;
             console.log('📚 DiaryPage: Загружаем цитаты');
-            
+        
             // ✅ ИСПРАВЛЕНО: Ждем валидный userId если не передан
             if (!userId) {
                 userId = await this.waitForValidUserId();
             }
             console.log('📚 DiaryPage: Загружаем цитаты для userId:', userId);
-            
+        
+            // ✅ ЕДИНСТВЕННАЯ обработка reset - БЕЗ СБРОСА currentPage!
             if (reset) {
-                this.currentPage = 1;
                 this.hasMore = true;
+                // НЕ СБРАСЫВАЕМ this.currentPage = 1 !!!
             }
-            
+        
             const params = {
                 offset: (this.currentPage - 1) * this.itemsPerPage,
                 limit: this.itemsPerPage,
                 sort: 'createdAt',
                 order: 'desc'
             };
-            
+        
             if (this.currentFilter === 'favorites') {
                 params.favorites = true;
             } 
@@ -164,7 +165,7 @@ class DiaryPage {
                 params.dateFrom = weekAgo.toISOString();
             }
             if (this.currentFilter === 'by-author' && this.filterAuthor) {
-            params.author = this.filterAuthor;
+                params.author = this.filterAuthor;
             }
             
             // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
