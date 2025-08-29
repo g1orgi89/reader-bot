@@ -157,7 +157,7 @@ router.get('/recent', async (req, res) => {
 router.get('/', async (req, res) => {
     try {
         const {
-            period = '7d',
+            period = 'all',
             category = 'all',
             author = 'all',
             search = '',
