@@ -127,7 +127,6 @@ class DiaryPage {
     }
     
    async loadQuotes(reset = false, userId = null) {
-        // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
         if (this.quotesLoading) {
             console.log('🔄 DiaryPage: Цитаты уже загружаются, пропускаем');
             return;
@@ -135,18 +134,12 @@ class DiaryPage {
 
         try {
             this.quotesLoading = true;
-            console.log('📚 DiaryPage: Загружаем цитаты');
-
-            // ✅ ИСПРАВЛЕНО: Ждем валидный userId если не передан
             if (!userId) {
                 userId = await this.waitForValidUserId();
             }
-            console.log('📚 DiaryPage: Загружаем цитаты для userId:', userId);
 
-            // ✅ ЕДИНСТВЕННАЯ обработка reset - БЕЗ СБРОСА currentPage!
             if (reset) {
                 this.hasMore = true;
-                // НЕ СБРАСЫВАЕМ this.currentPage = 1 !!!
             }
 
             const params = {
@@ -155,31 +148,33 @@ class DiaryPage {
                 sort: 'createdAt',
                 order: 'desc'
             };
-
+    
             if (this.currentFilter === 'favorites') {
                 params.favorites = true;
-            } 
-            if (this.currentFilter === 'this-week') {
+            } else if (this.currentFilter === 'this-week') {
                 const weekAgo = new Date();
                 weekAgo.setDate(weekAgo.getDate() - 7);
                 params.dateFrom = weekAgo.toISOString();
-            }
-            if (this.currentFilter === 'by-author' && this.filterAuthor) {
+            } else if (this.currentFilter === 'by-author' && this.filterAuthor) {
                 params.author = this.filterAuthor;
             }
 
-            // ⬇️ Вставить debug-лог здесь
+            // Гарантируем что при фильтре "all" не уйдет никаких лишних фильтров
+            if (this.currentFilter === 'all') {
+                delete params.dateFrom;
+                delete params.dateTo;
+                delete params.favorites;
+                delete params.author;
+            }
+
             console.log('DEBUG: currentFilter=', this.currentFilter, params);
-           
-            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
+
             const response = await this.api.getQuotes(params, userId);
 
-            // --- ВАЖНО! Исправленный парсинг под твой API ---
             const root = response.data || response;
             const quotes = root.quotes || root.items || [];
             const pagination = root.pagination || {};
             const total = pagination.totalCount || pagination.total || quotes.length;
-            // -------------------------------------------------
 
             if (reset || this.currentPage === 1) {
                 this.state.set('quotes.items', quotes);
@@ -195,13 +190,13 @@ class DiaryPage {
             });
 
             this.hasMore = (this.currentPage * this.itemsPerPage) < total;
-            this.quotesLoaded = true; // ✅ НОВОЕ: Помечаем как загруженное
+            this.quotesLoaded = true;
 
          } catch (error) {
             console.error('❌ Ошибка загрузки цитат:', error);
             this.state.set('quotes.loading', false);
-            } finally {
-            this.quotesLoading = false; // ✅ НОВОЕ: Сбрасываем флаг
+        } finally {
+            this.quotesLoading = false;
         }
     }
     
