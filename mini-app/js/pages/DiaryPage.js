@@ -442,14 +442,16 @@ class DiaryPage {
                     Показано ${start}-${end} из ${total} цитат
                 </div>
                 <div class="pagination-controls">
-                    <button class="pagination-btn" id="prevPageBtn" ${!canGoPrev ? 'disabled' : ''}>
-                        ⬅️ Предыдущая
+                    <button class="pagination-btn ${!canGoPrev ? 'disabled' : ''}" id="prevPageBtn" ${!canGoPrev ? 'disabled' : ''}>
+                        <span class="pagination-arrow">←</span>
+                        <span class="pagination-text">Предыдущая</span>
                     </button>
                     <span class="pagination-current">
                         Страница ${this.currentPage} из ${totalPages}
                     </span>
-                    <button class="pagination-btn" id="nextPageBtn" ${!canGoNext ? 'disabled' : ''}>
-                        Следующая ➡️
+                    <button class="pagination-btn ${!canGoNext ? 'disabled' : ''}" id="nextPageBtn" ${!canGoNext ? 'disabled' : ''}>
+                        <span class="pagination-text">Следующая</span>
+                        <span class="pagination-arrow">→</span>
                     </button>
                 </div>
             </div>
