@@ -562,7 +562,7 @@ app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
 app.use(`${config.app.apiPrefix}/reports`, reportRoutes);
 app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
 app.use(`${config.app.apiPrefix}/users`, usersRoutes);
-app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
+// app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
 app.use(`${config.app.apiPrefix}/debug`, debugRoutes);
 app.use(`${config.app.apiPrefix}`, readerRoutes);
 
