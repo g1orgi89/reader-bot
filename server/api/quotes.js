@@ -73,6 +73,8 @@ const UserProfile = require('../models/userProfile');
  * КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Добавлен роут /recent ПЕРЕД /:id для предотвращения конфликта
  */
 router.get('/recent', async (req, res) => {
+    console.log('=== [API/QUOTES] GET /api/quotes called ===', req.query);    
+  
     try {
         // ИСПРАВЛЕНИЕ: Убираем fallback к demo-user, требуем аутентификации
         const userId = req.userId || req.query.userId;
