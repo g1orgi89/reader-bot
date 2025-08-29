@@ -966,7 +966,7 @@ class DiaryPage {
 
         try {
             const userId = await this.waitForValidUserId();
-            await this.loadQuotes(false, userId); // ✅ ИСПРАВЛЕНО: false вместо true
+            await this.loadQuotes(true, userId); // ✅ ИСПРАВЛЕНО: true вместо false 
         } catch (error) {
             console.error('❌ Ошибка переключения страницы:', error);
         } finally {
