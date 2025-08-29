@@ -767,7 +767,7 @@ class DiaryPage {
         // Note: MyQuotesView management removed for reliability - kebab functionality is now self-contained
         
         // ✅ ИСПРАВЛЕНО: Умная загрузка при переключении табов с userId
-        if (tabName === 'my-quotes' && !this.quotesLoaded) {
+        if (tabName === 'my-quotes') {
             this.waitForValidUserId().then(userId => {
                 this.loadQuotes(true, userId);
             }).catch(error => {
