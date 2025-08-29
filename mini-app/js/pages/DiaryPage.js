@@ -941,10 +941,16 @@ class DiaryPage {
     
     async applyFilter(filter) {
         this.currentFilter = filter;
-        this.currentpage = 1;
-        
-        // Сбросить filterAuthor если переключились с "по автору"
+        this.currentPage = 1;
+
         if (filter !== 'by-author') this.filterAuthor = '';
+
+        // Явно сбрасываем временные фильтры
+        if (filter === 'all') {
+            this.dateFrom = undefined;
+            this.dateTo = undefined;
+        }
+
         this.telegram.hapticFeedback('light');
         this.updateFilterUI();
         try {
