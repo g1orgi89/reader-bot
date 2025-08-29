@@ -126,36 +126,36 @@ class DiaryPage {
         }
     }
     
-    async loadQuotes(reset = false, userId = null) {
+   async loadQuotes(reset = false, userId = null) {
         // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
         if (this.quotesLoading) {
             console.log('🔄 DiaryPage: Цитаты уже загружаются, пропускаем');
             return;
         }
-    
+
         try {
             this.quotesLoading = true;
             console.log('📚 DiaryPage: Загружаем цитаты');
-        
+
             // ✅ ИСПРАВЛЕНО: Ждем валидный userId если не передан
             if (!userId) {
                 userId = await this.waitForValidUserId();
             }
             console.log('📚 DiaryPage: Загружаем цитаты для userId:', userId);
-        
+
             // ✅ ЕДИНСТВЕННАЯ обработка reset - БЕЗ СБРОСА currentPage!
             if (reset) {
                 this.hasMore = true;
                 // НЕ СБРАСЫВАЕМ this.currentPage = 1 !!!
             }
-        
+
             const params = {
                 offset: (this.currentPage - 1) * this.itemsPerPage,
                 limit: this.itemsPerPage,
                 sort: 'createdAt',
                 order: 'desc'
             };
-        
+
             if (this.currentFilter === 'favorites') {
                 params.favorites = true;
             } 
@@ -167,33 +167,37 @@ class DiaryPage {
             if (this.currentFilter === 'by-author' && this.filterAuthor) {
                 params.author = this.filterAuthor;
             }
-            
+        
             // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const response = await this.api.getQuotes(params, userId);
-            // ✅ ИСПРАВЛЕНО: Правильно извлекаем цитаты из ответа API
-            const quotes = response.data?.quotes || response.quotes || response.items || response || [];
-            
+
+            // --- ВАЖНО! Исправленный парсинг под твой API ---
+            const root = response.data || response;
+            const quotes = root.quotes || root.items || [];
+            const pagination = root.pagination || {};
+            const total = pagination.totalCount || pagination.total || quotes.length;
+            // -------------------------------------------------
+
             if (reset || this.currentPage === 1) {
                 this.state.set('quotes.items', quotes);
             } else {
                 const existingQuotes = this.state.get('quotes.items') || [];
                 this.state.set('quotes.items', [...existingQuotes, ...quotes]);
             }
-            
-            const total = response.pagination?.total || quotes.length;
+
             this.state.update('quotes', {
                 total,
                 loading: false,
                 lastUpdate: Date.now()
             });
-            
+
             this.hasMore = (this.currentPage * this.itemsPerPage) < total;
             this.quotesLoaded = true; // ✅ НОВОЕ: Помечаем как загруженное
-            
-        } catch (error) {
+
+         } catch (error) {
             console.error('❌ Ошибка загрузки цитат:', error);
             this.state.set('quotes.loading', false);
-        } finally {
+            } finally {
             this.quotesLoading = false; // ✅ НОВОЕ: Сбрасываем флаг
         }
     }
