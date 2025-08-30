@@ -291,7 +291,7 @@ router.post('/auth/complete-onboarding', async (req, res) => {
       console.log(`⚠️ Already completed (idempotent): ${userId}`);
       return res.json({ 
         success: true,
-        message: annaSummary,
+        message: 'Цитата сохранена успешно',
         data: {
           id: result.quote._id,
           text: result.quote.text,
@@ -301,6 +301,7 @@ router.post('/auth/complete-onboarding', async (req, res) => {
           sentiment: result.quote.sentiment,
           themes: result.quote.themes,
           insights: result.quote.insights,
+          summary: annaSummary,
           createdAt: result.quote.createdAt,
           isEdited: result.quote.isEdited,
           editedAt: result.quote.editedAt,
