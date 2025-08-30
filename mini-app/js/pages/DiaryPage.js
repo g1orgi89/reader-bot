@@ -855,7 +855,8 @@ class DiaryPage {
             let themes = data.themes || data.quote?.themes;
             let category = data.category || data.quote?.category;
             let sentiment = data.sentiment || data.quote?.sentiment;
-
+            let summary = data.summary || data.quote?.summary || savedQuote?.message || '';
+            
             // Если insights или другие поля отсутствуют, но есть message как JSON — парсим!
             if ((!insights || !themes || !category) && typeof data.message === 'string') {
                 try {
@@ -864,14 +865,21 @@ class DiaryPage {
                     themes = themes || ai.themes;
                     category = category || ai.category;
                     sentiment = sentiment || ai.sentiment;
+                    summary = summary || ai.summary;
                 } catch (e) {
                     console.log('DEBUG: message не парсится как JSON', e);
                 }
             }
 
+            // Если summary все еще пустой, попробуем взять из message напрямую
+            if (!summary && data.message && typeof data.message === 'string') {
+                summary = data.message; // ← ДОБАВИТЬ ЭТО!
+            }
+            
             this.state.set('lastAddedQuote', {
                 ...data,
                 insights,
+                summary,
                 themes,
                 category,
                 sentiment
