@@ -693,52 +693,59 @@ router.post('/quotes', telegramAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-  try {
-    const result = await quoteHandler.handleQuote(userId, text);
-
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        error: result.message
-      });
-    }
-
-    await user.updateQuoteStats(result.quote.author);
-
-    // ДОБАВЛЯЕМ summary (Ответ Анны)
-    let annaSummary = '';
+    // Основная логика добавления цитаты
     try {
-      annaSummary = await quoteHandler.generateAnnaResponse(
-        { text: result.quote.text, author: result.quote.author },
-        { category: result.quote.category, themes: result.quote.themes, sentiment: result.quote.sentiment },
-        result.todayCount,
-        userId
-      );
-    } catch (err) {
-      annaSummary = '';
+      const result = await quoteHandler.handleQuote(userId, text);
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: result.message
+        });
+      }
+
+      await user.updateQuoteStats(result.quote.author);
+
+      // Генерация "Ответа Анны" (summary)
+      let annaSummary = '';
+      try {
+        annaSummary = await quoteHandler.generateAnnaResponse(
+          { text: result.quote.text, author: result.quote.author },
+          { category: result.quote.category, themes: result.quote.themes, sentiment: result.quote.sentiment },
+          result.todayCount,
+          userId
+        );
+      } catch (err) {
+        annaSummary = '';
+      }
+
+      return res.json({
+        success: true,
+        quote: {
+          id: result.quote._id,
+          text: result.quote.text,
+          author: result.quote.author,
+          source: result.quote.source,
+          category: result.quote.category,
+          themes: result.quote.themes,
+          sentiment: result.quote.sentiment,
+          insights: result.quote.insights,
+          isEdited: result.quote.isEdited,
+          editedAt: result.quote.editedAt,
+          createdAt: result.quote.createdAt,
+          summary: annaSummary // <-- вот это поле!
+        },
+        newAchievements: result.newAchievements || [],
+        todayCount: result.todayCount
+      });
+
+    } catch (error) {
+      // Ошибка внутри вложенного try
+      console.error('❌ Inner Add Quote Error:', error);
+      return res.status(500).json({ success: false, error: error.message });
     }
-
-    return res.json({
-      success: true,
-      quote: {
-        id: result.quote._id,
-        text: result.quote.text,
-        author: result.quote.author,
-        source: result.quote.source,
-        category: result.quote.category,
-        themes: result.quote.themes,
-        sentiment: result.quote.sentiment,
-        insights: result.quote.insights,
-        isEdited: result.quote.isEdited,
-        editedAt: result.quote.editedAt,
-        createdAt: result.quote.createdAt,
-        summary: annaSummary // <-- вот это поле!
-      },
-      newAchievements: result.newAchievements || [],
-      todayCount: result.todayCount
-    });
-
   } catch (error) {
+    // Ошибка во внешнем try
     console.error('❌ Add Quote Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
