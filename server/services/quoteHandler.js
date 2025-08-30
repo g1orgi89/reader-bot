@@ -185,7 +185,7 @@ class QuoteHandler {
    * @param {string} messageText - Текст сообщения с цитатой
    * @returns {Promise<Object>} Результат обработки
    */
-  async handleQuote(userId, messageText) {
+  async handleQuote(userId, messageText, author = null, source = null) {
     try {
       // 1. Проверяем лимит цитат в день
       const todayCount = await this._checkDailyLimit(userId);
@@ -198,7 +198,9 @@ class QuoteHandler {
       }
 
       // 2. Парсим цитату
-      const parsedQuote = this._parseQuote(messageText);
+      const parsedQuote = author 
+      ? { text: messageText, author, source }  // ← ИСПОЛЬЗУЕМ ПЕРЕДАННЫЕ ДАННЫЕ
+      : this._parseQuote(messageText);         // ← ПАРСИМ ТОЛЬКО ЕСЛИ АВТОР НЕ ПЕРЕДАН
       
       // 3. Анализируем цитату через AI
       const analysis = await this._analyzeQuote(parsedQuote.text, parsedQuote.author);
