@@ -289,7 +289,7 @@ router.post('/auth/complete-onboarding', async (req, res) => {
     // 2. Идемпотентный повтор без forceRetake
     if (profile.isOnboardingComplete && !forceRetake) {
       console.log(`⚠️ Already completed (idempotent): ${userId}`);
-      return res.json({
+      return res.json({ 
         success: true,
         message: annaSummary,
         data: {
@@ -314,7 +314,7 @@ router.post('/auth/complete-onboarding', async (req, res) => {
         newAchievements: result.newAchievements || [],
         todayCount: result.todayCount
       });
-
+    }
     // Helper для построения testResults при обновлении / retake
     const buildTestResults = (prev, isRetake) => {
       const now = new Date();
