@@ -695,7 +695,7 @@ router.post('/quotes', telegramAuth, async (req, res) => {
 
     // Основная логика добавления цитаты
     try {
-      const result = await quoteHandler.handleQuote(userId, text);
+      const result = await quoteHandler.handleQuote(userId, text, author, sourse);
 
       if (!result.success) {
         return res.status(400).json({
