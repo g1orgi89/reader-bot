@@ -291,15 +291,29 @@ router.post('/auth/complete-onboarding', async (req, res) => {
       console.log(`⚠️ Already completed (idempotent): ${userId}`);
       return res.json({
         success: true,
-        alreadyCompleted: true,
-        user: {
-          userId: profile.userId,
-            name: profile.name,
-            email: profile.email,
-            isOnboardingComplete: true
-        }
+        message: annaSummary,
+        data: {
+          id: result.quote._id,
+          text: result.quote.text,
+          author: result.quote.author,
+          source: result.quote.source,
+          category: result.quote.category,
+          sentiment: result.quote.sentiment,
+          themes: result.quote.themes,
+          insights: result.quote.insights,
+          createdAt: result.quote.createdAt,
+          isEdited: result.quote.isEdited,
+          editedAt: result.quote.editedAt,
+          aiAnalysis: {
+            summary: annaSummary,
+            category: result.quote.category,
+            themes: result.quote.themes,
+            sentiment: result.quote.sentiment
+          }
+        },
+        newAchievements: result.newAchievements || [],
+        todayCount: result.todayCount
       });
-    }
 
     // Helper для построения testResults при обновлении / retake
     const buildTestResults = (prev, isRetake) => {
