@@ -693,83 +693,50 @@ router.post('/quotes', telegramAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    try {
-      const result = await quoteHandler.handleQuote(userId, text);
+  try {
+    const result = await quoteHandler.handleQuote(userId, text);
 
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          error: result.message
-        });
-      }
-
-      await user.updateQuoteStats(result.quote.author);
-
-      // ✅ ДОБАВИТЬ: Отладочный лог для проверки insights
-      console.log('DEBUG: Returning quote with insights:', result.quote.insights);
-      
-      return res.json({
-        success: true,
-        quote: {
-          id: result.quote._id,
-          text: result.quote.text,
-          author: result.quote.author,
-          source: result.quote.source,
-          category: result.quote.category,
-          themes: result.quote.themes,
-          sentiment: result.quote.sentiment,
-          insights: result.quote.insights,
-          isEdited: result.quote.isEdited,
-          editedAt: result.quote.editedAt,
-          createdAt: result.quote.createdAt
-        },
-        newAchievements: result.newAchievements || [],
-        todayCount: result.todayCount
-      });
-
-    } catch (aiError) {
-      console.warn(`⚠️ AI анализ неудачен, fallback: ${aiError.message}`);
-
-      const quote = new Quote({
-        userId,
-        text: text.trim(),
-        author: author ? author.trim() : null,
-        source: source ? source.trim() : null,
-        category: 'Другое',
-        themes: ['размышления'],
-        sentiment: 'neutral',
-        insights: 'Интересная мысль для размышления'
-      });
-      await quote.save();
-
-      // Пытаемся реанализировать в фоне
-      try {
-        const QuoteHandler = require('../handlers/QuoteHandler');
-        await QuoteHandler.reanalyzeQuote(quote._id);
-      } catch (inner) {
-        console.warn('⚠️ Fallback AI reanalysis failed:', inner.message);
-      }
-
-      await user.updateQuoteStats(author);
-
-      return res.json({
-        success: true,
-        quote: {
-          id: quote._id,
-          text: quote.text,
-          author: quote.author,
-          source: quote.source,
-          category: quote.category,
-          themes: quote.themes,
-          sentiment: quote.sentiment,
-          insights: quote.insights,
-          isEdited: quote.isEdited,
-          editedAt: quote.editedAt,
-          createdAt: quote.createdAt
-        },
-        warning: 'Quote saved without AI analysis'
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.message
       });
     }
+
+    await user.updateQuoteStats(result.quote.author);
+
+    // ДОБАВЛЯЕМ summary (Ответ Анны)
+    let annaSummary = '';
+    try {
+      annaSummary = await quoteHandler.generateAnnaResponse(
+        { text: result.quote.text, author: result.quote.author },
+        { category: result.quote.category, themes: result.quote.themes, sentiment: result.quote.sentiment },
+        result.todayCount,
+        userId
+      );
+    } catch (err) {
+      annaSummary = '';
+    }
+
+    return res.json({
+      success: true,
+      quote: {
+        id: result.quote._id,
+        text: result.quote.text,
+        author: result.quote.author,
+        source: result.quote.source,
+        category: result.quote.category,
+        themes: result.quote.themes,
+        sentiment: result.quote.sentiment,
+        insights: result.quote.insights,
+        isEdited: result.quote.isEdited,
+        editedAt: result.quote.editedAt,
+        createdAt: result.quote.createdAt,
+        summary: annaSummary // <-- вот это поле!
+      },
+      newAchievements: result.newAchievements || [],
+      todayCount: result.todayCount
+    });
 
   } catch (error) {
     console.error('❌ Add Quote Error:', error);
@@ -825,28 +792,47 @@ router.get('/quotes', telegramAuth, async (req, res) => {
 
     const total = await Quote.countDocuments(query);
 
-    res.json({
-      success: true,
-      quotes: quotes.map(q => ({
-        id: q._id,
-        text: q.text,
-        author: q.author,
-        source: q.source,
-        category: q.category,
-        themes: q.themes,
-        sentiment: q.sentiment,
-        insights: q.insights,
-        isEdited: q.isEdited,
-        editedAt: q.editedAt,
-        createdAt: q.createdAt
-      })),
-      pagination: {
-        total,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: total > parseInt(offset) + parseInt(limit)
-      }
-    });
+    // enrichment для user
+    const userIds = [...new Set(quotes.map(q => String(q.userId)))];
+    const users = await UserProfile.find(
+      { userId: { $in: userIds } },
+      { userId: 1, name: 1, telegramUsername: 1, email: 1 }
+    ).lean();
+    const userMap = users.reduce((map, user) => {
+      map[user.userId] = user;
+      return map;
+    }, {});
+
+  const enrichedQuotes = quotes.map(q => ({
+    id: q._id,
+    text: q.text,
+    author: q.author,
+    source: q.source,
+    category: q.category,
+    themes: q.themes,
+    sentiment: q.sentiment,
+    insights: q.insights,
+    isEdited: q.isEdited,
+    editedAt: q.editedAt,
+    createdAt: q.createdAt,
+    user: userMap[q.userId] ? {
+      id: userMap[q.userId].userId,
+      name: userMap[q.userId].name,
+      username: userMap[q.userId].telegramUsername,
+      email: userMap[q.userId].email
+    } : undefined
+  }));
+
+res.json({
+    success: true,
+    quotes: enrichedQuotes,
+    pagination: {
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      hasMore: total > parseInt(offset) + parseInt(limit)
+    }
+  });
 
   } catch (error) {
     console.error('❌ Get Quotes Error:', error);
