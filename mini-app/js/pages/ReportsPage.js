@@ -402,16 +402,6 @@ class ReportsPage {
         `;
     }
 
-    // fallback (заглушка и кнопка)
-    return `
-        <div class="promo-section">
-            <div class="promo-title">🎯 Специально для вас</div>
-            <div class="promo-text">${this.reportData.recommendations}</div>
-            <button class="promo-btn" id="getRecommendationsBtn">Получить рекомендации</button>
-        </div>
-    `;
-}
-    
     /**
      * 🎯 ОБРАБОТЧИКИ СОБЫТИЙ
      */
