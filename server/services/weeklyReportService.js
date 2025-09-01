@@ -350,7 +350,7 @@ class WeeklyReportService {
               
               return {
                 title: book.title,
-                price: `$${book.price}`,
+                price: Number(book.price), // <-- price всегда число!
                 description: book.description,
                 reasoning: this.generatePersonalizedReasoning(book, analysis, userProfile.testResults),
                 link: utmLink
@@ -385,7 +385,7 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Любовь')) {
       recommendations.push({
         title: 'Разбор "Искусство любить" Эриха Фромма',
-        price: '$8',
+        price: 8,
         description: 'О построении здоровых отношений с собой и миром',
         reasoning: 'Ваши цитаты показывают интерес к теме любви и отношений',
         link: this.generateFallbackUTMLink('art_of_loving')
@@ -395,7 +395,7 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Мудрость') || analysis.dominantThemes.includes('Жизненная философия')) {
       recommendations.push({
         title: '"Письма к молодому поэту" Рильке',
-        price: '$8',
+        price: 8,
         description: 'О творчестве, самопознании и поиске своего пути',
         reasoning: 'Судя по вашим цитатам, вас привлекает философский взгляд на жизнь',
         link: this.generateFallbackUTMLink('letters_to_young_poet')
@@ -405,7 +405,7 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Саморазвитие')) {
       recommendations.push({
         title: 'Курс "Быть собой"',
-        price: '$12',
+        price: 12,
         description: 'О самопринятии и аутентичности',
         reasoning: 'Ваш выбор цитат говорит о стремлении к личностному росту',
         link: this.generateFallbackUTMLink('be_yourself_course')
@@ -415,7 +415,7 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Семья')) {
       recommendations.push({
         title: 'Курс "Мудрая мама"',
-        price: '$20',
+        price: 20,
         description: 'Как сохранить себя в материнстве и воспитать счастливых детей',
         reasoning: 'Ваши цитаты отражают интерес к семейным ценностям',
         link: this.generateFallbackUTMLink('wise_mother_course')
@@ -425,7 +425,7 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Счастье')) {
       recommendations.push({
         title: '"Маленький принц" с комментариями',
-        price: '$6',
+        price: 6,
         description: 'О простых истинах жизни и важности человеческих связей',
         reasoning: 'Ваши цитаты показывают поиск простого счастья в жизни',
         link: this.generateFallbackUTMLink('little_prince')
@@ -436,7 +436,7 @@ class WeeklyReportService {
     if (recommendations.length === 0) {
       recommendations.push({
         title: '"Маленький принц" с комментариями',
-        price: '$6',
+        price: 6,
         description: 'О простых истинах жизни и важности человеческих связей',
         reasoning: 'Универсальная книга для размышлений о жизни и ценностях',
         link: this.generateFallbackUTMLink('little_prince')
