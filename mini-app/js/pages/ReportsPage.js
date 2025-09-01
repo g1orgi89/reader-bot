@@ -370,19 +370,37 @@ class ReportsPage {
                 <div class="promo-section">
                     <div class="promo-title">🎯 Специально для вас</div>
                     <div class="promo-list">
-                        ${recommendations.map(rec => `
-                            <div class="promo-book">
-                                <div class="promo-book-title">${window.escapeHtml ? window.escapeHtml(rec.title) : rec.title}</div>
-                                <div class="promo-book-desc">${window.escapeHtml ? window.escapeHtml(rec.description) : rec.description}</div>
-                                ${rec.reasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(rec.reasoning) : rec.reasoning}</div>` : ""}
-                                ${rec.price ? `<div class="promo-book-price">Цена: <b>${rec.price} BYN</b></div>` : ""}
-                                <a class="promo-book-link" href="${rec.link}" target="_blank" rel="noopener noreferrer">Подробнее</a>
-                            </div>
-                        `).join('')}
+                        ${recommendations.map(rec => {
+                            // Защита от дублирования description/reasoning
+                            const showReasoning = rec.reasoning && rec.reasoning.trim() !== '' &&
+                                rec.reasoning.trim() !== rec.description?.trim() &&
+                                rec.reasoning.trim() !== rec.title?.trim();
+
+                            return `
+                                <div class="promo-book">
+                                    <div class="promo-book-title">${window.escapeHtml ? window.escapeHtml(rec.title) : rec.title}</div>
+                                    ${rec.author ? `<div class="promo-book-author">${window.escapeHtml ? window.escapeHtml(rec.author) : rec.author}</div>` : ""}
+                                    <div class="promo-book-desc">${window.escapeHtml ? window.escapeHtml(rec.description) : rec.description}</div>
+                                    ${showReasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(rec.reasoning) : rec.reasoning}</div>` : ""}
+                                    ${rec.priceByn ? `<div class="promo-book-price">Цена: <b>${rec.priceByn} BYN</b></div>` : ""}
+                                    <a class="promo-book-link" href="${rec.link}" target="_blank" rel="noopener noreferrer">Подробнее</a>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             `;
         }
+
+        // fallback (заглушка и кнопка)
+        return `
+            <div class="promo-section">
+                <div class="promo-title">🎯 Специально для вас</div>
+                <div class="promo-text">${this.reportData.recommendations}</div>
+                <button class="promo-btn" id="getRecommendationsBtn">Получить рекомендации</button>
+            </div>
+        `;
+    }
 
     // fallback (заглушка и кнопка)
     return `
