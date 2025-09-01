@@ -351,7 +351,9 @@ class WeeklyReportService {
               
               return {
                 title: book.title,
-                price: book.price,
+                price: typeof book.price === 'string' && book.price.startsWith('$') 
+                  ? Number(book.price.replace('$', '')) 
+                  : book.price,
                 description: book.description,
                 reasoning: this.generatePersonalizedReasoning(book, analysis, userProfile.testResults),
                 link: utmLink
