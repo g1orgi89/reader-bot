@@ -101,10 +101,10 @@ const bookRecommendationSchema = new mongoose.Schema({
     // Краткое описание почему подходит
   },
   price: {
-    type: String,
+    type: Number,
     required: true,
-    match: /^\$\d+$/ // 🔧 FIX: Убрана лишняя экранировка
-    // Цена в формате $8, $12
+    min: 0
+    // Цена как число: 8, 12, 20
   },
   link: {
     type: String,
