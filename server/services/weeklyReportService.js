@@ -350,7 +350,7 @@ class WeeklyReportService {
               
               return {
                 title: book.title,
-                price: Number(book.price), // <-- price всегда число!
+                price: book.price,
                 description: book.description,
                 reasoning: this.generatePersonalizedReasoning(book, analysis, userProfile.testResults),
                 link: utmLink
