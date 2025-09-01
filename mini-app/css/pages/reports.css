@@ -379,7 +379,6 @@
 }
 
 /* === Блок рекомендаций специально для вас === */
-
 .promo-list {
     display: flex;
     flex-direction: column;
