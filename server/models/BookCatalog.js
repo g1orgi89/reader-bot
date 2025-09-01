@@ -49,7 +49,7 @@ const bookCatalogSchema = new mongoose.Schema({
     type: String,
     required: true,
     match: /^\$\d+$/,
-    default: '$10'
+    default: 10
   },
   
   priceRub: {
