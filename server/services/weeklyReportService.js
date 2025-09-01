@@ -630,8 +630,3 @@ generatePersonalizedReasoning(book, analysis, testResults) {
 
 // Экспортируем класс для создания экземпляров
 module.exports = WeeklyReportService;
-
-}
-
-
- 
