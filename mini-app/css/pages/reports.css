@@ -377,3 +377,62 @@
   .promo-text { font-size: 11px; }
   .promo-btn { font-size: 11px; }
 }
+
+/* === Блок рекомендаций специально для вас === */
+
+.promo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 8px;
+}
+
+.promo-book {
+    background: rgba(255,255,255,0.13);
+    border-radius: 10px;
+    padding: 12px 14px 12px 14px;
+    box-shadow: 0 2px 12px rgba(255,255,255,0.09);
+    margin-bottom: 2px;
+    text-align: left;
+}
+
+.promo-book-title {
+    font-weight: 600;
+    font-size: 1em;
+    margin-bottom: 5px;
+    color: #fff;
+}
+
+.promo-book-desc {
+    font-size: 0.95em;
+    margin-bottom: 7px;
+    color: #fbead4;
+}
+
+.promo-book-reason {
+    font-size: 0.94em;
+    color: #ffe3a3;
+    margin-bottom: 7px;
+}
+
+.promo-book-price {
+    font-size: 0.97em;
+    color: #ffe3a3;
+    margin-bottom: 7px;
+}
+
+.promo-book-link {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 5px 13px;
+    background: #ffe3a3;
+    color: #7a6000;
+    border-radius: 8px;
+    font-size: 0.98em;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.16s;
+}
+.promo-book-link:hover {
+    background: #ffd37a;
+}
