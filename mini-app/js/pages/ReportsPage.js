@@ -363,14 +363,36 @@ class ReportsPage {
      * 🎯 РЕКОМЕНДАЦИИ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderRecommendations() {
-        return `
-            <div class="promo-section">
-                <div class="promo-title">🎯 Специально для вас</div>
-                <div class="promo-text">${this.reportData.recommendations}</div>
-                <button class="promo-btn" id="getRecommendationsBtn">Получить рекомендации</button>
-            </div>
-        `;
-    }
+        const recommendations = this.weeklyReport?.recommendations || [];
+
+        if (Array.isArray(recommendations) && recommendations.length > 0) {
+            return `
+                <div class="promo-section">
+                    <div class="promo-title">🎯 Специально для вас</div>
+                    <div class="promo-list">
+                        ${recommendations.map(rec => `
+                            <div class="promo-book">
+                                <div class="promo-book-title">${window.escapeHtml ? window.escapeHtml(rec.title) : rec.title}</div>
+                                <div class="promo-book-desc">${window.escapeHtml ? window.escapeHtml(rec.description) : rec.description}</div>
+                                ${rec.reasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(rec.reasoning) : rec.reasoning}</div>` : ""}
+                                ${rec.price ? `<div class="promo-book-price">Цена: <b>${rec.price} BYN</b></div>` : ""}
+                                <a class="promo-book-link" href="${rec.link}" target="_blank" rel="noopener noreferrer">Подробнее</a>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+    // fallback (заглушка и кнопка)
+    return `
+        <div class="promo-section">
+            <div class="promo-title">🎯 Специально для вас</div>
+            <div class="promo-text">${this.reportData.recommendations}</div>
+            <button class="promo-btn" id="getRecommendationsBtn">Получить рекомендации</button>
+        </div>
+    `;
+}
     
     /**
      * 🎯 ОБРАБОТЧИКИ СОБЫТИЙ
