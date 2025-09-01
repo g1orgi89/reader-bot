@@ -568,7 +568,6 @@ class CatalogPage {
      */
     onShow() {
         console.log('📚 CatalogPage: onShow - БЕЗ ШАПКИ!');
-        this.loadCatalogData();
       
         // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
         if (!this.catalogLoaded) {
