@@ -66,6 +66,7 @@ class WeeklyReportService {
     } catch (error) {
       logger.error('📋 WeeklyReportService: Failed to initialize models:', error.message);
       // Fallback к хардкоду если модели недоступны
+      console.error(error);
       this.BookCatalog = null;
       this.PromoCode = null;
     }
