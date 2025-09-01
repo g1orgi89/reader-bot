@@ -301,8 +301,11 @@ class WeeklyReportService {
       // Получаем AI-анализ цитат
       const analysis = await this.analyzeWeeklyQuotes(quotes, userProfile);
       
-      // 📋 NEW: Генерируем рекомендации книг из БД
-      const recommendations = await this.getBookRecommendations(analysis, userProfile);
+      // Получаем персональные категории из теста
+      const personalCategories = this.extractCategoriesFromOnboarding(userProfile.testResults);
+
+      // Используем улучшенный матчинг
+      const recommendations = await this.BookCatalog.getRecommendationsByThemes(analysis.dominantThemes);
       
       // 📋 NEW: Создаем промокод из БД
       const promoCode = await this.generatePromoCode();
@@ -349,7 +352,7 @@ class WeeklyReportService {
                 title: book.title,
                 price: `$${book.price}`,
                 description: book.description,
-                reasoning: book.reasoning || `Рекомендуется на основе ваших интересов к теме: ${analysis.dominantThemes.join(', ')}`,
+                reasoning: this.generatePersonalizedReasoning(book, analysis, userProfile.testResults),
                 link: utmLink
               };
             })
@@ -586,3 +589,45 @@ class WeeklyReportService {
 
 // Экспортируем класс для создания экземпляров
 module.exports = WeeklyReportService;
+
+ /**
+ * Извлечь категории из онбординг теста
+ */
+extractCategoriesFromOnboarding(testResults) {
+  const categories = new Set();
+  if (!testResults) return ['ПОИСК СЕБЯ'];
+  
+  const answers = Object.values(testResults).join(' ').toLowerCase();
+  
+  const mappings = {
+    'СЕМЕЙНЫЕ ОТНОШЕНИЯ': ['мама', 'замужем', 'семья', 'дети'],
+    'ЛЮБОВЬ': ['отношения', 'партнер', 'любовь'],
+    'ДЕНЬГИ': ['карьера', 'работа', 'деньги', 'успех'],
+    'КРИЗИСЫ': ['трудности', 'проблемы', 'кризис'],
+    'ПОИСК СЕБЯ': ['саморазвитие', 'рост', 'познание']
+  };
+  
+  Object.entries(mappings).forEach(([category, keywords]) => {
+    if (keywords.some(keyword => answers.includes(keyword))) {
+      categories.add(category);
+    }
+  });
+  
+  return categories.size > 0 ? Array.from(categories) : ['ПОИСК СЕБЯ'];
+}
+
+/**
+ * Персонализированное обоснование
+ */
+generatePersonalizedReasoning(book, analysis, testResults) {
+  const base = book.reasoning || `Рекомендуется на основе ваших интересов`;
+  
+  const toneAdaptation = {
+    'вдохновляющий': 'поддержит ваш творческий настрой',
+    'задумчивый': 'созвучна вашим размышлениям',
+    'позитивный': 'усилит ваш позитивный настрой'
+  };
+  
+  const addition = toneAdaptation[analysis.emotionalTone];
+  return addition ? `${base} и ${addition}.` : base;
+}
