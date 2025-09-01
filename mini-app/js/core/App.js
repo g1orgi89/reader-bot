@@ -70,8 +70,15 @@ class ReaderApp {
         } else {
             console.warn('⚠️ AppRouter не найден');
             this.router = null;
-        }
-        console.log('✅ Сервисы инициализированы');
+             
+        // === ДОБАВЛЕНО: ранняя загрузка каталога ===
+        if (typeof CatalogPage !== 'undefined') {
+            this.catalogPage = new CatalogPage(this);
+            if (typeof this.catalogPage.loadCatalogData === 'function') {
+                this.catalogPage.loadCatalogData().catch(console.error);
+                console.log('📚 Каталог книг загружается при старте приложения');
+            }
+            console.log('✅ Сервисы инициализированы');
     }
 
     async initializeTelegram() {
