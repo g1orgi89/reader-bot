@@ -46,7 +46,7 @@ class CatalogPage {
         
         // Примеры данных (точно из концепта)
         this.userTags = ['Психология', 'Отношения', 'Саморазвитие'];
-        this.books = this.getExampleBooks();
+        this.books = [];
         
         this.init();
     }
