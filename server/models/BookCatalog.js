@@ -159,9 +159,10 @@ bookCatalogSchema.statics.getRecommendationsByThemes = async function(themes, li
     {
       $addFields: {
         relevanceScore: {
-          $size: {
-            $setIntersection: ['$categories', themes]
-          }
+          $add: [
+            { $multiply: [{ $size: { $setIntersection: ['$categories', themes] } }, 2] },
+            { $multiply: [{ $size: { $setIntersection: ['$targetThemes', themes] } }, 3] }
+          ]
         }
       }
     },
