@@ -95,6 +95,7 @@ class CatalogPage {
             console.log('📚 CatalogPage: Каталог пуст из-за ошибки.');
         } finally {
             this.catalogLoading = false;
+            this.rerender();
         }
     }
     
