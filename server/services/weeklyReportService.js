@@ -340,7 +340,7 @@ class WeeklyReportService {
     try {
       if (this.BookCatalog && this.UtmTemplate) {
         // Получаем рекомендации из БД на основе анализа
-        const recommendations = await this.BookCatalog.getRecommendationsByThemes(analysis.dominantThemes);
+        const recommendations = await this.getBookRecommendations(analysis, userProfile);
         
         if (recommendations && recommendations.length > 0) {
           // Форматируем рекомендации с UTM ссылками
@@ -584,13 +584,8 @@ class WeeklyReportService {
     if (count % 10 === 1 && count % 100 !== 11) return 'цитату';
     if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'цитаты';
     return 'цитат';
-  }
-}
 
-// Экспортируем класс для создания экземпляров
-module.exports = WeeklyReportService;
-
- /**
+  /**
  * Извлечь категории из онбординг теста
  */
 extractCategoriesFromOnboarding(testResults) {
@@ -630,4 +625,10 @@ generatePersonalizedReasoning(book, analysis, testResults) {
   
   const addition = toneAdaptation[analysis.emotionalTone];
   return addition ? `${base} и ${addition}.` : base;
+  }
 }
+
+// Экспортируем класс для создания экземпляров
+module.exports = WeeklyReportService;
+
+ 
