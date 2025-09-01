@@ -366,7 +366,7 @@ class CatalogPage {
         const filteredBooks = this.getFilteredBooks();
         
         if (filteredBooks.length === 0) {
-            return this.renderEmptyState();
+           return ''; // ничего не показываем
         }
         
         return filteredBooks.map(book => this.renderBookCard(book)).join('');
