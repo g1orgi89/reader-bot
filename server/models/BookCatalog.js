@@ -48,7 +48,7 @@ const bookCatalogSchema = new mongoose.Schema({
   price: {
     type: Number,
     required: true,
-    match: /^\$\d+$/,
+    min: 0,
     default: 10
   },
   
