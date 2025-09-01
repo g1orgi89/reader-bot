@@ -196,7 +196,31 @@ class ReportsPage {
                 const reports = weeklyReports.reports || weeklyReports.data?.reports || [];
                 if (reports.length > 0) {
                     this.weeklyReport = reports[0];
+
+            // === ДОБАВЬ ЭТОТ БЛОК ===
+            let catalogBooks = [];
+            if (this.app?.state?.get && typeof this.app.state.get === 'function') {
+                catalogBooks = this.app.state.get('books') || [];
+            } else if (this.app?.state?.books) {
+                catalogBooks = this.app.state.books;
+            }
                     
+            // Сопоставляем каждую рекомендацию с книгой из каталога по title+author и добавляем bookSlug
+            if (this.weeklyReport.recommendations && Array.isArray(this.weeklyReport.recommendations) && catalogBooks.length) {
+                this.weeklyReport.recommendations.forEach(rec => {
+                    if (!rec.bookSlug) {
+                        const found = catalogBooks.find(book =>
+                            book.title === rec.title && (
+                                (!book.author && !rec.author) ||
+                                (book.author && rec.author && book.author === rec.author)
+                            )
+                        );
+                        if (found && found.bookSlug) {
+                            rec.bookSlug = found.bookSlug;
+                        }
+                    }
+                });
+            }
                     // НОРМАЛИЗАЦИЯ: гарантируем наличие вложенного analysis
                     const wr = this.weeklyReport || {};
                     const normalizedAnalysis = {
