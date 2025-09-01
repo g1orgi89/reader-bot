@@ -48,7 +48,7 @@ class ReaderApp {
         }
     }
 
-    async initializeServices() {
+   async initializeServices() {
         console.log('🔄 Инициализация сервисов...');
         this.state = new AppState();
         await this.state.init();
@@ -70,15 +70,17 @@ class ReaderApp {
         } else {
             console.warn('⚠️ AppRouter не найден');
             this.router = null;
-             
-        // === ДОБАВЛЕНО: ранняя загрузка каталога ===
+        }
+        // ========== ВОТ ЗДЕСЬ ДОЛЖНО БЫТЬ ==========
         if (typeof CatalogPage !== 'undefined') {
             this.catalogPage = new CatalogPage(this);
             if (typeof this.catalogPage.loadCatalogData === 'function') {
                 this.catalogPage.loadCatalogData().catch(console.error);
                 console.log('📚 Каталог книг загружается при старте приложения');
             }
-            console.log('✅ Сервисы инициализированы');
+        }
+        // ===========================================
+        console.log('✅ Сервисы инициализированы');
     }
 
     async initializeTelegram() {
