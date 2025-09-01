@@ -587,47 +587,47 @@ class WeeklyReportService {
     return 'цитат';
   }
   
-  /**
- * Извлечь категории из онбординг теста
- */
-extractCategoriesFromOnboarding(testResults) {
-  const categories = new Set();
-  if (!testResults) return ['ПОИСК СЕБЯ'];
+ /**
+  * Извлечь категории из онбординг теста
+  */
+ extractCategoriesFromOnboarding(testResults) {
+   const categories = new Set();
+   if (!testResults) return ['ПОИСК СЕБЯ'];
   
-  const answers = Object.values(testResults).join(' ').toLowerCase();
+   const answers = Object.values(testResults).join(' ').toLowerCase();
   
-  const mappings = {
-    'СЕМЕЙНЫЕ ОТНОШЕНИЯ': ['мама', 'замужем', 'семья', 'дети'],
-    'ЛЮБОВЬ': ['отношения', 'партнер', 'любовь'],
-    'ДЕНЬГИ': ['карьера', 'работа', 'деньги', 'успех'],
-    'КРИЗИСЫ': ['трудности', 'проблемы', 'кризис'],
-    'ПОИСК СЕБЯ': ['саморазвитие', 'рост', 'познание']
-  };
+   const mappings = {
+     'СЕМЕЙНЫЕ ОТНОШЕНИЯ': ['мама', 'замужем', 'семья', 'дети'],
+     'ЛЮБОВЬ': ['отношения', 'партнер', 'любовь'],
+     'ДЕНЬГИ': ['карьера', 'работа', 'деньги', 'успех'],
+     'КРИЗИСЫ': ['трудности', 'проблемы', 'кризис'],
+     'ПОИСК СЕБЯ': ['саморазвитие', 'рост', 'познание']
+    };
   
-  Object.entries(mappings).forEach(([category, keywords]) => {
-    if (keywords.some(keyword => answers.includes(keyword))) {
-      categories.add(category);
-    }
-  });
+   Object.entries(mappings).forEach(([category, keywords]) => {
+     if (keywords.some(keyword => answers.includes(keyword))) {
+       categories.add(category);
+     }
+   });
   
-  return categories.size > 0 ? Array.from(categories) : ['ПОИСК СЕБЯ'];
-}
-
+   return categories.size > 0 ? Array.from(categories) : ['ПОИСК СЕБЯ'];
+   }
 /**
  * Персонализированное обоснование
  */
-generatePersonalizedReasoning(book, analysis, testResults) {
-  const base = book.reasoning || `Рекомендуется на основе ваших интересов`;
+ generatePersonalizedReasoning(book, analysis, testResults) {
+   const base = book.reasoning || `Рекомендуется на основе ваших интересов`;
   
-  const toneAdaptation = {
-    'вдохновляющий': 'поддержит ваш творческий настрой',
-    'задумчивый': 'созвучна вашим размышлениям',
-    'позитивный': 'усилит ваш позитивный настрой'
-  };
+   const toneAdaptation = {
+     'вдохновляющий': 'поддержит ваш творческий настрой',
+     'задумчивый': 'созвучна вашим размышлениям',
+     'позитивный': 'усилит ваш позитивный настрой'
+   };
   
-  const addition = toneAdaptation[analysis.emotionalTone];
-  return addition ? `${base} и ${addition}.` : base;
+   const addition = toneAdaptation[analysis.emotionalTone];
+   return addition ? `${base} и ${addition}.` : base;
   }
+}  
 
 // Экспортируем класс для создания экземпляров
 module.exports = WeeklyReportService;
