@@ -81,7 +81,7 @@ class CatalogPage {
             } else {
                 console.warn('⚠️ CatalogPage: Некорректный ответ API, используем заглушки');
                 // Fallback на статичные данные
-                this.books = this.getExampleBooks();
+                this.books = [];
             }
             
             this.catalogLoaded = true;
@@ -91,8 +91,8 @@ class CatalogPage {
         } catch (error) {
             console.error('❌ Ошибка загрузки данных каталога:', error);
             // Fallback на статичные данные при ошибке
-            this.books = this.getExampleBooks();
-            console.log('📚 CatalogPage: Используем статичные данные как fallback');
+            this.books = [];
+            console.log('📚 CatalogPage: Каталог пуст из-за ошибки.');
         } finally {
             this.catalogLoading = false;
         }
@@ -568,7 +568,8 @@ class CatalogPage {
      */
     onShow() {
         console.log('📚 CatalogPage: onShow - БЕЗ ШАПКИ!');
-        
+        this.loadCatalogData();
+      
         // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
         if (!this.catalogLoaded) {
             console.log('🔄 CatalogPage: Первый показ, загружаем данные');
