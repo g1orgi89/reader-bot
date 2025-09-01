@@ -383,7 +383,7 @@ class ReportsPage {
                                     <div class="promo-book-desc">${window.escapeHtml ? window.escapeHtml(rec.description) : rec.description}</div>
                                     ${showReasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(rec.reasoning) : rec.reasoning}</div>` : ""}
                                     ${rec.priceByn ? `<div class="promo-book-price">Цена: <b>${rec.priceByn} BYN</b></div>` : ""}
-                                    <a class="promo-book-link" href="${rec.link}" target="_blank" rel="noopener noreferrer">Подробнее</a>
+                                    <a class="promo-book-link" href="#/catalog?highlight=${rec.bookSlug}">Подробнее</a>
                                 </div>
                             `;
                         }).join('')}
