@@ -348,13 +348,11 @@ class WeeklyReportService {
           const formattedRecommendations = await Promise.all(
             recommendations.slice(0, 2).map(async (book) => {
               const utmLink = await this.generateUTMLink(book.bookSlug, 'weekly_report');
-              
               return {
                 title: book.title,
-                price: typeof book.price === 'string' && book.price.startsWith('$') 
-                  ? Number(book.price.replace('$', '')) 
-                  : book.price,
-                description: book.description,
+                description: book.description, // всегда подробное описание из каталога
+                priceByn: book.priceByn,      // используем именно priceByn
+                author: book.author,          // если нужно на фронте
                 reasoning: this.generatePersonalizedReasoning(book, analysis, userProfile.testResults),
                 link: utmLink
               };
