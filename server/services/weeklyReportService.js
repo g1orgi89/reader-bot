@@ -305,7 +305,7 @@ class WeeklyReportService {
       const personalCategories = this.extractCategoriesFromOnboarding(userProfile.testResults);
 
       // Используем улучшенный матчинг
-      const recommendations = await this.BookCatalog.getRecommendationsByThemes(analysis.dominantThemes);
+      const recommendations = await this.getBookRecommendations(analysis, userProfile);
       
       // 📋 NEW: Создаем промокод из БД
       const promoCode = await this.generatePromoCode();
@@ -340,7 +340,7 @@ class WeeklyReportService {
     try {
       if (this.BookCatalog && this.UtmTemplate) {
         // Получаем рекомендации из БД на основе анализа
-        const recommendations = await this.getBookRecommendations(analysis, userProfile);
+        const recommendations = await this.BookCatalog.getRecommendationsByThemes(analysis.dominantThemes);
         
         if (recommendations && recommendations.length > 0) {
           // Форматируем рекомендации с UTM ссылками
@@ -584,7 +584,8 @@ class WeeklyReportService {
     if (count % 10 === 1 && count % 100 !== 11) return 'цитату';
     if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'цитаты';
     return 'цитат';
-
+  }
+  
   /**
  * Извлечь категории из онбординг теста
  */
@@ -626,9 +627,11 @@ generatePersonalizedReasoning(book, analysis, testResults) {
   const addition = toneAdaptation[analysis.emotionalTone];
   return addition ? `${base} и ${addition}.` : base;
   }
-}
 
 // Экспортируем класс для создания экземпляров
 module.exports = WeeklyReportService;
+
+}
+
 
  
