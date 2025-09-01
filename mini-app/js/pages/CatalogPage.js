@@ -107,23 +107,18 @@ class CatalogPage {
             title: apiBook.title,
             author: apiBook.author || 'Неизвестный автор',
             description: apiBook.description,
-            coverClass: `cover-${(parseInt(apiBook.id) % 6) + 1}`, // Циклически назначаем классы обложек
-            rating: 4.5 + Math.random() * 0.5, // Случайный рейтинг 4.5-5.0
-            reviews: Math.floor(Math.random() * 200) + 50, // Случайное количество отзывов
+            coverClass: `cover-${(parseInt(apiBook.id) % 6) + 1}`,
+            rating: 4.5 + Math.random() * 0.5,
+            reviews: Math.floor(Math.random() * 200) + 50,
             duration: `${Math.floor(Math.random() * 3) + 1}.${Math.floor(Math.random() * 9)} часа`,
             match: `${Math.floor(Math.random() * 20) + 80}% подходит`,
-            
-            // Цены - используем новые поля из API
             price: this.formatPrice(apiBook.priceRub, apiBook.priceByn, apiBook.price),
-            oldPrice: null, // TODO: добавить логику для отображения старых цен при скидках
-            
-            // Категории
+            oldPrice: null,
             category: this.mapApiCategoryToFilter(apiBook.categories),
-            
-            // Дополнительные поля
-            hasDiscount: false, // TODO: добавить логику скидок
+            hasDiscount: false,
             badge: this.generateBadge(apiBook),
-            utmLink: apiBook.utmLink
+            utmLink: apiBook.utmLink,
+            bookSlug: apiBook.bookSlug // ← обязательно
         };
     }
     
@@ -398,9 +393,8 @@ class CatalogPage {
      */
     renderBookCard(book) {
         const discountClass = book.hasDiscount ? 'discount-card' : '';
-        
         return `
-            <div class="book-card ${discountClass}" data-book-id="${book.id}">
+            <div class="book-card ${discountClass}" data-book-id="${book.id}" data-book-slug="${book.bookSlug || ''}">
                 ${book.hasDiscount ? `
                     <div class="discount-badge">${book.discount}</div>
                 ` : ''}
@@ -604,6 +598,19 @@ class CatalogPage {
         if (container) {
             container.innerHTML = this.render();
             this.attachEventListeners();
+            // Автоматический скролл и подсветка по highlight
+            const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+            const highlightSlug = urlParams.get('highlight');
+            if (highlightSlug) {
+                setTimeout(() => {
+                    const el = document.querySelector(`[data-book-slug="${highlightSlug}"]`);
+                    if (el) {
+                        el.classList.add('highlighted');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        setTimeout(() => el.classList.remove('highlighted'), 2500);
+                    }
+                }, 300);
+            }
         }
     }
     
