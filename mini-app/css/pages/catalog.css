@@ -612,3 +612,10 @@
   .filter-tab { font-size: 11px; }
   .book-cover { font-size: 10px; }
 }
+
+.book-card.highlighted {
+    border: 2px solid #ff9800 !important;
+    box-shadow: 0 0 16px #ff9800;
+    background: #fff8e1;
+    transition: box-shadow 0.3s, background 0.3s;
+}
