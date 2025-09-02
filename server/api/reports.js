@@ -550,6 +550,148 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
 });
 
 /**
+ * GET /api/reports/weekly/:userId/stats
+ * Получение статистики за неделю для конкретного пользователя
+ */
+router.get('/weekly/:userId/stats', checkModelsAvailable, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    logger.info(`📊 Получение статистики за неделю для пользователя ${userId}`);
+    
+    // Определяем временные рамки (последние 7 полных дней включая сегодня)
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const from = new Date(startOfToday);
+    from.setDate(from.getDate() - 6); // 7 дней включая сегодня
+    const to = new Date(startOfToday);
+    to.setDate(to.getDate() + 1); // до начала завтра
+    
+    // Временные рамки для предыдущей недели
+    const prevFrom = new Date(from);
+    prevFrom.setDate(prevFrom.getDate() - 7);
+    const prevTo = new Date(from);
+    
+    logger.info(`📅 Период: с ${from.toISOString()} до ${to.toISOString()}`);
+    logger.info(`📅 Предыдущая неделя: с ${prevFrom.toISOString()} до ${prevTo.toISOString()}`);
+    
+    // Получаем цитаты за текущую неделю
+    const currentWeekQuotes = await Quote.find({
+      userId,
+      createdAt: { $gte: from, $lt: to }
+    }).lean();
+    
+    // Получаем цитаты за предыдущую неделю
+    const prevWeekQuotes = await Quote.find({
+      userId,
+      createdAt: { $gte: prevFrom, $lt: prevTo }
+    }).lean();
+    
+    // Базовые метрики текущей недели
+    const quotes = currentWeekQuotes.length;
+    const uniqueAuthors = new Set(
+      currentWeekQuotes
+        .filter(q => q.author && q.author.trim())
+        .map(q => q.author.trim())
+    ).size;
+    
+    // Активные дни (количество уникальных дат)
+    const activeDays = new Set(
+      currentWeekQuotes.map(q => q.createdAt.toISOString().split('T')[0])
+    ).size;
+    
+    // Последняя цитата
+    const latestQuoteAt = currentWeekQuotes.length > 0 
+      ? Math.max(...currentWeekQuotes.map(q => new Date(q.createdAt).getTime()))
+      : null;
+    
+    // Расчет серии дней (streak) - считаем назад от сегодня
+    let streakDays = 0;
+    const quoteDateSet = new Set(
+      currentWeekQuotes.map(q => q.createdAt.toISOString().split('T')[0])
+    );
+    
+    for (let i = 0; i < 7; i++) {
+      const checkDate = new Date(startOfToday);
+      checkDate.setDate(checkDate.getDate() - i);
+      const dateStr = checkDate.toISOString().split('T')[0];
+      
+      if (quoteDateSet.has(dateStr)) {
+        streakDays++;
+      } else {
+        break; // Прерываем серию при первом пропуске
+      }
+    }
+    
+    // Метрики предыдущей недели
+    const prevWeekQuotesCount = prevWeekQuotes.length;
+    const prevWeekUniqueAuthors = new Set(
+      prevWeekQuotes
+        .filter(q => q.author && q.author.trim())
+        .map(q => q.author.trim())
+    ).size;
+    const prevWeekActiveDays = new Set(
+      prevWeekQuotes.map(q => q.createdAt.toISOString().split('T')[0])
+    ).size;
+    
+    // Цели и прогресс
+    const targetQuotes = 14; // По требованию - фиксированное значение 14
+    const targetDays = 7;
+    const progressQuotesPct = Math.min(Math.round((quotes / targetQuotes) * 100), 100);
+    const progressDaysPct = Math.min(Math.round((activeDays / targetDays) * 100), 100);
+    
+    // Доминирующие темы из последнего еженедельного отчета
+    let dominantThemes = [];
+    try {
+      const latestReport = await WeeklyReport.findOne({ userId })
+        .sort({ sentAt: -1 })
+        .lean();
+      
+      if (latestReport && latestReport.analysis && latestReport.analysis.dominantThemes) {
+        dominantThemes = latestReport.analysis.dominantThemes;
+      }
+    } catch (reportError) {
+      logger.warn(`⚠️ Ошибка получения доминирующих тем: ${reportError.message}`);
+    }
+    
+    const statsData = {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      quotes,
+      uniqueAuthors,
+      activeDays,
+      streakDays,
+      targetQuotes,
+      progressQuotesPct,
+      targetDays,
+      progressDaysPct,
+      dominantThemes,
+      prevWeek: {
+        quotes: prevWeekQuotesCount,
+        uniqueAuthors: prevWeekUniqueAuthors,
+        activeDays: prevWeekActiveDays
+      },
+      latestQuoteAt: latestQuoteAt ? new Date(latestQuoteAt).toISOString() : null
+    };
+    
+    logger.info(`✅ Статистика рассчитана: ${quotes} цитат, ${uniqueAuthors} авторов, ${activeDays} дней`);
+    
+    res.json({
+      success: true,
+      data: statsData
+    });
+    
+  } catch (error) {
+    logger.error(`📖 Error getting weekly stats: ${error.message}`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get weekly statistics',
+      details: error.message
+    });
+  }
+});
+
+/**
  * GET /api/reports/weekly/:userId
  * Получение еженедельных отчетов пользователя
  */

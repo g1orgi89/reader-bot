@@ -34,6 +34,15 @@ class ReportsPage {
                 days: 6,
                 goal: 85
             },
+            deltas: {
+                quotes: 0,
+                authors: 0,
+                days: 0
+            },
+            progress: {
+                quotes: 50,
+                days: 86
+            },
             topics: "психология, саморазвитие, отношения",
             aiAnalysis: "Ваши цитаты показывают активный поиск внутренней гармонии. Рекомендую углубиться в тему саморазвития.",
             recommendations: "На основе ваших цитат и интересов сообщества"
@@ -145,6 +154,19 @@ class ReportsPage {
             goal: 85
         };
         
+        // Обнуляем дельты при fallback
+        this.reportData.deltas = {
+            quotes: 0,
+            authors: 0,
+            days: 0
+        };
+        
+        // Устанавливаем дефолтный прогресс
+        this.reportData.progress = {
+            quotes: 50,
+            days: 86
+        };
+        
         // Устанавливаем флаги для предотвращения повторных попыток
         this.reportsLoaded = true;
         this.state.set('reports.lastUpdate', Date.now());
@@ -203,19 +225,49 @@ class ReportsPage {
             
             // ✅ Загружаем данные с explicit userId
             console.log('📡 ReportsPage: Загружаем статистику для userId:', userId);
-            const [stats, weeklyReports] = await Promise.all([
-                this.api.getStats(userId),
+            const [weeklyStats, weeklyReports] = await Promise.all([
+                this.api.getWeeklyStats(userId),
                 this.api.getWeeklyReports({ limit: 1 }, userId)
             ]);
             
-            // ✅ Обработка статистики
-            if (stats && stats.success) {
+            // ✅ Обработка еженедельной статистики
+            if (weeklyStats && weeklyStats.success && weeklyStats.data) {
+                const stats = weeklyStats.data;
+                
+                // Вычисляем дельты для отображения изменений
+                const quotesDelta = stats.quotes - (stats.prevWeek?.quotes || 0);
+                const authorsDelta = stats.uniqueAuthors - (stats.prevWeek?.uniqueAuthors || 0);
+                const daysDelta = stats.activeDays - (stats.prevWeek?.activeDays || 0);
+                
                 this.reportData.statistics = {
-                    quotes: stats.stats?.totalQuotes || stats.thisWeek || 7,
-                    authors: stats.stats?.favoriteAuthors?.length || stats.uniqueAuthors || 5,
-                    days: stats.stats?.currentStreak || stats.activeDays || 6,
-                    goal: Math.min(Math.round(((stats.stats?.totalQuotes || stats.thisWeek || 7) / 7) * 100), 100) || 85
+                    quotes: stats.quotes,
+                    authors: stats.uniqueAuthors,
+                    days: stats.activeDays,
+                    goal: stats.progressQuotesPct
                 };
+                
+                // Сохраняем дельты для отображения
+                this.reportData.deltas = {
+                    quotes: quotesDelta,
+                    authors: authorsDelta,
+                    days: daysDelta
+                };
+                
+                // Сохраняем прогресс для прогресс-бара
+                this.reportData.progress = {
+                    quotes: stats.progressQuotesPct,
+                    days: stats.progressDaysPct
+                };
+                
+                // Обновляем темы если доступны
+                if (stats.dominantThemes && stats.dominantThemes.length > 0) {
+                    this.reportData.topics = stats.dominantThemes.join(', ');
+                }
+                
+                console.log('✅ ReportsPage: Загружена реальная статистика:', this.reportData.statistics);
+            } else {
+                console.warn('⚠️ ReportsPage: Ошибка загрузки статистики, используем fallback');
+                this.applyFallbackStats('stats-error');
             }
             
             // ✅ Обработка еженедельного отчета
@@ -285,7 +337,8 @@ class ReportsPage {
                 console.log('📊 ReportsPage: Ошибка загрузки еженедельных отчетов, используем fallback');
             }
             
-            if (stats && stats.success) {
+            // Если статистика загружена успешно
+            if (weeklyStats && weeklyStats.success) {
                 this.reportsLoaded = true;
                 this.state.set('reports.lastUpdate', Date.now());
                 console.log('✅ ReportsPage: Данные отчета загружены');
@@ -325,6 +378,16 @@ class ReportsPage {
      */
     renderWeeklyReport() {
         const { quotes, authors, days, goal } = this.reportData.statistics;
+        const deltas = this.reportData.deltas || {};
+        const progress = this.reportData.progress || {};
+        
+        // Функция для рендера дельты
+        const renderDelta = (value, name) => {
+            if (!value || value === 0) return '';
+            const direction = value > 0 ? 'up' : 'down';
+            const symbol = value > 0 ? '+' : '';
+            return `<span class="stat-delta ${direction}">${symbol}${value}</span>`;
+        };
         
         return `
             <div class="weekly-report">
@@ -333,18 +396,26 @@ class ReportsPage {
                     <div class="report-stat">
                         <div class="stat-value">${quotes}</div>
                         <div class="stat-name">Цитат</div>
+                        ${renderDelta(deltas.quotes, 'quotes')}
                     </div>
                     <div class="report-stat">
                         <div class="stat-value">${authors}</div>
                         <div class="stat-name">Авторов</div>
+                        ${renderDelta(deltas.authors, 'authors')}
                     </div>
                     <div class="report-stat">
                         <div class="stat-value">${days}</div>
                         <div class="stat-name">Дней</div>
+                        ${renderDelta(deltas.days, 'days')}
                     </div>
                     <div class="report-stat">
                         <div class="stat-value goal-stat">${goal}%</div>
                         <div class="stat-name">Цель</div>
+                        ${progress.quotes ? `
+                            <div class="goal-bar">
+                                <div class="goal-fill" style="width: ${progress.quotes}%"></div>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="report-themes">Темы: ${this.reportData.topics}</div>

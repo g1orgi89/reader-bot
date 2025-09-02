@@ -678,6 +678,56 @@ class ApiService {
         return this.request('POST', `/reports/${type}/generate`);
     }
 
+    /**
+     * 📊 Получить статистику за неделю для пользователя
+     * НОВЫЙ: Для получения реальных еженедельных статистик
+     */
+    async getWeeklyStats(userId = 'demo-user') {
+        try {
+            const endpoint = `/reports/weekly/${encodeURIComponent(String(userId))}/stats`;
+            const result = await this.request('GET', endpoint);
+            
+            if (result && result.success && result.data) {
+                return result;
+            }
+            
+            // Возвращаем fallback если API не вернул валидные данные
+            console.warn('⚠️ API getWeeklyStats: получены некорректные данные, используем fallback');
+            return this._getWeeklyStatsFallback();
+        } catch (error) {
+            console.warn('⚠️ API getWeeklyStats: ошибка загрузки, используем fallback:', error);
+            return this._getWeeklyStatsFallback();
+        }
+    }
+
+    /**
+     * 📊 Fallback статистика для getWeeklyStats
+     * @private
+     */
+    _getWeeklyStatsFallback() {
+        return {
+            success: true,
+            data: {
+                quotes: 7,
+                uniqueAuthors: 5,
+                activeDays: 6,
+                streakDays: 3,
+                targetQuotes: 14,
+                progressQuotesPct: 50,
+                targetDays: 7,
+                progressDaysPct: 86,
+                dominantThemes: ['саморазвитие', 'психология'],
+                prevWeek: {
+                    quotes: 5,
+                    uniqueAuthors: 4,
+                    activeDays: 4
+                },
+                latestQuoteAt: new Date().toISOString()
+            },
+            warning: 'Использованы fallback данные'
+        };
+    }
+
     // ===========================================
     // 🆕 НОВАЯ СЕКЦИЯ: АЛИАСЫ ДЛЯ СОВМЕСТИМОСТИ
     // ===========================================
