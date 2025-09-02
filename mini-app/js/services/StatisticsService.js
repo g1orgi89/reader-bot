@@ -193,23 +193,11 @@ class StatisticsService {
     async onQuoteAdded(_detail) {
         try {
             const userId = this._requireUserId();
-            this.invalidateForUser(userId);
             
-            // Optimistic update - only if we have valid previous stats
-            const prev = this.state.get('stats');
-            if (prev && prev.loadedAt && prev.totalQuotes != null) {
-                // Preserve all valid fields from previous state, only update totalQuotes
-                const updated = {
-                    ...prev, // Keep all existing valid fields including daysInApp, currentStreak, etc.
-                    totalQuotes: (prev.totalQuotes || 0) + 1,
-                    loadedAt: Date.now(),
-                    isFresh: false
-                };
-                this.state.update('stats', updated);
-                document.dispatchEvent(new CustomEvent('stats:updated', { detail: updated }));
-            }
+            // Completely reset cache (invalidate all)
+            this.invalidate();
             
-            // Background refresh
+            // Load fresh data and then update state and dispatch event
             await this.refreshMainStatsSilent();
         } catch (e) {
             console.debug('onQuoteAdded error:', e);
@@ -219,23 +207,11 @@ class StatisticsService {
     async onQuoteDeleted(_detail) {
         try {
             const userId = this._requireUserId();
-            this.invalidateForUser(userId);
             
-            // Optimistic update - only if we have valid previous stats
-            const prev = this.state.get('stats');
-            if (prev && prev.loadedAt && prev.totalQuotes != null && prev.totalQuotes > 0) {
-                // Preserve all valid fields from previous state, only update totalQuotes
-                const updated = {
-                    ...prev, // Keep all existing valid fields including daysInApp, currentStreak, etc.
-                    totalQuotes: prev.totalQuotes - 1,
-                    loadedAt: Date.now(),
-                    isFresh: false
-                };
-                this.state.update('stats', updated);
-                document.dispatchEvent(new CustomEvent('stats:updated', { detail: updated }));
-            }
+            // Completely reset cache (invalidate all)
+            this.invalidate();
             
-            // Background refresh
+            // Load fresh data and then update state and dispatch event
             await this.refreshMainStatsSilent();
         } catch (e) {
             console.debug('onQuoteDeleted error:', e);

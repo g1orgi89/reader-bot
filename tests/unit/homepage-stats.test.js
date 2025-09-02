@@ -164,12 +164,11 @@ describe('HomePage Stats Block Synchronization', () => {
             // Trigger quote added event
             await statsService.onQuoteAdded({ type: 'added' });
 
-            // Verify state was updated with incremented totalQuotes
+            // Verify state was updated with fresh data after complete cache invalidation
             expect(mockState.update).toHaveBeenCalledWith('stats', expect.objectContaining({
                 totalQuotes: 6,
                 loadedAt: expect.any(Number),
-                isFresh: false,
-                daysInApp: 10, // Should preserve other fields
+                isFresh: true, // Should be fresh data from background refresh
                 currentStreak: 3
             }));
         });
@@ -192,12 +191,11 @@ describe('HomePage Stats Block Synchronization', () => {
             // Trigger quote deleted event
             await statsService.onQuoteDeleted({ type: 'deleted' });
 
-            // Verify state was updated with decremented totalQuotes
+            // Verify state was updated with fresh data after complete cache invalidation
             expect(mockState.update).toHaveBeenCalledWith('stats', expect.objectContaining({
                 totalQuotes: 4,
                 loadedAt: expect.any(Number),
-                isFresh: false,
-                daysInApp: 10, // Should preserve other fields
+                isFresh: true, // Should be fresh data from background refresh
                 currentStreak: 3
             }));
         });
