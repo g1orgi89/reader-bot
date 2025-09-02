@@ -599,9 +599,8 @@ class CatalogPage {
         if (container) {
             container.innerHTML = this.render();
             this.attachEventListeners();
-            // Автоматический скролл и подсветка по highlight
-            const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
-            const highlightSlug = urlParams.get('highlight');
+            // Автоматический скролл и подсветка по highlight из router state
+            const highlightSlug = this.app.initialState?.query?.highlight;
             if (highlightSlug) {
                 setTimeout(() => {
                     const el = document.querySelector(`[data-book-slug="${highlightSlug}"]`);
