@@ -398,6 +398,8 @@
     transition: all var(--transition-normal);
 }
 
+/* Removed conflicting .recent-quote-item styles - now handled by unified quote-card styles */
+/*
 .recent-quote-item {
     display: flex;
     flex-direction: column;
@@ -416,6 +418,7 @@
     box-shadow: 0 4px 12px var(--shadow-color);
     border-color: var(--primary-color);
 }
+*/
 
 .quote-text {
     font-size: 14px;
@@ -440,7 +443,8 @@
     font-size: 14px;
 }
 
-/* 💀 Скелетон для загрузки последних цитат */
+/* Skeleton styles now handled by unified quote-card styles */
+/* 
 .recent-quote-item.skeleton {
     cursor: default;
     animation: skeleton-pulse 1.5s ease-in-out infinite;
@@ -451,6 +455,7 @@
     box-shadow: none;
     border-color: var(--border-light);
 }
+*/
 
 .skeleton-line {
     height: 16px;
@@ -682,14 +687,12 @@
         font-size: 18px;
     }
     
-    /* Recent quotes mobile adjustments */
+    /* Recent quotes mobile adjustments - now handled by unified quote-card styles */
     .recent-quotes-section {
         padding: 12px;
     }
     
-    .recent-quote-item {
-        padding: 10px;
-    }
+    /* .recent-quote-item mobile padding now handled by unified styles */
     
     .quote-text {
         font-size: 13px;

@@ -227,8 +227,9 @@
    📝 КАРТОЧКИ ЦИТАТ (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
 
+/* .quote-item background removed to avoid conflict with quote-card.css */
+/* Quote items now inherit background from unified quote-card styles */
 .quote-item {
-    background: var(--surface, #FFFFFF);
     border-radius: 10px;
     padding: 12px;
     margin-bottom: 12px;

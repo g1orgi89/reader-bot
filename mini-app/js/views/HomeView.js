@@ -112,7 +112,7 @@ window.HomeView = class HomeView {
     const likedClass = q.isFavorite ? ' liked' : '';
 
     return `
-      <article class="quote-card recent-quote-item${likedClass}" data-id="${q._id || q.id}" data-quote-id="${q._id || q.id}">
+      <article class="quote-card recent${likedClass}" data-id="${q._id || q.id}" data-quote-id="${q._id || q.id}">
         <button class="quote-kebab" aria-label="menu" title="Действия">…</button>
         <div class="quote-text">${this._escape(truncatedText)}</div>
         ${author ? `<div class="quote-author">${this._escape(author)}</div>` : ''}
@@ -149,7 +149,7 @@ window.HomeView = class HomeView {
     }
 
     // Handle card selection (tap on card itself, not on action buttons)
-    const cardTap = e.target.closest('.quote-card, .recent-quote-item');
+    const cardTap = e.target.closest('.quote-card');
     if (cardTap && !e.target.closest('.action-btn, .quote-kebab')) {
       if (this.latestContainer) {
         this.latestContainer.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
@@ -251,7 +251,7 @@ window.HomeView = class HomeView {
 
   _addActiveHandlers() {
     if (!this.latestContainer) return;
-    const items = this.latestContainer.querySelectorAll('.recent-quote-item, .quote-card.recent-quote-item');
+    const items = this.latestContainer.querySelectorAll('.quote-card.recent');
     items.forEach(item => {
       item.addEventListener('click', (e) => {
         if (e.target.closest('.action-btn, .quote-kebab')) return;
