@@ -222,18 +222,22 @@ class HomePage {
                 this.statistics.getTopAnalyses(3),
                 this.statistics.getUserProgress()
             ]);
+            if (progress && progress.currentStreak > mainStats.currentStreak) {
+                mainStats.currentStreak = progress.currentStreak;
+            }
             this.state.update('stats', {
                 totalQuotes: mainStats.totalQuotes,
                 currentStreak: mainStats.currentStreak,
                 daysInApp: mainStats.daysInApp,
                 loading: false,
-                lastUpdate: Date.now()
+                loadedAt: Date.now()
             });
             this.state.setRecentQuotes(latestQuotes);
             const mapped = topAnalyses.map(a => ({ _id: a.id, title: a.title, author: a.author, salesCount: a.clicks }));
             this.state.set('catalog.books', mapped);
             this.state.set('stats.progressTemp', progress);
             this.dataLoaded = true;
+            this.updateHeaderStats();
             this.updateProgressUI();
         } catch (e) {
             console.error('HomePage statistics load error', e);
@@ -254,8 +258,8 @@ class HomePage {
         if (grid) {
             grid.innerHTML = [
                 { label: 'За 7 дней', value: p.weeklyQuotes ?? '—' },
-                { label: 'Серия', value: p.currentStreak ?? '—' },
-                { label: 'Автор', value: p.favoriteAuthor || '—' }
+                { label: 'Серия (дней подряд)', value: p.currentStreak ?? '—' },
+                { label: 'Любимый автор', value: p.favoriteAuthor || '—' }
             ].map(item => `
                 <div class="stat-card" style="min-height:74px;display:flex;flex-direction:column;justify-content:space-between;">
                     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;">${item.label}</div>
@@ -266,6 +270,7 @@ class HomePage {
         if (activityNode) {
             activityNode.textContent = 'Активность: ' + (p.activityLevel === 'high' ? 'Высокая 🔥' : p.activityLevel === 'medium' ? 'Средняя 📈' : 'Низкая 🌱');
         }
+        console.debug('[Progress] backendStreak:', p.backendStreak, 'computedStreak:', p.computedStreak, 'used:', p.currentStreak);
     }
     
     /**
@@ -846,6 +851,26 @@ class HomePage {
     }
     
     /**
+     * 📊 Обновление заголовочной статистики (предотвращение мерцания)
+     */
+    updateHeaderStats() {
+        const statsInline = document.getElementById('statsInline');
+        if (!statsInline) return;
+        const stats = this.state.get('stats') || {};
+        if (!stats.loadedAt) {
+            statsInline.innerHTML = '';
+            return;
+        }
+        const totalQuotes = stats.totalQuotes ?? 0;
+        const daysInApp = stats.daysInApp ?? 0;
+        const quotesWord = this.getQuoteWord(totalQuotes);
+        const daysWord = this.getDayWord(daysInApp);
+        statsInline.innerHTML = `
+            <span class="stat-summary">${totalQuotes} ${quotesWord} • ${daysInApp} ${daysWord} в приложении</span>
+        `;
+    }
+
+    /**
      * 🔄 Обновление UI статистики
      */
     updateStatsUI(stats) {
@@ -1077,24 +1102,15 @@ class HomePage {
      * Вызывается при показе страницы
      */
     onShow() {
-        console.log('🏠 HomePage: onShow - загружаем данные');
-        
-        // Use StatisticsService if available, otherwise fallback to original method
         if (!this.dataLoaded) {
-            console.log('🔄 HomePage: Первый показ, загружаем данные');
-            this.loadFromStatistics().then(() => {
-                // Инициализируем последние цитаты после загрузки основных данных
-                this.initRecentQuotes();
-            });
+            this.loadFromStatistics();
         } else {
-            const lastUpdate = this.state.get('stats.lastUpdate');
-            if (!lastUpdate || (Date.now() - lastUpdate) > 60_000) {
-                this.loadFromStatistics().then(() => {
-                    this.initRecentQuotes();
-                });
+            const stats = this.state.get('stats');
+            if (!stats?.loadedAt || (Date.now() - stats.loadedAt) > 60_000) {
+                this.loadFromStatistics();
             } else {
+                this.updateHeaderStats();
                 this.updateProgressUI();
-                this.initRecentQuotes();
             }
         }
     }
