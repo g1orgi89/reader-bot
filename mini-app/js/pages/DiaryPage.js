@@ -1210,6 +1210,15 @@ class DiaryPage {
             cardTap.classList.add('active');
             this.telegram?.hapticFeedback?.('light');
         }
+        
+        // Additional card selection logic as specified in requirements
+        const tapCard = e.target.closest('.quote-card, [data-quote-id]');
+        if (tapCard && !e.target.closest('.action-btn, .quote-kebab')) {
+            const scope = tapCard.closest('.my-quotes-container') || tapCard.parentElement;
+            if (scope) scope.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+            tapCard.classList.add('active');
+            this.telegram?.hapticFeedback?.('light');
+        }
     }
 
     /**
