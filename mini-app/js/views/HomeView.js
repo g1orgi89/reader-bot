@@ -58,21 +58,21 @@ window.HomeView = class HomeView {
       }
 
       // 2) Если в состоянии пусто — идём в API с userId и безопасным парсингом
-      const userId = this._getUserId();
-      
-     let quotes = [];
-     try {
-       const userId = app.state.getCurrentUserId();
-       const response = await app.api.getQuotes({ limit: 3 }, userId);
-       quotes = response.data?.quotes || response.quotes || response.items || [];
-     } catch (serviceError) {
-       console.warn('ApiService.getQuotes failed:', serviceError);
-       // Можно показать ошибку, но не надо создавать новый экземпляр ApiService!
-       quotes = [];
-     }
+      let quotes = [];
+      try {
+        const userId = app.state.getCurrentUserId();
+        const response = await app.api.getQuotes({ limit: 3 }, userId);
+        quotes = response.data?.quotes || response.quotes || response.items || [];
+      } catch (serviceError) {
+        console.warn('ApiService.getQuotes failed:', serviceError);
+        // Можно показать ошибку, но не надо создавать новый экземпляр ApiService!
+        quotes = [];
+      }
 
-this.latestContainer.innerHTML = this._renderLatestQuotesSection(quotes);
-this.latestContainer.style.display = 'block';
+      this.latestContainer.innerHTML = this._renderLatestQuotesSection(quotes);
+      this.latestContainer.style.display = 'block';
+    } catch (error) {
+      console.error('Failed to render latest quotes:', error);
       // Показываем пустое состояние (не скрываем секцию), чтобы был понятный UI
       this.latestContainer.innerHTML = this._renderLatestQuotesSection([]);
       this.latestContainer.style.display = 'block';
