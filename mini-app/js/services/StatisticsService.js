@@ -69,8 +69,8 @@ class StatisticsService {
                 quotes = this.state?.get('quotes.items') || [];
             }
             const now = Date.now();
-            const weekAgo = now - 7 * 86400000;
-            const thirtyAgo = now - 30 * 86400000;
+            const weekAgo = now - 7 * 86400_000;
+            const thirtyAgo = now - 30 * 86400_000;
             let weekly = 0;
             const authorFreq = new Map();
             for (const q of quotes) {
@@ -86,13 +86,46 @@ class StatisticsService {
             if (weekly >= 15) activityLevel = 'high';
             else if (weekly >= 5) activityLevel = 'medium';
             const main = await this.getMainStats();
+            let streak = main.currentStreak || 0;
+            const computedStreak = this._computeStreak(quotes);
+            if (computedStreak > streak) streak = computedStreak;
             return {
                 weeklyQuotes: weekly,
                 favoriteAuthor,
                 activityLevel,
-                currentStreak: main.currentStreak
+                currentStreak: streak,
+                computedStreak,
+                backendStreak: main.currentStreak
             };
-        }, 25000);
+        }, 25_000);
+    }
+
+    _computeStreak(quotes) {
+        const dayKey = d => {
+            const dt = (d instanceof Date) ? d : new Date(d);
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+        const daysSet = new Set();
+        for (const q of quotes) {
+            const ts = q.createdAt || q.dateAdded;
+            if (!ts) continue;
+            daysSet.add(dayKey(ts));
+        }
+        let streak = 0;
+        const cursor = new Date();
+        while (true) {
+            const key = dayKey(cursor);
+            if (daysSet.has(key)) {
+                streak++;
+                cursor.setDate(cursor.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+        return streak;
     }
 
     invalidate(keys = []) {
