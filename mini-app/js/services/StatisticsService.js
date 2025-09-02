@@ -130,4 +130,7 @@ class StatisticsService {
     }
 }
 if (typeof window !== 'undefined') window.StatisticsService = StatisticsService;
-export default StatisticsService;
+// Export for module systems if available
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = StatisticsService;
+}
