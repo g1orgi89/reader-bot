@@ -339,9 +339,14 @@ class WeeklyReportService {
    */
   async getBookRecommendations(analysis, userProfile) {
     try {
-      if (this.BookCatalog && this.UtmTemplate) {
+      if (this.BookCatalog) {
         // Получаем рекомендации из БД на основе анализа
-        const recommendations = await this.BookCatalog.getRecommendationsByThemes(analysis.dominantThemes);
+        let recommendations = await this.BookCatalog.getRecommendationsByThemes(analysis.dominantThemes);
+        
+        // Если не нашли подходящих книг по темам, берем универсальные
+        if (!recommendations || recommendations.length === 0) {
+          recommendations = await this.BookCatalog.getUniversalRecommendations();
+        }
         
         if (recommendations && recommendations.length > 0) {
           // Форматируем рекомендации с UTM ссылками
@@ -350,9 +355,11 @@ class WeeklyReportService {
               const utmLink = await this.generateUTMLink(book.bookSlug, 'weekly_report');
               return {
                 title: book.title,
-                description: book.description, // всегда подробное описание из каталога
-                priceByn: book.priceByn,      // используем именно priceByn
-                author: book.author,          // если нужно на фронте
+                author: book.author,
+                description: book.description,
+                price: book.price || book.priceByn || 10, // fallback для совместимости
+                priceByn: book.priceByn,
+                bookSlug: book.bookSlug,
                 reasoning: this.generatePersonalizedReasoning(book, analysis, userProfile.testResults),
                 link: utmLink
               };
@@ -375,18 +382,21 @@ class WeeklyReportService {
   }
 
   /**
-   * 📋 NEW: Fallback рекомендации книг (старая логика)
+   * 📋 NEW: Fallback рекомендации книг (старая логика) с deterministic slugs
    * @param {WeeklyAnalysis} analysis - Анализ недели
    * @returns {Array<Object>} Рекомендации книг
    */
   getFallbackBookRecommendations(analysis) {
     const recommendations = [];
     
-    // Базовая логика рекомендаций на основе тем
+    // Базовая логика рекомендаций на основе тем с deterministic bookSlug
     if (analysis.dominantThemes.includes('Любовь')) {
       recommendations.push({
         title: 'Разбор "Искусство любить" Эриха Фромма',
+        author: 'Эрих Фромм',
         price: 8,
+        priceByn: 8,
+        bookSlug: 'art_of_loving',
         description: 'О построении здоровых отношений с собой и миром',
         reasoning: 'Ваши цитаты показывают интерес к теме любви и отношений',
         link: this.generateFallbackUTMLink('art_of_loving')
@@ -396,7 +406,10 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Мудрость') || analysis.dominantThemes.includes('Жизненная философия')) {
       recommendations.push({
         title: '"Письма к молодому поэту" Рильке',
+        author: 'Райнер Мария Рильке',
         price: 8,
+        priceByn: 8,
+        bookSlug: 'letters_to_young_poet',
         description: 'О творчестве, самопознании и поиске своего пути',
         reasoning: 'Судя по вашим цитатам, вас привлекает философский взгляд на жизнь',
         link: this.generateFallbackUTMLink('letters_to_young_poet')
@@ -406,7 +419,10 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Саморазвитие')) {
       recommendations.push({
         title: 'Курс "Быть собой"',
+        author: 'Анна Бусел',
         price: 12,
+        priceByn: 12,
+        bookSlug: 'be_yourself_course',
         description: 'О самопринятии и аутентичности',
         reasoning: 'Ваш выбор цитат говорит о стремлении к личностному росту',
         link: this.generateFallbackUTMLink('be_yourself_course')
@@ -416,7 +432,10 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Семья')) {
       recommendations.push({
         title: 'Курс "Мудрая мама"',
+        author: 'Анна Бусел',
         price: 20,
+        priceByn: 20,
+        bookSlug: 'wise_mother_course',
         description: 'Как сохранить себя в материнстве и воспитать счастливых детей',
         reasoning: 'Ваши цитаты отражают интерес к семейным ценностям',
         link: this.generateFallbackUTMLink('wise_mother_course')
@@ -426,7 +445,10 @@ class WeeklyReportService {
     if (analysis.dominantThemes.includes('Счастье')) {
       recommendations.push({
         title: '"Маленький принц" с комментариями',
+        author: 'Антуан де Сент-Экзюпери',
         price: 6,
+        priceByn: 6,
+        bookSlug: 'little_prince',
         description: 'О простых истинах жизни и важности человеческих связей',
         reasoning: 'Ваши цитаты показывают поиск простого счастья в жизни',
         link: this.generateFallbackUTMLink('little_prince')
@@ -437,7 +459,10 @@ class WeeklyReportService {
     if (recommendations.length === 0) {
       recommendations.push({
         title: '"Маленький принц" с комментариями',
+        author: 'Антуан де Сент-Экзюпери',
         price: 6,
+        priceByn: 6,
+        bookSlug: 'little_prince',
         description: 'О простых истинах жизни и важности человеческих связей',
         reasoning: 'Универсальная книга для размышлений о жизни и ценностях',
         link: this.generateFallbackUTMLink('little_prince')
@@ -612,6 +637,25 @@ class WeeklyReportService {
   
    return categories.size > 0 ? Array.from(categories) : ['ПОИСК СЕБЯ'];
    }
+  /**
+   * 📋 NEW: Генерирует slug из названия книги (transliteration + normalization)
+   * @param {string} title - Название книги
+   * @returns {string} Сгенерированный slug
+   */
+  _generateSlugFromTitle(title) {
+    if (!title) return 'unknown-book';
+    
+    return title
+      .toString()
+      .toLowerCase()
+      .replace(/ё/g, 'e')  // заменим "ё" на "e" для универсальности
+      .replace(/[^a-zа-я0-9\s-]/giu, '') // убираем спецсимволы
+      .replace(/\s+/g, '-')       // пробелы на дефисы
+      .replace(/\-+/g, '-')       // несколько дефисов — один дефис
+      .replace(/^-+|-+$/g, '')    // дефисы в начале/конце
+      .substring(0, 50);          // ограничиваем длину
+  }
+
 /**
  * Персонализированное обоснование
  */
