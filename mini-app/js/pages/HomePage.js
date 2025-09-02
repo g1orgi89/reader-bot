@@ -99,7 +99,8 @@ class HomePage {
     setupSubscriptions() {
         // Подписка на изменения статистики
         const statsSubscription = this.state.subscribe('stats', (stats) => {
-            this.updateStatsUI(stats);
+            this.updateStatsUI(stats); // Legacy grid support
+            this.applyTopStats(stats); // Inline stats block
         });
         
         // Подписка на изменения каталога книг  
@@ -593,8 +594,9 @@ class HomePage {
             `;
         }
         
-        // Only render valid stats with all required fields
-        if (!stats || stats.totalQuotes == null) {
+        // Only render valid stats with all required fields and loadedAt
+        // Strict validation: must have loadedAt and totalQuotes >= 0
+        if (!stats || !stats.loadedAt || stats.totalQuotes == null || stats.totalQuotes < 0) {
             return `
                 <div class="stats-inline" id="statsInline">
                     <span class="stat-summary">📊 Статистика</span>
@@ -876,7 +878,8 @@ class HomePage {
         if (!statsInline) return;
         
         // Only update DOM if we have valid, loaded stats with all required fields
-        if (!stats || !stats.loadedAt || stats.totalQuotes == null) {
+        // Strict validation like progress block: must have loadedAt and totalQuotes >= 0
+        if (!stats || !stats.loadedAt || stats.totalQuotes == null || stats.totalQuotes < 0) {
             // Don't touch DOM if stats are invalid - leave existing value
             console.debug('applyTopStats: Skipping DOM update due to invalid stats', stats);
             return;
