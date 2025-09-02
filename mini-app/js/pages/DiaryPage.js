@@ -45,8 +45,8 @@ class DiaryPage {
         // ✅ НОВОЕ: Debug режим (синхронизируется с API)
         this.debug = this.api?.debug || false;
         
-        // ✅ НОВОЕ: iOS keyboard handling
-        this.iosKeyboardHandler = null;
+        // ✅ НОВОЕ: Add tab keyboard handling (minimal, custom for Add tab only)
+        this.addTabKeyboardHandler = null;
         
         // ✅ НОВОЕ: Analysis timer for Anna's insights
         this.analysisTimer = null;
@@ -549,7 +549,7 @@ class DiaryPage {
         this.attachFilterListeners();
         this.attachQuoteActionListeners();
         this.attachSearchListeners();
-        this.attachIOSKeyboardHandlers();
+        this.attachAddTabKeyboardHandler();
 
         const prevPageBtn = document.getElementById('prevPageBtn');
         const nextPageBtn = document.getElementById('nextPageBtn');
@@ -677,18 +677,18 @@ class DiaryPage {
     }
     
     /**
-     * 🍎 iOS KEYBOARD HANDLERS - Dismiss keyboard on touch outside
+     * 🍎 iOS ADD TAB HANDLER - Custom tap-outside handler for Add tab only
      */
-    attachIOSKeyboardHandlers() {
-        // Only for iOS devices and when on "add" tab
-        if (!window.isIOSDevice) {
+    attachAddTabKeyboardHandler() {
+        // Only for iOS/touch devices and when on "add" tab
+        if (!window.isTouchDevice || !window.isTouchDevice()) {
             return;
         }
         
         // Remove any existing handler
-        this.removeIOSKeyboardHandlers();
+        this.removeAddTabKeyboardHandler();
         
-        this.iosKeyboardHandler = (e) => {
+        this.addTabKeyboardHandler = (e) => {
             // Only handle on "add" tab
             if (this.activeTab !== 'add') {
                 return;
@@ -705,26 +705,35 @@ class DiaryPage {
                 const quoteText = document.getElementById('quoteText');
                 const quoteAuthor = document.getElementById('quoteAuthor');
                 
+                let didBlur = false;
+                
                 if (quoteText && quoteText === document.activeElement) {
                     quoteText.blur();
+                    didBlur = true;
                 }
                 if (quoteAuthor && quoteAuthor === document.activeElement) {
                     quoteAuthor.blur();
+                    didBlur = true;
+                }
+                
+                // Immediately update viewport height after blur for instant bottom-nav return
+                if (didBlur && window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
+                    window.viewportCalculator.updateViewportHeight();
                 }
             }
         };
         
         // Add touch handler to document
-        document.addEventListener('touchstart', this.iosKeyboardHandler, { passive: true });
+        document.addEventListener('touchstart', this.addTabKeyboardHandler, { passive: true });
     }
     
     /**
-     * Remove iOS keyboard handlers
+     * Remove Add tab keyboard handler
      */
-    removeIOSKeyboardHandlers() {
-        if (this.iosKeyboardHandler) {
-            document.removeEventListener('touchstart', this.iosKeyboardHandler);
-            this.iosKeyboardHandler = null;
+    removeAddTabKeyboardHandler() {
+        if (this.addTabKeyboardHandler) {
+            document.removeEventListener('touchstart', this.addTabKeyboardHandler);
+            this.addTabKeyboardHandler = null;
         }
     }
     
@@ -1275,8 +1284,8 @@ class DiaryPage {
         });
         this.subscriptions = [];
         
-        // Clean up iOS keyboard handlers
-        this.removeIOSKeyboardHandlers();
+        // Clean up Add tab keyboard handler
+        this.removeAddTabKeyboardHandler();
         
         // Clean up analysis timer
         this.clearAnalysisTimer();
@@ -1495,6 +1504,9 @@ async deleteQuote(quoteId) {
         // Удаляем из локального state
         const updatedQuotes = quotes.filter(q => q._id !== quoteId && q.id !== quoteId);
         this.state.set('quotes.items', updatedQuotes);
+        
+        // ✅ НОВОЕ: Reset analysis when deleting a quote
+        this.resetAnalysisToDefault();
         
         // ✅ ИСПРАВЛЕНО: Обновляем статистику
         const currentStats = this.state.get('stats') || {};
