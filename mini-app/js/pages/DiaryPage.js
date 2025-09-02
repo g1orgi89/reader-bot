@@ -19,11 +19,9 @@ class DiaryPage {
         this.telegram = app.telegram;
         
         // Состояние страницы (точно как в концепте)
-        this.activeTab = 'add'; // add, my-quotes, search
+        this.activeTab = 'add'; // add, my-quotes
         this.currentFilter = 'all'; // all, favorites, this-week, by-author
         this.searchQuery = '';
-        this.searchFilters = ['all', 'favorites', 'this-week', 'month', 'classics'];
-        this.activeSearchFilter = 'all';
         
         // Состояние формы
         this.formData = {
@@ -250,7 +248,6 @@ class DiaryPage {
             <div class="tabs">
                 <button class="tab ${this.activeTab === 'add' ? 'active' : ''}" data-tab="add">✍️ Добавить</button>
                 <button class="tab ${this.activeTab === 'my-quotes' ? 'active' : ''}" data-tab="my-quotes">📚 Мои цитаты</button>
-                <button class="tab ${this.activeTab === 'search' ? 'active' : ''}" data-tab="search">🔍 Поиск</button>
             </div>
         `;
     }
@@ -261,8 +258,6 @@ class DiaryPage {
                 return this.renderAddTab();
             case 'my-quotes':
                 return this.renderMyQuotesTab();
-            case 'search':
-                return this.renderSearchTab();
             default:
                 return this.renderAddTab();
         }
@@ -381,16 +376,24 @@ class DiaryPage {
      */
     renderFilters() {
         return `
-            <div class="filter-tabs">
-                <button class="filter-tab ${this.currentFilter === 'all' ? 'active' : ''}" data-filter="all">Все</button>
-                <button class="filter-tab ${this.currentFilter === 'favorites' ? 'active' : ''}" data-filter="favorites">Избранные</button>
-                <button class="filter-tab ${this.currentFilter === 'this-week' ? 'active' : ''}" data-filter="this-week">Эта неделя</button>
-                <button class="filter-tab ${this.currentFilter === 'by-author' ? 'active' : ''}" data-filter="by-author">По автору</button>
-                ${
-                    this.currentFilter === 'by-author'
-                        ? `<input class="filter-author-input" id="filterAuthorInput" placeholder="Имя автора" value="${this.filterAuthor || ''}" style="margin-left:10px;max-width:150px;">`
-                        : ''
-                }
+            <div class="search-and-filters">
+                <div class="search-section">
+                    <input class="search-input" 
+                           id="quotesSearchInput"
+                           placeholder="Поиск по тексту или автору..." 
+                           value="${this.searchQuery}">
+                </div>
+                <div class="filter-tabs">
+                    <button class="filter-tab ${this.currentFilter === 'all' ? 'active' : ''}" data-filter="all">Все</button>
+                    <button class="filter-tab ${this.currentFilter === 'favorites' ? 'active' : ''}" data-filter="favorites">Избранные</button>
+                    <button class="filter-tab ${this.currentFilter === 'this-week' ? 'active' : ''}" data-filter="this-week">Эта неделя</button>
+                    <button class="filter-tab ${this.currentFilter === 'by-author' ? 'active' : ''}" data-filter="by-author">По автору</button>
+                    ${
+                        this.currentFilter === 'by-author'
+                            ? `<input class="filter-author-input" id="filterAuthorInput" placeholder="Имя автора" value="${this.filterAuthor || ''}" style="margin-left:10px;max-width:150px;">`
+                            : ''
+                    }
+                </div>
             </div>
         `;
     }    
@@ -416,16 +419,33 @@ class DiaryPage {
             return `<div class="loading-state">⏳ Загружаем ваши цитаты...</div>`;
         }
         
-        if (quotes.length === 0) {
-            return this.renderEmptyQuotes();
+        // Apply search filtering
+        let filteredQuotes = quotes;
+        if (this.searchQuery && this.searchQuery.trim()) {
+            const searchTerm = this.searchQuery.toLowerCase();
+            filteredQuotes = quotes.filter(quote => 
+                (quote.text && quote.text.toLowerCase().includes(searchTerm)) ||
+                (quote.author && quote.author.toLowerCase().includes(searchTerm))
+            );
         }
         
-        // Показываем только реальные цитаты пользователя
-    const displayQuotes = quotes;
-
-    // Вызываем renderQuoteItem с showAnalysis = false (по умолчанию)
-    return displayQuotes.map(quote => this.renderQuoteItem(quote, false)).join('');
- }
+        if (filteredQuotes.length === 0) {
+            if (this.searchQuery && this.searchQuery.trim()) {
+                return `
+                    <div class="empty-search-results">
+                        <div class="empty-icon">🔍</div>
+                        <div class="empty-title">Ничего не найдено</div>
+                        <div class="empty-text">Попробуйте изменить запрос или добавить новые цитаты</div>
+                    </div>
+                `;
+            } else {
+                return this.renderEmptyQuotes();
+            }
+        }
+        
+        // Вызываем renderQuoteItem с showAnalysis = false (по умолчанию)
+        return filteredQuotes.map(quote => this.renderQuoteItem(quote, false)).join('');
+    }
 
     renderPagination() {
         const total = this.state.get('quotes.total') || 0;
@@ -468,6 +488,14 @@ class DiaryPage {
         const author = quote.author ? `— ${quote.author}` : '';
         const heartIcon = isFavorite ? '❤️' : '🤍';
 
+        // Highlight search terms if search query exists
+        const displayText = this.searchQuery && this.searchQuery.trim() 
+            ? this.highlightSearchTerm(quote.text, this.searchQuery) 
+            : quote.text;
+        const displayAuthor = author && this.searchQuery && this.searchQuery.trim()
+            ? this.highlightSearchTerm(author, this.searchQuery)
+            : author;
+
         // Корректно берем summary и insights из новых и старых форматов
         const summary = showAnalysis ? (quote.aiAnalysis?.summary || quote.summary || '') : '';
         const insights = showAnalysis ? (quote.insights || quote.aiAnalysis?.insights || '') : '';
@@ -475,8 +503,8 @@ class DiaryPage {
         return `
             <div class="quote-card my-quotes" data-id="${quote._id || quote.id}" data-quote-id="${quote._id || quote.id}">
                 <button class="quote-kebab" aria-label="menu" title="Действия">…</button>
-                <div class="quote-text">${quote.text}</div>
-                ${author ? `<div class="quote-author">${author}</div>` : ''}
+                <div class="quote-text">${displayText}</div>
+                ${displayAuthor ? `<div class="quote-author">${displayAuthor}</div>` : ''}
                 ${summary ? `<div class="quote-summary" style="margin-top:8px;color:var(--text-primary)"><b>Ответ Анны:</b> ${summary}</div>` : ''}
                 ${insights ? `<div class="quote-insight" style="margin-top:6px;"><b>Инсайт:</b> ${insights}</div>` : ''}
                 <div class="quote-actions-inline">
@@ -485,113 +513,6 @@ class DiaryPage {
                     <button class="action-btn action-delete" data-action="delete" aria-label="Удалить цитату" title="Удалить">🗑️</button>
                 </div>
              </div>
-        `;
-    }
-    
-    /**
-     * 🔍 ТАБ ПОИСКА (ИЗ ДОПОЛНИТЕЛЬНОГО КОНЦЕПТА!)
-     */
-    renderSearchTab() {
-        return `
-            <div class="search-section">
-                <input class="search-input" 
-                       id="searchInput"
-                       placeholder="Поиск по тексту, автору или теме..." 
-                       value="${this.searchQuery}">
-                <div class="search-filters">
-                    ${this.searchFilters.map(filter => `
-                        <button class="search-filter ${this.activeSearchFilter === filter ? 'active' : ''}" 
-                                data-search-filter="${filter}">
-                            ${this.getFilterLabel(filter)}
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-            
-            ${this.renderSearchStats()}
-            ${this.renderSearchResults()}
-        `;
-    }
-    
-    /**
-     * 📊 СТАТИСТИКА ПОИСКА (ИЗ КОНЦЕПТА!) - ИСПРАВЛЕНО: Реальные данные
-     */
-    renderSearchStats() {
-        const searchResults = this.state.get('searchResults') || [];
-        const searchResultsCount = searchResults.length;
-        const totalQuotes = this.state.get('stats.totalQuotes') || 0;
-        
-        return `
-            <div class="search-stats">
-                ${this.searchQuery ? 
-                    `🔍 Найдено ${searchResultsCount} ${this.getQuoteWord(searchResultsCount)} по запросу "${this.searchQuery}" • Всего у вас: ${totalQuotes} ${this.getQuoteWord(totalQuotes)}` :
-                    '🔍 Введите запрос для поиска по вашим цитатам'
-                }
-            </div>
-        `;
-    }
-    
-    /**
-     * 🔍 РЕЗУЛЬТАТЫ ПОИСКА (ИЗ КОНЦЕПТА!) - ИСПРАВЛЕНО: Реальные данные
-     */
-    renderSearchResults() {
-        if (!this.searchQuery) {
-            return `
-                <div class="search-tips">
-                    <strong>💡 Советы по поиску:</strong><br>
-                    • Используйте ключевые слова из цитат<br>
-                    • Попробуйте искать по имени автора<br>
-                    • Фильтры помогают уточнить результат
-                </div>
-            `;
-        }
-        
-        // ✅ ИСПРАВЛЕНО: Используем реальные результаты поиска из state
-        const searchResults = this.state.get('searchResults') || [];
-        
-        if (searchResults.length === 0) {
-            return `
-                <div class="empty-search-results">
-                    <div class="empty-icon">🔍</div>
-                    <div class="empty-title">Ничего не найдено</div>
-                    <div class="empty-text">Попробуйте изменить запрос или добавить новые цитаты</div>
-                </div>
-            `;
-        }
-        
-        return searchResults.map(quote => this.renderSearchQuoteItem(quote)).join('');
-    }
-    
-    /**
-     * 🔍 КАРТОЧКА РЕЗУЛЬТАТА ПОИСКА (ИЗ КОНЦЕПТА!) - ИСПРАВЛЕНО: Реальные данные
-     */
-    renderSearchQuoteItem(quote) {
-        const highlightedText = this.highlightSearchTerm(quote.text, this.searchQuery);
-        const isFavorite = quote.isFavorite || false;
-        
-        // ✅ ИСПРАВЛЕНО: Форматируем дату
-        const date = quote.createdAt ? this.formatQuoteDate(quote.createdAt) : 'Недавно';
-        
-        return `
-            <div class="quote-item" data-quote-id="${quote.id || quote._id}">
-                <div class="quote-text">"${highlightedText}"</div>
-                <div class="quote-meta">
-                    <div>
-                        <div class="quote-author">${quote.author}</div>
-                        <div class="quote-date">${date}</div>
-                    </div>
-                    <div class="quote-actions">
-                        <button class="quote-action" 
-                                data-action="favorite" 
-                                style="color: ${isFavorite ? 'var(--primary-color)' : 'var(--text-muted)'};" 
-                                title="${isFavorite ? 'В избранном' : 'Добавить в избранное'}">
-                            ${isFavorite ? '⭐' : '☆'}
-                        </button>
-                        <button class="quote-action" data-action="edit" title="Редактировать">✏️</button>
-                        <button class="quote-action" data-action="more" title="Еще">⋯</button>
-                    </div>
-                </div>
-            </div>
         `;
     }
     
@@ -658,15 +579,6 @@ class DiaryPage {
                 this.rerender();
             });
         }
-
-        // ... остальные search фильтры оставь как есть
-        const searchFilters = document.querySelectorAll('.search-filter[data-search-filter]');
-        searchFilters.forEach(filter => {
-            filter.addEventListener('click', () => {
-                const filterType = filter.dataset.searchFilter;
-                this.applySearchFilter(filterType);
-            });
-        });
     }
     
     attachFormListeners() {
@@ -722,33 +634,34 @@ class DiaryPage {
     }
     
     attachSearchListeners() {
-        const searchInput = document.getElementById('searchInput');
+        // Handle search input in my-quotes tab
+        const quotesSearchInput = document.getElementById('quotesSearchInput');
         
-        if (searchInput) {
-            // ✅ ИСПРАВЛЕНО: Debounced search для лучшего UX
+        if (quotesSearchInput) {
+            // Debounced search for better UX
             let searchTimeout;
             
-            searchInput.addEventListener('input', (e) => {
+            quotesSearchInput.addEventListener('input', (e) => {
                 this.searchQuery = e.target.value;
                 
-                // Очищаем предыдущий timeout
+                // Clear previous timeout
                 if (searchTimeout) {
                     clearTimeout(searchTimeout);
                 }
                 
-                // Запускаем поиск с задержкой
+                // Update display with delay
                 searchTimeout = setTimeout(() => {
-                    this.performSearch();
-                }, 300); // 300ms задержка
+                    this.rerender();
+                }, 300); // 300ms delay
             });
             
-            searchInput.addEventListener('keypress', (e) => {
+            quotesSearchInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
-                    // Немедленный поиск при нажатии Enter
+                    // Immediate update when Enter is pressed
                     if (searchTimeout) {
                         clearTimeout(searchTimeout);
                     }
-                    this.performSearch();
+                    this.rerender();
                 }
             });
         }
@@ -997,12 +910,6 @@ class DiaryPage {
         }
     }
     
-    applySearchFilter(filter) {
-        this.activeSearchFilter = filter;
-        this.telegram.hapticFeedback('light');
-        this.updateSearchResults();
-    }
-    
     async handleQuoteAction(actionType, quoteId) {
         this.telegram.hapticFeedback('light');
         
@@ -1049,40 +956,6 @@ class DiaryPage {
             console.error('❌ Ошибка обновления избранного:', error);
             this.telegram.hapticFeedback('error');
         }
-    }
-    
-    async performSearch() {
-        if (!this.searchQuery.trim()) {
-            this.updateSearchResults();
-            return;
-        }
-        
-        try {
-            this.log('🔍 Выполняем поиск:', this.searchQuery);
-            
-            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед поиском
-            const userId = await this.waitForValidUserId();
-            console.log('🔍 DiaryPage: Выполняем поиск для userId:', userId);
-            
-            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
-            const searchResults = await this.api.getQuotes({
-                search: this.searchQuery.trim(),
-                limit: 50
-            }, userId);
-            
-            // ✅ ИСПРАВЛЕНО: Сохраняем результаты в state
-            this.state.set('searchResults', searchResults.data?.quotes || searchResults.quotes || searchResults.items || []);
-            this.updateSearchResults();
-            
-        } catch (error) {
-            console.error('❌ Ошибка поиска:', error);
-            this.state.set('searchResults', []);
-            this.updateSearchResults();
-        }
-    }
-    
-    updateSearchResults() {
-        this.rerender();
     }
     
     /**
@@ -1136,23 +1009,6 @@ class DiaryPage {
         }
     }
     
-    getFilterLabel(filter) {
-        const labels = {
-            'all': 'Все',
-            'favorites': 'Любимые', 
-            'this-week': 'Эта неделя',
-            'month': 'Месяц',
-            'classics': 'Классики'
-        };
-        return labels[filter] || filter;
-    }
-    
-    getQuoteWord(count) {
-        if (count % 10 === 1 && count % 100 !== 11) return 'цитата';
-        if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'цитаты';
-        return 'цитат';
-    }
-    
     formatQuoteDate(dateString) {
         const date = new Date(dateString);
         const now = new Date();
@@ -1180,7 +1036,7 @@ class DiaryPage {
         if (!searchTerm) return text;
         
         const regex = new RegExp(`(${searchTerm})`, 'gi');
-        return text.replace(regex, '<span class="highlight-match">$1</span>');
+        return text.replace(regex, '<span class="quote-highlight">$1</span>');
     }
     
     /**
@@ -1344,6 +1200,15 @@ class DiaryPage {
                 }
             }
             return;
+        }
+
+        // Handle card selection (tap on card itself, not on action buttons)
+        const cardTap = e.target.closest('.quote-card, .quote-item, [data-quote-id]');
+        if (cardTap && !e.target.closest('.action-btn, .quote-kebab')) {
+            const wrap = cardTap.parentElement;
+            if (wrap) wrap.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+            cardTap.classList.add('active');
+            this.telegram?.hapticFeedback?.('light');
         }
     }
 

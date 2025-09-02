@@ -291,3 +291,18 @@
     background-size: 200% 100%;
   }
 }
+
+/* === Unified quote card styling & active state === */
+.quote-card, .quote-item, .recent-quote-item, [data-quote-id] {
+  background: var(--bg-primary);
+}
+.quote-card.active, .quote-item.active, .recent-quote-item.active, [data-quote-id].active {
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(210,69,44,0.15);
+}
+.quote-highlight { 
+  background: rgba(210,69,44,0.15); 
+  color: var(--text-primary); 
+  padding: 0 2px; 
+  border-radius: 4px; 
+}
