@@ -628,36 +628,113 @@ router.get('/stats', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const user = await UserProfile.findOne({ userId });
-
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
+      return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    const userStats = user.statistics || {};
-    const todayQuotes = await Quote.getTodayQuotesCount(userId);
+    // ---- Time boundaries ----
+    const now = new Date();
+    const startOfToday = new Date(now); startOfToday.setHours(0,0,0,0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const safeStats = {
-      totalQuotes: userStats.totalQuotes || 0,
-      currentStreak: userStats.currentStreak || 0,
-      longestStreak: userStats.longestStreak || 0,
-      favoriteAuthors: userStats.favoriteAuthors || [],
-      monthlyQuotes: userStats.monthlyQuotes || 0,
-      todayQuotes: todayQuotes || 0,
-      daysSinceRegistration: user.daysSinceRegistration || 0,
-      weeksSinceRegistration: user.weeksSinceRegistration || 0
+    // ---- Parallel base counts ----
+    const [ totalQuotes, todayQuotes, currentMonthQuotes ] = await Promise.all([
+      Quote.countDocuments({ userId }),
+      Quote.countDocuments({ userId, createdAt: { $gte: startOfToday } }),
+      Quote.countDocuments({ userId, createdAt: { $gte: startOfMonth } })
+    ]);
+
+    // ---- Recent quotes for streak + authors (single fetch) ----
+    // 300 is a pragmatic cap: enough to cover long streaks & author frequency without heavy load
+    const recentQuotes = await Quote.find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(300)
+      .select({ createdAt: 1, author: 1 })
+      .lean();
+
+    // ---- Helpers ----
+    const getDayKey = (d) => { const dt = new Date(d); dt.setHours(0,0,0,0); return dt.toISOString().slice(0,10); };
+
+    const computeDynamicStreak = (quotes) => {
+      if (!quotes.length) return 0;
+      const daySet = new Set(quotes.map(q => getDayKey(q.createdAt)));
+      let streak = 0;
+      const cursor = new Date(); cursor.setHours(0,0,0,0);
+      while (true) {
+        const key = getDayKey(cursor);
+        if (daySet.has(key)) { streak++; cursor.setDate(cursor.getDate() - 1); } else { break; }
+      }
+      return streak;
     };
 
-    res.json({
-      success: true,
-      stats: safeStats
-    });
+    const dynamicStreak = computeDynamicStreak(recentQuotes);
+
+    // ---- Favorite authors (top 3 by frequency among recent) ----
+    const authorMap = new Map();
+    for (const q of recentQuotes) {
+      if (!q.author) continue;
+      authorMap.set(q.author, (authorMap.get(q.author) || 0) + 1);
+    }
+    const favoriteAuthors = [...authorMap.entries()]
+      .sort((a,b) => b[1]-a[1])
+      .slice(0,3)
+      .map(([author,count]) => ({ author, count }));
+
+    // ---- Longest streak logic ----
+    const storedLongest = user.statistics?.longestStreak || 0;
+    const longestStreak = dynamicStreak > storedLongest ? dynamicStreak : storedLongest;
+
+    // ---- days / weeks since registration ----
+    const daysSinceRegistration = user.daysSinceRegistration || 0;
+    const weeksSinceRegistration = user.weeksSinceRegistration || 0;
+
+    // ---- Build response stats ----
+    const safeStats = {
+      totalQuotes,
+      currentStreak: dynamicStreak,
+      longestStreak,
+      favoriteAuthors: favoriteAuthors.map(a => a.author), // Backward compatibility: array of strings
+      monthlyQuotes: currentMonthQuotes, // expose numeric current month count (legacy field name)
+      todayQuotes,
+      daysSinceRegistration,
+      weeksSinceRegistration
+    };
+
+    // ---- Async snapshot update (do not await) ----
+    (async () => {
+      try {
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        const statsUpdate = user.statistics || {};
+        statsUpdate.totalQuotes = totalQuotes;
+        statsUpdate.currentStreak = dynamicStreak;
+        if (longestStreak > storedLongest) statsUpdate.longestStreak = longestStreak;
+        statsUpdate.favoriteAuthors = favoriteAuthors.map(a => a.author);
+
+        // Update monthlyQuotes array structure
+        if (!Array.isArray(statsUpdate.monthlyQuotes)) statsUpdate.monthlyQuotes = [];
+        let monthEntry = statsUpdate.monthlyQuotes.find(m => m.month === month && m.year === year);
+        if (!monthEntry) {
+          monthEntry = { month, year, count: currentMonthQuotes };
+          statsUpdate.monthlyQuotes.push(monthEntry);
+        } else {
+          monthEntry.count = currentMonthQuotes;
+        }
+
+        // Persist
+        await UserProfile.updateOne(
+          { _id: user._id },
+          { $set: { statistics: statsUpdate, lastActiveAt: new Date() } }
+        );
+      } catch (innerErr) {
+        console.warn('[stats] async snapshot update failed:', innerErr.message);
+      }
+    })();
+
+    return res.json({ success: true, stats: safeStats });
   } catch (error) {
-    console.error('❌ Stats Error:', error);
-    // Возвращаем безопасный дефолт, чтобы фронт не ломался
-    res.status(200).json({
+    console.error('❌ Stats Error (dynamic):', error);
+    return res.status(200).json({
       success: true,
       stats: {
         totalQuotes: 0,
@@ -669,7 +746,7 @@ router.get('/stats', telegramAuth, async (req, res) => {
         daysSinceRegistration: 0,
         weeksSinceRegistration: 0
       },
-      warning: 'Статистика временно недоступна, показаны значения по умолчанию'
+      warning: 'dynamic-fallback'
     });
   }
 });
