@@ -292,27 +292,52 @@
   }
 }
 
-/* === Unified quote card styling & active state overrides === */
+/* === Quote card unified beige styling & active selection === */
+.recent-quote-item, 
+.quote-card.my-quotes, 
+.my-quotes-container .quote-card, 
+.my-quotes-container [data-quote-id], 
+[data-quote-id].quote-card,
 .home-latest-quotes .quote-card.recent-quote-item,
 .home-latest-quotes .recent-quote-item,
-.recent-quotes-section .recent-quote-item,
-.quote-card.my-quotes,
-.my-quotes-container .quote-card,
-.my-quotes-container [data-quote-id],
-[data-quote-id].quote-card {
+.recent-quotes-section .recent-quote-item {
   background: var(--bg-primary) !important;
   border: 1px solid var(--bg-secondary);
-  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
 }
-.home-latest-quotes .recent-quote-item:hover,
-.my-quotes-container .quote-card:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.06); }
-.quote-card.active,
-.quote-card.my-quotes.active,
-.my-quotes-container .quote-card.active,
+
+.recent-quote-item:hover,
+.quote-card.my-quotes:hover, 
+.my-quotes-container .quote-card:hover,
+.home-latest-quotes .recent-quote-item:hover { 
+  transform: translateY(-1px); 
+  box-shadow: 0 3px 8px rgba(0,0,0,0.06); 
+}
+
+.recent-quote-item.active, 
+.quote-card.my-quotes.active, 
+.my-quotes-container .quote-card.active, 
+[data-quote-id].active,
 .home-latest-quotes .recent-quote-item.active,
-.recent-quotes-section .recent-quote-item.active,
-[data-quote-id].active { border:2px solid var(--primary-color) !important; box-shadow:0 0 0 2px rgba(210,69,44,0.15),0 2px 6px rgba(0,0,0,0.08); }
-.quote-card.liked.active { border-color: var(--primary-color) !important; }
-.quote-highlight { background: rgba(210,69,44,0.15); color: var(--text-primary); padding:0 2px; border-radius:4px; }
-.quote-card.my-quotes .quote-card__container { background: transparent !important; }
+.recent-quotes-section .recent-quote-item.active {
+  border: 2px solid var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(210,69,44,0.15), 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.quote-card.liked.active { 
+  border-color: var(--primary-color) !important; 
+}
+
+.quote-highlight { 
+  background: rgba(210,69,44,0.15); 
+  color: var(--text-primary); 
+  padding: 0 2px; 
+  border-radius: 4px; 
+}
+
+/* Remove internal white container background if present */
+.quote-card .quote-card__container,
+.quote-card.my-quotes .quote-card__container { 
+  background: transparent !important; 
+}

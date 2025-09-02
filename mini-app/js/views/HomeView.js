@@ -253,7 +253,8 @@ window.HomeView = class HomeView {
     if (!this.latestContainer) return;
     const items = this.latestContainer.querySelectorAll('.recent-quote-item, .quote-card.recent-quote-item');
     items.forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.action-btn, .quote-kebab')) return;
         items.forEach(i => i.classList.remove('active'));
         item.classList.add('active');
         this.telegram?.HapticFeedback?.impactOccurred?.('light');

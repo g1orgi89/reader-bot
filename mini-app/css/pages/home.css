@@ -404,9 +404,9 @@
     gap: 8px;
     padding: 12px;
     margin: 8px 0;
-    background: var(--background-light);
+    background: var(--bg-primary);
     border-radius: var(--border-radius-small);
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--bg-secondary);
     transition: all var(--transition-normal);
     cursor: pointer;
 }

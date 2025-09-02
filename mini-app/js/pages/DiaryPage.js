@@ -1205,18 +1205,9 @@ class DiaryPage {
         // Handle card selection (tap on card itself, not on action buttons)
         const cardTap = e.target.closest('.quote-card, .quote-item, [data-quote-id]');
         if (cardTap && !e.target.closest('.action-btn, .quote-kebab')) {
-            const wrap = cardTap.parentElement;
-            if (wrap) wrap.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
-            cardTap.classList.add('active');
-            this.telegram?.hapticFeedback?.('light');
-        }
-        
-        // Additional card selection logic as specified in requirements
-        const tapCard = e.target.closest('.quote-card, [data-quote-id]');
-        if (tapCard && !e.target.closest('.action-btn, .quote-kebab')) {
-            const scope = tapCard.closest('.my-quotes-container') || tapCard.parentElement;
+            const scope = cardTap.closest('.my-quotes-container') || cardTap.parentElement;
             if (scope) scope.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
-            tapCard.classList.add('active');
+            cardTap.classList.add('active');
             this.telegram?.hapticFeedback?.('light');
         }
     }
