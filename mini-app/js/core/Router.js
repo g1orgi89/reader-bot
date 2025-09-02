@@ -301,8 +301,8 @@ class AppRouter {
         // В Telegram Mini App используем hash роутинг
         const rawHash = window.location.hash.slice(1);
         if (rawHash) {
-            const hash = this.normalizePath(rawHash);
-            this.navigate(hash, { replace: true });
+            // Pass the full hash including query parameters to navigate
+            this.navigate(rawHash, { replace: true });
         } else {
             // Если hash пустой — стартуем с главной
             this.navigate('/home', { replace: true });
@@ -316,7 +316,8 @@ class AppRouter {
      */
     async navigate(path, options = {}) {
         const normalizedPath = this.normalizePath(path);
-        console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`);
+        const query = this.parseQuery(path);
+        console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`, query);
 
         // Усиленная защита от дублирования навигации
         if (this.isNavigating && !options.force) {
@@ -368,11 +369,15 @@ class AppRouter {
             // Показываем состояние загрузки
             this.showPageLoading();
             
-            // Создаем новый компонент
-            await this.createComponent(route, options.state);
+            // Создаем новый компонент с query параметрами
+            const componentState = {
+                ...options.state,
+                query: query
+            };
+            await this.createComponent(route, componentState);
             
-            // Обновляем URL и историю
-            this.updateUrl(normalizedPath, options.replace);
+            // Обновляем URL и историю (сохраняя query string)
+            this.updateUrl(path, options.replace);
             
             // Обновляем UI
             this.updateUI(route);
@@ -600,8 +605,9 @@ class AppRouter {
     }
 
     updateUrl(path, replace = false) {
+        // Don't normalize the path here to preserve query string
+        const url = `#${path.startsWith('/') ? path : '/' + path}`;
         const normalizedPath = this.normalizePath(path);
-        const url = `#${normalizedPath}`;
     
         if (replace) {
             window.history.replaceState({ path: normalizedPath }, '', url);
@@ -689,8 +695,9 @@ class AppRouter {
     handlePopState(event) {
         console.log('📡 Router: Обработка popstate');
         
-        const rawPath = event.state?.path || '';
-        const path = this.normalizePath(rawPath);
+        // Use current hash to preserve query parameters
+        const rawHash = window.location.hash.slice(1);
+        const path = rawHash || '/home';
         
         // Навигируем без добавления в историю
         this.navigate(path, { replace: true });
@@ -788,8 +795,8 @@ class AppRouter {
 
     /**
      * 🔄 Normalize path for consistent routing
-     * @param {string} path - Raw path (may include #)
-     * @returns {string} - Normalized path with leading /
+     * @param {string} path - Raw path (may include # and query string)
+     * @returns {string} - Normalized path with leading / but without query string
      */
     normalizePath(path) {
         if (!path || typeof path !== 'string') {
@@ -798,6 +805,12 @@ class AppRouter {
         
         // Strip any leading #
         let normalized = path.replace(/^#+/, '');
+        
+        // Strip query string for route matching
+        const queryIndex = normalized.indexOf('?');
+        if (queryIndex !== -1) {
+            normalized = normalized.substring(0, queryIndex);
+        }
         
         // Ensure starts with /
         if (!normalized.startsWith('/')) {
@@ -810,6 +823,40 @@ class AppRouter {
         }
         
         return normalized;
+    }
+
+    /**
+     * 🔍 Parse query string from path
+     * @param {string} path - Path that may include query string
+     * @returns {Object} - Parsed query parameters
+     */
+    parseQuery(path) {
+        if (!path || typeof path !== 'string') {
+            return {};
+        }
+        
+        // Strip any leading #
+        let cleanPath = path.replace(/^#+/, '');
+        
+        const queryIndex = cleanPath.indexOf('?');
+        if (queryIndex === -1) {
+            return {};
+        }
+        
+        const queryString = cleanPath.substring(queryIndex + 1);
+        const query = {};
+        
+        if (queryString) {
+            const pairs = queryString.split('&');
+            for (const pair of pairs) {
+                const [key, value] = pair.split('=');
+                if (key) {
+                    query[decodeURIComponent(key)] = value ? decodeURIComponent(value) : '';
+                }
+            }
+        }
+        
+        return query;
     }
 }
 
