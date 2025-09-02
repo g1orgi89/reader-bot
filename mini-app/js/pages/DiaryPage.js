@@ -894,8 +894,13 @@ class DiaryPage {
 
             // Обновляем state quotes.items (тоже с анализом)
             const existingQuotes = this.state.get('quotes.items') || [];
-            let quoteForList = { ...data, insights, themes, category, sentiment };
+            const quoteForList = { ...data, insights, themes, category, sentiment };
             this.state.set('quotes.items', [quoteForList, ...existingQuotes]);
+
+            // Dispatch event for StatisticsService
+            document.dispatchEvent(new CustomEvent('quotes:changed', { 
+                detail: { type: 'added', id: data.id || data._id, quote: quoteForList } 
+            }));
 
             // Обновляем статистику
             const currentStats = this.state.get('stats') || {};

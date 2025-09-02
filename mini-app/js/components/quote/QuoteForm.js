@@ -945,14 +945,32 @@ class QuoteForm {
             if (this.state) {
                 if (this.options.initialData) {
                     this.state.updateQuoteInList(savedQuote.id, savedQuote);
+                    // Dispatch edit event
+                    document.dispatchEvent(new CustomEvent('quotes:changed', { 
+                        detail: { type: 'edited', id: savedQuote.id, quote: savedQuote } 
+                    }));
                 } else {
                     this.state.addQuote(savedQuote);
+                    // Dispatch add event
+                    document.dispatchEvent(new CustomEvent('quotes:changed', { 
+                        detail: { type: 'added', id: savedQuote.id, quote: savedQuote } 
+                    }));
                 }
             }
 
             // Invalidate StatisticsService cache after successful save
             if (window.statisticsService) {
-                window.statisticsService.invalidate(['mainStats','latestQuotes_3','userProgress']);
+                try {
+                    const userId = window.readerApp?.state?.getCurrentUserId?.();
+                    if (userId) {
+                        window.statisticsService.invalidateForUser(userId);
+                    } else {
+                        // Fallback to old method if userId not available
+                        window.statisticsService.invalidate(['mainStats','latestQuotes_3','userProgress']);
+                    }
+                } catch (e) {
+                    console.debug('StatisticsService invalidation failed:', e);
+                }
             }
 
             // Очищаем черновик
