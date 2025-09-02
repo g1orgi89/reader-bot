@@ -86,6 +86,7 @@ const weeklyAnalysisSchema = new mongoose.Schema({
 
 /**
  * 🔧 FIX: Схема рекомендации книги с исправленной валидацией цены
+ * 📋 NEW: Добавлены author, priceByn и обязательный bookSlug для синхронизации с BookCatalog
  */
 const bookRecommendationSchema = new mongoose.Schema({
   title: {
@@ -93,6 +94,13 @@ const bookRecommendationSchema = new mongoose.Schema({
     required: true,
     maxlength: 200
     // Название книги/курса
+  },
+  author: {
+    type: String,
+    required: false,
+    maxlength: 100,
+    default: null
+    // Автор книги (опционально)
   },
   description: {
     type: String,
@@ -104,7 +112,21 @@ const bookRecommendationSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0
-    // Цена как число: 8, 12, 20
+    // Цена как число: 8, 12, 20 (legacy field)
+  },
+  priceByn: {
+    type: Number,
+    required: false,
+    min: 0,
+    default: null
+    // Цена в белорусских рублях (опционально)
+  },
+  bookSlug: {
+    type: String,
+    required: true,
+    lowercase: true,
+    match: /^[a-z0-9_-]+$/
+    // Обязательный идентификатор для ссылок на каталог
   },
   link: {
     type: String,
@@ -524,11 +546,45 @@ weeklyReportSchema.pre('save', function(next) {
       if (!rec.reasoning) {
         rec.reasoning = 'Рекомендация на основе анализа ваших цитат';
       }
+      
+      // 📋 NEW: Генерируем bookSlug если отсутствует (для обратной совместимости)
+      if (!rec.bookSlug && rec.title) {
+        rec.bookSlug = this._generateSlugFromTitle(rec.title);
+      }
     });
   }
   
   next();
 });
+
+/**
+ * 📋 NEW: Генерирует slug из названия книги (fallback для совместимости)
+ * @private
+ * @param {string} title - Название книги
+ * @returns {string} Сгенерированный slug
+ */
+weeklyReportSchema.methods._generateSlugFromTitle = function(title) {
+  if (!title) return 'unknown-book';
+  
+  // Transliteration map for Cyrillic to Latin
+  const cyrillicMap = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+    'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+    'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+    'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+    'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+  };
+  
+  return title
+    .toString()
+    .toLowerCase()
+    .replace(/[а-я]/g, (char) => cyrillicMap[char] || char)
+    .replace(/[^a-z0-9\s-]/g, '') // только латиница, цифры, пробелы и дефисы
+    .replace(/\s+/g, '-')         // пробелы на дефисы
+    .replace(/\-+/g, '-')         // несколько дефисов — один дефис
+    .replace(/^-+|-+$/g, '')      // дефисы в начале/конце
+    .substring(0, 50);            // ограничиваем длину
+};
 
 const WeeklyReport = mongoose.model('WeeklyReport', weeklyReportSchema);
 

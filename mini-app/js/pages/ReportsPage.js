@@ -152,6 +152,34 @@ class ReportsPage {
         console.log('✅ ReportsPage: Fallback статистика применена');
     }
     
+    /**
+     * 📋 Генерирует fallback slug для legacy записей без bookSlug
+     * @param {string} title - Название книги
+     * @returns {string} Сгенерированный slug
+     */
+    generateFallbackSlug(title) {
+        if (!title) return 'unknown-book';
+        
+        // Transliteration map for Cyrillic to Latin
+        const cyrillicMap = {
+            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+            'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+            'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+            'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+            'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+        };
+        
+        return title
+            .toString()
+            .toLowerCase()
+            .replace(/[а-я]/g, (char) => cyrillicMap[char] || char)
+            .replace(/[^a-z0-9\s-]/g, '') // только латиница, цифры, пробелы и дефисы
+            .replace(/\s+/g, '-')         // пробелы на дефисы
+            .replace(/\-+/g, '-')         // несколько дефисов — один дефис
+            .replace(/^-+|-+$/g, '')      // дефисы в начале/конце
+            .substring(0, 50);            // ограничиваем длину
+    }
+    
     async loadReportData() {
         // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
         if (this.reportsLoading || this.reportsLoaded) {
@@ -197,18 +225,18 @@ class ReportsPage {
                 if (reports.length > 0) {
                     this.weeklyReport = reports[0];
 
-            // === ДОБАВЬ ЭТОТ БЛОК ===
-            let catalogBooks = [];
-            if (this.app?.state?.get && typeof this.app.state.get === 'function') {
-                catalogBooks = this.app.state.get('books') || [];
-            } else if (this.app?.state?.books) {
-                catalogBooks = this.app.state.books;
-            }
-                    
-            // Сопоставляем каждую рекомендацию с книгой из каталога по title+author и добавляем bookSlug
-            if (this.weeklyReport.recommendations && Array.isArray(this.weeklyReport.recommendations) && catalogBooks.length) {
+            // 📋 НОВОЕ: Легковесная проверка bookSlug для legacy записей (только если отсутствует)
+            if (this.weeklyReport.recommendations && Array.isArray(this.weeklyReport.recommendations)) {
+                let catalogBooks = [];
+                if (this.app?.state?.get && typeof this.app.state.get === 'function') {
+                    catalogBooks = this.app.state.get('books') || [];
+                } else if (this.app?.state?.books) {
+                    catalogBooks = this.app.state.books;
+                }
+                
+                // Только для рекомендаций БЕЗ bookSlug (защита от legacy данных)
                 this.weeklyReport.recommendations.forEach(rec => {
-                    if (!rec.bookSlug) {
+                    if (!rec.bookSlug && catalogBooks.length) {
                         const found = catalogBooks.find(book =>
                             book.title === rec.title && (
                                 (!book.author && !rec.author) ||
@@ -217,6 +245,11 @@ class ReportsPage {
                         );
                         if (found && found.bookSlug) {
                             rec.bookSlug = found.bookSlug;
+                            console.log(`📋 ReportsPage: Добавлен legacy bookSlug ${rec.bookSlug} для "${rec.title}"`);
+                        } else {
+                            // Fallback slug для legacy записей
+                            rec.bookSlug = this.generateFallbackSlug(rec.title);
+                            console.log(`📋 ReportsPage: Сгенерирован fallback slug ${rec.bookSlug} для "${rec.title}"`);
                         }
                     }
                 });
