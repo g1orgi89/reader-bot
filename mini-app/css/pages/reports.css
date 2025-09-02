@@ -87,6 +87,39 @@
 }
 
 /* ============================================================================
+   📊 СТАТИСТИЧЕСКИЕ ДЕЛЬТЫ И ПРОГРЕСС БАРЫ
+   ============================================================================ */
+
+.stat-delta {
+    font-size: var(--font-size-xs, 11px);
+    font-weight: 600;
+    display: block;
+    margin-top: 2px;
+}
+
+.stat-delta.up {
+    color: var(--success-color, #28a745);
+}
+
+.stat-delta.down {
+    color: var(--error-color, #dc3545);
+}
+
+.goal-bar {
+    height: 6px;
+    background: var(--bg-overlay, rgba(0, 0, 0, 0.1));
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.goal-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color, #D2452C), var(--primary-light, #E8684A));
+    transition: width 0.4s var(--ease-in-out, ease-in-out);
+}
+
+/* ============================================================================
    💡 AI АНАЛИЗ ОТ АННЫ
    ============================================================================ */
 
