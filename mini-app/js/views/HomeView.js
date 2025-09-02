@@ -142,6 +142,17 @@ this.latestContainer.style.display = 'block';
       if (action === 'delete') return this._deleteQuote(card, id);
       if (action === 'edit') return this._editQuote(card, id);
       if (action === 'like') return this._likeQuote(card, id);
+      return;
+    }
+
+    // Handle card selection (tap on card itself, not on action buttons)
+    const cardTap = e.target.closest('.quote-card, .recent-quote-item');
+    if (cardTap && !e.target.closest('.action-btn, .quote-kebab')) {
+      if (this.latestContainer) {
+        this.latestContainer.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+      }
+      cardTap.classList.add('active');
+      this._haptic('impact', 'light');
     }
   }
 
