@@ -1,0 +1,67 @@
+/**
+ * 📊 Stats Components Styles
+ */
+
+/* Stats inline component */
+.stats-inline {
+    margin: 16px 0;
+    padding: 12px 16px;
+    background-color: var(--background-secondary, #f8f9fa);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-summary {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary, #333);
+}
+
+/* Pulse animation for stats updates */
+.stats-inline.pulse-update {
+    animation: pulseUpdate 0.6s ease-out;
+}
+
+@keyframes pulseUpdate {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02);
+        filter: blur(0.5px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: blur(0);
+    }
+}
+
+/* Progress block styles */
+.progress-block {
+    margin: 16px 0;
+}
+
+.progress-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.stat-card {
+    min-height: 74px;
+    padding: 12px;
+    background-color: var(--background-secondary, #f8f9fa);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.progress-activity {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-secondary, #666);
+}
