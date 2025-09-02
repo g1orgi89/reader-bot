@@ -31,7 +31,7 @@ class StatisticsService {
             return {
                 totalQuotes: raw.totalQuotes || 0,
                 currentStreak: raw.currentStreak || 0,
-                daysInApp: raw.daysSinceRegistration || 0
+                daysInApp: raw.daysSinceRegistration || raw.daysInApp || 0
             };
         }, this.TTL_SHORT);
     }
@@ -196,15 +196,18 @@ class StatisticsService {
             this.invalidateForUser(userId);
             
             // Optimistic update
-            let stats = this.state.get('stats');
-            if (!stats) {
-                // Create minimal stats object if none exists
-                stats = { totalQuotes: 0, isFresh: false, loading: false };
+            const prev = this.state.get('stats');
+            if (prev && prev.loadedAt) {
+                // Only update if we have existing stats to avoid intermediate state without daysInApp
+                const updated = {
+                    ...prev,
+                    totalQuotes: (prev.totalQuotes || 0) + 1,
+                    loadedAt: Date.now(),
+                    isFresh: false
+                };
+                this.state.update('stats', updated);
+                document.dispatchEvent(new CustomEvent('stats:updated', { detail: updated }));
             }
-            stats.totalQuotes = (stats.totalQuotes || 0) + 1;
-            stats.loadedAt = Date.now();
-            stats.isFresh = false;
-            this.state.update('stats', stats);
             
             // Background refresh
             await this.refreshMainStatsSilent();
@@ -219,16 +222,17 @@ class StatisticsService {
             this.invalidateForUser(userId);
             
             // Optimistic update
-            let stats = this.state.get('stats');
-            if (!stats) {
-                // Create minimal stats object if none exists
-                stats = { totalQuotes: 1, isFresh: false, loading: false };
-            }
-            if (stats.totalQuotes > 0) {
-                stats.totalQuotes -= 1;
-                stats.loadedAt = Date.now();
-                stats.isFresh = false;
-                this.state.update('stats', stats);
+            const prev = this.state.get('stats');
+            if (prev && prev.loadedAt && prev.totalQuotes > 0) {
+                // Only update if we have existing stats to avoid intermediate state without daysInApp
+                const updated = {
+                    ...prev,
+                    totalQuotes: prev.totalQuotes - 1,
+                    loadedAt: Date.now(),
+                    isFresh: false
+                };
+                this.state.update('stats', updated);
+                document.dispatchEvent(new CustomEvent('stats:updated', { detail: updated }));
             }
             
             // Background refresh

@@ -52,7 +52,8 @@ class HomePage {
         // Add listener for stats:updated event from StatisticsService
         document.addEventListener('stats:updated', (e) => {
             if (e.detail) {
-                this.updateStatsUI(e.detail);
+                this.applyTopStats(e.detail);
+                this.updateProgressUI();
             }
         });
     }
@@ -250,7 +251,7 @@ class HomePage {
             this.state.set('catalog.books', mapped);
             this.state.set('stats.progressTemp', progress);
             this.dataLoaded = true;
-            this.updateHeaderStats();
+            this.applyTopStats(this.state.get('stats'));
             this.updateProgressUI();
         } catch (e) {
             console.error('HomePage statistics load error', e);
@@ -579,12 +580,10 @@ class HomePage {
     }
     
     /**
-     * 📊 Рендер инлайн статистики (заменяет сетку)
+     * 📊 Рендер инлайн статистики (только цитаты и дни в приложении)
      */
     renderStatsInline(stats) {
         const loading = stats.loading || this.loading;
-        const totalQuotes = loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
-        const currentStreak = loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
         
         if (loading) {
             return `
@@ -594,12 +593,20 @@ class HomePage {
             `;
         }
         
-        const quotesWord = totalQuotes !== '—' ? this.getQuoteWord(totalQuotes) : '';
-        const daysWord = currentStreak !== '—' ? this.getDayWord(currentStreak) : '';
+        const totalQuotes = stats.totalQuotes ?? 0;
+        const daysInApp = stats.daysInApp ?? 0;
+        const quotesWord = this.getQuoteWord(totalQuotes);
+        const daysWord = this.getDayWord(daysInApp);
+        
+        // Format: "X цитат" or "X цитат • Y дней в приложении" if daysInApp available
+        let content = `${totalQuotes} ${quotesWord}`;
+        if (daysInApp > 0) {
+            content += ` • ${daysInApp} ${daysWord} в приложении`;
+        }
         
         return `
             <div class="stats-inline" id="statsInline">
-                <span class="stat-summary">${totalQuotes} ${quotesWord}${totalQuotes !== '—' && currentStreak !== '—' ? ' • ' : ''}${currentStreak !== '—' ? currentStreak + ' ' + daysWord + ' подряд' : ''}</span>
+                <span class="stat-summary">${content}</span>
             </div>
         `;
     }
@@ -857,49 +864,45 @@ class HomePage {
     }
     
     /**
-     * 📊 Обновление заголовочной статистики (предотвращение мерцания)
+     * 📊 Применение статистики к верхнему блоку (без streak)
      */
-    updateHeaderStats() {
+    applyTopStats(stats) {
         const statsInline = document.getElementById('statsInline');
         if (!statsInline) return;
-        const stats = this.state.get('stats') || {};
-        if (!stats.loadedAt) {
-            statsInline.innerHTML = '';
+        
+        if (!stats || !stats.loadedAt) {
+            statsInline.innerHTML = '<span class="stat-summary">⏳ Загрузка…</span>';
             return;
         }
+        
         const totalQuotes = stats.totalQuotes ?? 0;
         const daysInApp = stats.daysInApp ?? 0;
         const quotesWord = this.getQuoteWord(totalQuotes);
         const daysWord = this.getDayWord(daysInApp);
-        statsInline.innerHTML = `
-            <span class="stat-summary">${totalQuotes} ${quotesWord} • ${daysInApp} ${daysWord} в приложении</span>
-        `;
+        
+        // Format: "X цитат" or "X цитат • Y дней в приложении" if daysInApp available
+        let content = `${totalQuotes} ${quotesWord}`;
+        if (daysInApp > 0) {
+            content += ` • ${daysInApp} ${daysWord} в приложении`;
+        }
+        
+        // Add pulse animation class if stats actually changed
+        const currentContent = statsInline.querySelector('.stat-summary')?.textContent || '';
+        const shouldAnimate = currentContent && currentContent !== content;
+        
+        statsInline.innerHTML = `<span class="stat-summary">${content}</span>`;
+        
+        if (shouldAnimate) {
+            statsInline.classList.add('pulse-update');
+            setTimeout(() => statsInline.classList.remove('pulse-update'), 600);
+        }
     }
 
     /**
-     * 🔄 Обновление UI статистики
+     * 🔄 Обновление UI статистики (только поддержка старого формата сетки)
      */
     updateStatsUI(stats) {
         if (!stats) return;
-        
-        // Поддержка нового инлайн формата
-        const statsInline = document.getElementById('statsInline');
-        if (statsInline) {
-            const loading = stats.loading || this.loading;
-            const totalQuotes = loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
-            const currentStreak = loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
-            
-            if (loading) {
-                statsInline.innerHTML = '<span class="stat-summary">⏳ Загружаем статистику...</span>';
-            } else {
-                const quotesWord = totalQuotes !== '—' ? this.getQuoteWord(totalQuotes) : '';
-                const daysWord = currentStreak !== '—' ? this.getDayWord(currentStreak) : '';
-                const separator = totalQuotes !== '—' && currentStreak !== '—' ? ' • ' : '';
-                const streakPart = currentStreak !== '—' ? currentStreak + ' ' + daysWord + ' подряд' : '';
-                statsInline.innerHTML = `<span class="stat-summary">${totalQuotes} ${quotesWord}${separator}${streakPart}</span>`;
-            }
-            return;
-        }
         
         // Поддержка старого формата сетки (обратная совместимость)
         const statsGrid = document.getElementById('statsGrid');
@@ -1117,7 +1120,7 @@ class HomePage {
             if (!stats?.loadedAt || (Date.now() - stats.loadedAt) > 60_000) {
                 this.loadFromStatistics();
             } else {
-                this.updateHeaderStats();
+                this.applyTopStats(stats);
                 this.updateProgressUI();
             }
         }
