@@ -390,7 +390,7 @@ class HomePage {
      * 📱 Навешивание обработчиков для последних цитат
      */
     attachRecentQuoteEvents() {
-        const quoteItems = document.querySelectorAll('.recent-quote-item');
+        const quoteItems = document.querySelectorAll('.quote-card.recent');
         quoteItems.forEach(item => {
             if (!item.classList.contains('skeleton')) {
                 item.addEventListener('click', () => {
@@ -649,7 +649,7 @@ class HomePage {
         const truncatedText = text.length > 120 ? text.substring(0, 120) + '...' : text;
         
         return `
-            <div class="recent-quote-item" data-quote-id="${quote._id || quote.id}">
+            <div class="quote-card recent" data-quote-id="${quote._id || quote.id}">
                 <div class="quote-text">"${truncatedText}"</div>
                 ${author ? `<div class="quote-author">— ${author}</div>` : ''}
             </div>
@@ -661,15 +661,15 @@ class HomePage {
      */
     renderRecentQuotesLoading() {
         return `
-            <div class="recent-quote-item skeleton">
+            <div class="quote-card recent skeleton">
                 <div class="quote-text skeleton-line"></div>
                 <div class="quote-author skeleton-line-short"></div>
             </div>
-            <div class="recent-quote-item skeleton">
+            <div class="quote-card recent skeleton">
                 <div class="quote-text skeleton-line"></div>
                 <div class="quote-author skeleton-line-short"></div>
             </div>
-            <div class="recent-quote-item skeleton">
+            <div class="quote-card recent skeleton">
                 <div class="quote-text skeleton-line"></div>
                 <div class="quote-author skeleton-line-short"></div>
             </div>

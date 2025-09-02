@@ -24,8 +24,7 @@
 .quote-card .quote-text,
 .quote-item .quote-text,
 [data-quote-id] .quote-text,
-.my-quotes .quote-text,
-.recent-quote-item .quote-text {
+.my-quotes .quote-text {
   font-family: 'Neucha', cursive;
   line-height: 1.4;
   font-size: var(--font-size-lg);
@@ -40,9 +39,7 @@
 [data-quote-id] .quote-text::before,
 [data-quote-id] .quote-text::after,
 .my-quotes .quote-text::before,
-.my-quotes .quote-text::after,
-.recent-quote-item .quote-text::before,
-.recent-quote-item .quote-text::after {
+.my-quotes .quote-text::after {
   content: none !important;
 }
 
@@ -57,8 +54,7 @@
 .quote-card .quote-author,
 .quote-item .quote-author,
 [data-quote-id] .quote-author,
-.my-quotes .quote-author,
-.recent-quote-item .quote-author {
+.my-quotes .quote-author {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   font-style: italic;
@@ -195,25 +191,7 @@
   margin-bottom: var(--spacing-md);
 }
 
-.recent-quote-item {
-  padding: var(--spacing-md);
-  margin-bottom: var(--spacing-sm);
-  background: var(--bg-primary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--bg-secondary);
-  cursor: pointer;
-  transition: all var(--duration-normal) var(--ease-out);
-}
-
-.recent-quote-item:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.recent-quote-item:active {
-  transform: scale(0.98);
-}
-
+/* Empty state styles remain the same */
 .empty-recent-quotes {
   padding: var(--spacing-xl);
   text-align: center;
@@ -221,8 +199,8 @@
   font-style: italic;
 }
 
-/* Skeleton loading для последних цитат */
-.recent-quote-item.skeleton {
+/* Skeleton loading для quote cards */
+.quote-card.skeleton {
   pointer-events: none;
 }
 
@@ -271,8 +249,7 @@
   .quote-card .quote-text,
   .quote-item .quote-text,
   [data-quote-id] .quote-text,
-  .my-quotes .quote-text,
-  .recent-quote-item .quote-text {
+  .my-quotes .quote-text {
     font-size: var(--font-size-base);
   }
 }
@@ -292,43 +269,26 @@
   }
 }
 
-/* === Quote card unified beige styling & active selection === */
-.recent-quote-item, 
-.quote-card.my-quotes, 
-.my-quotes-container .quote-card, 
-.my-quotes-container [data-quote-id], 
-[data-quote-id].quote-card,
-.home-latest-quotes .quote-card.recent-quote-item,
-.home-latest-quotes .recent-quote-item,
-.recent-quotes-section .recent-quote-item {
-  background: var(--bg-primary) !important;
+/* === Unified quote card styling with consistent beige background === */
+.quote-card,
+.quote-card.my-quotes,
+.quote-card.recent {
+  background: var(--bg-primary);
   border: 1px solid var(--bg-secondary);
+  border-radius: var(--radius-lg);
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+  transition: border-color .25s, box-shadow .25s, transform .25s;
 }
 
-.recent-quote-item:hover,
-.quote-card.my-quotes:hover, 
-.my-quotes-container .quote-card:hover,
-.home-latest-quotes .recent-quote-item:hover { 
-  transform: translateY(-1px); 
-  box-shadow: 0 3px 8px rgba(0,0,0,0.06); 
-}
-
-.recent-quote-item.active, 
-.quote-card.my-quotes.active, 
-.my-quotes-container .quote-card.active, 
-[data-quote-id].active,
-.home-latest-quotes .recent-quote-item.active,
-.recent-quotes-section .recent-quote-item.active {
-  border: 2px solid var(--primary-color) !important;
+/* Active state with orange border */
+.quote-card.active,
+.quote-card.my-quotes.active,
+.quote-card.recent.active {
+  border: 2px solid var(--primary-color);
   box-shadow: 0 0 0 2px rgba(210,69,44,0.15), 0 2px 6px rgba(0,0,0,0.08);
 }
 
-.quote-card.liked.active { 
-  border-color: var(--primary-color) !important; 
-}
-
+/* Search highlight */
 .quote-highlight { 
   background: rgba(210,69,44,0.15); 
   color: var(--text-primary); 
@@ -339,5 +299,5 @@
 /* Remove internal white container background if present */
 .quote-card .quote-card__container,
 .quote-card.my-quotes .quote-card__container { 
-  background: transparent !important; 
+  background: transparent; 
 }
