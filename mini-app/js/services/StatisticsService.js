@@ -206,6 +206,9 @@ class StatisticsService {
             stats.isFresh = false;
             this.state.update('stats', stats);
             
+            // Immediately dispatch stats:updated for anti-flicker UI
+            document.dispatchEvent(new CustomEvent('stats:updated', { detail: stats }));
+            
             // Background refresh
             await this.refreshMainStatsSilent();
         } catch (e) {
@@ -231,6 +234,9 @@ class StatisticsService {
                 this.state.update('stats', stats);
             }
             
+            // Immediately dispatch stats:updated for anti-flicker UI
+            document.dispatchEvent(new CustomEvent('stats:updated', { detail: stats }));
+            
             // Background refresh
             await this.refreshMainStatsSilent();
         } catch (e) {
@@ -239,8 +245,9 @@ class StatisticsService {
     }
 
     invalidateForUser(userId) {
+        // Don't invalidate mainStats to prevent forced loader on navigation
+        // Only invalidate dependent caches that need refreshing
         this.invalidate([
-            `mainStats:${userId}`,
             `userProgress:${userId}`,
             `latestQuotes_3:${userId}`,
             `latestQuotes_5:${userId}`
@@ -253,9 +260,19 @@ class StatisticsService {
             const progress = await this.getUserProgress();
             const prev = this.state.get('stats') || {};
             
+            // Preserve optimistic totalQuotes if server lags behind by ±1
+            let finalTotalQuotes = main.totalQuotes;
+            if (prev.totalQuotes != null && !prev.isFresh) {
+                const diff = Math.abs(prev.totalQuotes - main.totalQuotes);
+                if (diff <= 1) {
+                    finalTotalQuotes = prev.totalQuotes;
+                }
+            }
+            
             const merged = {
                 ...prev,
                 ...main,
+                totalQuotes: finalTotalQuotes,
                 currentStreak: progress.currentStreak,
                 computedStreak: progress.computedStreak,
                 backendStreak: progress.backendStreak,

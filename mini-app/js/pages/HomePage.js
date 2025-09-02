@@ -42,19 +42,97 @@ class HomePage {
      */
     init() {
         this.setupSubscriptions();
-        this.setupStatsEventListener();
+        this.setupStatsAutoUpdate();
     }
 
     /**
-     * 📊 Настройка слушателя события обновления статистики
+     * 📊 Настройка автообновления статистики (anti-flicker)
      */
-    setupStatsEventListener() {
-        // Add listener for stats:updated event from StatisticsService
+    setupStatsAutoUpdate() {
+        // Single listener for stats:updated that immediately applies existing stats
         document.addEventListener('stats:updated', (e) => {
             if (e.detail) {
-                this.updateStatsUI(e.detail);
+                this.applyStatsToUI(e.detail);
             }
         });
+        
+        // Apply any existing stats from state immediately without loader
+        const existingStats = this.state.get('stats');
+        if (existingStats) {
+            this.applyStatsToUI(existingStats);
+        }
+    }
+    
+    /**
+     * 📊 Применение статистики к UI (idempotent, анти-мерцание)
+     */
+    applyStatsToUI(stats) {
+        if (!stats) return;
+        
+        // Create or get existing statsInline element
+        const statsInline = document.getElementById('statsInline');
+        if (!statsInline) {
+            // If statsInline doesn't exist, it means we're probably not on the home page yet
+            return;
+        }
+        
+        // Check if stats are stale and show updating indicator if needed
+        const isStale = this.isStatsStale(stats);
+        const showLoader = stats == null || (!stats.loadedAt && stats.loading);
+        
+        // If we have no stats at all (cold start), show loader
+        if (showLoader) {
+            statsInline.innerHTML = '<span class="stat-summary">⏳ Загружаем статистику...</span>';
+            return;
+        }
+        
+        const totalQuotes = stats.totalQuotes != null ? stats.totalQuotes : '—';
+        const currentStreak = stats.currentStreak != null ? stats.currentStreak : '—';
+        
+        // Get previous values for change detection
+        const prevValues = statsInline.dataset.prevValues ? JSON.parse(statsInline.dataset.prevValues) : {};
+        const hasChanged = prevValues.totalQuotes !== totalQuotes || prevValues.currentStreak !== currentStreak;
+        
+        // Only update if values actually changed
+        if (hasChanged) {
+            const quotesWord = totalQuotes !== '—' ? this.getQuoteWord(totalQuotes) : '';
+            const daysWord = currentStreak !== '—' ? this.getDayWord(currentStreak) : '';
+            const separator = totalQuotes !== '—' && currentStreak !== '—' ? ' • ' : '';
+            const streakPart = currentStreak !== '—' ? currentStreak + ' ' + daysWord + ' подряд' : '';
+            
+            const summaryClass = `stat-summary${isStale ? ' updating' : ''}`;
+            statsInline.innerHTML = `<span class="${summaryClass}">${totalQuotes} ${quotesWord}${separator}${streakPart}</span>`;
+            
+            // Add pulse animation for number changes
+            if (hasChanged && prevValues.totalQuotes != null) {
+                statsInline.classList.add('pulse-update');
+                setTimeout(() => statsInline.classList.remove('pulse-update'), 600);
+            }
+            
+            // Store current values for next comparison
+            statsInline.dataset.prevValues = JSON.stringify({ totalQuotes, currentStreak });
+        } else if (isStale && !statsInline.querySelector('.stat-summary.updating')) {
+            // Just add updating indicator without changing content
+            const summary = statsInline.querySelector('.stat-summary');
+            if (summary) {
+                summary.classList.add('updating');
+            }
+        } else if (!isStale) {
+            // Remove updating indicator
+            const summary = statsInline.querySelector('.stat-summary.updating');
+            if (summary) {
+                summary.classList.remove('updating');
+            }
+        }
+    }
+    
+    /**
+     * 📊 Проверка устаревания статистики (TTL=60s)
+     */
+    isStatsStale(stats) {
+        if (!stats || !stats.loadedAt) return false;
+        const TTL = 60000; // 60 seconds
+        return (Date.now() - stats.loadedAt) > TTL;
     }
 
     /**
@@ -579,14 +657,13 @@ class HomePage {
     }
     
     /**
-     * 📊 Рендер инлайн статистики (заменяет сетку)
+     * 📊 Rендер инлайн статистики (anti-flicker)
      */
     renderStatsInline(stats) {
-        const loading = stats.loading || this.loading;
-        const totalQuotes = loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
-        const currentStreak = loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
+        // Only show loader if this is a true cold start (no stats at all)
+        const showLoader = !stats || (!stats.loadedAt && stats.loading);
         
-        if (loading) {
+        if (showLoader) {
             return `
                 <div class="stats-inline" id="statsInline">
                     <span class="stat-summary">⏳ Загружаем статистику...</span>
@@ -594,12 +671,21 @@ class HomePage {
             `;
         }
         
+        // If we have stats, show them even if they might be stale
+        const totalQuotes = stats.totalQuotes != null ? stats.totalQuotes : '—';
+        const currentStreak = stats.currentStreak != null ? stats.currentStreak : '—';
         const quotesWord = totalQuotes !== '—' ? this.getQuoteWord(totalQuotes) : '';
         const daysWord = currentStreak !== '—' ? this.getDayWord(currentStreak) : '';
+        const separator = totalQuotes !== '—' && currentStreak !== '—' ? ' • ' : '';
+        const streakPart = currentStreak !== '—' ? currentStreak + ' ' + daysWord + ' подряд' : '';
+        
+        // Check if stats are stale
+        const isStale = this.isStatsStale(stats);
+        const summaryClass = `stat-summary${isStale ? ' updating' : ''}`;
         
         return `
-            <div class="stats-inline" id="statsInline">
-                <span class="stat-summary">${totalQuotes} ${quotesWord}${totalQuotes !== '—' && currentStreak !== '—' ? ' • ' : ''}${currentStreak !== '—' ? currentStreak + ' ' + daysWord + ' подряд' : ''}</span>
+            <div class="stats-inline" id="statsInline" data-prev-values='${JSON.stringify({ totalQuotes, currentStreak })}'>
+                <span class="${summaryClass}">${totalQuotes} ${quotesWord}${separator}${streakPart}</span>
             </div>
         `;
     }
@@ -877,43 +963,25 @@ class HomePage {
     }
 
     /**
-     * 🔄 Обновление UI статистики
+     * 🔄 Обновление UI статистики (legacy compatibility)
      */
     updateStatsUI(stats) {
-        if (!stats) return;
+        // Delegate to new anti-flicker method
+        this.applyStatsToUI(stats);
         
-        // Поддержка нового инлайн формата
-        const statsInline = document.getElementById('statsInline');
-        if (statsInline) {
-            const loading = stats.loading || this.loading;
-            const totalQuotes = loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
-            const currentStreak = loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
-            
-            if (loading) {
-                statsInline.innerHTML = '<span class="stat-summary">⏳ Загружаем статистику...</span>';
-            } else {
-                const quotesWord = totalQuotes !== '—' ? this.getQuoteWord(totalQuotes) : '';
-                const daysWord = currentStreak !== '—' ? this.getDayWord(currentStreak) : '';
-                const separator = totalQuotes !== '—' && currentStreak !== '—' ? ' • ' : '';
-                const streakPart = currentStreak !== '—' ? currentStreak + ' ' + daysWord + ' подряд' : '';
-                statsInline.innerHTML = `<span class="stat-summary">${totalQuotes} ${quotesWord}${separator}${streakPart}</span>`;
-            }
-            return;
-        }
-        
-        // Поддержка старого формата сетки (обратная совместимость)
+        // Also handle legacy stats grid format for backward compatibility
         const statsGrid = document.getElementById('statsGrid');
-        if (!statsGrid) return;
-        
-        const quotesCard = statsGrid.querySelector('[data-stat="quotes"] .stat-number');
-        const streakCard = statsGrid.querySelector('[data-stat="streak"] .stat-number');
-        
-        if (quotesCard) {
-            quotesCard.textContent = stats.loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
-        }
-        
-        if (streakCard) {
-            streakCard.textContent = stats.loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
+        if (statsGrid && stats) {
+            const quotesCard = statsGrid.querySelector('[data-stat="quotes"] .stat-number');
+            const streakCard = statsGrid.querySelector('[data-stat="streak"] .stat-number');
+            
+            if (quotesCard) {
+                quotesCard.textContent = stats.loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
+            }
+            
+            if (streakCard) {
+                streakCard.textContent = stats.loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
+            }
         }
     }
     

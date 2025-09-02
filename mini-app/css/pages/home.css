@@ -318,6 +318,48 @@
     transition: color var(--transition-normal);
 }
 
+/* Anti-flicker animation classes */
+.stats-inline.pulse-update {
+    animation: fadeInNumber var(--duration-normal) var(--ease-out);
+}
+
+.stats-inline .stat-summary.updating::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    margin-left: 8px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    animation: pulse-soft 1.5s infinite;
+}
+
+@keyframes fadeInNumber {
+    0% {
+        opacity: 0.7;
+        transform: scale(0.98);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse-soft {
+    0%, 100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
 /* ============================================================================
    📊 СТАРАЯ СТАТИСТИКА 2X2 СЕТКА (СОХРАНЯЕТСЯ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ)
    ============================================================================ */
