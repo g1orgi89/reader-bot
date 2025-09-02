@@ -24,6 +24,7 @@ class HomePage {
         this.api = app.api;
         this.state = app.state;
         this.telegram = app.telegram;
+        this.statistics = app.statistics || window.statisticsService || null;
         
         // Состояние компонента
         this.loading = false;
@@ -205,6 +206,65 @@ class HomePage {
         } finally {
             this.loading = false;
             this.state.set('ui.loading', false);
+        }
+    }
+    
+    async loadFromStatistics() {
+        if (!this.statistics) return this.loadInitialData();
+        if (this.loading) return;
+        try {
+            this.loading = true;
+            this.state.set('ui.loading', true);
+            const userId = await this.waitForValidUserId();
+            const [mainStats, latestQuotes, topAnalyses, progress] = await Promise.all([
+                this.statistics.getMainStats(),
+                this.statistics.getLatestQuotes(3),
+                this.statistics.getTopAnalyses(3),
+                this.statistics.getUserProgress()
+            ]);
+            this.state.update('stats', {
+                totalQuotes: mainStats.totalQuotes,
+                currentStreak: mainStats.currentStreak,
+                daysInApp: mainStats.daysInApp,
+                loading: false,
+                lastUpdate: Date.now()
+            });
+            this.state.setRecentQuotes(latestQuotes);
+            const mapped = topAnalyses.map(a => ({ _id: a.id, title: a.title, author: a.author, salesCount: a.clicks }));
+            this.state.set('catalog.books', mapped);
+            this.state.set('stats.progressTemp', progress);
+            this.dataLoaded = true;
+            this.updateProgressUI();
+        } catch (e) {
+            console.error('HomePage statistics load error', e);
+            this.error = 'Не удалось загрузить данные';
+        } finally {
+            this.loading = false;
+            this.state.set('ui.loading', false);
+        }
+    }
+
+    updateProgressUI() {
+        const wrap = document.querySelector('.progress-block');
+        if (!wrap) return;
+        const p = this.state.get('stats.progressTemp');
+        if (!p) return;
+        const grid = wrap.querySelector('.progress-grid');
+        const activityNode = wrap.querySelector('.progress-activity');
+        if (grid) {
+            grid.innerHTML = [
+                { label: 'За 7 дней', value: p.weeklyQuotes ?? '—' },
+                { label: 'Серия', value: p.currentStreak ?? '—' },
+                { label: 'Автор', value: p.favoriteAuthor || '—' }
+            ].map(item => `
+                <div class="stat-card" style="min-height:74px;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;">${item.label}</div>
+                    <div style="font-size:20px;font-weight:600;">${item.value}</div>
+                </div>
+            `).join('');
+        }
+        if (activityNode) {
+            activityNode.textContent = 'Активность: ' + (p.activityLevel === 'high' ? 'Высокая 🔥' : p.activityLevel === 'medium' ? 'Средняя 📈' : 'Низкая 🌱');
         }
     }
     
@@ -670,15 +730,14 @@ class HomePage {
      * 📈 Рендер секции прогресса
      */
     renderProgressSection(stats) {
-        const progressPercent = stats.progressPercent || 35;
-        const comparisonText = this.getProgressComparison(progressPercent);
-        
         return `
-            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); transition: all var(--transition-normal);">
-                <div style="font-weight: 600; font-size: 12px; margin-bottom: 6px; color: var(--text-primary); transition: color var(--transition-normal);">📈 Ваш прогресс</div>
-                <div style="font-size: 11px; color: var(--text-secondary); transition: color var(--transition-normal);">${comparisonText}</div>
-            </div>
-        `;
+        <div class="progress-block" style="margin:16px 0;">
+          <div style="font-weight:600;font-size:13px;margin:0 0 10px;color:var(--text-primary);">📈 Ваш прогресс</div>
+          <div class="progress-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+            ${[1,2,3].map(()=>`<div class="stat-card" style="min-height:74px;opacity:.45;display:flex;flex-direction:column;justify-content:space-between;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;">…</div><div style="font-size:20px;font-weight:600;">—</div></div>`).join('')}
+          </div>
+          <div class="progress-activity" style="margin-top:10px;font-size:11px;color:var(--text-secondary);">Загрузка…</div>
+        </div>`;
     }
     
     /**
@@ -1020,27 +1079,21 @@ class HomePage {
     onShow() {
         console.log('🏠 HomePage: onShow - загружаем данные');
         
-        // Умная загрузка данных
+        // Use StatisticsService if available, otherwise fallback to original method
         if (!this.dataLoaded) {
             console.log('🔄 HomePage: Первый показ, загружаем данные');
-            this.loadInitialData().then(() => {
+            this.loadFromStatistics().then(() => {
                 // Инициализируем последние цитаты после загрузки основных данных
                 this.initRecentQuotes();
             });
         } else {
-            // Проверяем актуальность данных (только если прошло больше 10 минут)
             const lastUpdate = this.state.get('stats.lastUpdate');
-            const now = Date.now();
-            const tenMinutes = 10 * 60 * 1000;
-            
-            if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
-                console.log('🔄 HomePage: Данные устарели, обновляем');
-                this.loadInitialData().then(() => {
+            if (!lastUpdate || (Date.now() - lastUpdate) > 60_000) {
+                this.loadFromStatistics().then(() => {
                     this.initRecentQuotes();
                 });
             } else {
-                console.log('✅ HomePage: Данные актуальны, пропускаем загрузку');
-                // Все равно обновляем последние цитаты, так как они могли измениться
+                this.updateProgressUI();
                 this.initRecentQuotes();
             }
         }
