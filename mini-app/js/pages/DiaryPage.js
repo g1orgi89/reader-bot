@@ -306,6 +306,7 @@ class DiaryPage {
      * ✨ AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!) - 🔧 ИСПРАВЛЕНО: НЕТ ДУБЛИРОВАНИЯ
      */
     renderAIInsight() {
+        // Показывать лоадер, если stats загружаются
         if (this.statsLoading) {
             return `
                 <div class="ai-insight">
@@ -318,24 +319,27 @@ class DiaryPage {
             `;
         }
 
-        const lastQuote = this.state.get('lastAddedQuote');
-        const summary = lastQuote?.aiAnalysis?.summary || lastQuote?.summary || '';
-        const insights = lastQuote?.insights || lastQuote?.aiAnalysis?.insights || '';
+        // Новый: анализ показывается только если analysisVisible и lastAddedQuote есть
+        if (this.analysisVisible) {
+            const lastQuote = this.state.get('lastAddedQuote');
+            const summary = lastQuote?.aiAnalysis?.summary || lastQuote?.summary || '';
+            const insights = lastQuote?.insights || lastQuote?.aiAnalysis?.insights || '';
 
-        if (lastQuote && (summary || insights)) {
-            return `
-                <div class="ai-insight">
-                    <div class="ai-title">
-                         <span>✨</span>
-                         <span>Анализ от Анны</span>
+            if (lastQuote && (summary || insights)) {
+                return `
+                    <div class="ai-insight">
+                        <div class="ai-title">
+                            <span>✨</span>
+                            <span>Анализ от Анны</span>
+                        </div>
+                        ${summary ? `<div class="ai-text"><b>Ответ Анны:</b> ${summary}</div>` : ''}
+                        ${insights ? `<div class="ai-text"><b>Инсайт:</b> ${insights}</div>` : ''}
                     </div>
-                    ${summary ? `<div class="ai-text"><b>Ответ Анны:</b> ${summary}</div>` : ''}
-                    ${insights ? `<div class="ai-text"><b>Инсайт:</b> ${insights}</div>` : ''}
-                </div>
-            `;
+                `;
+            }
         }
 
-        // Fallback — если нет инсайта и summary
+        // Дефолт: если анализа сейчас нет, просто placeholder
         return `
             <div class="ai-insight">
                 <div class="ai-title">
