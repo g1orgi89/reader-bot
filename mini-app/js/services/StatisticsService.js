@@ -133,6 +133,7 @@ class StatisticsService {
         }
         let streak = 0;
         const cursor = new Date();
+        // eslint-disable-next-line no-constant-condition
         while (true) {
             const key = dayKey(cursor);
             if (daysSet.has(key)) {
@@ -171,6 +172,7 @@ class StatisticsService {
         
         let streakToYesterday = 0;
         const cursor = new Date(yesterday);
+        // eslint-disable-next-line no-constant-condition
         while (true) {
             const key = dayKey(cursor);
             if (daysSet.has(key)) {
@@ -194,13 +196,15 @@ class StatisticsService {
             this.invalidateForUser(userId);
             
             // Optimistic update
-            const stats = this.state.get('stats');
-            if (stats) {
-                stats.totalQuotes = (stats.totalQuotes || 0) + 1;
-                stats.loadedAt = Date.now();
-                stats.isFresh = false;
-                this.state.update('stats', stats);
+            let stats = this.state.get('stats');
+            if (!stats) {
+                // Create minimal stats object if none exists
+                stats = { totalQuotes: 0, isFresh: false, loading: false };
             }
+            stats.totalQuotes = (stats.totalQuotes || 0) + 1;
+            stats.loadedAt = Date.now();
+            stats.isFresh = false;
+            this.state.update('stats', stats);
             
             // Background refresh
             await this.refreshMainStatsSilent();
@@ -215,8 +219,12 @@ class StatisticsService {
             this.invalidateForUser(userId);
             
             // Optimistic update
-            const stats = this.state.get('stats');
-            if (stats && stats.totalQuotes > 0) {
+            let stats = this.state.get('stats');
+            if (!stats) {
+                // Create minimal stats object if none exists
+                stats = { totalQuotes: 1, isFresh: false, loading: false };
+            }
+            if (stats.totalQuotes > 0) {
                 stats.totalQuotes -= 1;
                 stats.loadedAt = Date.now();
                 stats.isFresh = false;
