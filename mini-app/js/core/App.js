@@ -53,6 +53,16 @@ class ReaderApp {
         this.state = new AppState();
         await this.state.init();
         this.api = new ApiService();
+        
+        // StatisticsService (Iteration 1)
+        if (typeof window.StatisticsService !== 'undefined') {
+            this.statistics = new window.StatisticsService({ api: this.api, state: this.state });
+            window.statisticsService = this.statistics;
+            console.log('📊 StatisticsService initialized');
+        } else {
+            console.warn('⚠️ StatisticsService script not loaded');
+        }
+        
         if (typeof TelegramService !== 'undefined') {
             this.telegram = new TelegramService();
         } else {

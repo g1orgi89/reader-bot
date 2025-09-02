@@ -1,0 +1,133 @@
+/**
+ * 📊 StatisticsService (Iteration 1)
+ * Centralized, cached access to user stats & related data.
+ */
+class StatisticsService {
+    constructor({ api, state }) {
+        this.api = api;
+        this.state = state;
+        this.cache = new Map();
+        this.inFlight = new Map();
+        this.TTL_SHORT = 15000; // 15s
+        this.TTL_DEFAULT = 30000; // 30s
+    }
+
+    async getMainStats() {
+        return this._cached('mainStats', async () => {
+            const userId = this._requireUserId();
+            const resp = await this.api.getStats(userId);
+            const raw = resp?.stats || resp || {};
+            return {
+                totalQuotes: raw.totalQuotes || 0,
+                currentStreak: raw.currentStreak || 0,
+                daysInApp: raw.daysSinceRegistration || 0
+            };
+        }, this.TTL_SHORT);
+    }
+
+    async getLatestQuotes(limit = 3) {
+        return this._cached(`latestQuotes_${limit}`, async () => {
+            const userId = this._requireUserId();
+            const resp = await this.api.getRecentQuotes(limit, userId);
+            const arr = resp?.quotes || resp?.data?.quotes || resp?.data || resp || [];
+            if (!Array.isArray(arr)) return [];
+            return arr.map(q => ({
+                id: q.id || q._id,
+                _id: q._id,
+                text: q.text || '',
+                author: q.author || '',
+                createdAt: q.createdAt || q.dateAdded
+            }));
+        }, this.TTL_SHORT);
+    }
+
+    async getTopAnalyses(limit = 3) {
+        return this._cached(`topAnalyses_${limit}`, async () => {
+            try {
+                const resp = await this.api.getCatalog({ limit, sort: 'popular', featured: true });
+                const items = resp.items || resp.books || resp || [];
+                return items.slice(0, limit).map((b, i) => ({
+                    id: b.id || b._id || String(i),
+                    title: b.title || 'Разбор',
+                    author: b.author || '',
+                    clicks: b.salesCount || 0
+                }));
+            } catch {
+                return [];
+            }
+        }, this.TTL_DEFAULT);
+    }
+
+    async getUserProgress() {
+        return this._cached('userProgress', async () => {
+            const userId = this._requireUserId();
+            let quotes = [];
+            try {
+                const resp = await this.api.getQuotes({ limit: 200 }, userId);
+                quotes = resp?.quotes || resp?.data?.quotes || resp?.items || [];
+            } catch {
+                quotes = this.state?.get('quotes.items') || [];
+            }
+            const now = Date.now();
+            const weekAgo = now - 7 * 86400000;
+            const thirtyAgo = now - 30 * 86400000;
+            let weekly = 0;
+            const authorFreq = new Map();
+            for (const q of quotes) {
+                const ts = new Date(q.createdAt || q.dateAdded).getTime();
+                if (!ts) continue;
+                if (ts >= weekAgo) weekly++;
+                if (ts >= thirtyAgo && q.author) {
+                    authorFreq.set(q.author, (authorFreq.get(q.author) || 0) + 1);
+                }
+            }
+            const favoriteAuthor = this._top(authorFreq);
+            let activityLevel = 'low';
+            if (weekly >= 15) activityLevel = 'high';
+            else if (weekly >= 5) activityLevel = 'medium';
+            const main = await this.getMainStats();
+            return {
+                weeklyQuotes: weekly,
+                favoriteAuthor,
+                activityLevel,
+                currentStreak: main.currentStreak
+            };
+        }, 25000);
+    }
+
+    invalidate(keys = []) {
+        if (!keys.length) { this.cache.clear(); return; }
+        keys.forEach(k => this.cache.delete(k));
+    }
+
+    // -------- internal helpers --------
+    _requireUserId() {
+        const id = this.state?.getCurrentUserId?.();
+        if (!id) throw new Error('UserId not ready');
+        return id;
+    }
+    async _cached(key, loader, ttl) {
+        const now = Date.now();
+        const entry = this.cache.get(key);
+        if (entry && (now - entry.time) < ttl) return entry.value;
+        if (this.inFlight.has(key)) return this.inFlight.get(key);
+        const p = (async () => {
+            try {
+                const val = await loader();
+                this.cache.set(key, { value: val, time: Date.now() });
+                return val;
+            } finally {
+                this.inFlight.delete(key);
+            }
+        })();
+        this.inFlight.set(key, p);
+        return p;
+    }
+    _top(map) {
+        let best = null, max = -1;
+        for (const [k, v] of map.entries()) { if (v > max) { max = v; best = k; } }
+        return best;
+    }
+}
+if (typeof window !== 'undefined') window.StatisticsService = StatisticsService;
+export default StatisticsService;

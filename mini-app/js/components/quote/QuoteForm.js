@@ -950,6 +950,11 @@ class QuoteForm {
                 }
             }
 
+            // Invalidate StatisticsService cache after successful save
+            if (window.statisticsService) {
+                window.statisticsService.invalidate(['mainStats','latestQuotes_3','userProgress']);
+            }
+
             // Очищаем черновик
             this.clearDraft();
 
