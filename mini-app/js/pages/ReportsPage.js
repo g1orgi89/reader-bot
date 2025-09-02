@@ -160,15 +160,24 @@ class ReportsPage {
     generateFallbackSlug(title) {
         if (!title) return 'unknown-book';
         
+        // Transliteration map for Cyrillic to Latin
+        const cyrillicMap = {
+            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+            'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+            'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+            'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+            'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+        };
+        
         return title
             .toString()
             .toLowerCase()
-            .replace(/ё/g, 'e')  // заменим "ё" на "e" для универсальности
-            .replace(/[^a-zа-я0-9\s-]/giu, '') // убираем спецсимволы
-            .replace(/\s+/g, '-')       // пробелы на дефисы
-            .replace(/\-+/g, '-')       // несколько дефисов — один дефис
-            .replace(/^-+|-+$/g, '')    // дефисы в начале/конце
-            .substring(0, 50);          // ограничиваем длину
+            .replace(/[а-я]/g, (char) => cyrillicMap[char] || char)
+            .replace(/[^a-z0-9\s-]/g, '') // только латиница, цифры, пробелы и дефисы
+            .replace(/\s+/g, '-')         // пробелы на дефисы
+            .replace(/\-+/g, '-')         // несколько дефисов — один дефис
+            .replace(/^-+|-+$/g, '')      // дефисы в начале/конце
+            .substring(0, 50);            // ограничиваем длину
     }
     
     async loadReportData() {
