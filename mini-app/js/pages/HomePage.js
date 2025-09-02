@@ -42,6 +42,19 @@ class HomePage {
      */
     init() {
         this.setupSubscriptions();
+        this.setupStatsEventListener();
+    }
+
+    /**
+     * 📊 Настройка слушателя события обновления статистики
+     */
+    setupStatsEventListener() {
+        // Add listener for stats:updated event from StatisticsService
+        document.addEventListener('stats:updated', (e) => {
+            if (e.detail) {
+                this.updateStatsUI(e.detail);
+            }
+        });
     }
 
     /**
@@ -149,7 +162,7 @@ class HomePage {
             console.log('📊 HomePage: Используем userId:', userId);
             
             // Параллельная загрузка данных с передачей userId
-            const [stats, topBooks, profile, recentQuotes] = await Promise.all([
+            const [stats, topBooks, profile] = await Promise.all([
                 this.loadUserStats(userId),
                 this.loadTopBooks(), 
                 this.loadUserProfile(userId),
@@ -215,7 +228,7 @@ class HomePage {
         try {
             this.loading = true;
             this.state.set('ui.loading', true);
-            const userId = await this.waitForValidUserId();
+            await this.waitForValidUserId(); // Ensure userId is ready
             const [mainStats, latestQuotes, topAnalyses, progress] = await Promise.all([
                 this.statistics.getMainStats(),
                 this.statistics.getLatestQuotes(3),
@@ -287,8 +300,8 @@ class HomePage {
             // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const stats = await this.api.getStats(userId);
             return {
-                totalQuotes: stats.totalQuotes || 47,
-                currentStreak: stats.currentStreak || 12,
+                totalQuotes: stats.totalQuotes != null ? stats.totalQuotes : null,
+                currentStreak: stats.currentStreak != null ? stats.currentStreak : null,
                 thisWeek: stats.thisWeek || 0,
                 longestStreak: stats.longestStreak || 0,
                 favoriteAuthors: stats.favoriteAuthors || [],
@@ -298,8 +311,8 @@ class HomePage {
         } catch (error) {
             console.error('❌ Ошибка загрузки статистики:', error);
             return {
-                totalQuotes: 47,
-                currentStreak: 12,
+                totalQuotes: null,
+                currentStreak: null,
                 thisWeek: 5,
                 progressPercent: 35,
                 loading: false
@@ -570,8 +583,8 @@ class HomePage {
      */
     renderStatsInline(stats) {
         const loading = stats.loading || this.loading;
-        const totalQuotes = loading ? '⏳' : (stats.totalQuotes || 47);
-        const currentStreak = loading ? '⏳' : (stats.currentStreak || 12);
+        const totalQuotes = loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
+        const currentStreak = loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
         
         if (loading) {
             return `
@@ -581,12 +594,12 @@ class HomePage {
             `;
         }
         
-        const quotesWord = this.getQuoteWord(totalQuotes);
-        const daysWord = this.getDayWord(currentStreak);
+        const quotesWord = totalQuotes !== '—' ? this.getQuoteWord(totalQuotes) : '';
+        const daysWord = currentStreak !== '—' ? this.getDayWord(currentStreak) : '';
         
         return `
             <div class="stats-inline" id="statsInline">
-                <span class="stat-summary">${totalQuotes} ${quotesWord} • ${currentStreak} ${daysWord} подряд</span>
+                <span class="stat-summary">${totalQuotes} ${quotesWord}${totalQuotes !== '—' && currentStreak !== '—' ? ' • ' : ''}${currentStreak !== '—' ? currentStreak + ' ' + daysWord + ' подряд' : ''}</span>
             </div>
         `;
     }
@@ -677,13 +690,6 @@ class HomePage {
             </button>
         `;
     }
-    renderMainCTA() {
-        return `
-            <button class="main-cta" id="addQuoteBtn">
-                ✍️ Добавить новую цитату
-            </button>
-        `;
-    }
     
     /**
      * 🔥 Рендер топ книг недели
@@ -734,7 +740,7 @@ class HomePage {
     /**
      * 📈 Рендер секции прогресса
      */
-    renderProgressSection(stats) {
+    renderProgressSection(_stats) {
         return `
         <div class="progress-block" style="margin:16px 0;">
           <div style="font-weight:600;font-size:13px;margin:0 0 10px;color:var(--text-primary);">📈 Ваш прогресс</div>
@@ -880,15 +886,17 @@ class HomePage {
         const statsInline = document.getElementById('statsInline');
         if (statsInline) {
             const loading = stats.loading || this.loading;
-            const totalQuotes = loading ? '⏳' : (stats.totalQuotes || 47);
-            const currentStreak = loading ? '⏳' : (stats.currentStreak || 12);
+            const totalQuotes = loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
+            const currentStreak = loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
             
             if (loading) {
                 statsInline.innerHTML = '<span class="stat-summary">⏳ Загружаем статистику...</span>';
             } else {
-                const quotesWord = this.getQuoteWord(totalQuotes);
-                const daysWord = this.getDayWord(currentStreak);
-                statsInline.innerHTML = `<span class="stat-summary">${totalQuotes} ${quotesWord} • ${currentStreak} ${daysWord} подряд</span>`;
+                const quotesWord = totalQuotes !== '—' ? this.getQuoteWord(totalQuotes) : '';
+                const daysWord = currentStreak !== '—' ? this.getDayWord(currentStreak) : '';
+                const separator = totalQuotes !== '—' && currentStreak !== '—' ? ' • ' : '';
+                const streakPart = currentStreak !== '—' ? currentStreak + ' ' + daysWord + ' подряд' : '';
+                statsInline.innerHTML = `<span class="stat-summary">${totalQuotes} ${quotesWord}${separator}${streakPart}</span>`;
             }
             return;
         }
@@ -901,11 +909,11 @@ class HomePage {
         const streakCard = statsGrid.querySelector('[data-stat="streak"] .stat-number');
         
         if (quotesCard) {
-            quotesCard.textContent = stats.loading ? '⏳' : (stats.totalQuotes || 47);
+            quotesCard.textContent = stats.loading ? '⏳' : (stats.totalQuotes != null ? stats.totalQuotes : '—');
         }
         
         if (streakCard) {
-            streakCard.textContent = stats.loading ? '⏳' : (stats.currentStreak || 12);
+            streakCard.textContent = stats.loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
         }
     }
     
