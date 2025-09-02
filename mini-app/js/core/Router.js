@@ -301,8 +301,8 @@ class AppRouter {
         // В Telegram Mini App используем hash роутинг
         const rawHash = window.location.hash.slice(1);
         if (rawHash) {
-            const hash = this.normalizePath(rawHash);
-            this.navigate(hash, { replace: true });
+            // Pass the full hash including query parameters to navigate
+            this.navigate(rawHash, { replace: true });
         } else {
             // Если hash пустой — стартуем с главной
             this.navigate('/home', { replace: true });
@@ -695,8 +695,9 @@ class AppRouter {
     handlePopState(event) {
         console.log('📡 Router: Обработка popstate');
         
-        const rawPath = event.state?.path || '';
-        const path = this.normalizePath(rawPath);
+        // Use current hash to preserve query parameters
+        const rawHash = window.location.hash.slice(1);
+        const path = rawHash || '/home';
         
         // Навигируем без добавления в историю
         this.navigate(path, { replace: true });
