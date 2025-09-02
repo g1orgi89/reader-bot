@@ -596,12 +596,9 @@ class HomePage {
         
         // Only render valid stats with all required fields and loadedAt
         // Strict validation: must have loadedAt and totalQuotes >= 0
+        // If data is invalid, don't render the block at all (return empty string)
         if (!stats || !stats.loadedAt || stats.totalQuotes == null || stats.totalQuotes < 0) {
-            return `
-                <div class="stats-inline" id="statsInline">
-                    <span class="stat-summary">📊 Статистика</span>
-                </div>
-            `;
+            return '';
         }
         
         const totalQuotes = stats.totalQuotes ?? 0;
@@ -877,13 +874,15 @@ class HomePage {
         const statsInline = document.getElementById('statsInline');
         if (!statsInline) return;
         
-        // Only update DOM if we have valid, loaded stats with all required fields
-        // Strict validation like progress block: must have loadedAt and totalQuotes >= 0
+        // Hide block when data is invalid
         if (!stats || !stats.loadedAt || stats.totalQuotes == null || stats.totalQuotes < 0) {
-            // Don't touch DOM if stats are invalid - leave existing value
-            console.debug('applyTopStats: Skipping DOM update due to invalid stats', stats);
+            statsInline.style.display = 'none';
+            console.debug('applyTopStats: Hiding stats block due to invalid stats', stats);
             return;
         }
+        
+        // Show block for valid data
+        statsInline.style.display = '';
         
         const totalQuotes = stats.totalQuotes ?? 0;
         const daysInApp = stats.daysInApp ?? 0;
@@ -896,15 +895,21 @@ class HomePage {
             content += ` • ${daysInApp} ${daysWord} в приложении`;
         }
         
-        // Add pulse animation class if stats actually changed
+        // Check if content actually changed before updating DOM
         const currentContent = statsInline.querySelector('.stat-summary')?.textContent || '';
+        if (currentContent === content) {
+            console.debug('applyTopStats: Content unchanged, skipping DOM update');
+            return;
+        }
+        
+        // Update DOM only if content changed
         const shouldAnimate = currentContent && currentContent !== content;
         
         statsInline.innerHTML = `<span class="stat-summary">${content}</span>`;
         
         if (shouldAnimate) {
             statsInline.classList.add('pulse-update');
-            setTimeout(() => statsInline.classList.remove('pulse-update'), 600);
+            setTimeout(() => statsInline.classList.remove('pulse-update'), 400);
         }
     }
 

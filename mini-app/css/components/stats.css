@@ -4,22 +4,22 @@
 
 /* Stats inline component */
 .stats-inline {
-    margin: 16px 0;
-    padding: 12px 16px;
-    background-color: var(--background-secondary, #f8f9fa);
-    border-radius: 8px;
+    margin: var(--spacing-md) 0;
+    padding: calc(var(--spacing-md) * 0.75) var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
     text-align: center;
 }
 
 .stat-summary {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-primary, #333);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
 }
 
 /* Pulse animation for stats updates */
 .stats-inline.pulse-update {
-    animation: pulseUpdate 0.6s ease-out;
+    animation: pulseUpdate var(--duration-slow) var(--ease-out);
 }
 
 @keyframes pulseUpdate {
