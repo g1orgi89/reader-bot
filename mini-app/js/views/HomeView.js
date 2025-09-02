@@ -54,28 +54,31 @@ window.HomeView = class HomeView {
       if (fromState.length) {
         this.latestContainer.innerHTML = this._renderLatestQuotesSection(fromState);
         this.latestContainer.style.display = 'block';
+        this._addActiveHandlers();
         return;
       }
 
       // 2) Если в состоянии пусто — идём в API с userId и безопасным парсингом
-      const userId = this._getUserId();
-      
-     let quotes = [];
-     try {
-       const userId = app.state.getCurrentUserId();
-       const response = await app.api.getQuotes({ limit: 3 }, userId);
-       quotes = response.data?.quotes || response.quotes || response.items || [];
-     } catch (serviceError) {
-       console.warn('ApiService.getQuotes failed:', serviceError);
-       // Можно показать ошибку, но не надо создавать новый экземпляр ApiService!
-       quotes = [];
-     }
+      let quotes = [];
+      try {
+        const userId = this._getUserId();
+        const response = await window.App.api.getQuotes({ limit: 3 }, userId);
+        quotes = response.data?.quotes || response.quotes || response.items || [];
+      } catch (serviceError) {
+        console.warn('ApiService.getQuotes failed:', serviceError);
+        // Можно показать ошибку, но не надо создавать новый экземпляр ApiService!
+        quotes = [];
+      }
 
-this.latestContainer.innerHTML = this._renderLatestQuotesSection(quotes);
-this.latestContainer.style.display = 'block';
+      this.latestContainer.innerHTML = this._renderLatestQuotesSection(quotes);
+      this.latestContainer.style.display = 'block';
+      this._addActiveHandlers();
+    } catch (error) {
+      console.error('renderLatestQuotes error:', error);
       // Показываем пустое состояние (не скрываем секцию), чтобы был понятный UI
       this.latestContainer.innerHTML = this._renderLatestQuotesSection([]);
       this.latestContainer.style.display = 'block';
+      this._addActiveHandlers();
     }
   }
 
@@ -234,12 +237,27 @@ this.latestContainer.style.display = 'block';
       if (!HF) return;
       if (type === 'impact') HF.impactOccurred(style || 'light');
       if (type === 'notification') HF.notificationOccurred(style || 'success');
-    } catch (_) {}
+    } catch (error) {
+      // Haptic feedback not available
+      console.debug('Haptic feedback not available:', error);
+    }
   }
 
   _escape(s) {
     const div = document.createElement('div');
     div.textContent = s ?? '';
     return div.innerHTML;
+  }
+
+  _addActiveHandlers() {
+    if (!this.latestContainer) return;
+    const items = this.latestContainer.querySelectorAll('.recent-quote-item, .quote-card.recent-quote-item');
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        this.telegram?.HapticFeedback?.impactOccurred?.('light');
+      }, { passive: true });
+    });
   }
 };

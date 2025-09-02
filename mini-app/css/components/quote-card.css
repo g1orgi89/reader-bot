@@ -198,7 +198,7 @@
 .recent-quote-item {
   padding: var(--spacing-md);
   margin-bottom: var(--spacing-sm);
-  background: var(--bg-card);
+  background: var(--bg-primary);
   border-radius: var(--radius-lg);
   border: 1px solid var(--bg-secondary);
   cursor: pointer;
@@ -292,17 +292,27 @@
   }
 }
 
-/* === Unified quote card styling & active state === */
-.quote-card, .quote-item, .recent-quote-item, [data-quote-id] {
-  background: var(--bg-primary);
+/* === Unified quote card styling & active state overrides === */
+.home-latest-quotes .quote-card.recent-quote-item,
+.home-latest-quotes .recent-quote-item,
+.recent-quotes-section .recent-quote-item,
+.quote-card.my-quotes,
+.my-quotes-container .quote-card,
+.my-quotes-container [data-quote-id],
+[data-quote-id].quote-card {
+  background: var(--bg-primary) !important;
+  border: 1px solid var(--bg-secondary);
+  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
-.quote-card.active, .quote-item.active, .recent-quote-item.active, [data-quote-id].active {
-  border: 2px solid var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(210,69,44,0.15);
-}
-.quote-highlight { 
-  background: rgba(210,69,44,0.15); 
-  color: var(--text-primary); 
-  padding: 0 2px; 
-  border-radius: 4px; 
-}
+.home-latest-quotes .recent-quote-item:hover,
+.my-quotes-container .quote-card:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.06); }
+.quote-card.active,
+.quote-card.my-quotes.active,
+.my-quotes-container .quote-card.active,
+.home-latest-quotes .recent-quote-item.active,
+.recent-quotes-section .recent-quote-item.active,
+[data-quote-id].active { border:2px solid var(--primary-color) !important; box-shadow:0 0 0 2px rgba(210,69,44,0.15),0 2px 6px rgba(0,0,0,0.08); }
+.quote-card.liked.active { border-color: var(--primary-color) !important; }
+.quote-highlight { background: rgba(210,69,44,0.15); color: var(--text-primary); padding:0 2px; border-radius:4px; }
+.quote-card.my-quotes .quote-card__container { background: transparent !important; }
