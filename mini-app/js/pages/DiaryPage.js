@@ -45,6 +45,14 @@ class DiaryPage {
         // ✅ НОВОЕ: Debug режим (синхронизируется с API)
         this.debug = this.api?.debug || false;
         
+        // ✅ НОВОЕ: iOS keyboard handling
+        this.iosKeyboardHandler = null;
+        
+        // ✅ НОВОЕ: Analysis timer for Anna's insights
+        this.analysisTimer = null;
+        this.analysisStartTime = null;
+        this.analysisVisible = false;
+        
         // Removed global quote delegation flag
         
         this.init();
@@ -334,7 +342,7 @@ class DiaryPage {
                     <span>✨</span>
                     <span>Анализ от Анны</span>
                 </div>
-                <div class="ai-text">Добавьте цитату, и я проанализирую ваши предпочтения!</div>
+                <div class="ai-text">Анализируем ваши цитаты...</div>
             </div>
         `;
     }
@@ -541,6 +549,7 @@ class DiaryPage {
         this.attachFilterListeners();
         this.attachQuoteActionListeners();
         this.attachSearchListeners();
+        this.attachIOSKeyboardHandlers();
 
         const prevPageBtn = document.getElementById('prevPageBtn');
         const nextPageBtn = document.getElementById('nextPageBtn');
@@ -668,11 +677,68 @@ class DiaryPage {
     }
     
     /**
+     * 🍎 iOS KEYBOARD HANDLERS - Dismiss keyboard on touch outside
+     */
+    attachIOSKeyboardHandlers() {
+        // Only for iOS devices and when on "add" tab
+        if (!window.isIOSDevice) {
+            return;
+        }
+        
+        // Remove any existing handler
+        this.removeIOSKeyboardHandlers();
+        
+        this.iosKeyboardHandler = (e) => {
+            // Only handle on "add" tab
+            if (this.activeTab !== 'add') {
+                return;
+            }
+            
+            const target = e.target;
+            
+            // Check if tap is outside form inputs
+            const isFormInput = target.matches('#quoteText, #quoteAuthor') || 
+                               target.closest('#quoteText, #quoteAuthor');
+            
+            if (!isFormInput) {
+                // Find focused form elements and blur them
+                const quoteText = document.getElementById('quoteText');
+                const quoteAuthor = document.getElementById('quoteAuthor');
+                
+                if (quoteText && quoteText === document.activeElement) {
+                    quoteText.blur();
+                }
+                if (quoteAuthor && quoteAuthor === document.activeElement) {
+                    quoteAuthor.blur();
+                }
+            }
+        };
+        
+        // Add touch handler to document
+        document.addEventListener('touchstart', this.iosKeyboardHandler, { passive: true });
+    }
+    
+    /**
+     * Remove iOS keyboard handlers
+     */
+    removeIOSKeyboardHandlers() {
+        if (this.iosKeyboardHandler) {
+            document.removeEventListener('touchstart', this.iosKeyboardHandler);
+            this.iosKeyboardHandler = null;
+        }
+    }
+    
+    /**
      * 🔧 ОБРАБОТЧИКИ ДЕЙСТВИЙ
      */
     switchTab(tabName) {
+        const previousTab = this.activeTab;
         this.activeTab = tabName;
         this.telegram.hapticFeedback('light');
+        
+        // Handle analysis timer for Anna's insights
+        this.handleAnalysisTimerOnTabSwitch(previousTab, tabName);
+        
         this.rerender();
         
         // Note: MyQuotesView management removed for reliability - kebab functionality is now self-contained
@@ -684,6 +750,70 @@ class DiaryPage {
             }).catch(error => {
                 console.error('❌ Ошибка загрузки при переключении таба:', error);
             });
+        }
+    }
+    
+    /**
+     * ⏱️ ANALYSIS TIMER HANDLERS - Manage Anna's analysis display time
+     */
+    handleAnalysisTimerOnTabSwitch(previousTab, currentTab) {
+        // Reset analysis if returning to "add" tab after some time or if analysis timer expired
+        if (currentTab === 'add' && previousTab !== 'add') {
+            this.checkAnalysisTimerExpiry();
+        }
+    }
+    
+    /**
+     * Start analysis timer (20 seconds)
+     */
+    startAnalysisTimer() {
+        this.clearAnalysisTimer();
+        this.analysisStartTime = Date.now();
+        this.analysisVisible = true;
+        
+        this.analysisTimer = setTimeout(() => {
+            this.resetAnalysisToDefault();
+        }, 20000); // 20 seconds
+    }
+    
+    /**
+     * Clear analysis timer
+     */
+    clearAnalysisTimer() {
+        if (this.analysisTimer) {
+            clearTimeout(this.analysisTimer);
+            this.analysisTimer = null;
+        }
+    }
+    
+    /**
+     * Check if analysis timer has expired
+     */
+    checkAnalysisTimerExpiry() {
+        if (this.analysisStartTime) {
+            const elapsed = Date.now() - this.analysisStartTime;
+            const twentySeconds = 20000;
+            
+            if (elapsed >= twentySeconds) {
+                this.resetAnalysisToDefault();
+            }
+        }
+    }
+    
+    /**
+     * Reset analysis to default state
+     */
+    resetAnalysisToDefault() {
+        this.clearAnalysisTimer();
+        this.analysisStartTime = null;
+        this.analysisVisible = false;
+        
+        // Clear the lastAddedQuote analysis data
+        this.state.set('lastAddedQuote', null);
+        
+        // Re-render to show default text
+        if (this.activeTab === 'add') {
+            this.rerender();
         }
     }
 
@@ -826,6 +956,11 @@ class DiaryPage {
 
             this.clearForm();
             this.rerender();
+            
+            // ⏱️ Start analysis timer if we have analysis data
+            if (insights || summary) {
+                this.startAnalysisTimer();
+            }
 
             if (saveBtn) {
                 saveBtn.textContent = '✅ Сохранено!';
@@ -1139,6 +1274,12 @@ class DiaryPage {
             }
         });
         this.subscriptions = [];
+        
+        // Clean up iOS keyboard handlers
+        this.removeIOSKeyboardHandlers();
+        
+        // Clean up analysis timer
+        this.clearAnalysisTimer();
         
         // Отписываемся от события редактирования цитат
         document.removeEventListener('quotes:edit', this._onQuoteEdit, false);
