@@ -593,6 +593,15 @@ class HomePage {
             `;
         }
         
+        // Only render valid stats with all required fields
+        if (!stats || stats.totalQuotes == null) {
+            return `
+                <div class="stats-inline" id="statsInline">
+                    <span class="stat-summary">📊 Статистика</span>
+                </div>
+            `;
+        }
+        
         const totalQuotes = stats.totalQuotes ?? 0;
         const daysInApp = stats.daysInApp ?? 0;
         const quotesWord = this.getQuoteWord(totalQuotes);
@@ -797,11 +806,7 @@ class HomePage {
             });
         });
         
-        // Клик по инлайн статистике
-        const statsInline = document.getElementById('statsInline');
-        if (statsInline) {
-            statsInline.addEventListener('click', () => this.handleStatClick('inline'));
-        }
+        // NOTE: Removed click handler for statsInline to prevent navigation to /reports
         
         // Клики по старой статистике (обратная совместимость)
         const statCards = document.querySelectorAll('.stat-card');
@@ -870,8 +875,10 @@ class HomePage {
         const statsInline = document.getElementById('statsInline');
         if (!statsInline) return;
         
-        if (!stats || !stats.loadedAt) {
-            statsInline.innerHTML = '<span class="stat-summary">⏳ Загрузка…</span>';
+        // Only update DOM if we have valid, loaded stats with all required fields
+        if (!stats || !stats.loadedAt || stats.totalQuotes == null) {
+            // Don't touch DOM if stats are invalid - leave existing value
+            console.debug('applyTopStats: Skipping DOM update due to invalid stats', stats);
             return;
         }
         
