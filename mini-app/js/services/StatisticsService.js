@@ -195,12 +195,12 @@ class StatisticsService {
             const userId = this._requireUserId();
             this.invalidateForUser(userId);
             
-            // Optimistic update
+            // Optimistic update - only if we have valid previous stats
             const prev = this.state.get('stats');
-            if (prev && prev.loadedAt) {
-                // Only update if we have existing stats to avoid intermediate state without daysInApp
+            if (prev && prev.loadedAt && prev.totalQuotes != null) {
+                // Preserve all valid fields from previous state, only update totalQuotes
                 const updated = {
-                    ...prev,
+                    ...prev, // Keep all existing valid fields including daysInApp, currentStreak, etc.
                     totalQuotes: (prev.totalQuotes || 0) + 1,
                     loadedAt: Date.now(),
                     isFresh: false
@@ -221,12 +221,12 @@ class StatisticsService {
             const userId = this._requireUserId();
             this.invalidateForUser(userId);
             
-            // Optimistic update
+            // Optimistic update - only if we have valid previous stats
             const prev = this.state.get('stats');
-            if (prev && prev.loadedAt && prev.totalQuotes > 0) {
-                // Only update if we have existing stats to avoid intermediate state without daysInApp
+            if (prev && prev.loadedAt && prev.totalQuotes != null && prev.totalQuotes > 0) {
+                // Preserve all valid fields from previous state, only update totalQuotes
                 const updated = {
-                    ...prev,
+                    ...prev, // Keep all existing valid fields including daysInApp, currentStreak, etc.
                     totalQuotes: prev.totalQuotes - 1,
                     loadedAt: Date.now(),
                     isFresh: false
