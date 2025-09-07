@@ -584,34 +584,27 @@ class HomePage {
      * 📊 Рендер инлайн статистики (только цитаты и дни в приложении)
      */
     renderStatsInline(stats) {
-        const loading = stats.loading || this.loading;
-        
-        if (loading) {
-            return `
-                <div class="stats-inline" id="statsInline">
-                    <span class="stat-summary">⏳ Загружаем статистику...</span>
-                </div>
-            `;
+        const loading = stats?.loading || this.loading;
+
+        let content = '—';
+        const hasValid =
+            !loading &&
+            stats &&
+            stats.totalQuotes != null &&
+            stats.totalQuotes >= 0;
+
+        if (hasValid) {
+            const totalQuotes = stats.totalQuotes ?? 0;
+            const daysInApp = stats.daysInApp ?? 0;
+            const quotesWord = this.getQuoteWord(totalQuotes);
+            const daysWord = this.getDayWord(daysInApp);
+
+            content = `${totalQuotes} ${quotesWord}`;
+            if (daysInApp > 0) {
+                content += ` • ${daysInApp} ${daysWord} в приложении`;
+            }
         }
-        
-        // Only render valid stats with all required fields and loadedAt
-        // Strict validation: must have loadedAt and totalQuotes >= 0
-        // If data is invalid, don't render the block at all (return empty string)
-        if (!stats || !stats.loadedAt || stats.totalQuotes == null || stats.totalQuotes < 0) {
-            return '';
-        }
-        
-        const totalQuotes = stats.totalQuotes ?? 0;
-        const daysInApp = stats.daysInApp ?? 0;
-        const quotesWord = this.getQuoteWord(totalQuotes);
-        const daysWord = this.getDayWord(daysInApp);
-        
-        // Format: "X цитат" or "X цитат • Y дней в приложении" if daysInApp available
-        let content = `${totalQuotes} ${quotesWord}`;
-        if (daysInApp > 0) {
-            content += ` • ${daysInApp} ${daysWord} в приложении`;
-        }
-        
+    
         return `
             <div class="stats-inline" id="statsInline">
                 <span class="stat-summary">${content}</span>
@@ -873,40 +866,37 @@ class HomePage {
     applyTopStats(stats) {
         const statsInline = document.getElementById('statsInline');
         if (!statsInline) return;
-        
-        // Hide block when data is invalid
-        if (!stats || !stats.loadedAt || stats.totalQuotes == null || stats.totalQuotes < 0) {
-            statsInline.style.display = 'none';
-            console.debug('applyTopStats: Hiding stats block due to invalid stats', stats);
-            return;
+
+        // По ТЗ: если нет валидных данных — показываем "—"
+        let content = '—';
+
+        // Валидные данные: должны быть totalQuotes >= 0
+        const hasValid =
+            stats &&
+            typeof stats.totalQuotes === 'number' &&
+            stats.totalQuotes >= 0;
+
+        if (hasValid) {
+            const totalQuotes = stats.totalQuotes ?? 0;
+            const daysInApp = stats.daysInApp ?? 0;
+            const quotesWord = this.getQuoteWord(totalQuotes);
+            const daysWord = this.getDayWord(daysInApp);
+
+            content = `${totalQuotes} ${quotesWord}`;
+            if (daysInApp > 0) {
+                content += ` • ${daysInApp} ${daysWord} в приложении`;
+            }
         }
-        
-        // Show block for valid data
-        statsInline.style.display = '';
-        
-        const totalQuotes = stats.totalQuotes ?? 0;
-        const daysInApp = stats.daysInApp ?? 0;
-        const quotesWord = this.getQuoteWord(totalQuotes);
-        const daysWord = this.getDayWord(daysInApp);
-        
-        // Format: "X цитат" or "X цитат • Y дней в приложении" if daysInApp available
-        let content = `${totalQuotes} ${quotesWord}`;
-        if (daysInApp > 0) {
-            content += ` • ${daysInApp} ${daysWord} в приложении`;
-        }
-        
-        // Check if content actually changed before updating DOM
+
+        // Обновляем DOM только если контент реально поменялся
         const currentContent = statsInline.querySelector('.stat-summary')?.textContent || '';
         if (currentContent === content) {
-            console.debug('applyTopStats: Content unchanged, skipping DOM update');
             return;
         }
-        
-        // Update DOM only if content changed
+
         const shouldAnimate = currentContent && currentContent !== content;
-        
         statsInline.innerHTML = `<span class="stat-summary">${content}</span>`;
-        
+
         if (shouldAnimate) {
             statsInline.classList.add('pulse-update');
             setTimeout(() => statsInline.classList.remove('pulse-update'), 400);
