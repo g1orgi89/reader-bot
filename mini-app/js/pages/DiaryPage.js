@@ -1474,55 +1474,63 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
 async deleteQuote(quoteId) {
     try {
         this.log('🗑️ Удаление цитаты:', quoteId);
-        
+
         const quotes = this.state.get('quotes.items') || [];
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-        
+
         if (!quote) {
             console.error('❌ Цитата не найдена:', quoteId);
             return;
         }
 
-        // ✅ НОВОЕ: Подтверждение удаления
+        // Подтверждение удаления
         const truncatedText = quote.text.substring(0, 100) + (quote.text.length > 100 ? '...' : '');
         const confirmText = `Удалить цитату?\n\n"${truncatedText}"\n\n— ${quote.author}`;
-        
+
         if (!confirm(confirmText)) {
             return; // Пользователь отменил удаление
         }
-        
+
         // Удаляем из локального state
         const updatedQuotes = quotes.filter(q => q._id !== quoteId && q.id !== quoteId);
         this.state.set('quotes.items', updatedQuotes);
-        
-        // ✅ НОВОЕ: Reset analysis when deleting a quote
+
+        // Reset analysis when deleting a quote
         this.resetAnalysisToDefault();
-        
-        // ✅ ИСПРАВЛЕНО: Обновляем статистику
-        const currentStats = this.state.get('stats') || {};
-        const updatedStats = {
-            ...currentStats,
-            totalQuotes: Math.max((currentStats.totalQuotes || 0) - 1, 0)
-        };
-        this.state.set('stats', updatedStats);
-        
+
         try {
             await this.api.deleteQuote(quoteId);
+
+            // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
+            await this.app.statistics.refreshMainStatsSilent?.();
+            const userId = await this.waitForValidUserId();
+            const activityPercent = await this.api.getActivityPercent(userId);
+            this.state.set('diaryStats', { activityPercent });
+            // --- КОНЕЦ ---
+
             console.log('✅ Цитата удалена с сервера');
         } catch (error) {
             console.error('❌ Ошибка удаления цитаты с сервера:', error);
-            
-            // 🐛 ИСПРАВЛЕНИЕ: Возвращаем цитату только если она НЕ была удалена на сервере
+
             if (error.status !== 404 && error.status !== 200) {
                 // Цитата существует на сервере, возвращаем её в UI
                 this.state.set('quotes.items', quotes);
-                this.state.set('stats', currentStats);
                 this.rerender();
                 return;
             }
             // Если 404 - значит уже удалена, не возвращаем в UI
             console.log('⚠️ Цитата уже удалена на сервере (404), оставляем UI без изменений');
         }
+
+        this.rerender();
+        this.telegram.hapticFeedback('success');
+        this.log('✅ Цитата удалена');
+
+    } catch (error) {
+        console.error('❌ Ошибка удаления цитаты:', error);
+        this.telegram.hapticFeedback('error');
+    }
+}
         
         // Обновляем UI
         this.rerender();
