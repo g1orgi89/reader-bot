@@ -146,6 +146,24 @@ class StatisticsService {
         return streak;
     }
 
+    /**
+     * Получить комплексную статистику для дневника (блоки "добавить" и "мои цитаты")
+     */
+    async getDiaryStats() {
+        const userId = this._requireUserId();
+        const [main, progress, activityPercent] = await Promise.all([
+            this.getMainStats(),
+            this.getUserProgress(),
+            this.api.getActivityPercent(userId)
+        ]);
+        return {
+            totalQuotes: main.totalQuotes ?? 0,
+            weeklyQuotes: progress.weeklyQuotes ?? 0,
+            favoriteAuthor: progress.favoriteAuthor ?? '—',
+            activityPercent: activityPercent ?? 1
+        };
+    }
+    
     // -------- streak enhancement helpers --------
     _computeStreakToYesterday(quotes, computedStreak) {
         if (computedStreak > 0) {
