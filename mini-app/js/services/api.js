@@ -515,6 +515,21 @@ class ApiService {
     }
 
     /**
+     * 📊 Получить процент активности пользователя среди всех (activityPercent)
+     */
+    async getActivityPercent(userId = 'demo-user') {
+        // userId берется из state или аргумента
+        const params = new URLSearchParams();
+        if (userId) params.append('userId', userId);
+
+        const endpoint = `/activity-percent?${params.toString()}`;
+        const result = await this.request('GET', endpoint);
+        return result && typeof result.activityPercent === 'number'
+            ? result.activityPercent
+            : 1; // fallback
+    }
+    
+    /**
      * 🏆 Получить достижения пользователя
      */
     async getAchievements() {
