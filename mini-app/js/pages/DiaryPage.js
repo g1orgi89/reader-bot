@@ -358,9 +358,9 @@ class DiaryPage {
      * 📊 СТАТИСТИКА (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderStatsInfo() {
-        const diaryStats = this.state.get('diaryStats') || {};
-        const totalQuotes = diaryStats.totalQuotes ?? 0;
-        const activityPercent = diaryStats.activityPercent ?? 1;
+        const stats = this.state.get('stats') || {};
+        const activityPercent = (this.state.get('diaryStats') || {}).activityPercent ?? 1;
+        const totalQuotes = stats.totalQuotes ?? 0;
 
         return `
             <div class="stats-summary">
@@ -368,7 +368,7 @@ class DiaryPage {
             </div>
         `;
     }
-    
+        
     /**
      * 📚 ТАБ МОИ ЦИТАТЫ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
@@ -417,14 +417,19 @@ class DiaryPage {
      * 📊 СТАТИСТИКА ЦИТАТ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderQuotesStats() {
-        const diaryStats = this.state.get('diaryStats') || {};
+        const stats = this.state.get('stats') || {};
+        const weeklyQuotes = stats.weeklyQuotes ?? stats.thisWeek ?? 0;
+        const favoriteAuthor = Array.isArray(stats.favoriteAuthors) && stats.favoriteAuthors.length > 0
+            ? stats.favoriteAuthors[0]
+            : (stats.favoriteAuthor ?? '—');
+        const totalQuotes = stats.totalQuotes ?? 0;
 
         return `
             <div class="stats-summary">
-                📊 Всего: ${diaryStats.totalQuotes ?? 0} цитат • За неделю: ${diaryStats.weeklyQuotes ?? 0} • Любимый автор: ${diaryStats.favoriteAuthor ?? '—'}
+                📊 Всего: ${totalQuotes} цитат • За неделю: ${weeklyQuotes} • Любимый автор: ${favoriteAuthor}
             </div>
         `;
-    } 
+    }
     
     /**
      * 📋 СПИСОК ЦИТАТ (ТОЧНО ИЗ КОНЦЕПТА!)
@@ -882,16 +887,12 @@ class DiaryPage {
         }
     }
 
-    async handleSaveQuote() {
+   async handleSaveQuote() {
         if (!this.isFormValid()) return;
 
         try {
             this.telegram.hapticFeedback('medium');
-
-            // Ждем валидный userId перед сохранением
             const userId = await this.waitForValidUserId();
-            console.log('💾 DiaryPage: Сохраняем цитату для userId:', userId);
-
             const quoteData = {
                 text: this.formData.text.trim(),
                 author: this.formData.author.trim(),
@@ -904,19 +905,15 @@ class DiaryPage {
                 saveBtn.textContent = '💾 Сохраняем...';
             }
 
-            // --- Основное изменение ---
             const savedQuote = await this.api.addQuote(quoteData, userId);
             const data = savedQuote?.data || savedQuote;
-            console.log('DEBUG: Saved quote data:', data);
 
-            // Универсально достаем анализ
+            // ... анализ как у тебя было ...
             let insights = data.insights || data.quote?.insights;
             let themes = data.themes || data.quote?.themes;
             let category = data.category || data.quote?.category;
             let sentiment = data.sentiment || data.quote?.sentiment;
             let summary = data.summary || data.quote?.summary || savedQuote?.message || '';
-            
-            // Если insights или другие поля отсутствуют, но есть message как JSON — парсим!
             if ((!insights || !themes || !category) && typeof data.message === 'string') {
                 try {
                     const ai = JSON.parse(data.message);
@@ -929,12 +926,9 @@ class DiaryPage {
                     console.log('DEBUG: message не парсится как JSON', e);
                 }
             }
-
-            // Если summary все еще пустой, попробуем взять из message напрямую
             if (!summary && data.message && typeof data.message === 'string') {
-                summary = data.message; // ← ДОБАВИТЬ ЭТО!
+                summary = data.message;
             }
-            
             this.state.set('lastAddedQuote', {
                 ...data,
                 insights,
@@ -944,36 +938,28 @@ class DiaryPage {
                 sentiment
             });
 
-            // Показываем уведомление с инсайтом от Анны
             if (insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
                 window.showNotification(insights, 'success', 5000);
             } else if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
                 window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
             }
 
-            // Обновляем state quotes.items (тоже с анализом)
             const existingQuotes = this.state.get('quotes.items') || [];
             const quoteForList = { ...data, insights, themes, category, sentiment };
             this.state.set('quotes.items', [quoteForList, ...existingQuotes]);
 
-            // Dispatch event for StatisticsService
             document.dispatchEvent(new CustomEvent('quotes:changed', { 
                 detail: { type: 'added', id: data.id || data._id, quote: quoteForList } 
             }));
 
-            // Обновляем статистику
-            const currentStats = this.state.get('stats') || {};
-            const updatedStats = {
-                ...currentStats,
-                totalQuotes: (currentStats.totalQuotes || 0) + 1,
-                thisWeek: (currentStats.thisWeek || 0) + 1
-            };
-            this.state.set('stats', updatedStats);
+            // --- ВСТАВЬ ЭТО ВМЕСТО ЛОКАЛЬНОГО ОБНОВЛЕНИЯ СТАТИСТИКИ ---
+            await this.app.statistics.refreshMainStatsSilent?.(); // обновит state.stats
+            const activityPercent = await this.api.getActivityPercent(userId);
+            this.state.set('diaryStats', { activityPercent });
 
             this.clearForm();
             this.rerender();
-            
-            // ⏱️ Start analysis timer if we have analysis data
+        
             if (insights || summary) {
                 this.startAnalysisTimer();
             }
@@ -982,7 +968,6 @@ class DiaryPage {
                 saveBtn.textContent = '✅ Сохранено!';
                 saveBtn.style.backgroundColor = 'var(--success-color, #22c55e)';
                 saveBtn.style.color = 'white';
-
                 setTimeout(() => {
                     saveBtn.disabled = true;
                     saveBtn.textContent = '💾 Сохранить в дневник';
@@ -997,13 +982,11 @@ class DiaryPage {
         } catch (error) {
             console.error('❌ Ошибка сохранения цитаты:', error);
             this.telegram.hapticFeedback('error');
-
             const saveBtn = document.getElementById('saveQuoteBtn');
             if (saveBtn) {
                 saveBtn.textContent = '❌ Ошибка';
                 saveBtn.style.backgroundColor = 'var(--error-color, #ef4444)';
                 saveBtn.style.color = 'white';
-
                 setTimeout(() => {
                     saveBtn.disabled = false;
                     saveBtn.textContent = '💾 Сохранить в дневник';
