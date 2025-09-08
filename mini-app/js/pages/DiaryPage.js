@@ -111,30 +111,34 @@ class DiaryPage {
     
     async loadInitialData() {
         console.log('📖 DiaryPage: loadInitialData начата');
-        
+
         try {
-            // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед загрузкой данных
+            // ✅ Ждем валидный userId перед загрузкой данных
             const userId = await this.waitForValidUserId();
             console.log('📖 DiaryPage: Используем userId:', userId);
 
+            // Получаем оба значения
             const diaryStats = await this.app.statistics.getDiaryStats();
-            this.state.set('diaryStats', diaryStats);
-           
-            // ✅ ИСПРАВЛЕНО: Загружаем только если не загружено
+            const activityPercent = await this.api.getActivityPercent(userId);
+
+            // Объединяем аккуратно
+            this.state.set('diaryStats', { ...diaryStats, activityPercent });
+
+            // ✅ Загружаем только если не загружено
             if (!this.quotesLoaded && !this.quotesLoading) {
                 await this.loadQuotes(false, userId);
             }
-            
+    
             if (!this.statsLoaded && !this.statsLoading) {
                 await this.loadStats(userId);
             }
-            
+    
             console.log('✅ DiaryPage: Данные загружены');
         } catch (error) {
             console.error('❌ Ошибка загрузки данных дневника:', error);
         }
     }
-    
+        
    async loadQuotes(reset = false, userId = null) {
         if (this.quotesLoading) {
             console.log('🔄 DiaryPage: Цитаты уже загружаются, пропускаем');
