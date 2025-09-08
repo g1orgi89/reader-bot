@@ -116,7 +116,10 @@ class DiaryPage {
             // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед загрузкой данных
             const userId = await this.waitForValidUserId();
             console.log('📖 DiaryPage: Используем userId:', userId);
-            
+
+            const diaryStats = await this.app.statistics.getDiaryStats();
+            this.state.set('diaryStats', diaryStats);
+           
             // ✅ ИСПРАВЛЕНО: Загружаем только если не загружено
             if (!this.quotesLoaded && !this.quotesLoading) {
                 await this.loadQuotes(false, userId);
@@ -355,16 +358,15 @@ class DiaryPage {
      * 📊 СТАТИСТИКА (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderStatsInfo() {
-        const stats = this.state.get('stats') || {};
-        const totalQuotes = stats.totalQuotes || 47; // Как в концепте
-        const activityPercent = Math.min(Math.round(totalQuotes * 2.5), 78); // Как в концепте
-        
+        const diaryStats = this.state.get('diaryStats') || {};
+        const totalQuotes = diaryStats.totalQuotes ?? 0;
+        const activityPercent = diaryStats.activityPercent ?? 1;
+
         return `
             <div class="stats-summary">
                 📊 У вас уже ${totalQuotes} цитат • Вы активнее ${activityPercent}% читателей сообщества
             </div>
-        `;
-    }
+    `;
     
     /**
      * 📚 ТАБ МОИ ЦИТАТЫ (ТОЧНО ИЗ КОНЦЕПТА!)
@@ -414,14 +416,13 @@ class DiaryPage {
      * 📊 СТАТИСТИКА ЦИТАТ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderQuotesStats() {
-        const stats = this.state.get('stats') || {};
-        
+        const diaryStats = this.state.get('diaryStats') || {};
+
         return `
             <div class="stats-summary">
-                📊 Всего: ${stats.totalQuotes || 47} цитат • За неделю: ${stats.thisWeek || 7} • Любимый автор: Э. Фромм
+                📊 Всего: ${diaryStats.totalQuotes ?? 0} цитат • За неделю: ${diaryStats.weeklyQuotes ?? 0} • Любимый автор: ${diaryStats.favoriteAuthor ?? '—'}
             </div>
-        `;
-    }
+    `;
     
     /**
      * 📋 СПИСОК ЦИТАТ (ТОЧНО ИЗ КОНЦЕПТА!)
