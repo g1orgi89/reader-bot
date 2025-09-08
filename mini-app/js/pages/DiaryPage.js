@@ -1531,17 +1531,6 @@ async deleteQuote(quoteId) {
         this.telegram.hapticFeedback('error');
     }
 }
-        
-        // Обновляем UI
-        this.rerender();
-        this.telegram.hapticFeedback('success');
-        this.log('✅ Цитата удалена');
-        
-    } catch (error) {
-        console.error('❌ Ошибка удаления цитаты:', error);
-        this.telegram.hapticFeedback('error');
-    }
-}
     
     /**
      * ⋯ Показать меню действий с цитатой
