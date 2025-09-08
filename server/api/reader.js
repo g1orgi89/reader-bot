@@ -1496,4 +1496,34 @@ router.get('/community/leaderboard', telegramAuth, async (req, res) => {
   }
 });
 
+/**
+ * @description Процент активности пользователя (сколько % пользователей имеют меньше цитат)
+ * @route GET /api/reader/activity-percent
+ */
+router.get('/activity-percent', telegramAuth, async (req, res) => {
+    try {
+        const userId = req.userId;
+        const userQuotesCount = await Quote.countDocuments({ userId });
+
+        const usersWithCounts = await Quote.aggregate([
+            { $group: { _id: '$userId', count: { $sum: 1 } } }
+        ]);
+
+        const totalUsers = usersWithCounts.length;
+        const lessCount = usersWithCounts.filter(u => u.count < userQuotesCount).length;
+
+        let percent = 50;
+        if (totalUsers > 0) {
+            percent = Math.round((lessCount / totalUsers) * 100);
+            if (percent < 1) percent = 1;
+            if (percent > 99) percent = 99;
+        }
+
+        res.json({ activityPercent: percent, totalUsers, userQuotesCount });
+    } catch (e) {
+        console.error('❌ Activity Percent Error:', e);
+        res.status(500).json({ error: 'server error' });
+    }
+});
+
 module.exports = router;
