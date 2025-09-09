@@ -964,21 +964,37 @@ class OnboardingPage {
      * ✅ Проверка валидности контактных данных
      */
     isContactDataValid() {
-        // === RETAKE FIX START ===
-        // В режиме повторного прохождения пропускаем валидацию контактов
+        // В режиме повторного прохождения пропускаем всю валидацию контактов!
         if (this.isRetakeMode) {
             return true;
         }
-        // === RETAKE FIX END ===
-        
-        // Check if we're at completion step and contact form should be present
-        if (this.currentStep > this.totalSteps) {
-            const emailInput = document.getElementById('emailInput');
-            if (!emailInput) {
-                console.warn('⚠️ OnboardingPage: Email input not found, form not properly mounted');
-                return false;
-            }
+
+        // В остальных случаях — валидация email и source
+        // (Оставляем только для НЕ retake режима)
+
+        // Собираем актуальные данные из формы
+        const contactData = this.gatherContactData();
+
+        // Email обязателен
+        if (!contactData.email || contactData.email.trim().length === 0) {
+            console.log('📧 OnboardingPage: Email is missing or empty');
+            return false;
         }
+
+        // Email должен быть валидным
+        if (!this.isValidEmail(contactData.email)) {
+            console.log('📧 OnboardingPage: Email format is invalid');
+            return false;
+        }
+
+        // Источник обязателен
+        if (!contactData.source || contactData.source.length === 0) {
+            console.log('📱 OnboardingPage: Source is missing');
+            return false;
+        }
+
+        return true;
+    }
         
         // Собираем актуальные данные из формы
         const contactData = this.gatherContactData();
