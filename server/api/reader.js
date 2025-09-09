@@ -289,33 +289,19 @@ router.post('/auth/complete-onboarding', async (req, res) => {
     // 2. Идемпотентный повтор без forceRetake
     if (profile.isOnboardingComplete && !forceRetake) {
       console.log(`⚠️ Already completed (idempotent): ${userId}`);
-      return res.json({ 
+      return res.json({
         success: true,
-        message: 'Цитата сохранена успешно',
-        data: {
-          id: result.quote._id,
-          text: result.quote.text,
-          author: result.quote.author,
-          source: result.quote.source,
-          category: result.quote.category,
-          sentiment: result.quote.sentiment,
-          themes: result.quote.themes,
-          insights: result.quote.insights,
-          summary: annaSummary,
-          createdAt: result.quote.createdAt,
-          isEdited: result.quote.isEdited,
-          editedAt: result.quote.editedAt,
-          aiAnalysis: {
-            summary: annaSummary,
-            category: result.quote.category,
-            themes: result.quote.themes,
-            sentiment: result.quote.sentiment
-          }
+        alreadyCompleted: true,
+        user: {
+          userId: profile.userId,
+          name: profile.name,
+          email: profile.email,
+          isOnboardingComplete: profile.isOnboardingComplete
         },
-        newAchievements: result.newAchievements || [],
-        todayCount: result.todayCount
+        message: 'Онбординг уже завершён'
       });
     }
+    
     // Helper для построения testResults при обновлении / retake
     const buildTestResults = (prev, isRetake) => {
       const now = new Date();
