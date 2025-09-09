@@ -375,7 +375,25 @@ userProfileSchema.methods = {
    * @returns {Promise<UserProfile>}
    */
   async updateQuoteStats(author = null) {
-    this.statistics.totalQuotes += 1;
+    // --- PATCH: Ensure statistics is always initialized ---
+    if (!this.statistics || typeof this.statistics !== 'object') {
+      this.statistics = {
+        totalQuotes: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        favoriteAuthors: [],
+        monthlyQuotes: []
+      };
+    }
+    if (!Array.isArray(this.statistics.favoriteAuthors)) {
+      this.statistics.favoriteAuthors = [];
+    }
+    if (!Array.isArray(this.statistics.monthlyQuotes)) {
+      this.statistics.monthlyQuotes = [];
+    }
+    if (typeof this.statistics.totalQuotes !== 'number') {
+      this.statistics.totalQuotes = 0;
+    }
     
     // Обновляем любимых авторов
     if (author && !this.statistics.favoriteAuthors.includes(author)) {
