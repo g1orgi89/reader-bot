@@ -1125,14 +1125,6 @@ class OnboardingPage {
 
             this.ensureCompletionFormMounted();
 
-            // В режиме retake email формы нет и не нужно!
-            if (this.isRetakeMode) return;
-            if (this.currentStep <= this.totalSteps) return;
-            const emailInput = document.getElementById('emailInput');
-            if (emailInput) return;
-            console.warn('⚠️ OnboardingPage: Completion form not mounted, re-rendering');
-            this.rerender();
-}
             // В режиме retake не блокируем по контактным данным
             if (!this.isContactDataValid()) {
                 this.showError('Пожалуйста, заполните обязательные поля корректно');
@@ -1371,19 +1363,14 @@ class OnboardingPage {
      * 📝 Ensure completion form is mounted when at completion step
      */
     ensureCompletionFormMounted() {
-        if (this.currentStep <= this.totalSteps) {
-            return; // Not at completion step
-        }
-        
+        if (this.isRetakeMode) return;
+        if (this.currentStep <= this.totalSteps) return;
         const emailInput = document.getElementById('emailInput');
-        if (emailInput) {
-            return; // Form is already mounted
-        }
-        
+        if (emailInput) return;
         console.warn('⚠️ OnboardingPage: Completion form not mounted, re-rendering');
         this.rerender();
     }
-    
+        
     /**
      * 📳 Debounced haptic feedback to prevent spam
      * @param {string} type - Type of haptic feedback ('light', 'medium', 'heavy', 'success')
