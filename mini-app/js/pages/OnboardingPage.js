@@ -996,30 +996,6 @@ class OnboardingPage {
         return true;
     }
         
-        // Собираем актуальные данные из формы
-        const contactData = this.gatherContactData();
-        
-        // Email обязателен
-        if (!contactData.email || contactData.email.trim().length === 0) {
-            console.log('📧 OnboardingPage: Email is missing or empty');
-            return false;
-        }
-        
-        // Email должен быть валидным
-        if (!this.isValidEmail(contactData.email)) {
-            console.log('📧 OnboardingPage: Email format is invalid');
-            return false;
-        }
-        
-        // Источник обязателен
-        if (!contactData.source || contactData.source.length === 0) {
-            console.log('📱 OnboardingPage: Source is missing');
-            return false;
-        }
-        
-        return true;
-    }
-    
     /**
      * 📧 Проверка валидности email
      */
