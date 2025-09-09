@@ -14,21 +14,6 @@ class ReaderApp {
         this.appContainer = document.getElementById('app');
         this.loadingScreen = document.getElementById('loading-screen');
         this.topMenu = null;
-
-    persistTelegramAuth() {
-        try {
-            const tg = window.Telegram?.WebApp;
-            if (tg?.initData) {
-                localStorage.setItem('reader-telegram-initdata', tg.initData);
-            }
-            const uid = tg?.initDataUnsafe?.user?.id;
-            if (uid) {
-                localStorage.setItem('reader-user-id', String(uid));
-            }
-        } catch (e) {
-            console.warn('persistTelegramAuth failed:', e);
-        }
-    }    
         
         // === ONBOARDING STABILITY START ===
         // Флаг для предотвращения множественных navigate('/onboarding')
@@ -45,9 +30,25 @@ class ReaderApp {
         console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНА ПЕРЕДАЧА APP В ROUTER!');
     }
 
+    persistTelegramAuth() {
+        try {
+            const tg = window.Telegram?.WebApp;
+            if (tg?.initData) {
+                localStorage.setItem('reader-telegram-initdata', tg.initData);
+            }
+            const uid = tg?.initDataUnsafe?.user?.id;
+            if (uid) {
+                localStorage.setItem('reader-user-id', String(uid));
+            }
+        } catch (e) {
+            console.warn('persistTelegramAuth failed:', e);
+        }
+    }    
+    
     async init() {
         try {
             console.log('🔄 Reader App: Начало инициализации');
+            this.persistTelegramAuth();
             this.showLoadingScreen();
             await this.initializeServices();
             await this.initializeTelegram();
