@@ -1191,11 +1191,11 @@ class OnboardingPage {
 
             } else {
                 this.showError('Не удалось сохранить профиль. Попробуйте еще раз.');
-                } finally {
-            this.loading = false;
-            this.updateNavigationButton();
+            } finally {
+                this.loading = false;
+                this.updateNavigationButton();
+            }
         }
-    }
     
     /**
      * ✅ Показать успех
