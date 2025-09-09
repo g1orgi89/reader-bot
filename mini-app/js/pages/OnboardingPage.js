@@ -1171,8 +1171,8 @@ class OnboardingPage {
                 this.state.set('user.onboardingData', onboardingData);
 
                 if (this.isRetakeMode) {
-                    this.state.remove('onboarding.forceRetake');
-                    this.state.remove('onboarding.isRetake');
+                    this.state.set('onboarding.forceRetake');
+                    this.state.set('onboarding.isRetake');
                 }
 
                 this.triggerHapticFeedback('success');
