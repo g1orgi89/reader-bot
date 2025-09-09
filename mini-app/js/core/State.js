@@ -253,7 +253,12 @@ class AppState {
      * 🗑️ Удалить элемент из массива
      */
     remove(path, predicate) {
-        const currentArray = this.get(path) || [];
+        const currentArray = this.get(path);
+        if (!Array.isArray(currentArray)) {
+            // Просто удаляем ключ, если это не массив (например, для булевых флагов)
+            this.set(path, undefined);
+            return;
+        }
         const newArray = currentArray.filter(item => !predicate(item));
         this.set(path, newArray);
     }
