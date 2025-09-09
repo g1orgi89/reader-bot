@@ -1161,7 +1161,7 @@ class OnboardingPage {
             // Универсальная обработка успеха (ретейк, alreadyCompleted, обычный success)
             if (response && response.success && (response.retake || response.alreadyCompleted || response.user)) {
                 console.log('✅ Онбординг успешно завершён или обновлён:', response);
-        
+
                 this.removePopstateGuard();
 
                 this.state.update('user.profile', {
@@ -1191,11 +1191,15 @@ class OnboardingPage {
 
             } else {
                 this.showError('Не удалось сохранить профиль. Попробуйте еще раз.');
-            } finally {
-                this.loading = false;
-                this.updateNavigationButton();
             }
+        } catch (error) {
+            console.error('❌ Ошибка завершения онбординга:', error);
+            this.showError('Не удалось сохранить данные. Попробуйте еще раз.');
+        } finally {
+            this.loading = false;
+            this.updateNavigationButton();
         }
+    }
     
     /**
      * ✅ Показать успех
