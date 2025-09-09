@@ -1012,16 +1012,15 @@ class OnboardingPage {
         // Always read from DOM first if available, then fallback to stored state
         const emailInput = document.getElementById('emailInput');
         let currentEmail = this.contactData.email || '';
-        
+
         if (emailInput) {
             currentEmail = emailInput.value.trim();
             // Update stored state to keep in sync
             this.contactData.email = currentEmail;
-        } else if (this.currentStep > this.totalSteps) {
-            // If we're at completion step but no input found, this is a problem
-            console.warn('⚠️ OnboardingPage: Email input missing at completion step');
         }
-        
+        // УБРАТЬ проверку и варнинг если инпута нет!
+        // НЕ пугайся если его нет в DOM – для retake это НОРМАЛЬНО
+
         // Карта нормализации источников (совпадает с серверной)
         const sourceMapping = {
             'Instagram': 'Instagram',
@@ -1030,10 +1029,8 @@ class OnboardingPage {
             'Threads': 'Threads',
             'Друзья': 'Друзья',
             'Другое': 'Другое',
-            
-            // Проблематичные варианты для нормализации
             'telegram': 'Telegram',
-            'От друзей': 'Друзья',        // локализованная строка -> enum значение
+            'От друзей': 'Друзья',
             'от друзей': 'Друзья',
             'instagram': 'Instagram',
             'youtube': 'YouTube',
@@ -1041,61 +1038,62 @@ class OnboardingPage {
             'другое': 'Другое',
             'друзья': 'Друзья'
         };
-        
+
         // Нормализация source с fallback
         const rawSource = this.contactData.source || 'Другое';
         const normalizedSource = sourceMapping[rawSource] || 'Другое';
-        
+
         return {
             email: currentEmail,
             source: normalizedSource
         };
     }
+
     
-    /**
-     * 🔄 Обновление состояния кнопки навигации (с debounce защитой)
-     */
-    updateNavigationButton() {
-        // Debounce защита от множественных вызовов
-        if (this._updateButtonTimeout) {
+        /**
+         * 🔄 Обновление состояния кнопки навигации (с debounce защитой)
+         */
+        updateNavigationButton() {
+            // Debounce защита от множественных вызовов
+            if (this._updateButtonTimeout) {
             clearTimeout(this._updateButtonTimeout);
-        }
+            }
         
-        this._updateButtonTimeout = setTimeout(() => {
-            this._updateNavigationButtonNow();
-        }, 50);
-    }
+            this._updateButtonTimeout = setTimeout(() => {
+                this._updateNavigationButtonNow();
+            }, 50);
+        }    
     
-    /**
-     * 🔄 Непосредственное обновление состояния кнопки навигации
-     */
-    _updateNavigationButtonNow() {
-        const button = document.querySelector('.next-button');
-        if (!button) return;
+        /**
+         * 🔄 Непосредственное обновление состояния кнопки навигации
+         */
+        _updateNavigationButtonNow() {
+            const button = document.querySelector('.next-button');
+            if (!button) return;
         
-        let disabled = false;
+            let disabled = false;
         
-        if (this.currentStep > this.totalSteps) {
-            disabled = this.loading || !this.isContactDataValid();
-        } else if (this.currentStep > 0) {
-            disabled = !this.isCurrentStepValid();
+            if (this.currentStep > this.totalSteps) {
+                disabled = this.loading || !this.isContactDataValid();
+            } else if (this.currentStep > 0) {
+                disabled = !this.isCurrentStepValid();
+            }
+        
+            // === RETAKE FIX START ===
+            // Отладочное логирование для диагностики состояния кнопки
+            console.log('🔘 OnboardingPage: updateNavigationButton', {
+                currentStep: this.currentStep,
+                totalSteps: this.totalSteps,
+                loading: this.loading,
+                isRetakeMode: this.isRetakeMode,
+                isContactDataValid: this.isContactDataValid(),
+                isCurrentStepValid: this.isCurrentStepValid(),
+                disabled: disabled
+            });
+            // === RETAKE FIX END ===
+        
+            button.disabled = disabled;
         }
-        
-        // === RETAKE FIX START ===
-        // Отладочное логирование для диагностики состояния кнопки
-        console.log('🔘 OnboardingPage: updateNavigationButton', {
-            currentStep: this.currentStep,
-            totalSteps: this.totalSteps,
-            loading: this.loading,
-            isRetakeMode: this.isRetakeMode,
-            isContactDataValid: this.isContactDataValid(),
-            isCurrentStepValid: this.isCurrentStepValid(),
-            disabled: disabled
-        });
-        // === RETAKE FIX END ===
-        
-        button.disabled = disabled;
-    }
     
     /**
      * ✅ Завершение онбординга
@@ -1127,6 +1125,7 @@ class OnboardingPage {
 
             this.ensureCompletionFormMounted();
 
+            // В режиме retake не блокируем по контактным данным
             if (!this.isContactDataValid()) {
                 this.showError('Пожалуйста, заполните обязательные поля корректно');
                 return;
@@ -1142,6 +1141,7 @@ class OnboardingPage {
                 telegramData: telegramData
             };
 
+            // Для retake: если email не указан, берём из профиля
             if (this.isRetakeMode && (!contactData.email || contactData.email.trim() === '')) {
                 const profileEmail = this.state.get('user.profile.email');
                 if (profileEmail) {
@@ -1161,7 +1161,7 @@ class OnboardingPage {
             // Универсальная обработка успеха (ретейк, alreadyCompleted, обычный success)
             if (response && response.success && (response.retake || response.alreadyCompleted || response.user)) {
                 console.log('✅ Онбординг успешно завершён или обновлён:', response);
-
+        
                 this.removePopstateGuard();
 
                 this.state.update('user.profile', {
@@ -1191,12 +1191,7 @@ class OnboardingPage {
 
             } else {
                 this.showError('Не удалось сохранить профиль. Попробуйте еще раз.');
-            }
-
-        } catch (error) {
-            console.error('❌ Ошибка завершения онбординга:', error);
-            this.showError('Не удалось сохранить данные. Попробуйте еще раз.');
-        } finally {
+                } finally {
             this.loading = false;
             this.updateNavigationButton();
         }
