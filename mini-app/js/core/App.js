@@ -14,6 +14,21 @@ class ReaderApp {
         this.appContainer = document.getElementById('app');
         this.loadingScreen = document.getElementById('loading-screen');
         this.topMenu = null;
+
+    persistTelegramAuth() {
+        try {
+            const tg = window.Telegram?.WebApp;
+            if (tg?.initData) {
+                localStorage.setItem('reader-telegram-initdata', tg.initData);
+            }
+            const uid = tg?.initDataUnsafe?.user?.id;
+            if (uid) {
+                localStorage.setItem('reader-user-id', String(uid));
+            }
+        } catch (e) {
+            console.warn('persistTelegramAuth failed:', e);
+        }
+    }    
         
         // === ONBOARDING STABILITY START ===
         // Флаг для предотвращения множественных navigate('/onboarding')
