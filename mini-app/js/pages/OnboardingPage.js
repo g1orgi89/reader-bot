@@ -1109,25 +1109,21 @@ class OnboardingPage {
      * ✅ Завершение онбординга
      */
     async completeOnboarding() {
-        // ИСПРАВЛЕНО: Предотвращаем множественные вызовы
         if (this.loading) {
             console.log('⚠️ Онбординг уже в процессе, игнорируем повторный вызов');
             return;
         }
-        
+
         if (!this.isContactDataValid()) {
             this.showError('Пожалуйста, заполните обязательные поля');
             return;
         }
-        
+
         try {
             this.loading = true;
             this.updateNavigationButton();
-            
-            // Подготовка данных для отправки с нормализацией
+
             let telegramData = null;
-            
-            // Безопасное получение данных Telegram
             if (this.telegram && typeof this.telegram.getUser === 'function') {
                 try {
                     telegramData = this.telegram.getUser();
@@ -1136,29 +1132,24 @@ class OnboardingPage {
                     console.warn('⚠️ OnboardingPage: Ошибка получения данных Telegram:', error);
                 }
             }
-            
-            // Ensure completion form is properly mounted
+
             this.ensureCompletionFormMounted();
-            
-            // Re-validate just before sending
+
             if (!this.isContactDataValid()) {
                 this.showError('Пожалуйста, заполните обязательные поля корректно');
                 return;
             }
-            
-            // Собираем и нормализуем контактные данные
+
             const contactData = this.gatherContactData();
-            
+
             const onboardingData = {
-                user: telegramData,               // ✅ Backend ожидает "user"
-                answers: this.answers,            // ✅ OK
-                email: contactData.email,         // ✅ Нормализованный email
-                source: contactData.source,       // ✅ Нормализованный source
+                user: telegramData,
+                answers: this.answers,
+                email: contactData.email,
+                source: contactData.source,
                 telegramData: telegramData
             };
-            
-            // === RETAKE FIX START ===
-            // В режиме повторного прохождения инжектируем email из профиля если локальный пустой
+
             if (this.isRetakeMode && (!contactData.email || contactData.email.trim() === '')) {
                 const profileEmail = this.state.get('user.profile.email');
                 if (profileEmail) {
@@ -1166,65 +1157,54 @@ class OnboardingPage {
                     console.log('📧 OnboardingPage: Инжектирован email из профиля:', profileEmail);
                 }
             }
-            
-            // RETAKE: Добавляем forceRetake флаг если в режиме повторного прохождения
             if (this.isRetakeMode) {
                 onboardingData.forceRetake = true;
                 console.log('🔄 OnboardingPage: Добавлен forceRetake флаг для повторного прохождения');
             }
-            
-            console.log('📤 OnboardingPage: Отправляем нормализованные данные:', onboardingData);
-            // === RETAKE FIX END ===
-            
-            // Отправка данных на сервер
-            const response = await this.api.completeOnboarding(onboardingData);
-            
-            // Handle both successful completion and already completed cases
-            const isAlreadyCompleted = response && response.alreadyCompleted;
-            console.log('📊 Ответ от сервера:', response, { isAlreadyCompleted });
-            
-            // Снимаем popstate guard после успешного завершения
-            this.removePopstateGuard();
-            
-            // Обновление состояния пользователя
-            this.state.update('user.profile', {
-                isOnboardingComplete: true,
-                // RETAKE: Обновляем timestamp последнего онбординга
-                lastOnboardingAt: new Date().toISOString()
-            });
-            this.state.set('user.onboardingData', onboardingData);
-            
-            // RETAKE: Очищаем флаги повторного прохождения
-            if (this.isRetakeMode) {
-                this.state.remove('onboarding.forceRetake');
-                this.state.remove('onboarding.isRetake');
-            }
-            
-            // Haptic feedback успеха
-            this.triggerHapticFeedback('success');
-            
-            // RETAKE / IDEMPOTENT: сообщения для уже завершённого, ретейка и первого прохождения
-            const successMessage = isAlreadyCompleted
-              ? '✅ Онбординг уже завершён!'
-              : this.isRetakeMode
-                ? '✅ Ответы обновлены!'
-                : '✅ Добро пожаловать в сообщество читателей!';
 
-            statusEl.textContent = successMessage;
-            
-            // Показ уведомления об успехе
-            this.showSuccess(successMessage);
-            
-            // Задержка перед переходом
-            setTimeout(() => {
-                this.app.router.navigate('/home');
-            }, 1500);
-            
+            console.log('📤 OnboardingPage: Отправляем нормализованные данные:', onboardingData);
+
+            const response = await this.api.completeOnboarding(onboardingData);
+
+            // Универсальная обработка успеха (ретейк, alreadyCompleted, обычный success)
+            if (response && response.success && (response.retake || response.alreadyCompleted || response.user)) {
+                console.log('✅ Онбординг успешно завершён или обновлён:', response);
+
+                this.removePopstateGuard();
+
+                this.state.update('user.profile', {
+                    isOnboardingComplete: true,
+                    lastOnboardingAt: new Date().toISOString()
+                });
+                this.state.set('user.onboardingData', onboardingData);
+
+                if (this.isRetakeMode) {
+                    this.state.remove('onboarding.forceRetake');
+                    this.state.remove('onboarding.isRetake');
+                }
+
+                this.triggerHapticFeedback('success');
+
+                let successMessage =
+                    response.alreadyCompleted
+                        ? '✅ Онбординг уже завершён!'
+                        : this.isRetakeMode
+                            ? '✅ Ответы обновлены!'
+                            : '✅ Добро пожаловать в сообщество читателей!';
+                this.showSuccess(successMessage);
+
+                setTimeout(() => {
+                    this.app.router.navigate('/home');
+                }, 1500);
+
+            } else {
+                this.showError('Не удалось сохранить профиль. Попробуйте еще раз.');
+            }
+
         } catch (error) {
             console.error('❌ Ошибка завершения онбординга:', error);
             this.showError('Не удалось сохранить данные. Попробуйте еще раз.');
         } finally {
-            // Always reset loading state in finally block
             this.loading = false;
             this.updateNavigationButton();
         }
