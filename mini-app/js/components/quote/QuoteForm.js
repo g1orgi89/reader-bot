@@ -911,6 +911,7 @@ class QuoteForm {
      * Обработка сохранения
      */
     async handleSave() {
+        console.log('LOG: QuoteForm.handleSave вызван');
     if (!this.validation.isValid) return;
 
     // 🚨 Новый код: не сохранять, пока анализ не завершён или не получен
@@ -936,9 +937,11 @@ class QuoteForm {
             if (this.options.initialData) {
                 // Редактирование существующей цитаты
                 savedQuote = await this.api.updateQuote(this.options.initialData.id, quoteData);
+                console.log('LOG: QuoteForm - цитата обновлена', savedQuote);
             } else {
                 // Создание новой цитаты
                 savedQuote = await this.api.addQuote(quoteData);
+                console.log('LOG: QuoteForm - цитата добавлена', savedQuote);
             }
 
             // Обновляем состояние
