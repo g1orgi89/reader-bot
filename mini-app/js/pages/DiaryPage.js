@@ -1,4 +1,3 @@
-alert('!!! DiaryPage.js загружен !!!');
 /**
  * 📖 ДНЕВНИК ЦИТАТ - DiaryPage.js (🔧 ИСПРАВЛЕНЫ API ВЫЗОВЫ)
  * 
