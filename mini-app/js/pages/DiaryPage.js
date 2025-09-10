@@ -972,6 +972,17 @@ class DiaryPage {
             // Кладём анализ в state для отображения
             this.state.set('lastAddedQuote', completeQuote);
             console.log('LOG: DiaryPage.handleSaveQuote - lastAddedQuote установлен:', this.state.get('lastAddedQuote'));
+
+            // --- ФИКС: Обновляем aiAnalysis в компоненте формы, если Add tab активен ---
+            if (this.activeTab === 'add') {
+                // Находим экземпляр QuoteForm через dom и обновляем aiAnalysis
+                // Нужно чтобы в конструкторе QuoteForm после создания элемента было:
+                // this.element.__instance__ = this;
+                const formEl = document.querySelector('.quote-form');
+                if (formEl && formEl.__instance__ && typeof formEl.__instance__.setFormData === 'function') {
+                formEl.__instance__.setFormData({ aiAnalysis: completeQuote.aiAnalysis });
+                }
+            }
             
             // Показываем нотификацию
             if (insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
