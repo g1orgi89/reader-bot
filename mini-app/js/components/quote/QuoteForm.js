@@ -727,9 +727,16 @@ class QuoteForm {
      * Обновление секции AI-анализа
      */
     updateAiSection() {
+        console.log('LOG: QuoteForm.updateAiSection - обновляем секцию анализа, текущий aiAnalysis:', this.aiAnalysis);
+        
         const aiSection = this.element.querySelector('.quote-form__ai-section');
         if (aiSection) {
-            aiSection.outerHTML = this.renderAiAnalysis();
+            const newHtml = this.renderAiAnalysis();
+            console.log('LOG: QuoteForm.updateAiSection - новый HTML для секции анализа создан');
+            aiSection.outerHTML = newHtml;
+            console.log('LOG: QuoteForm.updateAiSection - секция анализа обновлена');
+        } else {
+            console.warn('LOG: QuoteForm.updateAiSection - .quote-form__ai-section не найдена');
         }
     }
 
@@ -917,51 +924,87 @@ class QuoteForm {
      */
     async handleSave() {
         console.log('LOG: QuoteForm.handleSave вызван');
-    if (!this.validation.isValid) return;
+        
+        // Проверяем валидность формы
+        if (!this.validation.isValid) {
+            console.log('LOG: QuoteForm.handleSave - форма невалидна');
+            return;
+        }
 
-    // 🚨 Новый код: не сохранять, пока анализ не завершён или не получен
-    if (this.options.enableAiAnalysis && (!this.aiAnalysis || this.isAnalyzing)) {
-        this.showError('Пожалуйста, дождитесь завершения анализа цитаты Анной!');
-        return;
-    }
+        // Предотвращаем множественные сохранения - проверяем состояние кнопки
+        if (this.saveButton && this.saveButton.disabled) {
+            console.log('LOG: QuoteForm.handleSave - сохранение уже в процессе, игнорируем');
+            return;
+        }
 
-    try {
-        this.updateLoadingState(true);
+        try {
+            console.log('LOG: QuoteForm.handleSave - начинаем сохранение');
+            this.updateLoadingState(true);
 
-        const quoteData = {
-            text: this.formData.text.trim(),
-            author: this.formData.author.trim() || 'Неизвестный автор',
-            source: this.formData.source
-        // aiAnalysis НЕ ОТПРАВЛЯТЬ!
-            
-        };
-        console.log('DEBUG: quoteData before save', quoteData);
+            const quoteData = {
+                text: this.formData.text.trim(),
+                author: this.formData.author.trim() || 'Неизвестный автор',
+                source: this.formData.source || 'manual'
+            };
+            console.log('LOG: QuoteForm.handleSave - данные для сохранения:', quoteData);
             
             let savedQuote;
             
             if (this.options.initialData) {
                 // Редактирование существующей цитаты
                 savedQuote = await this.api.updateQuote(this.options.initialData.id, quoteData);
-                console.log('LOG: QuoteForm - цитата обновлена', savedQuote);
+                console.log('LOG: QuoteForm - цитата обновлена:', savedQuote);
             } else {
                 // Создание новой цитаты
                 savedQuote = await this.api.addQuote(quoteData);
-                console.log('LOG: QuoteForm - цитата добавлена', savedQuote);
+                console.log('LOG: QuoteForm - цитата создана, ответ сервера:', savedQuote);
             }
 
-            // Обновляем состояние
+            // Извлекаем данные из ответа сервера
+            const quoteDataFromServer = savedQuote?.data || savedQuote;
+            console.log('LOG: QuoteForm - извлеченные данные цитаты:', quoteDataFromServer);
+
+            // Обновляем локальный aiAnalysis из ответа сервера
+            if (quoteDataFromServer && !this.options.initialData) {
+                const serverAnalysis = {
+                    category: quoteDataFromServer.category,
+                    themes: quoteDataFromServer.themes,
+                    sentiment: quoteDataFromServer.sentiment,
+                    insights: quoteDataFromServer.insights,
+                    summary: quoteDataFromServer.aiAnalysis?.summary || ''
+                };
+                
+                console.log('LOG: QuoteForm - обновляем AI анализ из ответа сервера:', serverAnalysis);
+                this.aiAnalysis = serverAnalysis;
+                
+                // Обновляем секцию анализа и предпросмотр
+                this.updateAiSection();
+                this.updatePreview();
+            }
+
+            // Обновляем состояние приложения
             if (this.state) {
+                const quoteForState = {
+                    ...quoteDataFromServer,
+                    id: quoteDataFromServer.id || quoteDataFromServer._id,
+                    aiAnalysis: this.aiAnalysis || quoteDataFromServer.aiAnalysis
+                };
+
                 if (this.options.initialData) {
-                    this.state.updateQuoteInList(savedQuote.id, savedQuote);
+                    this.state.updateQuoteInList(quoteForState.id, quoteForState);
+                    console.log('LOG: QuoteForm - обновлена цитата в состоянии:', quoteForState.id);
+                    
                     // Dispatch edit event
                     document.dispatchEvent(new CustomEvent('quotes:changed', { 
-                        detail: { type: 'edited', id: savedQuote.id, quote: savedQuote } 
+                        detail: { type: 'edited', id: quoteForState.id, quote: quoteForState } 
                     }));
                 } else {
-                    this.state.addQuote(savedQuote);
+                    this.state.addQuote(quoteForState);
+                    console.log('LOG: QuoteForm - добавлена цитата в состояние:', quoteForState.id);
+                    
                     // Dispatch add event
                     document.dispatchEvent(new CustomEvent('quotes:changed', { 
-                        detail: { type: 'added', id: savedQuote.id, quote: savedQuote } 
+                        detail: { type: 'added', id: quoteForState.id, quote: quoteForState } 
                     }));
                 }
             }
@@ -972,9 +1015,11 @@ class QuoteForm {
                     const userId = window.readerApp?.state?.getCurrentUserId?.();
                     if (userId) {
                         window.statisticsService.invalidateForUser(userId);
+                        console.log('LOG: QuoteForm - инвалидирован кэш статистики для пользователя:', userId);
                     } else {
                         // Fallback to old method if userId not available
                         window.statisticsService.invalidate(['mainStats','latestQuotes_3','userProgress']);
+                        console.log('LOG: QuoteForm - инвалидирован кэш статистики (fallback)');
                     }
                 } catch (e) {
                     console.debug('StatisticsService invalidation failed:', e);
@@ -989,7 +1034,8 @@ class QuoteForm {
 
             // Вызываем callback
             if (this.options.onSave) {
-                this.options.onSave(savedQuote);
+                console.log('LOG: QuoteForm - вызываем callback onSave');
+                this.options.onSave(quoteDataFromServer);
             }
 
             // Показываем успешное сообщение
@@ -998,12 +1044,22 @@ class QuoteForm {
                 'Цитата успешно обновлена!' : 
                 'Цитата добавлена в ваш дневник!'
             );
+            
+            console.log('LOG: QuoteForm.handleSave - сохранение завершено успешно');
 
         } catch (error) {
-            console.error('Ошибка при сохранении цитаты:', error);
-            this.showError('Не удалось сохранить цитату. Попробуйте еще раз.');
-            this.triggerHapticFeedback('error');
+            console.error('LOG: QuoteForm.handleSave - ошибка при сохранении цитаты:', error);
+            
+            // Проверяем, была ли цитата на самом деле создана (код 201 или success: true)
+            if (error.status === 201 || (error.data && error.data.success)) {
+                console.log('LOG: QuoteForm.handleSave - цитата создана несмотря на ошибку, считаем успехом');
+                this.showSuccess('Цитата добавлена в ваш дневник!');
+            } else {
+                this.showError('Не удалось сохранить цитату. Попробуйте еще раз.');
+                this.triggerHapticFeedback('error');
+            }
         } finally {
+            console.log('LOG: QuoteForm.handleSave - обновляем состояние кнопки');
             this.updateLoadingState(false);
         }
     }
@@ -1033,27 +1089,44 @@ class QuoteForm {
      * Обновление состояния загрузки
      */
     updateLoadingState(isLoading) {
-        if (this.saveButton) {
-            const icon = this.saveButton.querySelector('.quote-form__save-icon');
-            const text = this.saveButton.querySelector('.quote-form__save-text');
+        console.log('LOG: QuoteForm.updateLoadingState - isLoading:', isLoading);
+        
+        if (!this.saveButton) {
+            console.warn('LOG: QuoteForm.updateLoadingState - saveButton не найдена');
+            return;
+        }
+
+        const icon = this.saveButton.querySelector('.quote-form__save-icon');
+        const text = this.saveButton.querySelector('.quote-form__save-text');
+        
+        if (isLoading) {
+            console.log('LOG: QuoteForm.updateLoadingState - устанавливаем состояние загрузки');
+            this.saveButton.disabled = true;
+            this.saveButton.classList.add('quote-form__save-btn--loading');
             
-            if (isLoading) {
-                this.saveButton.disabled = true;
-                this.saveButton.classList.add('quote-form__save-btn--loading');
-                
-                if (icon) icon.textContent = '⏳';
-                if (text) text.textContent = 'Сохранение...';
-            } else {
-                this.saveButton.disabled = !this.validation.isValid;
-                this.saveButton.classList.remove('quote-form__save-btn--loading');
-                
-                if (icon) icon.textContent = '💾';
-                if (text) {
-                    text.textContent = this.options.initialData ? 
-                        'Сохранить изменения' : 
-                        'Добавить в дневник';
-                }
+            if (icon) icon.textContent = '⏳';
+            if (text) text.textContent = 'Сохранение...';
+            
+            // Добавляем атрибут для предотвращения повторных кликов
+            this.saveButton.setAttribute('data-saving', 'true');
+        } else {
+            console.log('LOG: QuoteForm.updateLoadingState - убираем состояние загрузки');
+            
+            // Убираем атрибут состояния сохранения
+            this.saveButton.removeAttribute('data-saving');
+            
+            // Восстанавливаем состояние кнопки на основе валидности формы
+            this.saveButton.disabled = !this.validation.isValid;
+            this.saveButton.classList.remove('quote-form__save-btn--loading');
+            
+            if (icon) icon.textContent = '💾';
+            if (text) {
+                text.textContent = this.options.initialData ? 
+                    'Сохранить изменения' : 
+                    'Добавить в дневник';
             }
+            
+            console.log('LOG: QuoteForm.updateLoadingState - кнопка disabled:', this.saveButton.disabled, 'validation.isValid:', this.validation.isValid);
         }
     }
 
