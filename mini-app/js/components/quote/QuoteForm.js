@@ -145,8 +145,9 @@ class QuoteForm {
      */
     createElement() {
         this.element = document.createElement('div');
-        this.element.className = 'quote-form';
+        this.element.__instance__ = this;
         
+        this.element.className = 'quote-form';
         this.element.innerHTML = this.renderForm();
         
         // Получаем ссылки на важные элементы
