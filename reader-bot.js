@@ -42,20 +42,34 @@ const config = {
 };
 
 /**
- * Validate required environment variables
+ * Validate required environment variables based on AI provider
  */
 function validateConfig() {
-  const required = [
+  // Normalize provider name: anthropic -> claude
+  const aiProvider = (process.env.AI_PROVIDER || 'claude').toLowerCase();
+  const normalizedProvider = aiProvider === 'anthropic' ? 'claude' : aiProvider;
+  
+  const baseRequired = [
     'TELEGRAM_BOT_TOKEN',
-    'MONGODB_URI', 
-    'ANTHROPIC_API_KEY'
+    'MONGODB_URI'
   ];
+  
+  // Add provider-specific API key requirements
+  if (normalizedProvider === 'claude') {
+    baseRequired.push('ANTHROPIC_API_KEY');
+  } else if (normalizedProvider === 'openai') {
+    baseRequired.push('OPENAI_API_KEY');
+  } else {
+    logger.error(`❌ Invalid AI_PROVIDER: ${aiProvider}. Must be 'claude', 'anthropic', or 'openai'`);
+    process.exit(1);
+  }
 
-  const missing = required.filter(key => !process.env[key]);
+  const missing = baseRequired.filter(key => !process.env[key]);
   
   if (missing.length > 0) {
     logger.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
     logger.error(`📝 Please create a .env file with these variables.`);
+    logger.error(`🔧 Current AI_PROVIDER: ${normalizedProvider}`);
     process.exit(1);
   }
 
@@ -70,7 +84,7 @@ function validateConfig() {
     logger.warn(`⚠️  Missing recommended environment variables: ${missingRecommended.join(', ')}`);
   }
 
-  logger.info('✅ Environment configuration validated');
+  logger.info(`✅ Environment configuration validated for provider: ${normalizedProvider}`);
 }
 
 /**

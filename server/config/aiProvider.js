@@ -15,7 +15,9 @@
  * @returns {AIProviderConfig}
  */
 function getAIProviderConfig() {
-  const provider = process.env.AI_PROVIDER || 'claude'; // По умолчанию используем Claude
+  // Normalize provider name: anthropic -> claude
+  const rawProvider = process.env.AI_PROVIDER || 'claude';
+  const provider = rawProvider.toLowerCase() === 'anthropic' ? 'claude' : rawProvider.toLowerCase();
   
   return {
     provider,
