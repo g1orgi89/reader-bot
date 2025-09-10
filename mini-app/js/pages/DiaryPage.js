@@ -1,4 +1,3 @@
-alert('LOADED FROM TELEGRAM WEB');
 /**
  * 📖 ДНЕВНИК ЦИТАТ - DiaryPage.js (🔧 ИСПРАВЛЕНЫ API ВЫЗОВЫ)
  * 
