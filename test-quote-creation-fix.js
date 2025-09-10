@@ -5,7 +5,7 @@
 
 const axios = require('axios');
 
-const API_BASE = 'http://localhost:3002/api/reader';
+const API_BASE = 'https://unibotz.com/api/reader';
 
 async function testQuoteCreation() {
     console.log('🧪 Testing quote creation fixes...\n');
