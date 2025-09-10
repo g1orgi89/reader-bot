@@ -1108,20 +1108,22 @@ router.get('/quotes/search', telegramAuth, async (req, res) => {
 
     const highlightedQuotes = quotes.map(quote => {
       const searchRegex = new RegExp(`(${searchQuery.trim()})`, 'gi');
+      
+      // Create a copy of the quote with highlighted search terms
+      const highlightedQuote = { ...quote };
+      highlightedQuote.text = quote.text.replace(searchRegex, '<mark>$1</mark>');
+      highlightedQuote.author = quote.author ? quote.author.replace(searchRegex, '<mark>$1</mark>') : null;
+      highlightedQuote.source = quote.source ? quote.source.replace(searchRegex, '<mark>$1</mark>') : null;
+      
+      // Use toQuoteDTO to ensure aiAnalysis is included
+      const standardQuote = toQuoteDTO(highlightedQuote);
+      
+      // Add search-specific fields
       return {
-        id: quote._id,
-        text: quote.text.replace(searchRegex, '<mark>$1</mark>'),
+        ...standardQuote,
         originalText: quote.text,
-        author: quote.author ? quote.author.replace(searchRegex, '<mark>$1</mark>') : null,
         originalAuthor: quote.author,
-        source: quote.source ? quote.source.replace(searchRegex, '<mark>$1</mark>') : null,
         originalSource: quote.source,
-        category: quote.category,
-        themes: quote.themes,
-        sentiment: quote.sentiment,
-        isEdited: quote.isEdited,
-        editedAt: quote.editedAt,
-        createdAt: quote.createdAt,
         ageInDays: quote.ageInDays
       };
     });
