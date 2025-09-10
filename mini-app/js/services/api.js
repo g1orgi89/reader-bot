@@ -206,6 +206,8 @@ class ApiService {
                 // 🚀 Выполняем запрос
                 const response = await fetch(finalUrl, requestOptions);
                 clearTimeout(timeoutId);
+                
+                console.log(`📡 ${method} ${endpoint} - статус ответа:`, response.status, response.statusText);
 
                 // ✅ Обрабатываем ответ
                 const result = await this.handleResponse(response, endpoint);
@@ -241,6 +243,7 @@ class ApiService {
      */
     async handleResponse(response, endpoint) {
         const contentType = response.headers.get('content-type');
+        console.log(`📨 handleResponse - ${endpoint} - статус: ${response.status}, content-type: ${contentType}`);
 
         // 📄 Получаем содержимое ответа
         let responseData;
@@ -249,13 +252,17 @@ class ApiService {
         } else {
             responseData = await response.text();
         }
+        
+        console.log(`📄 handleResponse - ${endpoint} - данные ответа:`, responseData);
 
         // ✅ Успешный ответ
         if (response.ok) {
+            console.log(`✅ handleResponse - ${endpoint} - успешный ответ`);
             return responseData;
         }
 
         // ❌ Ошибка от сервера
+        console.error(`❌ handleResponse - ${endpoint} - ошибка сервера:`, response.status, response.statusText);
         const error = new Error(responseData.message || `HTTP ${response.status}: ${response.statusText}`);
         error.status = response.status;
         error.endpoint = endpoint;
@@ -542,10 +549,24 @@ class ApiService {
      */
     async addQuote(quoteData, userId = 'demo-user') {
         this.clearQuotesCache();
-        console.log('DEBUG: addQuote → quoteData', quoteData);
-        const result = await this.request('POST', '/quotes', { ...quoteData, userId });
-        console.log('DEBUG: addQuote → result', result);
-        return result;
+        console.log('LOG: ApiService.addQuote - начинаем создание цитаты:', quoteData);
+        console.log('LOG: ApiService.addQuote - userId:', userId);
+        
+        try {
+            const result = await this.request('POST', '/quotes', { ...quoteData, userId });
+            console.log('LOG: ApiService.addQuote - успешный ответ:', result);
+            return result;
+        } catch (error) {
+            console.error('LOG: ApiService.addQuote - ошибка запроса:', error);
+            
+            // Проверяем, не является ли это успешным ответом с кодом 201
+            if (error.status === 201 && error.data && error.data.success) {
+                console.log('LOG: ApiService.addQuote - получен код 201 с success=true, считаем успехом');
+                return error.data;
+            }
+            
+            throw error;
+        }
     }
     
     /**
