@@ -421,7 +421,12 @@ class QuoteForm {
             createdAt: new Date(),
             isFavorite: false,
             source: this.formData.source,
-            aiAnalysis: this.aiAnalysis
+            aiAnalysis: this.aiAnalysis || {
+                category: this.formData.category,
+                themes: this.formData.themes,
+                sentiment: this.formData.sentiment,
+                insights: this.formData.insights
+            }
         };
 
         return `
