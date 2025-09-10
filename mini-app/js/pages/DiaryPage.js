@@ -329,6 +329,7 @@ class DiaryPage {
         // Новый: анализ показывается только если analysisVisible и lastAddedQuote есть
         if (this.analysisVisible) {
             const lastQuote = this.state.get('lastAddedQuote');
+            console.log('DEBUG: renderAIInsight lastQuote', lastQuote);
             const summary = lastQuote?.aiAnalysis?.summary || lastQuote?.summary || '';
             const insights = lastQuote?.insights || lastQuote?.aiAnalysis?.insights || '';
 
@@ -911,9 +912,11 @@ class DiaryPage {
 
             const savedQuote = await this.api.addQuote(quoteData, userId);
             const data = savedQuote?.data || savedQuote;
+            console.log('DEBUG: Ответ сервера', data);
 
             // Новый универсальный разбор: берем только из quote (или из data, если quote нет)
             const quoteObj = data.quote || data;
+            console.log('DEBUG: quoteObj', quoteObj); 
 
             // Явно выделяем нужные поля для state и UI
             const insights = quoteObj.insights || '';
@@ -931,7 +934,8 @@ class DiaryPage {
                 category,
                 sentiment
             });
-    
+            console.log('DEBUG: lastAddedQuote set', this.state.get('lastAddedQuote'));
+            
             // Показываем нотификацию (если есть анализ)
             if (insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
                 window.showNotification(insights, 'success', 5000);
