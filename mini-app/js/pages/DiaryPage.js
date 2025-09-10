@@ -973,6 +973,28 @@ class DiaryPage {
             this.state.set('lastAddedQuote', completeQuote);
             console.log('LOG: DiaryPage.handleSaveQuote - lastAddedQuote установлен:', this.state.get('lastAddedQuote'));
 
+            // --- ВСТАВКА: ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ АНАЛИЗА В ADD TAB ---
+            if (this.activeTab === 'add') {
+                // Ждём, когда появится блок анализа (он может быть пересоздан после rerender)
+                setTimeout(() => {
+                    const addTabInsight = document.querySelector('.ai-insight');
+                    if (addTabInsight && completeQuote.aiAnalysis) {
+                        let html = '';
+                        if (completeQuote.aiAnalysis.summary) {
+                            html += `<div class="ai-text"><b>Ответ Анны:</b> ${completeQuote.aiAnalysis.summary}</div>`;
+                        }
+                        if (completeQuote.aiAnalysis.insights) {
+                            html += `<div class="ai-text"><b>Инсайт:</b> ${completeQuote.aiAnalysis.insights}</div>`;
+                        }
+                        if (!html) html = `<div class="ai-text">Анализ недоступен</div>`;
+                        addTabInsight.innerHTML = `
+                            <div class="ai-title"><span>✨</span><span>Анализ от Анны</span></div>
+                            ${html}
+                        `;
+                    }
+                }, 0);
+            }
+
             // --- ФИКС: Обновляем aiAnalysis в компоненте формы, если Add tab активен ---
             if (this.activeTab === 'add') {
                 // Находим экземпляр QuoteForm через dom и обновляем aiAnalysis
