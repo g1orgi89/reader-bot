@@ -931,6 +931,18 @@ class DiaryPage {
             const savedQuote = await this.api.addQuote(quoteData, userId);
             const data = savedQuote?.data || savedQuote;
 
+            // --- ВАЖНО: Парсим JSON анализ из data.message, если он строка ---
+            let aiAnalysis = {};
+            if (typeof data.message === 'string') {
+                try {
+                    aiAnalysis = JSON.parse(data.message);
+                } catch (e) {
+                    aiAnalysis = {};
+                }
+            } else if (data.aiAnalysis && typeof data.aiAnalysis === 'object') {
+                    aiAnalysis = data.aiAnalysis;
+            }
+
             // Универсальный разбор анализа
             const insights = data.insights || data.aiAnalysis?.insights || '';
             const themes = data.themes || data.aiAnalysis?.themes || [];
