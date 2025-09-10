@@ -938,11 +938,13 @@ class DiaryPage {
             // Кладём анализ в state для отображения
             this.state.set('lastAddedQuote', {
                 ...quoteObj,
-                insights,
-                summary,
-                themes,
-                category,
-                sentiment
+                aiAnalysis: {
+                    category: quoteObj.category || '',
+                    themes: quoteObj.themes || [],
+                    sentiment: quoteObj.sentiment || '',
+                    summary: quoteObj.summary || '',
+                    insights: quoteObj.insights || ''
+                }
             });
             console.log('DEBUG: lastAddedQuote set', this.state.get('lastAddedQuote'));
             
