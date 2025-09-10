@@ -513,6 +513,15 @@ class DiaryPage {
         const author = quote.author ? `— ${quote.author}` : '';
         const heartIcon = isFavorite ? '❤️' : '🤍';
 
+        // Ensure aiAnalysis is present
+        const aiAnalysis = quote.aiAnalysis || {
+            category: quote.category,
+            themes: quote.themes,
+            sentiment: quote.sentiment,
+            insights: quote.insights,
+            summary: quote.summary
+        };
+        
         // Highlight search terms if search query exists
         const displayText = this.searchQuery && this.searchQuery.trim() 
             ? this.highlightSearchTerm(quote.text, this.searchQuery) 
@@ -522,8 +531,8 @@ class DiaryPage {
             : author;
 
         // Корректно берем summary и insights из новых и старых форматов
-        const summary = showAnalysis ? (quote.aiAnalysis?.summary || quote.summary || '') : '';
-        const insights = showAnalysis ? (quote.insights || quote.aiAnalysis?.insights || '') : '';
+        const summary = showAnalysis ? (aiAnalysis.summary || '') : '';
+        const insights = showAnalysis ? (aiAnalysis.insights || '') : '';
 
         return `
             <div class="quote-card my-quotes" data-id="${quote._id || quote.id}" data-quote-id="${quote._id || quote.id}">
