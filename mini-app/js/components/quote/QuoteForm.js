@@ -413,22 +413,6 @@ class QuoteForm {
             `;
         }
 
-        // Создаем временный объект цитаты для предпросмотра
-        const previewQuote = {
-            id: 'preview',
-            text: this.formData.text,
-            author: this.formData.author || 'Неизвестный автор',
-            createdAt: new Date(),
-            isFavorite: false,
-            source: this.formData.source,
-            aiAnalysis: this.aiAnalysis || {
-                category: this.formData.category,
-                themes: this.formData.themes,
-                sentiment: this.formData.sentiment,
-                insights: this.formData.insights
-            }
-        };
-
         return `
             <div class="quote-form__preview">
                 <div class="quote-form__preview-header">
@@ -565,7 +549,7 @@ class QuoteForm {
     /**
      * Обработка вставки из буфера обмена
      */
-    handlePaste(e) {
+    handlePaste(_e) {
         // Даем браузеру обработать вставку, затем анализируем
         setTimeout(() => {
             this.formData.text = this.textArea.value;
@@ -823,7 +807,7 @@ class QuoteForm {
         }
 
         // Показываем/скрываем ошибки
-        Object.keys(this.validation.errors).forEach(field => {
+        Object.keys(this.validation.errors).forEach(_field => {
             const errorElement = this.element.querySelector(`.quote-form__field-error`);
             if (errorElement) {
                 // Перерендериваем поле с ошибкой
@@ -1021,8 +1005,8 @@ class QuoteForm {
                         window.statisticsService.invalidate(['mainStats','latestQuotes_3','userProgress']);
                         console.log('LOG: QuoteForm - инвалидирован кэш статистики (fallback)');
                     }
-                } catch (e) {
-                    console.debug('StatisticsService invalidation failed:', e);
+                } catch (_e) {
+                    console.debug('StatisticsService invalidation failed:', _e);
                 }
             }
 

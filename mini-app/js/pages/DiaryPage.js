@@ -1049,46 +1049,6 @@ class DiaryPage {
         }
     }
 
-            this.clearForm();
-            this.rerender();
-        
-            if (insights || summary) {
-                this.startAnalysisTimer();
-            }
-
-            if (saveBtn) {
-                saveBtn.textContent = '✅ Сохранено!';
-                saveBtn.style.backgroundColor = 'var(--success-color, #22c55e)';
-                saveBtn.style.color = 'white';
-                setTimeout(() => {
-                    saveBtn.disabled = true;
-                    saveBtn.textContent = '💾 Сохранить в дневник';
-                    saveBtn.style.backgroundColor = '';
-                    saveBtn.style.color = '';
-                }, 2000);
-            }
-
-            this.telegram.hapticFeedback('success');
-            this.log('✅ UI обновлен после сохранения цитаты');
-
-        } catch (error) {
-            console.error('❌ Ошибка сохранения цитаты:', error);
-            this.telegram.hapticFeedback('error');
-            const saveBtn = document.getElementById('saveQuoteBtn');
-            if (saveBtn) {
-                saveBtn.textContent = '❌ Ошибка';
-                saveBtn.style.backgroundColor = 'var(--error-color, #ef4444)';
-                saveBtn.style.color = 'white';
-                setTimeout(() => {
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = '💾 Сохранить в дневник';
-                    saveBtn.style.backgroundColor = '';
-                    saveBtn.style.color = '';
-                }, 2000);
-            }
-        }
-    }
-    
     async applyFilter(filter) {
         this.currentFilter = filter;
         this.currentPage = 1;
