@@ -931,28 +931,21 @@ class DiaryPage {
             const savedQuote = await this.api.addQuote(quoteData, userId);
             const data = savedQuote?.data || savedQuote;
 
-            // --- ВАЖНО: Парсим JSON анализ из data.message, если он строка ---
-            let aiAnalysis = {};
-            if (typeof data.message === 'string') {
-                try {
-                    aiAnalysis = JSON.parse(data.message);
-                } catch (e) {
-                    aiAnalysis = {};
-                }
-            } else if (data.aiAnalysis && typeof data.aiAnalysis === 'object') {
-                    aiAnalysis = data.aiAnalysis;
-            }
+            // Берём цитату из data.quote (или data, если вдруг структура поменяется)
+            const quote = data.quote || data;
 
-            // Универсальный разбор анализа
-            const insights = aiAnalysis.insights || '';
-            const themes = aiAnalysis.themes || [];
-            const category = aiAnalysis.category || '';
-            const sentiment = aiAnalysis.sentiment || '';
+            // Берём анализ из quote.aiAnalysis, а если его нет — из отдельных полей quote
+            let aiAnalysis = quote.aiAnalysis || {};
+            const insights = aiAnalysis.insights || quote.insights || '';
+            const themes = aiAnalysis.themes || quote.themes || [];
+            const category = aiAnalysis.category || quote.category || '';
+            const sentiment = aiAnalysis.sentiment || quote.sentiment || '';
             const summary = aiAnalysis.summary || '';
 
+            // Собираем итоговый объект
             const completeQuote = {
-                ...data,
-                id: data.id || data._id,
+                ...quote,
+                id: quote.id || quote._id,
                 insights,
                 themes,
                 category,
