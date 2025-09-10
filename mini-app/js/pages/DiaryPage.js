@@ -901,23 +901,20 @@ class DiaryPage {
         }
     }
 
-   async handleSaveQuote() {
-       console.log('LOG: DiaryPage.handleSaveQuote вызван');
+    async handleSaveQuote() {
+        console.log('LOG: DiaryPage.handleSaveQuote вызван');
         if (!this.isFormValid()) {
             console.log('LOG: DiaryPage.handleSaveQuote - форма невалидна');
             return;
         }
 
         const saveBtn = document.getElementById('saveQuoteBtn');
-        
-        // Предотвращаем множественные сохранения
         if (saveBtn && saveBtn.disabled) {
             console.log('LOG: DiaryPage.handleSaveQuote - сохранение уже в процессе, игнорируем');
             return;
         }
 
         try {
-            console.log('LOG: DiaryPage.handleSaveQuote - начинаем сохранение');
             this.telegram.hapticFeedback('medium');
             const userId = await this.waitForValidUserId();
             const quoteData = {
@@ -925,163 +922,93 @@ class DiaryPage {
                 author: this.formData.author.trim(),
                 source: this.formData.source?.trim() || 'mini_app'
             };
-            console.log('LOG: DiaryPage.handleSaveQuote - данные для сохранения:', quoteData);
 
             if (saveBtn) {
                 saveBtn.disabled = true;
                 saveBtn.textContent = '💾 Сохраняем...';
-                console.log('LOG: DiaryPage.handleSaveQuote - кнопка заблокирована');
             }
 
             const savedQuote = await this.api.addQuote(quoteData, userId);
-            console.log('LOG: DiaryPage.handleSaveQuote - ответ сервера:', savedQuote);
-            
             const data = savedQuote?.data || savedQuote;
-            console.log('LOG: DiaryPage.handleSaveQuote - извлеченные данные:', data);
 
-            // Универсальный разбор ответа сервера
-            const quoteObj = data;
-            console.log('LOG: DiaryPage.handleSaveQuote - объект цитаты:', quoteObj); 
+            // Универсальный разбор анализа
+            const insights = data.insights || data.aiAnalysis?.insights || '';
+            const themes = data.themes || data.aiAnalysis?.themes || [];
+            const category = data.category || data.aiAnalysis?.category || '';
+            const sentiment = data.sentiment || data.aiAnalysis?.sentiment || '';
+            const summary = data.aiAnalysis?.summary || data.summary || '';
 
-            // Извлекаем анализ из различных возможных мест в ответе
-            const insights = quoteObj.insights || data.aiAnalysis?.insights || '';
-            const themes = quoteObj.themes || data.aiAnalysis?.themes || [];
-            const category = quoteObj.category || data.aiAnalysis?.category || '';
-            const sentiment = quoteObj.sentiment || data.aiAnalysis?.sentiment || '';
-            const summary = data.aiAnalysis?.summary || quoteObj.summary || '';
-            
-            console.log('LOG: DiaryPage.handleSaveQuote - извлеченный анализ:', { insights, themes, category, sentiment, summary });
-
-            // Формируем полный объект для состояния
             const completeQuote = {
-                ...quoteObj,
-                id: quoteObj.id || quoteObj._id,
+                ...data,
+                id: data.id || data._id,
                 insights,
                 themes,
                 category,
                 sentiment,
-                aiAnalysis: {
-                    category: category,
-                    themes: themes,
-                    sentiment: sentiment,
-                    summary: summary,
-                    insights: insights
-                }
+                aiAnalysis: { category, themes, sentiment, summary, insights }
             };
 
-            // Кладём анализ в state для отображения
+            // Кладём анализ в state для renderAIInsight
             this.state.set('lastAddedQuote', completeQuote);
-            console.log('LOG: DiaryPage.handleSaveQuote - lastAddedQuote установлен:', this.state.get('lastAddedQuote'));
 
-            // --- ВСТАВКА: ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ АНАЛИЗА В ADD TAB ---
-            if (this.activeTab === 'add') {
-                // Ждём, когда появится блок анализа (он может быть пересоздан после rerender)
-                setTimeout(() => {
-                    const addTabInsight = document.querySelector('.ai-insight');
-                    if (addTabInsight && completeQuote.aiAnalysis) {
-                        let html = '';
-                        if (completeQuote.aiAnalysis.summary) {
-                            html += `<div class="ai-text"><b>Ответ Анны:</b> ${completeQuote.aiAnalysis.summary}</div>`;
-                        }
-                        if (completeQuote.aiAnalysis.insights) {
-                            html += `<div class="ai-text"><b>Инсайт:</b> ${completeQuote.aiAnalysis.insights}</div>`;
-                        }
-                        if (!html) html = `<div class="ai-text">Анализ недоступен</div>`;
-                        addTabInsight.innerHTML = `
-                            <div class="ai-title"><span>✨</span><span>Анализ от Анны</span></div>
-                            ${html}
-                        `;
-                    }
-                }, 0);
-            }
-
-            // --- ФИКС: Обновляем aiAnalysis в компоненте формы, если Add tab активен ---
-            if (this.activeTab === 'add') {
-                // Находим экземпляр QuoteForm через dom и обновляем aiAnalysis
-                // Нужно чтобы в конструкторе QuoteForm после создания элемента было:
-                // this.element.__instance__ = this;
-                const formEl = document.querySelector('.quote-form');
-                if (formEl && formEl.__instance__ && typeof formEl.__instance__.setFormData === 'function') {
-                formEl.__instance__.setFormData({ aiAnalysis: completeQuote.aiAnalysis });
-                }
-            }
-            
-            // Показываем нотификацию
-            if (insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-                window.showNotification(insights, 'success', 5000);
-                console.log('LOG: DiaryPage.handleSaveQuote - показана нотификация с анализом');
-            } else if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-                window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
-                console.log('LOG: DiaryPage.handleSaveQuote - показана стандартная нотификация');
-            }
-
-            // Обновляем список цитат (новая цитата — первой)
-            const existingQuotes = this.state.get('quotes.items') || [];
-            this.state.set('quotes.items', [completeQuote, ...existingQuotes]);
-            console.log('LOG: DiaryPage.handleSaveQuote - список цитат обновлен, всего цитат:', [completeQuote, ...existingQuotes].length);
-
-            document.dispatchEvent(new CustomEvent('quotes:changed', { 
-                detail: { type: 'added', id: completeQuote.id, quote: completeQuote } 
-            }));
-            console.log('LOG: DiaryPage.handleSaveQuote - отправлено событие quotes:changed');
-            
-            // Обновляем статистику
-            try {
-                await this.app.statistics.refreshMainStatsSilent?.();
-                const activityPercent = await this.api.getActivityPercent(userId);
-                this.state.set('diaryStats', { activityPercent });
-                console.log('LOG: DiaryPage.handleSaveQuote - статистика обновлена');
-            } catch (statsError) {
-                console.warn('LOG: DiaryPage.handleSaveQuote - ошибка обновления статистики:', statsError);
+            // ВАЖНО: Сначала analysisVisible=true, только потом рендер!
+            if (insights || summary) {
+                this.startAnalysisTimer();
             }
 
             this.clearForm();
             this.rerender();
-            console.log('LOG: DiaryPage.handleSaveQuote - форма очищена и UI обновлен');
-        
-            if (insights || summary) {
-                this.startAnalysisTimer();
+
+            if (insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+                window.showNotification(insights, 'success', 5000);
+            } else if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+                window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
             }
+
+            // Обновляем список цитат
+            const existingQuotes = this.state.get('quotes.items') || [];
+            this.state.set('quotes.items', [completeQuote, ...existingQuotes]);
+
+            document.dispatchEvent(new CustomEvent('quotes:changed', { 
+                detail: { type: 'added', id: completeQuote.id, quote: completeQuote } 
+            }));
+
+            // Обновляем статистику (не влияет на анализ)
+            try {
+                await this.app.statistics.refreshMainStatsSilent?.();
+                const activityPercent = await this.api.getActivityPercent(userId);
+                this.state.set('diaryStats', { activityPercent });
+            } catch {}
 
             if (saveBtn) {
                 saveBtn.textContent = '✅ Сохранено!';
                 saveBtn.style.backgroundColor = 'var(--success-color, #22c55e)';
                 saveBtn.style.color = 'white';
-                console.log('LOG: DiaryPage.handleSaveQuote - кнопка показывает успех');
-                
                 setTimeout(() => {
                     saveBtn.disabled = !this.isFormValid();
                     saveBtn.textContent = '💾 Сохранить в дневник';
                     saveBtn.style.backgroundColor = '';
                     saveBtn.style.color = '';
-                    console.log('LOG: DiaryPage.handleSaveQuote - кнопка восстановлена');
                 }, 2000);
             }
 
             this.telegram.hapticFeedback('success');
-            console.log('LOG: DiaryPage.handleSaveQuote - сохранение завершено успешно');
-
-        } catch (error) {
-            console.error('LOG: DiaryPage.handleSaveQuote - ошибка сохранения цитаты:', error);
+            } catch (error) {
             this.telegram.hapticFeedback('error');
-            
             if (saveBtn) {
                 saveBtn.textContent = '❌ Ошибка';
                 saveBtn.style.backgroundColor = 'var(--error-color, #ef4444)';
                 saveBtn.style.color = 'white';
-                console.log('LOG: DiaryPage.handleSaveQuote - кнопка показывает ошибку');
-                
                 setTimeout(() => {
                     saveBtn.disabled = !this.isFormValid();
                     saveBtn.textContent = '💾 Сохранить в дневник';
                     saveBtn.style.backgroundColor = '';
                     saveBtn.style.color = '';
-                    console.log('LOG: DiaryPage.handleSaveQuote - кнопка восстановлена после ошибки');
                 }, 2000);
             }
         }
     }
-
+    
     async applyFilter(filter) {
         this.currentFilter = filter;
         this.currentPage = 1;
