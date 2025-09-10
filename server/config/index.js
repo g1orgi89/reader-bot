@@ -17,12 +17,25 @@ require('dotenv').config();
  * @property {Object} features - Флаги функций
  */
 
-// Валидация обязательных переменных окружения
-const requiredEnvVars = [
-  'MONGODB_URI',
-  'ANTHROPIC_API_KEY'
-];
+// Валидация обязательных переменных окружения (теперь условная на основе AI_PROVIDER)
+function getRequiredEnvVars() {
+  const baseRequired = ['MONGODB_URI'];
+  
+  // Нормализация провайдера: anthropic -> claude
+  const aiProvider = (process.env.AI_PROVIDER || 'claude').toLowerCase();
+  const normalizedProvider = aiProvider === 'anthropic' ? 'claude' : aiProvider;
+  
+  // Добавляем обязательные ключи в зависимости от провайдера
+  if (normalizedProvider === 'claude') {
+    baseRequired.push('ANTHROPIC_API_KEY');
+  } else if (normalizedProvider === 'openai') {
+    baseRequired.push('OPENAI_API_KEY');
+  }
+  
+  return baseRequired;
+}
 
+const requiredEnvVars = getRequiredEnvVars();
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingVars.length > 0) {
   console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`);
@@ -238,9 +251,21 @@ const config = {
 function validateConfig() {
   const errors = [];
 
-  // Проверяем обязательные настройки
-  if (!config.claude.apiKey) {
-    errors.push('ANTHROPIC_API_KEY is required');
+  // Нормализация провайдера: anthropic -> claude
+  const aiProvider = (process.env.AI_PROVIDER || 'claude').toLowerCase();
+  const normalizedProvider = aiProvider === 'anthropic' ? 'claude' : aiProvider;
+
+  // Проверяем ключи провайдера условно
+  if (normalizedProvider === 'claude') {
+    if (!config.claude.apiKey) {
+      errors.push('ANTHROPIC_API_KEY is required when AI_PROVIDER is claude/anthropic');
+    }
+  } else if (normalizedProvider === 'openai') {
+    if (!config.openai.apiKey) {
+      errors.push('OPENAI_API_KEY is required when AI_PROVIDER is openai');
+    }
+  } else {
+    errors.push(`Invalid AI_PROVIDER: ${aiProvider}. Must be 'claude', 'anthropic', or 'openai'`);
   }
 
   if (!config.database.uri) {
