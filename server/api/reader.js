@@ -67,6 +67,39 @@ function getUserId(req) {
 }
 
 /**
+ * DTO helper for standardized quote responses with aiAnalysis block
+ * @param {Object} q - Quote document
+ * @param {Object} options - Additional options
+ * @param {string} options.summary - Summary text for aiAnalysis
+ * @param {Object} options.user - User data for enrichment
+ * @returns {Object} Standardized quote object with aiAnalysis
+ */
+function toQuoteDTO(q, { summary = '', user = null } = {}) {
+  const base = {
+    id: q._id,
+    text: q.text,
+    author: q.author,
+    source: q.source,
+    category: q.category,
+    themes: Array.isArray(q.themes) ? q.themes : [],
+    sentiment: q.sentiment,
+    insights: q.insights,
+    isEdited: q.isEdited,
+    editedAt: q.editedAt,
+    createdAt: q.createdAt,
+    aiAnalysis: {
+      summary: summary || '',
+      insights: q.insights || '',
+      category: q.category || 'ДРУГОЕ',
+      themes: Array.isArray(q.themes) ? q.themes : [],
+      sentiment: q.sentiment || 'neutral'
+    }
+  };
+  if (user) base.user = user;
+  return base;
+}
+
+/**
  * @description Health check endpoint
  * @route GET /api/reader/health
  */
@@ -799,20 +832,7 @@ router.post('/quotes', telegramAuth, async (req, res) => {
 
       return res.json({
         success: true,
-        quote: {
-          id: result.quote._id,
-          text: result.quote.text,
-          author: result.quote.author,
-          source: result.quote.source,
-          category: result.quote.category,
-          themes: result.quote.themes,
-          sentiment: result.quote.sentiment,
-          insights: result.quote.insights,
-          isEdited: result.quote.isEdited,
-          editedAt: result.quote.editedAt,
-          createdAt: result.quote.createdAt,
-          summary: annaSummary // <-- вот это поле!
-        },
+        quote: toQuoteDTO(result.quote, { summary: annaSummary }),
         newAchievements: result.newAchievements || [],
         todayCount: result.todayCount
       });
@@ -888,25 +908,16 @@ router.get('/quotes', telegramAuth, async (req, res) => {
       return map;
     }, {});
 
-  const enrichedQuotes = quotes.map(q => ({
-    id: q._id,
-    text: q.text,
-    author: q.author,
-    source: q.source,
-    category: q.category,
-    themes: q.themes,
-    sentiment: q.sentiment,
-    insights: q.insights,
-    isEdited: q.isEdited,
-    editedAt: q.editedAt,
-    createdAt: q.createdAt,
-    user: userMap[q.userId] ? {
+  const enrichedQuotes = quotes.map(q => {
+    const user = userMap[q.userId] ? {
       id: userMap[q.userId].userId,
       name: userMap[q.userId].name,
       username: userMap[q.userId].telegramUsername,
       email: userMap[q.userId].email
-    } : undefined
-  }));
+    } : undefined;
+    
+    return toQuoteDTO(q, { user });
+  });
 
 res.json({
     success: true,
@@ -940,19 +951,7 @@ router.get('/quotes/recent', telegramAuth, async (req, res) => {
 
     res.json({
       success: true,
-      quotes: quotes.map(q => ({
-        id: q._id,
-        text: q.text,
-        author: q.author,
-        source: q.source,
-        category: q.category,
-        themes: q.themes,
-        sentiment: q.sentiment,
-        insights: q.insights,
-        isEdited: q.isEdited,
-        editedAt: q.editedAt,
-        createdAt: q.createdAt
-      }))
+      quotes: quotes.map(q => toQuoteDTO(q))
     });
   } catch (error) {
     console.error('❌ Get Recent Quotes Error:', error);
@@ -979,21 +978,7 @@ router.get('/quotes/:id', telegramAuth, async (req, res) => {
 
     res.json({
       success: true,
-      quote: {
-        id: quote._id,
-        text: quote.text,
-        author: quote.author,
-        source: quote.source,
-        category: quote.category,
-        themes: quote.themes,
-        sentiment: quote.sentiment,
-        insights: quote.insights,
-        isEdited: quote.isEdited,
-        editedAt: quote.editedAt,
-        createdAt: quote.createdAt,
-        weekNumber: quote.weekNumber,
-        yearNumber: quote.yearNumber
-      },
+      quote: toQuoteDTO(quote),
       context: {
         weekNumber: quote.weekNumber,
         yearNumber: quote.yearNumber,
@@ -1052,19 +1037,7 @@ router.put('/quotes/:id', telegramAuth, async (req, res) => {
 
     res.json({
       success: true,
-      quote: {
-        id: quote._id,
-        text: quote.text,
-        author: quote.author,
-        source: quote.source,
-        category: quote.category,
-        themes: quote.themes,
-        sentiment: quote.sentiment,
-        insights: quote.insights,
-        isEdited: quote.isEdited,
-        editedAt: quote.editedAt,
-        createdAt: quote.createdAt
-      }
+      quote: toQuoteDTO(quote)
     });
 
   } catch (error) {
@@ -1098,6 +1071,13 @@ router.post('/quotes/analyze', telegramAuth, async (req, res) => {
         themes: analysis.themes,
         sentiment: analysis.sentiment,
         insights: analysis.insights
+      },
+      aiAnalysis: {
+        summary: '',
+        insights: analysis.insights,
+        category: analysis.category,
+        themes: analysis.themes,
+        sentiment: analysis.sentiment
       }
     });
 

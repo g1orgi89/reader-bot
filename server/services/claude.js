@@ -71,13 +71,18 @@ class ClaudeService {
    * @private
    */
   initializeProviders() {
-    try {
-      this.clients.claude = new Anthropic({
-        apiKey: this.config.claude.apiKey,
-      });
-      logger.info('📖 Claude client initialized successfully');
-    } catch (error) {
-      logger.error(`📖 Failed to initialize Claude client: ${error.message}`);
+    // Initialize Anthropic client ONLY if ANTHROPIC_API_KEY is present
+    if (this.config.claude && this.config.claude.apiKey) {
+      try {
+        this.clients.claude = new Anthropic({
+          apiKey: this.config.claude.apiKey,
+        });
+        logger.info('📖 Claude client initialized successfully');
+      } catch (error) {
+        logger.error(`📖 Failed to initialize Claude client: ${error.message}`);
+      }
+    } else {
+      logger.info('📖 Anthropic API key not provided, skipping Claude client initialization');
     }
     
     if (this.config.openai && this.config.openai.apiKey) {
