@@ -912,50 +912,42 @@ class DiaryPage {
             const savedQuote = await this.api.addQuote(quoteData, userId);
             const data = savedQuote?.data || savedQuote;
 
-            // ... анализ как у тебя было ...
-            let insights = data.insights || data.quote?.insights;
-            let themes = data.themes || data.quote?.themes;
-            let category = data.category || data.quote?.category;
-            let sentiment = data.sentiment || data.quote?.sentiment;
-            let summary = data.summary || data.quote?.summary || savedQuote?.message || '';
-            if ((!insights || !themes || !category) && typeof data.message === 'string') {
-                try {
-                    const ai = JSON.parse(data.message);
-                    insights = insights || ai.insights;
-                    themes = themes || ai.themes;
-                    category = category || ai.category;
-                    sentiment = sentiment || ai.sentiment;
-                    summary = summary || ai.summary;
-                } catch (e) {
-                    console.log('DEBUG: message не парсится как JSON', e);
-                }
-            }
-            if (!summary && data.message && typeof data.message === 'string') {
-                summary = data.message;
-            }
+            // Новый универсальный разбор: берем только из quote (или из data, если quote нет)
+            const quoteObj = data.quote || data;
+
+            // Явно выделяем нужные поля для state и UI
+            const insights = quoteObj.insights || '';
+            const themes = quoteObj.themes || [];
+            const category = quoteObj.category || '';
+            const sentiment = quoteObj.sentiment || '';
+            const summary = quoteObj.summary || '';
+
+            // Кладём анализ в state для отображения
             this.state.set('lastAddedQuote', {
-                ...data,
+                ...quoteObj,
                 insights,
                 summary,
                 themes,
                 category,
                 sentiment
             });
-
+    
+            // Показываем нотификацию (если есть анализ)
             if (insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
                 window.showNotification(insights, 'success', 5000);
             } else if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
                 window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
             }
 
+            // Обновляем список цитат (новая цитата — первой)
             const existingQuotes = this.state.get('quotes.items') || [];
-            const quoteForList = { ...data, insights, themes, category, sentiment };
+            const quoteForList = { ...quoteObj, insights, themes, category, sentiment };
             this.state.set('quotes.items', [quoteForList, ...existingQuotes]);
 
             document.dispatchEvent(new CustomEvent('quotes:changed', { 
-                detail: { type: 'added', id: data.id || data._id, quote: quoteForList } 
+                detail: { type: 'added', id: quoteObj.id || quoteObj._id, quote: quoteForList } 
             }));
-
+            
             // --- ВСТАВЬ ЭТО ВМЕСТО ЛОКАЛЬНОГО ОБНОВЛЕНИЯ СТАТИСТИКИ ---
             await this.app.statistics.refreshMainStatsSilent?.(); // обновит state.stats
             const activityPercent = await this.api.getActivityPercent(userId);
