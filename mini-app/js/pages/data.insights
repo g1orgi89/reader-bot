@@ -944,11 +944,11 @@ class DiaryPage {
             }
 
             // Универсальный разбор анализа
-            const insights = data.insights || data.aiAnalysis?.insights || '';
-            const themes = data.themes || data.aiAnalysis?.themes || [];
-            const category = data.category || data.aiAnalysis?.category || '';
-            const sentiment = data.sentiment || data.aiAnalysis?.sentiment || '';
-            const summary = data.aiAnalysis?.summary || data.summary || '';
+            const insights = aiAnalysis.insights || '';
+            const themes = aiAnalysis.themes || [];
+            const category = aiAnalysis.category || '';
+            const sentiment = aiAnalysis.sentiment || '';
+            const summary = aiAnalysis.summary || '';
 
             const completeQuote = {
                 ...data,
