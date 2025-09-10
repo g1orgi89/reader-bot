@@ -893,6 +893,7 @@ class DiaryPage {
     }
 
    async handleSaveQuote() {
+       console.log('LOG: DiaryPage.handleSaveQuote вызван');
         if (!this.isFormValid()) return;
 
         try {
