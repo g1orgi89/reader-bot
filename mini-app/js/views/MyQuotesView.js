@@ -201,6 +201,7 @@ window.MyQuotesView = class MyQuotesView {
         text: quote.text,
         author: quote.author,
         isFavorite: newLikedState
+        source: quote.source
       };
       await app.api.updateQuote(id, updateData);
       document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
