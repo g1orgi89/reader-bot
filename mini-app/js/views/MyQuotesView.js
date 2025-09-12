@@ -147,10 +147,18 @@ window.MyQuotesView = class MyQuotesView {
     if (!id) return;
     const ok = window.confirm('Удалить эту цитату? Это действие нельзя отменить.');
     if (!ok) return;
+
     try {
       const app = this._getApp();
-      const userId = app.state?.getCurrentUserId?.();
-      await app.api.deleteQuote(id, userId); // теперь api.deleteQuote принимает userId
+
+      // Дожидаемся валидного userId (если метод есть), иначе берём из state/api
+      const userId =
+        (await app.waitForValidUserId?.().catch(() => null)) ||
+        app.state?.getCurrentUserId?.() ||
+        app.api.resolveUserId();
+
+      await app.api.deleteQuote(id, userId);
+
       card.remove();
       this._haptic('notification', 'success');
       document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'deleted', id } }));
