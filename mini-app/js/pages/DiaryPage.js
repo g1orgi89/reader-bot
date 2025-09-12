@@ -1506,67 +1506,61 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
 }
 
     /**
- * 🗑️ Удаление цитаты
- */
-async deleteQuote(quoteId) {
-    try {
-        this.log('🗑️ Удаление цитаты:', quoteId);
-
-        const quotes = this.state.get('quotes.items') || [];
-        const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-
-        if (!quote) {
-            console.error('❌ Цитата не найдена:', quoteId);
-            return;
-        }
-
-        // Подтверждение удаления
-        const truncatedText = quote.text.substring(0, 100) + (quote.text.length > 100 ? '...' : '');
-        const confirmText = `Удалить цитату?\n\n"${truncatedText}"\n\n— ${quote.author}`;
-
-        if (!confirm(confirmText)) {
-            return; // Пользователь отменил удаление
-        }
-
-        // Удаляем из локального state
-        this.state.removeQuote(quoteId);
-
-        // Reset analysis when deleting a quote
-        this.resetAnalysisToDefault();
-
+     * 🗑️ Удаление цитаты
+     */
+    async deleteQuote(quoteId) {
         try {
-            await this.api.deleteQuote(quoteId);
+            this.log('🗑️ Удаление цитаты:', quoteId);
 
-            // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
-            await this.app.statistics.refreshMainStatsSilent?.();
-            const userId = await this.waitForValidUserId();
-            const activityPercent = await this.api.getActivityPercent(userId);
-            this.state.set('diaryStats', { activityPercent });
-            // --- КОНЕЦ ---
+            const quotes = this.state.get('quotes.items') || [];
+            const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
 
-            console.log('✅ Цитата удалена с сервера');
-        } catch (error) {
-            console.error('❌ Ошибка удаления цитаты с сервера:', error);
-
-            if (error.status !== 404 && error.status !== 200) {
-                // Цитата существует на сервере, возвращаем её в UI
-                this.state.set('quotes.items', quotes);
-                this.rerender();
+            if (!quote) {
+                console.error('❌ Цитата не найдена:', quoteId);
                 return;
             }
-            // Если 404 - значит уже удалена, не возвращаем в UI
-            console.log('⚠️ Цитата уже удалена на сервере (404), оставляем UI без изменений');
+
+            // Подтверждение удаления
+            const truncatedText = quote.text.substring(0, 100) + (quote.text.length > 100 ? '...' : '');
+            const confirmText = `Удалить цитату?\n\n"${truncatedText}"\n\n— ${quote.author}`;
+
+            if (!confirm(confirmText)) {
+                return; // Пользователь отменил удаление
+            }
+
+            // Reset analysis when deleting a quote
+            this.resetAnalysisToDefault();
+
+            try {
+                await this.api.deleteQuote(quoteId);
+
+                // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
+                // Удаляем из локального state ТОЛЬКО после успешного ответа сервера
+                this.state.removeQuote(quoteId);
+
+                // обновляем статистику
+                await this.app.statistics.refreshMainStatsSilent?.();
+                const userId = await this.waitForValidUserId();
+                const activityPercent = await this.api.getActivityPercent(userId);
+                this.state.set('diaryStats', { activityPercent });
+                // --- КОНЕЦ ---
+
+                this.rerender();
+                this.telegram.hapticFeedback('success');
+                this.log('✅ Цитата удалена');
+            } catch (error) {
+                console.error('❌ Ошибка удаления цитаты с сервера:', error);
+
+                // Показываем ошибку только если не 404 (404 значит уже удалена)
+                if (error.status !== 404 && error.status !== 200) {
+                    alert('Ошибка удаления цитаты: ' + (error.message || error.status));
+                }
+            }
+        } catch (error) {
+            console.error('❌ Ошибка удаления цитаты:', error);
+            this.telegram.hapticFeedback('error');
         }
-
-        this.rerender();
-        this.telegram.hapticFeedback('success');
-        this.log('✅ Цитата удалена');
-
-    } catch (error) {
-        console.error('❌ Ошибка удаления цитаты:', error);
-        this.telegram.hapticFeedback('error');
     }
-}
     
     /**
      * ⋯ Показать меню действий с цитатой
