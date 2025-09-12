@@ -1002,7 +1002,7 @@ router.get('/quotes/:id', telegramAuth, async (req, res) => {
 router.put('/quotes/:id', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    const { text, author, source } = req.body;
+    const { text, author, source, isFavorite } = req.body;
 
     if (!text || text.trim().length === 0) {
       return res.status(400).json({ success: false, error: 'Text is required' });
@@ -1026,14 +1026,24 @@ router.put('/quotes/:id', telegramAuth, async (req, res) => {
       quote.insights = analysis.insights;
       quote.isEdited = true;
       quote.editedAt = new Date();
+      
+      if (typeof isFavorite !== 'undefined') {
+        quote.isFavorite = !!isFavorite;
+      }
       await quote.save();
     } catch (aiError) {
       console.warn(`⚠️ AI анализ при редактировании неудачен, fallback: ${aiError.message}`);
+
+      
       quote.text = text.trim();
       quote.author = author ? author.trim() : null;
       quote.source = source ? source.trim() : null;
       quote.isEdited = true;
       quote.editedAt = new Date();
+      
+      if (typeof isFavorite !== 'undefined') {
+        quote.isFavorite = !!isFavorite;
+      }
       await quote.save();
     }
 
