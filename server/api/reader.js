@@ -50,6 +50,8 @@ const Quote = require('../models/quote');
 const WeeklyReport = require('../models/weeklyReport');
 const MonthlyReport = require('../models/monthlyReport');
 const BookCatalog = require('../models/BookCatalog');
+const UTMClick = require('../models/analytics').UTMClick;
+const PromoCodeUsage = require('../models/analytics').PromoCodeUsage;
 
 // Импорт сервисов
 const QuoteHandler = require('../services/quoteHandler');
@@ -1375,6 +1377,103 @@ router.get('/recommendations', async (req, res) => {
   } catch (error) {
     console.error('❌ Get Recommendations Error:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @route POST /api/reader/catalog/track-click
+ */
+router.post('/catalog/track-click', async (req, res) => {
+  try {
+    const userId = String(req.query.userId || req.body.userId || 'demo-user');
+    const { bookSlug, bookId } = req.body || {};
+
+    let slug = (bookSlug || '').toString().trim().toLowerCase();
+    if (!slug && bookId) {
+      const book = await BookCatalog.findById(bookId).select({ bookSlug: 1 }).lean();
+      if (book?.bookSlug) slug = String(book.bookSlug).toLowerCase();
+    }
+    if (!slug) return res.status(400).json({ success: false, error: 'bookSlug or bookId required' });
+
+    await UTMClick.create({
+      userId,
+      source: 'telegram_bot',
+      medium: 'mini_app',
+      campaign: 'catalog',
+      content: slug,
+      timestamp: new Date()
+    });
+
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('track-click error:', e);
+    return res.status(500).json({ success: false, error: 'server error' });
+  }
+});
+
+/**
+ * @route GET /api/reader/top-books?period=7d
+ */
+router.get('/top-books', async (req, res) => {
+  try {
+    const period = String(req.query.period || '7d');
+    const now = new Date();
+    const startDate = new Date(now);
+    const m = period.match(/^(\d+)([dwm])$/i);
+    if (m) {
+      const val = parseInt(m[1], 10);
+      const unit = m[2].toLowerCase();
+      if (unit === 'd') startDate.setDate(now.getDate() - val);
+      if (unit === 'w') startDate.setDate(now.getDate() - val * 7);
+      if (unit === 'm') startDate.setMonth(now.getMonth() - val);
+    } else {
+      startDate.setDate(now.getDate() - 7);
+    }
+
+    const clicksAgg = await UTMClick.aggregate([
+      { $match: { timestamp: { $gte: startDate }, campaign: 'catalog' } },
+      { $group: { _id: '$content', clicks: { $sum: 1 } } },
+      { $sort: { clicks: -1 } },
+      { $limit: 3 }
+    ]);
+
+    const slugs = clicksAgg.map(a => (a._id || '').toLowerCase()).filter(Boolean);
+
+    const purchasesAgg = await PromoCodeUsage.aggregate([
+      { $match: { timestamp: { $gte: startDate }, booksPurchased: { $exists: true, $ne: [] } } },
+      { $unwind: '$booksPurchased' },
+      { $group: { _id: { book: '$booksPurchased' }, purchases: { $sum: 1 } } }
+    ]);
+
+    const purchasesMap = new Map();
+    for (const row of purchasesAgg) {
+      const key = String(row._id.book || '').toLowerCase();
+      if (!key) continue;
+      purchasesMap.set(key, (purchasesMap.get(key) || 0) + row.purchases);
+    }
+
+    const books = await BookCatalog.find({ bookSlug: { $in: slugs } })
+      .select({ title: 1, author: 1, bookSlug: 1 })
+      .lean();
+    const bySlug = new Map(books.map(b => [String(b.bookSlug).toLowerCase(), b]));
+
+    const data = clicksAgg.map(row => {
+      const slug = String(row._id || '').toLowerCase();
+      const b = bySlug.get(slug);
+      const sales = purchasesMap.get(slug) || 0;
+      return {
+        id: b?._id || slug,
+        title: b?.title || slug,
+        author: b?.author || '',
+        clicksCount: row.clicks,
+        salesCount: sales
+      };
+    });
+
+    return res.json({ success: true, data });
+  } catch (e) {
+    console.error('top-books error:', e);
+    return res.status(500).json({ success: false, error: 'server error' });
   }
 });
 
