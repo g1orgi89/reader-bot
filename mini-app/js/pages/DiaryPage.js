@@ -161,23 +161,28 @@ class DiaryPage {
                 sort: 'createdAt',
                 order: 'desc'
             };
-    
+
             if (this.currentFilter === 'favorites') {
                 params.favorites = true;
             } else if (this.currentFilter === 'this-week') {
-                const weekAgo = new Date();
-                weekAgo.setDate(weekAgo.getDate() - 7);
+                const now = new Date();
+                const weekAgo = new Date(now);
+                weekAgo.setDate(now.getDate() - 7);
                 params.dateFrom = weekAgo.toISOString();
-            } else if (this.currentFilter === 'by-author' && this.filterAuthor) {
-                params.author = this.filterAuthor;
+                params.dateTo = now.toISOString();
+            } else if (this.currentFilter === 'this-month') {
+                const now = new Date();
+                const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+                const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+                params.dateFrom = firstDay.toISOString();
+                params.dateTo = lastDay.toISOString();
             }
 
-            // Гарантируем что при фильтре "all" не уйдет никаких лишних фильтров
+            // Гарантия очистки лишних параметров для 'all'
             if (this.currentFilter === 'all') {
                 delete params.dateFrom;
                 delete params.dateTo;
                 delete params.favorites;
-                delete params.author;
             }
 
             console.log('DEBUG: currentFilter=', this.currentFilter, params);
