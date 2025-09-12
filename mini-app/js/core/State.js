@@ -434,7 +434,7 @@ class AppState {
      * 🗑️ Удалить цитату
      */
     removeQuote(quoteId) {
-        this.remove('quotes.items', quote => quote.id === quoteId);
+        this.remove('quotes.items', quote => (quote.id === quoteId) || (quote._id === quoteId));
         this.update('quotes', {
             total: this.get('quotes.total') - 1,
             lastUpdate: Date.now()
