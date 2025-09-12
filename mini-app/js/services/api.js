@@ -677,9 +677,10 @@ class ApiService {
     /**
      * 🗑️ Удалить цитату
      */
-    async deleteQuote(quoteId) {
+    async deleteQuote(quoteId, userId = 'demo-user') {
         this.clearQuotesCache();
-        return this.request('DELETE', `/quotes/${quoteId}`);
+        const qs = userId ? `?userId=${encodeURIComponent(String(userId))}` : '';
+        return this.request('DELETE', `/quotes/${quoteId}${qs}`);
     }
 
     /**
