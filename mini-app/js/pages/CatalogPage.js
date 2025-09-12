@@ -535,7 +535,10 @@ class CatalogPage {
         if (!book) return;
         
         this.telegram.hapticFeedback('success');
-        
+
+        // Fire-and-forget tracking; не блокируем переход
+        this.api.trackCatalogClick({ bookSlug: book.bookSlug, bookId: book.id }).catch(() => {});
+      
         // Используем реальную UTM ссылку из API если доступна
         const buyUrl = book.utmLink || `https://anna-busel.com/books?utm_source=telegram_bot&utm_medium=mini_app&utm_campaign=catalog&utm_content=${book.id}`;
         this.telegram.openLink(buyUrl);
