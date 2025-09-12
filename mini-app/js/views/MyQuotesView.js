@@ -200,7 +200,7 @@ window.MyQuotesView = class MyQuotesView {
       const updateData = {
         text: quote.text,
         author: quote.author,
-        isFavorite: newLikedState
+        isFavorite: newLikedState,
         source: quote.source
       };
       await app.api.updateQuote(id, updateData);
