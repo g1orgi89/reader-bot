@@ -677,9 +677,15 @@ class ApiService {
     /**
      * 🗑️ Удалить цитату
      */
-    async deleteQuote(quoteId, userId = 'demo-user') {
+    async deleteQuote(quoteId, userId) {
         this.clearQuotesCache();
-        const qs = userId ? `?userId=${encodeURIComponent(String(userId))}` : '';
+
+        // Берём userId из аргумента или пытаемся разрешить из окружения
+        const uid = userId || this.resolveUserId();
+
+        // ВАЖНО: не отправляем demo-user — лучше вовсе без userId, пусть отработает Telegram auth
+        const qs = uid && uid !== 'demo-user' ? `?userId=${encodeURIComponent(String(uid))}` : '';
+
         return this.request('DELETE', `/quotes/${quoteId}${qs}`);
     }
 
