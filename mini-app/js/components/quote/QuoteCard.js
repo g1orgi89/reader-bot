@@ -385,6 +385,7 @@ class QuoteCard {
                 text: this.quote.text,
                 author: this.quote.author,
                 isFavorite: !this.quote.isFavorite
+                source: quote.source
             });
             
             this.quote.isFavorite = updatedQuote.isFavorite;
