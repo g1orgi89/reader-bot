@@ -89,6 +89,7 @@ function toQuoteDTO(q, { summary = '', user = null } = {}) {
     isEdited: q.isEdited,
     editedAt: q.editedAt,
     createdAt: q.createdAt,
+    isFavorite: typeof q.isFavorite === 'boolean' ? q.isFavorite : false, // ← добавить эту строку!
     aiAnalysis: {
       summary: summary || '',
       insights: q.insights || '',
