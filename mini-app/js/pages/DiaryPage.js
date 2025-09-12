@@ -98,7 +98,7 @@ class DiaryPage {
     }
     
     setupSubscriptions() {
-        const quotesSubscription = this.state.subscribe('quotes', (quotes) => {
+        const quotesSubscription = this.state.subscribe('quotes.items', (quotes) => {
             this.updateQuotesUI(quotes);
         });
         
