@@ -384,7 +384,7 @@ class QuoteCard {
             const updatedQuote = await this.api.updateQuote(this.quote.id, {
                 text: this.quote.text,
                 author: this.quote.author,
-                isFavorite: !this.quote.isFavorite
+                isFavorite: !this.quote.isFavorite,
                 source: quote.source
             });
             
