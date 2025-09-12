@@ -182,7 +182,7 @@ window.MyQuotesView = class MyQuotesView {
     const wasLiked = card.classList.contains('liked');
     const newLikedState = !wasLiked;
 
-    // Оптимистичный UI
+    // Оптимистично изменяем UI
     card.classList.toggle('liked', newLikedState);
     this._haptic('impact', 'light');
 
@@ -192,9 +192,17 @@ window.MyQuotesView = class MyQuotesView {
     }
 
     try {
-      const app = window.app || window.App || window.readerApp;
-      const userId = app?.state?.getCurrentUserId?.();
-      await app?.api?.updateQuote(id, { isFavorite: newLikedState }, userId);
+      const app = this._getApp();
+      const quotes = app.state.get('quotes.items') || [];
+      const quote = quotes.find(q => q._id === id || q.id === id);
+      if (!quote) throw new Error('Quote not found');
+
+      const updateData = {
+        text: quote.text,
+        author: quote.author,
+        isFavorite: newLikedState
+      };
+      await app.api.updateQuote(id, updateData);
       document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
