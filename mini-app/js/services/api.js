@@ -624,7 +624,8 @@ class ApiService {
 
         const endpoint = `/quotes?${params.toString()}`;
         return this.request('GET', endpoint);
-
+    }
+    
     /**
      * 🤖 Анализ цитаты через AI
      */
