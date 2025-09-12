@@ -1086,7 +1086,7 @@ class DiaryPage {
             await this.api.updateQuote(quoteId, {
                 text: quote.text,
                 author: quote.author,
-                isFavorite: newFavoriteState
+                isFavorite: newFavoriteState,
                 source: quote.source
             }, userId || undefined);
 
