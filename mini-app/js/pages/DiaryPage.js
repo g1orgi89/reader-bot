@@ -1529,8 +1529,7 @@ async deleteQuote(quoteId) {
         }
 
         // Удаляем из локального state
-        const updatedQuotes = quotes.filter(q => q._id !== quoteId && q.id !== quoteId);
-        this.state.set('quotes.items', updatedQuotes);
+        this.state.removeQuote(quoteId);
 
         // Reset analysis when deleting a quote
         this.resetAnalysisToDefault();
