@@ -610,18 +610,6 @@ class DiaryPage {
         });
     }
 
-        // Для фильтра "По автору"
-        const filterAuthorInput = document.getElementById('filterAuthorInput');
-        if (filterAuthorInput) {
-            filterAuthorInput.addEventListener('input', async (e) => {
-                this.filterAuthor = e.target.value;
-                this.currentPage = 1;
-                await this.loadQuotes(true, await this.waitForValidUserId());
-                this.rerender();
-            });
-        }
-    }
-    
     attachFormListeners() {
         const quoteText = document.getElementById('quoteText');
         const quoteAuthor = document.getElementById('quoteAuthor');
