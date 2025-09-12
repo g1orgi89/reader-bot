@@ -170,10 +170,11 @@ window.MyQuotesView = class MyQuotesView {
     this._haptic('impact', 'light');
   }
 
-  _likeQuote(card, id) {
-    const isLiked = card.classList.contains('liked');
-    const newLikedState = !isLiked;
+  async _likeQuote(card, id) {
+    const wasLiked = card.classList.contains('liked');
+    const newLikedState = !wasLiked;
 
+    // Оптимистично обновляем UI
     card.classList.toggle('liked', newLikedState);
     this._haptic('impact', 'light');
 
@@ -181,6 +182,22 @@ window.MyQuotesView = class MyQuotesView {
     if (likeBtn) {
       likeBtn.textContent = newLikedState ? '❤️' : '🤍';
     }
+
+    try {
+      const app = this._getApp();
+      const userId = app.state?.getCurrentUserId?.();
+      await app.api.updateQuote(id, { isFavorite: newLikedState }, userId);
+      document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      // Откат UI при ошибке
+      card.classList.toggle('liked', wasLiked);
+      if (likeBtn) {
+        likeBtn.textContent = wasLiked ? '❤️' : '🤍';
+      }
+      this._haptic('notification', 'error');
+    }
+  }
 
     window.QuoteService.toggleFavorite(id, newLikedState)
       .then(() => {
