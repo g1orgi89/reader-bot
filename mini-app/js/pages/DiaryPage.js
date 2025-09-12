@@ -407,16 +407,11 @@ class DiaryPage {
                     <button class="filter-tab ${this.currentFilter === 'all' ? 'active' : ''}" data-filter="all">Все</button>
                     <button class="filter-tab ${this.currentFilter === 'favorites' ? 'active' : ''}" data-filter="favorites">Избранные</button>
                     <button class="filter-tab ${this.currentFilter === 'this-week' ? 'active' : ''}" data-filter="this-week">Эта неделя</button>
-                    <button class="filter-tab ${this.currentFilter === 'by-author' ? 'active' : ''}" data-filter="by-author">По автору</button>
-                    ${
-                        this.currentFilter === 'by-author'
-                            ? `<input class="filter-author-input" id="filterAuthorInput" placeholder="Имя автора" value="${this.filterAuthor || ''}" style="margin-left:10px;max-width:150px;">`
-                            : ''
-                    }
+                    <button class="filter-tab ${this.currentFilter === 'this-month' ? 'active' : ''}" data-filter="this-month">Этот месяц</button>
                 </div>
             </div>
         `;
-    }    
+    }
     
     /**
      * 📊 СТАТИСТИКА ЦИТАТ (ТОЧНО ИЗ КОНЦЕПТА!)
@@ -1084,18 +1079,16 @@ class DiaryPage {
             if (!quote) return;
 
             const newFavoriteState = !quote.isFavorite;
+
+            // Оптимистично обновляем state
             quote.isFavorite = newFavoriteState;
             this.state.set('quotes.items', [...quotes]);
 
-            // Правильный эндпоинт для toggle избранного!
-            try {
-                await this.api.post(`/quotes/${quoteId}/favorite`, { isFavorite: newFavoriteState });
-            } catch (apiError) {
-                // Можно обработать ошибку: например, вернуть в исходное состояние
-                quote.isFavorite = !newFavoriteState;
-                this.state.set('quotes.items', [...quotes]);
-            }
+            // Правильный запрос на бекенд — обновляем цитату
+            const userId = await this.waitForValidUserId().catch(() => null);
+            await this.api.updateQuote(quoteId, { isFavorite: newFavoriteState }, userId || undefined);
 
+            // Обновляем UI карточки, если есть
             if (card && btn) {
                 card.classList.toggle('liked', newFavoriteState);
                 btn.textContent = newFavoriteState ? '❤️' : '🤍';
@@ -1104,8 +1097,23 @@ class DiaryPage {
             this.telegram.hapticFeedback('success');
             if (!card || !btn) this.rerender();
         } catch (error) {
-            console.error('❌ Ошибка обновления избранного:', error);
+            console.error('✖ Ошибка обновления избранного:', error);
             this.telegram.hapticFeedback('error');
+
+            // Откат state при ошибке
+            const quotes = this.state.get('quotes.items') || [];
+            const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+            if (quote) {
+                quote.isFavorite = !quote.isFavorite;
+                this.state.set('quotes.items', [...quotes]);
+            }
+
+            // Откат UI
+            if (card && btn) {
+                const isLiked = card.classList.contains('liked');
+                card.classList.toggle('liked', !isLiked);
+                btn.textContent = !isLiked ? '❤️' : '🤍';
+            }
         }
     }
     
