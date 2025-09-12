@@ -33,7 +33,36 @@ class ApiService {
             baseURL: this.baseURL
         });
     }
+    
+    /**
+     * Отправить клик по книге из каталога
+     * @param {Object} params
+     * @param {string} [params.bookSlug]
+     * @param {string} [params.bookId]
+     * @param {string} [params.userId]
+     * @returns {Promise<any>}
+     */
+    async trackCatalogClick({ bookSlug, bookId, userId }) {
+      const payload = {
+        bookSlug: bookSlug || null,
+        bookId: bookId || null,
+        userId: userId || this.resolveUserId()
+      };
+      return this.request('POST', `/catalog/track-click`, payload);
+    }
 
+    /**
+     * Получить топ книг по кликам/продажам за период
+     * @param {Object} [options]
+     * @param {string} [options.period] - напр. "7d"
+     * @returns {Promise<any>}
+     
+     */
+    async getTopBooks(options = {}) {
+      const period = options.period || '7d';
+      return this.request('GET', `/top-books?period=${encodeURIComponent(period)}`);
+    }
+   
     /**
      * 🔗 Получает заголовки для запросов с аутентификацией
      */
