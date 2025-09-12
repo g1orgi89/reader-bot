@@ -199,20 +199,6 @@ window.MyQuotesView = class MyQuotesView {
     }
   }
 
-    window.QuoteService.toggleFavorite(id, newLikedState)
-      .then(() => {
-        document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
-      })
-      .catch((error) => {
-        console.error('Failed to toggle favorite:', error);
-        card.classList.toggle('liked', isLiked);
-        if (likeBtn) {
-          likeBtn.textContent = isLiked ? '❤️' : '🤍';
-        }
-        this._haptic('notification', 'error');
-      });
-  }
-
   _haptic(type, style) {
     try {
       const HF = window.Telegram?.WebApp?.HapticFeedback;
