@@ -27,6 +27,14 @@ window.MyQuotesView = class MyQuotesView {
     }
   }
 
+  _getApp() {
+    const app = window.app || window.App || window.readerApp;
+    if (!app || !app.api) {
+      throw new Error('App instance not available');
+    }
+    return app;
+  }
+  
   _observeDom() {
     try {
       this._observer = new MutationObserver((mutations) => {
@@ -140,8 +148,9 @@ window.MyQuotesView = class MyQuotesView {
     const ok = window.confirm('Удалить эту цитату? Это действие нельзя отменить.');
     if (!ok) return;
     try {
-      const userId = app.state.getCurrentUserId(); // Всегда бери актуальный userId
-      await app.api.deleteQuote(id, userId);       // Используй только app.api
+      const app = this._getApp();
+      const userId = app.state?.getCurrentUserId?.();
+      await app.api.deleteQuote(id, userId); // теперь api.deleteQuote принимает userId
       card.remove();
       this._haptic('notification', 'success');
       document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'deleted', id } }));
