@@ -382,6 +382,8 @@ class QuoteCard {
             this.updateLoadingState('favorite', true);
             
             const updatedQuote = await this.api.updateQuote(this.quote.id, {
+                text: this.quote.text,
+                author: this.quote.author,
                 isFavorite: !this.quote.isFavorite
             });
             
