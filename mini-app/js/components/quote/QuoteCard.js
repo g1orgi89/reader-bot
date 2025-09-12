@@ -589,9 +589,9 @@ class QuoteCard {
             }
             
             // Анимация удаления
-            this.animateRemoval();
+            // this.animateRemoval();
             
-            this.triggerHapticFeedback('success');
+            // this.triggerHapticFeedback('success');
             
         } catch (error) {
             console.error('Ошибка при удалении цитаты:', error);
@@ -678,20 +678,20 @@ class QuoteCard {
         }
     }
 
-    /**
-     * Анимация удаления карточки
-     */
-    animateRemoval() {
-        this.element.style.transition = 'all 0.3s ease';
-        this.element.style.transform = 'translateX(100%)';
-        this.element.style.opacity = '0';
+    // /**
+    // * Анимация удаления карточки
+    // */
+    // animateRemoval() {
+    //    this.element.style.transition = 'all 0.3s ease';
+    //    this.element.style.transform = 'translateX(100%)';
+    //    this.element.style.opacity = '0';
         
-        setTimeout(() => {
-            if (this.element && this.element.parentNode) {
-                this.element.parentNode.removeChild(this.element);
-            }
-        }, 300);
-    }
+    //    setTimeout(() => {
+    //        if (this.element && this.element.parentNode) {
+    //            this.element.parentNode.removeChild(this.element);
+    //        }
+    //    }, 300);
+    // }
 
     // ========================================
     // UTILITY METHODS
