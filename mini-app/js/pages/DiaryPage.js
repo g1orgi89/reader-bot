@@ -512,6 +512,7 @@ class DiaryPage {
         const isFavorite = quote.isFavorite || false;
         const author = quote.author ? `— ${quote.author}` : '';
         const heartIcon = isFavorite ? '❤️' : '🤍';
+        const likedClass = isFavorite ? ' liked' : '';
 
         // Ensure aiAnalysis is present
         const aiAnalysis = quote.aiAnalysis || {
@@ -535,7 +536,7 @@ class DiaryPage {
         const insights = showAnalysis ? (aiAnalysis.insights || '') : '';
 
         return `
-            <div class="quote-card my-quotes" data-id="${quote._id || quote.id}" data-quote-id="${quote._id || quote.id}">
+            <div class="quote-card my-quotes${likedClass}" data-id="${quote._id || quote.id}" data-quote-id="${quote._id || quote.id}">
                 <button class="quote-kebab" aria-label="menu" title="Действия">…</button>
                 <div class="quote-text">${displayText}</div>
                 ${displayAuthor ? `<div class="quote-author">${displayAuthor}</div>` : ''}
@@ -559,7 +560,7 @@ class DiaryPage {
                 <div class="empty-icon">📝</div>
                 <div class="empty-title">Пока нет цитат</div>
                 <div class="empty-text">Начните собирать вдохновляющие мысли!</div>
-                <button class="empty-action" onclick="diaryPage.switchTab('add')">
+                <button class="empty-action" id="emptyAddBtn">
                     ✍️ Добавить первую цитату
                 </button>
             </div>
@@ -581,8 +582,12 @@ class DiaryPage {
         const nextPageBtn = document.getElementById('nextPageBtn');
         if (prevPageBtn) prevPageBtn.addEventListener('click', () => this.changePage(this.currentPage - 1));
         if (nextPageBtn) nextPageBtn.addEventListener('click', () => this.changePage(this.currentPage + 1));
-        
-        // Note: MyQuotesView mounting removed for reliability - kebab functionality is now self-contained
+
+        // NEW: безопасная привязка для пустого состояния
+        const emptyAddBtn = document.getElementById('emptyAddBtn');
+        if (emptyAddBtn) {
+            emptyAddBtn.addEventListener('click', () => this.switchTab('add'));
+        }
     }
     
     attachTabListeners() {
@@ -603,6 +608,7 @@ class DiaryPage {
                 this.applyFilter(filter);
             });
         });
+    }
 
         // Для фильтра "По автору"
         const filterAuthorInput = document.getElementById('filterAuthorInput');
@@ -1017,8 +1023,6 @@ class DiaryPage {
     async applyFilter(filter) {
         this.currentFilter = filter;
         this.currentPage = 1;
-
-        if (filter !== 'by-author') this.filterAuthor = '';
 
         // Явно сбрасываем временные фильтры
         if (filter === 'all') {
