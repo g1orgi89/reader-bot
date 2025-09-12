@@ -425,17 +425,19 @@ class HomePage {
         }
     }
     async loadTopBooks() {
-        try {
-            const books = await this.api.getCatalog({ 
-                limit: 3, 
-                sort: 'popular',
-                featured: true 
-            });
-            return books.items || books || this.getFallbackTopBooks();
-        } catch (error) {
-            console.error('❌ Ошибка загрузки топ книг:', error);
-            return this.getFallbackTopBooks();
-        }
+      try {
+        const res = await this.api.getTopBooks({ period: '7d' });
+        const items = res?.data || res || [];
+        return items.map(i => ({
+          _id: i.id || i._id,
+          title: i.title,
+          author: i.author,
+          salesCount: (typeof i.salesCount === 'number' && i.salesCount > 0) ? i.salesCount : (i.clicksCount || 0)
+        }));
+      } catch (error) {
+        console.error('❌ Ошибка загрузки топ книг:', error);
+        return this.getFallbackTopBooks();
+      }
     }
     
     /**
