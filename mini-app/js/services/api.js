@@ -603,14 +603,24 @@ class ApiService {
      */
     async getQuotes(options = {}, userId = 'demo-user') {
         const params = new URLSearchParams();
-        
+
+        // Всегда передаем userId
         params.append('userId', userId);
+
+        // Пагинация и фильтры
         if (options.limit) params.append('limit', options.limit);
         if (typeof options.offset !== 'undefined') params.append('offset', options.offset);
         if (options.author) params.append('author', options.author);
         if (options.search) params.append('search', options.search);
         if (options.dateFrom) params.append('dateFrom', options.dateFrom);
         if (options.dateTo) params.append('dateTo', options.dateTo);
+
+        // Новые параметры — для корректной работы "Избранные" и сортировки
+        if (typeof options.favorites !== 'undefined') {
+            params.append('favorites', String(!!options.favorites));
+        }
+        if (options.sort) params.append('sort', options.sort);
+        if (options.order) params.append('order', options.order);
 
         const endpoint = `/quotes?${params.toString()}`;
         return this.request('GET', endpoint);
