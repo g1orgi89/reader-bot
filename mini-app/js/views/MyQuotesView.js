@@ -174,7 +174,7 @@ window.MyQuotesView = class MyQuotesView {
     const wasLiked = card.classList.contains('liked');
     const newLikedState = !wasLiked;
 
-    // Оптимистично обновляем UI
+    // Оптимистичный UI
     card.classList.toggle('liked', newLikedState);
     this._haptic('impact', 'light');
 
@@ -184,13 +184,13 @@ window.MyQuotesView = class MyQuotesView {
     }
 
     try {
-      const app = this._getApp();
-      const userId = app.state?.getCurrentUserId?.();
-      await app.api.updateQuote(id, { isFavorite: newLikedState }, userId);
+      const app = window.app || window.App || window.readerApp;
+      const userId = app?.state?.getCurrentUserId?.();
+      await app?.api?.updateQuote(id, { isFavorite: newLikedState }, userId);
       document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'liked', id } }));
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
-      // Откат UI при ошибке
+      // Откат UI
       card.classList.toggle('liked', wasLiked);
       if (likeBtn) {
         likeBtn.textContent = wasLiked ? '❤️' : '🤍';
