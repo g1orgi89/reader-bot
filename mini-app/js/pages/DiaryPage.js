@@ -1083,7 +1083,11 @@ class DiaryPage {
 
             // Правильный запрос на бекенд — обновляем цитату
             const userId = await this.waitForValidUserId().catch(() => null);
-            await this.api.updateQuote(quoteId, { isFavorite: newFavoriteState }, userId || undefined);
+            await this.api.updateQuote(quoteId, {
+                text: quote.text,
+                author: quote.author,
+                isFavorite: newFavoriteState
+            }, userId || undefined);
 
             // Обновляем UI карточки, если есть
             if (card && btn) {
