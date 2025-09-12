@@ -601,13 +601,14 @@ class ApiService {
     /**
      * 📖 Получить цитаты пользователя
      */
-    async getQuotes(options = {}, userId = 'demo-user') {
+    async getQuotes(options = {}, userId) {
         const params = new URLSearchParams();
 
-        // Всегда передаем userId
-        params.append('userId', userId);
+        const uid = userId || this.resolveUserId();
+        if (uid && uid !== 'demo-user') {
+            params.append('userId', uid);
+        }
 
-        // Пагинация и фильтры
         if (options.limit) params.append('limit', options.limit);
         if (typeof options.offset !== 'undefined') params.append('offset', options.offset);
         if (options.author) params.append('author', options.author);
@@ -615,7 +616,6 @@ class ApiService {
         if (options.dateFrom) params.append('dateFrom', options.dateFrom);
         if (options.dateTo) params.append('dateTo', options.dateTo);
 
-        // Новые параметры — для корректной работы "Избранные" и сортировки
         if (typeof options.favorites !== 'undefined') {
             params.append('favorites', String(!!options.favorites));
         }
@@ -624,7 +624,6 @@ class ApiService {
 
         const endpoint = `/quotes?${params.toString()}`;
         return this.request('GET', endpoint);
-    }
 
     /**
      * 🤖 Анализ цитаты через AI
