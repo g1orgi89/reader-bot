@@ -585,7 +585,7 @@ class QuoteCard {
             
             // Обновляем состояние
             if (this.state) {
-                this.state.removeQuoteFromList(this.quote.id);
+                this.state.removeQuote(this.quote.id);
             }
             
             // Анимация удаления
