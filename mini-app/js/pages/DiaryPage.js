@@ -554,7 +554,17 @@ class DiaryPage {
     /**
      * 📭 ПУСТОЕ СОСТОЯНИЕ
      */
-    renderEmptyQuotes() {
+    renderEmptyQuotes(filter = 'all') {
+        if (filter === 'favorites') {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">🤍</div>
+                    <div class="empty-title">Нет избранных цитат</div>
+                    <div class="empty-text">Добавьте понравившиеся цитаты в избранное с помощью сердечка.</div>
+                </div>
+            `;
+        }
+        // Обычная заглушка для других фильтров
         return `
             <div class="empty-state">
                 <div class="empty-icon">📝</div>
