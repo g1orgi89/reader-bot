@@ -464,7 +464,7 @@ class DiaryPage {
                     </div>
                 `;
             } else {
-                return this.renderEmptyQuotes();
+                return this.renderEmptyQuotes(this.currentFilter);
             }
         }
         
