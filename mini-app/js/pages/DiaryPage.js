@@ -983,10 +983,11 @@ class DiaryPage {
             }));
 
             // Обновляем статистику (не влияет на анализ)
-            try {
-                await this.app.statistics.refreshMainStatsSilent?.();
-                const activityPercent = await this.api.getActivityPercent(userId);
-                this.state.set('diaryStats', { activityPercent });
+            if (this.app.statistics && typeof this.app.statistics.refreshMainStatsSilent === 'function') {
+            await this.app.statistics.refreshMainStatsSilent();
+            }
+            const activityPercent = await this.api.getActivityPercent(userId);
+            this.state.set('diaryStats', { activityPercent });
             } catch {}
 
             if (saveBtn) {
