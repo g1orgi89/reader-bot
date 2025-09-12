@@ -1087,6 +1087,7 @@ class DiaryPage {
                 text: quote.text,
                 author: quote.author,
                 isFavorite: newFavoriteState
+                source: quote.source
             }, userId || undefined);
 
             // Обновляем UI карточки, если есть
