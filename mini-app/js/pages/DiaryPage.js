@@ -1541,7 +1541,9 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
                 this.state.removeQuote(quoteId);
 
                 // обновляем статистику
-                await this.app.statistics.refreshMainStatsSilent?.();
+            if (this.app.statistics && typeof this.app.statistics.refreshMainStatsSilent === 'function') {
+                await this.app.statistics.refreshMainStatsSilent();
+            }
                 const userId = await this.waitForValidUserId();
                 const activityPercent = await this.api.getActivityPercent(userId);
                 this.state.set('diaryStats', { activityPercent });
