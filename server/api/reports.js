@@ -489,7 +489,16 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
 
       // Генерируем отчет с правильными параметрами
       const reportData = await weeklyReportService.generateWeeklyReport(userId, quotes, userProfile);
-      
+
+      // Добавить кастинг price к числу:
+      if (Array.isArray(reportData.recommendations)) {
+        reportData.recommendations = reportData.recommendations.map(rec => ({
+          ...rec,
+          price: typeof rec.price === 'string'
+            ? Number(rec.price.replace(/[^0-9.]/g, ''))
+            : rec.price
+        }));
+      }
       // Сохраняем отчет в базу данных
       const savedReport = await WeeklyReport.create({
         ...reportData,
