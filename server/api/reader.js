@@ -1,4 +1,4 @@
-function parseUserIdFromInitData(initData) {
+  function parseUserIdFromInitData(initData) {
   try {
     // Не декодируй второй раз, если строка уже декодирована Express'ом
     const params = new URLSearchParams(initData);
@@ -818,7 +818,21 @@ router.post('/quotes', telegramAuth, async (req, res) => {
         });
       }
 
-      await user.updateQuoteStats(result.quote.author);
+      // --- Обработка VersionError ---
+      try {
+        await user.updateQuoteStats(result.quote.author);
+      } catch (err) {
+        if (err.name === 'VersionError') {
+          const freshUser = await UserProfile.findOne({ userId });
+          if (freshUser) {
+            await freshUser.updateQuoteStats(result.quote.author);
+          }
+          console.warn('VersionError при обновлении статистики, выполнен повторный save');
+        } else {
+          throw err;
+        }
+      }
+      // --- конец обработки VersionError ---
 
       // Генерация "Ответа Анны" (summary)
       let annaSummary = '';
@@ -845,13 +859,6 @@ router.post('/quotes', telegramAuth, async (req, res) => {
       console.error('❌ Inner Add Quote Error:', error);
       return res.status(500).json({ success: false, error: error.message });
     }
-  } catch (error) {
-    // Ошибка во внешнем try
-    console.error('❌ Add Quote Error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 /**
  * @description Получение цитат пользователя (пагинация / фильтры)
  * @route GET /api/reader/quotes
