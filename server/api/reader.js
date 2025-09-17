@@ -859,7 +859,8 @@ router.post('/quotes', telegramAuth, async (req, res) => {
       console.error('❌ Inner Add Quote Error:', error);
       return res.status(500).json({ success: false, error: error.message });
     }
-);
+  }
+); 
     
 /**
  * @description Получение цитат пользователя (пагинация / фильтры)
