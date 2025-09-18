@@ -488,3 +488,132 @@
 .promo-book-link:hover {
     background: #ffd37a;
 }
+
+/* ============================================================================
+   🔄 СОСТОЯНИЕ ЗАГРУЗКИ
+   ============================================================================ */
+
+.reports-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    padding: var(--spacing-xl);
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-spinner {
+    font-size: 32px;
+    margin-bottom: var(--spacing-md);
+    animation: loadingSpin 1s linear infinite;
+}
+
+.loading-text {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+@keyframes loadingSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================================================
+   🆕 ПЛЕЙСХОЛДЕР ДЛЯ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ
+   ============================================================================ */
+
+.new-user-placeholder {
+    background: var(--surface, #FFFFFF);
+    border-radius: 12px;
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border, #E6E0D6);
+    text-align: center;
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+}
+
+.placeholder-content {
+    max-width: 280px;
+    margin: 0 auto;
+}
+
+.placeholder-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+}
+
+.placeholder-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.placeholder-text {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.4;
+}
+
+.placeholder-hint {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    opacity: 0.8;
+    line-height: 1.4;
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ ДЛЯ НОВЫХ СТИЛЕЙ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .reports-loading {
+        min-height: 150px;
+        padding: var(--mobile-padding);
+    }
+    
+    .loading-spinner {
+        font-size: 28px;
+    }
+    
+    .new-user-placeholder {
+        padding: var(--mobile-padding);
+    }
+    
+    .placeholder-icon {
+        font-size: 42px;
+    }
+    
+    .placeholder-title {
+        font-size: var(--font-size-base);
+    }
+    
+    .placeholder-text {
+        font-size: var(--font-size-sm);
+    }
+    
+    .placeholder-hint {
+        font-size: var(--font-size-xs);
+    }
+}
+
+/* ============================================================================
+   🌙 ТЕМНАЯ ТЕМА ДЛЯ НОВЫХ ЭЛЕМЕНТОВ
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .new-user-placeholder {
+        background: var(--surface, #2A2A2A);
+        border-color: var(--border, #404040);
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
+    }
+}
