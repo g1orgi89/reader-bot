@@ -402,20 +402,26 @@ class ReportsPage {
      * ✅ ИСПРАВЛЕНО: Показывает лоадер до получения данных, предотвращает мигание старых данных
      */
     render() {
-        if (this.reportsLoading && !this.weeklyReport) {
-            return this.renderWeeklyReport();
+        if (this.reportsLoading) {
+            return `
+                <div class="weekly-report">
+                    <div class="report-header">
+                        <div class="report-title">📈 Ваш отчет за предыдущую неделю</div>
+                    </div>
+                    <div class="loading-content">
+                        <div class="loading-text">🔄 Загружаем статистику...</div>
+                    </div>
+                </div>
+            `;
         }
-        if (!this.weeklyReport && !this.reportsLoading) {
+        if (!this.weeklyReport) {
             return this.renderNewUserPlaceholder();
         }
-        if (this.weeklyReport) {
-            return this.renderWeeklyReport()
-                + this.renderAIAnalysis()
-                + this.renderRecommendations();
-        }
-        return '';
+        return this.renderWeeklyReport()
+            + this.renderAIAnalysis()
+            + this.renderRecommendations();
     }
-    
+
     /**
      * 🆕 ПЛЕЙСХОЛДЕР ДЛЯ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ БЕЗ ОТЧЕТОВ
      */
