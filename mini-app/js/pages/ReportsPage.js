@@ -342,26 +342,31 @@ class ReportsPage {
                     
                     console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
                 } else {
-                    console.log('📊 ReportsPage: Еженедельные отчеты не найдены, используем fallback');
+                    console.log('📊 ReportsPage: Еженедельные отчеты не найдены - новый пользователь');
+                    this.weeklyReport = null; // Явно устанавливаем null для новых пользователей
                 }
             } else {
-                console.log('📊 ReportsPage: Ошибка загрузки еженедельных отчетов, используем fallback');
+                console.log('📊 ReportsPage: Ошибка загрузки еженедельных отчетов');
+                this.weeklyReport = null; // Явно устанавливаем null при ошибке
             }
             
-            // Если статистика загружена успешно
-            if (weeklyStats && weeklyStats.success) {
-                this.reportsLoaded = true;
-                this.state.set('reports.lastUpdate', Date.now());
-                
-                // ✅ НОВОЕ: Обновляем ключ недели для кэширования
-                if (window.DateUtils && window.DateUtils.getWeekKey) {
-                    this.lastWeekKey = window.DateUtils.getWeekKey();
-                    localStorage.setItem('reader-bot-last-week-key', this.lastWeekKey);
-                }
-                
-                console.log('✅ ReportsPage: Данные отчета загружены');
-            } else {
-                this.applyFallbackStats('invalid-response');
+            // ✅ ИСПРАВЛЕНО: Всегда помечаем как загруженное, даже если нет отчетов
+            this.reportsLoaded = true;
+            this.state.set('reports.lastUpdate', Date.now());
+            
+            // ✅ НОВОЕ: Обновляем ключ недели для кэширования
+            if (window.DateUtils && window.DateUtils.getWeekKey) {
+                this.lastWeekKey = window.DateUtils.getWeekKey();
+                localStorage.setItem('reader-bot-last-week-key', this.lastWeekKey);
+            }
+            
+            console.log('✅ ReportsPage: Загрузка данных завершена');
+            
+            // ✅ НОВОЕ: Если нет отчетов - не применяем fallback статистику, показываем плейсхолдер
+            if (!this.weeklyReport && weeklyStats && !weeklyStats.success) {
+                console.log('📊 ReportsPage: Нет отчетов и нет статистики - новый пользователь');
+            } else if (weeklyStats && weeklyStats.success) {
+                console.log('✅ ReportsPage: Статистика загружена успешно');
             }
             
         } catch (error) {
@@ -380,8 +385,32 @@ class ReportsPage {
     
     /**
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
+     * ✅ ИСПРАВЛЕНО: Показывает лоадер до получения данных, предотвращает мигание старых данных
      */
     render() {
+        // ✅ НОВОЕ: Если загрузка идет - показываем лоадер для всей страницы
+        if (this.reportsLoading) {
+            return `
+                <div class="content">
+                    <div class="reports-loading">
+                        <div class="loading-content">
+                            <div class="loading-spinner">🔄</div>
+                            <div class="loading-text">Загрузка отчета...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ✅ НОВОЕ: Если нет отчета для нового пользователя - показываем плейсхолдер
+        if (!this.weeklyReport && !this.reportsLoaded) {
+            return `
+                <div class="content">
+                    ${this.renderNewUserPlaceholder()}
+                </div>
+            `;
+        }
+
         return `
             <div class="content">
                 ${this.renderWeeklyReport()}
@@ -392,9 +421,70 @@ class ReportsPage {
     }
     
     /**
+     * 🆕 ПЛЕЙСХОЛДЕР ДЛЯ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ БЕЗ ОТЧЕТОВ
+     */
+    renderNewUserPlaceholder() {
+        // Вычисляем дату следующего воскресенья
+        const nextSundayDate = this.getNextSundayDate();
+        const formattedDate = nextSundayDate.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long'
+        });
+
+        return `
+            <div class="new-user-placeholder">
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">📊</div>
+                    <div class="placeholder-title">Ваш первый отчет готовится</div>
+                    <div class="placeholder-text">
+                        Еженедельный отчет появится <strong>${formattedDate}</strong>
+                    </div>
+                    <div class="placeholder-hint">
+                        Добавляйте цитаты каждый день, и Анна подготовит для вас персональный анализ
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 📅 ВЫЧИСЛЕНИЕ ДАТЫ СЛЕДУЮЩЕГО ВОСКРЕСЕНЬЯ
+     */
+    getNextSundayDate() {
+        const today = new Date();
+        const daysUntilSunday = (7 - today.getDay()) % 7;
+        const nextSunday = new Date(today);
+        
+        // Если сегодня воскресенье, берем следующее воскресенье
+        if (daysUntilSunday === 0) {
+            nextSunday.setDate(today.getDate() + 7);
+        } else {
+            nextSunday.setDate(today.getDate() + daysUntilSunday);
+        }
+        
+        return nextSunday;
+    }
+
+    /**
      * 📊 ЕЖЕНЕДЕЛЬНЫЙ ОТЧЕТ (ТОЧНАЯ СТРУКТУРА ИЗ КОНЦЕПТА!)
+     * ✅ ИСПРАВЛЕНО: Изменен заголовок на "Ваш отчет за предыдущую неделю"
+     * ✅ ИСПРАВЛЕНО: Показывает лоадер во время загрузки
      */
     renderWeeklyReport() {
+        // ✅ НОВОЕ: Если загрузка идет - показываем лоадер
+        if (this.reportsLoading) {
+            return `
+                <div class="weekly-report">
+                    <div class="report-header">
+                        <div class="report-title">📈 Ваш отчет за предыдущую неделю</div>
+                    </div>
+                    <div class="loading-content">
+                        <div class="loading-text">🔄 Загружаем статистику...</div>
+                    </div>
+                </div>
+            `;
+        }
+
         const { quotes, authors, days, goal } = this.reportData.statistics;
         const deltas = this.reportData.deltas || {};
         const progress = this.reportData.progress || {};
@@ -423,7 +513,7 @@ class ReportsPage {
         return `
             <div class="weekly-report">
                 <div class="report-header">
-                    <div class="report-title">📈 Ваш отчет за неделю</div>
+                    <div class="report-title">📈 Ваш отчет за предыдущую неделю</div>
                     ${reportDateText ? `<div class="report-date">${reportDateText}</div>` : ''}
                 </div>
                 <div class="report-stats-grid">
@@ -589,46 +679,30 @@ class ReportsPage {
     
     /**
      * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
+     * ✅ ИСПРАВЛЕНО: Предотвращает загрузку старых данных, всегда показывает лоадер до получения актуальных данных
      */
     onShow() {
         console.log('📊 ReportsPage: onShow - БЕЗ ШАПКИ!');
         
-        // ✅ ИСПРАВЛЕНО: Умная загрузка - не загружаем если уже загружено или загружается
-        if (!this.reportsLoaded && !this.reportsLoading) {
-            console.log('🔄 ReportsPage: Первый показ, загружаем данные');
+        // ✅ ИСПРАВЛЕНО: Сбрасываем состояние загрузки при каждом показе страницы
+        // Это предотвращает показ старых данных из state/localStorage
+        this.reportsLoaded = false;
+        
+        // ✅ НОВОЕ: Принудительно перерендериваем с лоадером
+        this.rerender();
+        
+        // ✅ ИСПРАВЛЕНО: Загружаем свежие данные только если не загружается уже
+        if (!this.reportsLoading) {
+            console.log('🔄 ReportsPage: Загружаем актуальные данные отчета');
             this.loadReportData().then(() => {
+                console.log('✅ ReportsPage: Данные загружены, перерендериваем');
+                this.rerender();
+            }).catch((error) => {
+                console.error('❌ ReportsPage: Ошибка загрузки данных:', error);
+                // При ошибке показываем плейсхолдер для нового пользователя
+                this.reportsLoading = false;
                 this.rerender();
             });
-        } else if (this.reportsLoaded && !this.reportsLoading) {
-            // ✅ НОВОЕ: Проверяем актуальность данных по неделям вместо таймера
-            if (window.DateUtils && window.DateUtils.isNewWeek) {
-                const currentWeekKey = window.DateUtils.getWeekKey();
-                if (window.DateUtils.isNewWeek(this.lastWeekKey)) {
-                    console.log('🔄 ReportsPage: Наступила новая неделя, обновляем данные');
-                    this.lastWeekKey = currentWeekKey;
-                    localStorage.setItem('reader-bot-last-week-key', currentWeekKey);
-                    this.reportsLoaded = false; // Сбрасываем флаг для повторной загрузки
-                    this.loadReportData().then(() => {
-                        this.rerender();
-                    });
-                } else {
-                    console.log('✅ ReportsPage: Данные актуальны для текущей недели');
-                }
-            } else {
-                // Fallback к старой логике, если DateUtils недоступен
-                const lastUpdate = this.state.get('reports.lastUpdate');
-                const now = Date.now();
-                const tenMinutes = 10 * 60 * 1000;
-                
-                if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
-                    console.log('🔄 ReportsPage: Данные устарели, обновляем (fallback)');
-                    this.loadReportData().then(() => {
-                        this.rerender();
-                    });
-                } else {
-                    console.log('✅ ReportsPage: Данные актуальны (fallback)');
-                }
-            }
         } else {
             console.log('🔄 ReportsPage: Загрузка уже в процессе, ожидаем');
         }
