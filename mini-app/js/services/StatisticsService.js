@@ -151,10 +151,11 @@ class StatisticsService {
      */
     async getDiaryStats() {
         const userId = this._requireUserId();
-        const [main, progress, detailed] = await Promise.all([
+        const [main, progress, detailed, activityPercent] = await Promise.all([
             this.getMainStats(),
             this.getUserProgress(),
-            this.getDetailedQuoteStats()
+            this.getDetailedQuoteStats(),
+            this.getActivityPercent() // Always fetch fresh from API
         ]);
         return {
             totalQuotes: main.totalQuotes ?? 0,
@@ -162,7 +163,7 @@ class StatisticsService {
             monthlyQuotes: detailed.monthlyQuotes ?? 0,
             favoritesCount: detailed.favoritesCount ?? 0,
             favoriteAuthor: progress.favoriteAuthor ?? '—',
-            activityPercent: await this.getActivityPercent() ?? 1
+            activityPercent: activityPercent ?? 1
         };
     }
 
@@ -267,12 +268,16 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote added, refreshing stats');
             
-            // Invalidate ALL cache keys for complete refresh
+            // Invalidate ALL cache keys for complete refresh including activity percent
             this.invalidate();
+            this.invalidateForUser(userId);
             
             // Load fresh data and then update state and dispatch event
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
+            
+            // Force refresh activity percent from API
+            await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteAdded error:', e);
         }
@@ -283,12 +288,16 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote deleted, refreshing stats');
             
-            // Invalidate ALL cache keys for complete refresh
+            // Invalidate ALL cache keys for complete refresh including activity percent
             this.invalidate();
+            this.invalidateForUser(userId);
             
             // Load fresh data and then update state and dispatch event
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
+            
+            // Force refresh activity percent from API
+            await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteDeleted error:', e);
         }
@@ -299,11 +308,15 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote edited, refreshing stats');
             
-            // Invalidate ALL cache keys for complete refresh
+            // Invalidate ALL cache keys for complete refresh including activity percent
             this.invalidate();
+            this.invalidateForUser(userId);
             
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
+            
+            // Force refresh activity percent from API
+            await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteEdited error:', e);
         }
@@ -339,6 +352,7 @@ class StatisticsService {
                 isAwaitingToday: progress.isAwaitingToday,
                 weeklyQuotes: progress.weeklyQuotes,
                 favoriteAuthor: progress.favoriteAuthor,
+                activityLevel: progress.activityLevel, // Include activity level in stats
                 loadedAt: Date.now(),
                 isFresh: true,
                 loading: false
@@ -377,6 +391,27 @@ class StatisticsService {
         } catch (e) {
             this.state.setLoading(false, 'diaryStats');
             console.debug('refreshDiaryStatsSilent failed:', e);
+        }
+    }
+
+    /**
+     * Force refresh activity percent from API
+     */
+    async refreshActivityPercent() {
+        try {
+            const userId = this._requireUserId();
+            // Clear activity percent cache to force fresh API call
+            this.cache.delete(`activityPercent:${userId}`);
+            
+            // Get fresh activity percent and update state
+            const activityPercent = await this.getActivityPercent();
+            this.state.update('diaryStats', { activityPercent });
+            
+            console.log('📊 Activity percent refreshed:', activityPercent);
+            return activityPercent;
+        } catch (e) {
+            console.debug('refreshActivityPercent failed:', e);
+            return 1; // fallback
         }
     }
 
