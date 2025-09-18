@@ -352,6 +352,13 @@ class ReportsPage {
             if (weeklyStats && weeklyStats.success) {
                 this.reportsLoaded = true;
                 this.state.set('reports.lastUpdate', Date.now());
+                
+                // ✅ НОВОЕ: Обновляем ключ недели для кэширования
+                if (window.DateUtils && window.DateUtils.getWeekKey) {
+                    this.lastWeekKey = window.DateUtils.getWeekKey();
+                    localStorage.setItem('reader-bot-last-week-key', this.lastWeekKey);
+                }
+                
                 console.log('✅ ReportsPage: Данные отчета загружены');
             } else {
                 this.applyFallbackStats('invalid-response');
@@ -400,9 +407,25 @@ class ReportsPage {
             return `<span class="stat-delta ${direction}">${symbol}${value}</span>`;
         };
         
+        // ✅ НОВОЕ: Форматирование даты отчета "Месяц, неделя N"
+        let reportDateText = '';
+        if (this.lastReportDate && window.DateUtils) {
+            reportDateText = window.DateUtils.formatReportDate(this.lastReportDate);
+        } else if (this.lastReportDate) {
+            // Fallback если DateUtils не загружен
+            const date = this.lastReportDate;
+            const monthName = date.toLocaleString('ru', { month: 'long' });
+            const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+            const weekNumber = Math.ceil(date.getDate() / 7);
+            reportDateText = `${capitalizedMonth}, неделя ${weekNumber}`;
+        }
+        
         return `
             <div class="weekly-report">
-                <div class="report-title">📈 Ваш отчет за неделю</div>
+                <div class="report-header">
+                    <div class="report-title">📈 Ваш отчет за неделю</div>
+                    ${reportDateText ? `<div class="report-date">${reportDateText}</div>` : ''}
+                </div>
                 <div class="report-stats-grid">
                     <div class="report-stat">
                         <div class="stat-value">${quotes}</div>
@@ -577,18 +600,34 @@ class ReportsPage {
                 this.rerender();
             });
         } else if (this.reportsLoaded && !this.reportsLoading) {
-            // Проверяем актуальность данных (10 минут)
-            const lastUpdate = this.state.get('reports.lastUpdate');
-            const now = Date.now();
-            const tenMinutes = 10 * 60 * 1000;
-            
-            if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
-                console.log('🔄 ReportsPage: Данные устарели, обновляем');
-                this.loadReportData().then(() => {
-                    this.rerender();
-                });
+            // ✅ НОВОЕ: Проверяем актуальность данных по неделям вместо таймера
+            if (window.DateUtils && window.DateUtils.isNewWeek) {
+                const currentWeekKey = window.DateUtils.getWeekKey();
+                if (window.DateUtils.isNewWeek(this.lastWeekKey)) {
+                    console.log('🔄 ReportsPage: Наступила новая неделя, обновляем данные');
+                    this.lastWeekKey = currentWeekKey;
+                    localStorage.setItem('reader-bot-last-week-key', currentWeekKey);
+                    this.reportsLoaded = false; // Сбрасываем флаг для повторной загрузки
+                    this.loadReportData().then(() => {
+                        this.rerender();
+                    });
+                } else {
+                    console.log('✅ ReportsPage: Данные актуальны для текущей недели');
+                }
             } else {
-                console.log('✅ ReportsPage: Данные актуальны');
+                // Fallback к старой логике, если DateUtils недоступен
+                const lastUpdate = this.state.get('reports.lastUpdate');
+                const now = Date.now();
+                const tenMinutes = 10 * 60 * 1000;
+                
+                if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
+                    console.log('🔄 ReportsPage: Данные устарели, обновляем (fallback)');
+                    this.loadReportData().then(() => {
+                        this.rerender();
+                    });
+                } else {
+                    console.log('✅ ReportsPage: Данные актуальны (fallback)');
+                }
             }
         } else {
             console.log('🔄 ReportsPage: Загрузка уже в процессе, ожидаем');
