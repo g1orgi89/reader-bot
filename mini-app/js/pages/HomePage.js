@@ -351,36 +351,6 @@ class HomePage {
             }
         }
     }
-                
-                if (grid.innerHTML !== newContent) {
-                    grid.innerHTML = newContent;
-                    // Trigger fade-in animation
-                    grid.classList.add('fade-in');
-                    setTimeout(() => grid.classList.remove('fade-in'), 300);
-                }
-            }
-        }
-        
-        if (activityNode) {
-            if (loading || !p) {
-                activityNode.innerHTML = '<div class="skeleton-line" style="width: 60%; height: 16px;"></div>';
-            } else {
-                const activityText = 'Активность: ' + (
-                    p.activityLevel === 'high' ? 'Высокая 🔥' : 
-                    p.activityLevel === 'medium' ? 'Средняя 📈' : 
-                    'Низкая 🌱'
-                );
-                
-                if (activityNode.textContent !== activityText) {
-                    activityNode.textContent = activityText;
-                    activityNode.classList.add('fade-in');
-                    setTimeout(() => activityNode.classList.remove('fade-in'), 300);
-                }
-            }
-        }
-        
-        console.debug('[Progress] backendStreak:', p?.backendStreak, 'computedStreak:', p?.computedStreak, 'used:', p?.currentStreak);
-    }
     
     /**
      * 📈 Загрузка статистики пользователя
