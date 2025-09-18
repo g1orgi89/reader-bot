@@ -39,7 +39,7 @@
    ============================================================================ */
 
 .user-header-inline {
-    background: var(--surface);
+    background: var(--bg-card);
     color: var(--text-primary);
     padding: 20px 16px;
     display: flex;
@@ -81,7 +81,7 @@
     font-size: 36px;
     text-transform: uppercase;
     box-shadow: 0 6px 20px rgba(210, 69, 44, 0.4);
-    border: 4px solid var(--surface);
+    border: 4px solid var(--bg-card);
     transition: all var(--transition-normal);
     cursor: pointer;
     position: relative;
@@ -173,7 +173,7 @@
 }
 
 .menu-button-inline {
-    background: var(--surface);
+    background: var(--bg-card);
     border: 2px solid var(--border);
     color: var(--text-primary);
     font-size: 20px;
@@ -298,7 +298,7 @@
     text-align: center;
     margin: 16px 0;
     padding: 12px 16px;
-    background: var(--surface);
+    background: var(--bg-card);
     border-radius: var(--border-radius);
     border: 1px solid var(--border);
     box-shadow: 0 2px 8px var(--shadow-color);
@@ -330,7 +330,7 @@
 }
 
 .stat-card {
-    background: var(--surface);
+    background: var(--bg-card);
     border-radius: var(--border-radius);
     padding: 16px;
     text-align: center;
@@ -389,7 +389,7 @@
    ============================================================================ */
 
 .recent-quotes-section {
-    background: var(--surface);
+    background: var(--bg-card);
     border-radius: var(--border-radius);
     padding: 16px;
     margin: 16px 0;
@@ -407,7 +407,7 @@
     padding: 12px;
     margin: 8px 0;
     background: var(--bg-primary);
-    border-radius: var(--border-radius-small);
+    border-radius: var(--radius-sm);
     border: 1px solid var(--bg-secondary);
     transition: all var(--transition-normal);
     cursor: pointer;
@@ -490,7 +490,7 @@
    ============================================================================ */
 
 .top-books-section {
-    background: var(--surface);
+    background: var(--bg-card);
     border-radius: var(--border-radius);
     padding: 16px;
     margin: 16px 0;
@@ -514,7 +514,7 @@
     padding: 10px;
     margin: 8px 0;
     background: var(--background-light);
-    border-radius: var(--border-radius-small);
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border-light);
     transition: all var(--transition-normal);
     cursor: pointer;
@@ -577,7 +577,7 @@
    ============================================================================ */
 
 .progress-section {
-    background: var(--surface);
+    background: var(--bg-card);
     border-radius: 10px;
     padding: 12px;
     margin: 16px 0;
@@ -606,7 +606,7 @@
 .error-message {
     background: #fee;
     border: 1px solid #fcc;
-    border-radius: var(--border-radius-small);
+    border-radius: var(--radius-sm);
     padding: 12px;
     margin: 16px 0;
     color: #c33;

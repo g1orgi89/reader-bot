@@ -73,7 +73,7 @@
    ============================================================================ */
 
 .form-section {
-    background: var(--surface, #FFFFFF);
+    background: var(--bg-card);
     border-radius: var(--border-radius, 12px);
     padding: 20px;
     margin-bottom: 16px;
@@ -177,7 +177,7 @@
    ============================================================================ */
 
 .stats-summary {
-    background: var(--surface, #FFFFFF);
+    background: var(--bg-card);
     border-radius: 10px;
     padding: 12px;
     margin-bottom: 16px;
@@ -205,7 +205,7 @@
     border: 2px solid var(--border, #E6E0D6);
     border-radius: 20px;
     font-size: 10px;
-    background: var(--surface, #FFFFFF);
+    background: var(--bg-card);
     cursor: pointer;
     transition: all var(--transition-normal, 0.3s ease);
     color: var(--text-secondary, #666666);
@@ -297,7 +297,7 @@
    ============================================================================ */
 
 .search-section {
-    background: var(--surface, #FFFFFF);
+    background: var(--bg-card);
     border-radius: var(--border-radius, 12px);
     padding: 16px;
     margin-bottom: 16px;
@@ -340,7 +340,7 @@
     border: 2px solid var(--border, #E6E0D6);
     border-radius: 20px;
     font-size: 10px;
-    background: var(--surface, #FFFFFF);
+    background: var(--bg-card);
     cursor: pointer;
     transition: all var(--transition-normal, 0.3s ease);
     color: var(--text-secondary, #666666);
@@ -397,7 +397,7 @@
 .empty-state {
     text-align: center;
     padding: 40px 20px;
-    background: var(--surface, #FFFFFF);
+    background: var(--bg-card);
     border-radius: var(--border-radius, 12px);
     border: 2px dashed var(--text-muted, #999999);
 }
@@ -697,7 +697,7 @@
     gap: 16px;
     margin: 24px 0;
     padding: 20px;
-    background: var(--surface, #FFFFFF);
+    background: var(--bg-card);
     border: 1px solid var(--border, #E6E0D6);
     border-radius: var(--border-radius, 12px);
     box-shadow: 0 2px 12px var(--shadow-color, rgba(210, 69, 44, 0.08));
@@ -725,7 +725,7 @@
     padding: 10px 16px;
     border: 2px solid var(--primary-color, #D2452C);
     border-radius: var(--border-radius-small, 8px);
-    background: var(--surface, #FFFFFF);
+    background: var(--bg-card);
     color: var(--primary-color, #D2452C);
     font-weight: 500;
     font-size: 12px;
