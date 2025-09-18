@@ -393,6 +393,7 @@ class ReportsPage {
             this.applyFallbackStats('error');
         } finally {
             this.reportsLoading = false;
+            this.rerender();
         }
     }
     
@@ -692,22 +693,27 @@ class ReportsPage {
      * ✅ ИСПРАВЛЕНО: Предотвращает загрузку старых данных, всегда показывает лоадер до получения актуальных данных
      */
    onShow() {
-        // Проверяем, нужна ли загрузка
-        const currentWeekKey = window.DateUtils?.getWeekKey ? window.DateUtils.getWeekKey() : '';
-        const needReload = !this.weeklyReport || this.lastWeekKey !== currentWeekKey;
+       const currentWeekKey = window.DateUtils?.getWeekKey ? window.DateUtils.getWeekKey() : '';
+       const needReload = !this.weeklyReport || this.lastWeekKey !== currentWeekKey;
+ 
+       // Корректная логика: сбрасываем флаги, рендерим лоадер, грузим отчёт
+       if (needReload) {
+           this.reportsLoaded = false;
+           this.reportsLoading = true;
+           this.rerender(); // Показываем лоадер сразу
 
-        if (needReload) {
-            this.reportsLoaded = false;
-            this.reportsLoading = true;
-            this.rerender();
-            this.loadReportData().then(() => {
-                this.rerender();
-            }).catch(() => {
-                this.reportsLoading = false;
-                this.rerender();
-            });
+           // ВАЖНО: асинхронная загрузка, потом повторный рендер
+           this.loadReportData()
+               .then(() => {
+                   this.rerender();
+               })
+               .catch(() => {
+                   this.reportsLoading = false;
+                   this.reportsLoaded = false;
+                   this.rerender();
+               });
         } else {
-            // Отчет уже есть и актуален — просто рендерим, без лоадера!
+            // Если отчёт актуален — просто рендерим
             this.reportsLoading = false;
             this.rerender();
         }
