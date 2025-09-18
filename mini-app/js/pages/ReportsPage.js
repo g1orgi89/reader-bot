@@ -210,6 +210,64 @@ class ReportsPage {
             .substring(0, 50);            // ограничиваем длину
     }
     
+    /**
+     * 📊 НОВОЕ: Вычисляет статистику только из данных weeklyReport (заморозка данных)
+     * Это обеспечивает отображение "замороженной" статистики на момент создания отчета
+     */
+    calculateStatisticsFromWeeklyReport() {
+        if (!this.weeklyReport || !this.weeklyReport.quotes) {
+            console.warn('⚠️ ReportsPage: Нет данных weeklyReport для вычисления статистики');
+            this.applyFallbackStats('no-weekly-report');
+            return;
+        }
+
+        const quotes = this.weeklyReport.quotes || [];
+        
+        // Количество цитат - используем quotesCount если есть, иначе длину массива
+        const quotesCount = this.weeklyReport.quotesCount || quotes.length;
+        
+        // Вычисляем количество уникальных авторов из цитат отчета
+        const uniqueAuthors = new Set(
+            quotes
+                .filter(quote => quote.author && quote.author.trim())
+                .map(quote => quote.author.trim())
+        ).size;
+        
+        // Вычисляем количество активных дней из цитат отчета
+        const activeDays = new Set(
+            quotes
+                .filter(quote => quote.createdAt)
+                .map(quote => new Date(quote.createdAt).toISOString().split('T')[0])
+        ).size;
+        
+        // Устанавливаем цель прогресса (по умолчанию 14 цитат как в API)
+        const targetQuotes = 14;
+        const progressQuotesPct = Math.min(Math.round((quotesCount / targetQuotes) * 100), 100);
+        
+        // Устанавливаем статистику из weeklyReport данных
+        this.reportData.statistics = {
+            quotes: quotesCount,
+            authors: uniqueAuthors,
+            days: activeDays,
+            goal: progressQuotesPct
+        };
+        
+        // Обнуляем дельты для weeklyReport (нет данных о предыдущей неделе)
+        this.reportData.deltas = {
+            quotes: 0,
+            authors: 0,
+            days: 0
+        };
+        
+        // Устанавливаем прогресс
+        this.reportData.progress = {
+            quotes: progressQuotesPct,
+            days: Math.min(Math.round((activeDays / 7) * 100), 100) // 7 дней в неделе
+        };
+        
+        console.log('✅ ReportsPage: Статистика вычислена из weeklyReport:', this.reportData.statistics);
+    }
+    
     async loadReportData() {
         // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
         if (this.reportsLoading || this.reportsLoaded) {
@@ -231,52 +289,9 @@ class ReportsPage {
                 return;
             }
             
-            // ✅ Загружаем данные с explicit userId
-            console.log('📡 ReportsPage: Загружаем статистику для userId:', userId);
-            const [weeklyStats, weeklyReports] = await Promise.all([
-                this.api.getWeeklyStats(userId),
-                this.api.getWeeklyReports({ limit: 1 }, userId)
-            ]);
-            
-            // ✅ Обработка еженедельной статистики
-            if (weeklyStats && weeklyStats.success && weeklyStats.data) {
-                const stats = weeklyStats.data;
-                
-                // Вычисляем дельты для отображения изменений
-                const quotesDelta = stats.quotes - (stats.prevWeek?.quotes || 0);
-                const authorsDelta = stats.uniqueAuthors - (stats.prevWeek?.uniqueAuthors || 0);
-                const daysDelta = stats.activeDays - (stats.prevWeek?.activeDays || 0);
-                
-                this.reportData.statistics = {
-                    quotes: stats.quotes,
-                    authors: stats.uniqueAuthors,
-                    days: stats.activeDays,
-                    goal: stats.progressQuotesPct
-                };
-                
-                // Сохраняем дельты для отображения
-                this.reportData.deltas = {
-                    quotes: quotesDelta,
-                    authors: authorsDelta,
-                    days: daysDelta
-                };
-                
-                // Сохраняем прогресс для прогресс-бара
-                this.reportData.progress = {
-                    quotes: stats.progressQuotesPct,
-                    days: stats.progressDaysPct
-                };
-                
-                // Обновляем темы если доступны
-                if (stats.dominantThemes && stats.dominantThemes.length > 0) {
-                    this.reportData.topics = stats.dominantThemes.join(', ');
-                }
-                
-                console.log('✅ ReportsPage: Загружена реальная статистика:', this.reportData.statistics);
-            } else {
-                console.warn('⚠️ ReportsPage: Ошибка загрузки статистики, используем fallback');
-                this.applyFallbackStats('stats-error');
-            }
+            // ✅ ИСПРАВЛЕНО: Загружаем ТОЛЬКО еженедельные отчеты (убрали getWeeklyStats)
+            console.log('📡 ReportsPage: Загружаем еженедельные отчеты для userId:', userId);
+            const weeklyReports = await this.api.getWeeklyReports({ limit: 1 }, userId);
             
             // ✅ Обработка еженедельного отчета (только последний)
             if (weeklyReports && weeklyReports.success) {
@@ -288,35 +303,39 @@ class ReportsPage {
                     this.lastReportDate = this.weeklyReport.sentAt ? 
                         new Date(this.weeklyReport.sentAt) : new Date();
 
-            // 📋 НОВОЕ: Легковесная проверка bookSlug для legacy записей (только если отсутствует)
-            if (this.weeklyReport.recommendations && Array.isArray(this.weeklyReport.recommendations)) {
-                let catalogBooks = [];
-                if (this.app?.state?.get && typeof this.app.state.get === 'function') {
-                    catalogBooks = this.app.state.get('books') || [];
-                } else if (this.app?.state?.books) {
-                    catalogBooks = this.app.state.books;
-                }
-                
-                // Только для рекомендаций БЕЗ bookSlug (защита от legacy данных)
-                this.weeklyReport.recommendations.forEach(rec => {
-                    if (!rec.bookSlug && catalogBooks.length) {
-                        const found = catalogBooks.find(book =>
-                            book.title === rec.title && (
-                                (!book.author && !rec.author) ||
-                                (book.author && rec.author && book.author === rec.author)
-                            )
-                        );
-                        if (found && found.bookSlug) {
-                            rec.bookSlug = found.bookSlug;
-                            console.log(`📋 ReportsPage: Добавлен legacy bookSlug ${rec.bookSlug} для "${rec.title}"`);
-                        } else {
-                            // Fallback slug для legacy записей
-                            rec.bookSlug = this.generateFallbackSlug(rec.title);
-                            console.log(`📋 ReportsPage: Сгенерирован fallback slug ${rec.bookSlug} для "${rec.title}"`);
+                    // ✅ ИСПРАВЛЕНО: Вычисляем статистику ТОЛЬКО из weeklyReport данных
+                    this.calculateStatisticsFromWeeklyReport();
+
+                    // 📋 НОВОЕ: Легковесная проверка bookSlug для legacy записей (только если отсутствует)
+                    if (this.weeklyReport.recommendations && Array.isArray(this.weeklyReport.recommendations)) {
+                        let catalogBooks = [];
+                        if (this.app?.state?.get && typeof this.app.state.get === 'function') {
+                            catalogBooks = this.app.state.get('books') || [];
+                        } else if (this.app?.state?.books) {
+                            catalogBooks = this.app.state.books;
                         }
+                        
+                        // Только для рекомендаций БЕЗ bookSlug (защита от legacy данных)
+                        this.weeklyReport.recommendations.forEach(rec => {
+                            if (!rec.bookSlug && catalogBooks.length) {
+                                const found = catalogBooks.find(book =>
+                                    book.title === rec.title && (
+                                        (!book.author && !rec.author) ||
+                                        (book.author && rec.author && book.author === rec.author)
+                                    )
+                                );
+                                if (found && found.bookSlug) {
+                                    rec.bookSlug = found.bookSlug;
+                                    console.log(`📋 ReportsPage: Добавлен legacy bookSlug ${rec.bookSlug} для "${rec.title}"`);
+                                } else {
+                                    // Fallback slug для legacy записей
+                                    rec.bookSlug = this.generateFallbackSlug(rec.title);
+                                    console.log(`📋 ReportsPage: Сгенерирован fallback slug ${rec.bookSlug} для "${rec.title}"`);
+                                }
+                            }
+                        });
                     }
-                });
-            }
+                    
                     // НОРМАЛИЗАЦИЯ: гарантируем наличие вложенного analysis
                     const wr = this.weeklyReport || {};
                     const normalizedAnalysis = {
@@ -339,7 +358,6 @@ class ReportsPage {
                     }
 
                     console.log('✅ ReportsPage: Нормализованный анализ', this.weeklyReport.analysis);
-                    
                     console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
                 } else {
                     console.log('📊 ReportsPage: Еженедельные отчеты не найдены - новый пользователь');
@@ -362,22 +380,17 @@ class ReportsPage {
             
             console.log('✅ ReportsPage: Загрузка данных завершена');
             
-            // ✅ НОВОЕ: Если нет отчетов - не применяем fallback статистику, показываем плейсхолдер
-            if (!this.weeklyReport && weeklyStats && !weeklyStats.success) {
-                console.log('📊 ReportsPage: Нет отчетов и нет статистики - новый пользователь');
-            } else if (weeklyStats && weeklyStats.success) {
-                console.log('✅ ReportsPage: Статистика загружена успешно');
+            // ✅ ИСПРАВЛЕНО: Показываем плейсхолдер только если нет weeklyReport
+            if (!this.weeklyReport) {
+                console.log('📊 ReportsPage: Нет отчетов - новый пользователь или еще не создан отчет');
             }
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных отчета:', error);
             
-            // ✅ Обработка разных типов ошибок
-            if (error.message && error.message.includes('404')) {
-                this.applyFallbackStats('404');
-            } else {
-                this.applyFallbackStats('error');
-            }
+            // ✅ При ошибке загрузки устанавливаем null и показываем плейсхолдер
+            this.weeklyReport = null;
+            this.applyFallbackStats('error');
         } finally {
             this.reportsLoading = false;
         }
@@ -402,8 +415,8 @@ class ReportsPage {
             `;
         }
 
-        // ✅ НОВОЕ: Если нет отчета для нового пользователя - показываем плейсхолдер
-        if (!this.weeklyReport && !this.reportsLoaded) {
+        // ✅ ИСПРАВЛЕНО: Если нет weeklyReport - показываем плейсхолдер (для новых пользователей или если отчет не создан)
+        if (!this.weeklyReport) {
             return `
                 <div class="content">
                     ${this.renderNewUserPlaceholder()}
@@ -411,6 +424,7 @@ class ReportsPage {
             `;
         }
 
+        // ✅ ИСПРАВЛЕНО: Рендерим отчет только если есть weeklyReport
         return `
             <div class="content">
                 ${this.renderWeeklyReport()}
@@ -483,6 +497,11 @@ class ReportsPage {
                     </div>
                 </div>
             `;
+        }
+
+        // ✅ ИСПРАВЛЕНО: Если нет weeklyReport - не рендерим ничего (плейсхолдер рендерится выше)
+        if (!this.weeklyReport) {
+            return '';
         }
 
         const { quotes, authors, days, goal } = this.reportData.statistics;
@@ -563,6 +582,11 @@ class ReportsPage {
             `;
         }
         
+        // ✅ ИСПРАВЛЕНО: Если нет weeklyReport - не рендерим ничего
+        if (!this.weeklyReport) {
+            return '';
+        }
+        
         // ✅ Получаем данные анализа с правильной иерархией fallback
         let analysisText = '';
         if (this.weeklyReport?.analysis) {
@@ -615,6 +639,11 @@ class ReportsPage {
      * 🎯 РЕКОМЕНДАЦИИ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderRecommendations() {
+        // ✅ ИСПРАВЛЕНО: Если нет weeklyReport - не рендерим ничего
+        if (!this.weeklyReport) {
+            return '';
+        }
+
         const recommendations = this.weeklyReport?.recommendations || [];
 
         if (Array.isArray(recommendations) && recommendations.length > 0) {
@@ -644,7 +673,7 @@ class ReportsPage {
             `;
         }
 
-        // fallback (заглушка и кнопка)
+        // fallback (заглушка и кнопка) - только если есть weeklyReport но нет рекомендаций
         return `
             <div class="promo-section">
                 <div class="promo-title">🎯 Специально для вас</div>
