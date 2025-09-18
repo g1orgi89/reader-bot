@@ -270,8 +270,8 @@ class ReportsPage {
     
     async loadReportData() {
         // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
-        if (this.reportsLoading || this.reportsLoaded) {
-            console.log('🔄 ReportsPage: Отчеты уже загружаются или загружены, пропускаем');
+        if (this.reportsLoading) {
+            console.log('🔄 ReportsPage: Отчеты уже загружаются, пропускаем');
             return;
         }
         
@@ -393,6 +393,7 @@ class ReportsPage {
             this.applyFallbackStats('error');
         } finally {
             this.reportsLoading = false;
+            this.rerender();
         }
     }
     
