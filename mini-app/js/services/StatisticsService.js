@@ -151,17 +151,72 @@ class StatisticsService {
      */
     async getDiaryStats() {
         const userId = this._requireUserId();
-        const [main, progress, activityPercent] = await Promise.all([
+        const [main, progress, detailed] = await Promise.all([
             this.getMainStats(),
             this.getUserProgress(),
-            this.api.getActivityPercent(userId)
+            this.getDetailedQuoteStats()
         ]);
         return {
             totalQuotes: main.totalQuotes ?? 0,
             weeklyQuotes: progress.weeklyQuotes ?? 0,
+            monthlyQuotes: detailed.monthlyQuotes ?? 0,
+            favoritesCount: detailed.favoritesCount ?? 0,
             favoriteAuthor: progress.favoriteAuthor ?? '—',
-            activityPercent: activityPercent ?? 1
+            activityPercent: await this.getActivityPercent() ?? 1
         };
+    }
+
+    /**
+     * Получить детальную статистику по цитатам (включая избранные и месячные)
+     */
+    async getDetailedQuoteStats() {
+        return this._cached(`detailedStats:${this._requireUserId()}`, async () => {
+            const userId = this._requireUserId();
+            let quotes = [];
+            try {
+                const resp = await this.api.getQuotes({ limit: 500 }, userId);
+                quotes = resp?.quotes || resp?.data?.quotes || resp?.items || [];
+            } catch {
+                quotes = this.state?.get('quotes.items') || [];
+            }
+            
+            const now = Date.now();
+            const thirtyDaysAgo = now - 30 * 86400_000;
+            let monthlyQuotes = 0;
+            let favoritesCount = 0;
+            
+            for (const q of quotes) {
+                const ts = new Date(q.createdAt || q.dateAdded).getTime();
+                if (ts >= thirtyDaysAgo) {
+                    monthlyQuotes++;
+                }
+                if (q.isFavorite || q.favorite) {
+                    favoritesCount++;
+                }
+            }
+            
+            return {
+                monthlyQuotes,
+                favoritesCount,
+                totalQuotes: quotes.length
+            };
+        }, this.TTL_SHORT);
+    }
+
+    /**
+     * Получить процент активности пользователя в сообществе
+     */
+    async getActivityPercent() {
+        return this._cached(`activityPercent:${this._requireUserId()}`, async () => {
+            try {
+                const userId = this._requireUserId();
+                const result = await this.api.getActivityPercent(userId);
+                return result ?? 1;
+            } catch (e) {
+                console.warn('Failed to get activity percent:', e);
+                return 1;
+            }
+        }, this.TTL_DEFAULT);
     }
     
     // -------- streak enhancement helpers --------
@@ -208,31 +263,51 @@ class StatisticsService {
     }
 
     // -------- event handlers --------
-    async onQuoteAdded(_detail) {
+    async onQuoteAdded(detail) {
         try {
             const userId = this._requireUserId();
+            console.log('📊 StatisticsService: Quote added, refreshing stats');
             
             // Completely reset cache (invalidate all)
             this.invalidate();
             
             // Load fresh data and then update state and dispatch event
             await this.refreshMainStatsSilent();
+            await this.refreshDiaryStatsSilent();
         } catch (e) {
             console.debug('onQuoteAdded error:', e);
         }
     }
 
-    async onQuoteDeleted(_detail) {
+    async onQuoteDeleted(detail) {
         try {
             const userId = this._requireUserId();
+            console.log('📊 StatisticsService: Quote deleted, refreshing stats');
             
             // Completely reset cache (invalidate all)
             this.invalidate();
             
             // Load fresh data and then update state and dispatch event
             await this.refreshMainStatsSilent();
+            await this.refreshDiaryStatsSilent();
         } catch (e) {
             console.debug('onQuoteDeleted error:', e);
+        }
+    }
+
+    async onQuoteEdited(detail) {
+        try {
+            const userId = this._requireUserId();
+            console.log('📊 StatisticsService: Quote edited, refreshing stats');
+            
+            // For edited quotes, we may only need to refresh if favorite status changed
+            // But for simplicity, refresh all stats
+            this.invalidate();
+            
+            await this.refreshMainStatsSilent();
+            await this.refreshDiaryStatsSilent();
+        } catch (e) {
+            console.debug('onQuoteEdited error:', e);
         }
     }
 
@@ -240,6 +315,8 @@ class StatisticsService {
         this.invalidate([
             `mainStats:${userId}`,
             `userProgress:${userId}`,
+            `detailedStats:${userId}`,
+            `activityPercent:${userId}`,
             `latestQuotes_3:${userId}`,
             `latestQuotes_5:${userId}`
         ]);
@@ -267,8 +344,29 @@ class StatisticsService {
             
             this.state.update('stats', merged);
             document.dispatchEvent(new CustomEvent('stats:updated', { detail: merged }));
+            console.log('📊 Main stats updated and event dispatched');
         } catch (e) {
             console.debug('refreshMainStatsSilent failed:', e);
+        }
+    }
+
+    async refreshDiaryStatsSilent() {
+        try {
+            const diaryStats = await this.getDiaryStats();
+            const prev = this.state.get('diaryStats') || {};
+            
+            const merged = {
+                ...prev,
+                ...diaryStats,
+                loadedAt: Date.now(),
+                isFresh: true
+            };
+            
+            this.state.update('diaryStats', merged);
+            document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: merged }));
+            console.log('📊 Diary stats updated and event dispatched');
+        } catch (e) {
+            console.debug('refreshDiaryStatsSilent failed:', e);
         }
     }
 
