@@ -53,6 +53,12 @@ class ReaderApp {
             await this.initializeServices();
             await this.initializeTelegram();
             await this.authenticateUser();
+            
+            // Warmup statistics before UI to have instant data available
+            if (this.statistics?.warmupInitialStats) {
+                await this.statistics.warmupInitialStats();
+            }
+            
             await this.loadUserData();
             await this.initializeUI();
             await this.initializeRouting();
@@ -243,7 +249,18 @@ class ReaderApp {
             this.state.update('user', { profile: newProfile });
             console.log('[DEBUG] state updated profile:', this.state.get('user.profile'));
 
-            this.state.setStats(stats);
+            // Store stats as flat fields with proper weeklyQuotes/thisWeek mirroring
+            const flatStats = {
+                totalQuotes: stats.totalQuotes || 0,
+                currentStreak: stats.currentStreak || 0,
+                longestStreak: stats.longestStreak || 0,
+                weeklyQuotes: stats.weeklyQuotes || stats.thisWeek || 0,
+                thisWeek: stats.thisWeek || stats.weeklyQuotes || 0, // Mirror for compatibility
+                daysInApp: stats.daysSinceRegistration || stats.daysInApp || 0,
+                loading: false,
+                loadedAt: Date.now()
+            };
+            this.state.set('stats', flatStats);
             this.state.setRecentQuotes(recentQuotes.quotes || []);
             console.log('✅ Пользовательские данные загружены');
         } catch (e) {
@@ -673,8 +690,20 @@ class ReaderApp {
                 return;
             }
             console.log('🔄 App: Обновляем данные для userId:', userId);
-            const stats = await this.api.getStats(userId);
-            this.state.setStats(stats);
+            const resp = await this.api.getStats(userId);
+            
+            // Store only flat fields from resp.stats with proper mirroring
+            const flatStats = {
+                totalQuotes: resp?.stats?.totalQuotes || resp?.totalQuotes || 0,
+                currentStreak: resp?.stats?.currentStreak || resp?.currentStreak || 0,
+                longestStreak: resp?.stats?.longestStreak || resp?.longestStreak || 0,
+                weeklyQuotes: resp?.stats?.weeklyQuotes || resp?.stats?.thisWeek || resp?.weeklyQuotes || resp?.thisWeek || 0,
+                thisWeek: resp?.stats?.thisWeek || resp?.stats?.weeklyQuotes || resp?.thisWeek || resp?.weeklyQuotes || 0, // Mirror
+                daysInApp: resp?.stats?.daysSinceRegistration || resp?.stats?.daysInApp || resp?.daysSinceRegistration || resp?.daysInApp || 0,
+                loading: false,
+                loadedAt: Date.now()
+            };
+            this.state.set('stats', flatStats);
         } catch (e) {
             console.warn('⚠️ Не удалось обновить данные:', e);
         }

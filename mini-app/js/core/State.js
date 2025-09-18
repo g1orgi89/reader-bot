@@ -426,8 +426,16 @@ class AppState {
         this.push('quotes.items', quote);
         this.update('quotes', {
             total: this.get('quotes.total') + 1,
-            lastUpdate: Date.now()
+            lastUpdate: Date.now(),
+            lastAdded: quote // For HomePage to track latest addition
         });
+        
+        // Dispatch quotes:changed event for StatisticsService
+        if (typeof document !== 'undefined') {
+            document.dispatchEvent(new CustomEvent('quotes:changed', {
+                detail: { type: 'added', quote }
+            }));
+        }
     }
 
     /**
@@ -439,6 +447,16 @@ class AppState {
             quote.id === quoteId ? { ...quote, ...updates } : quote
         );
         this.set('quotes.items', updatedQuotes);
+        this.update('quotes', {
+            lastUpdate: Date.now()
+        });
+        
+        // Dispatch quotes:changed event for StatisticsService
+        if (typeof document !== 'undefined') {
+            document.dispatchEvent(new CustomEvent('quotes:changed', {
+                detail: { type: 'edited', quoteId, updates }
+            }));
+        }
     }
 
     /**
@@ -450,6 +468,13 @@ class AppState {
             total: this.get('quotes.total') - 1,
             lastUpdate: Date.now()
         });
+        
+        // Dispatch quotes:changed event for StatisticsService
+        if (typeof document !== 'undefined') {
+            document.dispatchEvent(new CustomEvent('quotes:changed', {
+                detail: { type: 'deleted', quoteId }
+            }));
+        }
     }
 
     /**

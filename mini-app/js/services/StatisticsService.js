@@ -262,20 +262,110 @@ class StatisticsService {
         };
     }
 
+    // -------- optimistic calculation helpers --------
+    
+    /**
+     * Calculate statistics optimistically from local quotes without API calls
+     */
+    _calculateOptimisticStats(quotes) {
+        const now = Date.now();
+        const weekAgo = now - 7 * 86400_000;
+        const thirtyAgo = now - 30 * 86400_000;
+        let weekly = 0;
+        const authorFreq = new Map();
+        
+        for (const q of quotes) {
+            const ts = new Date(q.createdAt || q.dateAdded).getTime();
+            if (!ts) continue;
+            if (ts >= weekAgo) weekly++;
+            if (ts >= thirtyAgo && q.author) {
+                authorFreq.set(q.author, (authorFreq.get(q.author) || 0) + 1);
+            }
+        }
+        
+        const favoriteAuthor = this._top(authorFreq) || '—';
+        const computedStreak = this._computeStreak(quotes);
+        const { streakToYesterday, isAwaitingToday } = this._computeStreakToYesterday(quotes, computedStreak);
+        
+        return {
+            totalQuotes: quotes.length,
+            weeklyQuotes: weekly,
+            favoriteAuthor,
+            currentStreak: computedStreak,
+            computedStreak,
+            streakToYesterday,
+            isAwaitingToday
+        };
+    }
+    
+    /**
+     * Update state optimistically with local calculation
+     */
+    _updateOptimisticStats() {
+        try {
+            const quotes = this.state?.get('quotes.items') || [];
+            const optimisticStats = this._calculateOptimisticStats(quotes);
+            
+            // Get current stats to preserve API-only fields
+            const currentStats = this.state.get('stats') || {};
+            const currentDiaryStats = this.state.get('diaryStats') || {};
+            
+            // Update main stats with optimistic values + preserve API fields
+            const updatedStats = {
+                ...currentStats,
+                totalQuotes: optimisticStats.totalQuotes,
+                weeklyQuotes: optimisticStats.weeklyQuotes,
+                thisWeek: optimisticStats.weeklyQuotes, // Mirror for UI compatibility
+                favoriteAuthor: optimisticStats.favoriteAuthor,
+                currentStreak: Math.max(optimisticStats.currentStreak, currentStats.currentStreak || 0),
+                computedStreak: optimisticStats.computedStreak,
+                streakToYesterday: optimisticStats.streakToYesterday,
+                isAwaitingToday: optimisticStats.isAwaitingToday,
+                loading: false,
+                loadedAt: Date.now()
+            };
+            
+            // Update diary stats with optimistic values + preserve API fields
+            const updatedDiaryStats = {
+                ...currentDiaryStats,
+                totalQuotes: optimisticStats.totalQuotes,
+                weeklyQuotes: optimisticStats.weeklyQuotes,
+                favoriteAuthor: optimisticStats.favoriteAuthor,
+                loading: false,
+                loadedAt: Date.now()
+            };
+            
+            // Set in state
+            this.state.set('stats', updatedStats);
+            this.state.set('diaryStats', updatedDiaryStats);
+            
+            // Emit events for UI updates
+            document.dispatchEvent(new CustomEvent('stats:updated', { detail: updatedStats }));
+            document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: updatedDiaryStats }));
+            
+            console.log('📊 Optimistic stats updated:', { main: updatedStats, diary: updatedDiaryStats });
+        } catch (e) {
+            console.debug('_updateOptimisticStats failed:', e);
+        }
+    }
+
     // -------- event handlers --------
     async onQuoteAdded(detail) {
         try {
             const userId = this._requireUserId();
-            console.log('📊 StatisticsService: Quote added, refreshing stats');
+            console.log('📊 StatisticsService: Quote added, optimistic update first');
             
-            // Централизованная инвалидация всего кэша
+            // 1. Optimistic recalculation first (instant UI update)
+            this._updateOptimisticStats();
+            
+            // 2. Invalidate cache for fresh API data
             this.invalidateAll();
             
-            // Загружаем свежие данные и обновляем состояние
+            // 3. Silent sync with API (no loading flags)
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
-            // Force refresh activity percent from API
+            // 4. Refresh activity percent from API
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteAdded error:', e);
@@ -285,16 +375,19 @@ class StatisticsService {
     async onQuoteDeleted(detail) {
         try {
             const userId = this._requireUserId();
-            console.log('📊 StatisticsService: Quote deleted, refreshing stats');
+            console.log('📊 StatisticsService: Quote deleted, optimistic update first');
             
-            // Централизованная инвалидация всего кэша
+            // 1. Optimistic recalculation first (instant UI update)
+            this._updateOptimisticStats();
+            
+            // 2. Invalidate cache for fresh API data
             this.invalidateAll();
             
-            // Загружаем свежие данные и обновляем состояние
+            // 3. Silent sync with API (no loading flags)
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
-            // Force refresh activity percent from API
+            // 4. Refresh activity percent from API
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteDeleted error:', e);
@@ -304,18 +397,45 @@ class StatisticsService {
     async onQuoteEdited(detail) {
         try {
             const userId = this._requireUserId();
-            console.log('📊 StatisticsService: Quote edited, refreshing stats');
+            console.log('📊 StatisticsService: Quote edited, optimistic update first');
             
-            // Централизованная инвалидация всего кэша
+            // 1. Optimistic recalculation first (instant UI update)
+            this._updateOptimisticStats();
+            
+            // 2. Invalidate cache for fresh API data
             this.invalidateAll();
             
+            // 3. Silent sync with API (no loading flags)
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
-            // Force refresh activity percent from API
+            // 4. Refresh activity percent from API
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteEdited error:', e);
+        }
+    }
+
+    /**
+     * Warmup initial stats without loading flags - for app startup
+     * Ensures weekly and favoriteAuthor are available immediately
+     */
+    async warmupInitialStats() {
+        try {
+            console.log('📊 StatisticsService: Warming up initial stats...');
+            
+            // Do silent refresh of both stats without any loading indicators
+            await Promise.all([
+                this.refreshMainStatsSilent(),
+                this.refreshDiaryStatsSilent()
+            ]);
+            
+            // Refresh activity percent (important for proper display)
+            await this.refreshActivityPercent();
+            
+            console.log('📊 Initial stats warmup completed');
+        } catch (e) {
+            console.debug('warmupInitialStats failed:', e);
         }
     }
 
@@ -332,13 +452,11 @@ class StatisticsService {
 
     async refreshMainStatsSilent() {
         try {
-            // Set loading state in State
-            this.state.setLoading(true, 'stats');
-            
+            // NO loading flags for silent refresh
             const main = await this.getMainStats();
             const progress = await this.getUserProgress();
             
-            // Create flat stats object as per requirements
+            // Create flat stats object with weeklyQuotes → thisWeek mirroring
             const flatStats = {
                 totalQuotes: main.totalQuotes || 0,
                 currentStreak: progress.currentStreak || 0,
@@ -347,6 +465,7 @@ class StatisticsService {
                 streakToYesterday: progress.streakToYesterday || 0,
                 isAwaitingToday: progress.isAwaitingToday || false,
                 weeklyQuotes: progress.weeklyQuotes || 0,
+                thisWeek: progress.weeklyQuotes || 0, // Mirror for UI compatibility
                 favoriteAuthor: progress.favoriteAuthor || '—',
                 activityLevel: progress.activityLevel || 'low',
                 daysInApp: main.daysInApp || 0,
@@ -355,24 +474,22 @@ class StatisticsService {
                 loading: false
             };
             
-            // Update state with flat stats object
-            this.state.set('stats', flatStats);
-            this.state.setLoading(false, 'stats');
+            // Update state with flat stats object (merge with existing to preserve optimistic updates)
+            const currentStats = this.state.get('stats') || {};
+            const mergedStats = { ...currentStats, ...flatStats };
+            this.state.set('stats', mergedStats);
             
             // Dispatch event with flat stats
-            document.dispatchEvent(new CustomEvent('stats:updated', { detail: flatStats }));
-            console.log('📊 Main stats updated and event dispatched:', flatStats);
+            document.dispatchEvent(new CustomEvent('stats:updated', { detail: mergedStats }));
+            console.log('📊 Main stats silently updated:', mergedStats);
         } catch (e) {
-            this.state.setLoading(false, 'stats');
             console.debug('refreshMainStatsSilent failed:', e);
         }
     }
 
     async refreshDiaryStatsSilent() {
         try {
-            // Set loading state for diary stats
-            this.state.setLoading(true, 'diaryStats');
-            
+            // NO loading flags for silent refresh
             const diaryStats = await this.getDiaryStats();
             
             // Create flat diary stats object
@@ -388,15 +505,15 @@ class StatisticsService {
                 loading: false
             };
             
-            // Update state with flat diary stats
-            this.state.set('diaryStats', flatDiaryStats);
-            this.state.setLoading(false, 'diaryStats');
+            // Update state with flat diary stats (merge with existing to preserve optimistic updates)
+            const currentDiaryStats = this.state.get('diaryStats') || {};
+            const mergedDiaryStats = { ...currentDiaryStats, ...flatDiaryStats };
+            this.state.set('diaryStats', mergedDiaryStats);
             
             // Dispatch event with flat stats
-            document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: flatDiaryStats }));
-            console.log('📊 Diary stats updated and event dispatched:', flatDiaryStats);
+            document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: mergedDiaryStats }));
+            console.log('📊 Diary stats silently updated:', mergedDiaryStats);
         } catch (e) {
-            this.state.setLoading(false, 'diaryStats');
             console.debug('refreshDiaryStatsSilent failed:', e);
         }
     }

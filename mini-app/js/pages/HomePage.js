@@ -252,37 +252,49 @@ class HomePage {
         if (this.loading) return;
         try {
             this.loading = true;
-            this.state.set('ui.loading', true);
+            // NO loading flags for state to prevent skeletons
             await this.waitForValidUserId(); // Ensure userId is ready
+            
             const [mainStats, latestQuotes, topAnalyses, progress] = await Promise.all([
                 this.statistics.getMainStats(),
                 this.statistics.getLatestQuotes(3),
                 this.statistics.getTopAnalyses(3),
                 this.statistics.getUserProgress()
             ]);
+            
             if (progress && progress.currentStreak > mainStats.currentStreak) {
                 mainStats.currentStreak = progress.currentStreak;
             }
-            this.state.update('stats', {
-                totalQuotes: mainStats.totalQuotes,
-                currentStreak: mainStats.currentStreak,
-                daysInApp: mainStats.daysInApp,
+            
+            // Report to state with flat fields including weeklyQuotes, thisWeek and favoriteAuthor
+            const flatStats = {
+                totalQuotes: mainStats.totalQuotes || 0,
+                currentStreak: mainStats.currentStreak || 0,
+                daysInApp: mainStats.daysInApp || 0,
+                weeklyQuotes: progress?.weeklyQuotes || 0,
+                thisWeek: progress?.weeklyQuotes || 0, // Mirror for compatibility
+                favoriteAuthor: progress?.favoriteAuthor || '—',
                 loading: false,
                 loadedAt: Date.now()
-            });
+            };
+            this.state.set('stats', flatStats);
+            
             this.state.setRecentQuotes(latestQuotes);
             const mapped = topAnalyses.map(a => ({ _id: a.id, title: a.title, author: a.author, salesCount: a.clicks }));
             this.state.set('catalog.books', mapped);
             this.state.set('stats.progressTemp', progress);
+            
             this.dataLoaded = true;
-            this.applyTopStats(this.state.get('stats'));
+            
+            // Apply UI updates immediately after state update
+            this.applyTopStats(flatStats);
             this.updateProgressUI();
         } catch (e) {
             console.error('HomePage statistics load error', e);
             this.error = 'Не удалось загрузить данные';
         } finally {
             this.loading = false;
-            this.state.set('ui.loading', false);
+            // NO state loading flag changes
         }
     }
 

@@ -254,10 +254,27 @@ class DiaryPage {
             }
             console.log('📊 DiaryPage: Загружаем статистику для userId:', userId);
             
-            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
-            const stats = await this.api.getStats(userId);
-            this.state.set('stats', stats);
-            this.state.set('stats.lastUpdate', Date.now()); // ✅ НОВОЕ: Время обновления
+            // Use StatisticsService silent methods if available
+            if (this.app?.statistics?.refreshMainStatsSilent && this.app?.statistics?.refreshDiaryStatsSilent) {
+                await Promise.all([
+                    this.app.statistics.refreshMainStatsSilent(),
+                    this.app.statistics.refreshDiaryStatsSilent()
+                ]);
+            } else {
+                // Fallback: direct API call but store flat fields
+                const resp = await this.api.getStats(userId);
+                const flatStats = {
+                    totalQuotes: resp?.stats?.totalQuotes || resp?.totalQuotes || 0,
+                    weeklyQuotes: resp?.stats?.weeklyQuotes || resp?.stats?.thisWeek || resp?.weeklyQuotes || resp?.thisWeek || 0,
+                    thisWeek: resp?.stats?.thisWeek || resp?.stats?.weeklyQuotes || resp?.thisWeek || resp?.weeklyQuotes || 0, // Mirror
+                    currentStreak: resp?.stats?.currentStreak || resp?.currentStreak || 0,
+                    longestStreak: resp?.stats?.longestStreak || resp?.longestStreak || 0,
+                    loading: false,
+                    loadedAt: Date.now()
+                };
+                this.state.set('stats', flatStats);
+            }
+            
             this.statsLoaded = true; // ✅ НОВОЕ: Помечаем как загруженное
             
         } catch (error) {
