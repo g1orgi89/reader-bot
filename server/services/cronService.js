@@ -50,8 +50,8 @@ class CronService {
     }
 
     try {
-      // Еженедельные отчеты: каждое воскресенье в 11:00 МСК
-      const weeklyReportsJob = cron.schedule('0 11 * * 0', async () => {
+      // Еженедельные отчеты: каждое воскресенье в 12:00 МСК
+      const weeklyReportsJob = cron.schedule('0 12 * * 0', async () => {
         logger.info('📖 Starting weekly reports generation...');
         await this.generateWeeklyReportsForAllUsers();
       }, {
@@ -429,7 +429,7 @@ class CronService {
    */
   getSchedule() {
     return {
-      weekly_reports: 'Sundays at 11:00 MSK',
+      weekly_reports: 'Sundays at 12:00 MSK',
       optimized_reminders: '19:00 MSK daily (smart frequency based on user stage)',
       monthly_announcements: '25th day of month at 12:00 MSK',
       monthly_reports: '1st day of month at 12:00 MSK',

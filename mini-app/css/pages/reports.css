@@ -43,12 +43,27 @@
     box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
 }
 
+/* ✅ НОВОЕ: Заголовок еженедельного отчета */
+.report-header {
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-light, #F0F0F0);
+    padding-bottom: 8px;
+}
+
 .report-title {
     font-weight: bold;
-    margin-bottom: 10px;
-    font-size: 13px;
+    margin-bottom: 4px;
+    font-size: 14px;
     color: var(--text-primary, #2D2D2D);
     transition: color var(--transition-normal, 0.3s ease);
+}
+
+/* ✅ НОВОЕ: Дата отчета в формате "Месяц, неделя X" */
+.report-date {
+    font-size: 11px;
+    color: var(--text-secondary, #666666);
+    font-weight: 500;
+    opacity: 0.8;
 }
 
 .report-stats-grid {
@@ -237,7 +252,11 @@
     }
     
     .report-title {
-        font-size: 12px;
+        font-size: 13px;
+    }
+    
+    .report-date {
+        font-size: 10px;
     }
     
     .stat-value {
@@ -400,6 +419,7 @@
 /* Fallback by width */
 @media (max-width: 480px) {
   .report-title { font-size: var(--font-size-sm); }
+  .report-date { font-size: 10px; }
   .stat-value { font-size: var(--font-size-base); }
   .stat-name { font-size: 10px; }
   .report-themes { font-size: 11px; }

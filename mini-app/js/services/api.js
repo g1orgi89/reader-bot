@@ -706,16 +706,20 @@ class ApiService {
     // ===========================================
 
     /**
-     * 📅 Получить еженедельные отчеты
+     * 📅 Получить еженедельные отчеты (ОПТИМИЗИРОВАНО ДЛЯ ПОСЛЕДНЕГО ОТЧЕТА)
      */
     async getWeeklyReports(options = {}, userId = 'demo-user') {
         const params = new URLSearchParams();
-        if (options.limit) params.append('limit', options.limit);
+        // ✅ ОПТИМИЗАЦИЯ: По умолчанию загружаем только последний отчет
+        const limit = options.limit || 1;
+        if (limit) params.append('limit', limit);
         if (options.offset) params.append('offset', options.offset);
 
-    // Используем path-параметр, т.к. /reports/weekly?userId=... на проде отсутствует
+        // Используем path-параметр, т.к. /reports/weekly?userId=... на проде отсутствует
         const qs = params.toString();
         const endpoint = `/reports/weekly/${encodeURIComponent(String(userId))}${qs ? `?${qs}` : ''}`;
+        
+        console.log(`📊 API: Загружаем еженедельные отчеты (limit: ${limit})`);
         return this.request('GET', endpoint);
     }
 
@@ -813,11 +817,12 @@ class ApiService {
 
     /**
      * 📊 Универсальный метод получения отчета (алиас)
-     * НОВЫЙ: Для совместимости с ReportsPage.js
+     * ОБНОВЛЕНО: Оптимизирован для еженедельных отчетов
      */
     async getReport(type = 'weekly', reportId = 'current') {
         if (reportId === 'current') {
-            // Возвращаем текущий отчет (последний)
+            // ✅ ОПТИМИЗАЦИЯ: Возвращаем только последний отчет
+            console.log(`📊 API: Запрос текущего ${type} отчета`);
             const reports = await this.getReports(type, { limit: 1 });
             return reports && reports.length > 0 ? reports[0] : null;
         } else {
