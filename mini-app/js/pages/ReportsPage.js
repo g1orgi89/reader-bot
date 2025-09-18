@@ -393,7 +393,6 @@ class ReportsPage {
             this.applyFallbackStats('error');
         } finally {
             this.reportsLoading = false;
-            this.rerender();
         }
     }
     
