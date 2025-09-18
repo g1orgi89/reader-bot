@@ -300,21 +300,21 @@ class HomePage {
             if (loading || !p) {
                 // Show skeleton loading state
                 grid.innerHTML = Array(3).fill(0).map(() => `
-                    <div class="stat-card skeleton-stat-block" style="min-height:74px;">
+                    <div class="stat-card skeleton-stat-block" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);">
                         <div class="skeleton-stat-label"></div>
                         <div class="skeleton-stat-number"></div>
                     </div>
                 `).join('');
             } else {
-                // Show actual data with smooth transition
+                // Show actual data with smooth transition - ensure touch-friendly sizes
                 const newContent = [
                     { label: 'За 7 дней', value: p.weeklyQuotes ?? '—' },
                     { label: 'Серия (дней подряд)', value: p.currentStreak ?? '—' },
                     { label: 'Любимый автор', value: p.favoriteAuthor || '—' }
                 ].map(item => `
-                    <div class="stat-card fade-in" style="min-height:74px;display:flex;flex-direction:column;justify-content:space-between;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;">${item.label}</div>
-                        <div style="font-size:20px;font-weight:600;">${item.value}</div>
+                    <div class="stat-card fade-in" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;">
+                        <div style="font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">${item.label}</div>
+                        <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">${item.value}</div>
                     </div>
                 `).join('');
                 
@@ -820,12 +820,12 @@ class HomePage {
      */
     renderProgressSection(_stats) {
         return `
-        <div class="progress-block" style="margin:16px 0;">
-          <div style="font-weight:600;font-size:13px;margin:0 0 10px;color:var(--text-primary);">📈 Ваш прогресс</div>
-          <div class="progress-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-            ${[1,2,3].map(()=>`<div class="stat-card" style="min-height:74px;opacity:.45;display:flex;flex-direction:column;justify-content:space-between;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;">…</div><div style="font-size:20px;font-weight:600;">—</div></div>`).join('')}
+        <div class="progress-block" style="margin:var(--spacing-md) 0;">
+          <div style="font-weight:var(--font-weight-semibold);font-size:var(--font-size-sm);margin:0 0 var(--spacing-sm);color:var(--text-primary);">📈 Ваш прогресс</div>
+          <div class="progress-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--spacing-sm);">
+            ${[1,2,3].map(()=>`<div class="stat-card" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);opacity:.45;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;"><div style="font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">…</div><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">—</div></div>`).join('')}
           </div>
-          <div class="progress-activity" style="margin-top:10px;font-size:11px;color:var(--text-secondary);">Загрузка…</div>
+          <div class="progress-activity" style="margin-top:var(--spacing-sm);font-size:var(--font-size-xs);color:var(--text-secondary);">Загрузка…</div>
         </div>`;
     }
     
