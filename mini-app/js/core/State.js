@@ -42,6 +42,17 @@ class AppState {
                 loading: false
             },
 
+            // 📊 Статистика дневника
+            diaryStats: {
+                totalQuotes: 0,
+                weeklyQuotes: 0,
+                monthlyQuotes: 0,
+                favoritesCount: 0,
+                favoriteAuthor: '—',
+                activityPercent: 1,
+                loading: false
+            },
+
             // 📈 Отчеты
             reports: {
                 weekly: [],

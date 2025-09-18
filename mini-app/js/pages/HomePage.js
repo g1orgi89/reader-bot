@@ -320,6 +320,9 @@ class HomePage {
                 
                 if (grid.innerHTML !== newContent) {
                     grid.innerHTML = newContent;
+                    // Trigger fade-in animation
+                    grid.classList.add('fade-in');
+                    setTimeout(() => grid.classList.remove('fade-in'), 300);
                 }
             }
         }
@@ -934,15 +937,15 @@ class HomePage {
         const statsInline = document.getElementById('statsInline');
         if (!statsInline) return;
 
-        // Remove skeleton class if it exists
-        statsInline.classList.remove('skeleton-stat-block');
-
         // Show loading state if stats are being loaded
         if (stats?.loading) {
             statsInline.className = 'stats-inline skeleton-stat-block';
             statsInline.innerHTML = '<div class="skeleton-line" style="width: 80%; height: 18px;"></div>';
             return;
         }
+
+        // Remove skeleton class if it exists
+        statsInline.classList.remove('skeleton-stat-block');
 
         // По ТЗ: если нет валидных данных — показываем "—"
         let content = '—';
