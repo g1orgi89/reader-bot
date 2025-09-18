@@ -402,15 +402,17 @@ class ReportsPage {
      */
     render() {
         if (this.reportsLoading && !this.weeklyReport) {
-            return `...лоадер...`;
+            return `
+                <div class="content">
+                    <div class="reports-loading">
+                        <div class="loading-content">
+                            <div class="loading-spinner">🔄</div>
+                            <div class="loading-text">Загрузка отчета...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
-        if (!this.weeklyReport) {
-            return `...плейсхолдер...`;
-        }
-        return `...отчет...`;
-    }
-
-        // ✅ ИСПРАВЛЕНО: Если нет weeklyReport - показываем плейсхолдер (для новых пользователей или если отчет не создан)
         if (!this.weeklyReport) {
             return `
                 <div class="content">
@@ -418,8 +420,6 @@ class ReportsPage {
                 </div>
             `;
         }
-
-        // ✅ ИСПРАВЛЕНО: Рендерим отчет только если есть weeklyReport
         return `
             <div class="content">
                 ${this.renderWeeklyReport()}
