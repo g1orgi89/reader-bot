@@ -49,12 +49,35 @@ class HomePage {
      * 📊 Настройка слушателя события обновления статистики
      */
     setupStatsEventListener() {
-        // Add listener for stats:updated event from StatisticsService
+        // Add listener for main stats updates from StatisticsService
         document.addEventListener('stats:updated', (e) => {
+            console.log('📊 HomePage: Received stats:updated event', e.detail);
             if (e.detail) {
                 this.applyTopStats(e.detail);
                 this.updateProgressUI();
             }
+        });
+
+        // Add listener for recent quotes updates
+        document.addEventListener('quotes:changed', (e) => {
+            console.log('📊 HomePage: Received quotes:changed event', e.detail);
+            // Refresh recent quotes display
+            setTimeout(() => {
+                this.updateRecentQuotesUI();
+            }, 100);
+        });
+
+        // Add listener for state changes to quotes.recent
+        this.state.subscribe('quotes.recent', (quotes) => {
+            console.log('📊 HomePage: Recent quotes state changed', quotes);
+            this.updateRecentQuotesUI();
+        });
+
+        // Add listener for state changes to stats
+        this.state.subscribe('stats', (stats) => {
+            console.log('📊 HomePage: Stats state changed', stats);
+            this.applyTopStats(stats);
+            this.updateProgressUI();
         });
     }
 
@@ -266,26 +289,60 @@ class HomePage {
     updateProgressUI() {
         const wrap = document.querySelector('.progress-block');
         if (!wrap) return;
-        const p = this.state.get('stats.progressTemp');
-        if (!p) return;
+        
+        const p = this.state.get('stats.progressTemp') || this.state.get('stats');
+        const loading = this.state.get('stats.loading') || this.loading;
+        
         const grid = wrap.querySelector('.progress-grid');
         const activityNode = wrap.querySelector('.progress-activity');
+        
         if (grid) {
-            grid.innerHTML = [
-                { label: 'За 7 дней', value: p.weeklyQuotes ?? '—' },
-                { label: 'Серия (дней подряд)', value: p.currentStreak ?? '—' },
-                { label: 'Любимый автор', value: p.favoriteAuthor || '—' }
-            ].map(item => `
-                <div class="stat-card" style="min-height:74px;display:flex;flex-direction:column;justify-content:space-between;">
-                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;">${item.label}</div>
-                    <div style="font-size:20px;font-weight:600;">${item.value}</div>
-                </div>
-            `).join('');
+            if (loading || !p) {
+                // Show skeleton loading state
+                grid.innerHTML = Array(3).fill(0).map(() => `
+                    <div class="stat-card skeleton-stat-block" style="min-height:74px;">
+                        <div class="skeleton-stat-label"></div>
+                        <div class="skeleton-stat-number"></div>
+                    </div>
+                `).join('');
+            } else {
+                // Show actual data with smooth transition
+                const newContent = [
+                    { label: 'За 7 дней', value: p.weeklyQuotes ?? '—' },
+                    { label: 'Серия (дней подряд)', value: p.currentStreak ?? '—' },
+                    { label: 'Любимый автор', value: p.favoriteAuthor || '—' }
+                ].map(item => `
+                    <div class="stat-card fade-in" style="min-height:74px;display:flex;flex-direction:column;justify-content:space-between;">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;">${item.label}</div>
+                        <div style="font-size:20px;font-weight:600;">${item.value}</div>
+                    </div>
+                `).join('');
+                
+                if (grid.innerHTML !== newContent) {
+                    grid.innerHTML = newContent;
+                }
+            }
         }
+        
         if (activityNode) {
-            activityNode.textContent = 'Активность: ' + (p.activityLevel === 'high' ? 'Высокая 🔥' : p.activityLevel === 'medium' ? 'Средняя 📈' : 'Низкая 🌱');
+            if (loading || !p) {
+                activityNode.innerHTML = '<div class="skeleton-line" style="width: 60%; height: 16px;"></div>';
+            } else {
+                const activityText = 'Активность: ' + (
+                    p.activityLevel === 'high' ? 'Высокая 🔥' : 
+                    p.activityLevel === 'medium' ? 'Средняя 📈' : 
+                    'Низкая 🌱'
+                );
+                
+                if (activityNode.textContent !== activityText) {
+                    activityNode.textContent = activityText;
+                    activityNode.classList.add('fade-in');
+                    setTimeout(() => activityNode.classList.remove('fade-in'), 300);
+                }
+            }
         }
-        console.debug('[Progress] backendStreak:', p.backendStreak, 'computedStreak:', p.computedStreak, 'used:', p.currentStreak);
+        
+        console.debug('[Progress] backendStreak:', p?.backendStreak, 'computedStreak:', p?.computedStreak, 'used:', p?.currentStreak);
     }
     
     /**
@@ -588,6 +645,14 @@ class HomePage {
     renderStatsInline(stats) {
         const loading = stats?.loading || this.loading;
 
+        if (loading) {
+            return `
+                <div class="stats-inline skeleton-stat-block" id="statsInline">
+                    <div class="skeleton-line" style="width: 80%; height: 18px;"></div>
+                </div>
+            `;
+        }
+
         let content = '—';
         const hasValid =
             !loading &&
@@ -869,6 +934,16 @@ class HomePage {
         const statsInline = document.getElementById('statsInline');
         if (!statsInline) return;
 
+        // Remove skeleton class if it exists
+        statsInline.classList.remove('skeleton-stat-block');
+
+        // Show loading state if stats are being loaded
+        if (stats?.loading) {
+            statsInline.className = 'stats-inline skeleton-stat-block';
+            statsInline.innerHTML = '<div class="skeleton-line" style="width: 80%; height: 18px;"></div>';
+            return;
+        }
+
         // По ТЗ: если нет валидных данных — показываем "—"
         let content = '—';
 
@@ -896,12 +971,15 @@ class HomePage {
             return;
         }
 
-        const shouldAnimate = currentContent && currentContent !== content;
+        const shouldAnimate = currentContent && currentContent !== content && currentContent !== '—';
+        
+        // Ensure we have proper class structure
+        statsInline.className = 'stats-inline';
         statsInline.innerHTML = `<span class="stat-summary">${content}</span>`;
 
         if (shouldAnimate) {
-            statsInline.classList.add('pulse-update');
-            setTimeout(() => statsInline.classList.remove('pulse-update'), 400);
+            statsInline.classList.add('fade-in');
+            setTimeout(() => statsInline.classList.remove('fade-in'), 300);
         }
     }
 

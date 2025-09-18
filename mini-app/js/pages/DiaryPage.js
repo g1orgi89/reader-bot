@@ -105,8 +105,27 @@ class DiaryPage {
         const statsSubscription = this.state.subscribe('stats', (stats) => {
             this.updateStatsUI(stats);
         });
+
+        const diaryStatsSubscription = this.state.subscribe('diaryStats', (diaryStats) => {
+            this.updateDiaryStatsUI(diaryStats);
+        });
         
-        this.subscriptions.push(quotesSubscription, statsSubscription);
+        this.subscriptions.push(quotesSubscription, statsSubscription, diaryStatsSubscription);
+
+        // Listen for real-time statistics updates
+        document.addEventListener('stats:updated', (e) => {
+            console.log('📖 DiaryPage: Received stats:updated event', e.detail);
+            if (e.detail) {
+                this.updateStatsUI(e.detail);
+            }
+        });
+
+        document.addEventListener('diary-stats:updated', (e) => {
+            console.log('📖 DiaryPage: Received diary-stats:updated event', e.detail);
+            if (e.detail) {
+                this.updateDiaryStatsUI(e.detail);
+            }
+        });
     }
     
     async loadInitialData() {
@@ -369,11 +388,22 @@ class DiaryPage {
      */
     renderStatsInfo() {
         const stats = this.state.get('stats') || {};
-        const activityPercent = (this.state.get('diaryStats') || {}).activityPercent ?? 1;
-        const totalQuotes = stats.totalQuotes ?? 0;
+        const diaryStats = this.state.get('diaryStats') || {};
+        const loading = this.state.get('stats.loading') || this.statsLoading;
+        
+        if (loading) {
+            return `
+                <div class="stats-summary skeleton-stat-block">
+                    <div class="skeleton-line" style="width: 85%; height: 16px;"></div>
+                </div>
+            `;
+        }
+        
+        const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
+        const activityPercent = diaryStats.activityPercent ?? 1;
 
         return `
-            <div class="stats-summary">
+            <div class="stats-summary" id="diaryStatsInfo">
                 📊 У вас уже ${totalQuotes} цитат • Вы активнее ${activityPercent}% читателей сообщества
             </div>
         `;
@@ -423,15 +453,25 @@ class DiaryPage {
      */
     renderQuotesStats() {
         const stats = this.state.get('stats') || {};
-        const weeklyQuotes = stats.weeklyQuotes ?? stats.thisWeek ?? 0;
-        const favoriteAuthor = Array.isArray(stats.favoriteAuthors) && stats.favoriteAuthors.length > 0
-            ? stats.favoriteAuthors[0]
-            : (stats.favoriteAuthor ?? '—');
-        const totalQuotes = stats.totalQuotes ?? 0;
+        const diaryStats = this.state.get('diaryStats') || {};
+        const loading = this.state.get('stats.loading') || this.statsLoading;
+        
+        if (loading) {
+            return `
+                <div class="stats-summary skeleton-stat-block">
+                    <div class="skeleton-line" style="width: 90%; height: 16px;"></div>
+                </div>
+            `;
+        }
+        
+        const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
+        const weeklyQuotes = stats.weeklyQuotes ?? diaryStats.weeklyQuotes ?? 0;
+        const monthlyQuotes = diaryStats.monthlyQuotes ?? 0;
+        const favoritesCount = diaryStats.favoritesCount ?? 0;
 
         return `
-            <div class="stats-summary">
-                📊 Всего: ${totalQuotes} цитат • За неделю: ${weeklyQuotes} • Любимый автор: ${favoriteAuthor}
+            <div class="stats-summary" id="myQuotesStats">
+                📊 Всего: ${totalQuotes} • За неделю: ${weeklyQuotes} • За месяц: ${monthlyQuotes} • Избранное: ${favoritesCount}
             </div>
         `;
     }
@@ -1176,9 +1216,71 @@ class DiaryPage {
         }
     }
 
-    updateStatsUI(_stats) {
-        if (this.activeTab === 'add') {
-            this.rerender();
+    updateStatsUI(stats) {
+        // Update Add tab stats display
+        const diaryStatsInfo = document.getElementById('diaryStatsInfo');
+        if (diaryStatsInfo && this.activeTab === 'add') {
+            const totalQuotes = stats.totalQuotes ?? 0;
+            const diaryStats = this.state.get('diaryStats') || {};
+            const activityPercent = diaryStats.activityPercent ?? 1;
+            
+            const newContent = `📊 У вас уже ${totalQuotes} цитат • Вы активнее ${activityPercent}% читателей сообщества`;
+            if (diaryStatsInfo.textContent !== newContent) {
+                diaryStatsInfo.textContent = newContent;
+                diaryStatsInfo.classList.add('fade-in');
+                setTimeout(() => diaryStatsInfo.classList.remove('fade-in'), 300);
+            }
+        }
+        
+        // Update My Quotes tab stats display  
+        const myQuotesStats = document.getElementById('myQuotesStats');
+        if (myQuotesStats && this.activeTab === 'my-quotes') {
+            const diaryStats = this.state.get('diaryStats') || {};
+            const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
+            const weeklyQuotes = stats.weeklyQuotes ?? diaryStats.weeklyQuotes ?? 0;
+            const monthlyQuotes = diaryStats.monthlyQuotes ?? 0;
+            const favoritesCount = diaryStats.favoritesCount ?? 0;
+            
+            const newContent = `📊 Всего: ${totalQuotes} • За неделю: ${weeklyQuotes} • За месяц: ${monthlyQuotes} • Избранное: ${favoritesCount}`;
+            if (myQuotesStats.textContent !== newContent) {
+                myQuotesStats.textContent = newContent;
+                myQuotesStats.classList.add('fade-in');
+                setTimeout(() => myQuotesStats.classList.remove('fade-in'), 300);
+            }
+        }
+    }
+
+    updateDiaryStatsUI(diaryStats) {
+        // Update Add tab stats display
+        const diaryStatsInfo = document.getElementById('diaryStatsInfo');
+        if (diaryStatsInfo && this.activeTab === 'add') {
+            const stats = this.state.get('stats') || {};
+            const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
+            const activityPercent = diaryStats.activityPercent ?? 1;
+            
+            const newContent = `📊 У вас уже ${totalQuotes} цитат • Вы активнее ${activityPercent}% читателей сообщества`;
+            if (diaryStatsInfo.textContent !== newContent) {
+                diaryStatsInfo.textContent = newContent;
+                diaryStatsInfo.classList.add('fade-in');
+                setTimeout(() => diaryStatsInfo.classList.remove('fade-in'), 300);
+            }
+        }
+        
+        // Update My Quotes tab stats display
+        const myQuotesStats = document.getElementById('myQuotesStats');
+        if (myQuotesStats && this.activeTab === 'my-quotes') {
+            const stats = this.state.get('stats') || {};
+            const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
+            const weeklyQuotes = stats.weeklyQuotes ?? diaryStats.weeklyQuotes ?? 0;
+            const monthlyQuotes = diaryStats.monthlyQuotes ?? 0;
+            const favoritesCount = diaryStats.favoritesCount ?? 0;
+            
+            const newContent = `📊 Всего: ${totalQuotes} • За неделю: ${weeklyQuotes} • За месяц: ${monthlyQuotes} • Избранное: ${favoritesCount}`;
+            if (myQuotesStats.textContent !== newContent) {
+                myQuotesStats.textContent = newContent;
+                myQuotesStats.classList.add('fade-in');
+                setTimeout(() => myQuotesStats.classList.remove('fade-in'), 300);
+            }
         }
     }
     
