@@ -45,6 +45,7 @@ describe('HomePage Stats Block Synchronization', () => {
         mockState = {
             get: jest.fn(),
             update: jest.fn(),
+            setLoading: jest.fn(),
             getCurrentUserId: jest.fn(() => 'test-user-123')
         };
 
@@ -217,10 +218,10 @@ describe('HomePage Stats Block Synchronization', () => {
             // Trigger quote added event
             await statsService.onQuoteAdded({ type: 'added' });
 
-            // Verify state was updated only once (background refresh, not optimistic)
-            expect(mockState.update).toHaveBeenCalledTimes(1);
+            // Verify state was updated (background refresh for both main stats and diary stats)
+            expect(mockState.update).toHaveBeenCalledTimes(2); // Main stats and diary stats
             
-            // Should be the background refresh call, not optimistic update
+            // Should be the background refresh call for main stats, not optimistic update
             expect(mockState.update).toHaveBeenCalledWith('stats', expect.objectContaining({
                 isFresh: true // Background refresh sets isFresh: true
             }));
@@ -245,10 +246,10 @@ describe('HomePage Stats Block Synchronization', () => {
             // Trigger quote deleted event
             await statsService.onQuoteDeleted({ type: 'deleted' });
 
-            // Verify state was updated only once (background refresh, not optimistic)
-            expect(mockState.update).toHaveBeenCalledTimes(1);
+            // Verify state was updated (background refresh for both main stats and diary stats)
+            expect(mockState.update).toHaveBeenCalledTimes(2); // Main stats and diary stats
             
-            // Should be the background refresh call
+            // Should be the background refresh call for main stats
             expect(mockState.update).toHaveBeenCalledWith('stats', expect.objectContaining({
                 isFresh: true // Background refresh sets isFresh: true
             }));
