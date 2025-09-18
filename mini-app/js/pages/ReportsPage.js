@@ -401,17 +401,16 @@ class ReportsPage {
      * ✅ ИСПРАВЛЕНО: Показывает лоадер до получения данных, предотвращает мигание старых данных
      */
     render() {
-        // Лоадер только если идет загрузка и отчета еще нет
         if (this.reportsLoading && !this.weeklyReport) {
-            // ... лоадер ...
+            return this.renderWeeklyReport();
         }
-        // Плейсхолдер если нет отчета и загрузка завершена
         if (!this.weeklyReport && !this.reportsLoading) {
-            // ... плейсхолдер ...
+            return this.renderNewUserPlaceholder();
         }
-        // Если отчет есть — ВСЕГДА рендерим отчет, никакого лоадера!
         if (this.weeklyReport) {
-            // ... отчет ...
+            return this.renderWeeklyReport()
+                + this.renderAIAnalysis()
+                + this.renderRecommendations();
         }
         return '';
     }
