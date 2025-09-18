@@ -209,8 +209,7 @@ class StatisticsService {
     async getActivityPercent() {
         return this._cached(`activityPercent:${this._requireUserId()}`, async () => {
             try {
-                const userId = this._requireUserId();
-                const result = await this.api.getActivityPercent(userId);
+                const result = await this.api.getActivityPercent();
                 return result ?? 1;
             } catch (e) {
                 console.warn('Failed to get activity percent:', e);
@@ -268,7 +267,7 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote added, refreshing stats');
             
-            // Completely reset cache (invalidate all)
+            // Invalidate ALL cache keys for complete refresh
             this.invalidate();
             
             // Load fresh data and then update state and dispatch event
@@ -284,7 +283,7 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote deleted, refreshing stats');
             
-            // Completely reset cache (invalidate all)
+            // Invalidate ALL cache keys for complete refresh
             this.invalidate();
             
             // Load fresh data and then update state and dispatch event
@@ -300,8 +299,7 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote edited, refreshing stats');
             
-            // For edited quotes, we may only need to refresh if favorite status changed
-            // But for simplicity, refresh all stats
+            // Invalidate ALL cache keys for complete refresh
             this.invalidate();
             
             await this.refreshMainStatsSilent();
@@ -324,6 +322,9 @@ class StatisticsService {
 
     async refreshMainStatsSilent() {
         try {
+            // Set loading state in State
+            this.state.setLoading(true, 'stats');
+            
             const main = await this.getMainStats();
             const progress = await this.getUserProgress();
             const prev = this.state.get('stats') || {};
@@ -339,19 +340,25 @@ class StatisticsService {
                 weeklyQuotes: progress.weeklyQuotes,
                 favoriteAuthor: progress.favoriteAuthor,
                 loadedAt: Date.now(),
-                isFresh: true
+                isFresh: true,
+                loading: false
             };
             
             this.state.update('stats', merged);
+            this.state.setLoading(false, 'stats');
             document.dispatchEvent(new CustomEvent('stats:updated', { detail: merged }));
             console.log('📊 Main stats updated and event dispatched');
         } catch (e) {
+            this.state.setLoading(false, 'stats');
             console.debug('refreshMainStatsSilent failed:', e);
         }
     }
 
     async refreshDiaryStatsSilent() {
         try {
+            // Set loading state for diary stats
+            this.state.setLoading(true, 'diaryStats');
+            
             const diaryStats = await this.getDiaryStats();
             const prev = this.state.get('diaryStats') || {};
             
@@ -359,13 +366,16 @@ class StatisticsService {
                 ...prev,
                 ...diaryStats,
                 loadedAt: Date.now(),
-                isFresh: true
+                isFresh: true,
+                loading: false
             };
             
             this.state.update('diaryStats', merged);
+            this.state.setLoading(false, 'diaryStats');
             document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: merged }));
             console.log('📊 Diary stats updated and event dispatched');
         } catch (e) {
+            this.state.setLoading(false, 'diaryStats');
             console.debug('refreshDiaryStatsSilent failed:', e);
         }
     }

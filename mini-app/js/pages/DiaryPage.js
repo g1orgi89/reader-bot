@@ -138,7 +138,7 @@ class DiaryPage {
 
             // Получаем оба значения
             const diaryStats = await this.app.statistics.getDiaryStats();
-            const activityPercent = await this.api.getActivityPercent(userId);
+            const activityPercent = await this.api.getActivityPercent();
 
             // Объединяем аккуратно
             this.state.set('diaryStats', { ...diaryStats, activityPercent });
@@ -454,7 +454,7 @@ class DiaryPage {
     renderQuotesStats() {
         const stats = this.state.get('stats') || {};
         const diaryStats = this.state.get('diaryStats') || {};
-        const loading = this.state.get('stats.loading') || this.statsLoading;
+        const loading = this.state.get('stats.loading') || this.state.get('diaryStats.loading') || this.statsLoading;
         
         if (loading) {
             return `
@@ -1027,7 +1027,7 @@ class DiaryPage {
                 if (this.app.statistics && typeof this.app.statistics.refreshMainStatsSilent === 'function') {
                 await this.app.statistics.refreshMainStatsSilent();
                 }
-                const activityPercent = await this.api.getActivityPercent(userId);
+                const activityPercent = await this.api.getActivityPercent();
                 this.state.set('diaryStats', { activityPercent });
                 } catch {}
 
@@ -1220,6 +1220,9 @@ class DiaryPage {
         // Update Add tab stats display
         const diaryStatsInfo = document.getElementById('diaryStatsInfo');
         if (diaryStatsInfo && this.activeTab === 'add') {
+            // Remove skeleton class if it exists
+            diaryStatsInfo.classList.remove('skeleton-stat-block');
+            
             const totalQuotes = stats.totalQuotes ?? 0;
             const diaryStats = this.state.get('diaryStats') || {};
             const activityPercent = diaryStats.activityPercent ?? 1;
@@ -1235,6 +1238,9 @@ class DiaryPage {
         // Update My Quotes tab stats display  
         const myQuotesStats = document.getElementById('myQuotesStats');
         if (myQuotesStats && this.activeTab === 'my-quotes') {
+            // Remove skeleton class if it exists
+            myQuotesStats.classList.remove('skeleton-stat-block');
+            
             const diaryStats = this.state.get('diaryStats') || {};
             const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
             const weeklyQuotes = stats.weeklyQuotes ?? diaryStats.weeklyQuotes ?? 0;
@@ -1254,6 +1260,9 @@ class DiaryPage {
         // Update Add tab stats display
         const diaryStatsInfo = document.getElementById('diaryStatsInfo');
         if (diaryStatsInfo && this.activeTab === 'add') {
+            // Remove skeleton class if it exists
+            diaryStatsInfo.classList.remove('skeleton-stat-block');
+            
             const stats = this.state.get('stats') || {};
             const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
             const activityPercent = diaryStats.activityPercent ?? 1;
@@ -1269,6 +1278,9 @@ class DiaryPage {
         // Update My Quotes tab stats display
         const myQuotesStats = document.getElementById('myQuotesStats');
         if (myQuotesStats && this.activeTab === 'my-quotes') {
+            // Remove skeleton class if it exists
+            myQuotesStats.classList.remove('skeleton-stat-block');
+            
             const stats = this.state.get('stats') || {};
             const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
             const weeklyQuotes = stats.weeklyQuotes ?? diaryStats.weeklyQuotes ?? 0;
@@ -1647,7 +1659,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
                 await this.app.statistics.refreshMainStatsSilent();
             }
                 const userId = await this.waitForValidUserId();
-                const activityPercent = await this.api.getActivityPercent(userId);
+                const activityPercent = await this.api.getActivityPercent();
                 this.state.set('diaryStats', { activityPercent });
                 // --- КОНЕЦ ---
 
