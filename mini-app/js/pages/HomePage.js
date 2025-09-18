@@ -290,14 +290,15 @@ class HomePage {
         const wrap = document.querySelector('.progress-block');
         if (!wrap) return;
         
-        const p = this.state.get('stats.progressTemp') || this.state.get('stats');
-        const loading = this.state.get('stats.loading') || this.loading;
+        const stats = this.state.get('stats') || {};
+        // Check loading state from state.loading property, not local loading flag
+        const isLoading = this.state.get('stats.loading') || false;
         
         const grid = wrap.querySelector('.progress-grid');
         const activityNode = wrap.querySelector('.progress-activity');
         
         if (grid) {
-            if (loading || !p) {
+            if (isLoading) {
                 // Show skeleton loading state
                 grid.innerHTML = Array(3).fill(0).map(() => `
                     <div class="stat-card skeleton-stat-block" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);">
@@ -308,15 +309,48 @@ class HomePage {
             } else {
                 // Show actual data with smooth transition - ensure touch-friendly sizes
                 const newContent = [
-                    { label: 'За 7 дней', value: p.weeklyQuotes ?? '—' },
-                    { label: 'Серия (дней подряд)', value: p.currentStreak ?? '—' },
-                    { label: 'Любимый автор', value: p.favoriteAuthor || '—' }
+                    { label: 'За 7 дней', value: stats.weeklyQuotes ?? '—' },
+                    { label: 'Серия (дней подряд)', value: stats.currentStreak ?? '—' },
+                    { label: 'Любимый автор', value: stats.favoriteAuthor || '—' }
                 ].map(item => `
                     <div class="stat-card fade-in" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;">
                         <div style="font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">${item.label}</div>
                         <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">${item.value}</div>
                     </div>
                 `).join('');
+                
+                if (grid.innerHTML !== newContent) {
+                    grid.innerHTML = newContent;
+                    // Remove fade-in class after animation
+                    setTimeout(() => {
+                        grid.querySelectorAll('.fade-in').forEach(el => {
+                            el.classList.remove('fade-in');
+                        });
+                    }, 300);
+                }
+            }
+        }
+        
+        if (activityNode) {
+            if (isLoading) {
+                activityNode.innerHTML = '<div class="skeleton-line" style="width: 60%; height: 16px; margin: 0 auto;"></div>';
+            } else {
+                // Always get activityPercent from API data
+                const activityPercent = stats.activityPercent ?? 1;
+                const activityLevel = stats.activityLevel || 'low';
+                let emoji = '🔍';
+                if (activityLevel === 'high') emoji = '🔥';
+                else if (activityLevel === 'medium') emoji = '💪';
+                
+                const newText = `Активность: ${activityLevel === 'high' ? 'Высокая' : activityLevel === 'medium' ? 'Средняя' : 'Начинающий'} ${emoji}`;
+                if (activityNode.textContent !== newText) {
+                    activityNode.textContent = newText;
+                    activityNode.classList.add('fade-in');
+                    setTimeout(() => activityNode.classList.remove('fade-in'), 300);
+                }
+            }
+        }
+    }
                 
                 if (grid.innerHTML !== newContent) {
                     grid.innerHTML = newContent;
@@ -937,8 +971,11 @@ class HomePage {
         const statsInline = document.getElementById('statsInline');
         if (!statsInline) return;
 
+        // Check loading state from stats.loading property
+        const isLoading = stats?.loading || this.state.get('stats.loading') || false;
+
         // Show loading state if stats are being loaded
-        if (stats?.loading) {
+        if (isLoading) {
             statsInline.className = 'stats-inline skeleton-stat-block';
             statsInline.innerHTML = '<div class="skeleton-line" style="width: 80%; height: 18px;"></div>';
             return;

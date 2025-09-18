@@ -268,11 +268,10 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote added, refreshing stats');
             
-            // Invalidate ALL cache keys for complete refresh including activity percent
-            this.invalidate();
-            this.invalidateForUser(userId);
+            // Централизованная инвалидация всего кэша
+            this.invalidateAll();
             
-            // Load fresh data and then update state and dispatch event
+            // Загружаем свежие данные и обновляем состояние
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
@@ -288,11 +287,10 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote deleted, refreshing stats');
             
-            // Invalidate ALL cache keys for complete refresh including activity percent
-            this.invalidate();
-            this.invalidateForUser(userId);
+            // Централизованная инвалидация всего кэша
+            this.invalidateAll();
             
-            // Load fresh data and then update state and dispatch event
+            // Загружаем свежие данные и обновляем состояние
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
@@ -308,9 +306,8 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote edited, refreshing stats');
             
-            // Invalidate ALL cache keys for complete refresh including activity percent
-            this.invalidate();
-            this.invalidateForUser(userId);
+            // Централизованная инвалидация всего кэша
+            this.invalidateAll();
             
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
@@ -340,28 +337,31 @@ class StatisticsService {
             
             const main = await this.getMainStats();
             const progress = await this.getUserProgress();
-            const prev = this.state.get('stats') || {};
             
-            const merged = {
-                ...prev,
-                ...main,
-                currentStreak: progress.currentStreak,
-                computedStreak: progress.computedStreak,
-                backendStreak: progress.backendStreak,
-                streakToYesterday: progress.streakToYesterday,
-                isAwaitingToday: progress.isAwaitingToday,
-                weeklyQuotes: progress.weeklyQuotes,
-                favoriteAuthor: progress.favoriteAuthor,
-                activityLevel: progress.activityLevel, // Include activity level in stats
+            // Create flat stats object as per requirements
+            const flatStats = {
+                totalQuotes: main.totalQuotes || 0,
+                currentStreak: progress.currentStreak || 0,
+                computedStreak: progress.computedStreak || 0,
+                backendStreak: progress.backendStreak || 0,
+                streakToYesterday: progress.streakToYesterday || 0,
+                isAwaitingToday: progress.isAwaitingToday || false,
+                weeklyQuotes: progress.weeklyQuotes || 0,
+                favoriteAuthor: progress.favoriteAuthor || '—',
+                activityLevel: progress.activityLevel || 'low',
+                daysInApp: main.daysInApp || 0,
                 loadedAt: Date.now(),
                 isFresh: true,
                 loading: false
             };
             
-            this.state.update('stats', merged);
+            // Update state with flat stats object
+            this.state.set('stats', flatStats);
             this.state.setLoading(false, 'stats');
-            document.dispatchEvent(new CustomEvent('stats:updated', { detail: merged }));
-            console.log('📊 Main stats updated and event dispatched');
+            
+            // Dispatch event with flat stats
+            document.dispatchEvent(new CustomEvent('stats:updated', { detail: flatStats }));
+            console.log('📊 Main stats updated and event dispatched:', flatStats);
         } catch (e) {
             this.state.setLoading(false, 'stats');
             console.debug('refreshMainStatsSilent failed:', e);
@@ -374,20 +374,27 @@ class StatisticsService {
             this.state.setLoading(true, 'diaryStats');
             
             const diaryStats = await this.getDiaryStats();
-            const prev = this.state.get('diaryStats') || {};
             
-            const merged = {
-                ...prev,
-                ...diaryStats,
+            // Create flat diary stats object
+            const flatDiaryStats = {
+                totalQuotes: diaryStats.totalQuotes || 0,
+                weeklyQuotes: diaryStats.weeklyQuotes || 0,
+                monthlyQuotes: diaryStats.monthlyQuotes || 0,
+                favoritesCount: diaryStats.favoritesCount || 0,
+                favoriteAuthor: diaryStats.favoriteAuthor || '—',
+                activityPercent: diaryStats.activityPercent || 1,
                 loadedAt: Date.now(),
                 isFresh: true,
                 loading: false
             };
             
-            this.state.update('diaryStats', merged);
+            // Update state with flat diary stats
+            this.state.set('diaryStats', flatDiaryStats);
             this.state.setLoading(false, 'diaryStats');
-            document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: merged }));
-            console.log('📊 Diary stats updated and event dispatched');
+            
+            // Dispatch event with flat stats
+            document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: flatDiaryStats }));
+            console.log('📊 Diary stats updated and event dispatched:', flatDiaryStats);
         } catch (e) {
             this.state.setLoading(false, 'diaryStats');
             console.debug('refreshDiaryStatsSilent failed:', e);
@@ -403,9 +410,15 @@ class StatisticsService {
             // Clear activity percent cache to force fresh API call
             this.cache.delete(`activityPercent:${userId}`);
             
-            // Get fresh activity percent and update state
+            // Get fresh activity percent from API
             const activityPercent = await this.getActivityPercent();
-            this.state.update('diaryStats', { activityPercent });
+            
+            // Update both stats and diaryStats with the new activityPercent
+            const currentStats = this.state.get('stats') || {};
+            const currentDiaryStats = this.state.get('diaryStats') || {};
+            
+            this.state.set('stats', { ...currentStats, activityPercent });
+            this.state.set('diaryStats', { ...currentDiaryStats, activityPercent });
             
             console.log('📊 Activity percent refreshed:', activityPercent);
             return activityPercent;
@@ -418,6 +431,15 @@ class StatisticsService {
     invalidate(keys = []) {
         if (!keys.length) { this.cache.clear(); return; }
         keys.forEach(k => this.cache.delete(k));
+    }
+
+    /**
+     * Централизованная инвалидация всего кэша после мутаций цитат
+     */
+    invalidateAll() {
+        console.log('📊 StatisticsService: Invalidating all cache');
+        this.cache.clear();
+        this.inFlight.clear();
     }
 
     // -------- internal helpers --------

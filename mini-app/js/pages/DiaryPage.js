@@ -389,9 +389,13 @@ class DiaryPage {
     renderStatsInfo() {
         const stats = this.state.get('stats') || {};
         const diaryStats = this.state.get('diaryStats') || {};
-        const loading = this.state.get('stats.loading') || this.statsLoading;
         
-        if (loading) {
+        // Check loading state correctly - from state loading properties
+        const statsLoading = this.state.get('stats.loading') || false;
+        const diaryStatsLoading = this.state.get('diaryStats.loading') || false;
+        const isLoading = statsLoading || diaryStatsLoading || this.statsLoading;
+        
+        if (isLoading) {
             return `
                 <div class="stats-summary skeleton-stat-block">
                     <div class="skeleton-line" style="width: 85%; height: 16px;"></div>
@@ -400,7 +404,8 @@ class DiaryPage {
         }
         
         const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
-        const activityPercent = diaryStats.activityPercent ?? 1;
+        // Always get activityPercent from API data (never calculate locally)
+        const activityPercent = diaryStats.activityPercent ?? stats.activityPercent ?? 1;
 
         return `
             <div class="stats-summary" id="diaryStatsInfo">
@@ -1224,8 +1229,8 @@ class DiaryPage {
             diaryStatsInfo.classList.remove('skeleton-stat-block');
             
             const totalQuotes = stats.totalQuotes ?? 0;
-            const diaryStats = this.state.get('diaryStats') || {};
-            const activityPercent = diaryStats.activityPercent ?? 1;
+            // Always get activityPercent from API data (not local calculation)
+            const activityPercent = stats.activityPercent ?? this.state.get('diaryStats.activityPercent') ?? 1;
             
             const newContent = `📊 У вас уже ${totalQuotes} цитат • Вы активнее ${activityPercent}% читателей сообщества`;
             if (diaryStatsInfo.textContent !== newContent) {
@@ -1265,7 +1270,8 @@ class DiaryPage {
             
             const stats = this.state.get('stats') || {};
             const totalQuotes = stats.totalQuotes ?? diaryStats.totalQuotes ?? 0;
-            const activityPercent = diaryStats.activityPercent ?? 1;
+            // Always use activityPercent from API data
+            const activityPercent = diaryStats.activityPercent ?? stats.activityPercent ?? 1;
             
             const newContent = `📊 У вас уже ${totalQuotes} цитат • Вы активнее ${activityPercent}% читателей сообщества`;
             if (diaryStatsInfo.textContent !== newContent) {
