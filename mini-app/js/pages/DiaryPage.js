@@ -1041,7 +1041,8 @@ class DiaryPage {
             this.state.set('quotes.items', newQuotes);
 
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-            const stats = recomputeAllStatsFromLocal(newQuotes);
+            const allQuotes = this.state.get('quotes.items') || [];
+            const stats = recomputeAllStatsFromLocal(allQuotes);
             this.state.set('stats', stats);
             this.state.set('diaryStats', stats);
 
@@ -1093,6 +1094,17 @@ class DiaryPage {
         this.currentFilter = filter;
         this.currentPage = 1;
 
+        // НЕ пересчитываем stats!
+        this.telegram.hapticFeedback('light');
+        this.updateFilterUI();
+        try {
+            const userId = await this.waitForValidUserId();
+            await this.loadQuotes(true, userId); // quotes.items обновятся, но stats не трогаем!
+        } catch (error) {
+            console.error('❌ Ошибка применения фильтра:', error);
+        }
+        this.rerender();
+    }
         // Явно сбрасываем временные фильтры
         if (filter === 'all') {
             this.dateFrom = undefined;
@@ -1162,7 +1174,8 @@ class DiaryPage {
             quote.isFavorite = newFavoriteState;
             this.state.set('quotes.items', [...quotes]);
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-            const stats = recomputeAllStatsFromLocal([...quotes]);
+            const allQuotes = this.state.get('quotes.items') || [];
+            const stats = recomputeAllStatsFromLocal(allQuotes);
             this.state.set('stats', stats);
             this.state.set('diaryStats', stats);
             // Правильный запрос на бекенд — обновляем цитату
@@ -1606,7 +1619,8 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
         const quotes = this.state.get('quotes.items') || [];
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
         // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-        const stats = recomputeAllStatsFromLocal([...quotes]);
+        const allQuotes = this.state.get('quotes.items') || [];
+        const stats = recomputeAllStatsFromLocal(allQuotes);
         this.state.set('stats', stats);
         this.state.set('diaryStats', stats);
         
@@ -1668,7 +1682,8 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
             const quotes = this.state.get('quotes.items') || [];
             const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-            const stats = recomputeAllStatsFromLocal(quotes);
+            const allQuotes = this.state.get('quotes.items') || [];
+            const stats = recomputeAllStatsFromLocal(allQuotes);
             this.state.set('stats', stats);
             this.state.set('diaryStats', stats);
 
