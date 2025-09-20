@@ -455,10 +455,18 @@ class StatisticsService {
             // NO loading flags for silent refresh
             const main = await this.getMainStats();
             const progress = await this.getUserProgress();
-            
+
+            // Получаем локальное количество цитат для гарантии свежести
+            const optimisticTotalQuotes = this.state.get('quotes.items')?.length || 0;
+
             // Create flat stats object with weeklyQuotes → thisWeek mirroring
             const flatStats = {
-                totalQuotes: main.totalQuotes || 0,
+                // Используем максимальное из локального и серверного значения!
+                totalQuotes: Math.max(
+                    main.totalQuotes || 0,
+                    optimisticTotalQuotes,
+                    progress.totalQuotes || 0
+                ),
                 currentStreak: progress.currentStreak || 0,
                 computedStreak: progress.computedStreak || 0,
                 backendStreak: progress.backendStreak || 0,
@@ -473,12 +481,12 @@ class StatisticsService {
                 isFresh: true,
                 loading: false
             };
-            
+
             // Update state with flat stats object (merge with existing to preserve optimistic updates)
             const currentStats = this.state.get('stats') || {};
             const mergedStats = { ...currentStats, ...flatStats };
             this.state.set('stats', mergedStats);
-            
+
             // Dispatch event with flat stats
             document.dispatchEvent(new CustomEvent('stats:updated', { detail: mergedStats }));
             console.log('📊 Main stats silently updated:', mergedStats);
