@@ -305,7 +305,8 @@ class StatisticsService {
         try {
             const quotes = this.state?.get('quotes.items') || [];
             const optimisticStats = this._calculateOptimisticStats(quotes);
-            
+            // ← ДОБАВЬ ЭТО
+            const favoritesCount = quotes.filter(q => q.isFavorite || q.favorite).length;
             // Get current stats to preserve API-only fields
             const currentStats = this.state.get('stats') || {};
             const currentDiaryStats = this.state.get('diaryStats') || {};
@@ -321,6 +322,7 @@ class StatisticsService {
                 computedStreak: optimisticStats.computedStreak,
                 streakToYesterday: optimisticStats.streakToYesterday,
                 isAwaitingToday: optimisticStats.isAwaitingToday,
+                favoritesCount,
                 loading: false,
                 loadedAt: Date.now()
             };
@@ -612,6 +614,7 @@ if (typeof document !== 'undefined') {
         }
     });
 }
+
 /**
  * Пересчитывает статистику по локальному массиву цитат
  * @param {Array<Object>} quotes
