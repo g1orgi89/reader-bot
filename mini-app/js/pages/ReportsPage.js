@@ -211,6 +211,123 @@ class ReportsPage {
     }
     
     /**
+     * 🔍 Проверка валидности weeklyReport
+     * @param {Object} report - Объект отчета для проверки
+     * @returns {boolean} true если отчет валидный
+     */
+    isValidReport(report) {
+        if (!report || typeof report !== 'object') {
+            console.log('🔍 isValidReport: Отчет не является объектом');
+            return false;
+        }
+        
+        // Проверяем обязательные поля
+        const hasRequiredFields = report.weekNumber && 
+                                 report.year && 
+                                 Array.isArray(report.quotes);
+                                 
+        if (!hasRequiredFields) {
+            console.log('🔍 isValidReport: Отсутствуют обязательные поля', {
+                weekNumber: !!report.weekNumber,
+                year: !!report.year,
+                quotes: Array.isArray(report.quotes)
+            });
+            return false;
+        }
+        
+        // Проверяем, что отчет не слишком старый (максимум 4 недели)
+        const reportDate = report.sentAt ? new Date(report.sentAt) : new Date();
+        const fourWeeksAgo = new Date();
+        fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+        
+        if (reportDate < fourWeeksAgo) {
+            console.log('🔍 isValidReport: Отчет слишком старый', reportDate);
+            return false;
+        }
+        
+        console.log('🔍 isValidReport: Отчет валидный');
+        return true;
+    }
+    
+    /**
+     * 📦 Получение текущего ключа недели для кэширования
+     * @returns {string} Ключ недели
+     */
+    getCurrentWeekKey() {
+        if (window.DateUtils && window.DateUtils.getWeekKey) {
+            return window.DateUtils.getWeekKey();
+        }
+        
+        // Fallback если DateUtils недоступен
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const week = Math.ceil(now.getDate() / 7);
+        return `${year}-${month}-${week}`;
+    }
+    
+    /**
+     * 💾 Сохранение отчета в localStorage
+     * @param {Object} report - Отчет для сохранения
+     * @param {string} weekKey - Ключ недели
+     */
+    saveReportToCache(report, weekKey) {
+        try {
+            const cacheData = {
+                report,
+                weekKey,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('reader-bot-weekly-report-cache', JSON.stringify(cacheData));
+            console.log('💾 Отчет сохранен в кэш для недели:', weekKey);
+        } catch (error) {
+            console.warn('⚠️ Ошибка сохранения в кэш:', error);
+        }
+    }
+    
+    /**
+     * 📥 Загрузка отчета из localStorage
+     * @param {string} currentWeekKey - Текущий ключ недели
+     * @returns {Object|null} Закэшированный отчет или null
+     */
+    loadReportFromCache(currentWeekKey) {
+        try {
+            const cached = localStorage.getItem('reader-bot-weekly-report-cache');
+            if (!cached) {
+                console.log('💾 Кэш пуст');
+                return null;
+            }
+            
+            const cacheData = JSON.parse(cached);
+            
+            // Проверяем, что кэш для текущей недели
+            if (cacheData.weekKey !== currentWeekKey) {
+                console.log('💾 Кэш для другой недели, очищаем', {
+                    cached: cacheData.weekKey,
+                    current: currentWeekKey
+                });
+                localStorage.removeItem('reader-bot-weekly-report-cache');
+                return null;
+            }
+            
+            // Проверяем валидность отчета
+            if (!this.isValidReport(cacheData.report)) {
+                console.log('💾 Кэшированный отчет невалидный, очищаем');
+                localStorage.removeItem('reader-bot-weekly-report-cache');
+                return null;
+            }
+            
+            console.log('💾 Загружен валидный отчет из кэша для недели:', currentWeekKey);
+            return cacheData.report;
+            
+        } catch (error) {
+            console.warn('⚠️ Ошибка загрузки из кэша:', error);
+            localStorage.removeItem('reader-bot-weekly-report-cache');
+            return null;
+        }
+    }
+    
+    /**
      * 📊 НОВОЕ: Вычисляет статистику только из данных weeklyReport (заморозка данных)
      * Это обеспечивает отображение "замороженной" статистики на момент создания отчета
      */
@@ -240,8 +357,8 @@ class ReportsPage {
                 .map(quote => new Date(quote.createdAt).toISOString().split('T')[0])
         ).size;
         
-        // Устанавливаем цель прогресса (по умолчанию 14 цитат как в API)
-        const targetQuotes = 14;
+        // Устанавливаем цель прогресса (по умолчанию 30 цитат как в продакшн требованиях)
+        const targetQuotes = 30;
         const progressQuotesPct = Math.min(Math.round((quotesCount / targetQuotes) * 100), 100);
         
         // Устанавливаем статистику из weeklyReport данных
@@ -268,7 +385,70 @@ class ReportsPage {
         console.log('✅ ReportsPage: Статистика вычислена из weeklyReport:', this.reportData.statistics);
     }
     
-    async loadReportData() {
+    /**
+     * 🔧 Обработка weeklyReport (извлечение из старого метода для переиспользования)
+     */
+    processWeeklyReport() {
+        if (!this.weeklyReport) return;
+        
+        // ✅ ИСПРАВЛЕНО: Вычисляем статистику ТОЛЬКО из weeklyReport данных
+        this.calculateStatisticsFromWeeklyReport();
+
+        // 📋 НОВОЕ: Легковесная проверка bookSlug для legacy записей (только если отсутствует)
+        if (this.weeklyReport.recommendations && Array.isArray(this.weeklyReport.recommendations)) {
+            let catalogBooks = [];
+            if (this.app?.state?.get && typeof this.app.state.get === 'function') {
+                catalogBooks = this.app.state.get('books') || [];
+            } else if (this.app?.state?.books) {
+                catalogBooks = this.app.state.books;
+            }
+            
+            // Только для рекомендаций БЕЗ bookSlug (защита от legacy данных)
+            this.weeklyReport.recommendations.forEach(rec => {
+                if (!rec.bookSlug && catalogBooks.length) {
+                    const found = catalogBooks.find(book =>
+                        book.title === rec.title && (
+                            (!book.author && !rec.author) ||
+                            (book.author && rec.author && book.author === rec.author)
+                        )
+                    );
+                    if (found && found.bookSlug) {
+                        rec.bookSlug = found.bookSlug;
+                        console.log(`📋 ReportsPage: Добавлен legacy bookSlug ${rec.bookSlug} для "${rec.title}"`);
+                    } else {
+                        // Fallback slug для legacy записей
+                        rec.bookSlug = this.generateFallbackSlug(rec.title);
+                        console.log(`📋 ReportsPage: Сгенерирован fallback slug ${rec.bookSlug} для "${rec.title}"`);
+                    }
+                }
+            });
+        }
+        
+        // НОРМАЛИЗАЦИЯ: гарантируем наличие вложенного analysis
+        const wr = this.weeklyReport || {};
+        const normalizedAnalysis = {
+            summary: (wr.analysis?.summary) || wr.summary || '',
+            insights: (wr.analysis?.insights) || wr.insights || '',
+            emotionalTone: (wr.analysis?.emotionalTone) || wr.emotionalTone || '',
+            dominantThemes: (wr.analysis?.dominantThemes) || wr.dominantThemes || []
+        };
+        this.weeklyReport.analysis = normalizedAnalysis;
+
+        // Обновляем текст анализа для рендера (приоритет: insights → summary → fallback)
+        if (normalizedAnalysis.insights || normalizedAnalysis.summary) {
+            this.reportData.aiAnalysis =
+                normalizedAnalysis.insights || normalizedAnalysis.summary || this.reportData.aiAnalysis;
+        }
+
+        // Обновляем темы ("Темы: …") из dominantThemes, если есть
+        if (Array.isArray(normalizedAnalysis.dominantThemes) && normalizedAnalysis.dominantThemes.length) {
+            this.reportData.topics = normalizedAnalysis.dominantThemes.join(', ');
+        }
+
+        console.log('✅ ReportsPage: Нормализованный анализ', this.weeklyReport.analysis);
+    }
+    
+    async loadReportData(currentWeekKey = null) {
         // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
         if (this.reportsLoading) {
             console.log('🔄 ReportsPage: Отчеты уже загружаются, пропускаем');
@@ -303,61 +483,13 @@ class ReportsPage {
                     this.lastReportDate = this.weeklyReport.sentAt ? 
                         new Date(this.weeklyReport.sentAt) : new Date();
 
-                    // ✅ ИСПРАВЛЕНО: Вычисляем статистику ТОЛЬКО из weeklyReport данных
-                    this.calculateStatisticsFromWeeklyReport();
-
-                    // 📋 НОВОЕ: Легковесная проверка bookSlug для legacy записей (только если отсутствует)
-                    if (this.weeklyReport.recommendations && Array.isArray(this.weeklyReport.recommendations)) {
-                        let catalogBooks = [];
-                        if (this.app?.state?.get && typeof this.app.state.get === 'function') {
-                            catalogBooks = this.app.state.get('books') || [];
-                        } else if (this.app?.state?.books) {
-                            catalogBooks = this.app.state.books;
-                        }
-                        
-                        // Только для рекомендаций БЕЗ bookSlug (защита от legacy данных)
-                        this.weeklyReport.recommendations.forEach(rec => {
-                            if (!rec.bookSlug && catalogBooks.length) {
-                                const found = catalogBooks.find(book =>
-                                    book.title === rec.title && (
-                                        (!book.author && !rec.author) ||
-                                        (book.author && rec.author && book.author === rec.author)
-                                    )
-                                );
-                                if (found && found.bookSlug) {
-                                    rec.bookSlug = found.bookSlug;
-                                    console.log(`📋 ReportsPage: Добавлен legacy bookSlug ${rec.bookSlug} для "${rec.title}"`);
-                                } else {
-                                    // Fallback slug для legacy записей
-                                    rec.bookSlug = this.generateFallbackSlug(rec.title);
-                                    console.log(`📋 ReportsPage: Сгенерирован fallback slug ${rec.bookSlug} для "${rec.title}"`);
-                                }
-                            }
-                        });
-                    }
+                    this.processWeeklyReport();
                     
-                    // НОРМАЛИЗАЦИЯ: гарантируем наличие вложенного analysis
-                    const wr = this.weeklyReport || {};
-                    const normalizedAnalysis = {
-                        summary: (wr.analysis?.summary) || wr.summary || '',
-                        insights: (wr.analysis?.insights) || wr.insights || '',
-                        emotionalTone: (wr.analysis?.emotionalTone) || wr.emotionalTone || '',
-                        dominantThemes: (wr.analysis?.dominantThemes) || wr.dominantThemes || []
-                    };
-                    this.weeklyReport.analysis = normalizedAnalysis;
-
-                    // Обновляем текст анализа для рендера (приоритет: insights → summary → fallback)
-                    if (normalizedAnalysis.insights || normalizedAnalysis.summary) {
-                        this.reportData.aiAnalysis =
-                            normalizedAnalysis.insights || normalizedAnalysis.summary || this.reportData.aiAnalysis;
+                    // 💾 Сохраняем в кэш при успешной загрузке
+                    if (currentWeekKey && this.isValidReport(this.weeklyReport)) {
+                        this.saveReportToCache(this.weeklyReport, currentWeekKey);
                     }
 
-                    // Обновляем темы ("Темы: …") из dominantThemes, если есть
-                    if (Array.isArray(normalizedAnalysis.dominantThemes) && normalizedAnalysis.dominantThemes.length) {
-                        this.reportData.topics = normalizedAnalysis.dominantThemes.join(', ');
-                    }
-
-                    console.log('✅ ReportsPage: Нормализованный анализ', this.weeklyReport.analysis);
                     console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
                 } else {
                     console.log('📊 ReportsPage: Еженедельные отчеты не найдены - новый пользователь');
@@ -388,7 +520,20 @@ class ReportsPage {
         } catch (error) {
             console.error('❌ Ошибка загрузки данных отчета:', error);
             
-            // ✅ При ошибке загрузки устанавливаем null и показываем плейсхолдер
+            // ✅ При ошибке API пытаемся показать последний валидный отчет из кэша
+            if (currentWeekKey) {
+                console.log('🔄 Пытаемся восстановить из кэша при ошибке API');
+                const fallbackReport = this.loadReportFromCache(currentWeekKey);
+                if (fallbackReport) {
+                    console.log('✅ Восстановлен отчет из кэша при ошибке API');
+                    this.weeklyReport = fallbackReport;
+                    this.processWeeklyReport();
+                    this.reportsLoaded = true;
+                    return; // Успешно восстановили из кэша
+                }
+            }
+            
+            // ✅ Если кэш тоже пуст - устанавливаем null и показываем плейсхолдер
             this.weeklyReport = null;
             this.applyFallbackStats('error');
         } finally {
@@ -699,23 +844,99 @@ class ReportsPage {
      * ✅ ИСПРАВЛЕНО: Предотвращает загрузку старых данных, всегда показывает лоадер до получения актуальных данных
      */
    onShow() {
-       console.log('📊 ReportsPage: onShow - БЕЗ ШАПКИ!');
-       // ✅ ВСЕГДА сбрасываем флаги перед загрузкой
-       this.reportsLoading = false;
-       this.reportsLoaded = false;
-       this.weeklyReport = null;
-
-       this.rerender(); // Показываем лоадер
-
-       // ✅ Загружаем свежие данные, игнорируя старые флаги
-       this.loadReportData().then(() => {
-           console.log('✅ ReportsPage: Данные загружены, перерендериваем');
-           this.rerender();
-       }).catch((error) => {
-           console.error('❌ ReportsPage: Ошибка загрузки данных:', error);
+       console.log('📊 ReportsPage: onShow - Проверяем кэш и загружаем данные');
+       
+       // Получаем текущий ключ недели
+       const currentWeekKey = this.getCurrentWeekKey();
+       console.log('🔑 Текущий ключ недели:', currentWeekKey);
+       
+       // Пытаемся загрузить из кэша
+       const cachedReport = this.loadReportFromCache(currentWeekKey);
+       
+       if (cachedReport) {
+           console.log('⚡ Показываем кэшированный отчет мгновенно');
+           // Мгновенно показываем кэшированные данные
+           this.weeklyReport = cachedReport;
+           this.calculateStatisticsFromWeeklyReport();
+           this.reportsLoaded = true;
            this.reportsLoading = false;
            this.rerender();
-       });
+           
+           // Запускаем тихий refresh в фоне
+           console.log('🔄 Запускаем тихий refresh в фоне');
+           this.silentRefresh(currentWeekKey);
+       } else {
+           console.log('💾 Кэш пуст или невалидный, загружаем с лоадером');
+           // Кэш пуст - показываем лоадер и загружаем
+           this.reportsLoading = true;
+           this.reportsLoaded = false;
+           this.weeklyReport = null;
+           this.rerender();
+           
+           // Загружаем данные с API
+           this.loadReportData(currentWeekKey).then(() => {
+               console.log('✅ ReportsPage: Данные загружены, перерендериваем');
+               this.rerender();
+           }).catch((error) => {
+               console.error('❌ ReportsPage: Ошибка загрузки данных:', error);
+               this.reportsLoading = false;
+               this.rerender();
+           });
+       }
+    }
+    
+    /**
+     * 🔄 Тихий refresh данных в фоне
+     * @param {string} currentWeekKey - Текущий ключ недели
+     */
+    async silentRefresh(currentWeekKey) {
+        try {
+            console.log('🔄 Начинаем тихий refresh');
+            
+            // Ждем валидный userId
+            const userId = await this.waitForValidUserId();
+            
+            if (userId === 'demo-user') {
+                console.log('🔄 Demo-user, пропускаем тихий refresh');
+                return;
+            }
+            
+            // Загружаем свежие данные с API
+            console.log('📡 Тихий refresh: Загружаем еженедельные отчеты для userId:', userId);
+            const weeklyReports = await this.api.getWeeklyReports({ limit: 1 }, userId);
+            
+            if (weeklyReports && weeklyReports.success) {
+                const reports = weeklyReports.reports || weeklyReports.data?.reports || [];
+                if (reports.length > 0) {
+                    const freshReport = reports[0];
+                    
+                    // Проверяем валидность свежего отчета
+                    if (this.isValidReport(freshReport)) {
+                        console.log('✅ Получен свежий валидный отчет, сохраняем в кэш');
+                        
+                        // Сохраняем в кэш
+                        this.saveReportToCache(freshReport, currentWeekKey);
+                        
+                        // Обновляем текущие данные только если они отличаются
+                        if (!this.weeklyReport || 
+                            this.weeklyReport._id !== freshReport._id ||
+                            this.weeklyReport.sentAt !== freshReport.sentAt) {
+                            
+                            console.log('🔄 Обновляем отображение свежими данными');
+                            this.weeklyReport = freshReport;
+                            this.processWeeklyReport();
+                            this.rerender();
+                        } else {
+                            console.log('🔄 Данные не изменились, обновление не требуется');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Ошибка тихого refresh (не критично):', error);
+            // При ошибке тихого refresh не показываем пользователю ошибку
+            // Просто логируем и продолжаем показывать кэшированные данные
+        }
     }
     
     onHide() {

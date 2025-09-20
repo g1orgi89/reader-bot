@@ -795,7 +795,7 @@ class ApiService {
                 uniqueAuthors: 5,
                 activeDays: 6,
                 streakDays: 3,
-                targetQuotes: 14,
+                targetQuotes: 30,
                 progressQuotesPct: 50,
                 targetDays: 7,
                 progressDaysPct: 86,

@@ -644,7 +644,7 @@ router.get('/weekly/:userId/stats', checkModelsAvailable, async (req, res) => {
     ).size;
     
     // Цели и прогресс
-    const targetQuotes = 14; // По требованию - фиксированное значение 14
+    const targetQuotes = 30; // Продакшн-требование - фиксированное значение 30
     const targetDays = 7;
     const progressQuotesPct = Math.min(Math.round((quotes / targetQuotes) * 100), 100);
     const progressDaysPct = Math.min(Math.round((activeDays / targetDays) * 100), 100);
