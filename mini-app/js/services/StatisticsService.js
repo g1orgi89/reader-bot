@@ -589,6 +589,31 @@ class StatisticsService {
     }
 }
 if (typeof window !== 'undefined') window.StatisticsService = StatisticsService;
+
+/**
+ * Пересчитывает статистику по локальному массиву цитат
+ * @param {Array<Object>} quotes
+ * @returns {Object} stats
+ */
+export function recomputeAllStatsFromLocal(quotes) {
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const monthMs = 30 * 24 * 60 * 60 * 1000;
+  return {
+    totalQuotes: quotes.length,
+    weeklyQuotes: quotes.filter(q => now - new Date(q.createdAt).getTime() < weekMs).length,
+    monthlyQuotes: quotes.filter(q => now - new Date(q.createdAt).getTime() < monthMs).length,
+    favoritesCount: quotes.filter(q => !!q.isFavorite).length,
+    favoriteAuthor: (() => {
+      const authors = quotes.filter(q => !!q.author).map(q => q.author);
+      if (!authors.length) return null;
+      return authors.sort((a, b) =>
+        authors.filter(v => v === b).length - authors.filter(v => v === a).length
+      )[0];
+    })()
+  };
+}
+
 // Export for module systems if available
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = StatisticsService;
