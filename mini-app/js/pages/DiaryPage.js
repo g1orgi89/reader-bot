@@ -1094,28 +1094,18 @@ class DiaryPage {
         this.currentFilter = filter;
         this.currentPage = 1;
 
+        // Явно сбрасываем временные фильтры
+        if (filter === 'all') {
+            this.dateFrom = undefined;
+            this.dateTo = undefined;
+        }
+        
         // НЕ пересчитываем stats!
         this.telegram.hapticFeedback('light');
         this.updateFilterUI();
         try {
             const userId = await this.waitForValidUserId();
             await this.loadQuotes(true, userId); // quotes.items обновятся, но stats не трогаем!
-        } catch (error) {
-            console.error('❌ Ошибка применения фильтра:', error);
-        }
-        this.rerender();
-    }
-        // Явно сбрасываем временные фильтры
-        if (filter === 'all') {
-            this.dateFrom = undefined;
-            this.dateTo = undefined;
-        }
-
-        this.telegram.hapticFeedback('light');
-        this.updateFilterUI();
-        try {
-            const userId = await this.waitForValidUserId();
-            await this.loadQuotes(true, userId);
         } catch (error) {
             console.error('❌ Ошибка применения фильтра:', error);
         }
