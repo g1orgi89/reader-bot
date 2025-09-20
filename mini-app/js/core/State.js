@@ -113,7 +113,6 @@ class AppState {
 
         // 🎯 Инициализация
         this.init();
-
         this.subscribe('quotes.items', (quotes) => {
           if (Array.isArray(quotes)) {
             const stats = recomputeAllStatsFromLocal(quotes);
