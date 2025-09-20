@@ -529,6 +529,8 @@ class ReportsPage {
                     this.weeklyReport = fallbackReport;
                     this.processWeeklyReport();
                     this.reportsLoaded = true;
+                    // ✅ ИСПРАВЛЕНО: Устанавливаем правильные флаги для показа кэшированного отчета
+                    this.reportsLoading = false;
                     return; // Успешно восстановили из кэша
                 }
             }
