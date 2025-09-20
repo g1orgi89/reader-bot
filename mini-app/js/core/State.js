@@ -11,7 +11,7 @@
  * Реактивная система на основе подписок и событий
  * Размер: ~2KB согласно архитектуре
  */
-import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
+window.recomputeAllStatsFromLocal = function(quotes) {
 
 class AppState {
     constructor() {
