@@ -1220,6 +1220,13 @@ class HomePage {
      * Вызывается при показе страницы
      */
     onShow() {
+        // Если был локальный апдейт stats меньше 5 секунд назад — НЕ делай повторный запрос
+        const stats = this.state.get('stats');
+        if (stats?.lastUpdate && (Date.now() - stats.lastUpdate) < 5000) {
+            this.applyTopStats(stats);
+            this.updateProgressUI();
+            return;
+        }
         if (!this.dataLoaded) {
             this.loadFromStatistics();
         } else {
