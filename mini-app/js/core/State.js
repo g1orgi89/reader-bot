@@ -11,6 +11,7 @@
  * Реактивная система на основе подписок и событий
  * Размер: ~2KB согласно архитектуре
  */
+import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
 
 class AppState {
     constructor() {
@@ -114,7 +115,18 @@ class AppState {
 
         // 🎯 Инициализация
         this.init();
-    }
+
+        this.subscribe('quotes.items', (quotes) => {
+          if (Array.isArray(quotes)) {
+            const stats = recomputeAllStatsFromLocal(quotes);
+            this.set('stats', stats);
+            this.set('diaryStats', stats);
+            if (typeof document !== 'undefined') {
+              document.dispatchEvent(new CustomEvent('stats:updated', { detail: stats }));
+              document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: stats }));
+            }
+          }
+        });
 
     /**
      * 🚀 Инициализация системы состояния
