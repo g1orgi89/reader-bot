@@ -11,25 +11,6 @@
  * Реактивная система на основе подписок и событий
  * Размер: ~2KB согласно архитектуре
  */
-window.recomputeAllStatsFromLocal = function(quotes) {
-    const now = Date.now();
-    const weekMs = 7 * 24 * 60 * 60 * 1000;
-    const monthMs = 30 * 24 * 60 * 60 * 1000;
-    return {
-        totalQuotes: quotes.length,
-        weeklyQuotes: quotes.filter(q => now - new Date(q.createdAt).getTime() < weekMs).length,
-        monthlyQuotes: quotes.filter(q => now - new Date(q.createdAt).getTime() < monthMs).length,
-        favoritesCount: quotes.filter(q => !!q.isFavorite).length,
-        favoriteAuthor: (() => {
-            const authors = quotes.filter(q => !!q.author).map(q => q.author);
-            if (!authors.length) return null;
-            return authors.sort((a, b) =>
-                authors.filter(v => v === b).length - authors.filter(v => v === a).length
-            )[0];
-        })()
-    };
-};
-
 class AppState {
     constructor() {
         // 📊 Центральное хранилище данных
