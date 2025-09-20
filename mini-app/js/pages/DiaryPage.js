@@ -1038,33 +1038,28 @@ class DiaryPage {
             // Обновляем список цитат
             const existingQuotes = this.state.get('quotes.items') || [];
             const newQuotes = [completeQuote, ...existingQuotes];
-            this.state.set('quotes.items', [completeQuote, ...existingQuotes]);
+            this.state.set('quotes.items', newQuotes);
+
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             const stats = recomputeAllStatsFromLocal(newQuotes);
             this.state.set('stats', stats);
             this.state.set('diaryStats', stats);
 
             document.dispatchEvent(new CustomEvent('quotes:changed', { 
-                detail: { type: 'added', id: completeQuote.id, quote: completeQuote } 
+            detail: { type: 'added', id: completeQuote.id, quote: completeQuote } 
             }));
-            // Диспатч событий для HomePage и других подписчиков
             document.dispatchEvent(new CustomEvent('stats:updated', { detail: stats }));
             document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: stats }));
-            // Далее обновляем процент активности с бэкенда и диспатчим diary-stats:updated
-            try {
-                const activityPercent = await this.api.getActivityPercent();
-                this.state.set('diaryStats', { ...this.state.get('diaryStats'), activityPercent });
-                document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: this.state.get('diaryStats') }));
-            } catch {}
-            // Обновляем статистику (не влияет на анализ)
-            try {
-                if (this.app.statistics && typeof this.app.statistics.refreshMainStatsSilent === 'function') {
-                await this.app.statistics.refreshMainStatsSilent();
-                }
-                const activityPercent = await this.api.getActivityPercent();
-                this.state.set('diaryStats', { activityPercent });
-                } catch {}
 
+            // Далее обновляем только процент активности с бэкенда и диспатчим diary-stats:updated
+            try {
+                const activityPercent = await this.api.getActivityPercent();
+                // Добавляем к уже существующим stats все поля + обновленный activityPercent
+                const diaryStatsUpdated = { ...this.state.get('diaryStats'), activityPercent };
+                this.state.set('diaryStats', diaryStatsUpdated);
+                document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: diaryStatsUpdated }));
+            } catch {}
+            
             if (saveBtn) {
                 saveBtn.textContent = '✅ Сохранено!';
                 saveBtn.style.backgroundColor = 'var(--success-color, #22c55e)';
