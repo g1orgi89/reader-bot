@@ -598,6 +598,20 @@ class StatisticsService {
 }
 if (typeof window !== 'undefined') window.StatisticsService = StatisticsService;
 
+// --- ДОБАВЬ этот блок ниже ---
+if (typeof document !== 'undefined') {
+    document.addEventListener('quotes:changed', () => {
+        if (window.StatisticsService) {
+            // Если есть инстанс StatisticsService (например, window.statisticsService или app.statistics)
+            // Вызови refresh методов для обновления статистики
+            // Обычно инстанс создается как window.statisticsService = new StatisticsService(...)
+            if (window.statisticsService) {
+                window.statisticsService.refreshMainStatsSilent();
+                window.statisticsService.refreshDiaryStatsSilent();
+            }
+        }
+    });
+}
 /**
  * Пересчитывает статистику по локальному массиву цитат
  * @param {Array<Object>} quotes
