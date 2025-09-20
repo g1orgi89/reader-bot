@@ -1043,8 +1043,10 @@ class DiaryPage {
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             const allQuotes = this.state.get('quotes.items') || [];
             const stats = recomputeAllStatsFromLocal(allQuotes);
-            this.state.set('stats', stats);
-            this.state.set('diaryStats', stats);
+            const oldStats = this.state.get('stats') || {};
+            const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
+            this.state.set('stats', newStats);
+            this.state.set('diaryStats', newStats);
 
             document.dispatchEvent(new CustomEvent('quotes:changed', { 
             detail: { type: 'added', id: completeQuote.id, quote: completeQuote } 
@@ -1165,9 +1167,10 @@ class DiaryPage {
             this.state.set('quotes.items', [...quotes]);
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             const allQuotes = this.state.get('quotes.items') || [];
-            const stats = recomputeAllStatsFromLocal(allQuotes);
-            this.state.set('stats', stats);
-            this.state.set('diaryStats', stats);
+            const oldStats = this.state.get('stats') || {};
+            const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
+            this.state.set('stats', newStats);
+            this.state.set('diaryStats', newStats);
             // Правильный запрос на бекенд — обновляем цитату
             const userId = await this.waitForValidUserId().catch(() => null);
             await this.api.updateQuote(quoteId, {
@@ -1610,9 +1613,10 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
         // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
         const allQuotes = this.state.get('quotes.items') || [];
-        const stats = recomputeAllStatsFromLocal(allQuotes);
-        this.state.set('stats', stats);
-        this.state.set('diaryStats', stats);
+        const oldStats = this.state.get('stats') || {};
+        const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
+        this.state.set('stats', newStats);
+        this.state.set('diaryStats', newStats);
         
         if (!quote) {
             console.error('❌ Цитата не найдена:', quoteId);
@@ -1674,8 +1678,10 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             const allQuotes = this.state.get('quotes.items') || [];
             const stats = recomputeAllStatsFromLocal(allQuotes);
-            this.state.set('stats', stats);
-            this.state.set('diaryStats', stats);
+            const oldStats = this.state.get('stats') || {};
+            const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
+            this.state.set('stats', newStats);
+            this.state.set('diaryStats', newStats);
 
             if (!quote) {
                 console.error('❌ Цитата не найдена:', quoteId);
