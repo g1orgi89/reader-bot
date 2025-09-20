@@ -127,6 +127,9 @@ class DiaryPage {
         });
     }
     
+    /**
+     * PRODUCTION REFACTOR: Загрузка начальных данных только через StatisticsService
+     */
     async loadInitialData() {
         console.log('📖 DiaryPage: loadInitialData начата');
 
@@ -135,21 +138,20 @@ class DiaryPage {
             const userId = await this.waitForValidUserId();
             console.log('📖 DiaryPage: Используем userId:', userId);
 
-            // Получаем оба значения
-            const diaryStats = await this.app.statistics.getDiaryStats();
-            const activityPercent = await this.api.getActivityPercent();
-
-            // Объединяем аккуратно
-            this.state.set('diaryStats', { ...diaryStats, activityPercent });
+            // PRODUCTION REFACTOR: Используем только StatisticsService для статистики
+            if (this.app?.statistics) {
+                await Promise.all([
+                    this.app.statistics.refreshDiaryStatsSilent(),
+                    this.app.statistics.refreshMainStatsSilent()
+                ]);
+            }
 
             // ✅ Загружаем только если не загружено
             if (!this.quotesLoaded && !this.quotesLoading) {
                 await this.loadQuotes(false, userId);
             }
     
-            if (!this.statsLoaded && !this.statsLoading) {
-                await this.loadStats(userId);
-            }
+            this.statsLoaded = true; // Статистика обновляется через сервис
     
             console.log('✅ DiaryPage: Данные загружены');
         } catch (error) {
@@ -236,52 +238,10 @@ class DiaryPage {
         }
     }
     
-    async loadStats(userId = null) {
-        // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
-        if (this.statsLoading) {
-            console.log('🔄 DiaryPage: Статистика уже загружается, пропускаем');
-            return;
-        }
-        
-        try {
-            this.statsLoading = true;
-            console.log('📊 DiaryPage: Загружаем статистику');
-            
-            // ✅ ИСПРАВЛЕНО: Ждем валидный userId если не передан
-            if (!userId) {
-                userId = await this.waitForValidUserId();
-            }
-            console.log('📊 DiaryPage: Загружаем статистику для userId:', userId);
-            
-            // Use StatisticsService silent methods if available
-            if (this.app?.statistics?.refreshMainStatsSilent && this.app?.statistics?.refreshDiaryStatsSilent) {
-                await Promise.all([
-                    this.app.statistics.refreshMainStatsSilent(),
-                    this.app.statistics.refreshDiaryStatsSilent()
-                ]);
-            } else {
-                // Fallback: direct API call but store flat fields
-                const resp = await this.api.getStats(userId);
-                const flatStats = {
-                    totalQuotes: resp?.stats?.totalQuotes || resp?.totalQuotes || 0,
-                    weeklyQuotes: resp?.stats?.weeklyQuotes || resp?.stats?.thisWeek || resp?.weeklyQuotes || resp?.thisWeek || 0,
-                    thisWeek: resp?.stats?.thisWeek || resp?.stats?.weeklyQuotes || resp?.thisWeek || resp?.weeklyQuotes || 0, // Mirror
-                    currentStreak: resp?.stats?.currentStreak || resp?.currentStreak || 0,
-                    longestStreak: resp?.stats?.longestStreak || resp?.longestStreak || 0,
-                    loading: false,
-                    loadedAt: Date.now()
-                };
-                this.state.set('stats', flatStats);
-            }
-            
-            this.statsLoaded = true; // ✅ НОВОЕ: Помечаем как загруженное
-            
-        } catch (error) {
-            console.error('❌ Ошибка загрузки статистики:', error);
-        } finally {
-            this.statsLoading = false; // ✅ НОВОЕ: Сбрасываем флаг
-        }
-    }
+    /**
+     * PRODUCTION REFACTOR: Убрана прямая загрузка статистики - используем только StatisticsService
+     */
+    // УДАЛЕНО: loadStats() - теперь используем только StatisticsService через события
     
     /**
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
@@ -966,6 +926,9 @@ class DiaryPage {
         }
     }
 
+    /**
+     * PRODUCTION REFACTOR: Сохранение цитаты с централизованной статистикой
+     */
     async handleSaveQuote() {
         console.log('LOG: DiaryPage.handleSaveQuote вызван');
         if (!this.isFormValid()) {
@@ -1040,29 +1003,13 @@ class DiaryPage {
             const newQuotes = [completeQuote, ...existingQuotes];
             this.state.set('quotes.items', newQuotes);
 
-            // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-            const allQuotes = this.state.get('quotes.items') || [];
-            const stats = recomputeAllStatsFromLocal(allQuotes);
-            const oldStats = this.state.get('stats') || {};
-            const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
-            this.state.set('stats', newStats);
-            this.state.set('diaryStats', newStats);
-
+            // PRODUCTION REFACTOR: Только dispatch событий, StatisticsService сам обработает статистику
             document.dispatchEvent(new CustomEvent('quotes:changed', { 
             detail: { type: 'added', id: completeQuote.id, quote: completeQuote } 
             }));
-            document.dispatchEvent(new CustomEvent('stats:updated', { detail: stats }));
-            document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: stats }));
 
-            // Далее обновляем только процент активности с бэкенда и диспатчим diary-stats:updated
-            try {
-                const activityPercent = await this.api.getActivityPercent();
-                // Добавляем к уже существующим stats все поля + обновленный activityPercent
-                const diaryStatsUpdated = { ...this.state.get('diaryStats'), activityPercent };
-                this.state.set('diaryStats', diaryStatsUpdated);
-                document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: diaryStatsUpdated }));
-            } catch {}
-            
+            // PRODUCTION REFACTOR: НЕ обновляем статистику напрямую - это делает StatisticsService
+
             if (saveBtn) {
                 saveBtn.textContent = '✅ Сохранено!';
                 saveBtn.style.backgroundColor = 'var(--success-color, #22c55e)';
@@ -1154,6 +1101,9 @@ class DiaryPage {
         }
     }
     
+    /**
+     * PRODUCTION REFACTOR: Переключение избранного с централизованной статистикой
+     */
     async toggleFavorite(quoteId, card = null, btn = null) {
         try {
             const quotes = this.state.get('quotes.items') || [];
@@ -1165,13 +1115,12 @@ class DiaryPage {
             // Оптимистично обновляем state
             quote.isFavorite = newFavoriteState;
             this.state.set('quotes.items', [...quotes]);
-            // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-            const allQuotes = this.state.get('quotes.items') || [];
-            const stats = recomputeAllStatsFromLocal(allQuotes);
-            const oldStats = this.state.get('stats') || {};
-            const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
-            this.state.set('stats', newStats);
-            this.state.set('diaryStats', newStats);
+            
+            // PRODUCTION REFACTOR: Только dispatch событий, статистика через StatisticsService
+            document.dispatchEvent(new CustomEvent('quotes:changed', { 
+                detail: { type: 'edited', quoteId, updates: { isFavorite: newFavoriteState } } 
+            }));
+            
             // Правильный запрос на бекенд — обновляем цитату
             const userId = await this.waitForValidUserId().catch(() => null);
             await this.api.updateQuote(quoteId, {
@@ -1427,15 +1376,15 @@ class DiaryPage {
     }
     
     /**
-     * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
+     * PRODUCTION REFACTOR: Lifecycle методы используют только StatisticsService
      */
     onShow() {
-        console.log('📖 DiaryPage: onShow - БЕЗ ШАПКИ!');
+        console.log('📖 DiaryPage: onShow - PRODUCTION версия с централизованной статистикой');
         
         // Проверяем URL параметры для автоматического запуска редактирования
         this._initEditFromQuery();
         
-        // ✅ ИСПРАВЛЕНО: Умная загрузка данных как в HomePage
+        // PRODUCTION REFACTOR: Умная загрузка данных через StatisticsService
         if (!this.quotesLoaded && !this.statsLoaded) {
             console.log('🔄 DiaryPage: Первый показ, загружаем данные');
             this.loadInitialData();
@@ -1446,8 +1395,13 @@ class DiaryPage {
             const tenMinutes = 10 * 60 * 1000;
             
             if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
-                console.log('🔄 DiaryPage: Данные устарели, обновляем');
-                this.loadInitialData();
+                console.log('🔄 DiaryPage: Данные устарели, обновляем через StatisticsService');
+                if (this.app?.statistics) {
+                    Promise.all([
+                        this.app.statistics.refreshMainStatsSilent(),
+                        this.app.statistics.refreshDiaryStatsSilent()
+                    ]).catch(e => console.debug('Stats refresh failed:', e));
+                }
             } else {
                 console.log('✅ DiaryPage: Данные актуальны, пропускаем загрузку');
             }
@@ -1604,21 +1558,14 @@ class DiaryPage {
     }
 
     /**
-  * ✏️ Редактирование цитаты
- */
+     * PRODUCTION REFACTOR: Редактирование цитаты с централизованной статистикой
+     */
 async editQuote(quoteId) {  // ✅ ОДНА async функция
     try {
         this.log('✏️ Редактирование цитаты:', quoteId);
         
         const quotes = this.state.get('quotes.items') || [];
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-        // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-        const allQuotes = this.state.get('quotes.items') || [];
-        const stats = recomputeAllStatsFromLocal(allQuotes);
-        const oldStats = this.state.get('stats') || {};
-        const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
-        this.state.set('stats', newStats);
-        this.state.set('diaryStats', newStats);
         
         if (!quote) {
             console.error('❌ Цитата не найдена:', quoteId);
@@ -1641,6 +1588,11 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
         
         // Обновляем state
         this.state.set('quotes.items', [...quotes]);
+        
+        // PRODUCTION REFACTOR: Только dispatch событий, статистика через StatisticsService
+        document.dispatchEvent(new CustomEvent('quotes:changed', { 
+            detail: { type: 'edited', quoteId, updates: { text: newText.trim(), author: newAuthor.trim() } } 
+        }));
         
         // ✅ ИСПРАВЛЕНО: Ждем валидный userId перед обновлением
         const validUserId = await this.waitForValidUserId();
@@ -1669,7 +1621,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
 }
 
     /**
-     * 🗑️ Удаление цитаты
+     * PRODUCTION REFACTOR: Удаление цитаты с централизованной статистикой
      */
     async deleteQuote(quoteId) {
         try {
@@ -1677,13 +1629,6 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
 
             const quotes = this.state.get('quotes.items') || [];
             const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-            // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-            const allQuotes = this.state.get('quotes.items') || [];
-            const stats = recomputeAllStatsFromLocal(allQuotes);
-            const oldStats = this.state.get('stats') || {};
-            const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
-            this.state.set('stats', newStats);
-            this.state.set('diaryStats', newStats);
 
             if (!quote) {
                 console.error('❌ Цитата не найдена:', quoteId);
@@ -1708,13 +1653,10 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
                 // Удаляем из локального state ТОЛЬКО после успешного ответа сервера
                 this.state.removeQuote(quoteId);
 
-                // обновляем статистику
-            if (this.app.statistics && typeof this.app.statistics.refreshMainStatsSilent === 'function') {
-                await this.app.statistics.refreshMainStatsSilent();
-            }
-                const userId = await this.waitForValidUserId();
-                const activityPercent = await this.api.getActivityPercent();
-                this.state.set('diaryStats', { activityPercent });
+                // PRODUCTION REFACTOR: Только dispatch событий, статистика через StatisticsService
+                document.dispatchEvent(new CustomEvent('quotes:changed', { 
+                    detail: { type: 'deleted', quoteId } 
+                }));
                 // --- КОНЕЦ ---
 
                 this.rerender();

@@ -168,7 +168,7 @@ class HomePage {
     }
     
     /**
-     * 📊 Загрузка начальных данных
+     * 📊 Загрузка начальных данных - PRODUCTION REFACTOR: Используем только StatisticsService
      */
     async loadInitialData() {
         if (this.loading) {
@@ -186,19 +186,21 @@ class HomePage {
             const userId = await this.waitForValidUserId();
             console.log('📊 HomePage: Используем userId:', userId);
             
-            // Параллельная загрузка данных с передачей userId
-            const [stats, topBooks, profile] = await Promise.all([
-                this.loadUserStats(userId),
+            // PRODUCTION REFACTOR: Используем только StatisticsService для статистики
+            let stats = null;
+            if (this.statistics) {
+                await this.statistics.warmupInitialStats();
+                stats = this.state.get('stats'); // Получаем из state после warmup
+            }
+            
+            // Параллельная загрузка данных (без прямых API вызовов статистики)
+            const [topBooks, profile] = await Promise.all([
                 this.loadTopBooks(), 
                 this.loadUserProfile(userId),
                 this.loadRecentQuotes(userId)
             ]);
             
-            // Обновление состояния
-            if (stats) {
-                this.state.set('stats', stats);
-                this.state.set('stats.lastUpdate', Date.now());
-            }
+            // Обновление состояния (статистика уже обновлена через StatisticsService)
             if (topBooks) this.state.set('catalog.books', topBooks);
             
             // ✅ FIX: Merge profile data instead of overwriting to avoid clobbering existing valid data
@@ -247,6 +249,9 @@ class HomePage {
         }
     }
     
+    /**
+     * PRODUCTION REFACTOR: Используем только StatisticsService для загрузки статистики
+     */
     async loadFromStatistics() {
         if (!this.statistics) return this.loadInitialData();
         if (this.loading) return;
@@ -255,39 +260,26 @@ class HomePage {
             // NO loading flags for state to prevent skeletons
             await this.waitForValidUserId(); // Ensure userId is ready
             
-            const [mainStats, latestQuotes, topAnalyses, progress] = await Promise.all([
-                this.statistics.getMainStats(),
+            // PRODUCTION REFACTOR: Используем централизованный сервис статистики
+            await this.statistics.warmupInitialStats();
+            
+            // Получаем данные из state (уже обновленные через StatisticsService)
+            const stats = this.state.get('stats');
+            
+            // Загружаем остальные данные через сервис
+            const [latestQuotes, topAnalyses] = await Promise.all([
                 this.statistics.getLatestQuotes(3),
-                this.statistics.getTopAnalyses(3),
-                this.statistics.getUserProgress()
+                this.statistics.getTopAnalyses(3)
             ]);
-            
-            if (progress && progress.currentStreak > mainStats.currentStreak) {
-                mainStats.currentStreak = progress.currentStreak;
-            }
-            
-            // Report to state with flat fields including weeklyQuotes, thisWeek and favoriteAuthor
-            const flatStats = {
-                totalQuotes: mainStats.totalQuotes || 0,
-                currentStreak: mainStats.currentStreak || 0,
-                daysInApp: mainStats.daysInApp || 0,
-                weeklyQuotes: progress?.weeklyQuotes || 0,
-                thisWeek: progress?.weeklyQuotes || 0, // Mirror for compatibility
-                favoriteAuthor: progress?.favoriteAuthor || '—',
-                loading: false,
-                loadedAt: Date.now()
-            };
-            this.state.set('stats', flatStats);
             
             this.state.setRecentQuotes(latestQuotes);
             const mapped = topAnalyses.map(a => ({ _id: a.id, title: a.title, author: a.author, salesCount: a.clicks }));
             this.state.set('catalog.books', mapped);
-            this.state.set('stats.progressTemp', progress);
             
             this.dataLoaded = true;
             
             // Apply UI updates immediately after state update
-            this.applyTopStats(flatStats);
+            this.applyTopStats(stats);
             this.updateProgressUI();
         } catch (e) {
             console.error('HomePage statistics load error', e);
@@ -365,38 +357,9 @@ class HomePage {
     }
             
     /**
-     * 📈 Загрузка статистики пользователя
+     * 📈 Загрузка статистики пользователя - УДАЛЕНО: теперь используем только StatisticsService
      */
-    async loadUserStats(userId = null) {
-        try {
-            // ✅ ИСПРАВЛЕНО: Используем переданный userId или ждем валидный
-            if (!userId) {
-                userId = await this.waitForValidUserId();
-            }
-            console.log('📈 HomePage: Загружаем статистику для userId:', userId);
-            
-            // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
-            const stats = await this.api.getStats(userId);
-            return {
-                totalQuotes: stats.totalQuotes != null ? stats.totalQuotes : null,
-                currentStreak: stats.currentStreak != null ? stats.currentStreak : null,
-                thisWeek: stats.thisWeek || 0,
-                longestStreak: stats.longestStreak || 0,
-                favoriteAuthors: stats.favoriteAuthors || [],
-                progressPercent: this.calculateProgress(stats.thisWeek || 5),
-                loading: false
-            };
-        } catch (error) {
-            console.error('❌ Ошибка загрузки статистики:', error);
-            return {
-                totalQuotes: null,
-                currentStreak: null,
-                thisWeek: 5,
-                progressPercent: 35,
-                loading: false
-            };
-        }
-    }
+    // PRODUCTION REFACTOR: Removed direct API calls, now using StatisticsService only
     
     /**
      * 🕐 Загрузка последних цитат
@@ -1217,10 +1180,10 @@ class HomePage {
      */
     
     /**
-     * Вызывается при показе страницы
+     * Вызывается при показе страницы - PRODUCTION REFACTOR: Только StatisticsService
      */
     onShow() {
-        // Если был локальный апдейт stats меньше 5 секунд назад — НЕ делай повторный запрос
+        // PRODUCTION REFACTOR: Проверяем свежесть данных через state, а не локальные переменные
         const stats = this.state.get('stats');
         if (stats?.lastUpdate && (Date.now() - stats.lastUpdate) < 5000) {
             this.applyTopStats(stats);
