@@ -1039,6 +1039,7 @@ class DiaryPage {
 
             // Обновляем список цитат
             const existingQuotes = this.state.get('quotes.items') || [];
+            const newQuotes = [completeQuote, ...existingQuotes];
             this.state.set('quotes.items', [completeQuote, ...existingQuotes]);
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             const stats = recomputeAllStatsFromLocal(newQuotes);
