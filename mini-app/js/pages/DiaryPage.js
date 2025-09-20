@@ -1039,7 +1039,7 @@ class DiaryPage {
             // Обновляем список цитат
             const existingQuotes = this.state.get('quotes.items') || [];
             this.state.set('quotes.items', [completeQuote, ...existingQuotes]);
-
+            // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ:
             import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
             const stats = recomputeAllStatsFromLocal(newQuotes);
             this.state.set('stats', stats);
@@ -1159,7 +1159,7 @@ class DiaryPage {
             // Оптимистично обновляем state
             quote.isFavorite = newFavoriteState;
             this.state.set('quotes.items', [...quotes]);
-
+            // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
             const stats = recomputeAllStatsFromLocal([...quotes]);
             this.state.set('stats', stats);
@@ -1604,7 +1604,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
         
         const quotes = this.state.get('quotes.items') || [];
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-        
+        // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ:
         import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
         const stats = recomputeAllStatsFromLocal([...quotes]);
         this.state.set('stats', stats);
@@ -1667,7 +1667,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
 
             const quotes = this.state.get('quotes.items') || [];
             const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-
+            // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
             const stats = recomputeAllStatsFromLocal(quotes);
             this.state.set('stats', stats);
