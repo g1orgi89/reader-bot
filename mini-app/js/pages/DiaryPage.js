@@ -1040,6 +1040,11 @@ class DiaryPage {
             const existingQuotes = this.state.get('quotes.items') || [];
             this.state.set('quotes.items', [completeQuote, ...existingQuotes]);
 
+            import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
+            const stats = recomputeAllStatsFromLocal(newQuotes);
+            this.state.set('stats', stats);
+            this.state.set('diaryStats', stats);
+
             document.dispatchEvent(new CustomEvent('quotes:changed', { 
                 detail: { type: 'added', id: completeQuote.id, quote: completeQuote } 
             }));
@@ -1155,6 +1160,10 @@ class DiaryPage {
             quote.isFavorite = newFavoriteState;
             this.state.set('quotes.items', [...quotes]);
 
+            import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
+            const stats = recomputeAllStatsFromLocal([...quotes]);
+            this.state.set('stats', stats);
+            this.state.set('diaryStats', stats);
             // Правильный запрос на бекенд — обновляем цитату
             const userId = await this.waitForValidUserId().catch(() => null);
             await this.api.updateQuote(quoteId, {
@@ -1596,6 +1605,11 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
         const quotes = this.state.get('quotes.items') || [];
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
         
+        import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
+        const stats = recomputeAllStatsFromLocal([...quotes]);
+        this.state.set('stats', stats);
+        this.state.set('diaryStats', stats);
+        
         if (!quote) {
             console.error('❌ Цитата не найдена:', quoteId);
             return;
@@ -1653,6 +1667,11 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
 
             const quotes = this.state.get('quotes.items') || [];
             const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
+
+            import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
+            const stats = recomputeAllStatsFromLocal(quotes);
+            this.state.set('stats', stats);
+            this.state.set('diaryStats', stats);
 
             if (!quote) {
                 console.error('❌ Цитата не найдена:', quoteId);
