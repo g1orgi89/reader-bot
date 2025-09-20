@@ -1167,6 +1167,7 @@ class DiaryPage {
             this.state.set('quotes.items', [...quotes]);
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             const allQuotes = this.state.get('quotes.items') || [];
+            const stats = recomputeAllStatsFromLocal(allQuotes);
             const oldStats = this.state.get('stats') || {};
             const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
             this.state.set('stats', newStats);
@@ -1613,6 +1614,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
         // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
         const allQuotes = this.state.get('quotes.items') || [];
+        const stats = recomputeAllStatsFromLocal(allQuotes);
         const oldStats = this.state.get('stats') || {};
         const newStats = { ...stats, daysInApp: oldStats.daysInApp ?? 0 };
         this.state.set('stats', newStats);
