@@ -333,6 +333,7 @@ class StatisticsService {
                 totalQuotes: optimisticStats.totalQuotes,
                 weeklyQuotes: optimisticStats.weeklyQuotes,
                 favoriteAuthor: optimisticStats.favoriteAuthor,
+                favoritesCount,
                 loading: false,
                 loadedAt: Date.now()
             };
