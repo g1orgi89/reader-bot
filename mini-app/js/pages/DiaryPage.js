@@ -1047,7 +1047,15 @@ class DiaryPage {
             document.dispatchEvent(new CustomEvent('quotes:changed', { 
                 detail: { type: 'added', id: completeQuote.id, quote: completeQuote } 
             }));
-
+            // Диспатч событий для HomePage и других подписчиков
+            document.dispatchEvent(new CustomEvent('stats:updated', { detail: stats }));
+            document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: stats }));
+            // Далее обновляем процент активности с бэкенда и диспатчим diary-stats:updated
+            try {
+                const activityPercent = await this.api.getActivityPercent();
+                this.state.set('diaryStats', { ...this.state.get('diaryStats'), activityPercent });
+                document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: this.state.get('diaryStats') }));
+            } catch {}
             // Обновляем статистику (не влияет на анализ)
             try {
                 if (this.app.statistics && typeof this.app.statistics.refreshMainStatsSilent === 'function') {
