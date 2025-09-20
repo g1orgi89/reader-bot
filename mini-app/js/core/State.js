@@ -113,6 +113,7 @@ class AppState {
 
         // 🎯 Инициализация
         this.init();
+        
         this.subscribe('quotes.items', (quotes) => {
           if (Array.isArray(quotes)) {
             const stats = recomputeAllStatsFromLocal(quotes);
@@ -121,10 +122,7 @@ class AppState {
             if (typeof document !== 'undefined') {
               document.dispatchEvent(new CustomEvent('stats:updated', { detail: stats }));
               document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: stats }));
-            }
-          }
-        });
-
+        }
     /**
      * 🚀 Инициализация системы состояния
      */
