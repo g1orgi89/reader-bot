@@ -10,6 +10,7 @@
  * ✅ ИСПРАВЛЕНО: БЕЗ ШАПКИ СВЕРХУ - ЧИСТЫЙ ДИЗАЙН!
  * 🔧 ИСПРАВЛЕНО: Убраны дублирующиеся API вызовы - нет "моргания" анализа
  */
+import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
 
 class DiaryPage {
     constructor(app) {
@@ -1039,8 +1040,7 @@ class DiaryPage {
             // Обновляем список цитат
             const existingQuotes = this.state.get('quotes.items') || [];
             this.state.set('quotes.items', [completeQuote, ...existingQuotes]);
-            // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ:
-            import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
+            // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
             const stats = recomputeAllStatsFromLocal(newQuotes);
             this.state.set('stats', stats);
             this.state.set('diaryStats', stats);
@@ -1160,7 +1160,6 @@ class DiaryPage {
             quote.isFavorite = newFavoriteState;
             this.state.set('quotes.items', [...quotes]);
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-            import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
             const stats = recomputeAllStatsFromLocal([...quotes]);
             this.state.set('stats', stats);
             this.state.set('diaryStats', stats);
@@ -1604,8 +1603,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
         
         const quotes = this.state.get('quotes.items') || [];
         const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
-        // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ:
-        import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
+        // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
         const stats = recomputeAllStatsFromLocal([...quotes]);
         this.state.set('stats', stats);
         this.state.set('diaryStats', stats);
@@ -1668,7 +1666,6 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
             const quotes = this.state.get('quotes.items') || [];
             const quote = quotes.find(q => q._id === quoteId || q.id === quoteId);
             // МГНОВЕННЫЙ ПЕРЕСЧЁТ СТАТИСТИКИ
-            import { recomputeAllStatsFromLocal } from '../services/StatisticsService.js';
             const stats = recomputeAllStatsFromLocal(quotes);
             this.state.set('stats', stats);
             this.state.set('diaryStats', stats);
