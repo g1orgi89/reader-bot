@@ -595,7 +595,7 @@ if (typeof window !== 'undefined') window.StatisticsService = StatisticsService;
  * @param {Array<Object>} quotes
  * @returns {Object} stats
  */
-export function recomputeAllStatsFromLocal(quotes) {
+window.recomputeAllStatsFromLocal = function(quotes) {
   const now = Date.now();
   const weekMs = 7 * 24 * 60 * 60 * 1000;
   const monthMs = 30 * 24 * 60 * 60 * 1000;
