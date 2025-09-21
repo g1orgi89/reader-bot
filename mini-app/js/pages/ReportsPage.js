@@ -552,14 +552,7 @@ class ReportsPage {
      * ✅ ИСПРАВЛЕНО: Отчет показывается сразу если есть, лоадер только при отсутствии отчета
      */
     render() {
-        // ✅ ИСПРАВЛЕНИЕ: Если есть отчет - показываем его сразу, независимо от состояния загрузки
-        if (this.weeklyReport) {
-            return this.renderWeeklyReport()
-                + this.renderAIAnalysis()
-                + this.renderRecommendations();
-        }
-        
-        // ✅ ИСПРАВЛЕНИЕ: Лоадер показываем только если нет отчета И идет загрузка
+        // 1. Если идет загрузка — показываем лоадер
         if (this.reportsLoading) {
             return `
                 <div class="weekly-report">
@@ -572,9 +565,21 @@ class ReportsPage {
                 </div>
             `;
         }
-        
-        // ✅ ИСПРАВЛЕНИЕ: Плейсхолдер показываем только если загрузка завершена и отчета нет
-        return this.renderNewUserPlaceholder();
+
+        // 2. Если есть отчет — показываем его
+        if (this.weeklyReport) {
+            return this.renderWeeklyReport()
+                + this.renderAIAnalysis()
+                + this.renderRecommendations();
+        }
+
+        // 3. Если загрузка завершена и отчета нет — показываем плейсхолдер
+        if (this.reportsLoaded && !this.weeklyReport) {
+            return this.renderNewUserPlaceholder();
+        }
+
+        // 4. В остальных случаях — пусто
+        return '';
     }
 
     /**
