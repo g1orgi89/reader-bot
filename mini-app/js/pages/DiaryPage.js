@@ -1114,6 +1114,7 @@ class DiaryPage {
 
             // Оптимистично обновляем state
             quote.isFavorite = newFavoriteState;
+            quote.favorite = newFavoriteState;
             this.state.set('quotes.items', [...quotes]);
             
             // PRODUCTION REFACTOR: Только dispatch событий, статистика через StatisticsService
