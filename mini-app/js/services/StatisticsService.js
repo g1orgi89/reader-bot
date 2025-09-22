@@ -484,16 +484,13 @@ class StatisticsService {
                 loading: false
             };
 
-            // Update state with flat stats object (merge with existing to preserve optimistic updates)
-            const currentStats = this.state.get('stats') || {};
-            const mergedStats = { ...currentStats, ...flatStats };
-            this.state.set('stats', mergedStats);
+            this.state.set('stats', flatStats);
 
-            // Dispatch event with flat stats
-            document.dispatchEvent(new CustomEvent('stats:updated', { detail: mergedStats }));
-            console.log('📊 Main stats silently updated:', mergedStats);
+            document.dispatchEvent(new CustomEvent('stats:updated', { detail: flatStats }));
+            console.log('📊 Main stats silently updated:', flatStats);
         } catch (e) {
             console.debug('refreshMainStatsSilent failed:', e);
+            
         }
     }
 
