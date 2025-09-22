@@ -115,7 +115,7 @@ async function migrate() {
     const reports = await WeeklyReport.find(query).limit(limit || 0);
     console.log(`📊 Found ${reports.length} reports with recommendations missing bookSlug`);
     
-    let stats = {
+    const stats = {
       reportsUpdated: 0,
       recommendationsProcessed: 0,
       catalogMatched: 0,

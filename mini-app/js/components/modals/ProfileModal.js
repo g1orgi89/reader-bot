@@ -229,8 +229,8 @@ class ProfileModal {
      */
     renderAvatarBlock(avatarUrl, telegramPhotoUrl, initials) {
         // Определяем источник аватара по приоритету
-        let imageUrl = avatarUrl || telegramPhotoUrl;
-        let showImage = !!imageUrl;
+        const imageUrl = avatarUrl || telegramPhotoUrl;
+        const showImage = !!imageUrl;
         
         return `
             <div class="profile-avatar-container">

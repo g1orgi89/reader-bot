@@ -97,7 +97,7 @@ test('Price parsing handles comma decimal separator', () => {
 // Test 5: Slug generation
 test('Slug generation works for Cyrillic text', () => {
   const title = 'Искусство любить';
-  let slug = title.toLowerCase()
+  const slug = title.toLowerCase()
     .replace(/[^a-za-z0-9а-яё\s]/g, '')
     .replace(/\s+/g, '-')
     .replace(/[а-яё]/g, (char) => {
