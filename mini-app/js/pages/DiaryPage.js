@@ -1654,11 +1654,6 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
                 // Удаляем из локального state ТОЛЬКО после успешного ответа сервера
                 this.state.removeQuote(quoteId);
                 
-                // ГАРАНТИРОВАННО пересчитать статистику
-                if (window.statisticsService) {
-                    window.statisticsService._updateOptimisticStats();
-                }
-
                 // PRODUCTION REFACTOR: Только dispatch событий, статистика через StatisticsService
                 document.dispatchEvent(new CustomEvent('quotes:changed', { 
                     detail: { type: 'deleted', quoteId } 
