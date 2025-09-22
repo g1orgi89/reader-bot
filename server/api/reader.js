@@ -69,6 +69,61 @@ function getUserId(req) {
 }
 
 /**
+ * Validates period parameter and returns date range
+ * @param {string} period - Period string like '7d', '30d'
+ * @returns {{startDate: Date, isValid: boolean}} 
+ */
+function validatePeriod(period) {
+  const now = new Date();
+  const startDate = new Date(now);
+  
+  if (!period) {
+    // Default to 7 days
+    startDate.setDate(now.getDate() - 7);
+    return { startDate, isValid: true };
+  }
+  
+  const match = period.match(/^(\d+)([dwm])$/i);
+  if (!match) {
+    return { startDate: null, isValid: false };
+  }
+  
+  const value = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+  
+  if (unit === 'd') {
+    if (value !== 7 && value !== 30) {
+      return { startDate: null, isValid: false };
+    }
+    startDate.setDate(now.getDate() - value);
+  } else {
+    return { startDate: null, isValid: false };
+  }
+  
+  return { startDate, isValid: true };
+}
+
+/**
+ * Validates limit parameter
+ * @param {string|number} limit - Limit value
+ * @param {number} defaultLimit - Default limit if not provided
+ * @param {number} maxLimit - Maximum allowed limit
+ * @returns {{limit: number, isValid: boolean}}
+ */
+function validateLimit(limit, defaultLimit = 20, maxLimit = 100) {
+  if (!limit) {
+    return { limit: defaultLimit, isValid: true };
+  }
+  
+  const parsed = parseInt(limit, 10);
+  if (isNaN(parsed) || parsed < 1 || parsed > maxLimit) {
+    return { limit: defaultLimit, isValid: false };
+  }
+  
+  return { limit: parsed, isValid: true };
+}
+
+/**
  * DTO helper for standardized quote responses with aiAnalysis block
  * @param {Object} q - Quote document
  * @param {Object} options - Additional options
@@ -1505,6 +1560,295 @@ router.get('/top-books', async (req, res) => {
 // ===========================================
 // 👥 СООБЩЕСТВО
 // ===========================================
+
+/**
+ * @description Последние цитаты сообщества
+ * @route GET /api/reader/community/quotes/latest
+ */
+router.get('/community/quotes/latest', telegramAuth, async (req, res) => {
+  try {
+    const { limit: limitParam } = req.query;
+    const { limit, isValid } = validateLimit(limitParam, 10, 50);
+    
+    if (!isValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid limit parameter. Must be between 1 and 50.' 
+      });
+    }
+
+    // Get latest quotes from all users, sorted by createdAt
+    const quotes = await Quote.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select({
+        _id: 1,
+        text: 1,
+        author: 1,
+        source: 1,
+        category: 1,
+        themes: 1,
+        sentiment: 1,
+        insights: 1,
+        isEdited: 1,
+        editedAt: 1,
+        createdAt: 1,
+        isFavorite: 1,
+        userId: 1
+      })
+      .lean();
+
+    // Convert to DTO format without exposing private user data
+    const quoteDTOs = quotes.map(q => {
+      // Don't expose userId in public feed
+      const sanitizedQuote = { ...q };
+      delete sanitizedQuote.userId;
+      return toQuoteDTO(sanitizedQuote);
+    });
+
+    res.json({
+      success: true,
+      quotes: quoteDTOs,
+      total: quoteDTOs.length
+    });
+
+  } catch (error) {
+    console.error('❌ Get Latest Community Quotes Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Популярные цитаты сообщества (агрегированные)
+ * @route GET /api/reader/community/popular
+ */
+router.get('/community/popular', telegramAuth, async (req, res) => {
+  try {
+    const { period: periodParam, limit: limitParam } = req.query;
+    
+    const { startDate, isValid: periodValid } = validatePeriod(periodParam);
+    if (!periodValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid period parameter. Use 7d or 30d.' 
+      });
+    }
+    
+    const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
+    if (!limitValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid limit parameter. Must be between 1 and 50.' 
+      });
+    }
+
+    // Aggregate quotes by text+author combination, count occurrences
+    const popularQuotes = await Quote.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            text: '$text',
+            author: '$author'
+          },
+          count: { $sum: 1 },
+          latestCreated: { $max: '$createdAt' },
+          category: { $first: '$category' },
+          sentiment: { $first: '$sentiment' },
+          themes: { $first: '$themes' }
+        }
+      },
+      {
+        $match: {
+          count: { $gt: 1 } // Only quotes that appear more than once
+        }
+      },
+      {
+        $sort: { count: -1, latestCreated: -1 }
+      },
+      {
+        $limit: limit
+      },
+      {
+        $project: {
+          text: '$_id.text',
+          author: '$_id.author',
+          count: 1,
+          category: 1,
+          sentiment: 1,
+          themes: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      quotes: popularQuotes,
+      total: popularQuotes.length,
+      period: periodParam || '7d'
+    });
+
+  } catch (error) {
+    console.error('❌ Get Popular Community Quotes Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Популярные книги сообщества (унифицированный alias для /top-books)
+ * @route GET /api/reader/community/popular-books
+ */
+router.get('/community/popular-books', telegramAuth, async (req, res) => {
+  try {
+    const { period: periodParam, limit: limitParam } = req.query;
+    
+    const { startDate, isValid: periodValid } = validatePeriod(periodParam);
+    if (!periodValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid period parameter. Use 7d or 30d.' 
+      });
+    }
+    
+    const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 20);
+    if (!limitValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid limit parameter. Must be between 1 and 20.' 
+      });
+    }
+
+    // Reuse the logic from /top-books endpoint
+    const clicksAgg = await UTMClick.aggregate([
+      { $match: { timestamp: { $gte: startDate }, campaign: 'catalog' } },
+      { $group: { _id: '$content', clicks: { $sum: 1 } } },
+      { $sort: { clicks: -1 } },
+      { $limit: limit }
+    ]);
+
+    const slugs = clicksAgg.map(a => (a._id || '').toLowerCase()).filter(Boolean);
+
+    const purchasesAgg = await PromoCodeUsage.aggregate([
+      { $match: { timestamp: { $gte: startDate }, booksPurchased: { $exists: true, $ne: [] } } },
+      { $unwind: '$booksPurchased' },
+      { $group: { _id: { book: '$booksPurchased' }, purchases: { $sum: 1 } } }
+    ]);
+
+    const purchasesMap = new Map();
+    for (const row of purchasesAgg) {
+      const key = String(row._id.book || '').toLowerCase();
+      if (!key) continue;
+      purchasesMap.set(key, (purchasesMap.get(key) || 0) + row.purchases);
+    }
+
+    const books = await BookCatalog.find({ bookSlug: { $in: slugs } })
+      .select({ title: 1, author: 1, bookSlug: 1 })
+      .lean();
+    const bySlug = new Map(books.map(b => [String(b.bookSlug).toLowerCase(), b]));
+
+    const data = clicksAgg.map(row => {
+      const slug = String(row._id || '').toLowerCase();
+      const b = bySlug.get(slug);
+      const sales = purchasesMap.get(slug) || 0;
+      return {
+        id: b?._id || slug,
+        title: b?.title || slug,
+        author: b?.author || '',
+        clicksCount: row.clicks,
+        salesCount: sales
+      };
+    });
+
+    res.json({ 
+      success: true, 
+      data,
+      total: data.length,
+      period: periodParam || '7d'
+    });
+
+  } catch (error) {
+    console.error('❌ Get Popular Community Books Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Последние клики по каталогу (UTMClick + BookCatalog)
+ * @route GET /api/reader/catalog/clicks/recent
+ */
+router.get('/catalog/clicks/recent', telegramAuth, async (req, res) => {
+  try {
+    const { limit: limitParam } = req.query;
+    const { limit, isValid } = validateLimit(limitParam, 10, 50);
+    
+    if (!isValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid limit parameter. Must be between 1 and 50.' 
+      });
+    }
+
+    // Get recent UTM clicks and join with BookCatalog
+    const recentClicks = await UTMClick.aggregate([
+      {
+        $match: {
+          campaign: 'catalog',
+          content: { $exists: true, $ne: '' }
+        }
+      },
+      {
+        $sort: { timestamp: -1 }
+      },
+      {
+        $limit: limit
+      },
+      {
+        $lookup: {
+          from: 'book_catalog',
+          localField: 'content',
+          foreignField: 'bookSlug',
+          as: 'book'
+        }
+      },
+      {
+        $unwind: {
+          path: '$book',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          timestamp: 1,
+          source: 1,
+          medium: 1,
+          campaign: 1,
+          bookSlug: '$content',
+          book: {
+            id: '$book._id',
+            title: '$book.title',
+            author: '$book.author',
+            price: '$book.price'
+          }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      clicks: recentClicks,
+      total: recentClicks.length
+    });
+
+  } catch (error) {
+    console.error('❌ Get Recent Catalog Clicks Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 /**
  * @description Общая статистика сообщества

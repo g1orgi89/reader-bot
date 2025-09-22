@@ -1177,7 +1177,7 @@ class OnboardingPage {
 
                 this.triggerHapticFeedback('success');
 
-                let successMessage =
+                const successMessage =
                     response.alreadyCompleted
                         ? '✅ Онбординг уже завершён!'
                         : this.isRetakeMode

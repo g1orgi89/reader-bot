@@ -963,7 +963,7 @@ class DiaryPage {
             const quote = data.quote || data;
 
             // Берём анализ из quote.aiAnalysis, а если его нет — из отдельных полей quote
-            let aiAnalysis = quote.aiAnalysis || {};
+            const aiAnalysis = quote.aiAnalysis || {};
             const insights = aiAnalysis.insights || quote.insights || '';
             const themes = aiAnalysis.themes || quote.themes || [];
             const category = aiAnalysis.category || quote.category || '';

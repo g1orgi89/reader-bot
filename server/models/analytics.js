@@ -60,6 +60,8 @@ utmClickSchema.index({ userId: 1, timestamp: -1 });
 utmClickSchema.index({ source: 1, medium: 1, campaign: 1 });
 utmClickSchema.index({ campaign: 1, timestamp: -1 });
 utmClickSchema.index({ timestamp: -1 });
+// Index for catalog clicks endpoint
+utmClickSchema.index({ campaign: 1, content: 1, timestamp: -1 });
 
 /**
  * Схема для отслеживания использования промокодов

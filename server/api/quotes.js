@@ -393,7 +393,7 @@ router.post('/', async (req, res) => {
             isEdited: false
         });
 
-        let savedQuote = await newQuote.save();
+        const savedQuote = await newQuote.save();
 
         // AI анализ
         let analysis = {

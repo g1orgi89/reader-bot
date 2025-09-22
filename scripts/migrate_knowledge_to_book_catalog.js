@@ -65,7 +65,7 @@ async function migrate() {
       console.warn(`Пропущена строка ${i + 1}: пустой title`);
       continue;
     }
-    let baseSlug = makeSlug(title);
+    const baseSlug = makeSlug(title);
     if (!baseSlug) {
       console.warn(`Пропущена строка ${i + 1}: невалидный slug (${title})`);
       continue;
