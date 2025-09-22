@@ -330,6 +330,171 @@
 }
 
 /* ============================================================================
+   🔄 СОСТОЯНИЯ ЗАГРУЗКИ, ПУСТО И ОШИБОК (PR-3)
+   ============================================================================ */
+
+/* Skeleton загрузка */
+.skeleton {
+    background: linear-gradient(90deg, 
+        var(--border-light, #F0EBE3) 25%, 
+        var(--background-light, #FAF8F3) 50%, 
+        var(--border-light, #F0EBE3) 75%);
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.5s ease-in-out infinite;
+    border-radius: var(--border-radius, 8px);
+}
+
+.skeleton-text {
+    height: 14px;
+    margin-bottom: 8px;
+}
+
+.skeleton-text:last-child {
+    margin-bottom: 0;
+}
+
+.skeleton-title {
+    height: 16px;
+    width: 60%;
+    margin-bottom: 12px;
+}
+
+.skeleton-card {
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+}
+
+@keyframes skeletonShimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Состояние загрузки */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-light, #F0EBE3);
+    border-top: 3px solid var(--primary-color, #D2452C);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+.loading-text {
+    font-size: 14px;
+    color: var(--text-secondary, #666666);
+    margin-bottom: 8px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Пустое состояние */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    background: var(--surface, #FFFFFF);
+    border-radius: 12px;
+    border: 1px solid var(--border, #E6E0D6);
+    margin-bottom: 16px;
+}
+
+.empty-icon {
+    font-size: 32px;
+    margin-bottom: 16px;
+    opacity: 0.6;
+}
+
+.empty-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #2D2D2D);
+    margin-bottom: 8px;
+}
+
+.empty-description {
+    font-size: 14px;
+    color: var(--text-secondary, #666666);
+    line-height: 1.4;
+}
+
+/* Состояние ошибки */
+.error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    background: var(--surface, #FFFFFF);
+    border-radius: 12px;
+    border: 1px solid var(--error-color, #F44336);
+    margin-bottom: 16px;
+}
+
+.error-icon {
+    font-size: 32px;
+    color: var(--error-color, #F44336);
+    margin-bottom: 16px;
+}
+
+.error-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--error-color, #F44336);
+    margin-bottom: 8px;
+}
+
+.error-description {
+    font-size: 14px;
+    color: var(--text-secondary, #666666);
+    line-height: 1.4;
+    margin-bottom: 16px;
+}
+
+.error-retry-btn {
+    background: var(--error-color, #F44336);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal, 0.3s ease);
+    min-height: 44px; /* Touch-friendly */
+}
+
+.error-retry-btn:hover {
+    background: var(--error-color, #F44336);
+    opacity: 0.9;
+}
+
+.error-retry-btn:active {
+    transform: scale(0.98);
+}
+
+/* ============================================================================
    🌙 ТЕМНАЯ ТЕМА АДАПТАЦИЯ
    ============================================================================ */
 
@@ -350,6 +515,49 @@
     .leaderboard-item:hover,
     .mvp-community-item:hover {
         box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
+    }
+
+    /* Темная тема для состояний */
+    .skeleton {
+        background: linear-gradient(90deg, 
+            var(--border-dark, #404040) 25%, 
+            var(--bg-secondary, #2D2D2D) 50%, 
+            var(--border-dark, #404040) 75%);
+    }
+
+    .loading-spinner {
+        border-color: var(--border-dark, #404040);
+        border-top-color: var(--primary-color, #E5674F);
+    }
+
+    .loading-text {
+        color: var(--text-secondary, #E0E0E0);
+    }
+
+    .empty-state,
+    .error-state {
+        background: var(--bg-card, #3A3A3A);
+        border-color: var(--border, #404040);
+    }
+
+    .empty-title {
+        color: var(--text-primary, #FFFFFF);
+    }
+
+    .empty-description {
+        color: var(--text-secondary, #E0E0E0);
+    }
+
+    .error-title {
+        color: var(--error-color, #FF6B6B);
+    }
+
+    .error-description {
+        color: var(--text-secondary, #E0E0E0);
+    }
+
+    .error-retry-btn {
+        background: var(--error-color, #FF6B6B);
     }
 }
 
