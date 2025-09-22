@@ -1653,12 +1653,6 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
                 // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
                 // Удаляем из локального state ТОЛЬКО после успешного ответа сервера
                 this.state.removeQuote(quoteId);
-                
-                // PRODUCTION REFACTOR: Только dispatch событий, статистика через StatisticsService
-                document.dispatchEvent(new CustomEvent('quotes:changed', { 
-                    detail: { type: 'deleted', quoteId } 
-                }));
-                // --- КОНЕЦ ---
 
                 this.rerender();
                 this.telegram.hapticFeedback('success');
