@@ -106,6 +106,8 @@ quoteSchema.index({ userId: 1, monthNumber: 1, yearNumber: 1 });
 quoteSchema.index({ category: 1, createdAt: -1 });
 quoteSchema.index({ author: 1, createdAt: -1 });
 quoteSchema.index({ sentiment: 1 });
+// Index for community endpoints - latest quotes across all users
+quoteSchema.index({ createdAt: -1 });
 
 // Виртуальные поля
 quoteSchema.virtual('displayAuthor').get(function() {
