@@ -993,6 +993,64 @@ class ApiService {
         return this.request('GET', endpoint);
     }
 
+    /**
+     * 📰 Получить последние цитаты сообщества
+     * НОВЫЙ: Добавлен недостающий метод для CommunityPage (PR-3)
+     */
+    async getCommunityLatestQuotes(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+
+        const queryString = params.toString();
+        const endpoint = queryString ? `/community/quotes/latest?${queryString}` : '/community/quotes/latest';
+        
+        return this.request('GET', endpoint);
+    }
+
+    /**
+     * 🔥 Получить популярные цитаты сообщества (обновленная версия)
+     * НОВЫЙ: Переименованный метод для более точного соответствия требованиям PR-3
+     */
+    async getCommunityPopularQuotes(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+        if (options.period) params.append('period', options.period);
+
+        const queryString = params.toString();
+        const endpoint = queryString ? `/community/popular?${queryString}` : '/community/popular';
+        
+        return this.request('GET', endpoint);
+    }
+
+    /**
+     * 📚 Получить популярные книги сообщества (обновленная версия)
+     * НОВЫЙ: Переименованный метод для более точного соответствия требованиям PR-3
+     */
+    async getCommunityPopularBooks(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+        if (options.period) params.append('period', options.period);
+
+        const queryString = params.toString();
+        const endpoint = queryString ? `/community/popular-books?${queryString}` : '/community/popular-books';
+        
+        return this.request('GET', endpoint);
+    }
+
+    /**
+     * 👆 Получить последние клики по каталогу
+     * НОВЫЙ: Добавлен недостающий метод для CommunityPage (PR-3)
+     */
+    async getCatalogRecentClicks(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+
+        const queryString = params.toString();
+        const endpoint = queryString ? `/catalog/recent-clicks?${queryString}` : '/catalog/recent-clicks';
+        
+        return this.request('GET', endpoint);
+    }
+
     // ===========================================
     // 🛠️ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     // ===========================================

@@ -29,7 +29,7 @@ class CommunityPage {
         // Состояние (точно как в концепте)
         this.activeTab = 'feed'; // feed, top, stats
         
-        // Данные из концепта
+        // ✅ НОВОЕ: Реальные данные из API (PR-3)
         this.communityData = {
             activeReaders: 127,
             newQuotes: 89,
@@ -37,6 +37,33 @@ class CommunityPage {
             totalQuotes: 8156,
             totalAuthors: 342,
             daysActive: 67
+        };
+
+        // ✅ НОВОЕ: Данные для различных секций (PR-3)
+        this.latestQuotes = [];
+        this.popularQuotes = [];
+        this.popularBooks = [];
+        this.recentClicks = [];
+        this.leaderboard = [];
+
+        // ✅ НОВОЕ: Состояния загрузки для каждой секции (PR-3)
+        this.loadingStates = {
+            latestQuotes: false,
+            popularQuotes: false,
+            popularBooks: false,
+            recentClicks: false,
+            leaderboard: false,
+            stats: false
+        };
+
+        // ✅ НОВОЕ: Состояния ошибок для каждой секции (PR-3)
+        this.errorStates = {
+            latestQuotes: null,
+            popularQuotes: null,
+            popularBooks: null,
+            recentClicks: null,
+            leaderboard: null,
+            stats: null
         };
         
         this.init();
@@ -63,8 +90,9 @@ class CommunityPage {
             console.log('👥 CommunityPage: Загружаем данные сообщества...');
             
             const stats = await this.api.getCommunityStats();
-            if (stats) {
-                this.communityData = { ...this.communityData, ...stats };
+            if (stats && stats.success) {
+                this.communityData = { ...this.communityData, ...stats.data };
+                this.errorStates.stats = null;
             }
             
             this.communityLoaded = true;
@@ -73,9 +101,145 @@ class CommunityPage {
             
         } catch (error) {
             console.error('❌ Ошибка загрузки данных сообщества:', error);
+            this.errorStates.stats = error.message || 'Ошибка загрузки статистики';
             // Используем данные из концепта как fallback
         } finally {
             this.communityLoading = false;
+        }
+    }
+
+    /**
+     * 📰 ЗАГРУЗКА ПОСЛЕДНИХ ЦИТАТ СООБЩЕСТВА (PR-3)
+     */
+    async loadLatestQuotes(limit = 5) {
+        if (this.loadingStates.latestQuotes) return;
+        
+        try {
+            this.loadingStates.latestQuotes = true;
+            this.errorStates.latestQuotes = null;
+            console.log('📰 CommunityPage: Загружаем последние цитаты...');
+            
+            const response = await this.api.getCommunityLatestQuotes({ limit });
+            if (response && response.success) {
+                this.latestQuotes = response.quotes || [];
+                console.log('✅ CommunityPage: Последние цитаты загружены:', this.latestQuotes.length);
+            } else {
+                this.latestQuotes = [];
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки последних цитат:', error);
+            this.errorStates.latestQuotes = error.message || 'Ошибка загрузки цитат';
+            this.latestQuotes = [];
+        } finally {
+            this.loadingStates.latestQuotes = false;
+        }
+    }
+
+    /**
+     * 🔥 ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ СООБЩЕСТВА (PR-3)
+     */
+    async loadPopularQuotes(period = '7d', limit = 10) {
+        if (this.loadingStates.popularQuotes) return;
+        
+        try {
+            this.loadingStates.popularQuotes = true;
+            this.errorStates.popularQuotes = null;
+            console.log('🔥 CommunityPage: Загружаем популярные цитаты...');
+            
+            const response = await this.api.getCommunityPopularQuotes({ period, limit });
+            if (response && response.success) {
+                this.popularQuotes = response.quotes || [];
+                console.log('✅ CommunityPage: Популярные цитаты загружены:', this.popularQuotes.length);
+            } else {
+                this.popularQuotes = [];
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки популярных цитат:', error);
+            this.errorStates.popularQuotes = error.message || 'Ошибка загрузки популярных цитат';
+            this.popularQuotes = [];
+        } finally {
+            this.loadingStates.popularQuotes = false;
+        }
+    }
+
+    /**
+     * 📚 ЗАГРУЗКА ПОПУЛЯРНЫХ КНИГ СООБЩЕСТВА (PR-3)
+     */
+    async loadPopularBooks(period = '7d', limit = 10) {
+        if (this.loadingStates.popularBooks) return;
+        
+        try {
+            this.loadingStates.popularBooks = true;
+            this.errorStates.popularBooks = null;
+            console.log('📚 CommunityPage: Загружаем популярные книги...');
+            
+            const response = await this.api.getCommunityPopularBooks({ period, limit });
+            if (response && response.success) {
+                this.popularBooks = response.data || [];
+                console.log('✅ CommunityPage: Популярные книги загружены:', this.popularBooks.length);
+            } else {
+                this.popularBooks = [];
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки популярных книг:', error);
+            this.errorStates.popularBooks = error.message || 'Ошибка загрузки популярных книг';
+            this.popularBooks = [];
+        } finally {
+            this.loadingStates.popularBooks = false;
+        }
+    }
+
+    /**
+     * 👆 ЗАГРУЗКА ПОСЛЕДНИХ КЛИКОВ ПО КАТАЛОГУ (PR-3)
+     */
+    async loadRecentClicks(limit = 5) {
+        if (this.loadingStates.recentClicks) return;
+        
+        try {
+            this.loadingStates.recentClicks = true;
+            this.errorStates.recentClicks = null;
+            console.log('👆 CommunityPage: Загружаем последние клики...');
+            
+            const response = await this.api.getCatalogRecentClicks({ limit });
+            if (response && response.success) {
+                this.recentClicks = response.data || [];
+                console.log('✅ CommunityPage: Последние клики загружены:', this.recentClicks.length);
+            } else {
+                this.recentClicks = [];
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки последних кликов:', error);
+            this.errorStates.recentClicks = error.message || 'Ошибка загрузки кликов';
+            this.recentClicks = [];
+        } finally {
+            this.loadingStates.recentClicks = false;
+        }
+    }
+
+    /**
+     * 🏆 ЗАГРУЗКА ТАБЛИЦЫ ЛИДЕРОВ (PR-3)
+     */
+    async loadLeaderboard(limit = 10) {
+        if (this.loadingStates.leaderboard) return;
+        
+        try {
+            this.loadingStates.leaderboard = true;
+            this.errorStates.leaderboard = null;
+            console.log('🏆 CommunityPage: Загружаем таблицу лидеров...');
+            
+            const response = await this.api.getLeaderboard({ limit });
+            if (response && response.success) {
+                this.leaderboard = response.data || [];
+                console.log('✅ CommunityPage: Таблица лидеров загружена:', this.leaderboard.length);
+            } else {
+                this.leaderboard = [];
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки таблицы лидеров:', error);
+            this.errorStates.leaderboard = error.message || 'Ошибка загрузки лидеров';
+            this.leaderboard = [];
+        } finally {
+            this.loadingStates.leaderboard = false;
         }
     }
     
@@ -137,11 +301,14 @@ class CommunityPage {
     }
     
     /**
-     * 📰 ТАБ ЛЕНТА (ТОЧНО ИЗ КОНЦЕПТА!)
+     * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
         // "Сейчас изучают" секция с данными из StatisticsService
         const currentlyStudyingSection = this.renderCurrentlyStudyingSection();
+        
+        // ✅ НОВОЕ: Секция последних цитат сообщества (PR-3)
+        const latestQuotesSection = this.renderLatestQuotesSection();
         
         return `
             <div class="stats-summary">
@@ -150,11 +317,7 @@ class CommunityPage {
             
             ${currentlyStudyingSection}
             
-            <div class="mvp-community-item">
-                <div class="mvp-community-title">💫 Цитата дня от сообщества</div>
-                <div class="mvp-community-text">"В каждом слове — целая жизнь"</div>
-                <div class="mvp-community-author">— Марина Цветаева</div>
-            </div>
+            ${latestQuotesSection}
             
             <div style="background: linear-gradient(45deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 10px; padding: 12px; margin-bottom: 10px;">
                 <div style="font-size: 11px; margin-bottom: 6px;">💬 Сообщение от Анны</div>
@@ -166,6 +329,55 @@ class CommunityPage {
                 <div class="promo-title">🎯 Тренд недели</div>
                 <div class="promo-text">Тема "Психология отношений" набирает популярность</div>
                 <button class="promo-btn" id="exploreBtn">Изучить разборы</button>
+            </div>
+        `;
+    }
+
+    /**
+     * 📰 СЕКЦИЯ ПОСЛЕДНИХ ЦИТАТ СООБЩЕСТВА (НОВАЯ ДЛЯ PR-3)
+     */
+    renderLatestQuotesSection() {
+        if (this.loadingStates.latestQuotes) {
+            return `
+                <div class="mvp-community-item">
+                    <div class="mvp-community-title">💫 Последние цитаты сообщества</div>
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Загружаем цитаты...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (this.errorStates.latestQuotes) {
+            return `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <div class="error-title">Ошибка загрузки</div>
+                    <div class="error-description">${this.errorStates.latestQuotes}</div>
+                    <button class="error-retry-btn" onclick="this.retryLoadLatestQuotes()">Повторить</button>
+                </div>
+            `;
+        }
+
+        if (!this.latestQuotes || this.latestQuotes.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">📝</div>
+                    <div class="empty-title">Пока нет цитат</div>
+                    <div class="empty-description">Станьте первым, кто поделится мудростью!</div>
+                </div>
+            `;
+        }
+
+        // Показываем только первую цитату как "Цитата дня"
+        const latestQuote = this.latestQuotes[0];
+        
+        return `
+            <div class="mvp-community-item">
+                <div class="mvp-community-title">💫 Цитата дня от сообщества</div>
+                <div class="mvp-community-text">"${latestQuote.text}"</div>
+                <div class="mvp-community-author">— ${latestQuote.author}</div>
             </div>
         `;
     }
@@ -206,9 +418,13 @@ class CommunityPage {
     }
     
     /**
-     * 🏆 ТАБ ТОП НЕДЕЛИ (ИЗ ДОПОЛНИТЕЛЬНОГО КОНЦЕПТА!)
+     * 🏆 ТАБ ТОП НЕДЕЛИ (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderTopTab() {
+        const leaderboardSection = this.renderLeaderboardSection();
+        const popularQuotesSection = this.renderPopularQuotesSection();
+        const popularBooksSection = this.renderPopularBooksSection();
+
         return `
             <div class="community-stats-grid">
                 <div class="community-stat-card">
@@ -221,75 +437,9 @@ class CommunityPage {
                 </div>
             </div>
             
-            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin-bottom: 16px; text-align: center; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 6px;">🏆 Лидеры недели</div>
-                <div style="font-size: 10px; color: var(--text-secondary);">Самые активные читатели сообщества</div>
-            </div>
-            
-            <div class="leaderboard-item">
-                <div class="rank-badge gold">1</div>
-                <div class="user-info">
-                    <div class="user-name">Мария К.</div>
-                    <div class="user-stats">23 цитаты за неделю</div>
-                    <div class="user-achievement">🔥 "Коллекционер мудрости"</div>
-                </div>
-            </div>
-            
-            <div class="leaderboard-item">
-                <div class="rank-badge silver">2</div>
-                <div class="user-info">
-                    <div class="user-name">Анна М. (вы)</div>
-                    <div class="user-stats">18 цитат за неделю</div>
-                    <div class="user-achievement">📚 "Философ недели"</div>
-                </div>
-            </div>
-            
-            <div class="leaderboard-item">
-                <div class="rank-badge bronze">3</div>
-                <div class="user-info">
-                    <div class="user-name">Елена В.</div>
-                    <div class="user-stats">15 цитат за неделю</div>
-                    <div class="user-achievement">💎 "Мыслитель"</div>
-                </div>
-            </div>
-            
-            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">⭐ Популярные цитаты недели</div>
-                
-                <div style="background: var(--background-light); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid var(--border-light);">
-                    <div style="font-size: 10px; color: var(--text-secondary); font-style: italic; margin-bottom: 4px;">"Любовь — это решение любить"</div>
-                    <div style="font-size: 10px; color: var(--text-primary); font-weight: 500;">Эрих Фромм • добавили 23 человека</div>
-                </div>
-                
-                <div style="background: var(--background-light); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid var(--border-light);">
-                    <div style="font-size: 10px; color: var(--text-secondary); font-style: italic; margin-bottom: 4px;">"В каждом слове — целая жизнь"</div>
-                    <div style="font-size: 10px; color: var(--text-primary); font-weight: 500;">Марина Цветаева • добавили 18 человек</div>
-                </div>
-                
-                <div style="background: var(--background-light); border-radius: 8px; padding: 10px; border: 1px solid var(--border-light);">
-                    <div style="font-size: 10px; color: var(--text-secondary); font-style: italic; margin-bottom: 4px;">"Хорошая жизнь строится, а не дается"</div>
-                    <div style="font-size: 10px; color: var(--text-primary); font-weight: 500;">Анна Бусел • добавили 15 человек</div>
-                </div>
-            </div>
-            
-            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">📚 Популярные разборы недели</div>
-                
-                <div style="background: var(--background-light); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid var(--border-light);">
-                    <div style="font-size: 11px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">1. "Искусство любить" Эрих Фромм</div>
-                    <div style="font-size: 10px; color: var(--text-secondary);">💫 47 человек заинтересовалось</div>
-                </div>
-                
-                <div style="background: var(--background-light); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid var(--border-light);">
-                    <div style="font-size: 11px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">2. "Быть собой" Анна Бусел</div>
-                    <div style="font-size: 10px; color: var(--text-secondary);">💫 31 человек заинтересовалось</div>
-                </div>
-                
-                <div style="background: var(--background-light); border-radius: 8px; padding: 10px; border: 1px solid var(--border-light);">
-                    <div style="font-size: 11px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">3. "Письма поэту" Рильке</div>
-                    <div style="font-size: 10px; color: var(--text-secondary);">💫 23 человека заинтересовалось</div>
-                </div>
-            </div>
+            ${leaderboardSection}
+            ${popularQuotesSection}
+            ${popularBooksSection}
             
             <div style="background: linear-gradient(45deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 10px; padding: 12px; margin-top: 16px;">
                 <div style="font-size: 11px; margin-bottom: 6px; font-weight: 600;">🎯 Ваш прогресс в топах</div>
@@ -298,6 +448,170 @@ class CommunityPage {
                     <div class="progress-fill" style="width: 78%; background: white;"></div>
                 </div>
                 <div style="font-size: 10px; opacity: 0.9;">Добавьте еще 5 цитат до лидерства!</div>
+            </div>
+        `;
+    }
+
+    /**
+     * 🏆 СЕКЦИЯ ЛИДЕРБОРДА (НОВАЯ ДЛЯ PR-3)
+     */
+    renderLeaderboardSection() {
+        if (this.loadingStates.leaderboard) {
+            return `
+                <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin-bottom: 16px; text-align: center; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 6px;">🏆 Лидеры недели</div>
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Загружаем лидерборд...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (this.errorStates.leaderboard) {
+            return `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <div class="error-title">Ошибка загрузки лидерборда</div>
+                    <div class="error-description">${this.errorStates.leaderboard}</div>
+                    <button class="error-retry-btn" onclick="this.retryLoadLeaderboard()">Повторить</button>
+                </div>
+            `;
+        }
+
+        if (!this.leaderboard || this.leaderboard.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">🏆</div>
+                    <div class="empty-title">Пока нет лидеров</div>
+                    <div class="empty-description">Станьте первым в топе читателей!</div>
+                </div>
+            `;
+        }
+
+        const leaderboardItems = this.leaderboard.slice(0, 3).map((leader, index) => {
+            const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+            return `
+                <div class="leaderboard-item">
+                    <div class="rank-badge ${rankClass}">${index + 1}</div>
+                    <div class="user-info">
+                        <div class="user-name">${leader.name || 'Анонимный читатель'}</div>
+                        <div class="user-stats">${leader.quotesCount || 0} цитат за неделю</div>
+                        <div class="user-achievement">${leader.achievement || '📚 "Активный читатель"'}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin-bottom: 16px; text-align: center; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
+                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 6px;">🏆 Лидеры недели</div>
+                <div style="font-size: 10px; color: var(--text-secondary);">Самые активные читатели сообщества</div>
+            </div>
+            ${leaderboardItems}
+        `;
+    }
+
+    /**
+     * ⭐ СЕКЦИЯ ПОПУЛЯРНЫХ ЦИТАТ (НОВАЯ ДЛЯ PR-3)
+     */
+    renderPopularQuotesSection() {
+        if (this.loadingStates.popularQuotes) {
+            return `
+                <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">⭐ Популярные цитаты недели</div>
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Загружаем популярные цитаты...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (this.errorStates.popularQuotes) {
+            return `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <div class="error-title">Ошибка загрузки цитат</div>
+                    <div class="error-description">${this.errorStates.popularQuotes}</div>
+                    <button class="error-retry-btn" onclick="this.retryLoadPopularQuotes()">Повторить</button>
+                </div>
+            `;
+        }
+
+        if (!this.popularQuotes || this.popularQuotes.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">⭐</div>
+                    <div class="empty-title">Пока нет популярных цитат</div>
+                    <div class="empty-description">Добавляйте цитаты чтобы увидеть популярные!</div>
+                </div>
+            `;
+        }
+
+        const quotesItems = this.popularQuotes.slice(0, 3).map(quote => `
+            <div style="background: var(--background-light); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid var(--border-light);">
+                <div style="font-size: 10px; color: var(--text-secondary); font-style: italic; margin-bottom: 4px;">"${quote.text}"</div>
+                <div style="font-size: 10px; color: var(--text-primary); font-weight: 500;">${quote.author} • добавили ${quote.count || 0} человек</div>
+            </div>
+        `).join('');
+
+        return `
+            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
+                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">⭐ Популярные цитаты недели</div>
+                ${quotesItems}
+            </div>
+        `;
+    }
+
+    /**
+     * 📚 СЕКЦИЯ ПОПУЛЯРНЫХ КНИГ (НОВАЯ ДЛЯ PR-3)
+     */
+    renderPopularBooksSection() {
+        if (this.loadingStates.popularBooks) {
+            return `
+                <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">📚 Популярные разборы недели</div>
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Загружаем популярные книги...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (this.errorStates.popularBooks) {
+            return `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <div class="error-title">Ошибка загрузки книг</div>
+                    <div class="error-description">${this.errorStates.popularBooks}</div>
+                    <button class="error-retry-btn" onclick="this.retryLoadPopularBooks()">Повторить</button>
+                </div>
+            `;
+        }
+
+        if (!this.popularBooks || this.popularBooks.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">📚</div>
+                    <div class="empty-title">Пока нет популярных книг</div>
+                    <div class="empty-description">Изучайте разборы чтобы увидеть популярные!</div>
+                </div>
+            `;
+        }
+
+        const booksItems = this.popularBooks.slice(0, 3).map((book, index) => `
+            <div style="background: var(--background-light); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid var(--border-light);">
+                <div style="font-size: 11px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">${index + 1}. "${book.title}" ${book.author}</div>
+                <div style="font-size: 10px; color: var(--text-secondary);">💫 ${book.clicksCount || 0} человек заинтересовалось</div>
+            </div>
+        `).join('');
+
+        return `
+            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
+                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">📚 Популярные разборы недели</div>
+                ${booksItems}
             </div>
         `;
     }
@@ -376,15 +690,16 @@ class CommunityPage {
     }
     
     /**
-     * 🎯 ОБРАБОТЧИКИ СОБЫТИЙ
+     * 🎯 ОБРАБОТЧИКИ СОБЫТИЙ (ОБНОВЛЕН ДЛЯ PR-3)
      */
     attachEventListeners() {
         this.attachTabListeners();
         this.attachExploreButton();
         this.attachCurrentlyStudyingListeners();
+        this.attachRetryButtons(); // ✅ НОВОЕ PR-3
         this.setupQuoteChangeListeners();
     }
-    
+
     attachTabListeners() {
         const tabs = document.querySelectorAll('.tab[data-tab]');
         tabs.forEach(tab => {
@@ -394,7 +709,7 @@ class CommunityPage {
             });
         });
     }
-    
+
     attachExploreButton() {
         const exploreBtn = document.getElementById('exploreBtn');
         if (exploreBtn) {
@@ -404,7 +719,7 @@ class CommunityPage {
             });
         }
     }
-    
+
     /**
      * 📚 ОБРАБОТЧИКИ СЕКЦИИ "СЕЙЧАС ИЗУЧАЮТ" С HAPTIC FEEDBACK
      */
@@ -417,6 +732,44 @@ class CommunityPage {
                 if (bookId) {
                     // Navigate to catalog with selected book
                     this.app.router.navigate(`/catalog?book=${bookId}`);
+                }
+            });
+        });
+    }
+
+    /**
+     * 🔄 ОБРАБОТЧИКИ КНОПОК ПОВТОРА (НОВОЕ ДЛЯ PR-3)
+     */
+    attachRetryButtons() {
+        // Создаем единый обработчик для всех кнопок повтора
+        const retryButtons = document.querySelectorAll('.error-retry-btn');
+        retryButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.telegram?.hapticFeedback?.('medium');
+                
+                // Определяем какую секцию нужно перезагрузить на основе контекста
+                const errorState = button.closest('.error-state');
+                if (!errorState) return;
+
+                const errorTitle = errorState.querySelector('.error-title')?.textContent || '';
+                
+                if (errorTitle.includes('цитат') && errorTitle.includes('лидерборд')) {
+                    this.retryLoadLeaderboard();
+                } else if (errorTitle.includes('цитат')) {
+                    // Проверяем контекст - популярные или последние
+                    if (errorState.previousElementSibling?.textContent?.includes('Популярные')) {
+                        this.retryLoadPopularQuotes();
+                    } else {
+                        this.retryLoadLatestQuotes();
+                    }
+                } else if (errorTitle.includes('книг')) {
+                    this.retryLoadPopularBooks();
+                } else if (errorTitle.includes('лидерборд')) {
+                    this.retryLoadLeaderboard();
+                } else {
+                    // Fallback - перезагружаем все
+                    this.loadAllSections();
                 }
             });
         });
@@ -452,7 +805,7 @@ class CommunityPage {
     }
     
     /**
-     * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
+     * 📱 LIFECYCLE МЕТОДЫ - ОБНОВЛЕН ДЛЯ PR-3!
      */
     async onShow() {
         console.log('👥 CommunityPage: onShow - БЕЗ ШАПКИ!');
@@ -469,6 +822,9 @@ class CommunityPage {
         
         // Загружаем топ-анализы для секции "Сейчас изучают"
         await this.loadTopAnalyses();
+        
+        // ✅ НОВОЕ PR-3: Загружаем данные для всех секций
+        await this.loadAllSections();
         
         // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
         if (!this.communityLoaded) {
@@ -489,9 +845,62 @@ class CommunityPage {
                 });
             } else {
                 console.log('✅ CommunityPage: Данные актуальны');
-                this.rerender(); // Rerender to show loaded top analyses
+                this.rerender(); // Rerender to show loaded data
             }
         }
+    }
+
+    /**
+     * 🔄 ЗАГРУЗКА ВСЕХ СЕКЦИЙ (НОВАЯ ДЛЯ PR-3)
+     */
+    async loadAllSections() {
+        console.log('🔄 CommunityPage: Загружаем все секции...');
+        
+        // Загружаем параллельно для лучшей производительности
+        const loadPromises = [
+            this.loadLatestQuotes(5),
+            this.loadPopularQuotes('7d', 10),
+            this.loadPopularBooks('7d', 10),
+            this.loadLeaderboard(10),
+            this.loadRecentClicks(5)
+        ];
+
+        try {
+            await Promise.allSettled(loadPromises);
+            console.log('✅ CommunityPage: Все секции загружены');
+            this.rerender();
+        } catch (error) {
+            console.error('❌ CommunityPage: Ошибка загрузки секций:', error);
+            this.rerender(); // Показываем что загружено
+        }
+    }
+
+    /**
+     * 🔄 МЕТОДЫ ПОВТОРА ЗАГРУЗКИ ДЛЯ ОБРАБОТКИ ОШИБОК (PR-3)
+     */
+    retryLoadLatestQuotes() {
+        this.telegram?.hapticFeedback?.('medium');
+        this.loadLatestQuotes(5).then(() => this.rerender());
+    }
+
+    retryLoadPopularQuotes() {
+        this.telegram?.hapticFeedback?.('medium');
+        this.loadPopularQuotes('7d', 10).then(() => this.rerender());
+    }
+
+    retryLoadPopularBooks() {
+        this.telegram?.hapticFeedback?.('medium');
+        this.loadPopularBooks('7d', 10).then(() => this.rerender());
+    }
+
+    retryLoadLeaderboard() {
+        this.telegram?.hapticFeedback?.('medium');
+        this.loadLeaderboard(10).then(() => this.rerender());
+    }
+
+    retryLoadRecentClicks() {
+        this.telegram?.hapticFeedback?.('medium');
+        this.loadRecentClicks(5).then(() => this.rerender());
     }
     
     onHide() {
@@ -501,7 +910,15 @@ class CommunityPage {
             document.removeEventListener('quotes:changed', this._quoteChangeHandler);
         }
     }
-    
+
+    rerender() {
+        const container = document.getElementById('page-content');
+        if (container) {
+            container.innerHTML = this.render();
+            this.attachEventListeners();
+        }
+    }
+
     /**
      * 🧹 ОЧИСТКА РЕСУРСОВ
      */
@@ -512,22 +929,20 @@ class CommunityPage {
             document.removeEventListener('quotes:changed', this._quoteChangeHandler);
             this._quoteChangeHandler = null;
         }
-    }
-    
-    rerender() {
-        const container = document.getElementById('page-content');
-        if (container) {
-            container.innerHTML = this.render();
-            this.attachEventListeners();
-        }
-    }
-    
-    destroy() {
-        // Очистка ресурсов
-        
+
         // ✅ НОВОЕ: Сброс флагов
         this.communityLoaded = false;
         this.communityLoading = false;
+
+        // Сброс состояний загрузки
+        Object.keys(this.loadingStates).forEach(key => {
+            this.loadingStates[key] = false;
+        });
+
+        // Сброс состояний ошибок
+        Object.keys(this.errorStates).forEach(key => {
+            this.errorStates[key] = null;
+        });
     }
 }
 
