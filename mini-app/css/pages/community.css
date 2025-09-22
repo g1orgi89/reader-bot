@@ -1340,3 +1340,207 @@
         font-size: 9px;
     }
 }
+
+/* ============================================================================
+   💫 ЦИТАТЫ СООБЩЕСТВА (НОВЫЕ СТИЛИ ДЛЯ PR-3)
+   ============================================================================ */
+
+.latest-quotes-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.quotes-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.quote-card {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #E6E0D6);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    position: relative;
+    transition: var(--transition-normal);
+}
+
+.quote-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.quote-card__content {
+    position: relative;
+}
+
+.quote-card__text {
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    font-style: italic;
+}
+
+.quote-card__author {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+    font-weight: 500;
+}
+
+.quote-card__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-md);
+}
+
+.quote-card__date {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.quote-card__add-btn {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    font-size: var(--font-size-lg);
+    font-weight: bold;
+    box-shadow: var(--shadow-sm);
+}
+
+.quote-card__add-btn:hover {
+    background: var(--primary-dark, #B8381E);
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
+}
+
+.quote-card__add-btn:active {
+    transform: scale(0.95);
+}
+
+.quote-card__add-btn.added {
+    background: var(--success-color, #28a745);
+}
+
+.quote-card__add-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.add-icon {
+    line-height: 1;
+}
+
+.loading-spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* ============================================================================
+   🔔 УВЕДОМЛЕНИЯ (НОВЫЕ ДЛЯ PR-3)
+   ============================================================================ */
+
+.notification {
+    position: fixed;
+    top: var(--safe-area-top, 20px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    background: var(--surface, #FFFFFF);
+    color: var(--text-primary);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: var(--z-index-modal);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    border: 1px solid var(--border);
+    min-width: 200px;
+    max-width: 90vw;
+    text-align: center;
+    transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.notification.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.notification--success {
+    background: var(--success-color, #28a745);
+    color: white;
+    border-color: var(--success-color, #28a745);
+}
+
+.notification--error {
+    background: var(--error-color, #dc3545);
+    color: white;
+    border-color: var(--error-color, #dc3545);
+}
+
+.notification--info {
+    background: var(--info-color, #17a2b8);
+    color: white;
+    border-color: var(--info-color, #17a2b8);
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ ДЛЯ НОВЫХ ЭЛЕМЕНТОВ
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .quotes-grid {
+        gap: var(--spacing-sm);
+    }
+    
+    .quote-card {
+        padding: var(--spacing-sm);
+    }
+    
+    .quote-card__text {
+        font-size: var(--font-size-sm);
+    }
+    
+    .quote-card__meta {
+        margin-top: var(--spacing-sm);
+    }
+    
+    .notification {
+        font-size: var(--font-size-xs);
+        padding: var(--spacing-sm) var(--spacing-md);
+        max-width: 95vw;
+    }
+}
+
+/* ============================================================================
+   🎯 TOUCH-FRIENDLY РАЗМЕРЫ (СООТВЕТСТВИЕ ТРЕБОВАНИЯМ)
+   ============================================================================ */
+
+.promo-btn {
+    min-height: var(--touch-target-min) !important;
+    min-width: var(--touch-target-min);
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.tab {
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+}
+
+.error-retry-btn {
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+}
