@@ -375,3 +375,132 @@
   .mvp-community-text { font-size: var(--font-size-xs); }
   .mvp-community-author { font-size: 11px; }
 }
+
+/* ============================================================================
+   📚 СЕКЦИЯ "СЕЙЧАС ИЗУЧАЮТ" (НОВАЯ ИНТЕГРАЦИЯ СО STATISTICSSERVICE)
+   ============================================================================ */
+
+.currently-studying-section {
+    margin-bottom: 16px;
+}
+
+.currently-studying-section .mvp-community-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.currently-studying-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.currently-studying-item {
+    background: var(--surface, #FFFFFF);
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid var(--border, #E6E0D6);
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    
+    /* Touch-friendly минимальный размер 44px */
+    min-height: 44px;
+}
+
+.currently-studying-item:active {
+    transform: scale(0.98);
+    background: var(--bg-overlay, rgba(210, 69, 44, 0.05));
+}
+
+.studying-rank {
+    width: 28px;
+    height: 28px;
+    background: var(--primary-color, #D2452C);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.studying-content {
+    flex: 1;
+    min-width: 0; /* Позволяет text-overflow работать */
+}
+
+.studying-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #2D2D2D);
+    margin-bottom: 2px;
+    /* Ellipsis для длинных названий */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.studying-author {
+    font-size: 11px;
+    color: var(--text-secondary, #5D4037);
+    margin-bottom: 2px;
+    /* Ellipsis для длинных имен авторов */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.studying-stats {
+    font-size: 10px;
+    color: var(--text-muted, #8D6E63);
+}
+
+/* Темная тема для "Сейчас изучают" */
+@media (prefers-color-scheme: dark) {
+    .currently-studying-item {
+        background: var(--surface-dark, #2D2A26);
+        border-color: var(--border-dark, #3D3A36);
+    }
+    
+    .currently-studying-item:active {
+        background: rgba(210, 69, 44, 0.15);
+    }
+    
+    .studying-title {
+        color: var(--text-primary-dark, #F5F2EC);
+    }
+    
+    .studying-author {
+        color: var(--text-secondary-dark, #C0B8B0);
+    }
+    
+    .studying-stats {
+        color: var(--text-muted-dark, #8D847A);
+    }
+}
+
+/* Мобильная адаптация */
+@media (max-width: 480px) {
+    .studying-title {
+        font-size: 12px;
+    }
+    
+    .studying-author {
+        font-size: 10px;
+    }
+    
+    .studying-stats {
+        font-size: 9px;
+    }
+}
