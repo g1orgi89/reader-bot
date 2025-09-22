@@ -462,17 +462,13 @@ class StatisticsService {
             // Получаем локальное количество цитат для гарантии свежести
             const optimisticTotalQuotes = this.state.get('quotes.items')?.length || 0;
 
-            // Гибридная логика для live-UI:
-            // Если локальное меньше серверного — показываем локальное (после удаления)
-            // Если локальное больше серверного — показываем максимальное (после добавления)
-            const maxServerTotal = Math.max(main.totalQuotes || 0, progress.totalQuotes || 0);
-            const hybridTotalQuotes = optimisticTotalQuotes < maxServerTotal
-                ? optimisticTotalQuotes
-                : maxServerTotal;
-
             // Create flat stats object with weeklyQuotes → thisWeek mirroring
             const flatStats = {
-                totalQuotes: hybridTotalQuotes,
+                totalQuotes: Math.max(
+                main.totalQuotes || 0,
+                optimisticTotalQuotes,
+                progress.totalQuotes || 0
+                ),
                 currentStreak: progress.currentStreak || 0,
                 computedStreak: progress.computedStreak || 0,
                 backendStreak: progress.backendStreak || 0,
