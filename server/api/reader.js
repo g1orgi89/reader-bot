@@ -1979,4 +1979,41 @@ router.get('/activity-percent', telegramAuth, async (req, res) => {
     }
 });
 
+/**
+ * @description Сообщение Анны для сообщества
+ * @route GET /api/reader/community/message
+ */
+router.get('/community/message', communityLimiter, telegramAuth, async (_req, res) => {
+  try {
+    return res.json({
+      success: true,
+      data: {
+        text: 'Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день — а я помогу вам видеть главное.',
+        time: 'сегодня'
+      }
+    });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * @description Тренд недели для сообщества
+ * @route GET /api/reader/community/trend
+ */
+router.get('/community/trend', communityLimiter, telegramAuth, async (_req, res) => {
+  try {
+    return res.json({
+      success: true,
+      data: {
+        title: 'Тренд недели',
+        text: 'Тема «Психология отношений» набирает популярность',
+        buttonText: 'Изучить разборы'
+      }
+    });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;

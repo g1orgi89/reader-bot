@@ -123,7 +123,8 @@ class CommunityPage {
             
             const response = await this.api.getCommunityLatestQuotes({ limit });
             if (response && response.success) {
-                this.latestQuotes = response.quotes || [];
+                // Нормализация: читаем из resp.data, если нет - из resp.quotes/resp.data.quotes/resp
+                this.latestQuotes = response.data || response.quotes || response.data?.quotes || [];
                 console.log('✅ CommunityPage: Последние цитаты загружены:', this.latestQuotes.length);
             } else {
                 this.latestQuotes = [];
@@ -178,6 +179,7 @@ class CommunityPage {
             // Используем getTopBooks для получения популярных разборов недели
             const response = await this.api.getTopBooks({ period, limit });
             if (response && response.success) {
+                // Нормализация: читаем из resp.data или resp.books
                 this.popularBooks = response.data || response.books || [];
                 console.log('✅ CommunityPage: Популярные книги недели загружены:', this.popularBooks.length);
             } else {
@@ -205,7 +207,8 @@ class CommunityPage {
             
             const response = await this.api.getCatalogRecentClicks({ limit });
             if (response && response.success) {
-                this.recentClicks = response.data || [];
+                // Нормализация: читаем из resp.clicks, если нет - из resp.data/items
+                this.recentClicks = response.clicks || response.data || response.items || [];
                 console.log('✅ CommunityPage: Последние клики загружены:', this.recentClicks.length);
             } else {
                 this.recentClicks = [];
@@ -232,7 +235,8 @@ class CommunityPage {
             
             const response = await this.api.getLeaderboard({ limit });
             if (response && response.success) {
-                this.leaderboard = response.data || [];
+                // Нормализация: читаем из resp.data или resp.items
+                this.leaderboard = response.data || response.items || [];
                 console.log('✅ CommunityPage: Таблица лидеров загружена:', this.leaderboard.length);
             } else {
                 this.leaderboard = [];
@@ -418,7 +422,7 @@ class CommunityPage {
                     <div class="error-icon">❌</div>
                     <div class="error-title">Ошибка загрузки</div>
                     <div class="error-description">${this.errorStates.latestQuotes}</div>
-                    <button class="error-retry-btn" onclick="this.retryLoadLatestQuotes()">Повторить</button>
+                    <button class="error-retry-btn" data-retry="latest-quotes" style="min-height: var(--touch-target-min);">Повторить</button>
                 </div>
             `;
         }
@@ -444,7 +448,9 @@ class CommunityPage {
                             <span class="quote-card__date">${this.formatDate(quote.createdAt || quote.date)}</span>
                             <button class="quote-card__add-btn" 
                                     data-quote-id="${quote.id || index}"
-                                    onclick="this.addQuoteToJournal(event)"
+                                    data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
+                                    data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
+                                    style="min-height: var(--touch-target-min);"
                                     aria-label="Добавить цитату в дневник">
                                 <span class="add-icon">+</span>
                             </button>
@@ -486,7 +492,7 @@ class CommunityPage {
                     <div class="error-icon">❌</div>
                     <div class="error-title">Ошибка загрузки</div>
                     <div class="error-description">${this.errorStates.recentClicks}</div>
-                    <button class="error-retry-btn" onclick="this.retryLoadRecentClicks()">Повторить</button>
+                    <button class="error-retry-btn" data-retry="recent-clicks" style="min-height: var(--touch-target-min);">Повторить</button>
                 </div>
             `;
         }
@@ -502,12 +508,12 @@ class CommunityPage {
         }
         
         const recentClicksCards = this.recentClicks.slice(0, 3).map((click, index) => `
-            <div class="currently-studying-item" data-book-id="${click.bookId || click.id}" style="margin-bottom: var(--spacing-sm);">
+            <div class="currently-studying-item" data-book-id="${click.book?.id || click.bookId || click.id}" style="margin-bottom: var(--spacing-sm); min-height: var(--touch-target-min);">
                 <div class="studying-rank">${index + 1}</div>
                 <div class="studying-content">
-                    <div class="studying-title">${click.bookTitle || click.title || 'Неизвестная книга'}</div>
-                    <div class="studying-author">${click.bookAuthor || click.author || 'Неизвестный автор'}</div>
-                    <div class="studying-stats">${this.formatClickTime(click.clickTime || click.createdAt)}</div>
+                    <div class="studying-title">${click.book?.title || click.bookTitle || click.title || 'Неизвестная книга'}</div>
+                    <div class="studying-author">${click.book?.author || click.bookAuthor || click.author || 'Неизвестный автор'}</div>
+                    <div class="studying-stats">${this.formatClickTime(click.timestamp || click.clickTime || click.createdAt)}</div>
                 </div>
             </div>
         `).join('');
@@ -556,7 +562,6 @@ class CommunityPage {
                 <div class="promo-text">${trend.text}</div>
                 <button class="promo-btn" 
                         id="exploreBtn"
-                        onclick="this.exploreTrend(event)"
                         style="min-height: var(--touch-target-min);">
                     ${trend.buttonText}
                 </button>
@@ -618,7 +623,7 @@ class CommunityPage {
                     <div class="error-icon">❌</div>
                     <div class="error-title">Ошибка загрузки лидерборда</div>
                     <div class="error-description">${this.errorStates.leaderboard}</div>
-                    <button class="error-retry-btn" onclick="this.retryLoadLeaderboard()">Повторить</button>
+                    <button class="error-retry-btn" data-retry="leaderboard" style="min-height: var(--touch-target-min);">Повторить</button>
                 </div>
             `;
         }
@@ -678,7 +683,7 @@ class CommunityPage {
                     <div class="error-icon">❌</div>
                     <div class="error-title">Ошибка загрузки цитат</div>
                     <div class="error-description">${this.errorStates.popularQuotes}</div>
-                    <button class="error-retry-btn" onclick="this.retryLoadPopularQuotes()">Повторить</button>
+                    <button class="error-retry-btn" data-retry="popular-quotes" style="min-height: var(--touch-target-min);">Повторить</button>
                 </div>
             `;
         }
@@ -730,7 +735,7 @@ class CommunityPage {
                     <div class="error-icon">❌</div>
                     <div class="error-title">Ошибка загрузки книг</div>
                     <div class="error-description">${this.errorStates.popularBooks}</div>
-                    <button class="error-retry-btn" onclick="this.retryLoadPopularBooks()">Повторить</button>
+                    <button class="error-retry-btn" data-retry="popular-books" style="min-height: var(--touch-target-min);">Повторить</button>
                 </div>
             `;
         }
@@ -857,14 +862,6 @@ class CommunityPage {
                 this.addQuoteToJournal(event);
             });
         });
-
-        // Обработчики для кнопки изучения тренда
-        const exploreBtn = document.getElementById('exploreBtn');
-        if (exploreBtn) {
-            exploreBtn.addEventListener('click', (event) => {
-                this.exploreTrend(event);
-            });
-        }
     }
     
     /**
@@ -983,35 +980,34 @@ class CommunityPage {
      * 🔄 ОБРАБОТЧИКИ КНОПОК ПОВТОРА (НОВОЕ ДЛЯ PR-3)
      */
     attachRetryButtons() {
-        // Создаем единый обработчик для всех кнопок повтора
-        const retryButtons = document.querySelectorAll('.error-retry-btn');
+        // Единый обработчик для всех кнопок повтора с data-retry атрибутами
+        const retryButtons = document.querySelectorAll('[data-retry]');
         retryButtons.forEach(button => {
             button.addEventListener('click', (event) => {
                 event.preventDefault();
                 this.triggerHapticFeedback('medium');
                 
-                // Определяем какую секцию нужно перезагрузить на основе контекста
-                const errorState = button.closest('.error-state');
-                if (!errorState) return;
-
-                const errorTitle = errorState.querySelector('.error-title')?.textContent || '';
-                
-                if (errorTitle.includes('цитат') && errorTitle.includes('лидерборд')) {
-                    this.retryLoadLeaderboard();
-                } else if (errorTitle.includes('цитат')) {
-                    // Проверяем контекст - популярные или последние
-                    if (errorState.previousElementSibling?.textContent?.includes('Популярные')) {
-                        this.retryLoadPopularQuotes();
-                    } else {
+                const retryType = button.dataset.retry;
+                switch (retryType) {
+                    case 'latest-quotes':
                         this.retryLoadLatestQuotes();
-                    }
-                } else if (errorTitle.includes('книг')) {
-                    this.retryLoadPopularBooks();
-                } else if (errorTitle.includes('лидерборд')) {
-                    this.retryLoadLeaderboard();
-                } else {
-                    // Fallback - перезагружаем все
-                    this.loadAllSections();
+                        break;
+                    case 'recent-clicks':
+                        this.retryLoadRecentClicks();
+                        break;
+                    case 'popular-books':
+                        this.retryLoadPopularBooks();
+                        break;
+                    case 'popular-quotes':
+                        this.retryLoadPopularQuotes();
+                        break;
+                    case 'leaderboard':
+                        this.retryLoadLeaderboard();
+                        break;
+                    default:
+                        // Fallback - перезагружаем все
+                        this.loadAllSections();
+                        break;
                 }
             });
         });
@@ -1161,9 +1157,9 @@ class CommunityPage {
             // Haptic feedback
             this.triggerHapticFeedback('medium');
             
-            // Получаем данные цитаты
-            const quoteText = quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
-            const quoteAuthor = quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
+            // Получаем данные цитаты из data-атрибутов или из DOM
+            const quoteText = button.dataset.quoteText || quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
+            const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
             
             // Показываем loading состояние
             button.innerHTML = '<span class="loading-spinner-small"></span>';
