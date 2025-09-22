@@ -269,20 +269,36 @@
 /* Контролируемые анимации для Router */
 .animate-content .mvp-community-item {
     animation: communitySlideIn 0.4s ease;
+    animation-fill-mode: both;
 }
 
 .animate-content .leaderboard-item {
     animation: communitySlideIn 0.4s ease;
+    animation-fill-mode: both;
 }
 
 .animate-content .community-stat-card {
     animation: communitySlideIn 0.4s ease;
+    animation-fill-mode: both;
+}
+
+.animate-content .currently-studying-item {
+    animation: communitySlideIn 0.4s ease;
+    animation-fill-mode: both;
+}
+
+/* ✅ НОВОЕ: Анимации для карточек цитат */
+.animate-content .quote-card {
+    animation: communitySlideIn 0.4s ease;
+    animation-fill-mode: both;
 }
 
 /* Отключение анимаций при флаге no-animations */
 .no-animations .mvp-community-item,
 .no-animations .leaderboard-item,
-.no-animations .community-stat-card {
+.no-animations .community-stat-card,
+.no-animations .currently-studying-item,
+.no-animations .quote-card {
     animation: none !important;
 }
 
@@ -297,6 +313,15 @@
 .animate-content .leaderboard-item:nth-child(2) { animation-delay: 0.2s; }
 .animate-content .leaderboard-item:nth-child(3) { animation-delay: 0.3s; }
 
+.animate-content .currently-studying-item:nth-child(1) { animation-delay: 0.1s; }
+.animate-content .currently-studying-item:nth-child(2) { animation-delay: 0.2s; }
+.animate-content .currently-studying-item:nth-child(3) { animation-delay: 0.3s; }
+
+.animate-content .community-stat-card:nth-child(1) { animation-delay: 0.05s; }
+.animate-content .community-stat-card:nth-child(2) { animation-delay: 0.1s; }
+.animate-content .community-stat-card:nth-child(3) { animation-delay: 0.15s; }
+.animate-content .community-stat-card:nth-child(4) { animation-delay: 0.2s; }
+
 @keyframes communitySlideIn {
     from {
         opacity: 0;
@@ -309,10 +334,52 @@
 }
 
 /* ============================================================================
-   🎯 HOVER ЭФФЕКТЫ
+   🎯 TOUCH-FRIENDLY ЭФФЕКТЫ (HOVERLESS UX)
    ============================================================================ */
 
-@media (hover: hover) {
+/* ✅ ОБНОВЛЕНО: Только touch-based interactions для мобильных */
+.mvp-community-item {
+    transition: all var(--transition-normal, 0.3s ease);
+    will-change: transform;
+}
+
+.mvp-community-item:active {
+    transform: scale(0.98);
+    background: var(--surface-pressed, rgba(210, 69, 44, 0.05));
+}
+
+.leaderboard-item {
+    transition: all var(--transition-normal, 0.3s ease);
+    will-change: transform;
+}
+
+.leaderboard-item:active {
+    transform: scale(0.98);
+    background: var(--surface-pressed, rgba(210, 69, 44, 0.05));
+}
+
+.community-stat-card {
+    transition: all var(--transition-normal, 0.3s ease);
+    will-change: transform;
+}
+
+.community-stat-card:active {
+    transform: scale(0.98);
+    background: var(--surface-pressed, rgba(210, 69, 44, 0.05));
+}
+
+.currently-studying-item {
+    transition: all var(--transition-normal, 0.3s ease);
+    will-change: transform;
+}
+
+.currently-studying-item:active {
+    transform: scale(0.98);
+    background: var(--surface-pressed, rgba(210, 69, 44, 0.05));
+}
+
+/* Hover эффекты только для устройств с мышью */
+@media (hover: hover) and (pointer: fine) {
     .mvp-community-item:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
@@ -324,6 +391,11 @@
     }
     
     .community-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+    }
+    
+    .currently-studying-item:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
     }
@@ -363,6 +435,88 @@
     padding: 12px;
     margin-bottom: 10px;
     border-radius: 10px;
+}
+
+/* ✅ НОВОЕ: Специфичные skeleton для community карточек */
+.skeleton-community-item {
+    background: var(--surface, #FFFFFF);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border, #E6E0D6);
+}
+
+.skeleton-community-title {
+    height: 14px;
+    width: 40%;
+    margin-bottom: 8px;
+}
+
+.skeleton-community-text {
+    height: 18px;
+    width: 90%;
+    margin-bottom: 6px;
+}
+
+.skeleton-community-text.short {
+    width: 70%;
+}
+
+.skeleton-community-author {
+    height: 12px;
+    width: 50%;
+}
+
+.skeleton-stat-card {
+    background: var(--surface, #FFFFFF);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid var(--border, #E6E0D6);
+}
+
+.skeleton-stat-number {
+    height: 20px;
+    width: 60%;
+    margin: 0 auto 6px auto;
+}
+
+.skeleton-stat-label {
+    height: 12px;
+    width: 80%;
+    margin: 0 auto;
+}
+
+.skeleton-leaderboard-item {
+    background: var(--surface, #FFFFFF);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border, #E6E0D6);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.skeleton-rank-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+}
+
+.skeleton-user-info {
+    flex: 1;
+}
+
+.skeleton-user-name {
+    height: 14px;
+    width: 40%;
+    margin-bottom: 4px;
+}
+
+.skeleton-user-stats {
+    height: 10px;
+    width: 60%;
 }
 
 @keyframes skeletonShimmer {
