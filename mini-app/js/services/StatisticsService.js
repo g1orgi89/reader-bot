@@ -473,19 +473,19 @@ class StatisticsService {
     async onQuoteEdited(detail) {
         try {
             const userId = this._requireUserId();
-            console.log('📊 StatisticsService: Quote edited, optimistic update first');
+            console.log('📊 StatisticsService: Quote edited, no totalQuotes change needed');
             
-            // 1. Optimistic recalculation first (instant UI update)
-            this._updateOptimisticStats();
+            // Quote editing doesn't affect totalQuotes, only other stats like favoriteAuthor
+            // No delta changes needed, just refresh from API
             
-            // 2. Invalidate cache for fresh API data
+            // Invalidate cache for fresh API data
             this.invalidateAll();
             
-            // 3. Silent sync with API (no loading flags)
+            // Silent sync with API (no loading flags) 
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
-            // 4. Refresh activity percent from API
+            // Refresh activity percent from API
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteEdited error:', e);
@@ -548,11 +548,11 @@ class StatisticsService {
             
             // Adjust deltas based on server changes
             if (serverDiff > 0) {
-                // Server shows more quotes, reduce pending adds
+                // Server shows more quotes, reduce pending adds by the difference
                 newPendingAdds = Math.max(0, newPendingAdds - serverDiff);
             } else if (serverDiff < 0) {
-                // Server shows fewer quotes, reduce pending deletes
-                newPendingDeletes = Math.max(0, newPendingDeletes + serverDiff);
+                // Server shows fewer quotes, reduce pending deletes by absolute difference
+                newPendingDeletes = Math.max(0, newPendingDeletes - Math.abs(serverDiff));
             }
             
             // Set new baseline and corrected deltas
