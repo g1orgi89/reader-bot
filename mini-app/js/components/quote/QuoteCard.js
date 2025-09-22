@@ -385,7 +385,7 @@ class QuoteCard {
                 text: this.quote.text,
                 author: this.quote.author,
                 isFavorite: !this.quote.isFavorite,
-                source: quote.source
+                source: this.quote.source
             });
             
             this.quote.isFavorite = updatedQuote.isFavorite;
@@ -544,7 +544,7 @@ class QuoteCard {
     /**
      * Отмена редактирования
      */
-    cancelEdit(originalQuote, originalAuthor) {
+    cancelEdit(_originalQuote, _originalAuthor) {
         this.isEditing = false;
         this.container.innerHTML = this.renderContent();
     }
@@ -914,6 +914,37 @@ class QuoteCard {
     setCompactMode(compact) {
         this.options.compact = compact;
         this.element.classList.toggle('quote-card--compact', compact);
+    }
+    
+    /**
+     * 👥 НАСТРОЙКА ДЛЯ COMMUNITY DTO (PR-5)
+     * Обеспечивает совместимость с данными из community API
+     */
+    updateFromCommunityData(communityQuote) {
+        // Нормализуем данные из community DTO
+        const normalizedQuote = {
+            id: communityQuote.id || communityQuote._id,
+            text: communityQuote.text || communityQuote.content,
+            author: communityQuote.author || communityQuote.authorName,
+            source: communityQuote.source || 'community',
+            createdAt: communityQuote.createdAt || communityQuote.created_at,
+            isFavorite: communityQuote.isFavorite || false,
+            aiAnalysis: communityQuote.aiAnalysis || communityQuote.analysis,
+            userName: communityQuote.userName, // Специфично для community
+            userAvatar: communityQuote.userAvatar, // Специфично для community
+            likes: communityQuote.likes || 0, // Специфично для community
+            shares: communityQuote.shares || 0 // Специфично для community
+        };
+        
+        // Обновляем внутренние данные
+        this.quote = { ...this.quote, ...normalizedQuote };
+        
+        // Перерендериваем если элемент существует
+        if (this.element && this.container) {
+            this.container.innerHTML = this.renderContent();
+        }
+        
+        return this;
     }
 
     /**

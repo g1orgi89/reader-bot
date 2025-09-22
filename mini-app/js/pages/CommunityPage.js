@@ -696,8 +696,38 @@ class CommunityPage {
         this.attachTabListeners();
         this.attachExploreButton();
         this.attachCurrentlyStudyingListeners();
+        this.attachCommunityCardListeners(); // ✅ НОВОЕ: Haptic feedback для карточек
         this.attachRetryButtons(); // ✅ НОВОЕ PR-3
         this.setupQuoteChangeListeners();
+    }
+    
+    /**
+     * 📳 ЕДИНЫЙ МЕТОД ДЛЯ HAPTIC FEEDBACK
+     * @param {string} type - Тип обратной связи: 'light', 'medium', 'heavy', 'success', 'error'
+     */
+    triggerHapticFeedback(type = 'light') {
+        if (this.telegram?.HapticFeedback) {
+            switch (type) {
+                case 'light':
+                    this.telegram.HapticFeedback.impactOccurred('light');
+                    break;
+                case 'medium':
+                    this.telegram.HapticFeedback.impactOccurred('medium');
+                    break;
+                case 'heavy':
+                    this.telegram.HapticFeedback.impactOccurred('heavy');
+                    break;
+                case 'success':
+                    this.telegram.HapticFeedback.notificationOccurred('success');
+                    break;
+                case 'error':
+                    this.telegram.HapticFeedback.notificationOccurred('error');
+                    break;
+                case 'warning':
+                    this.telegram.HapticFeedback.notificationOccurred('warning');
+                    break;
+            }
+        }
     }
 
     attachTabListeners() {
@@ -714,7 +744,7 @@ class CommunityPage {
         const exploreBtn = document.getElementById('exploreBtn');
         if (exploreBtn) {
             exploreBtn.addEventListener('click', () => {
-                this.telegram.hapticFeedback('medium');
+                this.triggerHapticFeedback('medium');
                 this.app.router.navigate('/catalog');
             });
         }
@@ -726,13 +756,59 @@ class CommunityPage {
     attachCurrentlyStudyingListeners() {
         const studyingItems = document.querySelectorAll('.currently-studying-item');
         studyingItems.forEach(item => {
+            // Добавляем haptic feedback на касание
+            item.addEventListener('touchstart', () => {
+                this.triggerHapticFeedback('light');
+            }, { passive: true });
+            
             item.addEventListener('click', () => {
-                this.telegram?.hapticFeedback?.('light');
+                this.triggerHapticFeedback('medium');
                 const bookId = item.dataset.bookId;
                 if (bookId) {
                     // Navigate to catalog with selected book
                     this.app.router.navigate(`/catalog?book=${bookId}`);
                 }
+            });
+        });
+    }
+    
+    /**
+     * 🎯 ОБРАБОТЧИКИ COMMUNITY КАРТОЧЕК С УЛУЧШЕННЫМ HAPTIC FEEDBACK
+     */
+    attachCommunityCardListeners() {
+        // Карточки цитат сообщества
+        const communityItems = document.querySelectorAll('.mvp-community-item');
+        communityItems.forEach(item => {
+            // Haptic feedback на касание
+            item.addEventListener('touchstart', () => {
+                this.triggerHapticFeedback('light');
+            }, { passive: true });
+            
+            // Действие при клике (если нужно)
+            item.addEventListener('click', () => {
+                this.triggerHapticFeedback('medium');
+                // Здесь можно добавить действия для карточек
+            });
+        });
+        
+        // Карточки статистики
+        const statCards = document.querySelectorAll('.community-stat-card');
+        statCards.forEach(card => {
+            card.addEventListener('touchstart', () => {
+                this.triggerHapticFeedback('light');
+            }, { passive: true });
+        });
+        
+        // Элементы лидерборда
+        const leaderboardItems = document.querySelectorAll('.leaderboard-item');
+        leaderboardItems.forEach(item => {
+            item.addEventListener('touchstart', () => {
+                this.triggerHapticFeedback('light');
+            }, { passive: true });
+            
+            item.addEventListener('click', () => {
+                this.triggerHapticFeedback('medium');
+                // Действия для элементов лидерборда
             });
         });
     }
@@ -746,7 +822,7 @@ class CommunityPage {
         retryButtons.forEach(button => {
             button.addEventListener('click', (event) => {
                 event.preventDefault();
-                this.telegram?.hapticFeedback?.('medium');
+                this.triggerHapticFeedback('medium');
                 
                 // Определяем какую секцию нужно перезагрузить на основе контекста
                 const errorState = button.closest('.error-state');
@@ -800,7 +876,7 @@ class CommunityPage {
     
     switchTab(tabName) {
         this.activeTab = tabName;
-        this.telegram.hapticFeedback('light');
+        this.triggerHapticFeedback('light');
         this.rerender();
     }
     
@@ -879,27 +955,27 @@ class CommunityPage {
      * 🔄 МЕТОДЫ ПОВТОРА ЗАГРУЗКИ ДЛЯ ОБРАБОТКИ ОШИБОК (PR-3)
      */
     retryLoadLatestQuotes() {
-        this.telegram?.hapticFeedback?.('medium');
+        this.triggerHapticFeedback('medium');
         this.loadLatestQuotes(5).then(() => this.rerender());
     }
 
     retryLoadPopularQuotes() {
-        this.telegram?.hapticFeedback?.('medium');
+        this.triggerHapticFeedback('medium');
         this.loadPopularQuotes('7d', 10).then(() => this.rerender());
     }
 
     retryLoadPopularBooks() {
-        this.telegram?.hapticFeedback?.('medium');
+        this.triggerHapticFeedback('medium');
         this.loadPopularBooks('7d', 10).then(() => this.rerender());
     }
 
     retryLoadLeaderboard() {
-        this.telegram?.hapticFeedback?.('medium');
+        this.triggerHapticFeedback('medium');
         this.loadLeaderboard(10).then(() => this.rerender());
     }
 
     retryLoadRecentClicks() {
-        this.telegram?.hapticFeedback?.('medium');
+        this.triggerHapticFeedback('medium');
         this.loadRecentClicks(5).then(() => this.rerender());
     }
     
@@ -916,7 +992,29 @@ class CommunityPage {
         if (container) {
             container.innerHTML = this.render();
             this.attachEventListeners();
+            
+            // ✅ НОВОЕ: Добавляем плавные анимации через CSS классы
+            this.triggerContentAnimations();
         }
+    }
+    
+    /**
+     * 🎬 ПЛАВНЫЕ АНИМАЦИИ ПОЯВЛЕНИЯ ЧЕРЕЗ CSS КЛАССЫ
+     */
+    triggerContentAnimations() {
+        // Получаем контейнер контента для анимаций
+        const contentContainer = document.querySelector('.content');
+        if (!contentContainer) return;
+        
+        // Добавляем класс для запуска анимаций
+        setTimeout(() => {
+            contentContainer.classList.add('animate-content');
+        }, 50); // Небольшая задержка для плавности
+        
+        // Убираем класс после завершения анимаций
+        setTimeout(() => {
+            contentContainer.classList.remove('animate-content');
+        }, 1000);
     }
 
     /**
