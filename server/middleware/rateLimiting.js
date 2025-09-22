@@ -119,6 +119,24 @@ const adminLimiter = rateLimit({
 });
 
 /**
+ * Community endpoints rate limiter - balanced for public access
+ * 30 requests per 5 minutes per user
+ */
+const communityLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 30, // Limit each user to 30 community requests per 5 minutes
+  message: 'Too many community requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createRateLimitError,
+  keyGenerator: (req) => {
+    // Use userId from telegram auth if available, otherwise IP
+    return req.userId || req.ip;
+  },
+  skip: skipOptionsRequests // Skip OPTIONS requests
+});
+
+/**
  * Health check rate limiter - very strict for testing
  * 3 requests per 30 seconds
  */
@@ -171,6 +189,8 @@ function applyRateLimit(type) {
       return adminLimiter;
     case 'health':
       return healthLimiter;
+    case 'community':
+      return communityLimiter;
     default:
       return generalLimiter;
   }
@@ -182,6 +202,7 @@ module.exports = {
   authLimiter,
   adminLimiter,
   healthLimiter,
+  communityLimiter,
   createCustomLimiter,
   applyRateLimit,
   createRateLimitError,
