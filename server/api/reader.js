@@ -56,6 +56,9 @@ const PromoCodeUsage = require('../models/analytics').PromoCodeUsage;
 // Импорт сервисов
 const QuoteHandler = require('../services/quoteHandler');
 
+// Импорт middleware
+const { communityLimiter } = require('../middleware/rateLimiting');
+
 // Инициализация обработчика цитат
 const quoteHandler = new QuoteHandler();
 
@@ -71,7 +74,7 @@ function getUserId(req) {
 /**
  * Validates period parameter and returns date range
  * @param {string} period - Period string like '7d', '30d'
- * @returns {{startDate: Date, isValid: boolean}} 
+ * @returns {{startDate: Date, isValid: boolean, period: string}} 
  */
 function validatePeriod(period) {
   const now = new Date();
@@ -80,37 +83,28 @@ function validatePeriod(period) {
   if (!period) {
     // Default to 7 days
     startDate.setDate(now.getDate() - 7);
-    return { startDate, isValid: true };
+    return { startDate, isValid: true, period: '7d' };
   }
   
-  const match = period.match(/^(\d+)([dwm])$/i);
-  if (!match) {
-    return { startDate: null, isValid: false };
+  // Strict validation: only '7d' and '30d' allowed for production safety
+  if (period !== '7d' && period !== '30d') {
+    return { startDate: null, isValid: false, period: null };
   }
   
-  const value = parseInt(match[1], 10);
-  const unit = match[2].toLowerCase();
+  const value = parseInt(period, 10);
+  startDate.setDate(now.getDate() - value);
   
-  if (unit === 'd') {
-    if (value !== 7 && value !== 30) {
-      return { startDate: null, isValid: false };
-    }
-    startDate.setDate(now.getDate() - value);
-  } else {
-    return { startDate: null, isValid: false };
-  }
-  
-  return { startDate, isValid: true };
+  return { startDate, isValid: true, period };
 }
 
 /**
- * Validates limit parameter
+ * Validates limit parameter with production-safe defaults
  * @param {string|number} limit - Limit value
  * @param {number} defaultLimit - Default limit if not provided
  * @param {number} maxLimit - Maximum allowed limit
  * @returns {{limit: number, isValid: boolean}}
  */
-function validateLimit(limit, defaultLimit = 20, maxLimit = 100) {
+function validateLimit(limit, defaultLimit = 10, maxLimit = 50) {
   if (!limit) {
     return { limit: defaultLimit, isValid: true };
   }
@@ -1565,7 +1559,7 @@ router.get('/top-books', async (req, res) => {
  * @description Последние цитаты сообщества
  * @route GET /api/reader/community/quotes/latest
  */
-router.get('/community/quotes/latest', telegramAuth, async (req, res) => {
+router.get('/community/quotes/latest', communityLimiter, telegramAuth, async (req, res) => {
   try {
     const { limit: limitParam } = req.query;
     const { limit, isValid } = validateLimit(limitParam, 10, 50);
@@ -1577,9 +1571,9 @@ router.get('/community/quotes/latest', telegramAuth, async (req, res) => {
       });
     }
 
-    // Get latest quotes from all users, sorted by createdAt
+    // Get latest quotes from all users with deterministic sorting
     const quotes = await Quote.find({})
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 }) // Add _id as tie-breaker for deterministic sorting
       .limit(limit)
       .select({
         _id: 1,
@@ -1608,8 +1602,12 @@ router.get('/community/quotes/latest', telegramAuth, async (req, res) => {
 
     res.json({
       success: true,
-      quotes: quoteDTOs,
-      total: quoteDTOs.length
+      data: quoteDTOs,
+      pagination: {
+        total: quoteDTOs.length,
+        limit: limit,
+        hasMore: quoteDTOs.length === limit
+      }
     });
 
   } catch (error) {
@@ -1622,11 +1620,11 @@ router.get('/community/quotes/latest', telegramAuth, async (req, res) => {
  * @description Популярные цитаты сообщества (агрегированные)
  * @route GET /api/reader/community/popular
  */
-router.get('/community/popular', telegramAuth, async (req, res) => {
+router.get('/community/popular', communityLimiter, telegramAuth, async (req, res) => {
   try {
     const { period: periodParam, limit: limitParam } = req.query;
     
-    const { startDate, isValid: periodValid } = validatePeriod(periodParam);
+    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
     if (!periodValid) {
       return res.status(400).json({ 
         success: false, 
@@ -1657,6 +1655,7 @@ router.get('/community/popular', telegramAuth, async (req, res) => {
           },
           count: { $sum: 1 },
           latestCreated: { $max: '$createdAt' },
+          firstId: { $first: '$_id' }, // For deterministic sorting
           category: { $first: '$category' },
           sentiment: { $first: '$sentiment' },
           themes: { $first: '$themes' }
@@ -1668,7 +1667,7 @@ router.get('/community/popular', telegramAuth, async (req, res) => {
         }
       },
       {
-        $sort: { count: -1, latestCreated: -1 }
+        $sort: { count: -1, latestCreated: -1, firstId: 1 } // Deterministic sorting
       },
       {
         $limit: limit
@@ -1688,9 +1687,12 @@ router.get('/community/popular', telegramAuth, async (req, res) => {
 
     res.json({
       success: true,
-      quotes: popularQuotes,
-      total: popularQuotes.length,
-      period: periodParam || '7d'
+      data: popularQuotes,
+      pagination: {
+        total: popularQuotes.length,
+        limit: limit,
+        period: period
+      }
     });
 
   } catch (error) {
@@ -1703,11 +1705,11 @@ router.get('/community/popular', telegramAuth, async (req, res) => {
  * @description Популярные книги сообщества (унифицированный alias для /top-books)
  * @route GET /api/reader/community/popular-books
  */
-router.get('/community/popular-books', telegramAuth, async (req, res) => {
+router.get('/community/popular-books', communityLimiter, telegramAuth, async (req, res) => {
   try {
     const { period: periodParam, limit: limitParam } = req.query;
     
-    const { startDate, isValid: periodValid } = validatePeriod(periodParam);
+    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
     if (!periodValid) {
       return res.status(400).json({ 
         success: false, 
@@ -1723,11 +1725,11 @@ router.get('/community/popular-books', telegramAuth, async (req, res) => {
       });
     }
 
-    // Reuse the logic from /top-books endpoint
+    // Reuse the logic from /top-books endpoint with deterministic sorting
     const clicksAgg = await UTMClick.aggregate([
       { $match: { timestamp: { $gte: startDate }, campaign: 'catalog' } },
-      { $group: { _id: '$content', clicks: { $sum: 1 } } },
-      { $sort: { clicks: -1 } },
+      { $group: { _id: '$content', clicks: { $sum: 1 }, firstClick: { $min: '$_id' } } },
+      { $sort: { clicks: -1, firstClick: 1 } }, // Deterministic sorting
       { $limit: limit }
     ]);
 
@@ -1767,8 +1769,11 @@ router.get('/community/popular-books', telegramAuth, async (req, res) => {
     res.json({ 
       success: true, 
       data,
-      total: data.length,
-      period: periodParam || '7d'
+      pagination: {
+        total: data.length,
+        limit: limit,
+        period: period
+      }
     });
 
   } catch (error) {
@@ -1854,7 +1859,7 @@ router.get('/catalog/clicks/recent', telegramAuth, async (req, res) => {
  * @description Общая статистика сообщества
  * @route GET /api/reader/community/stats
  */
-router.get('/community/stats', telegramAuth, async (req, res) => {
+router.get('/community/stats', communityLimiter, telegramAuth, async (req, res) => {
   try {
     const totalUsers = await UserProfile.countDocuments({ isOnboardingComplete: true });
     const totalQuotes = await Quote.countDocuments();
@@ -1871,7 +1876,7 @@ router.get('/community/stats', telegramAuth, async (req, res) => {
 
     res.json({
       success: true,
-      stats: {
+      data: {
         totalMembers: totalUsers,
         activeToday: activeUsers,
         totalQuotes,
@@ -1894,15 +1899,23 @@ router.get('/community/stats', telegramAuth, async (req, res) => {
  * @description Рейтинг пользователей (обезличенный)
  * @route GET /api/reader/community/leaderboard
  */
-router.get('/community/leaderboard', telegramAuth, async (req, res) => {
+router.get('/community/leaderboard', communityLimiter, telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    const { limit = 10 } = req.query;
+    const { limit: limitParam } = req.query;
+    
+    const { limit, isValid } = validateLimit(limitParam, 10, 50);
+    if (!isValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid limit parameter. Must be between 1 and 50.' 
+      });
+    }
 
     const leaderboard = await UserProfile.aggregate([
       { $match: { isOnboardingComplete: true, isActive: true } },
-      { $sort: { 'statistics.totalQuotes': -1 } },
-      { $limit: parseInt(limit) },
+      { $sort: { 'statistics.totalQuotes': -1, _id: 1 } }, // Deterministic sorting
+      { $limit: limit },
       {
         $project: {
           name: 1,
@@ -1923,7 +1936,11 @@ router.get('/community/leaderboard', telegramAuth, async (req, res) => {
 
     res.json({
       success: true,
-      leaderboard: result
+      data: result,
+      pagination: {
+        total: result.length,
+        limit: limit
+      }
     });
 
   } catch (error) {
