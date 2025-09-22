@@ -11,6 +11,9 @@ class StatisticsService {
         this.TTL_SHORT = 15000; // 15s
         this.TTL_DEFAULT = 30000; // 30s
         
+        // Initialize baseline + deltas model for totalQuotes
+        this._initializeBaselineDeltas();
+        
         // Add event listeners for quote changes (with guard against duplicate binding)
         if (typeof document !== 'undefined' && !window.__statsQuoteEventsBound) {
             document.addEventListener('quotes:changed', (e) => {
@@ -21,6 +24,49 @@ class StatisticsService {
             });
             window.__statsQuoteEventsBound = true;
         }
+    }
+
+    /**
+     * Initialize baseline + deltas model for instant totalQuotes updates
+     */
+    _initializeBaselineDeltas() {
+        const currentStats = this.state.get('stats') || {};
+        if (!('baselineTotal' in currentStats)) {
+            this.state.update('stats', {
+                baselineTotal: currentStats.totalQuotes || 0,
+                pendingAdds: 0,
+                pendingDeletes: 0
+            });
+        }
+    }
+
+    /**
+     * Calculate effective total quotes using baseline + deltas model
+     */
+    _getEffectiveTotal() {
+        const stats = this.state.get('stats') || {};
+        const baselineTotal = stats.baselineTotal || 0;
+        const pendingAdds = stats.pendingAdds || 0;
+        const pendingDeletes = stats.pendingDeletes || 0;
+        return baselineTotal + pendingAdds - pendingDeletes;
+    }
+
+    /**
+     * Update totalQuotes using only effectiveTotal calculation
+     */
+    _updateTotalQuotes() {
+        const effectiveTotal = this._getEffectiveTotal();
+        this.state.update('stats', { totalQuotes: effectiveTotal });
+        
+        // Also update diaryStats for consistency
+        const currentDiaryStats = this.state.get('diaryStats') || {};
+        this.state.set('diaryStats', { ...currentDiaryStats, totalQuotes: effectiveTotal });
+        
+        // Emit events for UI updates
+        const updatedStats = this.state.get('stats');
+        const updatedDiaryStats = this.state.get('diaryStats');
+        document.dispatchEvent(new CustomEvent('stats:updated', { detail: updatedStats }));
+        document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: updatedDiaryStats }));
     }
 
     async getMainStats() {
@@ -356,19 +402,25 @@ class StatisticsService {
     async onQuoteAdded(detail) {
         try {
             const userId = this._requireUserId();
-            console.log('📊 StatisticsService: Quote added, optimistic update first');
+            console.log('📊 StatisticsService: Quote added, applying baseline + deltas');
             
-            // 1. Optimistic recalculation first (instant UI update)
-            this._updateOptimisticStats();
+            // 1. Increase pendingAdds for instant UI update
+            const stats = this.state.get('stats') || {};
+            this.state.update('stats', {
+                pendingAdds: (stats.pendingAdds || 0) + 1
+            });
             
-            // 2. Invalidate cache for fresh API data
+            // 2. Update totalQuotes instantly using effectiveTotal
+            this._updateTotalQuotes();
+            
+            // 3. Invalidate cache for fresh API data
             this.invalidateAll();
             
-            // 3. Silent sync with API (no loading flags)
+            // 4. Silent sync with API (no loading flags)
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
-            // 4. Refresh activity percent from API
+            // 5. Refresh activity percent from API
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteAdded error:', e);
@@ -378,20 +430,41 @@ class StatisticsService {
     async onQuoteDeleted(detail) {
         try {
             const userId = this._requireUserId();
-            console.log('📊 StatisticsService: Quote deleted, optimistic update first');
+            console.log('📊 StatisticsService: Quote deleted, processing with baseline + deltas');
             
-            // 1. Optimistic recalculation first (instant UI update)
-            this._updateOptimisticStats();
+            const { optimistic, reverted } = detail;
             
-            // 2. Invalidate cache for fresh API data
-            this.invalidateAll();
-            
-            // 3. Silent sync with API (no loading flags)
-            await this.refreshMainStatsSilent();
-            await this.refreshDiaryStatsSilent();
-            
-            // 4. Refresh activity percent from API
-            await this.refreshActivityPercent();
+            if (optimistic) {
+                // Optimistic delete: instant -1 by increasing pendingDeletes
+                console.log('📊 Optimistic delete: increasing pendingDeletes');
+                const stats = this.state.get('stats') || {};
+                this.state.update('stats', {
+                    pendingDeletes: (stats.pendingDeletes || 0) + 1
+                });
+                this._updateTotalQuotes();
+            } else if (reverted) {
+                // Revert failed delete: decrease pendingDeletes
+                console.log('📊 Reverting delete: decreasing pendingDeletes');
+                const stats = this.state.get('stats') || {};
+                this.state.update('stats', {
+                    pendingDeletes: Math.max(0, (stats.pendingDeletes || 0) - 1)
+                });
+                this._updateTotalQuotes();
+            } else {
+                // Regular delete confirmation (after successful API call)
+                // No delta changes needed, will be handled in next refresh
+                console.log('📊 Delete confirmed, will sync on next refresh');
+                
+                // Invalidate cache for fresh API data
+                this.invalidateAll();
+                
+                // Silent sync with API (no loading flags)
+                await this.refreshMainStatsSilent();
+                await this.refreshDiaryStatsSilent();
+                
+                // Refresh activity percent from API
+                await this.refreshActivityPercent();
+            }
         } catch (e) {
             console.debug('onQuoteDeleted error:', e);
         }
@@ -400,19 +473,19 @@ class StatisticsService {
     async onQuoteEdited(detail) {
         try {
             const userId = this._requireUserId();
-            console.log('📊 StatisticsService: Quote edited, optimistic update first');
+            console.log('📊 StatisticsService: Quote edited, no totalQuotes change needed');
             
-            // 1. Optimistic recalculation first (instant UI update)
-            this._updateOptimisticStats();
+            // Quote editing doesn't affect totalQuotes, only other stats like favoriteAuthor
+            // No delta changes needed, just refresh from API
             
-            // 2. Invalidate cache for fresh API data
+            // Invalidate cache for fresh API data
             this.invalidateAll();
             
-            // 3. Silent sync with API (no loading flags)
+            // Silent sync with API (no loading flags) 
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
-            // 4. Refresh activity percent from API
+            // Refresh activity percent from API
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteEdited error:', e);
@@ -459,16 +532,39 @@ class StatisticsService {
             const main = await this.getMainStats();
             const progress = await this.getUserProgress();
 
-            // Получаем локальное количество цитат для гарантии свежести
-            const optimisticTotalQuotes = this.state.get('quotes.items')?.length || 0;
+            // Get server totalQuotes as new baseline
+            const serverTotalQuotes = main.totalQuotes || 0;
+            
+            // Get current deltas
+            const currentStats = this.state.get('stats') || {};
+            const currentPendingAdds = currentStats.pendingAdds || 0;
+            const currentPendingDeletes = currentStats.pendingDeletes || 0;
+            const currentBaselineTotal = currentStats.baselineTotal || 0;
+            
+            // Calculate the difference and adjust deltas accordingly
+            const serverDiff = serverTotalQuotes - currentBaselineTotal;
+            let newPendingAdds = currentPendingAdds;
+            let newPendingDeletes = currentPendingDeletes;
+            
+            // Adjust deltas based on server changes
+            if (serverDiff > 0) {
+                // Server shows more quotes, reduce pending adds by the difference
+                newPendingAdds = Math.max(0, newPendingAdds - serverDiff);
+            } else if (serverDiff < 0) {
+                // Server shows fewer quotes, reduce pending deletes by absolute difference
+                newPendingDeletes = Math.max(0, newPendingDeletes - Math.abs(serverDiff));
+            }
+            
+            // Set new baseline and corrected deltas
+            const baselineTotal = serverTotalQuotes;
+            const effectiveTotal = baselineTotal + newPendingAdds - newPendingDeletes;
 
-            // Create flat stats object with weeklyQuotes → thisWeek mirroring
+            // Create flat stats object with baseline + deltas model
             const flatStats = {
-                totalQuotes: Math.max(
-                main.totalQuotes || 0,
-                optimisticTotalQuotes,
-                progress.totalQuotes || 0
-                ),
+                baselineTotal,
+                pendingAdds: newPendingAdds,
+                pendingDeletes: newPendingDeletes,
+                totalQuotes: effectiveTotal, // Use only effectiveTotal, no Math.max
                 currentStreak: progress.currentStreak || 0,
                 computedStreak: progress.computedStreak || 0,
                 backendStreak: progress.backendStreak || 0,
@@ -487,7 +583,7 @@ class StatisticsService {
             this.state.set('stats', flatStats);
 
             document.dispatchEvent(new CustomEvent('stats:updated', { detail: flatStats }));
-            console.log('📊 Main stats silently updated:', flatStats);
+            console.log('📊 Main stats silently updated with baseline + deltas:', flatStats);
         } catch (e) {
             console.debug('refreshMainStatsSilent failed:', e);
             
@@ -499,9 +595,12 @@ class StatisticsService {
             // NO loading flags for silent refresh
             const diaryStats = await this.getDiaryStats();
             
+            // Use effectiveTotal instead of server totalQuotes
+            const effectiveTotal = this._getEffectiveTotal();
+            
             // Create flat diary stats object
             const flatDiaryStats = {
-                totalQuotes: diaryStats.totalQuotes || 0,
+                totalQuotes: effectiveTotal, // Use effectiveTotal for consistency
                 weeklyQuotes: diaryStats.weeklyQuotes || 0,
                 monthlyQuotes: diaryStats.monthlyQuotes || 0,
                 favoritesCount: diaryStats.favoritesCount || 0,
@@ -519,7 +618,7 @@ class StatisticsService {
             
             // Dispatch event with flat stats
             document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: mergedDiaryStats }));
-            console.log('📊 Diary stats silently updated:', mergedDiaryStats);
+            console.log('📊 Diary stats silently updated with effectiveTotal:', mergedDiaryStats);
         } catch (e) {
             console.debug('refreshDiaryStatsSilent failed:', e);
         }

@@ -249,8 +249,11 @@ class ReaderApp {
             this.state.update('user', { profile: newProfile });
             console.log('[DEBUG] state updated profile:', this.state.get('user.profile'));
 
-            // Store stats as flat fields with proper weeklyQuotes/thisWeek mirroring
+            // Initialize baseline stats for baseline + deltas model
             const flatStats = {
+                baselineTotal: stats.totalQuotes || 0,
+                pendingAdds: 0,
+                pendingDeletes: 0,
                 totalQuotes: stats.totalQuotes || 0,
                 currentStreak: stats.currentStreak || 0,
                 longestStreak: stats.longestStreak || 0,
@@ -262,6 +265,13 @@ class ReaderApp {
             };
             this.state.set('stats', flatStats);
             this.state.setRecentQuotes(recentQuotes.quotes || []);
+            
+            // Use statistics service for refreshing instead of direct API calls
+            if (this.statistics) {
+                await this.statistics.refreshMainStatsSilent();
+                await this.statistics.refreshDiaryStatsSilent();
+            }
+            
             console.log('✅ Пользовательские данные загружены');
         } catch (e) {
             console.error('⚠️ Ошибка загрузки пользовательских данных:', e);
@@ -689,21 +699,38 @@ class ReaderApp {
                 console.log('⚠️ App: Нет валидного userId для обновления');
                 return;
             }
-            console.log('🔄 App: Обновляем данные для userId:', userId);
-            const resp = await this.api.getStats(userId);
+            console.log('🔄 App: Обновляем данные через StatisticsService для userId:', userId);
             
-            // Store only flat fields from resp.stats with proper mirroring
-            const flatStats = {
-                totalQuotes: resp?.stats?.totalQuotes || resp?.totalQuotes || 0,
-                currentStreak: resp?.stats?.currentStreak || resp?.currentStreak || 0,
-                longestStreak: resp?.stats?.longestStreak || resp?.longestStreak || 0,
-                weeklyQuotes: resp?.stats?.weeklyQuotes || resp?.stats?.thisWeek || resp?.weeklyQuotes || resp?.thisWeek || 0,
-                thisWeek: resp?.stats?.thisWeek || resp?.stats?.weeklyQuotes || resp?.thisWeek || resp?.weeklyQuotes || 0, // Mirror
-                daysInApp: resp?.stats?.daysSinceRegistration || resp?.stats?.daysInApp || resp?.daysSinceRegistration || resp?.daysInApp || 0,
-                loading: false,
-                loadedAt: Date.now()
-            };
-            this.state.set('stats', flatStats);
+            // Use statistics service for refreshing instead of direct API calls
+            if (this.statistics) {
+                await this.statistics.refreshMainStatsSilent();
+                await this.statistics.refreshDiaryStatsSilent();
+            } else {
+                console.warn('⚠️ StatisticsService not available, falling back to direct API');
+                const resp = await this.api.getStats(userId);
+                
+                // Update baseline but preserve deltas
+                const currentStats = this.state.get('stats') || {};
+                const flatStats = {
+                    ...currentStats, // Preserve existing deltas
+                    baselineTotal: resp?.stats?.totalQuotes || resp?.totalQuotes || 0,
+                    currentStreak: resp?.stats?.currentStreak || resp?.currentStreak || 0,
+                    longestStreak: resp?.stats?.longestStreak || resp?.longestStreak || 0,
+                    weeklyQuotes: resp?.stats?.weeklyQuotes || resp?.stats?.thisWeek || resp?.weeklyQuotes || resp?.thisWeek || 0,
+                    thisWeek: resp?.stats?.thisWeek || resp?.stats?.weeklyQuotes || resp?.thisWeek || resp?.weeklyQuotes || 0, // Mirror
+                    daysInApp: resp?.stats?.daysSinceRegistration || resp?.stats?.daysInApp || resp?.daysSinceRegistration || resp?.daysInApp || 0,
+                    loading: false,
+                    loadedAt: Date.now()
+                };
+                
+                // Calculate totalQuotes from baseline + deltas
+                const baselineTotal = flatStats.baselineTotal || 0;
+                const pendingAdds = flatStats.pendingAdds || 0;
+                const pendingDeletes = flatStats.pendingDeletes || 0;
+                flatStats.totalQuotes = baselineTotal + pendingAdds - pendingDeletes;
+                
+                this.state.set('stats', flatStats);
+            }
         } catch (e) {
             console.warn('⚠️ Не удалось обновить данные:', e);
         }
