@@ -17,10 +17,14 @@ class CommunityPage {
         this.api = app.api;
         this.state = app.state;
         this.telegram = app.telegram;
+        this.statisticsService = app.statistics || window.statisticsService;
         
         // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
         this.communityLoaded = false;
         this.communityLoading = false;
+        
+        // Данные для "Сейчас изучают" из StatisticsService
+        this.topAnalyses = [];
         
         // Состояние (точно как в концепте)
         this.activeTab = 'feed'; // feed, top, stats
@@ -76,6 +80,25 @@ class CommunityPage {
     }
     
     /**
+     * 📚 ЗАГРУЗКА ТОПОВЫХ АНАЛИЗОВ ИЗ STATISTICSSERVICE
+     */
+    async loadTopAnalyses() {
+        if (!this.statisticsService || typeof this.statisticsService.getTopAnalyses !== 'function') {
+            console.warn('⚠️ CommunityPage: StatisticsService или getTopAnalyses недоступен');
+            return;
+        }
+        
+        try {
+            console.log('📚 CommunityPage: Загружаем топовые анализы через StatisticsService...');
+            this.topAnalyses = await this.statisticsService.getTopAnalyses(3);
+            console.log('✅ CommunityPage: Топовые анализы загружены:', this.topAnalyses);
+        } catch (error) {
+            console.error('❌ CommunityPage: Ошибка загрузки топовых анализов:', error);
+            this.topAnalyses = []; // Fallback to empty array
+        }
+    }
+    
+    /**
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
      */
     render() {
@@ -117,27 +140,20 @@ class CommunityPage {
      * 📰 ТАБ ЛЕНТА (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderFeedTab() {
+        // "Сейчас изучают" секция с данными из StatisticsService
+        const currentlyStudyingSection = this.renderCurrentlyStudyingSection();
+        
         return `
             <div class="stats-summary">
                 📊 Сегодня: ${this.communityData.activeReaders} активных читателей • ${this.communityData.newQuotes} новых цитат
             </div>
             
+            ${currentlyStudyingSection}
+            
             <div class="mvp-community-item">
                 <div class="mvp-community-title">💫 Цитата дня от сообщества</div>
                 <div class="mvp-community-text">"В каждом слове — целая жизнь"</div>
                 <div class="mvp-community-author">— Марина Цветаева</div>
-            </div>
-            
-            <div class="mvp-community-item">
-                <div class="mvp-community-title">📚 Популярные разборы</div>
-                <div class="mvp-community-text">"Искусство любить" — 47 покупок на этой неделе</div>
-                <div class="mvp-community-author">Читатели с похожими интересами активно изучают эту тему</div>
-            </div>
-            
-            <div class="mvp-community-item">
-                <div class="mvp-community-title">🏆 Достижения недели</div>
-                <div class="mvp-community-text">23 читателя получили значок "Коллекционер мудрости"</div>
-                <div class="mvp-community-author">А вы уже собрали 50 цитат?</div>
             </div>
             
             <div style="background: linear-gradient(45deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 10px; padding: 12px; margin-bottom: 10px;">
@@ -150,6 +166,41 @@ class CommunityPage {
                 <div class="promo-title">🎯 Тренд недели</div>
                 <div class="promo-text">Тема "Психология отношений" набирает популярность</div>
                 <button class="promo-btn" id="exploreBtn">Изучить разборы</button>
+            </div>
+        `;
+    }
+    
+    /**
+     * 📚 СЕКЦИЯ "СЕЙЧАС ИЗУЧАЮТ" (ИНТЕГРАЦИЯ СО STATISTICSSERVICE)
+     */
+    renderCurrentlyStudyingSection() {
+        if (!this.topAnalyses || this.topAnalyses.length === 0) {
+            return `
+                <div class="mvp-community-item">
+                    <div class="mvp-community-title">📚 Сейчас изучают</div>
+                    <div class="mvp-community-text">Загружаем популярные разборы...</div>
+                    <div class="mvp-community-author">Данные обновляются</div>
+                </div>
+            `;
+        }
+        
+        const topAnalysesCards = this.topAnalyses.map((analysis, index) => `
+            <div class="currently-studying-item" data-book-id="${analysis.id}">
+                <div class="studying-rank">${index + 1}</div>
+                <div class="studying-content">
+                    <div class="studying-title">${analysis.title}</div>
+                    <div class="studying-author">${analysis.author}</div>
+                    <div class="studying-stats">${analysis.clicks || 0} читателей изучают</div>
+                </div>
+            </div>
+        `).join('');
+        
+        return `
+            <div class="currently-studying-section">
+                <div class="mvp-community-title">📚 Сейчас изучают</div>
+                <div class="currently-studying-list">
+                    ${topAnalysesCards}
+                </div>
             </div>
         `;
     }
@@ -330,6 +381,8 @@ class CommunityPage {
     attachEventListeners() {
         this.attachTabListeners();
         this.attachExploreButton();
+        this.attachCurrentlyStudyingListeners();
+        this.setupQuoteChangeListeners();
     }
     
     attachTabListeners() {
@@ -352,6 +405,46 @@ class CommunityPage {
         }
     }
     
+    /**
+     * 📚 ОБРАБОТЧИКИ СЕКЦИИ "СЕЙЧАС ИЗУЧАЮТ" С HAPTIC FEEDBACK
+     */
+    attachCurrentlyStudyingListeners() {
+        const studyingItems = document.querySelectorAll('.currently-studying-item');
+        studyingItems.forEach(item => {
+            item.addEventListener('click', () => {
+                this.telegram?.hapticFeedback?.('light');
+                const bookId = item.dataset.bookId;
+                if (bookId) {
+                    // Navigate to catalog with selected book
+                    this.app.router.navigate(`/catalog?book=${bookId}`);
+                }
+            });
+        });
+    }
+    
+    /**
+     * 🔄 НАСТРОЙКА СЛУШАТЕЛЕЙ ИЗМЕНЕНИЙ ЦИТАТ
+     */
+    setupQuoteChangeListeners() {
+        // Listen for quote changes to refresh community data
+        if (typeof document !== 'undefined') {
+            const handleQuoteChange = (event) => {
+                console.log('👥 CommunityPage: Получено событие quotes:changed:', event.detail);
+                // Refresh top analyses when quotes change
+                this.loadTopAnalyses().then(() => {
+                    this.rerender();
+                });
+            };
+            
+            // Remove existing listener to avoid duplicates
+            document.removeEventListener('quotes:changed', handleQuoteChange);
+            document.addEventListener('quotes:changed', handleQuoteChange);
+            
+            // Store reference for cleanup
+            this._quoteChangeHandler = handleQuoteChange;
+        }
+    }
+    
     switchTab(tabName) {
         this.activeTab = tabName;
         this.telegram.hapticFeedback('light');
@@ -361,8 +454,21 @@ class CommunityPage {
     /**
      * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
      */
-    onShow() {
+    async onShow() {
         console.log('👥 CommunityPage: onShow - БЕЗ ШАПКИ!');
+        
+        // ✅ НОВОЕ: Вызов warmupInitialStats при входе на экран
+        if (this.statisticsService && typeof this.statisticsService.warmupInitialStats === 'function') {
+            try {
+                await this.statisticsService.warmupInitialStats();
+                console.log('✅ CommunityPage: warmupInitialStats completed');
+            } catch (error) {
+                console.warn('⚠️ CommunityPage: warmupInitialStats failed:', error);
+            }
+        }
+        
+        // Загружаем топ-анализы для секции "Сейчас изучают"
+        await this.loadTopAnalyses();
         
         // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
         if (!this.communityLoaded) {
@@ -383,13 +489,29 @@ class CommunityPage {
                 });
             } else {
                 console.log('✅ CommunityPage: Данные актуальны');
+                this.rerender(); // Rerender to show loaded top analyses
             }
         }
     }
     
     onHide() {
         console.log('👥 CommunityPage: onHide');
-        // Ничего не делаем - Router управляет шапками
+        // Cleanup event listeners
+        if (this._quoteChangeHandler) {
+            document.removeEventListener('quotes:changed', this._quoteChangeHandler);
+        }
+    }
+    
+    /**
+     * 🧹 ОЧИСТКА РЕСУРСОВ
+     */
+    destroy() {
+        console.log('🧹 CommunityPage: Очистка ресурсов');
+        // Remove event listeners
+        if (this._quoteChangeHandler) {
+            document.removeEventListener('quotes:changed', this._quoteChangeHandler);
+            this._quoteChangeHandler = null;
+        }
     }
     
     rerender() {

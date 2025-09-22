@@ -518,6 +518,14 @@ class QuoteCard {
                 this.state.updateQuoteInList(this.quote.id, this.quote);
             }
             
+            // ✅ НОВОЕ: Эмитируем событие изменения цитат для StatisticsService
+            document.dispatchEvent(new CustomEvent('quotes:changed', {
+                detail: {
+                    type: 'edited',
+                    quote: this.quote
+                }
+            }));
+            
             // Перерендериваем карточку
             this.container.innerHTML = this.renderContent();
             this.isEditing = false;
@@ -587,6 +595,14 @@ class QuoteCard {
             if (this.state) {
                 this.state.removeQuote(this.quote.id);
             }
+            
+            // ✅ НОВОЕ: Эмитируем событие изменения цитат для StatisticsService
+            document.dispatchEvent(new CustomEvent('quotes:changed', {
+                detail: {
+                    type: 'deleted',
+                    quote: this.quote
+                }
+            }));
             
             // Анимация удаления
             // this.animateRemoval();
