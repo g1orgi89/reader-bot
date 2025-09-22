@@ -157,8 +157,9 @@ class StatisticsService {
             this.getDetailedQuoteStats(),
             this.getActivityPercent() // Always fetch fresh from API
         ]);
+        const optimisticTotalQuotes = this.state.get('quotes.items')?.length || 0;
         return {
-            totalQuotes: main.totalQuotes ?? 0,
+            totalQuotes: optimisticTotalQuotes,
             weeklyQuotes: progress.weeklyQuotes ?? 0,
             monthlyQuotes: detailed.monthlyQuotes ?? 0,
             favoritesCount: detailed.favoritesCount ?? 0,
@@ -497,10 +498,10 @@ class StatisticsService {
         try {
             // NO loading flags for silent refresh
             const diaryStats = await this.getDiaryStats();
-            
+            const optimisticTotalQuotes = this.state.get('quotes.items')?.length || 0;
             // Create flat diary stats object
             const flatDiaryStats = {
-                totalQuotes: diaryStats.totalQuotes || 0,
+                totalQuotes: optimisticTotalQuotes,
                 weeklyQuotes: diaryStats.weeklyQuotes || 0,
                 monthlyQuotes: diaryStats.monthlyQuotes || 0,
                 favoritesCount: diaryStats.favoritesCount || 0,
