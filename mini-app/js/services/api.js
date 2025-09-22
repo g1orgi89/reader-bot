@@ -52,15 +52,22 @@ class ApiService {
     }
 
     /**
-     * Получить топ книг по кликам/продажам за период
+     * 📚 Получить топ книг по кликам/продажам за период
+     * ОБНОВЛЕНО: Точное соответствие требованиям API: GET /api/reader/top-books?period=7d
      * @param {Object} [options]
      * @param {string} [options.period] - напр. "7d"
+     * @param {number} [options.limit] - количество книг
      * @returns {Promise<any>}
-     
      */
     async getTopBooks(options = {}) {
-      const period = options.period || '7d';
-      return this.request('GET', `/top-books?period=${encodeURIComponent(period)}`);
+        const params = new URLSearchParams();
+        if (options.period) params.append('period', options.period);
+        if (options.limit) params.append('limit', options.limit);
+
+        const queryString = params.toString();
+        const endpoint = queryString ? `/top-books?${queryString}` : '/top-books';
+        
+        return this.request('GET', endpoint);
     }
    
     /**
@@ -1039,16 +1046,32 @@ class ApiService {
 
     /**
      * 👆 Получить последние клики по каталогу
-     * НОВЫЙ: Добавлен недостающий метод для CommunityPage (PR-3)
+     * ОБНОВЛЕНО: Точное соответствие требованиям API: GET /api/reader/catalog/clicks/recent?limit=3
      */
     async getCatalogRecentClicks(options = {}) {
         const params = new URLSearchParams();
         if (options.limit) params.append('limit', options.limit);
 
         const queryString = params.toString();
-        const endpoint = queryString ? `/catalog/recent-clicks?${queryString}` : '/catalog/recent-clicks';
+        const endpoint = queryString ? `/catalog/clicks/recent?${queryString}` : '/catalog/clicks/recent';
         
         return this.request('GET', endpoint);
+    }
+
+    /**
+     * 💬 Получить сообщение от Анны
+     * НОВЫЙ: API для сообщения от Анны: GET /api/reader/community/message
+     */
+    async getCommunityMessage() {
+        return this.request('GET', '/community/message');
+    }
+
+    /**
+     * 📈 Получить тренд недели
+     * НОВЫЙ: API для тренда недели: GET /api/reader/community/trend
+     */
+    async getCommunityTrend() {
+        return this.request('GET', '/community/trend');
     }
 
     // ===========================================

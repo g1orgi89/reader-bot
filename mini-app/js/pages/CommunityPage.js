@@ -45,6 +45,8 @@ class CommunityPage {
         this.popularBooks = [];
         this.recentClicks = [];
         this.leaderboard = [];
+        this.communityMessage = null;
+        this.communityTrend = null;
 
         // ✅ НОВОЕ: Состояния загрузки для каждой секции (PR-3)
         this.loadingStates = {
@@ -163,7 +165,7 @@ class CommunityPage {
     }
 
     /**
-     * 📚 ЗАГРУЗКА ПОПУЛЯРНЫХ КНИГ СООБЩЕСТВА (PR-3)
+     * 📚 ЗАГРУЗКА ПОПУЛЯРНЫХ КНИГ СООБЩЕСТВА (ОБНОВЛЕНО ДЛЯ ТОПА НЕДЕЛИ)
      */
     async loadPopularBooks(period = '7d', limit = 10) {
         if (this.loadingStates.popularBooks) return;
@@ -171,17 +173,18 @@ class CommunityPage {
         try {
             this.loadingStates.popularBooks = true;
             this.errorStates.popularBooks = null;
-            console.log('📚 CommunityPage: Загружаем популярные книги...');
+            console.log('📚 CommunityPage: Загружаем популярные книги недели...');
             
-            const response = await this.api.getCommunityPopularBooks({ period, limit });
+            // Используем getTopBooks для получения популярных разборов недели
+            const response = await this.api.getTopBooks({ period, limit });
             if (response && response.success) {
-                this.popularBooks = response.data || [];
-                console.log('✅ CommunityPage: Популярные книги загружены:', this.popularBooks.length);
+                this.popularBooks = response.data || response.books || [];
+                console.log('✅ CommunityPage: Популярные книги недели загружены:', this.popularBooks.length);
             } else {
                 this.popularBooks = [];
             }
         } catch (error) {
-            console.error('❌ Ошибка загрузки популярных книг:', error);
+            console.error('❌ Ошибка загрузки популярных книг недели:', error);
             this.errorStates.popularBooks = error.message || 'Ошибка загрузки популярных книг';
             this.popularBooks = [];
         } finally {
@@ -261,6 +264,68 @@ class CommunityPage {
             this.topAnalyses = []; // Fallback to empty array
         }
     }
+
+    /**
+     * 💬 ЗАГРУЗКА СООБЩЕНИЯ ОТ АННЫ (НОВОЕ)
+     */
+    async loadCommunityMessage() {
+        try {
+            console.log('💬 CommunityPage: Загружаем сообщение от Анны...');
+            const response = await this.api.getCommunityMessage();
+            if (response && response.success && response.data) {
+                this.communityMessage = response.data;
+                console.log('✅ CommunityPage: Сообщение от Анны загружено');
+                return response.data;
+            } else {
+                // Fallback to static message
+                this.communityMessage = {
+                    text: "Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день!",
+                    time: "2 часа назад"
+                };
+                return this.communityMessage;
+            }
+        } catch (error) {
+            console.error('❌ CommunityPage: Ошибка загрузки сообщения от Анны:', error);
+            // Fallback to static message
+            this.communityMessage = {
+                text: "Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день!",
+                time: "2 часа назад"
+            };
+            return this.communityMessage;
+        }
+    }
+
+    /**
+     * 📈 ЗАГРУЗКА ТРЕНДА НЕДЕЛИ (НОВОЕ)
+     */
+    async loadCommunityTrend() {
+        try {
+            console.log('📈 CommunityPage: Загружаем тренд недели...');
+            const response = await this.api.getCommunityTrend();
+            if (response && response.success && response.data) {
+                this.communityTrend = response.data;
+                console.log('✅ CommunityPage: Тренд недели загружен');
+                return response.data;
+            } else {
+                // Fallback to static trend
+                this.communityTrend = {
+                    title: "Тренд недели",
+                    text: 'Тема "Психология отношений" набирает популярность',
+                    buttonText: "Изучить разборы"
+                };
+                return this.communityTrend;
+            }
+        } catch (error) {
+            console.error('❌ CommunityPage: Ошибка загрузки тренда недели:', error);
+            // Fallback to static trend
+            this.communityTrend = {
+                title: "Тренд недели",
+                text: 'Тема "Психология отношений" набирает популярность',
+                buttonText: "Изучить разборы"
+            };
+            return this.communityTrend;
+        }
+    }
     
     /**
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
@@ -304,11 +369,17 @@ class CommunityPage {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
-        // "Сейчас изучают" секция с данными из StatisticsService
+        // "Сейчас изучают" секция с последними кликами по каталогу
         const currentlyStudyingSection = this.renderCurrentlyStudyingSection();
         
         // ✅ НОВОЕ: Секция последних цитат сообщества (PR-3)
         const latestQuotesSection = this.renderLatestQuotesSection();
+        
+        // Сообщение от Анны с fallback
+        const annaMessageSection = this.renderAnnaMessageSection();
+        
+        // Тренд недели с fallback
+        const trendSection = this.renderTrendSection();
         
         return `
             <div class="stats-summary">
@@ -319,22 +390,14 @@ class CommunityPage {
             
             ${latestQuotesSection}
             
-            <div class="anna-message-block">
-                <div class="anna-message-header">💬 Сообщение от Анны</div>
-                <div class="anna-message-text">"Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день!"</div>
-                <div class="anna-message-time">2 часа назад</div>
-            </div>
+            ${annaMessageSection}
             
-            <div class="promo-section">
-                <div class="promo-title">🎯 Тренд недели</div>
-                <div class="promo-text">Тема "Психология отношений" набирает популярность</div>
-                <button class="promo-btn" id="exploreBtn">Изучить разборы</button>
-            </div>
+            ${trendSection}
         `;
     }
 
     /**
-     * 📰 СЕКЦИЯ ПОСЛЕДНИХ ЦИТАТ СООБЩЕСТВА (НОВАЯ ДЛЯ PR-3)
+     * 📰 СЕКЦИЯ ПОСЛЕДНИХ ЦИТАТ СООБЩЕСТВА (ОБНОВЛЕНО ДЛЯ PR-3)
      */
     renderLatestQuotesSection() {
         if (this.loadingStates.latestQuotes) {
@@ -370,39 +433,81 @@ class CommunityPage {
             `;
         }
 
-        // Показываем только первую цитату как "Цитата дня"
-        const latestQuote = this.latestQuotes[0];
+        // Показываем последние 3 цитаты сообщества как карточки
+        const quotesCards = this.latestQuotes.slice(0, 3).map((quote, index) => {
+            return `
+                <div class="quote-card" data-quote-id="${quote.id || index}">
+                    <div class="quote-card__content">
+                        <div class="quote-card__text">"${quote.text || quote.content || ''}"</div>
+                        <div class="quote-card__author">— ${quote.author || 'Неизвестный автор'}</div>
+                        <div class="quote-card__meta">
+                            <span class="quote-card__date">${this.formatDate(quote.createdAt || quote.date)}</span>
+                            <button class="quote-card__add-btn" 
+                                    data-quote-id="${quote.id || index}"
+                                    onclick="this.addQuoteToJournal(event)"
+                                    aria-label="Добавить цитату в дневник">
+                                <span class="add-icon">+</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
         
         return `
-            <div class="mvp-community-item">
-                <div class="mvp-community-title">💫 Цитата дня от сообщества</div>
-                <div class="mvp-community-text">"${latestQuote.text}"</div>
-                <div class="mvp-community-author">— ${latestQuote.author}</div>
+            <div class="latest-quotes-section">
+                <div class="mvp-community-title">💫 Последние цитаты сообщества</div>
+                <div class="quotes-grid">
+                    ${quotesCards}
+                </div>
             </div>
         `;
     }
     
     /**
-     * 📚 СЕКЦИЯ "СЕЙЧАС ИЗУЧАЮТ" (ИНТЕГРАЦИЯ СО STATISTICSSERVICE)
+     * 📚 СЕКЦИЯ "СЕЙЧАС ИЗУЧАЮТ" (ОБНОВЛЕНО: ПОКАЗЫВАЕТ ПОСЛЕДНИЕ КЛИКИ ПО КАТАЛОГУ)
      */
     renderCurrentlyStudyingSection() {
-        if (!this.topAnalyses || this.topAnalyses.length === 0) {
+        if (this.loadingStates.recentClicks) {
             return `
                 <div class="mvp-community-item">
                     <div class="mvp-community-title">📚 Сейчас изучают</div>
-                    <div class="mvp-community-text">Загружаем популярные разборы...</div>
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Загружаем последние разборы...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (this.errorStates.recentClicks) {
+            return `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <div class="error-title">Ошибка загрузки</div>
+                    <div class="error-description">${this.errorStates.recentClicks}</div>
+                    <button class="error-retry-btn" onclick="this.retryLoadRecentClicks()">Повторить</button>
+                </div>
+            `;
+        }
+
+        if (!this.recentClicks || this.recentClicks.length === 0) {
+            return `
+                <div class="mvp-community-item">
+                    <div class="mvp-community-title">📚 Сейчас изучают</div>
+                    <div class="mvp-community-text">Пока нет активности</div>
                     <div class="mvp-community-author">Данные обновляются</div>
                 </div>
             `;
         }
         
-        const topAnalysesCards = this.topAnalyses.map((analysis, index) => `
-            <div class="currently-studying-item" data-book-id="${analysis.id}">
+        const recentClicksCards = this.recentClicks.slice(0, 3).map((click, index) => `
+            <div class="currently-studying-item" data-book-id="${click.bookId || click.id}" style="margin-bottom: var(--spacing-sm);">
                 <div class="studying-rank">${index + 1}</div>
                 <div class="studying-content">
-                    <div class="studying-title">${analysis.title}</div>
-                    <div class="studying-author">${analysis.author}</div>
-                    <div class="studying-stats">${analysis.clicks || 0} читателей изучают</div>
+                    <div class="studying-title">${click.bookTitle || click.title || 'Неизвестная книга'}</div>
+                    <div class="studying-author">${click.bookAuthor || click.author || 'Неизвестный автор'}</div>
+                    <div class="studying-stats">${this.formatClickTime(click.clickTime || click.createdAt)}</div>
                 </div>
             </div>
         `).join('');
@@ -411,18 +516,59 @@ class CommunityPage {
             <div class="currently-studying-section">
                 <div class="mvp-community-title">📚 Сейчас изучают</div>
                 <div class="currently-studying-list">
-                    ${topAnalysesCards}
+                    ${recentClicksCards}
                 </div>
             </div>
         `;
     }
     
     /**
-     * 🏆 ТАБ ТОП НЕДЕЛИ (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
+     * 💬 СЕКЦИЯ СООБЩЕНИЯ ОТ АННЫ (НОВАЯ С API И FALLBACK)
+     */
+    renderAnnaMessageSection() {
+        const message = this.communityMessage || {
+            text: "Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день!",
+            time: "2 часа назад"
+        };
+
+        return `
+            <div class="anna-message-block">
+                <div class="anna-message-header">💬 Сообщение от Анны</div>
+                <div class="anna-message-text">"${message.text}"</div>
+                <div class="anna-message-time">${message.time}</div>
+            </div>
+        `;
+    }
+
+    /**
+     * 📈 СЕКЦИЯ ТРЕНДА НЕДЕЛИ (НОВАЯ С API И FALLBACK)
+     */
+    renderTrendSection() {
+        const trend = this.communityTrend || {
+            title: "Тренд недели",
+            text: 'Тема "Психология отношений" набирает популярность',
+            buttonText: "Изучить разборы"
+        };
+
+        return `
+            <div class="promo-section">
+                <div class="promo-title">🎯 ${trend.title}</div>
+                <div class="promo-text">${trend.text}</div>
+                <button class="promo-btn" 
+                        id="exploreBtn"
+                        onclick="this.exploreTrend(event)"
+                        style="min-height: var(--touch-target-min);">
+                    ${trend.buttonText}
+                </button>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🏆 ТАБ ТОП НЕДЕЛИ (ОБНОВЛЕН ДЛЯ PR-3 - ТОЛЬКО ПОПУЛЯРНЫЕ РАЗБОРЫ НЕДЕЛИ!)
      */
     renderTopTab() {
-        const leaderboardSection = this.renderLeaderboardSection();
-        const popularQuotesSection = this.renderPopularQuotesSection();
+        // Только популярные книги недели (без последних кликов)
         const popularBooksSection = this.renderPopularBooksSection();
 
         return `
@@ -437,8 +583,6 @@ class CommunityPage {
                 </div>
             </div>
             
-            ${leaderboardSection}
-            ${popularQuotesSection}
             ${popularBooksSection}
             
             <div class="user-progress-section">
@@ -698,7 +842,29 @@ class CommunityPage {
         this.attachCurrentlyStudyingListeners();
         this.attachCommunityCardListeners(); // ✅ НОВОЕ: Haptic feedback для карточек
         this.attachRetryButtons(); // ✅ НОВОЕ PR-3
+        this.attachQuoteCardListeners(); // ✅ НОВОЕ: Обработчики для карточек цитат
         this.setupQuoteChangeListeners();
+    }
+
+    /**
+     * 💬 ОБРАБОТЧИКИ ДЛЯ КАРТОЧЕК ЦИТАТ (НОВОЕ ДЛЯ PR-3)
+     */
+    attachQuoteCardListeners() {
+        // Обработчики для кнопок добавления цитат
+        const addButtons = document.querySelectorAll('.quote-card__add-btn');
+        addButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                this.addQuoteToJournal(event);
+            });
+        });
+
+        // Обработчики для кнопки изучения тренда
+        const exploreBtn = document.getElementById('exploreBtn');
+        if (exploreBtn) {
+            exploreBtn.addEventListener('click', (event) => {
+                this.exploreTrend(event);
+            });
+        }
     }
     
     /**
@@ -896,9 +1062,6 @@ class CommunityPage {
             }
         }
         
-        // Загружаем топ-анализы для секции "Сейчас изучают"
-        await this.loadTopAnalyses();
-        
         // ✅ НОВОЕ PR-3: Загружаем данные для всех секций
         await this.loadAllSections();
         
@@ -927,18 +1090,18 @@ class CommunityPage {
     }
 
     /**
-     * 🔄 ЗАГРУЗКА ВСЕХ СЕКЦИЙ (НОВАЯ ДЛЯ PR-3)
+     * 🔄 ЗАГРУЗКА ВСЕХ СЕКЦИЙ (ОБНОВЛЕНА ДЛЯ PR-3)
      */
     async loadAllSections() {
         console.log('🔄 CommunityPage: Загружаем все секции...');
         
         // Загружаем параллельно для лучшей производительности
         const loadPromises = [
-            this.loadLatestQuotes(5),
-            this.loadPopularQuotes('7d', 10),
-            this.loadPopularBooks('7d', 10),
-            this.loadLeaderboard(10),
-            this.loadRecentClicks(5)
+            this.loadLatestQuotes(3), // Только 3 цитаты согласно требованиям
+            this.loadPopularBooks('7d', 10), // Популярные разборы недели для "Топ недели"
+            this.loadRecentClicks(3), // Последние 3 клика для "Сейчас изучают"
+            this.loadCommunityMessage(), // Сообщение от Анны
+            this.loadCommunityTrend() // Тренд недели
         ];
 
         try {
@@ -977,6 +1140,164 @@ class CommunityPage {
     retryLoadRecentClicks() {
         this.triggerHapticFeedback('medium');
         this.loadRecentClicks(5).then(() => this.rerender());
+    }
+
+    /**
+     * ➕ ДОБАВИТЬ ЦИТАТУ В ДНЕВНИК (НОВОЕ ДЛЯ PR-3)
+     */
+    async addQuoteToJournal(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const button = event.target.closest('.quote-card__add-btn');
+        if (!button) return;
+        
+        const quoteId = button.dataset.quoteId;
+        const quoteCard = button.closest('.quote-card');
+        
+        if (!quoteCard) return;
+        
+        try {
+            // Haptic feedback
+            this.triggerHapticFeedback('medium');
+            
+            // Получаем данные цитаты
+            const quoteText = quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
+            const quoteAuthor = quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
+            
+            // Показываем loading состояние
+            button.innerHTML = '<span class="loading-spinner-small"></span>';
+            button.disabled = true;
+            
+            // Добавляем цитату через API
+            const response = await this.api.addQuote({
+                text: quoteText,
+                author: quoteAuthor,
+                source: 'community'
+            });
+            
+            if (response && response.success) {
+                // Успех - показываем галочку
+                button.innerHTML = '<span class="add-icon">✓</span>';
+                button.classList.add('added');
+                this.triggerHapticFeedback('success');
+                
+                // Показываем уведомление
+                this.showNotification('Цитата добавлена в ваш дневник!', 'success');
+                
+                // Возвращаем кнопку в исходное состояние через 2 секунды
+                setTimeout(() => {
+                    button.innerHTML = '<span class="add-icon">+</span>';
+                    button.classList.remove('added');
+                    button.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error(response?.message || 'Ошибка добавления цитаты');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка добавления цитаты:', error);
+            
+            // Возвращаем кнопку в исходное состояние
+            button.innerHTML = '<span class="add-icon">+</span>';
+            button.disabled = false;
+            
+            // Показываем ошибку
+            this.showNotification('Ошибка при добавлении цитаты', 'error');
+            this.triggerHapticFeedback('error');
+        }
+    }
+
+    /**
+     * 🎯 ИЗУЧИТЬ ТРЕНД (НОВОЕ ДЛЯ PR-3)
+     */
+    exploreTrend(event) {
+        event.preventDefault();
+        this.triggerHapticFeedback('medium');
+        
+        // Здесь можно добавить логику перехода к изучению тренда
+        console.log('🎯 Изучение тренда недели');
+        this.showNotification('Функция в разработке', 'info');
+    }
+
+    /**
+     * 🔔 ПОКАЗАТЬ УВЕДОМЛЕНИЕ
+     */
+    showNotification(message, type = 'info') {
+        // Создаем уведомление
+        const notification = document.createElement('div');
+        notification.className = `notification notification--${type}`;
+        notification.textContent = message;
+        
+        // Добавляем на страницу
+        document.body.appendChild(notification);
+        
+        // Показываем
+        setTimeout(() => notification.classList.add('show'), 100);
+        
+        // Убираем через 3 секунды
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    /**
+     * 🕒 ФОРМАТИРОВАНИЕ ВРЕМЕНИ КЛИКА
+     */
+    formatClickTime(clickTime) {
+        if (!clickTime) return 'недавно';
+        
+        try {
+            const now = new Date();
+            const clickDate = new Date(clickTime);
+            const diffMs = now - clickDate;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffMins < 60) {
+                return `${diffMins} мин назад`;
+            } else if (diffHours < 24) {
+                return `${diffHours} ч назад`;
+            } else if (diffDays < 7) {
+                return `${diffDays} дн назад`;
+            } else {
+                return clickDate.toLocaleDateString('ru-RU');
+            }
+        } catch (error) {
+            return 'недавно';
+        }
+    }
+
+    /**
+     * 📅 ФОРМАТИРОВАНИЕ ДАТЫ
+     */
+    formatDate(date) {
+        if (!date) return '';
+        
+        try {
+            const dateObj = new Date(date);
+            const now = new Date();
+            const diffMs = now - dateObj;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                return 'сегодня';
+            } else if (diffDays === 1) {
+                return 'вчера';
+            } else if (diffDays < 7) {
+                return `${diffDays} дн назад`;
+            } else {
+                return dateObj.toLocaleDateString('ru-RU');
+            }
+        } catch (error) {
+            return '';
+        }
     }
     
     onHide() {
