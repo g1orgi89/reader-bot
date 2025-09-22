@@ -462,14 +462,17 @@ class StatisticsService {
             // Получаем локальное количество цитат для гарантии свежести
             const optimisticTotalQuotes = this.state.get('quotes.items')?.length || 0;
 
+            // Гибридная логика для live-UI:
+            // Если локальное меньше серверного — показываем локальное (после удаления)
+            // Если локальное больше серверного — показываем максимальное (после добавления)
+            const maxServerTotal = Math.max(main.totalQuotes || 0, progress.totalQuotes || 0);
+            const hybridTotalQuotes = optimisticTotalQuotes < maxServerTotal
+                ? optimisticTotalQuotes
+                : maxServerTotal;
+
             // Create flat stats object with weeklyQuotes → thisWeek mirroring
             const flatStats = {
-                // Используем максимальное из локального и серверного значения!
-                totalQuotes: Math.max(
-                    main.totalQuotes || 0,
-                    optimisticTotalQuotes,
-                    progress.totalQuotes || 0
-                ),
+                totalQuotes: hybridTotalQuotes,
                 currentStreak: progress.currentStreak || 0,
                 computedStreak: progress.computedStreak || 0,
                 backendStreak: progress.backendStreak || 0,
@@ -485,6 +488,18 @@ class StatisticsService {
                 loading: false
             };
 
+            // Update state with flat stats object (merge with existing to preserve optimistic updates)
+            const currentStats = this.state.get('stats') || {};
+            const mergedStats = { ...currentStats, ...flatStats };
+            this.state.set('stats', mergedStats);
+
+            // Dispatch event with flat stats
+            document.dispatchEvent(new CustomEvent('stats:updated', { detail: mergedStats }));
+            console.log('📊 Main stats silently updated:', mergedStats);
+        } catch (e) {
+            console.debug('refreshMainStatsSilent failed:', e);
+        }
+    }
             // Update state with flat stats object (merge with existing to preserve optimistic updates)
             const currentStats = this.state.get('stats') || {};
             const mergedStats = { ...currentStats, ...flatStats };
