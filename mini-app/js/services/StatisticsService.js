@@ -464,12 +464,7 @@ class StatisticsService {
 
             // Create flat stats object with weeklyQuotes → thisWeek mirroring
             const flatStats = {
-                // Используем максимальное из локального и серверного значения!
-                totalQuotes: Math.max(
-                    main.totalQuotes || 0,
-                    optimisticTotalQuotes,
-                    progress.totalQuotes || 0
-                ),
+                totalQuotes: optimisticTotalQuotes,
                 currentStreak: progress.currentStreak || 0,
                 computedStreak: progress.computedStreak || 0,
                 backendStreak: progress.backendStreak || 0,
