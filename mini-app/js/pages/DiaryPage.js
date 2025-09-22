@@ -1647,6 +1647,13 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
             // Reset analysis when deleting a quote
             this.resetAnalysisToDefault();
 
+            // Send optimistic delete event for instant -1 in counter
+            if (typeof document !== 'undefined') {
+                document.dispatchEvent(new CustomEvent('quotes:changed', {
+                    detail: { type: 'deleted', quoteId, optimistic: true }
+                }));
+            }
+
             try {
                 await this.api.deleteQuote(quoteId);
 
@@ -1659,6 +1666,13 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
                 this.log('✅ Цитата удалена');
             } catch (error) {
                 console.error('❌ Ошибка удаления цитаты с сервера:', error);
+
+                // Send revert event to undo optimistic -1
+                if (typeof document !== 'undefined') {
+                    document.dispatchEvent(new CustomEvent('quotes:changed', {
+                        detail: { type: 'deleted', quoteId, reverted: true }
+                    }));
+                }
 
                 // Показываем ошибку только если не 404 (404 значит уже удалена)
                 if (error.status !== 404 && error.status !== 200) {
