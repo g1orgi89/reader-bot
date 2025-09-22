@@ -319,10 +319,10 @@ class CommunityPage {
             
             ${latestQuotesSection}
             
-            <div style="background: linear-gradient(45deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 10px; padding: 12px; margin-bottom: 10px;">
-                <div style="font-size: 11px; margin-bottom: 6px;">💬 Сообщение от Анны</div>
-                <div style="font-size: 12px; margin-bottom: 6px;">"Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день!"</div>
-                <div style="font-size: 10px; opacity: 0.8;">2 часа назад</div>
+            <div class="anna-message-block">
+                <div class="anna-message-header">💬 Сообщение от Анны</div>
+                <div class="anna-message-text">"Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день!"</div>
+                <div class="anna-message-time">2 часа назад</div>
             </div>
             
             <div class="promo-section">
@@ -441,13 +441,13 @@ class CommunityPage {
             ${popularQuotesSection}
             ${popularBooksSection}
             
-            <div style="background: linear-gradient(45deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 10px; padding: 12px; margin-top: 16px;">
-                <div style="font-size: 11px; margin-bottom: 6px; font-weight: 600;">🎯 Ваш прогресс в топах</div>
-                <div style="font-size: 10px; opacity: 0.9; margin-bottom: 8px;">👑 Читатели: #2 место • ⭐ Цитаты: топ-5 • 📚 Интерес к разборам: активный</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 78%; background: white;"></div>
+            <div class="user-progress-section">
+                <div class="progress-header">🎯 Ваш прогресс в топах</div>
+                <div class="progress-stats">👑 Читатели: #2 место • ⭐ Цитаты: топ-5 • 📚 Интерес к разборам: активный</div>
+                <div class="progress-bar-white">
+                    <div class="progress-fill-white" style="width: 78%;"></div>
                 </div>
-                <div style="font-size: 10px; opacity: 0.9;">Добавьте еще 5 цитат до лидерства!</div>
+                <div class="progress-description">Добавьте еще 5 цитат до лидерства!</div>
             </div>
         `;
     }
@@ -458,8 +458,8 @@ class CommunityPage {
     renderLeaderboardSection() {
         if (this.loadingStates.leaderboard) {
             return `
-                <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin-bottom: 16px; text-align: center; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 6px;">🏆 Лидеры недели</div>
+                <div class="leaders-week-section">
+                    <div class="leaders-week-title">🏆 Лидеры недели</div>
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
                         <div class="loading-text">Загружаем лидерборд...</div>
@@ -504,9 +504,9 @@ class CommunityPage {
         }).join('');
 
         return `
-            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin-bottom: 16px; text-align: center; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 6px;">🏆 Лидеры недели</div>
-                <div style="font-size: 10px; color: var(--text-secondary);">Самые активные читатели сообщества</div>
+            <div class="leaders-week-section">
+                <div class="leaders-week-title">🏆 Лидеры недели</div>
+                <div class="leaders-week-subtitle">Самые активные читатели сообщества</div>
             </div>
             ${leaderboardItems}
         `;
@@ -518,8 +518,8 @@ class CommunityPage {
     renderPopularQuotesSection() {
         if (this.loadingStates.popularQuotes) {
             return `
-                <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">⭐ Популярные цитаты недели</div>
+                <div class="popular-quotes-section">
+                    <div class="popular-quotes-title">⭐ Популярные цитаты недели</div>
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
                         <div class="loading-text">Загружаем популярные цитаты...</div>
@@ -550,15 +550,15 @@ class CommunityPage {
         }
 
         const quotesItems = this.popularQuotes.slice(0, 3).map(quote => `
-            <div style="background: var(--background-light); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid var(--border-light);">
-                <div style="font-size: 10px; color: var(--text-secondary); font-style: italic; margin-bottom: 4px;">"${quote.text}"</div>
-                <div style="font-size: 10px; color: var(--text-primary); font-weight: 500;">${quote.author} • добавили ${quote.count || 0} человек</div>
+            <div class="quote-item">
+                <div class="quote-text">"${quote.text}"</div>
+                <div class="quote-meta">${quote.author} • добавили ${quote.count || 0} человек</div>
             </div>
         `).join('');
 
         return `
-            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">⭐ Популярные цитаты недели</div>
+            <div class="popular-quotes-section">
+                <div class="popular-quotes-title">⭐ Популярные цитаты недели</div>
                 ${quotesItems}
             </div>
         `;
@@ -570,8 +570,8 @@ class CommunityPage {
     renderPopularBooksSection() {
         if (this.loadingStates.popularBooks) {
             return `
-                <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                    <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">📚 Популярные разборы недели</div>
+                <div class="popular-books-section">
+                    <div class="popular-books-title">📚 Популярные разборы недели</div>
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
                         <div class="loading-text">Загружаем популярные книги...</div>
@@ -602,15 +602,15 @@ class CommunityPage {
         }
 
         const booksItems = this.popularBooks.slice(0, 3).map((book, index) => `
-            <div style="background: var(--background-light); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid var(--border-light);">
-                <div style="font-size: 11px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">${index + 1}. "${book.title}" ${book.author}</div>
-                <div style="font-size: 10px; color: var(--text-secondary);">💫 ${book.clicksCount || 0} человек заинтересовалось</div>
+            <div class="book-item">
+                <div class="book-title-line">${index + 1}. "${book.title}" ${book.author}</div>
+                <div class="book-interest-line">💫 ${book.clicksCount || 0} человек заинтересовалось</div>
             </div>
         `).join('');
 
         return `
-            <div style="background: var(--surface); border-radius: 10px; padding: 12px; margin: 16px 0; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; text-align: center;">📚 Популярные разборы недели</div>
+            <div class="popular-books-section">
+                <div class="popular-books-title">📚 Популярные разборы недели</div>
                 ${booksItems}
             </div>
         `;
@@ -621,70 +621,70 @@ class CommunityPage {
      */
     renderStatsTab() {
         return `
-            <div style="background: var(--surface); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-weight: 600; margin-bottom: 12px; font-size: 13px; color: var(--text-primary); text-align: center;">📈 Общая статистика сообщества</div>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 20px; font-weight: bold; color: var(--primary-color);">${this.communityData.totalReaders.toLocaleString()}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Всего читателей</div>
+            <div class="community-stats-overview">
+                <div class="community-stats-title">📈 Общая статистика сообщества</div>
+                <div class="community-stats-2x2-grid">
+                    <div class="community-stat-big">
+                        <div class="community-stat-value">${this.communityData.totalReaders.toLocaleString()}</div>
+                        <div class="community-stat-small-label">Всего читателей</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 20px; font-weight: bold; color: var(--primary-color);">${this.communityData.totalQuotes.toLocaleString()}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Цитат собрано</div>
+                    <div class="community-stat-big">
+                        <div class="community-stat-value">${this.communityData.totalQuotes.toLocaleString()}</div>
+                        <div class="community-stat-small-label">Цитат собрано</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 20px; font-weight: bold; color: var(--primary-color);">${this.communityData.totalAuthors}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Авторов</div>
+                    <div class="community-stat-big">
+                        <div class="community-stat-value">${this.communityData.totalAuthors}</div>
+                        <div class="community-stat-small-label">Авторов</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 20px; font-weight: bold; color: var(--primary-color);">${this.communityData.daysActive}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary);">Дней работы</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="background: var(--surface); border-radius: 10px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">📚 Интерес к разборам</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">🔥 Лидер недели: "Искусство любить"</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">📈 Рост интереса: +23% к прошлой неделе</div>
-                <div style="font-size: 11px; color: var(--text-secondary);">📖 Активно изучают 12 разборов</div>
-            </div>
-            
-            <div style="background: var(--surface); border-radius: 10px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">✍️ Популярные авторы в цитатах</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">1. Эрих Фромм — 89 цитат</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">2. Анна Бусел — 67 цитат</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">3. Марина Цветаева — 45 цитат</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">4. Будда — 34 цитаты</div>
-                <div style="font-size: 11px; color: var(--text-secondary);">5. Ошо — 29 цитат</div>
-            </div>
-            
-            <div style="background: var(--surface); border-radius: 10px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">🏆 Достижения сообщества</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">🔥 "Коллекционер мудрости" — 23 человека</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">📚 "Философ недели" — 15 человек</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">💎 "Мыслитель" — 11 человек</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">📖 "Любитель классики" — 8 человек</div>
-                <div style="font-size: 11px; color: var(--text-secondary);">⭐ "Вдохновитель" — 3 человека</div>
-            </div>
-            
-            <div style="background: var(--surface); border-radius: 10px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow-color);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">📊 Ваш рейтинг</div>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 16px; font-weight: bold; color: var(--primary-color);">#2</div>
-                        <div style="font-size: 9px; color: var(--text-secondary);">Место в топе</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 16px; font-weight: bold; color: var(--primary-color);">78%</div>
-                        <div style="font-size: 9px; color: var(--text-secondary);">Активнее других</div>
+                    <div class="community-stat-big">
+                        <div class="community-stat-value">${this.communityData.daysActive}</div>
+                        <div class="community-stat-small-label">Дней работы</div>
                     </div>
                 </div>
             </div>
             
-            <div style="background: linear-gradient(45deg, var(--primary-color), var(--primary-dark)); color: white; border-radius: 10px; padding: 12px;">
-                <div style="font-size: 11px; margin-bottom: 6px; font-weight: 600; text-align: center;">✨ Интересный факт</div>
-                <div style="font-size: 10px; opacity: 0.9; text-align: center; line-height: 1.3;">Цитаты Эриха Фромма чаще всего добавляют в избранное в сообществе!</div>
+            <div class="stats-detail-section">
+                <div class="stats-detail-title">📚 Интерес к разборам</div>
+                <div class="stats-detail-item">🔥 Лидер недели: "Искусство любить"</div>
+                <div class="stats-detail-item">📈 Рост интереса: +23% к прошлой неделе</div>
+                <div class="stats-detail-item">📖 Активно изучают 12 разборов</div>
+            </div>
+            
+            <div class="stats-detail-section">
+                <div class="stats-detail-title">✍️ Популярные авторы в цитатах</div>
+                <div class="stats-detail-item">1. Эрих Фромм — 89 цитат</div>
+                <div class="stats-detail-item">2. Анна Бусел — 67 цитат</div>
+                <div class="stats-detail-item">3. Марина Цветаева — 45 цитат</div>
+                <div class="stats-detail-item">4. Будда — 34 цитаты</div>
+                <div class="stats-detail-item">5. Ошо — 29 цитат</div>
+            </div>
+            
+            <div class="stats-detail-section">
+                <div class="stats-detail-title">🏆 Достижения сообщества</div>
+                <div class="stats-detail-item">🔥 "Коллекционер мудрости" — 23 человека</div>
+                <div class="stats-detail-item">📚 "Философ недели" — 15 человек</div>
+                <div class="stats-detail-item">💎 "Мыслитель" — 11 человек</div>
+                <div class="stats-detail-item">📖 "Любитель классики" — 8 человек</div>
+                <div class="stats-detail-item">⭐ "Вдохновитель" — 3 человека</div>
+            </div>
+            
+            <div class="user-rating-section">
+                <div class="user-rating-title">📊 Ваш рейтинг</div>
+                <div class="user-rating-grid">
+                    <div class="user-rating-item">
+                        <div class="user-rating-value">#2</div>
+                        <div class="user-rating-label">Место в топе</div>
+                    </div>
+                    <div class="user-rating-item">
+                        <div class="user-rating-value">78%</div>
+                        <div class="user-rating-label">Активнее других</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="fact-section">
+                <div class="fact-title">✨ Интересный факт</div>
+                <div class="fact-text">Цитаты Эриха Фромма чаще всего добавляют в избранное в сообществе!</div>
             </div>
         `;
     }
