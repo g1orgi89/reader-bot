@@ -1042,6 +1042,20 @@ class ApiService {
     }
 
     /**
+     * ❤️ Получить популярные лайкнутые цитаты за период
+     * НОВЫЙ: Для отображения топа цитат недели по лайкам
+     */
+    async getCommunityPopularFavorites(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+        if (options.period) params.append('period', options.period);
+        const qs = params.toString();
+        
+        const endpoint = qs ? `/community/popular-favorites?${qs}` : '/community/popular-favorites';
+        return this.request('GET', endpoint);
+    }
+
+    /**
      * 👆 Получить последние клики по каталогу
      * ОБНОВЛЕНО: Точное соответствие требованиям API: GET /api/reader/catalog/clicks/recent?limit=3
      */
