@@ -34,13 +34,15 @@ class CatalogPage {
         this.api = app.api;
         this.state = app.state;
         this.telegram = app.telegram;
+        this.query = app.initialState?.query || {};
         
         // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
         this.catalogLoaded = false;
         this.catalogLoading = false;
         
         // Состояние фильтров (14 категорий + ВСЕ)
-        this.activeFilter = 'ВСЕ';
+        // Set initial filter from query parameters
+        this.activeFilter = this.query.category ? this.mapQueryCategoryToFilter(this.query.category) : 'ВСЕ';
         this.searchQuery = '';
         this.showSearch = false;
         
@@ -71,8 +73,14 @@ class CatalogPage {
             this.catalogLoading = true;
             console.log('📚 CatalogPage: Загружаем данные каталога...');
             
+            // Include category filter if specified in query
+            const apiOptions = { limit: 100 };
+            if (this.query.category) {
+                apiOptions.category = this.query.category;
+            }
+            
             // Загружаем реальные данные каталога через API
-            const response = await this.api.getCatalog({ limit: 100 });
+            const response = await this.api.getCatalog(apiOptions);
             
             if (response && response.success && response.books) {
                 // Конвертируем API данные в формат для отображения
@@ -140,6 +148,49 @@ class CatalogPage {
         return '800₽'; // Fallback цена
     }
     
+    /**
+     * 🏷️ Маппинг категорий query в фильтры
+     */
+    mapQueryCategoryToFilter(queryCategory) {
+        if (!queryCategory) return 'ВСЕ';
+        
+        // Try direct match first
+        const directMatch = CATALOG_CATEGORIES.find(c => 
+            c.toLowerCase() === queryCategory.toLowerCase()
+        );
+        if (directMatch) return directMatch;
+        
+        // Try partial match
+        const partialMatch = CATALOG_CATEGORIES.find(c => 
+            c.toLowerCase().includes(queryCategory.toLowerCase()) ||
+            queryCategory.toLowerCase().includes(c.toLowerCase())
+        );
+        if (partialMatch) return partialMatch;
+        
+        // Specific mappings for slugified categories
+        const categoryMappings = {
+            'кризисы': 'КРИЗИСЫ',
+            'я-женщина': 'Я — ЖЕНЩИНА',
+            'любовь': 'ЛЮБОВЬ',
+            'отношения': 'ОТНОШЕНИЯ',
+            'деньги': 'ДЕНЬГИ',
+            'одиночество': 'ОДИНОЧЕСТВО',
+            'смерть': 'СМЕРТЬ',
+            'семейные-отношения': 'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
+            'смысл-жизни': 'СМЫСЛ ЖИЗНИ',
+            'счастье': 'СЧАСТЬЕ',
+            'время-и-привычки': 'ВРЕМЯ И ПРИВЫЧКИ',
+            'добро-и-зло': 'ДОБРО И ЗЛО',
+            'общество': 'ОБЩЕСТВО',
+            'поиск-себя': 'ПОИСК СЕБЯ',
+            'психология-отношений': 'ОТНОШЕНИЯ',
+            'психология': 'ПОИСК СЕБЯ'
+        };
+        
+        const mapped = categoryMappings[queryCategory.toLowerCase()];
+        return mapped || 'ВСЕ';
+    }
+
     /**
      * 🏷️ Маппинг категорий API в фильтры
      */
@@ -603,14 +654,18 @@ class CatalogPage {
             container.innerHTML = this.render();
             this.attachEventListeners();
             // Автоматический скролл и подсветка по highlight из router state
-            const highlightSlug = this.app.initialState?.query?.highlight;
-            if (highlightSlug) {
+            const highlightId = this.app.initialState?.query?.highlight;
+            if (highlightId) {
                 setTimeout(() => {
-                    const el = document.querySelector(`[data-book-slug="${highlightSlug}"]`);
+                    // Try to find by book ID first, then by slug
+                    let el = document.querySelector(`[data-book-id="${highlightId}"]`);
+                    if (!el) {
+                        el = document.querySelector(`[data-book-slug="${highlightId}"]`);
+                    }
                     if (el) {
-                        el.classList.add('highlighted');
+                        el.classList.add('catalog-item--highlight');
                         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        setTimeout(() => el.classList.remove('highlighted'), 2500);
+                        setTimeout(() => el.classList.remove('catalog-item--highlight'), 2500);
                     }
                 }, 300);
             }

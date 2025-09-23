@@ -1979,40 +1979,268 @@ router.get('/activity-percent', telegramAuth, async (req, res) => {
     }
 });
 
+// In-memory cache for community message (10-15 minutes)
+let communityMessageCache = null;
+let communityMessageCacheTime = 0;
+const COMMUNITY_MESSAGE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 /**
- * @description Сообщение Анны для сообщества
+ * @description Сообщение от Анны (динамическое, ежедневно уникальное)
  * @route GET /api/reader/community/message
  */
-router.get('/community/message', communityLimiter, telegramAuth, async (_req, res) => {
+router.get('/community/message', communityLimiter, telegramAuth, async (req, res) => {
   try {
+    // Check cache first
+    const now = Date.now();
+    if (communityMessageCache && (now - communityMessageCacheTime) < COMMUNITY_MESSAGE_CACHE_TTL) {
+      return res.json({
+        success: true,
+        data: communityMessageCache
+      });
+    }
+
+    // Get metrics for last 24 hours
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const [newQuotesCount, activeReadersCount, topAuthor] = await Promise.all([
+      Quote.countDocuments({ createdAt: { $gte: yesterday } }),
+      Quote.distinct('userId', { createdAt: { $gte: yesterday } }).then(users => users.length),
+      Quote.aggregate([
+        { $match: { createdAt: { $gte: yesterday }, author: { $ne: null, $ne: '' } } },
+        { $group: { _id: '$author', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 1 }
+      ])
+    ]);
+
+    // Message templates (5-7 variants)
+    const messageTemplates = [
+      (data) => `Дорогие читатели! За сутки вы добавили ${data.newQuotes} цитат — это впечатляет! ${data.activeReaders} активных читателей создают настоящую библиотеку мудрости.`,
+      (data) => `Сегодня особенно активны ${data.activeReaders} читателей. Ваши ${data.newQuotes} новых цитат показывают, как растёт наше сообщество!`,
+      (data) => `Прекрасный день для чтения! ${data.newQuotes} свежих цитат от ${data.activeReaders} читателей. ${data.topAuthor ? `Особенно популярен ${data.topAuthor}` : 'Продолжайте собирать мудрость!'}.`,
+      (data) => `Ваша активность вдохновляет: ${data.newQuotes} цитат за день! ${data.activeReaders} читателей создают уникальную коллекцию мыслей.`,
+      (data) => `За последние 24 часа ${data.activeReaders} читателей поделились ${data.newQuotes} цитатами. ${data.topAuthor ? `Лидер дня — ${data.topAuthor}!` : 'Каждая цитата ценна!'}`,
+      (data) => `Растём вместе! Сегодня ${data.activeReaders} активных читателей, ${data.newQuotes} новых мыслей. Продолжайте открывать для себя мудрость книг.`,
+      (data) => `Какая активность! ${data.newQuotes} цитат за день от ${data.activeReaders} читателей. ${data.topAuthor ? `${data.topAuthor} особенно вдохновляет сегодня.` : 'Ваш вклад неоценим!'}`
+    ];
+
+    // Deterministic template selection based on date
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const templateIndex = [...today].reduce((sum, char) => sum + char.charCodeAt(0), 0) % messageTemplates.length;
+    
+    const messageData = {
+      newQuotes: newQuotesCount,
+      activeReaders: activeReadersCount,
+      topAuthor: topAuthor.length > 0 ? topAuthor[0]._id : null
+    };
+
+    const messageText = messageTemplates[templateIndex](messageData);
+
+    const result = {
+      text: messageText,
+      time: 'сегодня'
+    };
+
+    // Cache the result
+    communityMessageCache = result;
+    communityMessageCacheTime = now;
+
     return res.json({
       success: true,
-      data: {
-        text: 'Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день — а я помогу вам видеть главное.',
-        time: 'сегодня'
-      }
+      data: result
     });
   } catch (e) {
+    console.error('Community message error:', e);
     return res.status(500).json({ success: false, error: e.message });
   }
 });
 
+// In-memory cache for community trend (15 minutes)
+let communityTrendCache = null;
+let communityTrendCacheTime = 0;
+const COMMUNITY_TREND_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 /**
- * @description Тренд недели для сообщества
+ * @description Тренд недели по реальным данным (темы/категории цитат за 7 дней)
  * @route GET /api/reader/community/trend
  */
 router.get('/community/trend', communityLimiter, telegramAuth, async (_req, res) => {
   try {
+    // Check cache first
+    const now = Date.now();
+    if (communityTrendCache && (now - communityTrendCacheTime) < COMMUNITY_TREND_CACHE_TTL) {
+      return res.json({
+        success: true,
+        data: communityTrendCache
+      });
+    }
+
+    // Get quotes from last 7 days
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    // Aggregate themes from Quote.themes (unwind) and Quote.category as fallback
+    const themeAggregation = await Quote.aggregate([
+      { $match: { createdAt: { $gte: oneWeekAgo } } },
+      {
+        $facet: {
+          // Themes from themes array
+          fromThemes: [
+            { $match: { themes: { $exists: true, $ne: [] } } },
+            { $unwind: '$themes' },
+            { $group: { _id: '$themes', count: { $sum: 1 } } }
+          ],
+          // Categories as fallback
+          fromCategories: [
+            { $match: { category: { $exists: true, $ne: null } } },
+            { $group: { _id: '$category', count: { $sum: 1 } } }
+          ]
+        }
+      },
+      {
+        $project: {
+          allThemes: { $concatArrays: ['$fromThemes', '$fromCategories'] }
+        }
+      },
+      { $unwind: '$allThemes' },
+      {
+        $group: {
+          _id: '$allThemes._id',
+          count: { $sum: '$allThemes.count' }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 1 }
+    ]);
+
+    let topTheme = null;
+    let topThemeCount = 0;
+
+    if (themeAggregation.length > 0) {
+      topTheme = themeAggregation[0]._id;
+      topThemeCount = themeAggregation[0].count;
+    }
+
+    // If no theme found, use fallback
+    if (!topTheme) {
+      const result = {
+        title: 'Тренд недели',
+        text: 'Сообщество активно изучает разнообразные темы',
+        buttonText: 'Изучить разборы',
+        link: '/catalog',
+        category: { key: 'ВСЕ', label: 'Все категории' }
+      };
+
+      communityTrendCache = result;
+      communityTrendCacheTime = now;
+
+      return res.json({
+        success: true,
+        data: result
+      });
+    }
+
+    // Slugify theme for URL
+    const slugifiedTheme = topTheme.toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-zа-я0-9\-]/gi, '')
+      .replace(/\-+/g, '-')
+      .replace(/^\-|\-$/g, '');
+
+    // Find books in BookCatalog with matching categories
+    const matchingBooks = await BookCatalog.find({
+      isActive: true,
+      categories: { $regex: new RegExp(topTheme, 'i') }
+    }).sort({ priority: -1 }).limit(10);
+
+    let topBook = null;
+    let highlightBookId = null;
+
+    if (matchingBooks.length > 0) {
+      // Try to find top book by clicks in last week from UTMClick
+      const bookSlugs = matchingBooks.map(b => b.bookSlug).filter(Boolean);
+      
+      if (bookSlugs.length > 0) {
+        const topClickedBooks = await UTMClick.aggregate([
+          {
+            $match: {
+              timestamp: { $gte: oneWeekAgo },
+              campaign: 'catalog',
+              content: { $in: bookSlugs }
+            }
+          },
+          {
+            $group: {
+              _id: '$content',
+              clicks: { $sum: 1 }
+            }
+          },
+          { $sort: { clicks: -1 } },
+          { $limit: 1 }
+        ]);
+
+        if (topClickedBooks.length > 0) {
+          const topSlug = topClickedBooks[0]._id;
+          topBook = matchingBooks.find(b => b.bookSlug === topSlug);
+          if (topBook) {
+            highlightBookId = topBook._id.toString();
+          }
+        }
+      }
+
+      // If no top clicked book, just use first matching book
+      if (!topBook && matchingBooks.length > 0) {
+        topBook = matchingBooks[0];
+      }
+    }
+
+    // Build result
+    let result;
+    if (topBook) {
+      result = {
+        title: 'Тренд недели',
+        text: `Чаще всего изучают «${topBook.title}» — ${topBook.author || 'Анна Бусел'}`,
+        buttonText: `Изучить «${topBook.title}»`,
+        link: highlightBookId 
+          ? `/catalog?category=${slugifiedTheme}&highlight=${highlightBookId}`
+          : `/catalog?category=${slugifiedTheme}`,
+        category: { key: slugifiedTheme, label: topTheme },
+        book: { id: topBook._id.toString(), title: topBook.title }
+      };
+    } else {
+      result = {
+        title: 'Тренд недели',
+        text: `Тема «${topTheme}» набирает популярность`,
+        buttonText: 'Изучить разборы',
+        link: `/catalog?category=${slugifiedTheme}`,
+        category: { key: slugifiedTheme, label: topTheme }
+      };
+    }
+
+    // Cache the result
+    communityTrendCache = result;
+    communityTrendCacheTime = now;
+
     return res.json({
       success: true,
-      data: {
-        title: 'Тренд недели',
-        text: 'Тема «Психология отношений» набирает популярность',
-        buttonText: 'Изучить разборы'
-      }
+      data: result
     });
   } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
+    console.error('Community trend error:', e);
+    // Fallback on error
+    const fallbackResult = {
+      title: 'Тренд недели',
+      text: 'Сообщество активно изучает новые темы',
+      buttonText: 'Изучить разборы',
+      link: '/catalog',
+      category: { key: 'ВСЕ', label: 'Все категории' }
+    };
+    
+    return res.json({
+      success: true,
+      data: fallbackResult
+    });
   }
 });
 

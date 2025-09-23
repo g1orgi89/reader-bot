@@ -908,7 +908,8 @@ class CommunityPage {
         if (exploreBtn) {
             exploreBtn.addEventListener('click', () => {
                 this.triggerHapticFeedback('medium');
-                this.app.router.navigate('/catalog');
+                const link = this.communityTrend?.link || '/catalog';
+                this.app.router.navigate(link);
             });
         }
     }
