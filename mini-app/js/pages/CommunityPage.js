@@ -45,6 +45,7 @@ class CommunityPage {
         this.popularBooks = [];
         this.recentClicks = [];
         this.leaderboard = [];
+        this.userProgress = null;
         this.communityMessage = null;
         this.communityTrend = null;
 
@@ -74,6 +75,17 @@ class CommunityPage {
     init() {
         this.setupSubscriptions();
         // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init()
+    }
+    
+    /**
+     * Склонение слова "цитата" для корректного отображения
+     * @param {number} count - Количество цитат
+     * @returns {string} Правильное склонение
+     */
+    pluralQuotes(count) {
+        if (count % 10 === 1 && count % 100 !== 11) return 'цитату';
+        if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return 'цитаты';
+        return 'цитат';
     }
     
     setupSubscriptions() {
@@ -332,6 +344,35 @@ class CommunityPage {
     }
     
     /**
+     * 🏆 ЗАГРУЗКА ЛИДЕРБОРДА ЗА ПЕРИОД (НОВОЕ)
+     */
+    async loadLeaderboard(limit = 10, period = '7d') {
+        if (this.loadingStates.leaderboard) return;
+        try {
+            this.loadingStates.leaderboard = true;
+            this.errorStates.leaderboard = null;
+            console.log('🏆 CommunityPage: Загружаем лидерборд за', period);
+            const resp = await this.api.getLeaderboard({ period, limit });
+            if (resp && resp.success) {
+                this.leaderboard = resp.data || [];
+                this.userProgress = resp.me || null;
+                console.log('✅ CommunityPage: Лидерборд загружен:', this.leaderboard.length, 'пользователей');
+            } else {
+                this.leaderboard = [];
+                this.userProgress = null;
+                console.warn('⚠️ CommunityPage: Некорректный ответ лидерборда');
+            }
+        } catch (e) {
+            this.errorStates.leaderboard = e.message || 'Ошибка загрузки лидеров';
+            this.leaderboard = [];
+            this.userProgress = null;
+            console.error('❌ CommunityPage: Ошибка загрузки лидерборда:', e);
+        } finally {
+            this.loadingStates.leaderboard = false;
+        }
+    }
+    
+    /**
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
      */
     render() {
@@ -573,8 +614,9 @@ class CommunityPage {
      * 🏆 ТАБ ТОП НЕДЕЛИ (ОБНОВЛЕН ДЛЯ PR-3 - ТОЛЬКО ПОПУЛЯРНЫЕ РАЗБОРЫ НЕДЕЛИ!)
      */
     renderTopTab() {
-        // Только популярные книги недели (без последних кликов)
+        const leaderboardSection = this.renderLeaderboardSection();
         const popularBooksSection = this.renderPopularBooksSection();
+        const userProgressSection = this.renderUserProgressSection();
 
         return `
             <div class="community-stats-grid">
@@ -588,16 +630,9 @@ class CommunityPage {
                 </div>
             </div>
             
+            ${leaderboardSection}
             ${popularBooksSection}
-            
-            <div class="user-progress-section">
-                <div class="progress-header">🎯 Ваш прогресс в топах</div>
-                <div class="progress-stats">👑 Читатели: #2 место • ⭐ Цитаты: топ-5 • 📚 Интерес к разборам: активный</div>
-                <div class="progress-bar-white">
-                    <div class="progress-fill-white" style="width: 78%;"></div>
-                </div>
-                <div class="progress-description">Добавьте еще 5 цитат до лидерства!</div>
-            </div>
+            ${userProgressSection}
         `;
     }
 
@@ -640,13 +675,14 @@ class CommunityPage {
 
         const leaderboardItems = this.leaderboard.slice(0, 3).map((leader, index) => {
             const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+            const count = leader.quotesWeek ?? leader.quotes ?? 0;
             return `
                 <div class="leaderboard-item">
                     <div class="rank-badge ${rankClass}">${index + 1}</div>
                     <div class="user-info">
                         <div class="user-name">${leader.name || 'Анонимный читатель'}</div>
-                        <div class="user-stats">${leader.quotesCount || 0} цитат за неделю</div>
-                        <div class="user-achievement">${leader.achievement || '📚 "Активный читатель"'}</div>
+                        <div class="user-stats">${count} цитат за неделю</div>
+                        <div class="user-achievement">📚 "Активный читатель"</div>
                     </div>
                 </div>
             `;
@@ -658,6 +694,51 @@ class CommunityPage {
                 <div class="leaders-week-subtitle">Самые активные читатели сообщества</div>
             </div>
             ${leaderboardItems}
+        `;
+    }
+
+    /**
+     * 🎯 СЕКЦИЯ ПРОГРЕССА ПОЛЬЗОВАТЕЛЯ (НОВАЯ)
+     */
+    renderUserProgressSection() {
+        if (!this.userProgress) {
+            return `
+                <div class="user-progress-section">
+                    <div class="progress-header">🎯 Ваш прогресс в топах</div>
+                    <div class="progress-stats">Загрузка данных о прогрессе...</div>
+                    <div class="progress-bar-white">
+                        <div class="progress-fill-white" style="width: 0%;"></div>
+                    </div>
+                    <div class="progress-description">Ваша позиция обновляется...</div>
+                </div>
+            `;
+        }
+
+        const { position, quotesWeek, percentile, deltaToNext, deltaToLeader } = this.userProgress;
+        
+        // Рассчитываем прогресс-бар относительно лидера
+        const leaderCount = this.leaderboard.length > 0 ? (this.leaderboard[0].quotesWeek ?? this.leaderboard[0].quotes ?? 0) : 1;
+        const progressPercent = Math.min(100, Math.round((quotesWeek / Math.max(1, leaderCount)) * 100));
+        
+        // Формируем текст прогресса
+        let progressText;
+        if (position === 1) {
+            progressText = "Вы лидер недели! Поздравляем! 🎉";
+        } else {
+            const quotesNeeded = deltaToNext;
+            const quotesWord = this.pluralQuotes(quotesNeeded);
+            progressText = `Добавьте ещё ${quotesNeeded} ${quotesWord} до следующего места`;
+        }
+
+        return `
+            <div class="user-progress-section">
+                <div class="progress-header">🎯 Ваш прогресс в топах</div>
+                <div class="progress-stats">Место: #${position} • За неделю: ${quotesWeek} • Активнее ${percentile}% участников</div>
+                <div class="progress-bar-white">
+                    <div class="progress-fill-white" style="width: ${progressPercent}%;"></div>
+                </div>
+                <div class="progress-description">${progressText}</div>
+            </div>
         `;
     }
 
@@ -1098,7 +1179,8 @@ class CommunityPage {
             this.loadPopularBooks('7d', 10), // Популярные разборы недели для "Топ недели"
             this.loadRecentClicks(3), // Последние 3 клика для "Сейчас изучают"
             this.loadCommunityMessage(), // Сообщение от Анны
-            this.loadCommunityTrend() // Тренд недели
+            this.loadCommunityTrend(), // Тренд недели
+            this.loadLeaderboard(10, '7d') // Лидерборд за неделю
         ];
 
         try {
@@ -1131,7 +1213,7 @@ class CommunityPage {
 
     retryLoadLeaderboard() {
         this.triggerHapticFeedback('medium');
-        this.loadLeaderboard(10).then(() => this.rerender());
+        this.loadLeaderboard(10, '7d').then(() => this.rerender());
     }
 
     retryLoadRecentClicks() {

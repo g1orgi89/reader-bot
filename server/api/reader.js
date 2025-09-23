@@ -1896,56 +1896,67 @@ router.get('/community/stats', communityLimiter, telegramAuth, async (req, res) 
 });
 
 /**
- * @description Рейтинг пользователей (обезличенный)
+ * @description Периодный рейтинг пользователей (7d/30d)
  * @route GET /api/reader/community/leaderboard
  */
 router.get('/community/leaderboard', communityLimiter, telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    const { limit: limitParam } = req.query;
-    
-    const { limit, isValid } = validateLimit(limitParam, 10, 50);
-    if (!isValid) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid limit parameter. Must be between 1 and 50.' 
-      });
-    }
+    const { limit: limitParam, period: periodParam } = req.query;
 
-    const leaderboard = await UserProfile.aggregate([
-      { $match: { isOnboardingComplete: true, isActive: true } },
-      { $sort: { 'statistics.totalQuotes': -1, _id: 1 } }, // Deterministic sorting
-      { $limit: limit },
-      {
-        $project: {
-          name: 1,
-          'statistics.totalQuotes': 1,
-          'statistics.currentStreak': 1,
-          userId: 1
-        }
-      }
+    const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
+    if (!limitValid) return res.status(400).json({ success: false, error: 'Invalid limit parameter. Must be between 1 and 50.' });
+
+    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
+    if (!periodValid) return res.status(400).json({ success: false, error: 'Invalid period parameter. Use 7d or 30d.' });
+
+    const agg = await Quote.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: '$userId', quotesWeek: { $sum: 1 } } },
+      { $sort: { quotesWeek: -1, _id: 1 } }
     ]);
 
-    const result = leaderboard.map((u, index) => ({
-      position: index + 1,
-      name: u.name ? (u.name.charAt(0) + '***') : '***',
-      quotes: u.statistics.totalQuotes,
-      quotesThisWeek: Math.floor(Math.random() * 20), // заглушка
-      isCurrentUser: u.userId === userId
-    }));
+    const participants = agg.length;
+    const top = agg.slice(0, limit);
+    const ids = new Set([...top.map(r => String(r._id)), String(userId)]);
+    const users = await UserProfile.find({ userId: { $in: Array.from(ids) } }, { userId: 1, name: 1 }).lean();
+    const byId = new Map(users.map(u => [String(u.userId), u]));
+    const mask = (name) => (name ? name.charAt(0) + '***' : '***');
 
-    res.json({
-      success: true,
-      data: result,
-      pagination: {
-        total: result.length,
-        limit: limit
-      }
+    const myIdx = agg.findIndex(r => String(r._id) === String(userId));
+    const myCount = myIdx >= 0 ? agg[myIdx].quotesWeek : 0;
+    const position = myIdx >= 0 ? (myIdx + 1) : (participants > 0 ? participants + 1 : 1);
+    const leaderCount = agg[0]?.quotesWeek || 0;
+    const nextAheadCount = myIdx > 0 ? agg[myIdx - 1].quotesWeek : (myIdx === -1 && participants > 0 ? agg[participants - 1].quotesWeek : myCount);
+    const deltaToNext = position === 1 ? 0 : Math.max(0, (nextAheadCount - myCount) + 1);
+    const thirdPlaceCount = agg[2]?.quotesWeek || 0;
+    const deltaToTop3 = position <= 3 ? 0 : Math.max(0, (thirdPlaceCount - myCount) + 1);
+    const deltaToLeader = position === 1 ? 0 : Math.max(0, (leaderCount - myCount) + 1);
+    const lessCount = agg.filter(r => r.quotesWeek < myCount).length;
+    let percentile = 50;
+    if (participants > 0) {
+      percentile = Math.round((lessCount / participants) * 100);
+      if (percentile < 1) percentile = 1;
+      if (percentile > 99) percentile = 99;
+    }
+
+    const me = { userId, quotesWeek: myCount, position, deltaToNext, deltaToTop3, deltaToLeader, percentile };
+
+    const data = top.map((row, idx) => {
+      const u = byId.get(String(row._id));
+      return {
+        position: idx + 1,
+        name: mask(u?.name),
+        quotes: row.quotesWeek,
+        quotesWeek: row.quotesWeek,
+        isCurrentUser: String(row._id) === String(userId)
+      };
     });
 
+    return res.json({ success: true, period, data, me, pagination: { total: data.length, limit } });
   } catch (error) {
     console.error('❌ Get Leaderboard Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -956,18 +956,15 @@ class ApiService {
     }
 
     /**
-     * 🏆 Получить таблицу лидеров
-     * НОВЫЙ: Добавлен недостающий метод для CommunityPage
+     * 🏆 Лидерборд за период
+     * @param {{period?: '7d'|'30d', limit?: number}} options
      */
     async getLeaderboard(options = {}) {
         const params = new URLSearchParams();
-        if (options.type) params.append('type', options.type);
+        if (options.period) params.append('period', options.period);
         if (options.limit) params.append('limit', options.limit);
-
-        const queryString = params.toString();
-        const endpoint = queryString ? `/community/leaderboard?${queryString}` : '/community/leaderboard';
-        
-        return this.request('GET', endpoint);
+        const qs = params.toString();
+        return this.request('GET', qs ? `/community/leaderboard?${qs}` : '/community/leaderboard');
     }
 
     /**
