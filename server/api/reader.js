@@ -833,7 +833,7 @@ router.get('/stats', telegramAuth, async (req, res) => {
 router.post('/quotes', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    const { text, author, source } = req.body;
+    const { text, author, source, isFavorite } = req.body;
 
     if (!text || text.trim().length === 0) {
       return res.status(400).json({
@@ -882,6 +882,18 @@ router.post('/quotes', telegramAuth, async (req, res) => {
         }
       }
       // --- конец обработки VersionError ---
+
+      // Handle isFavorite parameter
+      if (isFavorite === true && result.quote) {
+        try {
+          result.quote.isFavorite = true;
+          result.quote.editedAt = new Date();
+          await result.quote.save();
+        } catch (err) {
+          console.warn('Error setting quote as favorite:', err);
+          // Don't fail the entire request if favorite setting fails
+        }
+      }
 
       // Генерация "Ответа Анны" (summary)
       let annaSummary = '';
@@ -1697,6 +1709,100 @@ router.get('/community/popular', communityLimiter, telegramAuth, async (req, res
 
   } catch (error) {
     console.error('❌ Get Popular Community Quotes Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Популярные цитаты по лайкам за период
+ * @route GET /api/reader/community/popular-favorites
+ */
+router.get('/community/popular-favorites', communityLimiter, telegramAuth, async (req, res) => {
+  try {
+    const { period: periodParam, limit: limitParam } = req.query;
+    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
+    if (!periodValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid period. Use 7d or 30d.' 
+      });
+    }
+
+    const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
+    if (!limitValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid limit parameter. Must be between 1 and 50.' 
+      });
+    }
+
+    // Aggregate quotes by text+author combination, count unique users who favorited
+    const popularFavorites = await Quote.aggregate([
+      {
+        $match: {
+          isFavorite: true,
+          $or: [
+            { editedAt: { $gte: startDate } },
+            { createdAt: { $gte: startDate } }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: {
+            text: '$text',
+            author: '$author'
+          },
+          favorites: { $addToSet: '$userId' }, // Unique user IDs who favorited
+          latestEdit: { $max: '$editedAt' },
+          latestCreated: { $max: '$createdAt' },
+          firstId: { $first: '$_id' }, // For deterministic sorting
+          sampleCategory: { $first: '$category' },
+          sampleThemes: { $first: '$themes' }
+        }
+      },
+      {
+        $addFields: {
+          favoritesCount: { $size: '$favorites' }
+        }
+      },
+      {
+        $sort: { 
+          favoritesCount: -1, 
+          latestEdit: -1, 
+          latestCreated: -1, 
+          firstId: 1 
+        }
+      },
+      {
+        $limit: limit
+      },
+      {
+        $project: {
+          text: '$_id.text',
+          author: '$_id.author',
+          favorites: '$favoritesCount',
+          sampleCategory: 1,
+          sampleThemes: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    const total = popularFavorites.length;
+
+    res.json({
+      success: true,
+      data: popularFavorites,
+      pagination: {
+        period: period,
+        limit: limit,
+        total: total
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get Popular Favorites Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

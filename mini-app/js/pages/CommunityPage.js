@@ -42,6 +42,7 @@ class CommunityPage {
         // ✅ НОВОЕ: Данные для различных секций (PR-3)
         this.latestQuotes = [];
         this.popularQuotes = [];
+        this.popularFavorites = [];
         this.popularBooks = [];
         this.recentClicks = [];
         this.leaderboard = [];
@@ -53,6 +54,7 @@ class CommunityPage {
         this.loadingStates = {
             latestQuotes: false,
             popularQuotes: false,
+            popularFavorites: false,
             popularBooks: false,
             recentClicks: false,
             leaderboard: false,
@@ -63,6 +65,7 @@ class CommunityPage {
         this.errorStates = {
             latestQuotes: null,
             popularQuotes: null,
+            popularFavorites: null,
             popularBooks: null,
             recentClicks: null,
             leaderboard: null,
@@ -174,6 +177,41 @@ class CommunityPage {
             this.popularQuotes = [];
         } finally {
             this.loadingStates.popularQuotes = false;
+        }
+    }
+
+    /**
+     * ❤️ ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (НОВОЕ)
+     */
+    async loadPopularFavorites(period = '7d', limit = 10) {
+        if (this.loadingStates.popularFavorites) return;
+        
+        try {
+            this.loadingStates.popularFavorites = true;
+            this.errorStates.popularFavorites = null;
+            console.log('❤️ CommunityPage: Загружаем популярные избранные цитаты...');
+            
+            const response = await this.api.getCommunityPopularFavorites({ period, limit });
+            if (response && response.success) {
+                this.popularFavorites = response.data || [];
+                console.log('✅ CommunityPage: Популярные избранные цитаты загружены:', this.popularFavorites.length);
+            } else {
+                throw new Error('Не удалось загрузить популярные избранные цитаты');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки популярных избранных цитат:', error);
+            this.errorStates.popularFavorites = error.message || 'Ошибка загрузки избранных цитат';
+            this.popularFavorites = [];
+            
+            // Fallback - загружаем обычные популярные цитаты
+            try {
+                console.log('🔄 Fallback: загружаем обычные популярные цитаты...');
+                await this.loadPopularQuotes(period, limit);
+            } catch (fallbackError) {
+                console.error('❌ Fallback тоже не сработал:', fallbackError);
+            }
+        } finally {
+            this.loadingStates.popularFavorites = false;
         }
     }
 
@@ -487,14 +525,24 @@ class CommunityPage {
                         <div class="quote-card__author">— ${quote.author || 'Неизвестный автор'}</div>
                         <div class="quote-card__meta">
                             <span class="quote-card__date">${this.formatDate(quote.createdAt || quote.date)}</span>
-                            <button class="quote-card__add-btn" 
-                                    data-quote-id="${quote.id || index}"
-                                    data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
-                                    data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
-                                    style="min-height: var(--touch-target-min);"
-                                    aria-label="Добавить цитату в дневник">
-                                <span class="add-icon">+</span>
-                            </button>
+                            <div class="quote-card__actions">
+                                <button class="quote-card__add-btn" 
+                                        data-quote-id="${quote.id || index}"
+                                        data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
+                                        data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
+                                        style="min-height: var(--touch-target-min);"
+                                        aria-label="Добавить цитату в дневник">
+                                    <span class="add-icon">+</span>
+                                </button>
+                                <button class="quote-card__heart-btn" 
+                                        data-quote-id="${quote.id || index}"
+                                        data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
+                                        data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
+                                        style="min-height: var(--touch-target-min);"
+                                        aria-label="Добавить в избранное">
+                                    <span class="heart-icon">❤</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -614,6 +662,7 @@ class CommunityPage {
      * 🏆 ТАБ ТОП НЕДЕЛИ (ОБНОВЛЕН ДЛЯ PR-3 - ТОЛЬКО ПОПУЛЯРНЫЕ РАЗБОРЫ НЕДЕЛИ!)
      */
     renderTopTab() {
+        const popularFavoritesSection = this.renderPopularFavoritesSection();
         const leaderboardSection = this.renderLeaderboardSection();
         const popularBooksSection = this.renderPopularBooksSection();
         const userProgressSection = this.renderUserProgressSection();
@@ -630,9 +679,99 @@ class CommunityPage {
                 </div>
             </div>
             
+            ${popularFavoritesSection}
             ${leaderboardSection}
             ${popularBooksSection}
             ${userProgressSection}
+        `;
+    }
+
+    /**
+     * ⭐ СЕКЦИЯ ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (НОВАЯ)
+     */
+    renderPopularFavoritesSection() {
+        if (this.loadingStates.popularFavorites) {
+            return `
+                <div class="popular-favorites-section">
+                    <div class="mvp-community-title">⭐ Популярные цитаты недели</div>
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Загружаем топ цитат...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (this.errorStates.popularFavorites) {
+            // Fallback to regular popular quotes on error
+            if (this.popularQuotes && this.popularQuotes.length > 0) {
+                const quotesCards = this.popularQuotes.slice(0, 5).map((quote, index) => {
+                    const favorites = quote.count || 0; // Fallback to count field
+                    return `
+                        <div class="favorite-quote-card">
+                            <div class="quote-content">
+                                <div class="quote-text">"${quote.text || ''}"</div>
+                                <div class="quote-author">— ${quote.author || 'Неизвестный автор'}</div>
+                            </div>
+                            <div class="quote-stats">
+                                <span class="heart-count">❤ ${favorites}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="popular-favorites-section">
+                        <div class="mvp-community-title">⭐ Популярные цитаты недели</div>
+                        <div class="favorites-grid">
+                            ${quotesCards}
+                        </div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="error-state">
+                        <div class="error-icon">❌</div>
+                        <div class="error-title">Ошибка загрузки</div>
+                        <div class="error-description">${this.errorStates.popularFavorites}</div>
+                        <button class="error-retry-btn" data-retry="popular-favorites" style="min-height: var(--touch-target-min);">Повторить</button>
+                    </div>
+                `;
+            }
+        }
+
+        if (!this.popularFavorites || this.popularFavorites.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">⭐</div>
+                    <div class="empty-title">Пока нет избранных цитат</div>
+                    <div class="empty-description">Станьте первым, кто добавит цитату в избранное!</div>
+                </div>
+            `;
+        }
+
+        const quotesCards = this.popularFavorites.slice(0, 5).map((quote, index) => {
+            const favorites = quote.favorites || 0;
+            return `
+                <div class="favorite-quote-card">
+                    <div class="quote-content">
+                        <div class="quote-text">"${quote.text || ''}"</div>
+                        <div class="quote-author">— ${quote.author || 'Неизвестный автор'}</div>
+                    </div>
+                    <div class="quote-stats">
+                        <span class="heart-count">❤ ${favorites}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="popular-favorites-section">
+                <div class="mvp-community-title">⭐ Популярные цитаты недели</div>
+                <div class="favorites-grid">
+                    ${quotesCards}
+                </div>
+            </div>
         `;
     }
 
@@ -943,6 +1082,14 @@ class CommunityPage {
                 this.addQuoteToJournal(event);
             });
         });
+
+        // Обработчики для кнопок сердечка (избранное)
+        const heartButtons = document.querySelectorAll('.quote-card__heart-btn');
+        heartButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                this.addQuoteToFavorites(event);
+            });
+        });
     }
     
     /**
@@ -1083,6 +1230,9 @@ class CommunityPage {
                     case 'popular-quotes':
                         this.retryLoadPopularQuotes();
                         break;
+                    case 'popular-favorites':
+                        this.retryLoadPopularFavorites();
+                        break;
                     case 'leaderboard':
                         this.retryLoadLeaderboard();
                         break;
@@ -1176,6 +1326,7 @@ class CommunityPage {
         // Загружаем параллельно для лучшей производительности
         const loadPromises = [
             this.loadLatestQuotes(3), // Только 3 цитаты согласно требованиям
+            this.loadPopularFavorites('7d', 10), // Популярные избранные цитаты для топа недели
             this.loadPopularBooks('7d', 10), // Популярные разборы недели для "Топ недели"
             this.loadRecentClicks(3), // Последние 3 клика для "Сейчас изучают"
             this.loadCommunityMessage(), // Сообщение от Анны
@@ -1204,6 +1355,11 @@ class CommunityPage {
     retryLoadPopularQuotes() {
         this.triggerHapticFeedback('medium');
         this.loadPopularQuotes('7d', 10).then(() => this.rerender());
+    }
+
+    retryLoadPopularFavorites() {
+        this.triggerHapticFeedback('medium');
+        this.loadPopularFavorites('7d', 10).then(() => this.rerender());
     }
 
     retryLoadPopularBooks() {
@@ -1283,6 +1439,73 @@ class CommunityPage {
             
             // Показываем ошибку
             this.showNotification('Ошибка при добавлении цитаты', 'error');
+            this.triggerHapticFeedback('error');
+        }
+    }
+
+    /**
+     * ❤️ ДОБАВИТЬ ЦИТАТУ В ИЗБРАННОЕ (НОВОЕ)
+     */
+    async addQuoteToFavorites(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const button = event.target.closest('.quote-card__heart-btn');
+        if (!button) return;
+        
+        const quoteId = button.dataset.quoteId;
+        const quoteCard = button.closest('.quote-card');
+        
+        if (!quoteCard) return;
+        
+        try {
+            // Haptic feedback
+            this.triggerHapticFeedback('medium');
+            
+            // Получаем данные цитаты из data-атрибутов или из DOM
+            const quoteText = button.dataset.quoteText || quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
+            const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
+            
+            // Показываем loading состояние
+            button.innerHTML = '<span class="loading-spinner-small"></span>';
+            button.disabled = true;
+            
+            // Добавляем цитату в избранное через API
+            const response = await this.api.addQuote({
+                text: quoteText,
+                author: quoteAuthor,
+                source: 'community',
+                isFavorite: true
+            });
+            
+            if (response && response.success) {
+                // Успех - показываем заполненное сердце
+                button.innerHTML = '<span class="heart-icon">💖</span>';
+                button.classList.add('favorited');
+                this.triggerHapticFeedback('success');
+                
+                // Показываем уведомление
+                this.showNotification('Добавлено в избранное!', 'success');
+                
+                // Возвращаем кнопку в исходное состояние через 2 секунды
+                setTimeout(() => {
+                    button.innerHTML = '<span class="heart-icon">❤</span>';
+                    button.classList.remove('favorited');
+                    button.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error(response?.message || 'Ошибка добавления в избранное');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка добавления в избранное:', error);
+            
+            // Возвращаем кнопку в исходное состояние
+            button.innerHTML = '<span class="heart-icon">❤</span>';
+            button.disabled = false;
+            
+            // Показываем ошибку
+            this.showNotification('Ошибка при добавлении в избранное', 'error');
             this.triggerHapticFeedback('error');
         }
     }
