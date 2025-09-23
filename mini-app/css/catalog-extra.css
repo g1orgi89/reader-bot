@@ -1,0 +1,34 @@
+/* 
+ * CSS для подсветки элементов каталога
+ * Добавляется при переходе из тренда недели
+ */
+
+.catalog-item--highlight {
+    outline: 2px solid var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(210, 69, 44, 0.15);
+    border-radius: 12px;
+    transition: box-shadow 300ms ease, outline 300ms ease;
+}
+
+/* Альтернативная подсветка для случаев, когда primary-color не определен */
+@supports not (color: var(--primary-color)) {
+    .catalog-item--highlight {
+        outline: 2px solid #d2452c;
+        box-shadow: 0 0 0 4px rgba(210, 69, 44, 0.15);
+    }
+}
+
+/* Для книжных карточек */
+.book-card.catalog-item--highlight,
+.catalog-item.catalog-item--highlight {
+    transform: scale(1.02);
+    transition: transform 300ms ease, box-shadow 300ms ease, outline 300ms ease;
+}
+
+/* Убедимся, что подсветка работает на разных элементах */
+.book-item.catalog-item--highlight,
+.recommendation-card.catalog-item--highlight {
+    outline: 2px solid var(--primary-color, #d2452c);
+    box-shadow: 0 0 0 4px rgba(210, 69, 44, 0.15);
+    border-radius: 12px;
+}
