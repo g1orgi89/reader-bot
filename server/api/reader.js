@@ -105,7 +105,7 @@ function validatePeriod(period) {
  * @returns {{limit: number, isValid: boolean}}
  */
 function validateLimit(limit, defaultLimit = 10, maxLimit = 50) {
-  if (!limit) {
+  if (limit === null || limit === undefined || limit === '') {
     return { limit: defaultLimit, isValid: true };
   }
   
@@ -1927,8 +1927,19 @@ router.get('/community/leaderboard', communityLimiter, telegramAuth, async (req,
     const myCount = myIdx >= 0 ? agg[myIdx].quotesWeek : 0;
     const position = myIdx >= 0 ? (myIdx + 1) : (participants > 0 ? participants + 1 : 1);
     const leaderCount = agg[0]?.quotesWeek || 0;
-    const nextAheadCount = myIdx > 0 ? agg[myIdx - 1].quotesWeek : (myIdx === -1 && participants > 0 ? agg[participants - 1].quotesWeek : myCount);
-    const deltaToNext = position === 1 ? 0 : Math.max(0, (nextAheadCount - myCount) + 1);
+    
+    // Calculate deltaToNext: quotes needed to move up one position
+    let deltaToNext = 0;
+    if (position > 1) {
+      if (myIdx > 0) {
+        // User is in list, get count of user directly ahead
+        deltaToNext = Math.max(0, (agg[myIdx - 1].quotesWeek - myCount) + 1);
+      } else if (myIdx === -1 && participants > 0) {
+        // User not in list, need to beat the last ranked user
+        deltaToNext = Math.max(0, (agg[participants - 1].quotesWeek - myCount) + 1);
+      }
+    }
+    
     const thirdPlaceCount = agg[2]?.quotesWeek || 0;
     const deltaToTop3 = position <= 3 ? 0 : Math.max(0, (thirdPlaceCount - myCount) + 1);
     const deltaToLeader = position === 1 ? 0 : Math.max(0, (leaderCount - myCount) + 1);
