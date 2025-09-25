@@ -646,7 +646,19 @@ class DiaryPage {
         const quoteAuthor = document.getElementById('quoteAuthor');
         const saveBtn = document.getElementById('saveQuoteBtn');
         
+        // Clear any existing blur timer
+        if (this.blurTimer) {
+            clearTimeout(this.blurTimer);
+            this.blurTimer = null;
+        }
+        
         const onFocus = () => {
+            // Clear any pending blur timer to prevent premature keyboard-open removal
+            if (this.blurTimer) {
+                clearTimeout(this.blurTimer);
+                this.blurTimer = null;
+            }
+            
             document.body.classList.add('keyboard-open');
             if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
                 window.viewportCalculator.updateViewportHeight();
@@ -654,10 +666,31 @@ class DiaryPage {
         };
         
         const onBlur = () => {
-            document.body.classList.remove('keyboard-open');
-            if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
-                window.viewportCalculator.updateViewportHeight();
+            // Add stabilization delay to handle focus switching between form fields
+            // This ensures the bottom navigation doesn't flicker when moving from quote text to author
+            if (this.blurTimer) {
+                clearTimeout(this.blurTimer);
             }
+            
+            this.blurTimer = setTimeout(() => {
+                // Double-check if no form field is currently focused before removing keyboard-open
+                const quoteTextElement = document.getElementById('quoteText');
+                const quoteAuthorElement = document.getElementById('quoteAuthor');
+                const activeElement = document.activeElement;
+                
+                const isFormFieldFocused = activeElement === quoteTextElement || activeElement === quoteAuthorElement;
+                
+                if (!isFormFieldFocused) {
+                    document.body.classList.remove('keyboard-open');
+                    if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
+                        // Additional delay for viewport calculator to ensure bottom nav returns properly
+                        setTimeout(() => {
+                            window.viewportCalculator.updateViewportHeight();
+                        }, 50);
+                    }
+                }
+                this.blurTimer = null;
+            }, 150); // 150ms stabilization delay
         };
         
         if (quoteText) {
@@ -813,6 +846,12 @@ class DiaryPage {
         const previousTab = this.activeTab;
         this.activeTab = tabName;
         this.telegram.hapticFeedback('light');
+        
+        // Clear any pending blur timer when switching tabs
+        if (this.blurTimer) {
+            clearTimeout(this.blurTimer);
+            this.blurTimer = null;
+        }
         
         // Handle analysis timer for Anna's insights
         this.handleAnalysisTimerOnTabSwitch(previousTab, tabName);
@@ -1041,6 +1080,12 @@ class DiaryPage {
             }
 
             this.telegram.hapticFeedback('success');
+            
+            // Clear any pending blur timer to ensure clean state after save
+            if (this.blurTimer) {
+                clearTimeout(this.blurTimer);
+                this.blurTimer = null;
+            }
             
             // Дополнительный пересчёт viewport после сохранения цитаты для устранения "подскока" панели
             if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
@@ -1454,6 +1499,12 @@ class DiaryPage {
         
         // Clean up analysis timer
         this.clearAnalysisTimer();
+        
+        // Clean up blur timer
+        if (this.blurTimer) {
+            clearTimeout(this.blurTimer);
+            this.blurTimer = null;
+        }
         
         // Отписываемся от события редактирования цитат
         document.removeEventListener('quotes:edit', this._onQuoteEdit, false);
