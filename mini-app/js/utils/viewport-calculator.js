@@ -81,12 +81,22 @@ class ViewportHeightCalculator {
      */
     updateViewportHeight() {
         try {
-            // Измеряем реальные размеры элементов
             const realSizes = this.measureRealElementSizes();
+
+            const tg = window.Telegram?.WebApp;
+            const baseHeight = tg?.viewportHeight || window.innerHeight;
             
-            // Получаем viewport размеры
-            const viewportHeight = window.innerHeight;
-            const telegramHeight = window.Telegram?.WebApp?.viewportHeight || viewportHeight;
+            // Используем стабильную высоту во время открытой клавиатуры
+            let telegramHeight;
+            if (document.body.classList.contains('keyboard-open')) {
+                // Приоритет: WebApp.viewportStableHeight > CSS переменная > обычная высота
+                telegramHeight = tg?.viewportStableHeight || 
+                               parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tg-viewport-stable-height')) || 
+                               baseHeight;
+                console.log('🔧 Using stable viewport height during keyboard:', telegramHeight);
+            } else {
+                telegramHeight = baseHeight;
+            }
             
             // Рассчитываем доступную высоту для контента
             const availableHeight = telegramHeight - realSizes.headerHeight - realSizes.bottomNavHeight;
@@ -104,6 +114,8 @@ class ViewportHeightCalculator {
             
             console.log('🔧 Viewport heights updated:', {
                 viewport: telegramHeight,
+                stable: tg?.viewportStableHeight,
+                keyboardOpen: document.body.classList.contains('keyboard-open'),
                 realHeader: realSizes.headerHeight,
                 realNav: realSizes.bottomNavHeight,
                 available: availableHeight,

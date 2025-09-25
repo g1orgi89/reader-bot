@@ -1441,23 +1441,36 @@ class CommunityPage {
      * 🔄 НАСТРОЙКА СЛУШАТЕЛЕЙ ИЗМЕНЕНИЙ ЦИТАТ
      */
     setupQuoteChangeListeners() {
-        // Listen for quote changes to refresh community data
-        if (typeof document !== 'undefined') {
-            const handleQuoteChange = (event) => {
-                console.log('👥 CommunityPage: Получено событие quotes:changed:', event.detail);
-                // Refresh top analyses when quotes change
-                this.loadTopAnalyses().then(() => {
-                    this.rerender();
-                });
-            };
-            
-            // Remove existing listener to avoid duplicates
-            document.removeEventListener('quotes:changed', handleQuoteChange);
-            document.addEventListener('quotes:changed', handleQuoteChange);
-            
-            // Store reference for cleanup
-            this._quoteChangeHandler = handleQuoteChange;
+        if (typeof document === 'undefined') return;
+
+        // Снимаем старый обработчик, если был
+        if (this._quoteChangeHandler) {
+            document.removeEventListener('quotes:changed', this._quoteChangeHandler);
+            this._quoteChangeHandler = null;
         }
+
+        // Создаём новый обработчик с проверкой активности страницы
+        this._quoteChangeHandler = (event) => {
+            console.log('👥 CommunityPage: Получено событие quotes:changed:', event.detail);
+            
+            // Проверяем, активна ли страница Сообщества
+            const isActive = this.app?.router?.currentRoute === '/community' || 
+                           document.querySelector('.nav-item.active')?.dataset.route === 'community' ||
+                           document.querySelector('.nav-item.active')?.dataset.page === 'community';
+            
+            if (!isActive) {
+                console.log('👥 CommunityPage: Страница неактивна, пропускаем rerender');
+                return;
+            }
+            
+            // Refresh top analyses when quotes change
+            this.loadTopAnalyses().then(() => {
+                this.rerender();
+            });
+        };
+        
+        // Добавляем новый обработчик
+        document.addEventListener('quotes:changed', this._quoteChangeHandler);
     }
     
     // Переключение вкладок — без промежуточных лоадеров
