@@ -628,7 +628,7 @@ class CommunityPage {
     }
 
     /**
-     * Рендер секции spotlight
+     * ✨ Рендер секции "Сейчас в сообществе"
      */
     renderSpotlightSection() {
         // Для рендера используем кэшированные данные если есть, иначе показываем заглушку
@@ -659,22 +659,41 @@ class CommunityPage {
             }
             
             return `
-                <div class="spotlight-card ${badgeClass}" data-quote-id="${item.id || ''}">
+                <div class="quote-card ${badgeClass}" data-quote-id="${item.id || ''}">
                     <div class="spotlight-badge">${badge}</div>
-                    <div class="spotlight-text">"${this.escapeHtml(item.text)}"</div>
-                    <div class="spotlight-author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
-                    ${meta ? `<div class="spotlight-meta">${meta}</div>` : ''}
-                    <div class="spotlight-actions">
-                        <button class="quote-card__add-btn" title="Добавить в избранное">+</button>
-                        <button class="quote-card__heart-btn" title="Лайк">❤</button>
+                    <div class="quote-card__content">
+                        <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
+                        <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
+                        ${meta ? `<div class="quote-card__meta">${meta}</div>` : ''}
+                        <div class="quote-card__actions">
+                            <button class="quote-card__add-btn" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                    style="min-height: var(--touch-target-min);" 
+                                    aria-label="Добавить цитату в дневник">
+                                <span class="add-icon">+</span>
+                            </button>
+                            <button class="quote-card__heart-btn" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                    style="min-height: var(--touch-target-min);" 
+                                    aria-label="Добавить в избранное">♡</button>
+                        </div>
                     </div>
                 </div>
             `;
         }).join('');
         
         return `
-            <div class="spotlight-section">
+            <div class="community-spotlight">
                 <div class="mvp-community-title">✨ Сейчас в сообществе</div>
+                <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                        style="min-height: var(--touch-target-min);"
+                        aria-label="Обновить подборку">
+                    🔄 Обновить
+                </button>
                 <div class="spotlight-grid">
                     ${cards}
                 </div>
@@ -761,14 +780,11 @@ class CommunityPage {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
-        // ✨ НОВОЕ: Spotlight секция (1 свежая + 2 недавние избранные)
+        // ✨ НОВОЕ: Spotlight секция (1 свежая + 2 недавние избранные) - заменяет "Последние цитаты"
         const spotlightSection = this.renderSpotlightSection();
         
         // "Сейчас изучают" секция с последними кликами по каталогу
         const currentlyStudyingSection = this.renderCurrentlyStudyingSection();
-        
-        // ✅ НОВОЕ: Секция последних цитат сообщества (PR-3)
-        const latestQuotesSection = this.renderLatestQuotesSection();
         
         // Сообщение от Анны с fallback
         const annaMessageSection = this.renderAnnaMessageSection();
@@ -784,8 +800,6 @@ class CommunityPage {
             ${spotlightSection}
             
             ${currentlyStudyingSection}
-            
-            ${latestQuotesSection}
             
             ${annaMessageSection}
             
@@ -825,7 +839,7 @@ class CommunityPage {
                                 <button class="quote-card__fav-btn" data-quote-id="${quote.id || index}"
                                         data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
                                         data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
-                                        style="min-height: var(--touch-target-min);" aria-label="Добавить в избранное">❤</button>
+                                        style="min-height: var(--touch-target-min);" aria-label="Добавить в избранное">♡</button>
                                 <button class="quote-card__add-btn" data-quote-id="${quote.id || index}"
                                         data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
                                         data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
@@ -1522,6 +1536,7 @@ class CommunityPage {
         this.attachCommunityCardListeners(); // ✅ НОВОЕ: Haptic feedback для карточек
         this.attachRetryButtons(); // ✅ НОВОЕ PR-3
         this.attachQuoteCardListeners(); // ✅ НОВОЕ: Обработчики для карточек цитат
+        this.attachSpotlightRefreshButton(); // ✅ НОВОЕ: Кнопка обновления spotlight
         this.setupQuoteChangeListeners();
     }
 
@@ -1537,8 +1552,8 @@ class CommunityPage {
             });
         });
 
-        // Обработчики для кнопок сердечка (избранное)
-        const heartButtons = document.querySelectorAll('.quote-card__heart-btn');
+        // Обработчики для кнопок сердечка (избранное) - поддерживаем оба класса
+        const heartButtons = document.querySelectorAll('.quote-card__heart-btn, .quote-card__fav-btn');
         heartButtons.forEach(button => {
             button.addEventListener('click', (event) => {
                 this.addQuoteToFavorites(event);
@@ -1592,6 +1607,48 @@ class CommunityPage {
                 this.triggerHapticFeedback('medium');
                 const link = this.communityTrend?.link || '/catalog';
                 this.app.router.navigate(link);
+            });
+        }
+    }
+
+    /**
+     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ SPOTLIGHT
+     */
+    attachSpotlightRefreshButton() {
+        const refreshBtn = document.getElementById('spotlightRefreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async () => {
+                try {
+                    // Haptic feedback
+                    this.triggerHapticFeedback('medium');
+                    
+                    // Показываем loading состояние
+                    refreshBtn.innerHTML = '🔄 Загрузка...';
+                    refreshBtn.disabled = true;
+                    
+                    // Очищаем кэш
+                    this._spotlightCache = { ts: 0, items: [] };
+                    
+                    // Параллельно перезагружаем данные
+                    await Promise.all([
+                        this.loadLatestQuotes(5),
+                        this.loadPopularFavorites('7d', 10)
+                    ]);
+                    
+                    // Пересобираем подборку
+                    await this.getSpotlightItems();
+                    
+                    // Обновляем интерфейс
+                    this.rerender();
+                    
+                } catch (error) {
+                    console.error('❌ Ошибка обновления spotlight:', error);
+                    this.showNotification('Ошибка обновления', 'error');
+                } finally {
+                    // Восстанавливаем кнопку
+                    refreshBtn.innerHTML = '🔄 Обновить';
+                    refreshBtn.disabled = false;
+                }
             });
         }
     }
@@ -1920,13 +1977,13 @@ class CommunityPage {
     }
 
     /**
-     * ❤️ ДОБАВИТЬ ЦИТАТУ В ИЗБРАННОЕ (НОВОЕ)
+     * ❤️ ДОБАВИТЬ ЦИТАТУ В ИЗБРАННОЕ (ИСПРАВЛЕНО - БЕЗ ОТКАТА)
      */
     async addQuoteToFavorites(event) {
         event.preventDefault();
         event.stopPropagation();
         
-        const button = event.target.closest('.quote-card__heart-btn');
+        const button = event.target.closest('.quote-card__heart-btn, .quote-card__fav-btn');
         if (!button) return;
         
         const quoteCard = button.closest('.quote-card');
@@ -1954,20 +2011,16 @@ class CommunityPage {
             });
             
             if (response && response.success) {
-                // Успех - показываем заполненное сердце
-                button.innerHTML = '<span class="heart-icon">💖</span>';
+                // Успех - показываем красное сердце и оставляем его активным
+                button.innerHTML = '❤';
                 button.classList.add('favorited');
+                button.disabled = false;
                 this.triggerHapticFeedback('success');
                 
                 // Показываем уведомление
                 this.showNotification('Добавлено в избранное!', 'success');
                 
-                // Возвращаем кнопку в исходное состояние через 2 секунды
-                setTimeout(() => {
-                    button.innerHTML = '<span class="heart-icon">❤</span>';
-                    button.classList.remove('favorited');
-                    button.disabled = false;
-                }, 2000);
+                // НЕ откатываем состояние обратно - оставляем активным
             } else {
                 throw new Error(response?.message || 'Ошибка добавления в избранное');
             }
@@ -1975,8 +2028,8 @@ class CommunityPage {
         } catch (error) {
             console.error('❌ Ошибка добавления в избранное:', error);
             
-            // Возвращаем кнопку в исходное состояние
-            button.innerHTML = '<span class="heart-icon">❤</span>';
+            // Возвращаем кнопку в исходное состояние только при ошибке
+            button.innerHTML = '♡';
             button.disabled = false;
             
             // Показываем ошибку
