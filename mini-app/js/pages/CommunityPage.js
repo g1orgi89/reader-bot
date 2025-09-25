@@ -25,6 +25,7 @@ class CommunityPage {
         this.communityData = { activeReaders: 0, newQuotes: 0, totalReaders: 0, totalQuotes: 0, totalAuthors: 0, daysActive: 0 };
         this.latestQuotes = [];
         this.popularQuotes = [];
+        this.popularFavorites = [];
         this.popularBooks = [];
         this.recentClicks = [];
         this.leaderboard = [];
@@ -33,6 +34,12 @@ class CommunityPage {
         this.communityTrend = null;
         this.communityInsights = null;
         this.funFact = null;
+
+        // 🌟 SPOTLIGHT CACHE (TTL система для предотвращения мигания)
+        this._spotlightCache = {
+            ts: 0,
+            items: []
+        };
 
         // Флаги "данные загружены"
         this.loaded = {
@@ -103,14 +110,11 @@ class CommunityPage {
             this._safe(async () => { const r = await this.api.getCatalogRecentClicks({ limit: 3 }); if (r?.success) { this.recentClicks = r.clicks || r.data || []; this.loaded.recentClicks = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityMessage(); if (r?.success) { this.communityMessage = r.data; this.loaded.message = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityTrend(); if (r?.success) { this.communityTrend = r.data; this.loaded.trend = true; } }),
-            this._safe(async () => { // Популярные цитаты по лайкам с fallback
-                let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null);
-                if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null);
-                if (r?.success) {
-                    const arr = r.data || r.quotes || [];
-                    this.popularQuotes = arr.map(q => ({ text: q.text, author: q.author, favorites: (typeof q.favorites === 'number') ? q.favorites : (q.count || 0) }));
-                    this.loaded.popularQuotes = true;
-                }
+            this._safe(async () => { // Популярные избранные цитаты с улучшенным fallback
+                await this.loadPopularFavorites('7d', 10);
+            }),
+            this._safe(async () => { // Популярные цитаты (агрегация) как fallback для spotlight
+                await this.loadPopularQuotes('7d', 10);
             }),
             this._safe(async () => { // лидерборд + me
                 const r = await this.api.getLeaderboard({ period: '7d', limit: 10 });
@@ -119,6 +123,11 @@ class CommunityPage {
             this._safe(async () => { const r = await this.api.getCommunityInsights?.({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityFunFact?.({ period: '7d' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } })
         ]);
+
+        // ✨ Инициализация spotlight кэша после загрузки основных данных
+        await this._safe(async () => {
+            await this.getSpotlightItems();
+        });
 
         this.isHydrated = true; // теперь можно первый раз рендерить
         console.log('✅ CommunityPage: Prefetch завершен - данные готовы');
@@ -213,7 +222,7 @@ class CommunityPage {
             
             const response = await this.api.getCommunityPopularQuotes({ period, limit });
             if (response && response.success) {
-                this.popularQuotes = response.quotes || [];
+                this.popularQuotes = response.data || response.quotes || [];
                 console.log('✅ CommunityPage: Популярные цитаты загружены:', this.popularQuotes.length);
             } else {
                 this.popularQuotes = [];
@@ -238,25 +247,60 @@ class CommunityPage {
             this.errorStates.popularFavorites = null;
             console.log('❤️ CommunityPage: Загружаем популярные избранные цитаты...');
             
-            const response = await this.api.getCommunityPopularFavorites({ period, limit });
-            if (response && response.success) {
-                this.popularFavorites = response.data || [];
+            // Попытка загрузить избранные за 7d
+            let response = await this.api.getCommunityPopularFavorites({ period, limit });
+            if (response && response.success && response.data && response.data.length > 0) {
+                this.popularFavorites = response.data;
                 console.log('✅ CommunityPage: Популярные избранные цитаты загружены:', this.popularFavorites.length);
-            } else {
-                throw new Error('Не удалось загрузить популярные избранные цитаты');
+                return;
             }
+            
+            // Fallback 1: Попытка 30d если 7d пустой
+            if (period === '7d') {
+                console.log('🔄 Fallback 1: пытаемся загрузить избранные за 30d...');
+                response = await this.api.getCommunityPopularFavorites({ period: '30d', limit });
+                if (response && response.success && response.data && response.data.length > 0) {
+                    this.popularFavorites = response.data;
+                    console.log('✅ CommunityPage: Популярные избранные цитаты (30d) загружены:', this.popularFavorites.length);
+                    return;
+                }
+            }
+            
+            // Fallback 2: Обычные популярные цитаты (агрегация)
+            console.log('🔄 Fallback 2: загружаем обычные популярные цитаты (агрегация)...');
+            await this.loadPopularQuotes('7d', limit);
+            if (this.popularQuotes && this.popularQuotes.length > 0) {
+                // Используем популярные цитаты как резерв
+                this.popularFavorites = this.popularQuotes.map(q => ({
+                    text: q.text,
+                    author: q.author,
+                    favorites: q.count || q.favorites || 0
+                }));
+                console.log('✅ CommunityPage: Используем популярные цитаты как fallback:', this.popularFavorites.length);
+                return;
+            }
+            
+            // Fallback 3: Обычные популярные цитаты за 30d если 7d пустые
+            console.log('🔄 Fallback 3: загружаем обычные популярные цитаты за 30d...');
+            await this.loadPopularQuotes('30d', limit);
+            if (this.popularQuotes && this.popularQuotes.length > 0) {
+                this.popularFavorites = this.popularQuotes.map(q => ({
+                    text: q.text,
+                    author: q.author,
+                    favorites: q.count || q.favorites || 0
+                }));
+                console.log('✅ CommunityPage: Используем популярные цитаты (30d) как fallback:', this.popularFavorites.length);
+                return;
+            }
+            
+            // Если все fallback не сработали
+            this.popularFavorites = [];
+            console.log('⚠️ CommunityPage: Все fallback не сработали, popularFavorites пуст');
+            
         } catch (error) {
             console.error('❌ Ошибка загрузки популярных избранных цитат:', error);
             this.errorStates.popularFavorites = error.message || 'Ошибка загрузки избранных цитат';
             this.popularFavorites = [];
-            
-            // Fallback - загружаем обычные популярные цитаты
-            try {
-                console.log('🔄 Fallback: загружаем обычные популярные цитаты...');
-                await this.loadPopularQuotes(period, limit);
-            } catch (fallbackError) {
-                console.error('❌ Fallback тоже не сработал:', fallbackError);
-            }
         } finally {
             this.loadingStates.popularFavorites = false;
         }
@@ -484,6 +528,191 @@ class CommunityPage {
             this.loadingStates.funFact = false;
         }
     }
+
+    /**
+     * ✨ SPOTLIGHT CACHE METHODS
+     */
+    
+    /**
+     * Проверка свежести кэша spotlight (TTL система)
+     */
+    isSpotlightFresh(ttlMs = 3600000) { // 1 час по умолчанию
+        const now = Date.now();
+        return (now - this._spotlightCache.ts) < ttlMs;
+    }
+
+    /**
+     * Построение микса spotlight: 1 свежая + 2 недавние избранные
+     */
+    async buildSpotlightMix() {
+        const items = [];
+        
+        // 1. Добавляем 1 свежую цитату
+        if (this.latestQuotes && this.latestQuotes.length > 0) {
+            const fresh = this.latestQuotes[0];
+            items.push({
+                kind: 'fresh',
+                id: fresh.id || fresh._id,
+                text: fresh.text,
+                author: fresh.author,
+                createdAt: fresh.createdAt
+            });
+        }
+        
+        // 2. Добавляем до 2 недавних избранных с fallback логикой
+        let favoritesSource = [];
+        
+        try {
+            // Попытка использовать новый endpoint для недавних избранных
+            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 3 });
+            if (recentResponse && recentResponse.success && recentResponse.data && recentResponse.data.length > 0) {
+                favoritesSource = recentResponse.data;
+            } else {
+                throw new Error('Recent favorites endpoint не доступен или пуст');
+            }
+        } catch (error) {
+            console.log('🔄 Spotlight fallback: используем популярные избранные или агрегацию');
+            
+            // Fallback 1: popularFavorites
+            if (this.popularFavorites && this.popularFavorites.length > 0) {
+                favoritesSource = this.popularFavorites;
+            } 
+            // Fallback 2: popularQuotes (агрегация)
+            else if (this.popularQuotes && this.popularQuotes.length > 0) {
+                favoritesSource = this.popularQuotes.map(q => ({
+                    text: q.text,
+                    author: q.author,
+                    favorites: q.count || q.favorites || 0
+                }));
+            }
+        }
+        
+        // Берем первые 2 из избранных (исключая дубликат свежей цитаты)
+        let addedFavorites = 0;
+        for (const fav of favoritesSource) {
+            if (addedFavorites >= 2) break;
+            
+            // Проверяем, не дублируется ли с fresh цитатой
+            const isDuplicate = items.some(item => 
+                item.text === fav.text && item.author === fav.author
+            );
+            
+            if (!isDuplicate) {
+                items.push({
+                    kind: 'fav',
+                    id: fav.id || fav._id,
+                    text: fav.text,
+                    author: fav.author,
+                    favorites: fav.favorites || 0
+                });
+                addedFavorites++;
+            }
+        }
+        
+        return items.slice(0, 3); // Гарантируем максимум 3 элемента
+    }
+
+    /**
+     * Получение spotlight элементов с учетом кэша
+     */
+    async getSpotlightItems() {
+        if (this.isSpotlightFresh()) {
+            return this._spotlightCache.items;
+        }
+        
+        // Обновляем кэш
+        this._spotlightCache.items = await this.buildSpotlightMix();
+        this._spotlightCache.ts = Date.now();
+        
+        return this._spotlightCache.items;
+    }
+
+    /**
+     * Рендер секции spotlight
+     */
+    renderSpotlightSection() {
+        // Для рендера используем кэшированные данные если есть, иначе показываем заглушку
+        const items = this.isSpotlightFresh() ? this._spotlightCache.items : [];
+        
+        if (!items || items.length === 0) {
+            // Если кэш пуст, инициируем загрузку в фоне
+            if (!this.isSpotlightFresh()) {
+                this.getSpotlightItems().then(() => {
+                    // Обновляем интерфейс после загрузки
+                    this.rerender?.();
+                }).catch(error => {
+                    console.warn('Spotlight загрузка не удалась:', error);
+                });
+            }
+            return ''; // Не показываем пустую секцию
+        }
+        
+        const cards = items.map(item => {
+            const badge = item.kind === 'fresh' ? 'Новое' : 'Избранное';
+            const badgeClass = item.kind === 'fresh' ? 'spotlight-card--fresh' : 'spotlight-card--fav';
+            
+            let meta = '';
+            if (item.kind === 'fresh' && item.createdAt) {
+                meta = this.formatSpotlightDate(item.createdAt);
+            } else if (item.kind === 'fav' && typeof item.favorites === 'number') {
+                meta = `❤ ${item.favorites}`;
+            }
+            
+            return `
+                <div class="spotlight-card ${badgeClass}" data-quote-id="${item.id || ''}">
+                    <div class="spotlight-badge">${badge}</div>
+                    <div class="spotlight-text">"${this.escapeHtml(item.text)}"</div>
+                    <div class="spotlight-author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
+                    ${meta ? `<div class="spotlight-meta">${meta}</div>` : ''}
+                    <div class="spotlight-actions">
+                        <button class="quote-card__add-btn" title="Добавить в избранное">+</button>
+                        <button class="quote-card__heart-btn" title="Лайк">❤</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        return `
+            <div class="spotlight-section">
+                <div class="mvp-community-title">✨ Сейчас в сообществе</div>
+                <div class="spotlight-grid">
+                    ${cards}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Форматирование даты для spotlight (сегодня/вчера/ч назад)
+     */
+    formatSpotlightDate(date) {
+        if (!date) return '';
+        
+        const d = new Date(date);
+        const now = new Date();
+        const diffTime = Math.abs(now - d);
+        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) return 'сегодня';
+        if (diffDays === 1) return 'вчера';
+        if (diffHours <= 24) return `${diffHours}ч назад`;
+        
+        return d.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'short'
+        });
+    }
+
+    /**
+     * Экранирование HTML для безопасности
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
     
     /**
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
@@ -532,6 +761,9 @@ class CommunityPage {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
+        // ✨ НОВОЕ: Spotlight секция (1 свежая + 2 недавние избранные)
+        const spotlightSection = this.renderSpotlightSection();
+        
         // "Сейчас изучают" секция с последними кликами по каталогу
         const currentlyStudyingSection = this.renderCurrentlyStudyingSection();
         
@@ -548,6 +780,8 @@ class CommunityPage {
             <div class="stats-summary">
                 📊 Сегодня: ${this.communityData.activeReaders} активных читателей • ${this.communityData.newQuotes} новых цитат
             </div>
+            
+            ${spotlightSection}
             
             ${currentlyStudyingSection}
             
@@ -797,6 +1031,34 @@ class CommunityPage {
         }
 
         if (!this.popularFavorites || this.popularFavorites.length === 0) {
+            // Fallback to aggregation before showing empty state
+            if (this.popularQuotes && this.popularQuotes.length > 0) {
+                const quotesCards = this.popularQuotes.slice(0, 5).map((quote, _index) => {
+                    const favorites = quote.count || quote.favorites || 0;
+                    return `
+                        <div class="favorite-quote-card">
+                            <div class="quote-content">
+                                <div class="quote-text">"${quote.text || ''}"</div>
+                                <div class="quote-author">— ${quote.author || 'Неизвестный автор'}</div>
+                            </div>
+                            <div class="quote-stats">
+                                <span class="heart-count">❤ ${favorites}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="popular-favorites-section">
+                        <div class="mvp-community-title">⭐ Популярные цитаты недели</div>
+                        <div class="favorites-grid">
+                            ${quotesCards}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Only show empty state if no aggregation fallback available
             return `
                 <div class="empty-state">
                     <div class="empty-icon">⭐</div>

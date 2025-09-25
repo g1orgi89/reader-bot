@@ -1808,6 +1808,98 @@ router.get('/community/popular-favorites', communityLimiter, telegramAuth, async
 });
 
 /**
+ * @description Недавние избранные цитаты сообщества для spotlight
+ * @route GET /api/reader/community/favorites/recent
+ */
+router.get('/community/favorites/recent', communityLimiter, telegramAuth, async (req, res) => {
+  try {
+    const { hours: hoursParam, limit: limitParam } = req.query;
+    
+    // Validate hours parameter (default 48, max 168 hours = 7 days)
+    const hours = Math.min(Math.max(parseInt(hoursParam) || 48, 1), 168);
+    
+    // Validate limit parameter (default 10, max 50)
+    const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
+    if (!limitValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid limit parameter. Must be between 1 and 50.' 
+      });
+    }
+
+    // Calculate start date based on hours
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - hours);
+
+    // Aggregate recent favorites
+    const recentFavorites = await Quote.aggregate([
+      {
+        $match: {
+          isFavorite: true,
+          $or: [
+            { editedAt: { $gte: startDate } },
+            { createdAt: { $gte: startDate } }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: {
+            text: '$text',
+            author: '$author'
+          },
+          favorites: { $addToSet: '$userId' },
+          latestEdit: { $max: '$editedAt' },
+          latestCreated: { $max: '$createdAt' },
+          firstId: { $first: '$_id' }
+        }
+      },
+      {
+        $addFields: {
+          favoritesCount: { $size: '$favorites' }
+        }
+      },
+      {
+        $sort: { 
+          latestEdit: -1, 
+          latestCreated: -1, 
+          firstId: 1 
+        }
+      },
+      {
+        $limit: limit
+      },
+      {
+        $project: {
+          text: '$_id.text',
+          author: '$_id.author',
+          favorites: '$favoritesCount',
+          latestEdit: 1,
+          latestCreated: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    const total = recentFavorites.length;
+
+    res.json({
+      success: true,
+      data: recentFavorites,
+      pagination: {
+        hours: hours,
+        limit: limit,
+        total: total
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get Recent Favorites Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * @description Популярные книги сообщества (унифицированный alias для /top-books)
  * @route GET /api/reader/community/popular-books
  */
