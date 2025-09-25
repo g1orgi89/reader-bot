@@ -61,6 +61,39 @@ function isNewWeek(lastWeekKey, currentDate = new Date()) {
     return lastWeekKey !== currentWeekKey;
 }
 
+/**
+ * Проверка, является ли дата сегодняшним днем
+ * @param {Date|string} date - Дата для проверки
+ * @returns {boolean} True если дата сегодняшняя
+ */
+function isToday(date) {
+    const today = new Date();
+    const checkDate = new Date(date);
+    
+    return today.getFullYear() === checkDate.getFullYear() &&
+           today.getMonth() === checkDate.getMonth() &&
+           today.getDate() === checkDate.getDate();
+}
+
+/**
+ * Получение начала сегодняшнего дня
+ * @returns {Date} Начало сегодняшнего дня (00:00:00)
+ */
+function getStartOfToday() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+}
+
+/**
+ * Нормализация текста для сравнения (убирает пробелы и приводит к нижнему регистру)
+ * @param {string} text - Текст для нормализации
+ * @returns {string} Нормализованный текст
+ */
+function normalizeText(text) {
+    return text ? text.toLowerCase().replace(/\s+/g, ' ').trim() : '';
+}
+
 // Экспорт для browser и node
 if (typeof window !== 'undefined') {
     window.DateUtils = {
@@ -68,7 +101,10 @@ if (typeof window !== 'undefined') {
         getMonthName,
         formatReportDate,
         getWeekKey,
-        isNewWeek
+        isNewWeek,
+        isToday,
+        getStartOfToday,
+        normalizeText
     };
 }
 
@@ -78,6 +114,9 @@ if (typeof module !== 'undefined' && module.exports) {
         getMonthName,
         formatReportDate,
         getWeekKey,
-        isNewWeek
+        isNewWeek,
+        isToday,
+        getStartOfToday,
+        normalizeText
     };
 }

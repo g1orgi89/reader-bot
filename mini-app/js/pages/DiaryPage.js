@@ -709,6 +709,33 @@ class DiaryPage {
             });
             quoteAuthor.addEventListener('focus', onFocus);
             quoteAuthor.addEventListener('blur', onBlur);
+            
+            // 🔧 FIX 1: Предотвращение "уезжания" нижней панели навигации
+            // при переходе из textarea в input без промежуточного blur
+            const handleAuthorMouseDown = (e) => {
+                const quoteTextElement = document.getElementById('quoteText');
+                
+                // Если фокус сейчас в textarea, сначала убираем фокус с него
+                if (quoteTextElement && quoteTextElement === document.activeElement) {
+                    quoteTextElement.blur();
+                    
+                    // Короткая задержка для корректного переключения фокуса
+                    setTimeout(() => {
+                        quoteAuthor.focus();
+                        // Форсируем пересчет viewport для предотвращения "зависания" панели
+                        if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
+                            window.viewportCalculator.updateViewportHeight();
+                        }
+                    }, 50);
+                    
+                    // Предотвращаем стандартное поведение фокуса
+                    e.preventDefault();
+                }
+            };
+            
+            // Добавляем обработчики для мыши и тач-событий
+            quoteAuthor.addEventListener('mousedown', handleAuthorMouseDown);
+            quoteAuthor.addEventListener('touchstart', handleAuthorMouseDown, { passive: false });
         }
         
         if (saveBtn) {
@@ -1008,6 +1035,47 @@ class DiaryPage {
                 source: this.formData.source?.trim() || 'mini_app'
             };
 
+            // 🔧 FIX 3: Проверка на дублирующиеся цитаты локально
+            const existingQuotes = this.state.get('quotes.items') || [];
+            const normalizeText = window.DateUtils?.normalizeText || ((text) => text ? text.toLowerCase().replace(/\s+/g, ' ').trim() : '');
+            const isToday = window.DateUtils?.isToday || ((date) => {
+                const today = new Date();
+                const checkDate = new Date(date);
+                return today.getFullYear() === checkDate.getFullYear() &&
+                       today.getMonth() === checkDate.getMonth() &&
+                       today.getDate() === checkDate.getDate();
+            });
+            
+            // Проверяем среди сегодняшних цитат на дубликат
+            const newQuoteText = normalizeText(quoteData.text);
+            const newQuoteAuthor = normalizeText(quoteData.author);
+            
+            const duplicateQuote = existingQuotes.find(quote => {
+                // Проверяем только сегодняшние цитаты
+                if (!isToday(quote.createdAt)) return false;
+                
+                const existingText = normalizeText(quote.text);
+                const existingAuthor = normalizeText(quote.author);
+                
+                return existingText === newQuoteText && existingAuthor === newQuoteAuthor;
+            });
+            
+            if (duplicateQuote) {
+                // Показываем предупреждение о дубликате
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('Такая цитата уже добавлена сегодня.', 'info', 4000);
+                }
+                
+                // Возвращаем кнопку в исходное состояние
+                if (saveBtn) {
+                    saveBtn.disabled = !this.isFormValid();
+                    saveBtn.textContent = '💾 Сохранить в дневник';
+                }
+                
+                this.telegram.hapticFeedback('error');
+                return; // Не отправляем на сервер
+            }
+
             if (saveBtn) {
                 saveBtn.disabled = true;
                 saveBtn.textContent = '💾 Сохраняем...';
@@ -1056,8 +1124,8 @@ class DiaryPage {
             }
 
             // Обновляем список цитат
-            const existingQuotes = this.state.get('quotes.items') || [];
-            const newQuotes = [completeQuote, ...existingQuotes];
+            const currentQuotes = this.state.get('quotes.items') || [];
+            const newQuotes = [completeQuote, ...currentQuotes];
             this.state.set('quotes.items', newQuotes);
 
             // PRODUCTION REFACTOR: Только dispatch событий, StatisticsService сам обработает статистику
@@ -1096,17 +1164,42 @@ class DiaryPage {
                 }, 100);
             }
             } catch (error) {
-            this.telegram.hapticFeedback('error');
-            if (saveBtn) {
-                saveBtn.textContent = '❌ Ошибка';
-                saveBtn.style.backgroundColor = 'var(--error-color, #ef4444)';
-                saveBtn.style.color = 'white';
-                setTimeout(() => {
+            console.error('❌ Ошибка сохранения цитаты:', error);
+            
+            // 🔧 FIX 2: Обработка превышения лимита цитат
+            const isQuotaLimitError = error.code === 'QUOTE_LIMIT_EXCEEDED' || 
+                                     (error.message && error.message.toLowerCase().includes('limit')) ||
+                                     (error.response?.data?.message && error.response.data.message.toLowerCase().includes('limit'));
+            
+            if (isQuotaLimitError) {
+                // Показываем дружелюбное сообщение о лимите
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('Превышен лимит: вы можете добавить не более 10 цитат в день.', 'info', 6000);
+                }
+                
+                // Возвращаем кнопку в исходное состояние (без красного цвета)
+                if (saveBtn) {
                     saveBtn.disabled = !this.isFormValid();
                     saveBtn.textContent = '💾 Сохранить в дневник';
                     saveBtn.style.backgroundColor = '';
                     saveBtn.style.color = '';
-                }, 2000);
+                }
+                
+                this.telegram.hapticFeedback('light'); // Мягкое вибро для информативного сообщения
+            } else {
+                // Обычная обработка других ошибок
+                this.telegram.hapticFeedback('error');
+                if (saveBtn) {
+                    saveBtn.textContent = '❌ Ошибка';
+                    saveBtn.style.backgroundColor = 'var(--error-color, #ef4444)';
+                    saveBtn.style.color = 'white';
+                    setTimeout(() => {
+                        saveBtn.disabled = !this.isFormValid();
+                        saveBtn.textContent = '💾 Сохранить в дневник';
+                        saveBtn.style.backgroundColor = '';
+                        saveBtn.style.color = '';
+                    }, 2000);
+                }
             }
         }
     }
