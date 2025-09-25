@@ -1056,6 +1056,20 @@ class ApiService {
     }
 
     /**
+     * ✨ Получить недавние избранные цитаты сообщества
+     * НОВЫЙ: Для spotlight секции - недавно добавленные в избранное цитаты
+     */
+    async getCommunityRecentFavorites(options = {}) {
+        const params = new URLSearchParams();
+        if (options.hours) params.append('hours', options.hours);
+        if (options.limit) params.append('limit', options.limit);
+        const qs = params.toString();
+        
+        const endpoint = qs ? `/community/favorites/recent?${qs}` : '/community/favorites/recent';
+        return this.request('GET', endpoint);
+    }
+
+    /**
      * 👆 Получить последние клики по каталогу
      * ОБНОВЛЕНО: Точное соответствие требованиям API: GET /api/reader/catalog/clicks/recent?limit=3
      */
