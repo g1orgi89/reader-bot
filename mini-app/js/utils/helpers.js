@@ -78,9 +78,31 @@ function addClassWithAnimation(element, className) {
  * Показывает уведомление пользователю
  * @param {string} message - Текст уведомления
  * @param {string} type - Тип уведомления (success, error, info)
+ * @param {number} duration - Длительность показа в мс
  */
-function showNotification(message, type = 'info') {
-    // Реализация будет добавлена
+function showNotification(message, type = 'info', duration = 3000) {
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    
+    // Добавляем в DOM
+    document.body.appendChild(notification);
+    
+    // Анимация появления
+    requestAnimationFrame(() => {
+        notification.classList.add('show');
+    });
+    
+    // Автоматическое скрытие
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, duration);
 }
 
 // 📊 ФУНКЦИИ ДЛЯ РАБОТЫ С ДАННЫМИ
