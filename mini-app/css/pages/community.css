@@ -1691,43 +1691,55 @@
 }
 
 /* ============================================================================
-   ✨ SPOTLIGHT SECTION STYLES (НОВЫЕ ДЛЯ "СЕЙЧАС В СООБЩЕСТВЕ")
+   ✨ SPOTLIGHT SECTION STYLES (ВОССТАНОВЛЕННЫЙ СТАРЫЙ ДИЗАЙН)
    ============================================================================ */
 
 .community-spotlight {
     background: var(--surface, #FFFFFF);
-    border-radius: var(--border-radius, 12px);
+    border-radius: var(--radius-lg, 12px);
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-lg);
     border: 1px solid var(--border, #E6E0D6);
     box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
 }
 
+.spotlight-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.spotlight-title {
+    font-size: var(--font-size-sm);
+    color: var(--primary-color, #D2452C);
+    margin: 0;
+    font-weight: 600;
+}
+
 .spotlight-refresh-btn {
     background: var(--primary-color, #D2452C);
     color: white;
     border: none;
-    border-radius: var(--border-radius-sm, 8px);
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
     cursor: pointer;
     transition: all var(--transition-normal, 0.3s ease);
-    margin-bottom: var(--spacing-md);
-    min-height: var(--touch-target-min);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-xs);
+    flex-shrink: 0;
 }
 
 .spotlight-refresh-btn:hover {
-    background: var(--primary-hover, #B33A29);
-    transform: translateY(-1px);
+    background: var(--primary-dark, #B33A29);
+    transform: scale(1.05);
 }
 
 .spotlight-refresh-btn:active {
-    transform: translateY(0);
+    transform: scale(0.95);
 }
 
 .spotlight-refresh-btn:disabled {
@@ -1739,7 +1751,85 @@
 .spotlight-grid {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
+}
+
+.quote-card {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #E6E0D6);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    position: relative;
+    transition: var(--transition-normal);
+}
+
+.quote-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.quote-card__text {
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    font-style: italic;
+}
+
+.quote-card__author {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+    font-weight: 500;
+}
+
+.quote-card__meta {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-sm);
+}
+
+.quote-card__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-xs);
+}
+
+.quote-card__add-btn,
+.quote-card__heart-btn {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.quote-card__add-btn:hover,
+.quote-card__heart-btn:hover {
+    background: var(--primary-dark, #B33A29);
+    transform: scale(1.1);
+}
+
+.quote-card__add-btn:active,
+.quote-card__heart-btn:active {
+    transform: scale(0.9);
+}
+
+.quote-card__heart-btn.favorited {
+    background: var(--error-color, #F44336);
+    color: white;
+}
+
+.quote-card__add-btn.added {
+    background: var(--success-color, #28a745);
 }
 
 /* Spotlight badge styles */
@@ -1765,6 +1855,12 @@
     background: var(--accent-color, #E91E63);
 }
 
+/* Spin animation for refresh button */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* Mobile responsive */
 @media (max-width: 480px) {
     .community-spotlight {
@@ -1774,12 +1870,15 @@
         border-right: none;
     }
     
-    .spotlight-refresh-btn {
-        width: 100%;
-        margin-bottom: var(--spacing-sm);
-    }
-    
     .spotlight-grid {
         gap: var(--spacing-sm);
+    }
+    
+    .quote-card__text {
+        font-size: var(--font-size-xs);
+    }
+    
+    .quote-card__author {
+        font-size: 11px;
     }
 }
