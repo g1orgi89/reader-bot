@@ -19,30 +19,12 @@ class CommunityPage {
         this.telegram = app.telegram;
         this.statisticsService = app.statistics || window.statisticsService;
         
-        // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
-        this.communityLoaded = false;
-        this.communityLoading = false;
-        
-        // Данные для "Сейчас изучают" из StatisticsService
-        this.topAnalyses = [];
-        
-        // Состояние (точно как в концепте)
-        this.activeTab = 'feed'; // feed, top, stats
-        
-        // ✅ НОВОЕ: Реальные данные из API (PR-3)
-        this.communityData = {
-            activeReaders: 127,
-            newQuotes: 89,
-            totalReaders: 1247,
-            totalQuotes: 8156,
-            totalAuthors: 342,
-            daysActive: 67
-        };
-
-        // ✅ НОВОЕ: Данные для различных секций (PR-3)
+        // Стейт
+        this.activeTab = 'feed';
+        this.isHydrated = false; // ← первый показ только после префетча
+        this.communityData = { activeReaders: 0, newQuotes: 0, totalReaders: 0, totalQuotes: 0, totalAuthors: 0, daysActive: 0 };
         this.latestQuotes = [];
         this.popularQuotes = [];
-        this.popularFavorites = [];
         this.popularBooks = [];
         this.recentClicks = [];
         this.leaderboard = [];
@@ -52,7 +34,28 @@ class CommunityPage {
         this.communityInsights = null;
         this.funFact = null;
 
-        // ✅ НОВОЕ: Состояния загрузки для каждой секции (PR-3)
+        // Флаги "данные загружены"
+        this.loaded = {
+            latestQuotes: false,
+            popularQuotes: false,
+            popularBooks: false,
+            recentClicks: false,
+            leaderboard: false,
+            stats: false,
+            insights: false,
+            funFact: false,
+            message: false,
+            trend: false
+        };
+        
+        // ✅ LEGACY: Старые флаги для совместимости
+        this.communityLoaded = false;
+        this.communityLoading = false;
+        
+        // Данные для "Сейчас изучают" из StatisticsService
+        this.topAnalyses = [];
+
+        // ✅ LEGACY: Состояния загрузки для каждой секции (PR-3)
         this.loadingStates = {
             latestQuotes: false,
             popularQuotes: false,
@@ -65,7 +68,7 @@ class CommunityPage {
             funFact: false
         };
 
-        // ✅ НОВОЕ: Состояния ошибок для каждой секции (PR-3)
+        // ✅ LEGACY: Состояния ошибок для каждой секции (PR-3)
         this.errorStates = {
             latestQuotes: null,
             popularQuotes: null,
@@ -85,6 +88,44 @@ class CommunityPage {
         this.setupSubscriptions();
         // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init()
     }
+
+    // PREFETCH: вызывается Router перед первым render — грузим всё параллельно
+    async prefetch() {
+        if (this.isHydrated) return; // уже есть готовые данные
+
+        console.log('🔄 CommunityPage: Запуск prefetch - загружаем данные до рендера');
+
+        // Параллельная загрузка без ререндера
+        await Promise.allSettled([
+            this._safe(async () => { const r = await this.api.getCommunityStats(); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } }),
+            this._safe(async () => { const r = await this.api.getCommunityLatestQuotes({ limit: 3 }); if (r?.success) { this.latestQuotes = r.data || []; this.loaded.latestQuotes = true; } }),
+            this._safe(async () => { const r = await this.api.getTopBooks({ period: '7d', limit: 10 }); if (r?.success) { this.popularBooks = r.data || []; this.loaded.popularBooks = true; } }),
+            this._safe(async () => { const r = await this.api.getCatalogRecentClicks({ limit: 3 }); if (r?.success) { this.recentClicks = r.clicks || r.data || []; this.loaded.recentClicks = true; } }),
+            this._safe(async () => { const r = await this.api.getCommunityMessage(); if (r?.success) { this.communityMessage = r.data; this.loaded.message = true; } }),
+            this._safe(async () => { const r = await this.api.getCommunityTrend(); if (r?.success) { this.communityTrend = r.data; this.loaded.trend = true; } }),
+            this._safe(async () => { // Популярные цитаты по лайкам с fallback
+                let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null);
+                if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null);
+                if (r?.success) {
+                    const arr = r.data || r.quotes || [];
+                    this.popularQuotes = arr.map(q => ({ text: q.text, author: q.author, favorites: (typeof q.favorites === 'number') ? q.favorites : (q.count || 0) }));
+                    this.loaded.popularQuotes = true;
+                }
+            }),
+            this._safe(async () => { // лидерборд + me
+                const r = await this.api.getLeaderboard({ period: '7d', limit: 10 });
+                if (r?.success) { this.leaderboard = r.data || []; this.userProgress = r.me || null; this.loaded.leaderboard = true; }
+            }),
+            this._safe(async () => { const r = await this.api.getCommunityInsights?.({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } }),
+            this._safe(async () => { const r = await this.api.getCommunityFunFact?.({ period: '7d' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } })
+        ]);
+
+        this.isHydrated = true; // теперь можно первый раз рендерить
+        console.log('✅ CommunityPage: Prefetch завершен - данные готовы');
+    }
+
+    // Вспомогательный безопасный запуск
+    async _safe(fn) { try { await fn(); } catch (_) { /* ignore errors */ } }
     
     /**
      * Склонение слова "цитата" для корректного отображения
@@ -279,34 +320,6 @@ class CommunityPage {
     }
 
     /**
-     * 🏆 ЗАГРУЗКА ТАБЛИЦЫ ЛИДЕРОВ (PR-3)
-     */
-    async loadLeaderboard(limit = 10) {
-        if (this.loadingStates.leaderboard) return;
-        
-        try {
-            this.loadingStates.leaderboard = true;
-            this.errorStates.leaderboard = null;
-            console.log('🏆 CommunityPage: Загружаем таблицу лидеров...');
-            
-            const response = await this.api.getLeaderboard({ limit });
-            if (response && response.success) {
-                // Нормализация: читаем из resp.data или resp.items
-                this.leaderboard = response.data || response.items || [];
-                console.log('✅ CommunityPage: Таблица лидеров загружена:', this.leaderboard.length);
-            } else {
-                this.leaderboard = [];
-            }
-        } catch (error) {
-            console.error('❌ Ошибка загрузки таблицы лидеров:', error);
-            this.errorStates.leaderboard = error.message || 'Ошибка загрузки лидеров';
-            this.leaderboard = [];
-        } finally {
-            this.loadingStates.leaderboard = false;
-        }
-    }
-    
-    /**
      * 📚 ЗАГРУЗКА ТОПОВЫХ АНАЛИЗОВ ИЗ STATISTICSSERVICE
      */
     async loadTopAnalyses() {
@@ -476,6 +489,11 @@ class CommunityPage {
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
      */
     render() {
+        if (!this.isHydrated) {
+            // Возвращаем пустую строку, Router удерживает предыдущую страницу на экране до готовности
+            return '';
+        }
+
         return `
             <div class="content">
                 ${this.renderTabs()}
@@ -545,30 +563,8 @@ class CommunityPage {
      * 📰 СЕКЦИЯ ПОСЛЕДНИХ ЦИТАТ СООБЩЕСТВА (ОБНОВЛЕНО ДЛЯ PR-3)
      */
     renderLatestQuotesSection() {
-        if (this.loadingStates.latestQuotes) {
-            return `
-                <div class="mvp-community-item">
-                    <div class="mvp-community-title">💫 Последние цитаты сообщества</div>
-                    <div class="loading-state">
-                        <div class="loading-spinner"></div>
-                        <div class="loading-text">Загружаем цитаты...</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        if (this.errorStates.latestQuotes) {
-            return `
-                <div class="error-state">
-                    <div class="error-icon">❌</div>
-                    <div class="error-title">Ошибка загрузки</div>
-                    <div class="error-description">${this.errorStates.latestQuotes}</div>
-                    <button class="error-retry-btn" data-retry="latest-quotes" style="min-height: var(--touch-target-min);">Повторить</button>
-                </div>
-            `;
-        }
-
-        if (!this.latestQuotes || this.latestQuotes.length === 0) {
+        // Если данные загружены, но список пуст - показываем empty state
+        if (this.loaded.latestQuotes && (!this.latestQuotes || this.latestQuotes.length === 0)) {
             return `
                 <div class="empty-state">
                     <div class="empty-icon">📝</div>
@@ -578,7 +574,11 @@ class CommunityPage {
             `;
         }
 
-        // Показываем последние 3 цитаты сообщества как карточки
+        // Если данные ещё не загружены — ничего не показываем (без заглушек)
+        if (!this.latestQuotes || this.latestQuotes.length === 0) {
+            return '';
+        }
+
         const quotesCards = this.latestQuotes.slice(0, 3).map((quote, index) => {
             return `
                 <div class="quote-card" data-quote-id="${quote.id || index}">
@@ -588,21 +588,15 @@ class CommunityPage {
                         <div class="quote-card__meta">
                             <span class="quote-card__date">${this.formatDate(quote.createdAt || quote.date)}</span>
                             <div class="quote-card__actions">
-                                <button class="quote-card__add-btn" 
-                                        data-quote-id="${quote.id || index}"
+                                <button class="quote-card__fav-btn" data-quote-id="${quote.id || index}"
                                         data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
                                         data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
-                                        style="min-height: var(--touch-target-min);"
-                                        aria-label="Добавить цитату в дневник">
-                                    <span class="add-icon">+</span>
-                                </button>
-                                <button class="quote-card__heart-btn" 
-                                        data-quote-id="${quote.id || index}"
+                                        style="min-height: var(--touch-target-min);" aria-label="Добавить в избранное">❤</button>
+                                <button class="quote-card__add-btn" data-quote-id="${quote.id || index}"
                                         data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
                                         data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
-                                        style="min-height: var(--touch-target-min);"
-                                        aria-label="Добавить в избранное">
-                                    <span class="heart-icon">❤</span>
+                                        style="min-height: var(--touch-target-min);" aria-label="Добавить цитату в дневник">
+                                  <span class="add-icon">+</span>
                                 </button>
                             </div>
                         </div>
@@ -610,7 +604,7 @@ class CommunityPage {
                 </div>
             `;
         }).join('');
-        
+
         return `
             <div class="latest-quotes-section">
                 <div class="mvp-community-title">💫 Последние цитаты сообщества</div>
@@ -658,9 +652,9 @@ class CommunityPage {
             `;
         }
         
-        const recentClicksCards = this.recentClicks.slice(0, 3).map((click, index) => `
+        const recentClicksCards = this.recentClicks.slice(0, 3).map((click, _index) => `
             <div class="currently-studying-item" data-book-id="${click.book?.id || click.bookId || click.id}" style="margin-bottom: var(--spacing-sm); min-height: var(--touch-target-min);">
-                <div class="studying-rank">${index + 1}</div>
+                <div class="studying-rank">${_index + 1}</div>
                 <div class="studying-content">
                     <div class="studying-title">${click.book?.title || click.bookTitle || click.title || 'Неизвестная книга'}</div>
                     <div class="studying-author">${click.book?.author || click.bookAuthor || click.author || 'Неизвестный автор'}</div>
@@ -767,7 +761,7 @@ class CommunityPage {
         if (this.errorStates.popularFavorites) {
             // Fallback to regular popular quotes on error
             if (this.popularQuotes && this.popularQuotes.length > 0) {
-                const quotesCards = this.popularQuotes.slice(0, 5).map((quote, index) => {
+                const quotesCards = this.popularQuotes.slice(0, 5).map((quote, _index) => {
                     const favorites = quote.count || 0; // Fallback to count field
                     return `
                         <div class="favorite-quote-card">
@@ -812,7 +806,7 @@ class CommunityPage {
             `;
         }
 
-        const quotesCards = this.popularFavorites.slice(0, 5).map((quote, index) => {
+        const quotesCards = this.popularFavorites.slice(0, 5).map((quote, _index) => {
             const favorites = quote.favorites || 0;
             return `
                 <div class="favorite-quote-card">
@@ -915,7 +909,7 @@ class CommunityPage {
             `;
         }
 
-        const { position, quotesWeek, percentile, deltaToNext, deltaToLeader } = this.userProgress;
+        const { position, quotesWeek, percentile, deltaToNext } = this.userProgress;
         
         // Рассчитываем прогресс-бар относительно лидера
         const leaderCount = this.leaderboard.length > 0 ? (this.leaderboard[0].quotesWeek ?? this.leaderboard[0].quotes ?? 0) : 1;
@@ -1466,17 +1460,32 @@ class CommunityPage {
         }
     }
     
+    // Переключение вкладок — без промежуточных лоадеров
     switchTab(tabName) {
         this.activeTab = tabName;
         this.triggerHapticFeedback('light');
         this.rerender();
+        // Предзагрузка данных для вкладки в фоне (без изменения UI)
+        if (tabName === 'top') {
+            Promise.allSettled([
+                this._safe(async () => { if (!this.loaded.leaderboard) { const r = await this.api.getLeaderboard({ period: '7d', limit: 10 }); if (r?.success) { this.leaderboard = r.data || []; this.userProgress = r.me || null; this.loaded.leaderboard = true; } } }),
+                this._safe(async () => { if (!this.loaded.popularQuotes) { let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null); if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null); if (r?.success) { const arr = r.data || r.quotes || []; this.popularQuotes = arr.map(q => ({ text: q.text, author: q.author, favorites: (typeof q.favorites === 'number') ? q.favorites : (q.count || 0) })); this.loaded.popularQuotes = true; } } })
+            ]).then(() => this.rerender());
+        } else if (tabName === 'stats') {
+            Promise.allSettled([
+                this._safe(async () => { if (!this.loaded.stats) { const r = await this.api.getCommunityStats(); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } } }),
+                this._safe(async () => { if (!this.loaded.insights && this.api.getCommunityInsights) { const r = await this.api.getCommunityInsights({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } } }),
+                this._safe(async () => { if (!this.loaded.funFact && this.api.getCommunityFunFact) { const r = await this.api.getCommunityFunFact({ period: '7d' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } } })
+            ]).then(() => this.rerender());
+        }
     }
     
     /**
      * 📱 LIFECYCLE МЕТОДЫ - ОБНОВЛЕН ДЛЯ PR-3!
      */
+    // onShow больше НЕ делает первоначальных загрузок/лоадеров — только фоновые обновления при необходимости
     async onShow() {
-        console.log('👥 CommunityPage: onShow - БЕЗ ШАПКИ!');
+        console.log('👥 CommunityPage: onShow - реализация SWR для фоновых обновлений');
         
         // ✅ НОВОЕ: Вызов warmupInitialStats при входе на экран
         if (this.statisticsService && typeof this.statisticsService.warmupInitialStats === 'function') {
@@ -1488,30 +1497,23 @@ class CommunityPage {
             }
         }
         
-        // ✅ НОВОЕ PR-3: Загружаем данные для всех секций
-        await this.loadAllSections();
-        
-        // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
-        if (!this.communityLoaded) {
-            console.log('🔄 CommunityPage: Первый показ, загружаем данные');
-            this.loadCommunityData().then(() => {
+        // SWR: можно тихо перезагрузить что-то в фоне (не меняя UI) по таймауту/критерию устаревания
+        // Например, раз в 10 минут:
+        const last = this.state.get('community.lastUpdate') || 0;
+        if (Date.now() - last > 10 * 60 * 1000) {
+            this.state.set('community.lastUpdate', Date.now());
+            console.log('🔄 CommunityPage: Данные устарели - запускаем фоновое обновление');
+            // В фоне обновляем ключевые секции, но НЕ трогаем разметку до завершения, затем один общий rerender
+            Promise.allSettled([
+                this._safe(async () => { const r = await this.api.getCommunityStats(); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; } }),
+                this._safe(async () => { const r = await this.api.getCommunityTrend(); if (r?.success) { this.communityTrend = r.data; } }),
+                this._safe(async () => { const r = await this.api.getCommunityInsights?.({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; } })
+            ]).then(() => {
+                console.log('✅ CommunityPage: Фоновое обновление завершено');
                 this.rerender();
             });
         } else {
-            // Проверяем актуальность данных (10 минут)
-            const lastUpdate = this.state.get('community.lastUpdate');
-            const now = Date.now();
-            const tenMinutes = 10 * 60 * 1000;
-            
-            if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
-                console.log('🔄 CommunityPage: Данные устарели, обновляем');
-                this.loadCommunityData().then(() => {
-                    this.rerender();
-                });
-            } else {
-                console.log('✅ CommunityPage: Данные актуальны');
-                this.rerender(); // Rerender to show loaded data
-            }
+            console.log('✅ CommunityPage: Данные актуальны, фоновое обновление не требуется');
         }
     }
 
@@ -1587,7 +1589,6 @@ class CommunityPage {
         const button = event.target.closest('.quote-card__add-btn');
         if (!button) return;
         
-        const quoteId = button.dataset.quoteId;
         const quoteCard = button.closest('.quote-card');
         
         if (!quoteCard) return;
@@ -1653,7 +1654,6 @@ class CommunityPage {
         const button = event.target.closest('.quote-card__heart-btn');
         if (!button) return;
         
-        const quoteId = button.dataset.quoteId;
         const quoteCard = button.closest('.quote-card');
         
         if (!quoteCard) return;
