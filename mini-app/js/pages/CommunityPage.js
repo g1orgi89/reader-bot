@@ -274,7 +274,7 @@ class CommunityPage {
                 this.popularFavorites = this.popularQuotes.map(q => ({
                     text: q.text,
                     author: q.author,
-                    favorites: q.count || q.favorites || 0
+                    favorites: q.favorites || q.count || q.likes || 0
                 }));
                 console.log('✅ CommunityPage: Используем популярные цитаты как fallback:', this.popularFavorites.length);
                 return;
@@ -287,7 +287,7 @@ class CommunityPage {
                 this.popularFavorites = this.popularQuotes.map(q => ({
                     text: q.text,
                     author: q.author,
-                    favorites: q.count || q.favorites || 0
+                    favorites: q.favorites || q.count || q.likes || 0
                 }));
                 console.log('✅ CommunityPage: Используем популярные цитаты (30d) как fallback:', this.popularFavorites.length);
                 return;
@@ -582,7 +582,7 @@ class CommunityPage {
                 favoritesSource = this.popularQuotes.map(q => ({
                     text: q.text,
                     author: q.author,
-                    favorites: q.count || q.favorites || 0
+                    favorites: q.favorites || q.count || q.likes || 0
                 }));
             }
         }
@@ -1799,7 +1799,7 @@ class CommunityPage {
         if (tabName === 'top') {
             Promise.allSettled([
                 this._safe(async () => { if (!this.loaded.leaderboard) { const r = await this.api.getLeaderboard({ period: '7d', limit: 10 }); if (r?.success) { this.leaderboard = r.data || []; this.userProgress = r.me || null; this.loaded.leaderboard = true; } } }),
-                this._safe(async () => { if (!this.loaded.popularQuotes) { let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null); if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null); if (r?.success) { const arr = r.data || r.quotes || []; this.popularQuotes = arr.map(q => ({ text: q.text, author: q.author, favorites: (typeof q.favorites === 'number') ? q.favorites : (q.count || 0) })); this.loaded.popularQuotes = true; } } })
+                this._safe(async () => { if (!this.loaded.popularQuotes) { let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null); if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null); if (r?.success) { const arr = r.data || r.quotes || []; this.popularQuotes = arr.map(q => ({ text: q.text, author: q.author, favorites: q.favorites || q.count || q.likes || 0 })); this.loaded.popularQuotes = true; } } })
             ]).then(() => this.rerender());
         } else if (tabName === 'stats') {
             Promise.allSettled([
@@ -2010,9 +2010,28 @@ class CommunityPage {
             const newCount = currentFavorites + 1;
             button.dataset.favorites = newCount;
             
-            // Обновляем счетчик в мета-информации, если он есть
-            if (metaElement && metaElement.textContent.includes('❤')) {
-                metaElement.textContent = `❤ ${newCount}`;
+            // Обновляем или создаем счетчик в мета-информации
+            if (metaElement) {
+                if (metaElement.textContent.includes('❤')) {
+                    // Обновляем существующий счетчик
+                    metaElement.textContent = `❤ ${newCount}`;
+                } else {
+                    // Добавляем счетчик к существующему контенту
+                    metaElement.innerHTML += ` • ❤ ${newCount}`;
+                }
+            } else {
+                // Создаем новый элемент мета с счетчиком лайков
+                const newMetaElement = document.createElement('div');
+                newMetaElement.className = 'quote-card__meta';
+                newMetaElement.textContent = `❤ ${newCount}`;
+                
+                // Вставляем перед actions или в конец карточки
+                const actionsElement = quoteCard.querySelector('.quote-card__actions');
+                if (actionsElement) {
+                    quoteCard.insertBefore(newMetaElement, actionsElement);
+                } else {
+                    quoteCard.appendChild(newMetaElement);
+                }
             }
             
             // Добавляем цитату в избранное через API
@@ -2032,8 +2051,14 @@ class CommunityPage {
                 if (response.data && typeof response.data.favorites === 'number') {
                     const apiCount = response.data.favorites;
                     button.dataset.favorites = apiCount;
-                    if (metaElement && metaElement.textContent.includes('❤')) {
-                        metaElement.textContent = `❤ ${apiCount}`;
+                    
+                    // Обновляем счетчик в мета-информации
+                    const updatedMetaElement = quoteCard.querySelector('.quote-card__meta');
+                    if (updatedMetaElement) {
+                        if (updatedMetaElement.textContent.includes('❤')) {
+                            // Заменяем счетчик лайков в мета
+                            updatedMetaElement.textContent = updatedMetaElement.textContent.replace(/❤ \d+/, `❤ ${apiCount}`);
+                        }
                     }
                 }
                 
@@ -2050,9 +2075,21 @@ class CommunityPage {
             button.dataset.favorites = currentFavorites;
             
             // Восстанавливаем счетчик в мета-информации
-            const metaElement = quoteCard.querySelector('.quote-card__meta');
-            if (metaElement && metaElement.textContent.includes('❤')) {
-                metaElement.textContent = `❤ ${currentFavorites}`;
+            const errorMetaElement = quoteCard.querySelector('.quote-card__meta');
+            if (errorMetaElement) {
+                if (currentFavorites > 0 && errorMetaElement.textContent.includes('❤')) {
+                    // Восстанавливаем предыдущий счетчик
+                    errorMetaElement.textContent = errorMetaElement.textContent.replace(/❤ \d+/, `❤ ${currentFavorites}`);
+                } else if (currentFavorites === 0 && errorMetaElement.textContent.includes('❤')) {
+                    // Удаляем созданный нами счетчик лайков, если его не было изначально
+                    if (errorMetaElement.textContent.trim() === `❤ ${newCount}`) {
+                        // Если мета содержит только наш счетчик, удаляем весь элемент
+                        errorMetaElement.remove();
+                    } else {
+                        // Иначе просто убираем счетчик из текста
+                        errorMetaElement.textContent = errorMetaElement.textContent.replace(/ • ❤ \d+/, '').replace(/❤ \d+/, '').trim();
+                    }
+                }
             }
             
             // Показываем ошибку

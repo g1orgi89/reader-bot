@@ -1405,15 +1405,15 @@
     background: var(--primary-color, #D2452C);
     color: white;
     border: none;
-    border-radius: 50%;
-    width: var(--touch-target-min);
-    height: var(--touch-target-min);
+    border-radius: var(--radius-md);
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: var(--transition-normal);
-    font-size: var(--font-size-lg);
+    font-size: 14px;
     font-weight: bold;
     box-shadow: var(--shadow-sm);
 }
@@ -1792,7 +1792,10 @@
 .quote-card__actions {
     display: flex;
     justify-content: flex-end;
-    gap: var(--spacing-xs);
+    gap: var(--spacing-md);
+    /* Обеспечиваем достаточное пространство для touch targets */
+    padding: var(--spacing-sm);
+    margin: calc(-1 * var(--spacing-sm));
 }
 
 .quote-card__add-btn,
@@ -1800,7 +1803,7 @@
     background: var(--primary-color, #D2452C);
     color: white;
     border: none;
-    border-radius: 50%;
+    border-radius: var(--radius-md);
     width: 28px;
     height: 28px;
     font-size: 14px;
