@@ -1085,6 +1085,32 @@ class ApiService {
         return this.request('GET', '/community/trend');
     }
 
+    /**
+     * 📊 Получить инсайты сообщества за период
+     * НОВЫЙ: API для инсайтов: GET /api/reader/community/insights
+     */
+    async getCommunityInsights(options = {}) {
+        const params = new URLSearchParams();
+        if (options.period) params.append('period', options.period);
+        const qs = params.toString();
+        
+        const endpoint = qs ? `/community/insights?${qs}` : '/community/insights';
+        return this.request('GET', endpoint);
+    }
+
+    /**
+     * 🎉 Получить интересный факт недели
+     * НОВЫЙ: API для факта недели: GET /api/reader/community/fun-fact
+     */
+    async getCommunityFunFact(options = {}) {
+        const params = new URLSearchParams();
+        if (options.period) params.append('period', options.period);
+        const qs = params.toString();
+        
+        const endpoint = qs ? `/community/fun-fact?${qs}` : '/community/fun-fact';
+        return this.request('GET', endpoint);
+    }
+
     // ===========================================
     // 🛠️ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     // ===========================================

@@ -49,6 +49,8 @@ class CommunityPage {
         this.userProgress = null;
         this.communityMessage = null;
         this.communityTrend = null;
+        this.communityInsights = null;
+        this.funFact = null;
 
         // ✅ НОВОЕ: Состояния загрузки для каждой секции (PR-3)
         this.loadingStates = {
@@ -58,7 +60,9 @@ class CommunityPage {
             popularBooks: false,
             recentClicks: false,
             leaderboard: false,
-            stats: false
+            stats: false,
+            communityInsights: false,
+            funFact: false
         };
 
         // ✅ НОВОЕ: Состояния ошибок для каждой секции (PR-3)
@@ -69,7 +73,9 @@ class CommunityPage {
             popularBooks: null,
             recentClicks: null,
             leaderboard: null,
-            stats: null
+            stats: null,
+            communityInsights: null,
+            funFact: null
         };
         
         this.init();
@@ -407,6 +413,62 @@ class CommunityPage {
             console.error('❌ CommunityPage: Ошибка загрузки лидерборда:', e);
         } finally {
             this.loadingStates.leaderboard = false;
+        }
+    }
+
+    /**
+     * 📊 ЗАГРУЗКА ИНСАЙТОВ СООБЩЕСТВА
+     */
+    async loadCommunityInsights(period = '7d') {
+        if (this.loadingStates.communityInsights) return;
+        
+        try {
+            this.loadingStates.communityInsights = true;
+            this.errorStates.communityInsights = null;
+            console.log('📊 CommunityPage: Загружаем инсайты сообщества за', period);
+            
+            const response = await this.api.getCommunityInsights({ period });
+            if (response && response.success) {
+                this.communityInsights = response.insights;
+                console.log('✅ CommunityPage: Инсайты загружены:', this.communityInsights);
+            } else {
+                this.communityInsights = null;
+                console.warn('⚠️ CommunityPage: Некорректный ответ инсайтов');
+            }
+        } catch (e) {
+            this.errorStates.communityInsights = e.message || 'Ошибка загрузки инсайтов';
+            this.communityInsights = null;
+            console.error('❌ CommunityPage: Ошибка загрузки инсайтов:', e);
+        } finally {
+            this.loadingStates.communityInsights = false;
+        }
+    }
+
+    /**
+     * 🎉 ЗАГРУЗКА ИНТЕРЕСНОГО ФАКТА НЕДЕЛИ
+     */
+    async loadFunFact(period = '7d') {
+        if (this.loadingStates.funFact) return;
+        
+        try {
+            this.loadingStates.funFact = true;
+            this.errorStates.funFact = null;
+            console.log('🎉 CommunityPage: Загружаем интересный факт за', period);
+            
+            const response = await this.api.getCommunityFunFact({ period });
+            if (response && response.success) {
+                this.funFact = response.data;
+                console.log('✅ CommunityPage: Интересный факт загружен:', this.funFact);
+            } else {
+                this.funFact = null;
+                console.warn('⚠️ CommunityPage: Некорректный ответ факта');
+            }
+        } catch (e) {
+            this.errorStates.funFact = e.message || 'Ошибка загрузки факта';
+            this.funFact = null;
+            console.error('❌ CommunityPage: Ошибка загрузки факта:', e);
+        } finally {
+            this.loadingStates.funFact = false;
         }
     }
     
@@ -989,6 +1051,21 @@ class CommunityPage {
      * 📊 ТАБ СТАТИСТИКА (ИЗ ДОПОЛНИТЕЛЬНОГО КОНЦЕПТА!)
      */
     renderStatsTab() {
+        // Интерес к разборам
+        const interestSection = this.renderInterestSection();
+        
+        // Популярные авторы
+        const authorsSection = this.renderPopularAuthorsSection();
+        
+        // Достижения сообщества
+        const achievementsSection = this.renderAchievementsSection();
+        
+        // Рейтинг пользователя
+        const userRatingSection = this.renderUserRatingSection();
+        
+        // Интересный факт
+        const factSection = this.renderFunFactSection();
+        
         return `
             <div class="community-stats-overview">
                 <div class="community-stats-title">📈 Общая статистика сообщества</div>
@@ -1012,50 +1089,172 @@ class CommunityPage {
                 </div>
             </div>
             
+            ${interestSection}
+            ${authorsSection}
+            ${achievementsSection}
+            ${userRatingSection}
+            ${factSection}
+        `;
+    }
+
+    /**
+     * 📚 СЕКЦИЯ ИНТЕРЕСА К РАЗБОРАМ (ДИНАМИЧЕСКАЯ)
+     */
+    renderInterestSection() {
+        if (!this.communityInsights?.interest) {
+            return `
+                <div class="stats-detail-section">
+                    <div class="stats-detail-title">📚 Интерес к разборам</div>
+                    <div class="stats-detail-item">📊 Данные загружаются...</div>
+                </div>
+            `;
+        }
+
+        const interest = this.communityInsights.interest;
+        const leader = interest.leader;
+        const growthText = interest.growthPct > 0 ? `+${interest.growthPct}%` : 
+                          interest.growthPct < 0 ? `${interest.growthPct}%` : '0%';
+        
+        return `
             <div class="stats-detail-section">
                 <div class="stats-detail-title">📚 Интерес к разборам</div>
-                <div class="stats-detail-item">🔥 Лидер недели: "Искусство любить"</div>
-                <div class="stats-detail-item">📈 Рост интереса: +23% к прошлой неделе</div>
-                <div class="stats-detail-item">📖 Активно изучают 12 разборов</div>
+                ${leader ? `<div class="stats-detail-item">🔥 Лидер недели: "${leader.title}" — ${leader.author}</div>` : ''}
+                <div class="stats-detail-item">📈 Рост интереса: ${growthText} к прошлой неделе</div>
+                <div class="stats-detail-item">📖 Активно изучают ${interest.activelyStudying} разборов</div>
             </div>
-            
+        `;
+    }
+
+    /**
+     * ✍️ СЕКЦИЯ ПОПУЛЯРНЫХ АВТОРОВ (ДИНАМИЧЕСКАЯ)
+     */
+    renderPopularAuthorsSection() {
+        if (!this.communityInsights?.topAuthors || this.communityInsights.topAuthors.length === 0) {
+            return `
+                <div class="stats-detail-section">
+                    <div class="stats-detail-title">✍️ Популярные авторы в цитатах</div>
+                    <div class="stats-detail-item">📊 Данные загружаются...</div>
+                </div>
+            `;
+        }
+
+        const authorsItems = this.communityInsights.topAuthors.slice(0, 5).map((author, index) => {
+            const count = author.count;
+            const plural = count % 10 === 1 && count % 100 !== 11 ? 'цитата' : 
+                          (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) ? 'цитаты' : 'цитат';
+            return `<div class="stats-detail-item">${index + 1}. ${author.author} — ${count} ${plural}</div>`;
+        }).join('');
+
+        return `
             <div class="stats-detail-section">
                 <div class="stats-detail-title">✍️ Популярные авторы в цитатах</div>
-                <div class="stats-detail-item">1. Эрих Фромм — 89 цитат</div>
-                <div class="stats-detail-item">2. Анна Бусел — 67 цитат</div>
-                <div class="stats-detail-item">3. Марина Цветаева — 45 цитат</div>
-                <div class="stats-detail-item">4. Будда — 34 цитаты</div>
-                <div class="stats-detail-item">5. Ошо — 29 цитат</div>
+                ${authorsItems}
             </div>
+        `;
+    }
+
+    /**
+     * 🏆 СЕКЦИЯ ДОСТИЖЕНИЙ СООБЩЕСТВА (ДИНАМИЧЕСКАЯ)
+     */
+    renderAchievementsSection() {
+        if (!this.communityInsights?.achievements || this.communityInsights.achievements.length === 0) {
+            return `
+                <div class="stats-detail-section">
+                    <div class="stats-detail-title">🏆 Достижения сообщества</div>
+                    <div class="stats-detail-item">📊 Данные загружаются...</div>
+                </div>
+            `;
+        }
+
+        const achievementItems = this.communityInsights.achievements.map(achievement => {
+            const users = achievement.users;
+            const plural = users % 10 === 1 && users % 100 !== 11 ? 'человек' : 
+                          (users % 10 >= 2 && users % 10 <= 4 && (users % 100 < 10 || users % 100 >= 20)) ? 'человека' : 'человек';
+            let icon = '📖';
+            let title = 'Активные читатели';
             
+            if (achievement.threshold === '20+') {
+                icon = '🔥';
+                title = 'Коллекционеры мудрости';
+            } else if (achievement.threshold === '10+') {
+                icon = '⭐';
+                title = 'Философы недели';
+            } else if (achievement.threshold === '7+') {
+                icon = '💎';
+                title = 'Мыслители';
+            } else if (achievement.threshold === '5+') {
+                icon = '📚';
+                title = 'Любители классики';
+            } else if (achievement.threshold === '3+') {
+                icon = '✨';
+                title = 'Вдохновители';
+            }
+            
+            return `<div class="stats-detail-item">${icon} "${title}" — ${users} ${plural}</div>`;
+        }).join('');
+
+        return `
             <div class="stats-detail-section">
                 <div class="stats-detail-title">🏆 Достижения сообщества</div>
-                <div class="stats-detail-item">🔥 "Коллекционер мудрости" — 23 человека</div>
-                <div class="stats-detail-item">📚 "Философ недели" — 15 человек</div>
-                <div class="stats-detail-item">💎 "Мыслитель" — 11 человек</div>
-                <div class="stats-detail-item">📖 "Любитель классики" — 8 человек</div>
-                <div class="stats-detail-item">⭐ "Вдохновитель" — 3 человека</div>
+                ${achievementItems}
             </div>
-            
+        `;
+    }
+
+    /**
+     * 📊 СЕКЦИЯ РЕЙТИНГА ПОЛЬЗОВАТЕЛЯ (ДИНАМИЧЕСКАЯ)
+     */
+    renderUserRatingSection() {
+        if (!this.communityInsights?.userRating) {
+            return `
+                <div class="user-rating-section">
+                    <div class="user-rating-title">📊 Ваш рейтинг</div>
+                    <div class="user-rating-grid">
+                        <div class="user-rating-item">
+                            <div class="user-rating-value">—</div>
+                            <div class="user-rating-label">Место в топе</div>
+                        </div>
+                        <div class="user-rating-item">
+                            <div class="user-rating-value">—</div>
+                            <div class="user-rating-label">Активнее других</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const userRating = this.communityInsights.userRating;
+        
+        return `
             <div class="user-rating-section">
                 <div class="user-rating-title">📊 Ваш рейтинг</div>
                 <div class="user-rating-grid">
                     <div class="user-rating-item">
-                        <div class="user-rating-value">#2</div>
+                        <div class="user-rating-value">#${userRating.position}</div>
                         <div class="user-rating-label">Место в топе</div>
                     </div>
                     <div class="user-rating-item">
-                        <div class="user-rating-value">78%</div>
+                        <div class="user-rating-value">${userRating.percentile}%</div>
                         <div class="user-rating-label">Активнее других</div>
                     </div>
                 </div>
             </div>
-            
+        `;
+    }
+
+    /**
+     * ✨ СЕКЦИЯ ИНТЕРЕСНОГО ФАКТА (ДИНАМИЧЕСКАЯ)
+     */
+    renderFunFactSection() {
+        const factText = this.funFact || 'Данные загружаются...';
+        
+        return `
             <div class="fact-section">
                 <div class="fact-title">✨ Интересный факт</div>
-                <div class="fact-text">Цитаты Эриха Фромма чаще всего добавляют в избранное в сообществе!</div>
+                <div class="fact-text">${factText}</div>
             </div>
         `;
+    }
     }
     
     /**
@@ -1331,7 +1530,9 @@ class CommunityPage {
             this.loadRecentClicks(3), // Последние 3 клика для "Сейчас изучают"
             this.loadCommunityMessage(), // Сообщение от Анны
             this.loadCommunityTrend(), // Тренд недели
-            this.loadLeaderboard(10, '7d') // Лидерборд за неделю
+            this.loadLeaderboard(10, '7d'), // Лидерборд за неделю
+            this.loadCommunityInsights('7d'), // Инсайты сообщества
+            this.loadFunFact('7d') // Интересный факт недели
         ];
 
         try {
