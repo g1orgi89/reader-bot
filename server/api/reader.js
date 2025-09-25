@@ -1980,6 +1980,10 @@ router.get('/community/stats', communityLimiter, telegramAuth, async (req, res) 
 
     const topAuthors = await Quote.getTopAuthors(oneWeekAgo);
 
+    // Calculate dynamic daysActive from first quote in database
+    const firstQuote = await Quote.findOne({}, { createdAt: 1 }).sort({ createdAt: 1 }).lean();
+    const daysActive = firstQuote ? Math.max(1, Math.ceil((Date.now() - new Date(firstQuote.createdAt)) / 86400000)) : 0;
+
     res.json({
       success: true,
       data: {
@@ -1991,7 +1995,7 @@ router.get('/community/stats', communityLimiter, telegramAuth, async (req, res) 
         newQuotes: await Quote.countDocuments({ createdAt: { $gte: oneWeekAgo } }),
         totalReaders: totalUsers,
         totalAuthors: topAuthors.length,
-        daysActive: 67 // TODO: вычислять динамически
+        daysActive: daysActive
       }
     });
 
@@ -2062,6 +2066,210 @@ router.get('/community/leaderboard', communityLimiter, telegramAuth, async (req,
     return res.json({ success: true, period, data, me, pagination: { total: data.length, limit } });
   } catch (error) {
     console.error('❌ Get Leaderboard Error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Инсайты сообщества за период
+ * @route GET /api/reader/community/insights
+ */
+router.get('/community/insights', communityLimiter, telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { period: periodParam } = req.query;
+    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
+    if (!periodValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid period parameter. Use 7d or 30d.' 
+      });
+    }
+
+    // Previous period for growth calculation
+    const periodDays = parseInt(period, 10);
+    const previousStartDate = new Date(startDate);
+    previousStartDate.setDate(previousStartDate.getDate() - periodDays);
+
+    // Interest analysis: leader by catalog clicks
+    const currentPeriodClicks = await UTMClick.aggregate([
+      { $match: { timestamp: { $gte: startDate }, campaign: 'catalog' } },
+      { $group: { _id: '$content', clicks: { $sum: 1 } } },
+      { $sort: { clicks: -1 } },
+      { $limit: 1 }
+    ]);
+
+    const previousPeriodClicks = await UTMClick.aggregate([
+      { $match: { 
+        timestamp: { $gte: previousStartDate, $lt: startDate }, 
+        campaign: 'catalog' 
+      } },
+      { $group: { _id: '$content', clicks: { $sum: 1 } } },
+      { $sort: { clicks: -1 } },
+      { $limit: 1 }
+    ]);
+
+    // Count unique breakdown studies with clicks
+    const activelyStudying = await UTMClick.distinct('content', {
+      timestamp: { $gte: startDate },
+      campaign: 'catalog'
+    });
+
+    // Growth percentage calculation
+    const currentClicks = currentPeriodClicks[0]?.clicks || 0;
+    const previousClicks = previousPeriodClicks[0]?.clicks || 0;
+    let growthPct = 0;
+    if (previousClicks > 0) {
+      growthPct = Math.round(((currentClicks - previousClicks) / previousClicks) * 100);
+    } else if (currentClicks > 0) {
+      growthPct = 100;
+    }
+
+    // Find leader book details
+    let leaderBook = null;
+    if (currentPeriodClicks[0]) {
+      leaderBook = await BookCatalog.findOne({ 
+        bookSlug: currentPeriodClicks[0]._id 
+      }, { title: 1, author: 1 }).lean();
+    }
+
+    const interest = {
+      leader: leaderBook ? {
+        title: leaderBook.title,
+        author: leaderBook.author,
+        clicks: currentClicks
+      } : null,
+      growthPct,
+      activelyStudying: activelyStudying.length
+    };
+
+    // Top authors in quotes for the period
+    const topAuthors = await Quote.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: '$author', count: { $sum: 1 } } },
+      { $match: { _id: { $ne: null, $ne: '' } } },
+      { $sort: { count: -1, _id: 1 } },
+      { $limit: 5 },
+      { $project: { author: '$_id', count: 1, _id: 0 } }
+    ]);
+
+    // Community achievements by activity thresholds
+    const achievements = await Quote.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: '$userId', count: { $sum: 1 } } },
+      { $bucket: {
+        groupBy: '$count',
+        boundaries: [1, 3, 5, 7, 10, 20, Infinity],
+        default: 'other',
+        output: { users: { $sum: 1 } }
+      }}
+    ]);
+
+    // User rating (reuse leaderboard logic)
+    const userStats = await Quote.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: '$userId', count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } }
+    ]);
+
+    const userIndex = userStats.findIndex(u => String(u._id) === String(userId));
+    const userCount = userIndex >= 0 ? userStats[userIndex].count : 0;
+    const position = userIndex >= 0 ? userIndex + 1 : userStats.length + 1;
+    const totalParticipants = userStats.length;
+    
+    const lessActiveCount = userStats.filter(u => u.count < userCount).length;
+    let percentile = 50;
+    if (totalParticipants > 0) {
+      percentile = Math.round((lessActiveCount / totalParticipants) * 100);
+      percentile = Math.min(99, Math.max(1, percentile));
+    }
+
+    const userRating = { position, percentile };
+
+    const insights = {
+      interest,
+      topAuthors,
+      achievements: achievements.map(a => ({
+        threshold: a._id === 'other' ? '20+' : `${a._id}+`,
+        users: a.users
+      })),
+      userRating
+    };
+
+    return res.json({ success: true, period, insights });
+  } catch (error) {
+    console.error('❌ Get Community Insights Error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Интересный факт недели
+ * @route GET /api/reader/community/fun-fact
+ */
+router.get('/community/fun-fact', communityLimiter, telegramAuth, async (req, res) => {
+  try {
+    const { period: periodParam } = req.query;
+    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
+    if (!periodValid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid period parameter. Use 7d or 30d.' 
+      });
+    }
+
+    let funFact = '';
+
+    // Try to get top author of the period
+    const topAuthor = await Quote.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: '$author', count: { $sum: 1 } } },
+      { $match: { _id: { $ne: null, $ne: '' } } },
+      { $sort: { count: -1, _id: 1 } },
+      { $limit: 1 }
+    ]);
+
+    if (topAuthor.length > 0 && topAuthor[0].count > 1) {
+      const authorName = topAuthor[0]._id;
+      const count = topAuthor[0].count;
+      funFact = `🏆 Автор недели: ${authorName} — ${count} ${count % 10 === 1 && count % 100 !== 11 ? 'цитата' : (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) ? 'цитаты' : 'цитат'}`;
+    } else {
+      // Fallback: day with maximum quotes
+      const dailyStats = await Quote.aggregate([
+        { $match: { createdAt: { $gte: startDate } } },
+        { 
+          $group: { 
+            _id: { 
+              $dateToString: { 
+                format: '%Y-%m-%d', 
+                date: '$createdAt',
+                timezone: 'Europe/Moscow'
+              } 
+            }, 
+            count: { $sum: 1 } 
+          } 
+        },
+        { $sort: { count: -1, _id: 1 } },
+        { $limit: 1 }
+      ]);
+
+      if (dailyStats.length > 0 && dailyStats[0].count > 1) {
+        const date = dailyStats[0]._id;
+        const count = dailyStats[0].count;
+        const formattedDate = new Date(date).toLocaleDateString('ru-RU', { 
+          day: 'numeric', 
+          month: 'long' 
+        });
+        funFact = `📅 Самый продуктивный день: ${formattedDate} — ${count} ${count % 10 === 1 && count % 100 !== 11 ? 'цитата' : (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) ? 'цитаты' : 'цитат'}`;
+      } else {
+        // Neutral fallback
+        funFact = '🌟 Сообщество активно развивается и изучает новые темы';
+      }
+    }
+
+    return res.json({ success: true, period, data: funFact });
+  } catch (error) {
+    console.error('❌ Get Fun Fact Error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });
