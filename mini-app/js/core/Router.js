@@ -31,61 +31,6 @@
  */
 class AppRouter {
     /**
-     * @type {HTMLElement} - Контейнер для отображения страниц
-     */
-    container = null;
-
-    /**
-     * @type {AppState} - Глобальное состояние приложения
-     */
-    state = null;
-
-    /**
-     * @type {ApiService} - API сервис для HTTP запросов
-     */
-    api = null;
-
-    /**
-     * @type {TelegramService} - Telegram сервис
-     */
-    telegram = null;
-
-    /**
-     * @type {ReaderApp} - Ссылка на главное приложение
-     */
-    app = null;
-
-    /**
-     * @type {Map<string, RouteConfig>} - Карта зарегистрированных маршрутов
-     */
-    routes = new Map();
-
-    /**
-     * @type {string} - Текущий активный маршрут
-     */
-    currentRoute = '';
-
-    /**
-     * @type {Object} - Текущий активный компонент страницы
-     */
-    currentComponent = null;
-
-    /**
-     * @type {Array<string>} - История навигации
-     */
-    history = [];
-
-    /**
-     * @type {boolean} - Флаг инициализации роутера
-     */
-    isInitialized = false;
-
-    /**
-     * @type {boolean} - Флаг выполнения навигации (для предотвращения дублирования)
-     */
-    isNavigating = false;
-
-    /**
      * 🏗️ Конструктор роутера
      * @param {Object} options - Опции инициализации
      * @param {HTMLElement} options.container - Контейнер для страниц
@@ -98,6 +43,19 @@ class AppRouter {
         if (!container) {
             throw new Error('❌ Router: Контейнер не передан');
         }
+
+        // Инициализация свойств
+        this.container = container;
+        this.state = state;
+        this.api = api;
+        this.telegram = telegram;
+        this.app = app;
+        this.routes = new Map();
+        this.currentRoute = '';
+        this.currentComponent = null;
+        this.history = [];
+        this.isInitialized = false;
+        this.isNavigating = false;
 
         this.container = container;
         this.state = state;
@@ -360,6 +318,60 @@ class AppRouter {
             // Устанавливаем флаг навигации
             this.isNavigating = true;
             
+            // Создаем новый компонент для проверки prefetch (НЕ рендерим еще!)
+            const componentState = {
+                ...options.state,
+                query: query
+            };
+            
+            // Создаем объект app с правильной структурой для страниц
+            const appObject = {
+                // Основные сервисы
+                state: this.state,
+                api: this.api,
+                telegram: this.telegram,
+                router: this,
+                
+                // Методы, которые ожидают страницы
+                showTopMenu: () => {
+                    console.log('📋 App: showTopMenu вызван');
+                    if (this.app && typeof this.app.showTopMenu === 'function') {
+                        this.app.showTopMenu();
+                    } else {
+                        console.warn('⚠️ showTopMenu недоступен, показываем заглушку');
+                        if (this.telegram && typeof this.telegram.showAlert === 'function') {
+                            this.telegram.showAlert('Меню пока не доступно');
+                        } else {
+                            alert('Меню пока не доступно');
+                        }
+                    }
+                },
+                
+                hideTopMenu: () => {
+                    if (this.app && typeof this.app.hideTopMenu === 'function') {
+                        this.app.hideTopMenu();
+                    }
+                },
+                
+                // Дополнительное состояние
+                initialState: componentState
+            };
+
+            // Создаем временный экземпляр компонента для prefetch
+            const tempComponent = new route.component(appObject);
+            
+            // 1) Если у страницы есть prefetch() — вызываем и ждём
+            if (tempComponent && typeof tempComponent.prefetch === 'function') {
+                try {
+                    console.log(`🔄 Router: Вызываем prefetch для ${route.title}`);
+                    await tempComponent.prefetch(); // до рендера! остаётся старая страница на экране
+                    console.log(`✅ Router: Prefetch завершен для ${route.title}`);
+                } catch (error) {
+                    console.warn(`⚠️ Router: prefetch failed for ${normalizedPath}:`, error);
+                    // даже при ошибке продолжаем навигацию — страница покажет свои error-states
+                }
+            }
+            
             // Анимация выхода для текущей страницы
             await this.animatePageExit();
             
@@ -369,12 +381,35 @@ class AppRouter {
             // Показываем состояние загрузки
             this.showPageLoading();
             
-            // Создаем новый компонент с query параметрами
-            const componentState = {
-                ...options.state,
-                query: query
-            };
-            await this.createComponent(route, componentState);
+            // 2) Теперь монтируем страницу (первый рендер уже с данными)
+            this.currentComponent = tempComponent;
+            
+            // Инициализируем компонент
+            if (this.currentComponent && typeof this.currentComponent.init === 'function') {
+                await this.currentComponent.init();
+            }
+            
+            // Рендерим компонент
+            if (this.currentComponent && typeof this.currentComponent.render === 'function') {
+                const html = await this.currentComponent.render();
+                if (html && this.container) {
+                    this.container.innerHTML = html;
+                    
+                    // Убираем все анимационные классы перед добавлением обработчиков
+                    this.container.classList.remove(
+                        'page-enter', 'page-enter-active', 
+                        'page-exit', 'page-exit-active',
+                        'animate-slide-in', 'animate-slide-out'
+                    );
+                    
+                    // Проверяем наличие метода перед вызовом
+                    if (this.currentComponent && typeof this.currentComponent.attachEventListeners === 'function') {
+                        this.currentComponent.attachEventListeners();
+                    } else {
+                        console.warn(`⚠️ Router: attachEventListeners не найден у ${route.title}`);
+                    }
+                }
+            }
             
             // Обновляем URL и историю (сохраняя query string)
             this.updateUrl(path, options.replace);
@@ -388,9 +423,9 @@ class AppRouter {
             // Анимация входа для новой страницы
             await this.animatePageEnter();
             
-            // Вызываем onShow для нового компонента
+            // 3) Вызываем onShow после монтирования
             if (this.currentComponent && typeof this.currentComponent.onShow === 'function') {
-                this.currentComponent.onShow();
+                await this.currentComponent.onShow();
                 console.log(`✅ Router: onShow вызван для ${route.title}`);
             }
             
@@ -692,7 +727,7 @@ class AppRouter {
      * 📡 Обработчик события popstate (кнопка "Назад")
      * @param {PopStateEvent} event - Событие popstate
      */
-    handlePopState(event) {
+    handlePopState(_event) {
         console.log('📡 Router: Обработка popstate');
         
         // Use current hash to preserve query parameters
@@ -836,7 +871,7 @@ class AppRouter {
         }
         
         // Strip any leading #
-        let cleanPath = path.replace(/^#+/, '');
+        const cleanPath = path.replace(/^#+/, '');
         
         const queryIndex = cleanPath.indexOf('?');
         if (queryIndex === -1) {
