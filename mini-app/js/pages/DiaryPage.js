@@ -646,11 +646,27 @@ class DiaryPage {
         const quoteAuthor = document.getElementById('quoteAuthor');
         const saveBtn = document.getElementById('saveQuoteBtn');
         
+        const onFocus = () => {
+            document.body.classList.add('keyboard-open');
+            if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
+                window.viewportCalculator.updateViewportHeight();
+            }
+        };
+        
+        const onBlur = () => {
+            document.body.classList.remove('keyboard-open');
+            if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
+                window.viewportCalculator.updateViewportHeight();
+            }
+        };
+        
         if (quoteText) {
             quoteText.addEventListener('input', (e) => {
                 this.formData.text = e.target.value;
                 this.updateSaveButtonState();
             });
+            quoteText.addEventListener('focus', onFocus);
+            quoteText.addEventListener('blur', onBlur);
         }
         
         if (quoteAuthor) {
@@ -658,6 +674,8 @@ class DiaryPage {
                 this.formData.author = e.target.value;
                 this.updateSaveButtonState();
             });
+            quoteAuthor.addEventListener('focus', onFocus);
+            quoteAuthor.addEventListener('blur', onBlur);
         }
         
         if (saveBtn) {
@@ -1023,6 +1041,15 @@ class DiaryPage {
             }
 
             this.telegram.hapticFeedback('success');
+            
+            // Дополнительный пересчёт viewport после сохранения цитаты для устранения "подскока" панели
+            if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
+                // Убираем флаг клавиатуры если остался и пересчитываем viewport
+                document.body.classList.remove('keyboard-open');
+                setTimeout(() => {
+                    window.viewportCalculator.updateViewportHeight();
+                }, 100);
+            }
             } catch (error) {
             this.telegram.hapticFeedback('error');
             if (saveBtn) {
