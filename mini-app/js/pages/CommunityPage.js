@@ -661,26 +661,21 @@ class CommunityPage {
             return `
                 <div class="quote-card ${badgeClass}" data-quote-id="${item.id || ''}">
                     <div class="spotlight-badge">${badge}</div>
-                    <div class="quote-card__content">
-                        <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
-                        <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
-                        ${meta ? `<div class="quote-card__meta">${meta}</div>` : ''}
-                        <div class="quote-card__actions">
-                            <button class="quote-card__add-btn" 
-                                    data-quote-id="${item.id || ''}"
-                                    data-quote-text="${this.escapeHtml(item.text)}"
-                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    style="min-height: var(--touch-target-min);" 
-                                    aria-label="Добавить цитату в дневник">
-                                <span class="add-icon">+</span>
-                            </button>
-                            <button class="quote-card__heart-btn" 
-                                    data-quote-id="${item.id || ''}"
-                                    data-quote-text="${this.escapeHtml(item.text)}"
-                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    style="min-height: var(--touch-target-min);" 
-                                    aria-label="Добавить в избранное">♡</button>
-                        </div>
+                    <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
+                    <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
+                    ${meta ? `<div class="quote-card__meta">${meta}</div>` : ''}
+                    <div class="quote-card__actions">
+                        <button class="quote-card__add-btn" 
+                                data-quote-id="${item.id || ''}"
+                                data-quote-text="${this.escapeHtml(item.text)}"
+                                data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                aria-label="Добавить цитату в дневник">+</button>
+                        <button class="quote-card__heart-btn" 
+                                data-quote-id="${item.id || ''}"
+                                data-quote-text="${this.escapeHtml(item.text)}"
+                                data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                data-favorites="${item.favorites || 0}"
+                                aria-label="Добавить в избранное">♡</button>
                     </div>
                 </div>
             `;
@@ -688,12 +683,11 @@ class CommunityPage {
         
         return `
             <div class="community-spotlight">
-                <div class="mvp-community-title">✨ Сейчас в сообществе</div>
-                <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                        style="min-height: var(--touch-target-min);"
-                        aria-label="Обновить подборку">
-                    🔄 Обновить
-                </button>
+                <div class="spotlight-header">
+                    <h3 class="spotlight-title">✨ Сейчас в сообществе</h3>
+                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                            aria-label="Обновить подборку">↻</button>
+                </div>
                 <div class="spotlight-grid">
                     ${cards}
                 </div>
@@ -1622,9 +1616,10 @@ class CommunityPage {
                     // Haptic feedback
                     this.triggerHapticFeedback('medium');
                     
-                    // Показываем loading состояние
-                    refreshBtn.innerHTML = '🔄 Загрузка...';
+                    // Показываем loading состояние с анимацией
+                    refreshBtn.innerHTML = '⟳';
                     refreshBtn.disabled = true;
+                    refreshBtn.style.animation = 'spin 1s linear infinite';
                     
                     // Очищаем кэш
                     this._spotlightCache = { ts: 0, items: [] };
@@ -1646,8 +1641,11 @@ class CommunityPage {
                     this.showNotification('Ошибка обновления', 'error');
                 } finally {
                     // Восстанавливаем кнопку
-                    refreshBtn.innerHTML = '🔄 Обновить';
-                    refreshBtn.disabled = false;
+                    if (refreshBtn) {
+                        refreshBtn.innerHTML = '↻';
+                        refreshBtn.disabled = false;
+                        refreshBtn.style.animation = '';
+                    }
                 }
             });
         }
@@ -1977,7 +1975,7 @@ class CommunityPage {
     }
 
     /**
-     * ❤️ ДОБАВИТЬ ЦИТАТУ В ИЗБРАННОЕ (ИСПРАВЛЕНО - БЕЗ ОТКАТА)
+     * ❤️ ДОБАВИТЬ ЦИТАТУ В ИЗБРАННОЕ (С LIVE СЧЕТЧИКОМ ЛАЙКОВ)
      */
     async addQuoteToFavorites(event) {
         event.preventDefault();
@@ -1987,8 +1985,12 @@ class CommunityPage {
         if (!button) return;
         
         const quoteCard = button.closest('.quote-card');
-        
         if (!quoteCard) return;
+        
+        // Проверяем, не добавлена ли уже цитата в избранное
+        if (button.classList.contains('favorited')) {
+            return; // Уже в избранном, ничего не делаем
+        }
         
         try {
             // Haptic feedback
@@ -1998,9 +2000,20 @@ class CommunityPage {
             const quoteText = button.dataset.quoteText || quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
             const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
             
-            // Показываем loading состояние
-            button.innerHTML = '<span class="loading-spinner-small"></span>';
-            button.disabled = true;
+            // Получаем текущий счетчик лайков
+            const currentFavorites = parseInt(button.dataset.favorites) || 0;
+            const metaElement = quoteCard.querySelector('.quote-card__meta');
+            
+            // Мгновенно обновляем UI (оптимистичное обновление)
+            button.innerHTML = '❤';
+            button.classList.add('favorited');
+            const newCount = currentFavorites + 1;
+            button.dataset.favorites = newCount;
+            
+            // Обновляем счетчик в мета-информации, если он есть
+            if (metaElement && metaElement.textContent.includes('❤')) {
+                metaElement.textContent = `❤ ${newCount}`;
+            }
             
             // Добавляем цитату в избранное через API
             const response = await this.api.addQuote({
@@ -2011,16 +2024,19 @@ class CommunityPage {
             });
             
             if (response && response.success) {
-                // Успех - показываем красное сердце и оставляем его активным
-                button.innerHTML = '❤';
-                button.classList.add('favorited');
-                button.disabled = false;
+                // Успех
                 this.triggerHapticFeedback('success');
-                
-                // Показываем уведомление
                 this.showNotification('Добавлено в избранное!', 'success');
                 
-                // НЕ откатываем состояние обратно - оставляем активным
+                // Если API вернул актуальное количество лайков, используем его
+                if (response.data && typeof response.data.favorites === 'number') {
+                    const apiCount = response.data.favorites;
+                    button.dataset.favorites = apiCount;
+                    if (metaElement && metaElement.textContent.includes('❤')) {
+                        metaElement.textContent = `❤ ${apiCount}`;
+                    }
+                }
+                
             } else {
                 throw new Error(response?.message || 'Ошибка добавления в избранное');
             }
@@ -2028,9 +2044,16 @@ class CommunityPage {
         } catch (error) {
             console.error('❌ Ошибка добавления в избранное:', error);
             
-            // Возвращаем кнопку в исходное состояние только при ошибке
+            // Откатываем изменения UI при ошибке
             button.innerHTML = '♡';
-            button.disabled = false;
+            button.classList.remove('favorited');
+            button.dataset.favorites = currentFavorites;
+            
+            // Восстанавливаем счетчик в мета-информации
+            const metaElement = quoteCard.querySelector('.quote-card__meta');
+            if (metaElement && metaElement.textContent.includes('❤')) {
+                metaElement.textContent = `❤ ${currentFavorites}`;
+            }
             
             // Показываем ошибку
             this.showNotification('Ошибка при добавлении в избранное', 'error');
