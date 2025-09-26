@@ -228,6 +228,12 @@ class DiaryPage {
             });
 
             this.hasMore = (this.currentPage * this.itemsPerPage) < total;
+            
+            // После получения массива quotes:
+            if (window.QuoteUtils) {
+                window.QuoteUtils.rebuildDuplicateIndex(quotes);
+            }
+            
             this.quotesLoaded = true;
 
          } catch (error) {
@@ -659,6 +665,16 @@ class DiaryPage {
                 this.blurTimer = null;
             }
             
+            // Keyboard Lock: сохраняем текущий scroll контейнера
+            if (!this._scrollLockActive) {
+                const scroller = document.querySelector('.content');
+                if (scroller) {
+                    this._savedScrollTop = scroller.scrollTop;
+                    scroller.classList.add('keyboard-lock');
+                }
+                this._scrollLockActive = true;
+            }
+            
             document.body.classList.add('keyboard-open');
             if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
                 window.viewportCalculator.updateViewportHeight();
@@ -681,6 +697,36 @@ class DiaryPage {
                 const isFormFieldFocused = activeElement === quoteTextElement || activeElement === quoteAuthorElement;
                 
                 if (!isFormFieldFocused) {
+                    const scroller = document.querySelector('.content');
+                    if (scroller && this._scrollLockActive) {
+                        // Ждем стабилизацию (visualViewport если есть)
+                        const finalize = () => {
+                            scroller.classList.remove('keyboard-lock');
+                            if (typeof this._savedScrollTop === 'number') {
+                                scroller.scrollTop = Math.min(this._savedScrollTop, scroller.scrollHeight - scroller.clientHeight);
+                            }
+                            this._scrollLockActive = false;
+                            this._savedScrollTop = null;
+                        };
+                        if (window.visualViewport) {
+                            let checks = 0;
+                            const baseHeight = window.visualViewport.height;
+                            const watcher = () => {
+                                checks++;
+                                // если высота почти вернулась
+                                if (Math.abs(window.visualViewport.height - baseHeight) < 4 || checks > 10) {
+                                    finalize();
+                                } else {
+                                    requestAnimationFrame(watcher);
+                                }
+                            };
+                            requestAnimationFrame(watcher);
+                        } else {
+                            // Fallback
+                            setTimeout(finalize, 120);
+                        }
+                    }
+                    
                     document.body.classList.remove('keyboard-open');
                     if (window.viewportCalculator && window.viewportCalculator.updateViewportHeight) {
                         // Additional delay for viewport calculator to ensure bottom nav returns properly
@@ -1035,45 +1081,18 @@ class DiaryPage {
                 source: this.formData.source?.trim() || 'mini_app'
             };
 
-            // 🔧 FIX 3: Проверка на дублирующиеся цитаты локально
+            // 🔧 GLOBAL DUP CHECK (НЕ только за сегодня)
             const existingQuotes = this.state.get('quotes.items') || [];
-            const normalizeText = window.DateUtils?.normalizeText || ((text) => text ? text.toLowerCase().replace(/\s+/g, ' ').trim() : '');
-            const isToday = window.DateUtils?.isToday || ((date) => {
-                const today = new Date();
-                const checkDate = new Date(date);
-                return today.getFullYear() === checkDate.getFullYear() &&
-                       today.getMonth() === checkDate.getMonth() &&
-                       today.getDate() === checkDate.getDate();
-            });
-            
-            // Проверяем среди сегодняшних цитат на дубликат
-            const newQuoteText = normalizeText(quoteData.text);
-            const newQuoteAuthor = normalizeText(quoteData.author);
-            
-            const duplicateQuote = existingQuotes.find(quote => {
-                // Проверяем только сегодняшние цитаты
-                if (!isToday(quote.createdAt)) return false;
-                
-                const existingText = normalizeText(quote.text);
-                const existingAuthor = normalizeText(quote.author);
-                
-                return existingText === newQuoteText && existingAuthor === newQuoteAuthor;
-            });
-            
-            if (duplicateQuote) {
-                // Показываем предупреждение о дубликате
+            if (window.QuoteUtils && window.QuoteUtils.isDuplicateQuote(existingQuotes, quoteData.text, quoteData.author)) {
                 if (typeof window.showNotification === 'function') {
-                    window.showNotification('Такая цитата уже добавлена сегодня.', 'info', 4000);
+                    window.showNotification('Эта цитата уже есть в вашем дневнике.', 'info', 5000);
                 }
-                
-                // Возвращаем кнопку в исходное состояние
                 if (saveBtn) {
                     saveBtn.disabled = !this.isFormValid();
                     saveBtn.textContent = '💾 Сохранить в дневник';
                 }
-                
-                this.telegram.hapticFeedback('error');
-                return; // Не отправляем на сервер
+                this.telegram.hapticFeedback('light');
+                return;
             }
 
             if (saveBtn) {
@@ -1105,6 +1124,10 @@ class DiaryPage {
                 sentiment,
                 aiAnalysis: { category, themes, sentiment, summary, insights }
             };
+
+            if (window.QuoteUtils) {
+                window.QuoteUtils.addQuoteToDuplicateIndex(completeQuote);
+            }
 
             // Кладём анализ в state для renderAIInsight
             this.state.set('lastAddedQuote', completeQuote);
@@ -1174,7 +1197,7 @@ class DiaryPage {
             if (isQuotaLimitError) {
                 // Показываем дружелюбное сообщение о лимите
                 if (typeof window.showNotification === 'function') {
-                    window.showNotification('Превышен лимит: вы можете добавить не более 10 цитат в день.', 'info', 6000);
+                    window.showNotification('Достигнут дневной лимит: можно сохранять до 10 цитат в сутки.', 'info', 6000);
                 }
                 
                 // Возвращаем кнопку в исходное состояние (без красного цвета)

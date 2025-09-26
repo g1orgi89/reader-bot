@@ -174,3 +174,14 @@ html, body, #app, .app-container, .page-content, .page-body, .content {
     overflow-y: visible;
   }
 }
+
+/* ============================================================================
+   ⌨️ KEYBOARD SCROLL LOCK
+   ============================================================================ */
+
+/* Keyboard scroll lock (добавлено) */
+.keyboard-lock {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
+}
