@@ -1096,18 +1096,6 @@ class CommunityPage {
     }
     
     /**
-     * Get initials from name
-     */
-    getInitials(name) {
-        if (!name) return 'А';
-        return name.split(' ')
-            .map(word => word.charAt(0))
-            .join('')
-            .toUpperCase()
-            .slice(0, 2);
-    }
-
-    /**
      * 🏆 LEADERBOARD SECTION - TOP 3 ONLY (SECTION 2)
      */
     renderLeaderboardSection() {
@@ -1217,7 +1205,7 @@ class CommunityPage {
         }
 
         // TOP 3 quotes with Spotlight-style design and working buttons
-        const quotesCards = quotes.slice(0, 3).map((quote, index) => {
+        const quotesCards = quotes.slice(0, 3).map((quote, _index) => {
             const favorites = quote.favorites || quote.count || 0;
             
             // Получаем пользователя из quote.user (должно прийти от бэкенда)
