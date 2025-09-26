@@ -41,6 +41,9 @@ class CommunityPage {
             items: []
         };
 
+        // 🔒 FAVORITE LOCKS (защита от двойного тапа)
+        this._favoriteLocks = new Set();
+
         // Флаги "данные загружены"
         this.loaded = {
             latestQuotes: false,
@@ -652,31 +655,48 @@ class CommunityPage {
             const badge = item.kind === 'fresh' ? 'Новое' : 'Избранное';
             const badgeClass = item.kind === 'fresh' ? 'spotlight-card--fresh' : 'spotlight-card--fav';
             
-            let meta = '';
-            if (item.kind === 'fresh' && item.createdAt) {
-                meta = this.formatSpotlightDate(item.createdAt);
-            } else if (item.kind === 'fav' && typeof item.favorites === 'number') {
-                meta = `❤ ${item.favorites}`;
-            }
+            // Получаем пользователя из item.user (должно прийти от бэкенда)
+            const user = item.user;
+            const userAvatarHtml = this.getUserAvatarHtml(user);
+            const userName = user?.name || 'Пользователь';
+            
+            // Лайки для футера
+            const likesCount = item.favorites || 0;
             
             return `
                 <div class="quote-card ${badgeClass}" data-quote-id="${item.id || ''}">
                     <div class="spotlight-badge">${badge}</div>
+                    
+                    <!-- Header с аватаром и именем пользователя -->
+                    <div class="quote-card__header">
+                        ${userAvatarHtml}
+                        <div class="quote-card__user">
+                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Основной контент -->
                     <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
                     <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
-                    ${meta ? `<div class="quote-card__meta">${meta}</div>` : ''}
-                    <div class="quote-card__actions">
-                        <button class="quote-card__add-btn" 
-                                data-quote-id="${item.id || ''}"
-                                data-quote-text="${this.escapeHtml(item.text)}"
-                                data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                aria-label="Добавить цитату в дневник">+</button>
-                        <button class="quote-card__heart-btn" 
-                                data-quote-id="${item.id || ''}"
-                                data-quote-text="${this.escapeHtml(item.text)}"
-                                data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                data-favorites="${item.favorites || 0}"
-                                aria-label="Добавить в избранное">♡</button>
+                    
+                    <!-- Footer с лайками слева и действиями справа -->
+                    <div class="quote-card__footer">
+                        <div class="quote-card__likes">
+                            ❤ <span class="favorites-count">${likesCount}</span>
+                        </div>
+                        <div class="quote-card__actions">
+                            <button class="quote-card__add-btn" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                    aria-label="Добавить цитату в дневник">+</button>
+                            <button class="quote-card__heart-btn" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                    data-favorites="${likesCount}"
+                                    aria-label="Добавить в избранное">♡</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -726,6 +746,59 @@ class CommunityPage {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    /**
+     * 🖼️ Построение HTML для аватара пользователя с фоллбэком на инициалы
+     * @param {Object} user - объект пользователя с полями userId, name, avatarUrl
+     * @returns {string} HTML строка с аватаром или инициалами
+     */
+    getUserAvatarHtml(user) {
+        if (!user) {
+            // Фоллбэк если пользователь отсутствует
+            return `<div class="quote-card__user-avatar">
+                <div class="avatar-initials">?</div>
+            </div>`;
+        }
+        
+        const name = user.name || 'Пользователь';
+        const initials = this.getInitials(name);
+        
+        if (user.avatarUrl) {
+            // Есть аватар - показываем изображение с фоллбэком на инициалы
+            return `<div class="quote-card__user-avatar">
+                <img src="${this.escapeHtml(user.avatarUrl)}" 
+                     alt="${this.escapeHtml(name)}" 
+                     class="avatar-image"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="avatar-initials" style="display:none;">${initials}</div>
+            </div>`;
+        } else {
+            // Нет аватара - показываем инициалы
+            return `<div class="quote-card__user-avatar">
+                <div class="avatar-initials">${initials}</div>
+            </div>`;
+        }
+    }
+    
+    /**
+     * 👤 Получение инициалов из имени (до 2 букв, заглавные)
+     * @param {string} name - имя пользователя
+     * @returns {string} инициалы (например, "АБ")
+     */
+    getInitials(name) {
+        if (!name || typeof name !== 'string') return '?';
+        
+        const parts = name.trim().split(/\s+/);
+        if (parts.length === 0) return '?';
+        
+        // Берем первые буквы до 2 частей имени
+        const initials = parts
+            .slice(0, 2)
+            .map(part => part.charAt(0).toUpperCase())
+            .join('');
+            
+        return initials || '?';
     }
     
     /**
@@ -1023,18 +1096,6 @@ class CommunityPage {
     }
     
     /**
-     * Get initials from name
-     */
-    getInitials(name) {
-        if (!name) return 'А';
-        return name.split(' ')
-            .map(word => word.charAt(0))
-            .join('')
-            .toUpperCase()
-            .slice(0, 2);
-    }
-
-    /**
      * 🏆 LEADERBOARD SECTION - TOP 3 ONLY (SECTION 2)
      */
     renderLeaderboardSection() {
@@ -1144,28 +1205,46 @@ class CommunityPage {
         }
 
         // TOP 3 quotes with Spotlight-style design and working buttons
-        const quotesCards = quotes.slice(0, 3).map((quote, index) => {
+        const quotesCards = quotes.slice(0, 3).map((quote, _index) => {
             const favorites = quote.favorites || quote.count || 0;
-            const creator = quote.creator || quote.addedBy; // Optional creator info
+            
+            // Получаем пользователя из quote.user (должно прийти от бэкенда)
+            const user = quote.user;
+            const userAvatarHtml = this.getUserAvatarHtml(user);
+            const userName = user?.name || 'Пользователь';
             
             return `
                 <div class="quote-card popular-quote-card" data-quote-id="${quote.id || ''}">
+                    <!-- Header с аватаром и именем пользователя -->
+                    <div class="quote-card__header">
+                        ${userAvatarHtml}
+                        <div class="quote-card__user">
+                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Основной контент -->
                     <div class="quote-card__text">"${this.escapeHtml(quote.text || '')}"</div>
                     <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
-                    ${creator ? `<div class="quote-card__creator">Добавил: ${this.escapeHtml(creator)}</div>` : ''}
-                    <div class="quote-card__meta">❤ <span class="favorites-count">${favorites}</span></div>
-                    <div class="quote-card__actions">
-                        <button class="quote-card__add-btn" 
-                                data-quote-id="${quote.id || ''}"
-                                data-quote-text="${this.escapeHtml(quote.text || '')}"
-                                data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
-                                aria-label="Добавить цитату в дневник">+</button>
-                        <button class="quote-card__heart-btn" 
-                                data-quote-id="${quote.id || ''}"
-                                data-quote-text="${this.escapeHtml(quote.text || '')}"
-                                data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
-                                data-favorites="${favorites}"
-                                aria-label="Добавить в избранное">❤</button>
+                    
+                    <!-- Footer с лайками слева и действиями справа -->
+                    <div class="quote-card__footer">
+                        <div class="quote-card__likes">
+                            ❤ <span class="favorites-count">${favorites}</span>
+                        </div>
+                        <div class="quote-card__actions">
+                            <button class="quote-card__add-btn" 
+                                    data-quote-id="${quote.id || ''}"
+                                    data-quote-text="${this.escapeHtml(quote.text || '')}"
+                                    data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
+                                    aria-label="Добавить цитату в дневник">+</button>
+                            <button class="quote-card__heart-btn" 
+                                    data-quote-id="${quote.id || ''}"
+                                    data-quote-text="${this.escapeHtml(quote.text || '')}"
+                                    data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
+                                    data-favorites="${favorites}"
+                                    aria-label="Добавить в избранное">♡</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -2091,6 +2170,22 @@ class CommunityPage {
             return; // Уже в избранном, ничего не делаем
         }
         
+        // Получаем данные цитаты из data-атрибутов или из DOM
+        const quoteText = button.dataset.quoteText || quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
+        const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
+        
+        // Создаем уникальный ключ для защиты от двойного тапа
+        const lockKey = `${quoteText.trim()}_${(quoteAuthor || '').trim()}`;
+        
+        // Проверяем защиту от двойного тапа
+        if (this._favoriteLocks.has(lockKey)) {
+            console.log('🔒 Duplicate tap prevented for:', lockKey);
+            return;
+        }
+        
+        // Устанавливаем блокировку
+        this._favoriteLocks.add(lockKey);
+        
         // Declare variables outside try block to avoid scope issues
         let currentFavorites = 0;
         let newCount = 0;
@@ -2099,24 +2194,74 @@ class CommunityPage {
             // Haptic feedback
             this.triggerHapticFeedback('medium');
             
-            // Получаем данные цитаты из data-атрибутов или из DOM
-            const quoteText = button.dataset.quoteText || quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
-            const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
+            // Проверка на дубликаты: если цитата уже существует в пользовательском состоянии,
+            // обновляем существующую вместо создания новой
+            const existingQuotes = this.state.get('quotes.items') || [];
+            const existingQuote = existingQuotes.find(q => 
+                q.text && quoteText && 
+                q.text.trim().toLowerCase() === quoteText.trim().toLowerCase() &&
+                (q.author || '').trim().toLowerCase() === (quoteAuthor || '').trim().toLowerCase()
+            );
             
-            // DUP CHECK
-            const existingQuotes = this.state.get('quotes.items') || window.appState?.get('quotes.items') || [];
-            if (window.QuoteUtils && window.QuoteUtils.isDuplicateQuote(existingQuotes, quoteText, quoteAuthor)) {
-                this.showNotification('Эта цитата уже есть в вашем дневнике.', 'info');
-                this.triggerHapticFeedback('light');
-                // откат UI сердца если надо
-                button.innerHTML = '❤';
-                button.classList.add('favorited');
-                return;
+            if (existingQuote) {
+                // Цитата уже существует - обновляем isFavorite вместо создания дубликата
+                if (existingQuote.isFavorite) {
+                    this.showNotification('Эта цитата уже в избранном!', 'info');
+                    this.triggerHapticFeedback('light');
+                    // Обновляем UI для показа что цитата уже в избранном
+                    button.innerHTML = '❤';
+                    button.classList.add('favorited');
+                    return;
+                }
+                
+                // Обновляем существующую цитату
+                try {
+                    const response = await this.api.request('PUT', `/quotes/${existingQuote.id}`, {
+                        text: existingQuote.text,
+                        author: existingQuote.author,
+                        source: existingQuote.source,
+                        isFavorite: true
+                    });
+                    
+                    if (response && response.success) {
+                        // Обновляем в состоянии
+                        const updatedQuotes = existingQuotes.map(q => 
+                            q.id === existingQuote.id ? { ...q, isFavorite: true } : q
+                        );
+                        this.state.set('quotes.items', updatedQuotes);
+                        
+                        // Обновляем UI
+                        button.innerHTML = '❤';
+                        button.classList.add('favorited');
+                        
+                        // Обновляем счетчик лайков если есть
+                        const favoritesCountElement = quoteCard.querySelector('.favorites-count');
+                        if (favoritesCountElement) {
+                            const currentCount = parseInt(favoritesCountElement.textContent, 10) || 0;
+                            favoritesCountElement.textContent = currentCount + 1;
+                        }
+                        
+                        this.triggerHapticFeedback('success');
+                        this.showNotification('Добавлено в избранное!', 'success');
+                        
+                        // Диспатчим событие для статистики
+                        document.dispatchEvent(new CustomEvent('quotes:changed', { 
+                            detail: { type: 'edited', quoteId: existingQuote.id, updates: { isFavorite: true } } 
+                        }));
+                        
+                        return;
+                    } else {
+                        throw new Error(response?.message || 'Ошибка обновления цитаты');
+                    }
+                } catch (updateError) {
+                    console.error('❌ Ошибка обновления существующей цитаты:', updateError);
+                    throw updateError;
+                }
             }
             
             // Получаем текущий счетчик лайков
             currentFavorites = parseInt(button.dataset.favorites, 10) || 0;
-            const metaElement = quoteCard.querySelector('.quote-card__meta');
+            const favoritesCountElement = quoteCard.querySelector('.favorites-count');
             
             // Мгновенно обновляем UI (оптимистичное обновление)
             button.innerHTML = '❤';
@@ -2124,33 +2269,9 @@ class CommunityPage {
             newCount = currentFavorites + 1;
             button.dataset.favorites = newCount;
             
-            // Обновляем счетчик в популярных цитатах (если есть)
+            // Обновляем счетчик в .favorites-count спанах
             if (favoritesCountElement) {
                 favoritesCountElement.textContent = newCount;
-            }
-            
-            // Обновляем или создаем счетчик в мета-информации
-            if (metaElement) {
-                if (metaElement.textContent.includes('❤')) {
-                    // Обновляем существующий счетчик
-                    metaElement.innerHTML = `❤ <span class="favorites-count">${newCount}</span>`;
-                } else {
-                    // Добавляем счетчик к существующему контенту
-                    metaElement.innerHTML += ` • ❤ <span class="favorites-count">${newCount}</span>`;
-                }
-            } else {
-                // Создаем новый элемент мета с счетчиком лайков
-                const newMetaElement = document.createElement('div');
-                newMetaElement.className = 'quote-card__meta';
-                newMetaElement.innerHTML = `❤ <span class="favorites-count">${newCount}</span>`;
-                
-                // Вставляем перед actions или в конец карточки
-                const actionsElement = quoteCard.querySelector('.quote-card__actions');
-                if (actionsElement) {
-                    quoteCard.insertBefore(newMetaElement, actionsElement);
-                } else {
-                    quoteCard.appendChild(newMetaElement);
-                }
             }
             
             // Добавляем цитату в избранное через API
@@ -2194,19 +2315,9 @@ class CommunityPage {
                     const apiCount = response.data.favorites;
                     button.dataset.favorites = apiCount;
                     
-                    // Обновляем счетчик в популярных цитатах (если есть)
-                    const apiFavoritesCountElement = quoteCard.querySelector('.favorites-count');
-                    if (apiFavoritesCountElement) {
-                        apiFavoritesCountElement.textContent = apiCount;
-                    }
-                    
-                    // Обновляем счетчик в мета-информации
-                    const updatedMetaElement = quoteCard.querySelector('.quote-card__meta');
-                    if (updatedMetaElement) {
-                        if (updatedMetaElement.textContent.includes('❤')) {
-                            // Заменяем счетчик лайков в мета
-                            updatedMetaElement.innerHTML = updatedMetaElement.innerHTML.replace(/❤ <span class="favorites-count">\d+<\/span>/, `❤ <span class="favorites-count">${apiCount}</span>`);
-                        }
+                    // Обновляем счетчик в .favorites-count спанах
+                    if (favoritesCountElement) {
+                        favoritesCountElement.textContent = apiCount;
                     }
                 }
                 
@@ -2222,28 +2333,10 @@ class CommunityPage {
             button.classList.remove('favorited');
             button.dataset.favorites = currentFavorites;
             
-            // Восстанавливаем счетчик в популярных цитатах (если есть)
-            const errorFavoritesCountElement = quoteCard.querySelector('.favorites-count');
-            if (errorFavoritesCountElement) {
-                errorFavoritesCountElement.textContent = currentFavorites;
-            }
-            
-            // Восстанавливаем счетчик в мета-информации
-            const errorMetaElement = quoteCard.querySelector('.quote-card__meta');
-            if (errorMetaElement) {
-                if (currentFavorites > 0 && errorMetaElement.innerHTML.includes('❤')) {
-                    // Восстанавливаем предыдущий счетчик
-                    errorMetaElement.innerHTML = errorMetaElement.innerHTML.replace(/❤ <span class="favorites-count">\d+<\/span>/, `❤ <span class="favorites-count">${currentFavorites}</span>`);
-                } else if (currentFavorites === 0 && errorMetaElement.innerHTML.includes('❤')) {
-                    // Удаляем созданный нами счетчик лайков, если его не было изначально
-                    if (errorMetaElement.innerHTML.trim() === `❤ <span class="favorites-count">${newCount}</span>`) {
-                        // Если мета содержит только наш счетчик, удаляем весь элемент
-                        errorMetaElement.remove();
-                    } else {
-                        // Иначе просто убираем счетчик из HTML
-                        errorMetaElement.innerHTML = errorMetaElement.innerHTML.replace(/ • ❤ <span class="favorites-count">\d+<\/span>/, '').replace(/❤ <span class="favorites-count">\d+<\/span>/, '').trim();
-                    }
-                }
+            // Восстанавливаем счетчик в .favorites-count спанах
+            const favoritesCountElement = quoteCard.querySelector('.favorites-count');
+            if (favoritesCountElement) {
+                favoritesCountElement.textContent = currentFavorites;
             }
             
             // Показываем ошибку
@@ -2253,6 +2346,11 @@ class CommunityPage {
                 this.showNotification('Ошибка при добавлении в избранное', 'error');
             }
             this.triggerHapticFeedback('error');
+        } finally {
+            // Всегда снимаем блокировку через небольшую задержку
+            setTimeout(() => {
+                this._favoriteLocks.delete(lockKey);
+            }, 1000);
         }
     }
 
