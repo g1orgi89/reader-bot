@@ -52,7 +52,8 @@ class CommunityPage {
             insights: false,
             funFact: false,
             message: false,
-            trend: false
+            trend: false,
+            activityPercent: false
         };
         
         // ✅ LEGACY: Старые флаги для совместимости
@@ -957,14 +958,35 @@ class CommunityPage {
     }
     
     /**
-     * 🏆 ТАБ ТОП НЕДЕЛИ (ОБНОВЛЕН ДЛЯ PR-3 - ТОЛЬКО ПОПУЛЯРНЫЕ РАЗБОРЫ НЕДЕЛИ!)
+     * 🏆 ТАБ ТОП НЕДЕЛИ (REDESIGNED - NEW ORDER AND STRUCTURE!)
      */
     renderTopTab() {
-        const popularFavoritesSection = this.renderPopularFavoritesSection();
+        // New order per requirements:
+        // 1. Community stats cards
+        // 2. Leaderboard (Top 3)
+        // 3. Popular quotes week (Top 3, new design)
+        // 4. Popular books week
+        // 5. User progress
+        
+        const statsSection = this.renderCommunityStatsCards();
         const leaderboardSection = this.renderLeaderboardSection();
+        const popularQuotesSection = this.renderPopularQuotesWeekSection();
         const popularBooksSection = this.renderPopularBooksSection();
         const userProgressSection = this.renderUserProgressSection();
 
+        return `
+            ${statsSection}
+            ${leaderboardSection}
+            ${popularQuotesSection}
+            ${popularBooksSection}
+            ${userProgressSection}
+        `;
+    }
+
+    /**
+     * 📊 COMMUNITY STATS CARDS SECTION (SECTION 1)
+     */
+    renderCommunityStatsCards() {
         return `
             <div class="community-stats-grid">
                 <div class="community-stat-card">
@@ -976,133 +998,44 @@ class CommunityPage {
                     <div class="community-stat-label">Новых цитат</div>
                 </div>
             </div>
-            
-            ${popularFavoritesSection}
-            ${leaderboardSection}
-            ${popularBooksSection}
-            ${userProgressSection}
         `;
     }
 
     /**
-     * ⭐ СЕКЦИЯ ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (НОВАЯ)
+     * 🖼️ Render user avatar with fallback to initials
      */
-    renderPopularFavoritesSection() {
-        if (this.loadingStates.popularFavorites) {
+    renderUserAvatar(avatarUrl, initials) {
+        if (avatarUrl) {
             return `
-                <div class="popular-favorites-section">
-                    <div class="mvp-community-title">⭐ Популярные цитаты недели</div>
-                    <div class="loading-state">
-                        <div class="loading-spinner"></div>
-                        <div class="loading-text">Загружаем топ цитат...</div>
-                    </div>
+                <div class="leader-avatar">
+                    <img class="leader-avatar-img" src="${avatarUrl}" alt="Аватар" 
+                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                    <div class="leader-avatar-fallback">${initials || 'А'}</div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="leader-avatar fallback">
+                    <div class="leader-avatar-fallback">${initials || 'А'}</div>
                 </div>
             `;
         }
-
-        if (this.errorStates.popularFavorites) {
-            // Fallback to regular popular quotes on error
-            if (this.popularQuotes && this.popularQuotes.length > 0) {
-                const quotesCards = this.popularQuotes.slice(0, 5).map((quote, _index) => {
-                    const favorites = quote.count || 0; // Fallback to count field
-                    return `
-                        <div class="favorite-quote-card">
-                            <div class="quote-content">
-                                <div class="quote-text">"${quote.text || ''}"</div>
-                                <div class="quote-author">— ${quote.author || 'Неизвестный автор'}</div>
-                            </div>
-                            <div class="quote-stats">
-                                <span class="heart-count">❤ ${favorites}</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                return `
-                    <div class="popular-favorites-section">
-                        <div class="mvp-community-title">⭐ Популярные цитаты недели</div>
-                        <div class="favorites-grid">
-                            ${quotesCards}
-                        </div>
-                    </div>
-                `;
-            } else {
-                return `
-                    <div class="error-state">
-                        <div class="error-icon">❌</div>
-                        <div class="error-title">Ошибка загрузки</div>
-                        <div class="error-description">${this.errorStates.popularFavorites}</div>
-                        <button class="error-retry-btn" data-retry="popular-favorites" style="min-height: var(--touch-target-min);">Повторить</button>
-                    </div>
-                `;
-            }
-        }
-
-        if (!this.popularFavorites || this.popularFavorites.length === 0) {
-            // Fallback to aggregation before showing empty state
-            if (this.popularQuotes && this.popularQuotes.length > 0) {
-                const quotesCards = this.popularQuotes.slice(0, 5).map((quote, _index) => {
-                    const favorites = quote.count || quote.favorites || 0;
-                    return `
-                        <div class="favorite-quote-card">
-                            <div class="quote-content">
-                                <div class="quote-text">"${quote.text || ''}"</div>
-                                <div class="quote-author">— ${quote.author || 'Неизвестный автор'}</div>
-                            </div>
-                            <div class="quote-stats">
-                                <span class="heart-count">❤ ${favorites}</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                return `
-                    <div class="popular-favorites-section">
-                        <div class="mvp-community-title">⭐ Популярные цитаты недели</div>
-                        <div class="favorites-grid">
-                            ${quotesCards}
-                        </div>
-                    </div>
-                `;
-            }
-            
-            // Only show empty state if no aggregation fallback available
-            return `
-                <div class="empty-state">
-                    <div class="empty-icon">⭐</div>
-                    <div class="empty-title">Пока нет избранных цитат</div>
-                    <div class="empty-description">Станьте первым, кто добавит цитату в избранное!</div>
-                </div>
-            `;
-        }
-
-        const quotesCards = this.popularFavorites.slice(0, 5).map((quote, _index) => {
-            const favorites = quote.favorites || 0;
-            return `
-                <div class="favorite-quote-card">
-                    <div class="quote-content">
-                        <div class="quote-text">"${quote.text || ''}"</div>
-                        <div class="quote-author">— ${quote.author || 'Неизвестный автор'}</div>
-                    </div>
-                    <div class="quote-stats">
-                        <span class="heart-count">❤ ${favorites}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        return `
-            <div class="popular-favorites-section">
-                <div class="mvp-community-title">⭐ Популярные цитаты недели</div>
-                <div class="favorites-grid">
-                    ${quotesCards}
-                </div>
-            </div>
-        `;
+    }
+    
+    /**
+     * Get initials from name
+     */
+    getInitials(name) {
+        if (!name) return 'А';
+        return name.split(' ')
+            .map(word => word.charAt(0))
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
     }
 
     /**
-     * 🏆 СЕКЦИЯ ЛИДЕРБОРДА (НОВАЯ ДЛЯ PR-3)
+     * 🏆 LEADERBOARD SECTION - TOP 3 ONLY (SECTION 2)
      */
     renderLeaderboardSection() {
         if (this.loadingStates.leaderboard) {
@@ -1138,16 +1071,22 @@ class CommunityPage {
             `;
         }
 
+        // TOP 3 only per requirements
         const leaderboardItems = this.leaderboard.slice(0, 3).map((leader, index) => {
-            const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+            const position = index + 1;
+            const badgeClass = position === 1 ? 'gold' : position === 2 ? 'silver' : 'bronze';
             const count = leader.quotesWeek ?? leader.quotes ?? 0;
+            const name = leader.name || 'Анонимный читатель';
+            const initials = this.getInitials(name);
+            const avatarUrl = leader.avatarUrl; // Assuming API provides avatarUrl
+
             return `
                 <div class="leaderboard-item">
-                    <div class="rank-badge ${rankClass}">${index + 1}</div>
-                    <div class="user-info">
-                        <div class="user-name">${leader.name || 'Анонимный читатель'}</div>
-                        <div class="user-stats">${count} цитат за неделю</div>
-                        <div class="user-achievement">📚 "Активный читатель"</div>
+                    <div class="rank-badge ${badgeClass}">${position}</div>
+                    ${this.renderUserAvatar(avatarUrl, initials)}
+                    <div class="leader-info">
+                        <div class="leader-name">${name}</div>
+                        <div class="leader-stats">${count} цитат за неделю</div>
                     </div>
                 </div>
             `;
@@ -1157,13 +1096,93 @@ class CommunityPage {
             <div class="leaders-week-section">
                 <div class="leaders-week-title">🏆 Лидеры недели</div>
                 <div class="leaders-week-subtitle">Самые активные читатели сообщества</div>
+                <div class="leaderboard-list">
+                    ${leaderboardItems}
+                </div>
             </div>
-            ${leaderboardItems}
         `;
     }
 
     /**
-     * 🎯 СЕКЦИЯ ПРОГРЕССА ПОЛЬЗОВАТЕЛЯ (НОВАЯ)
+     * ⭐ POPULAR QUOTES WEEK SECTION - SPOTLIGHT-STYLE DESIGN (SECTION 3)
+     */
+    renderPopularQuotesWeekSection() {
+        if (this.loadingStates.popularFavorites) {
+            return `
+                <div class="popular-quotes-week-section">
+                    <div class="popular-quotes-week-title">⭐ Популярные цитаты недели</div>
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Загружаем топ цитат...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (this.errorStates.popularFavorites) {
+            return `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <div class="error-title">Ошибка загрузки цитат</div>
+                    <div class="error-description">${this.errorStates.popularFavorites}</div>
+                    <button class="error-retry-btn" data-retry="popular-favorites" style="min-height: var(--touch-target-min);">Повторить</button>
+                </div>
+            `;
+        }
+
+        // Use popularFavorites if available, otherwise fallback to popularQuotes
+        const quotes = this.popularFavorites?.length > 0 ? this.popularFavorites : this.popularQuotes || [];
+        
+        if (quotes.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">⭐</div>
+                    <div class="empty-title">Пока нет популярных цитат</div>
+                    <div class="empty-description">Станьте первым, кто добавит цитату в избранное!</div>
+                </div>
+            `;
+        }
+
+        // TOP 3 quotes with Spotlight-style design and working buttons
+        const quotesCards = quotes.slice(0, 3).map((quote, index) => {
+            const favorites = quote.favorites || quote.count || 0;
+            const creator = quote.creator || quote.addedBy; // Optional creator info
+            
+            return `
+                <div class="quote-card popular-quote-card" data-quote-id="${quote.id || ''}">
+                    <div class="quote-card__text">"${this.escapeHtml(quote.text || '')}"</div>
+                    <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
+                    ${creator ? `<div class="quote-card__creator">Добавил: ${this.escapeHtml(creator)}</div>` : ''}
+                    <div class="quote-card__meta">❤ <span class="favorites-count">${favorites}</span></div>
+                    <div class="quote-card__actions">
+                        <button class="quote-card__add-btn" 
+                                data-quote-id="${quote.id || ''}"
+                                data-quote-text="${this.escapeHtml(quote.text || '')}"
+                                data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
+                                aria-label="Добавить цитату в дневник">+</button>
+                        <button class="quote-card__heart-btn" 
+                                data-quote-id="${quote.id || ''}"
+                                data-quote-text="${this.escapeHtml(quote.text || '')}"
+                                data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
+                                data-favorites="${favorites}"
+                                aria-label="Добавить в избранное">❤</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="popular-quotes-week-section">
+                <div class="popular-quotes-week-title">⭐ Популярные цитаты недели</div>
+                <div class="popular-quotes-grid">
+                    ${quotesCards}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 🎯 USER PROGRESS SECTION WITH ACTIVITY PERCENTAGE (SECTION 5)
      */
     renderUserProgressSection() {
         if (!this.userProgress) {
@@ -1179,18 +1198,18 @@ class CommunityPage {
             `;
         }
 
-        const { position, quotesWeek, percentile, deltaToNext } = this.userProgress;
+        const { position, quotesWeek, percentile, deltaToNext, activityPercent } = this.userProgress;
         
-        // Рассчитываем прогресс-бар относительно лидера
+        // Calculate progress bar relative to leader
         const leaderCount = this.leaderboard.length > 0 ? (this.leaderboard[0].quotesWeek ?? this.leaderboard[0].quotes ?? 0) : 1;
         const progressPercent = Math.min(100, Math.round((quotesWeek / Math.max(1, leaderCount)) * 100));
         
-        // Формируем текст прогресса
+        // Progress text
         let progressText;
         if (position === 1) {
             progressText = "Вы лидер недели! Поздравляем! 🎉";
         } else {
-            const quotesNeeded = deltaToNext;
+            const quotesNeeded = deltaToNext || 1;
             const quotesWord = this.pluralQuotes(quotesNeeded);
             progressText = `Добавьте ещё ${quotesNeeded} ${quotesWord} до следующего места`;
         }
@@ -1198,9 +1217,11 @@ class CommunityPage {
         return `
             <div class="user-progress-section">
                 <div class="progress-header">🎯 Ваш прогресс в топах</div>
-                <div class="progress-stats">Место: #${position} • За неделю: ${quotesWeek} • Активнее ${percentile}% участников</div>
-                <div class="progress-bar-white">
-                    <div class="progress-fill-white" style="width: ${progressPercent}%;"></div>
+                <div class="progress-stats">
+                    Место: #${position} • За неделю: ${quotesWeek} • Активнее ${percentile || activityPercent || 0}% участников
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" style="width: ${progressPercent}%;"></div>
                 </div>
                 <div class="progress-description">${progressText}</div>
             </div>
@@ -1798,8 +1819,47 @@ class CommunityPage {
         // Предзагрузка данных для вкладки в фоне (без изменения UI)
         if (tabName === 'top') {
             Promise.allSettled([
-                this._safe(async () => { if (!this.loaded.leaderboard) { const r = await this.api.getLeaderboard({ period: '7d', limit: 10 }); if (r?.success) { this.leaderboard = r.data || []; this.userProgress = r.me || null; this.loaded.leaderboard = true; } } }),
-                this._safe(async () => { if (!this.loaded.popularQuotes) { let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null); if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null); if (r?.success) { const arr = r.data || r.quotes || []; this.popularQuotes = arr.map(q => ({ text: q.text, author: q.author, favorites: q.favorites || q.count || q.likes || 0 })); this.loaded.popularQuotes = true; } } })
+                this._safe(async () => { 
+                    if (!this.loaded.leaderboard) { 
+                        const r = await this.api.getLeaderboard({ period: '7d', limit: 10 }); 
+                        if (r?.success) { 
+                            this.leaderboard = r.data || []; 
+                            this.userProgress = r.me || null; 
+                            this.loaded.leaderboard = true; 
+                        } 
+                    } 
+                }),
+                this._safe(async () => { 
+                    if (!this.loaded.popularQuotes) { 
+                        let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null); 
+                        if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null); 
+                        if (r?.success) { 
+                            const arr = r.data || r.quotes || []; 
+                            this.popularQuotes = arr.map(q => ({ 
+                                text: q.text, 
+                                author: q.author, 
+                                favorites: q.favorites || q.count || q.likes || 0,
+                                id: q.id,
+                                creator: q.creator || q.addedBy
+                            })); 
+                            this.loaded.popularQuotes = true; 
+                        } 
+                    } 
+                }),
+                this._safe(async () => {
+                    if (!this.loaded.activityPercent && this.api.getActivityPercent) {
+                        const r = await this.api.getActivityPercent();
+                        if (typeof r === 'number' || (r?.success && typeof r.activityPercent === 'number')) {
+                            const percent = typeof r === 'number' ? r : r.activityPercent;
+                            if (this.userProgress) {
+                                this.userProgress.activityPercent = percent;
+                            } else {
+                                this.userProgress = { activityPercent: percent };
+                            }
+                            this.loaded.activityPercent = true;
+                        }
+                    }
+                })
             ]).then(() => this.rerender());
         } else if (tabName === 'stats') {
             Promise.allSettled([
@@ -2055,7 +2115,7 @@ class CommunityPage {
             }
             
             // Получаем текущий счетчик лайков
-            currentFavorites = parseInt(button.dataset.favorites) || 0;
+            currentFavorites = parseInt(button.dataset.favorites, 10) || 0;
             const metaElement = quoteCard.querySelector('.quote-card__meta');
             
             // Мгновенно обновляем UI (оптимистичное обновление)
@@ -2064,20 +2124,25 @@ class CommunityPage {
             newCount = currentFavorites + 1;
             button.dataset.favorites = newCount;
             
+            // Обновляем счетчик в популярных цитатах (если есть)
+            if (favoritesCountElement) {
+                favoritesCountElement.textContent = newCount;
+            }
+            
             // Обновляем или создаем счетчик в мета-информации
             if (metaElement) {
                 if (metaElement.textContent.includes('❤')) {
                     // Обновляем существующий счетчик
-                    metaElement.textContent = `❤ ${newCount}`;
+                    metaElement.innerHTML = `❤ <span class="favorites-count">${newCount}</span>`;
                 } else {
                     // Добавляем счетчик к существующему контенту
-                    metaElement.innerHTML += ` • ❤ ${newCount}`;
+                    metaElement.innerHTML += ` • ❤ <span class="favorites-count">${newCount}</span>`;
                 }
             } else {
                 // Создаем новый элемент мета с счетчиком лайков
                 const newMetaElement = document.createElement('div');
                 newMetaElement.className = 'quote-card__meta';
-                newMetaElement.textContent = `❤ ${newCount}`;
+                newMetaElement.innerHTML = `❤ <span class="favorites-count">${newCount}</span>`;
                 
                 // Вставляем перед actions или в конец карточки
                 const actionsElement = quoteCard.querySelector('.quote-card__actions');
@@ -2129,12 +2194,18 @@ class CommunityPage {
                     const apiCount = response.data.favorites;
                     button.dataset.favorites = apiCount;
                     
+                    // Обновляем счетчик в популярных цитатах (если есть)
+                    const apiFavoritesCountElement = quoteCard.querySelector('.favorites-count');
+                    if (apiFavoritesCountElement) {
+                        apiFavoritesCountElement.textContent = apiCount;
+                    }
+                    
                     // Обновляем счетчик в мета-информации
                     const updatedMetaElement = quoteCard.querySelector('.quote-card__meta');
                     if (updatedMetaElement) {
                         if (updatedMetaElement.textContent.includes('❤')) {
                             // Заменяем счетчик лайков в мета
-                            updatedMetaElement.textContent = updatedMetaElement.textContent.replace(/❤ \d+/, `❤ ${apiCount}`);
+                            updatedMetaElement.innerHTML = updatedMetaElement.innerHTML.replace(/❤ <span class="favorites-count">\d+<\/span>/, `❤ <span class="favorites-count">${apiCount}</span>`);
                         }
                     }
                 }
@@ -2151,20 +2222,26 @@ class CommunityPage {
             button.classList.remove('favorited');
             button.dataset.favorites = currentFavorites;
             
+            // Восстанавливаем счетчик в популярных цитатах (если есть)
+            const errorFavoritesCountElement = quoteCard.querySelector('.favorites-count');
+            if (errorFavoritesCountElement) {
+                errorFavoritesCountElement.textContent = currentFavorites;
+            }
+            
             // Восстанавливаем счетчик в мета-информации
             const errorMetaElement = quoteCard.querySelector('.quote-card__meta');
             if (errorMetaElement) {
-                if (currentFavorites > 0 && errorMetaElement.textContent.includes('❤')) {
+                if (currentFavorites > 0 && errorMetaElement.innerHTML.includes('❤')) {
                     // Восстанавливаем предыдущий счетчик
-                    errorMetaElement.textContent = errorMetaElement.textContent.replace(/❤ \d+/, `❤ ${currentFavorites}`);
-                } else if (currentFavorites === 0 && errorMetaElement.textContent.includes('❤')) {
+                    errorMetaElement.innerHTML = errorMetaElement.innerHTML.replace(/❤ <span class="favorites-count">\d+<\/span>/, `❤ <span class="favorites-count">${currentFavorites}</span>`);
+                } else if (currentFavorites === 0 && errorMetaElement.innerHTML.includes('❤')) {
                     // Удаляем созданный нами счетчик лайков, если его не было изначально
-                    if (errorMetaElement.textContent.trim() === `❤ ${newCount}`) {
+                    if (errorMetaElement.innerHTML.trim() === `❤ <span class="favorites-count">${newCount}</span>`) {
                         // Если мета содержит только наш счетчик, удаляем весь элемент
                         errorMetaElement.remove();
                     } else {
-                        // Иначе просто убираем счетчик из текста
-                        errorMetaElement.textContent = errorMetaElement.textContent.replace(/ • ❤ \d+/, '').replace(/❤ \d+/, '').trim();
+                        // Иначе просто убираем счетчик из HTML
+                        errorMetaElement.innerHTML = errorMetaElement.innerHTML.replace(/ • ❤ <span class="favorites-count">\d+<\/span>/, '').replace(/❤ <span class="favorites-count">\d+<\/span>/, '').trim();
                     }
                 }
             }
