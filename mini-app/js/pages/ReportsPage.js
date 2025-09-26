@@ -338,36 +338,67 @@ class ReportsPage {
             return;
         }
 
-        const quotes = this.weeklyReport.quotes || [];
-        
-        // Количество цитат - используем quotesCount если есть, иначе длину массива
-        const quotesCount = this.weeklyReport.quotesCount || quotes.length;
-        
-        // Вычисляем количество уникальных авторов из цитат отчета
-        const uniqueAuthors = new Set(
-            quotes
-                .filter(quote => quote.author && quote.author.trim())
-                .map(quote => quote.author.trim())
-        ).size;
-        
-        // Вычисляем количество активных дней из цитат отчета
-        const activeDays = new Set(
-            quotes
-                .filter(quote => quote.createdAt)
-                .map(quote => new Date(quote.createdAt).toISOString().split('T')[0])
-        ).size;
-        
-        // Устанавливаем цель прогресса (по умолчанию 30 цитат как в продакшн требованиях)
-        const targetQuotes = 30;
-        const progressQuotesPct = Math.min(Math.round((quotesCount / targetQuotes) * 100), 100);
-        
-        // Устанавливаем статистику из weeklyReport данных
-        this.reportData.statistics = {
-            quotes: quotesCount,
-            authors: uniqueAuthors,
-            days: activeDays,
-            goal: progressQuotesPct
-        };
+        // ✅ НОВОЕ: Используем сохраненные метрики, если доступны
+        if (this.weeklyReport.metrics) {
+            console.log('✅ ReportsPage: Используем сохраненные метрики (не пересчитываем)');
+            
+            const metrics = this.weeklyReport.metrics;
+            
+            // Устанавливаем статистику из сохраненных метрик
+            this.reportData.statistics = {
+                quotes: metrics.quotes,
+                authors: metrics.uniqueAuthors,
+                days: metrics.activeDays,
+                goal: metrics.progressQuotesPct
+            };
+            
+            // Устанавливаем прогресс из метрик
+            this.reportData.progress = {
+                quotes: metrics.progressQuotesPct,
+                days: metrics.progressDaysPct
+            };
+            
+            console.log('📊 ReportsPage: Статистика из метрик:', this.reportData.statistics);
+        } else {
+            console.log('⚠️ ReportsPage: Метрики отсутствуют, пересчитываем (legacy fallback)');
+
+            const quotes = this.weeklyReport.quotes || [];
+            
+            // Количество цитат - используем quotesCount если есть, иначе длину массива
+            const quotesCount = this.weeklyReport.quotesCount || quotes.length;
+            
+            // Вычисляем количество уникальных авторов из цитат отчета
+            const uniqueAuthors = new Set(
+                quotes
+                    .filter(quote => quote.author && quote.author.trim())
+                    .map(quote => quote.author.trim())
+            ).size;
+            
+            // Вычисляем количество активных дней из цитат отчета
+            const activeDays = new Set(
+                quotes
+                    .filter(quote => quote.createdAt)
+                    .map(quote => new Date(quote.createdAt).toISOString().split('T')[0])
+            ).size;
+            
+            // Устанавливаем цель прогресса (по умолчанию 30 цитат как в продакшн требованиях)
+            const targetQuotes = 30;
+            const progressQuotesPct = Math.min(Math.round((quotesCount / targetQuotes) * 100), 100);
+            
+            // Устанавливаем статистику из weeklyReport данных
+            this.reportData.statistics = {
+                quotes: quotesCount,
+                authors: uniqueAuthors,
+                days: activeDays,
+                goal: progressQuotesPct
+            };
+            
+            // Устанавливаем прогресс
+            this.reportData.progress = {
+                quotes: progressQuotesPct,
+                days: Math.min(Math.round((activeDays / 7) * 100), 100) // 7 дней в неделе
+            };
+        }
         
         // Обнуляем дельты для weeklyReport (нет данных о предыдущей неделе)
         this.reportData.deltas = {
@@ -376,13 +407,7 @@ class ReportsPage {
             days: 0
         };
         
-        // Устанавливаем прогресс
-        this.reportData.progress = {
-            quotes: progressQuotesPct,
-            days: Math.min(Math.round((activeDays / 7) * 100), 100) // 7 дней в неделе
-        };
-        
-        console.log('✅ ReportsPage: Статистика вычислена из weeklyReport:', this.reportData.statistics);
+        console.log('✅ ReportsPage: Статистика обновлена:', this.reportData.statistics);
     }
     
     /**

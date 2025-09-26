@@ -672,6 +672,34 @@ async function startServer() {
     logger.info(`   🔗 UTM Templates: ${config.app.apiPrefix}/utm-templates`);
     logger.info(`   👩 Anna Persona: ${config.app.apiPrefix}/anna-persona`);
     
+    // 📖 Initialize and start CronService
+    if (cronService) {
+      try {
+        logger.info('📖 Initializing CronService...');
+        
+        // Initialize cronService with dependencies
+        cronService.initialize({
+          bot: null, // Telegram bot not available in web server context
+          weeklyReportHandler: telegramReportService,
+          monthlyReportService: null,
+          reminderService: null,
+          announcementService: null
+        });
+        
+        // Start cron jobs
+        const startResult = cronService.start();
+        if (startResult) {
+          logger.info('✅ CronService started successfully');
+        } else {
+          logger.warn('⚠️ CronService start returned false');
+        }
+      } catch (cronError) {
+        logger.error('❌ Failed to initialize/start CronService:', cronError.message);
+      }
+    } else {
+      logger.warn('⚠️ CronService not available, cron jobs will not run');
+    }
+    
     return server;
     
   } catch (error) {

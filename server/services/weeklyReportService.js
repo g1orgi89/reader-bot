@@ -307,22 +307,55 @@ class WeeklyReportService {
 
       // Используем улучшенный матчинг
       const recommendations = await this.getBookRecommendations(analysis, userProfile);
+      // Получаем диапазон предыдущей недели
+      const weekRange = this.getPreviousWeekRange();
+      
+      // Вычисляем метрики
+      const quotesCount = quotes.length;
+      const uniqueAuthors = new Set(
+        quotes
+          .filter(q => q.author && q.author.trim())
+          .map(q => q.author.trim())
+      ).size;
+      
+      // Активные дни (количество уникальных дат)
+      const activeDays = new Set(
+        quotes.map(q => {
+          const date = q.createdAt || q.date || new Date();
+          return new Date(date).toISOString().split('T')[0];
+        })
+      ).size;
+      
+      const targetQuotes = 30;
+      const targetDays = 7;
+      const progressQuotesPct = Math.min(Math.round((quotesCount / targetQuotes) * 100), 100);
+      const progressDaysPct = Math.min(Math.round((activeDays / targetDays) * 100), 100);
+      
+      const metrics = {
+        quotes: quotesCount,
+        uniqueAuthors,
+        activeDays,
+        targetQuotes,
+        progressQuotesPct,
+        progressDaysPct
+      };
       
       // 📋 NEW: Создаем промокод из БД
       const promoCode = await this.generatePromoCode();
       
       const report = {
         userId,
-        weekNumber: this.getCurrentWeekNumber(),
-        year: new Date().getFullYear(),
+        weekNumber: weekRange.isoWeekNumber,
+        year: weekRange.isoYear,
         quotes: quotes.map(q => q._id || q.id),
         analysis,
         recommendations,
         promoCode,
+        metrics,
         generatedAt: new Date()
       };
 
-      logger.info(`📖 Weekly report generated successfully for user ${userId}`);
+      logger.info(`📖 Weekly report generated successfully for user ${userId} with metrics:`, metrics);
       return report;
       
     } catch (error) {
@@ -572,14 +605,54 @@ class WeeklyReportService {
   }
 
   /**
-   * Получает номер текущей недели в году
+   * Получает номер текущей недели в году (ISO 8601)
    * @returns {number} Номер недели
    */
   getCurrentWeekNumber() {
     const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const days = Math.floor((now - start) / (24 * 60 * 60 * 1000));
-    return Math.ceil((days + start.getDay() + 1) / 7);
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  }
+
+  /**
+   * Получает диапазон предыдущей полной недели по ISO 8601
+   * @returns {{start: Date, end: Date, isoWeekNumber: number, isoYear: number}}
+   */
+  getPreviousWeekRange() {
+    const now = new Date();
+    
+    // Находим понедельник текущей недели
+    const currentMonday = new Date(now);
+    const dayOfWeek = now.getDay() || 7; // Воскресенье = 7
+    currentMonday.setDate(now.getDate() - dayOfWeek + 1);
+    currentMonday.setHours(0, 0, 0, 0);
+    
+    // Понедельник предыдущей недели
+    const prevMonday = new Date(currentMonday);
+    prevMonday.setDate(currentMonday.getDate() - 7);
+    
+    // Воскресенье предыдущей недели (конец недели)
+    const prevSunday = new Date(prevMonday);
+    prevSunday.setDate(prevMonday.getDate() + 6);
+    prevSunday.setHours(23, 59, 59, 999);
+    
+    // ISO номер недели для предыдущей недели
+    const d = new Date(Date.UTC(prevMonday.getFullYear(), prevMonday.getMonth(), prevMonday.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const isoWeekNumber = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    const isoYear = d.getUTCFullYear();
+    
+    return {
+      start: prevMonday,
+      end: prevSunday,
+      isoWeekNumber,
+      isoYear
+    };
   }
 
   /**

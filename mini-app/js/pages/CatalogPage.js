@@ -40,6 +40,10 @@ class CatalogPage {
         this.catalogLoaded = false;
         this.catalogLoading = false;
         
+        // ✅ НОВОЕ: Поддержка отложенного highlight
+        this.pendingHighlight = this.query.highlight || null;
+        this.highlightApplied = false;
+        
         // Состояние фильтров (14 категорий + ВСЕ)
         // Set initial filter from query parameters
         this.activeFilter = this.query.category ? this.mapQueryCategoryToFilter(this.query.category) : 'ВСЕ';
@@ -104,6 +108,12 @@ class CatalogPage {
         } finally {
             this.catalogLoading = false;
             this.rerender();
+            
+            // ✅ НОВОЕ: Применяем отложенный highlight после загрузки данных
+            if (this.pendingHighlight && !this.highlightApplied) {
+                console.log('🎯 CatalogPage: Применяем отложенный highlight:', this.pendingHighlight);
+                setTimeout(() => this.applyHighlight(this.pendingHighlight), 500);
+            }
         }
     }
     
@@ -653,21 +663,12 @@ class CatalogPage {
         if (container) {
             container.innerHTML = this.render();
             this.attachEventListeners();
-            // Автоматический скролл и подсветка по highlight из router state
+            
+            // ✅ НОВОЕ: Используем метод applyHighlight для обработки highlight
             const highlightId = this.app.initialState?.query?.highlight;
-            if (highlightId) {
-                setTimeout(() => {
-                    // Try to find by book ID first, then by slug
-                    let el = document.querySelector(`[data-book-id="${highlightId}"]`);
-                    if (!el) {
-                        el = document.querySelector(`[data-book-slug="${highlightId}"]`);
-                    }
-                    if (el) {
-                        el.classList.add('catalog-item--highlight');
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        setTimeout(() => el.classList.remove('catalog-item--highlight'), 2500);
-                    }
-                }, 300);
+            if (highlightId && !this.highlightApplied) {
+                console.log('🎯 CatalogPage: Применяем highlight в rerender:', highlightId);
+                setTimeout(() => this.applyHighlight(highlightId), 300);
             }
         }
     }
@@ -682,6 +683,74 @@ class CatalogPage {
     showSuccess(message) {
         if (this.telegram) {
             this.telegram.showAlert(message);
+        }
+    }
+    
+    /**
+     * 🎯 Применение highlight к элементу каталога
+     * @param {string} highlightSlug - Slug книги для подсветки
+     */
+    applyHighlight(highlightSlug) {
+        if (!highlightSlug) return;
+        
+        console.log('🎯 CatalogPage: Ищем элемент для highlight:', highlightSlug);
+        
+        // Нормализуем slug (замена подчеркиваний на дефисы)
+        const normalizedSlug = highlightSlug.replace(/_/g, '-');
+        
+        // Пробуем найти элемент несколькими способами
+        let targetElement = null;
+        
+        // 1. По data-book-slug (основной способ)
+        targetElement = document.querySelector(`[data-book-slug="${highlightSlug}"]`);
+        
+        // 2. По нормализованному slug
+        if (!targetElement && normalizedSlug !== highlightSlug) {
+            targetElement = document.querySelector(`[data-book-slug="${normalizedSlug}"]`);
+        }
+        
+        // 3. По data-book-id (fallback)
+        if (!targetElement) {
+            targetElement = document.querySelector(`[data-book-id="${highlightSlug}"]`);
+        }
+        
+        // 4. По альтернативному slug (с подчеркиваниями)
+        if (!targetElement) {
+            const underscoreSlug = highlightSlug.replace(/-/g, '_');
+            targetElement = document.querySelector(`[data-book-slug="${underscoreSlug}"]`);
+        }
+        
+        if (targetElement) {
+            console.log('✅ CatalogPage: Элемент найден, применяем highlight');
+            
+            // Добавляем класс highlight
+            targetElement.classList.add('catalog-item--highlight');
+            
+            // Скроллим к элементу
+            targetElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',
+                inline: 'nearest'
+            });
+            
+            // Убираем highlight через 2.5 секунды
+            setTimeout(() => {
+                targetElement.classList.remove('catalog-item--highlight');
+                console.log('🎯 CatalogPage: Highlight убран');
+            }, 2500);
+            
+            // Отмечаем что highlight применен
+            this.highlightApplied = true;
+            this.pendingHighlight = null;
+            
+        } else {
+            console.warn('⚠️ CatalogPage: Элемент для highlight не найден:', highlightSlug);
+            
+            // Если элемент не найден и каталог еще загружается, попробуем еще раз
+            if (this.catalogLoading) {
+                console.log('🔄 CatalogPage: Каталог еще загружается, повторим highlight позже');
+                setTimeout(() => this.applyHighlight(highlightSlug), 1000);
+            }
         }
     }
     

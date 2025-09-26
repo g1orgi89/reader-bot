@@ -259,6 +259,20 @@ const weeklyReportSchema = new mongoose.Schema({
   generationTime: {
     type: Number
     // Время генерации в миллисекундах
+  },
+  
+  // Метрики недели (новое поле для фиксации показателей)
+  metrics: {
+    type: {
+      quotes: { type: Number, required: true },
+      uniqueAuthors: { type: Number, required: true },
+      activeDays: { type: Number, required: true },
+      targetQuotes: { type: Number, default: 30 },
+      progressQuotesPct: { type: Number, required: true },
+      progressDaysPct: { type: Number, required: true }
+    },
+    required: false
+    // Метрики недели - optional для обратной совместимости
   }
 }, {
   timestamps: true,
