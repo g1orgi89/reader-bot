@@ -1995,6 +1995,16 @@ class CommunityPage {
             button.innerHTML = '<span class="loading-spinner-small"></span>';
             button.disabled = true;
             
+            // 🔧 GLOBAL DUP CHECK
+            const existingQuotes = this.state.get('quotes.items') || window.appState?.get('quotes.items') || [];
+            if (window.QuoteUtils && window.QuoteUtils.isDuplicateQuote(existingQuotes, quoteText, quoteAuthor)) {
+                this.showNotification('Эта цитата уже есть в вашем дневнике.', 'info');
+                button.innerHTML = '<span class="add-icon">+</span>';
+                button.disabled = false;
+                this.triggerHapticFeedback('light');
+                return;
+            }
+            
             // Добавляем цитату через API
             const response = await this.api.addQuote({
                 text: quoteText,
@@ -2003,6 +2013,31 @@ class CommunityPage {
             });
             
             if (response && response.success) {
+                // Синхронно добавляем в state и индекс (чтобы сразу ловить повторную попытку)
+                try {
+                    const raw = response.data?.quote || response.data || response.quote || response;
+                    if (raw && raw.text) {
+                        const normalizedQuote = {
+                            ...raw,
+                            id: raw.id || raw._id,
+                            text: raw.text,
+                            author: raw.author || '',
+                            source: raw.source || 'community',
+                            createdAt: raw.createdAt || new Date().toISOString()
+                        };
+                        // prepend
+                        const currentQuotes = this.state.get('quotes.items') || [];
+                        this.state.set('quotes.items', [normalizedQuote, ...currentQuotes]);
+                        if (window.QuoteUtils) {
+                            window.QuoteUtils.addQuoteToDuplicateIndex(normalizedQuote);
+                        }
+                        // событие для статистики
+                        document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'added', quote: normalizedQuote } }));
+                    }
+                } catch (dupSyncErr) {
+                    console.warn('Community dup sync skipped:', dupSyncErr);
+                }
+                
                 // Успех - показываем галочку
                 button.innerHTML = '<span class="add-icon">✓</span>';
                 button.classList.add('added');
@@ -2028,8 +2063,12 @@ class CommunityPage {
             button.innerHTML = '<span class="add-icon">+</span>';
             button.disabled = false;
             
-            // Показываем ошибку
-            this.showNotification('Ошибка при добавлении цитаты', 'error');
+            // Проверяем лимит и показываем соответствующее сообщение
+            if (error && (error.status === 429 || /limit|quota|exceed/i.test(error.message || '') || /limit|quota/i.test(error?.data?.message || ''))) {
+                this.showNotification('Достигнут дневной лимит: можно сохранять до 10 цитат в сутки.', 'info');
+            } else {
+                this.showNotification('Ошибка при добавлении цитаты', 'error');
+            }
             this.triggerHapticFeedback('error');
         }
     }
@@ -2052,6 +2091,10 @@ class CommunityPage {
             return; // Уже в избранном, ничего не делаем
         }
         
+        // Declare variables outside try block to avoid scope issues
+        let currentFavorites = 0;
+        let newCount = 0;
+        
         try {
             // Haptic feedback
             this.triggerHapticFeedback('medium');
@@ -2060,15 +2103,25 @@ class CommunityPage {
             const quoteText = button.dataset.quoteText || quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
             const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
             
+            // DUP CHECK
+            const existingQuotes = this.state.get('quotes.items') || window.appState?.get('quotes.items') || [];
+            if (window.QuoteUtils && window.QuoteUtils.isDuplicateQuote(existingQuotes, quoteText, quoteAuthor)) {
+                this.showNotification('Эта цитата уже есть в вашем дневнике.', 'info');
+                this.triggerHapticFeedback('light');
+                // откат UI сердца если надо
+                button.innerHTML = '❤';
+                button.classList.add('favorited');
+                return;
+            }
+            
             // Получаем текущий счетчик лайков
-            const currentFavorites = parseInt(button.dataset.favorites) || 0;
-            const favoritesCountElement = quoteCard.querySelector('.favorites-count');
+            currentFavorites = parseInt(button.dataset.favorites, 10) || 0;
             const metaElement = quoteCard.querySelector('.quote-card__meta');
             
             // Мгновенно обновляем UI (оптимистичное обновление)
             button.innerHTML = '❤';
             button.classList.add('favorited');
-            const newCount = currentFavorites + 1;
+            newCount = currentFavorites + 1;
             button.dataset.favorites = newCount;
             
             // Обновляем счетчик в популярных цитатах (если есть)
@@ -2109,6 +2162,29 @@ class CommunityPage {
             });
             
             if (response && response.success) {
+                try {
+                    const raw = response.data?.quote || response.data || response.quote || response;
+                    if (raw && raw.text) {
+                        const favoriteQuote = {
+                            ...raw,
+                            id: raw.id || raw._id,
+                            text: raw.text,
+                            author: raw.author || '',
+                            isFavorite: true,
+                            source: raw.source || 'community',
+                            createdAt: raw.createdAt || new Date().toISOString()
+                        };
+                        const currentQuotes = this.state.get('quotes.items') || [];
+                        this.state.set('quotes.items', [favoriteQuote, ...currentQuotes]);
+                        if (window.QuoteUtils) {
+                            window.QuoteUtils.addQuoteToDuplicateIndex(favoriteQuote);
+                        }
+                        document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'added', quote: favoriteQuote } }));
+                    }
+                } catch (e) {
+                    console.warn('Favorite dup sync failed:', e);
+                }
+                
                 // Успех
                 this.triggerHapticFeedback('success');
                 this.showNotification('Добавлено в избранное!', 'success');
@@ -2171,7 +2247,11 @@ class CommunityPage {
             }
             
             // Показываем ошибку
-            this.showNotification('Ошибка при добавлении в избранное', 'error');
+            if (error && (error.status === 429 || /limit|quota|exceed/i.test(error.message || '') || /limit|quota/i.test(error?.data?.message || ''))) {
+                this.showNotification('Достигнут дневной лимит: можно сохранять до 10 цитат в сутки.', 'info');
+            } else {
+                this.showNotification('Ошибка при добавлении в избранное', 'error');
+            }
             this.triggerHapticFeedback('error');
         }
     }
