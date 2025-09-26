@@ -2075,3 +2075,189 @@
         font-size: 11px;
     }
 }
+
+/* ============================================================================
+   🆕 NEW QUOTE CARD LAYOUT STYLES (PR Requirements)
+   Added for spotlight and popular quotes redesign
+   ============================================================================ */
+
+/* Quote card header with user avatar and name */
+.quote-card__header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.quote-card__user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.avatar-initials {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    border-radius: 50%;
+}
+
+.quote-card__user {
+    flex: 1;
+    min-width: 0; /* Allows text truncation */
+}
+
+.quote-card__user-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+    display: block;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Quote card footer with likes left and actions right */
+.quote-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border);
+}
+
+.quote-card__likes {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.quote-card__actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* Update existing actions to ensure proper touch targets */
+.quote-card__add-btn,
+.quote-card__heart-btn {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quote-card__add-btn {
+    background: var(--success-color);
+    color: var(--text-inverse);
+}
+
+.quote-card__heart-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.quote-card__heart-btn.favorited {
+    background: var(--error-color);
+    color: var(--text-inverse);
+    border-color: var(--error-color);
+}
+
+.quote-card__add-btn:hover,
+.quote-card__heart-btn:hover {
+    transform: scale(1.05);
+}
+
+.quote-card__add-btn:active,
+.quote-card__heart-btn:active {
+    transform: scale(0.95);
+}
+
+/* Progress section text color fix */
+.progress-header {
+    color: var(--text-inverse) !important; /* Force white text for contrast */
+}
+
+.progress-stats {
+    color: var(--text-inverse) !important; /* Force white text for contrast */
+}
+
+.progress-description {
+    color: var(--text-inverse) !important; /* Force white text for contrast */
+}
+
+/* Dark mode support for progress text */
+@media (prefers-color-scheme: dark) {
+    .progress-header,
+    .progress-stats,
+    .progress-description {
+        color: var(--text-primary) !important; /* In dark mode, use primary text color */
+    }
+}
+
+/* Ensure proper contrast on progress section background */
+.user-progress-section {
+    background: var(--primary-color) !important; /* Use primary color background for contrast */
+    color: var(--text-inverse);
+}
+
+@media (prefers-color-scheme: dark) {
+    .user-progress-section {
+        background: var(--bg-secondary) !important; /* In dark mode, use secondary background */
+        color: var(--text-primary);
+    }
+}
+
+/* Mobile responsiveness for new layout */
+@media (max-width: 480px) {
+    .quote-card__user-avatar {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .avatar-initials {
+        font-size: var(--font-size-xs);
+    }
+    
+    .quote-card__user-name {
+        font-size: var(--font-size-xs);
+    }
+    
+    .quote-card__likes {
+        font-size: var(--font-size-xs);
+    }
+    
+    .quote-card__add-btn,
+    .quote-card__heart-btn {
+        min-width: 40px;
+        min-height: 40px;
+        font-size: var(--font-size-xs);
+    }
+}

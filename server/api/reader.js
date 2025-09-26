@@ -1604,11 +1604,29 @@ router.get('/community/quotes/latest', communityLimiter, telegramAuth, async (re
       })
       .lean();
 
-    // Convert to DTO format without exposing private user data
+    // Get user info for each quote
+    const userIds = [...new Set(quotes.map(q => String(q.userId)))];
+    const users = await UserProfile.find(
+      { userId: { $in: userIds } },
+      { userId: 1, name: 1, avatarUrl: 1 }
+    ).lean();
+    const userMap = new Map(users.map(u => [String(u.userId), u]));
+
+    // Convert to DTO format with user info included
     const quoteDTOs = quotes.map(q => {
-      // Don't expose userId in public feed
+      const user = userMap.get(String(q.userId));
       const sanitizedQuote = { ...q };
-      delete sanitizedQuote.userId;
+      delete sanitizedQuote.userId; // Remove raw userId for privacy
+      
+      // Add user info if available
+      if (user) {
+        sanitizedQuote.user = {
+          userId: user.userId,
+          name: user.name,
+          avatarUrl: user.avatarUrl
+        };
+      }
+      
       return toQuoteDTO(sanitizedQuote);
     });
 
@@ -1758,7 +1776,8 @@ router.get('/community/popular-favorites', communityLimiter, telegramAuth, async
           latestCreated: { $max: '$createdAt' },
           firstId: { $first: '$_id' }, // For deterministic sorting
           sampleCategory: { $first: '$category' },
-          sampleThemes: { $first: '$themes' }
+          sampleThemes: { $first: '$themes' },
+          firstUserId: { $first: '$userId' } // Get the first user who favorited for user info
         }
       },
       {
@@ -1784,16 +1803,47 @@ router.get('/community/popular-favorites', communityLimiter, telegramAuth, async
           favorites: '$favoritesCount',
           sampleCategory: 1,
           sampleThemes: 1,
+          firstUserId: 1, // Include for user lookup
           _id: 0
         }
       }
     ]);
 
-    const total = popularFavorites.length;
+    // Get user info for the first user who favorited each quote
+    const userIds = [...new Set(popularFavorites.map(pf => String(pf.firstUserId)).filter(Boolean))];
+    const users = await UserProfile.find(
+      { userId: { $in: userIds } },
+      { userId: 1, name: 1, avatarUrl: 1 }
+    ).lean();
+    const userMap = new Map(users.map(u => [String(u.userId), u]));
+
+    // Add user info to each popular favorite
+    const enrichedPopularFavorites = popularFavorites.map(pf => {
+      const user = userMap.get(String(pf.firstUserId));
+      const result = {
+        text: pf.text,
+        author: pf.author,
+        favorites: pf.favorites,
+        sampleCategory: pf.sampleCategory,
+        sampleThemes: pf.sampleThemes
+      };
+      
+      if (user) {
+        result.user = {
+          userId: user.userId,
+          name: user.name,
+          avatarUrl: user.avatarUrl
+        };
+      }
+      
+      return result;
+    });
+
+    const total = enrichedPopularFavorites.length;
 
     res.json({
       success: true,
-      data: popularFavorites,
+      data: enrichedPopularFavorites,
       pagination: {
         period: period,
         limit: limit,
@@ -2121,9 +2171,10 @@ router.get('/community/leaderboard', communityLimiter, telegramAuth, async (req,
     const participants = agg.length;
     const top = agg.slice(0, limit);
     const ids = new Set([...top.map(r => String(r._id)), String(userId)]);
-    const users = await UserProfile.find({ userId: { $in: Array.from(ids) } }, { userId: 1, name: 1 }).lean();
+    const users = await UserProfile.find({ userId: { $in: Array.from(ids) } }, { userId: 1, name: 1, avatarUrl: 1 }).lean();
     const byId = new Map(users.map(u => [String(u.userId), u]));
-    const mask = (name) => (name ? name.charAt(0) + '***' : '***');
+    // Remove masking - show full names as requested
+    // const mask = (name) => (name ? name.charAt(0) + '***' : '***');
 
     const myIdx = agg.findIndex(r => String(r._id) === String(userId));
     const myCount = myIdx >= 0 ? agg[myIdx].quotesWeek : 0;
@@ -2148,7 +2199,8 @@ router.get('/community/leaderboard', communityLimiter, telegramAuth, async (req,
       const u = byId.get(String(row._id));
       return {
         position: idx + 1,
-        name: mask(u?.name),
+        name: u?.name || 'Пользователь', // Show full name instead of masked
+        avatarUrl: u?.avatarUrl || null, // Include avatar URL
         quotes: row.quotesWeek,
         quotesWeek: row.quotesWeek,
         isCurrentUser: String(row._id) === String(userId)
