@@ -85,6 +85,32 @@ class ReaderApp {
             console.warn('⚠️ StatisticsService script not loaded');
         }
         
+        // === PARSE INITIAL QUERY PARAMETERS ===
+        // Parse query parameters from hash for catalog highlighting etc.
+        this.initialState = { query: {} };
+        try {
+            const rawHash = window.location.hash.slice(1) || '';
+            const queryIndex = rawHash.indexOf('?');
+            if (queryIndex !== -1) {
+                const queryString = rawHash.substring(queryIndex + 1);
+                const query = {};
+                if (queryString) {
+                    const pairs = queryString.split('&');
+                    for (const pair of pairs) {
+                        const [key, value] = pair.split('=');
+                        if (key) {
+                            query[decodeURIComponent(key)] = value ? decodeURIComponent(value) : '';
+                        }
+                    }
+                }
+                this.initialState.query = query;
+                console.log('🔍 Parsed initial query parameters:', query);
+            }
+        } catch (e) {
+            console.warn('⚠️ Error parsing initial query parameters:', e);
+            this.initialState.query = {};
+        }
+        
         if (typeof TelegramService !== 'undefined') {
             this.telegram = new TelegramService();
         } else {

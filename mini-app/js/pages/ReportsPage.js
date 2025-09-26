@@ -30,6 +30,9 @@ class ReportsPage {
         // ✅ НОВОЕ: Хранение еженедельного отчета
         this.weeklyReport = null;
         
+        // ✅ НОВОЕ: Хранение предыдущего отчета для дельт
+        this.previousWeeklyReport = null;
+        
         // ✅ НОВОЕ: Кэширование недель для оптимизации
         this.lastWeekKey = localStorage.getItem('reader-bot-last-week-key') || '';
         this.lastReportDate = null;
@@ -338,51 +341,90 @@ class ReportsPage {
             return;
         }
 
-        const quotes = this.weeklyReport.quotes || [];
+        // ✅ НОВОЕ: Используем сохраненные метрики, если доступны
+        if (this.weeklyReport.metrics) {
+            console.log('✅ ReportsPage: Используем сохраненные метрики (не пересчитываем)');
+            
+            const metrics = this.weeklyReport.metrics;
+            
+            // Устанавливаем статистику из сохраненных метрик
+            this.reportData.statistics = {
+                quotes: metrics.quotes,
+                authors: metrics.uniqueAuthors,
+                days: metrics.activeDays,
+                goal: metrics.progressQuotesPct
+            };
+            
+            // Устанавливаем прогресс из метрик
+            this.reportData.progress = {
+                quotes: metrics.progressQuotesPct,
+                days: metrics.progressDaysPct
+            };
+            
+            console.log('📊 ReportsPage: Статистика из метрик:', this.reportData.statistics);
+        } else {
+            console.log('⚠️ ReportsPage: Метрики отсутствуют, пересчитываем (legacy fallback)');
+
+            const quotes = this.weeklyReport.quotes || [];
+            
+            // Количество цитат - используем quotesCount если есть, иначе длину массива
+            const quotesCount = this.weeklyReport.quotesCount || quotes.length;
+            
+            // Вычисляем количество уникальных авторов из цитат отчета
+            const uniqueAuthors = new Set(
+                quotes
+                    .filter(quote => quote.author && quote.author.trim())
+                    .map(quote => quote.author.trim())
+            ).size;
+            
+            // Вычисляем количество активных дней из цитат отчета
+            const activeDays = new Set(
+                quotes
+                    .filter(quote => quote.createdAt)
+                    .map(quote => new Date(quote.createdAt).toISOString().split('T')[0])
+            ).size;
+            
+            // Устанавливаем цель прогресса (по умолчанию 30 цитат как в продакшн требованиях)
+            const targetQuotes = 30;
+            const progressQuotesPct = Math.min(Math.round((quotesCount / targetQuotes) * 100), 100);
+            
+            // Устанавливаем статистику из weeklyReport данных
+            this.reportData.statistics = {
+                quotes: quotesCount,
+                authors: uniqueAuthors,
+                days: activeDays,
+                goal: progressQuotesPct
+            };
+            
+            // Устанавливаем прогресс
+            this.reportData.progress = {
+                quotes: progressQuotesPct,
+                days: Math.min(Math.round((activeDays / 7) * 100), 100) // 7 дней в неделе
+            };
+        }
         
-        // Количество цитат - используем quotesCount если есть, иначе длину массива
-        const quotesCount = this.weeklyReport.quotesCount || quotes.length;
+        // ✅ НОВОЕ: Вычисляем дельты если есть предыдущий отчет с метриками
+        if (this.previousWeeklyReport && this.previousWeeklyReport.metrics && this.weeklyReport.metrics) {
+            const currentMetrics = this.weeklyReport.metrics;
+            const prevMetrics = this.previousWeeklyReport.metrics;
+            
+            this.reportData.deltas = {
+                quotes: currentMetrics.quotes - prevMetrics.quotes,
+                authors: currentMetrics.uniqueAuthors - prevMetrics.uniqueAuthors,
+                days: currentMetrics.activeDays - prevMetrics.activeDays
+            };
+            
+            console.log('📊 ReportsPage: Дельты вычислены из метрик:', this.reportData.deltas);
+        } else {
+            // Обнуляем дельты если нет данных для сравнения
+            this.reportData.deltas = {
+                quotes: 0,
+                authors: 0,
+                days: 0
+            };
+        }
         
-        // Вычисляем количество уникальных авторов из цитат отчета
-        const uniqueAuthors = new Set(
-            quotes
-                .filter(quote => quote.author && quote.author.trim())
-                .map(quote => quote.author.trim())
-        ).size;
-        
-        // Вычисляем количество активных дней из цитат отчета
-        const activeDays = new Set(
-            quotes
-                .filter(quote => quote.createdAt)
-                .map(quote => new Date(quote.createdAt).toISOString().split('T')[0])
-        ).size;
-        
-        // Устанавливаем цель прогресса (по умолчанию 30 цитат как в продакшн требованиях)
-        const targetQuotes = 30;
-        const progressQuotesPct = Math.min(Math.round((quotesCount / targetQuotes) * 100), 100);
-        
-        // Устанавливаем статистику из weeklyReport данных
-        this.reportData.statistics = {
-            quotes: quotesCount,
-            authors: uniqueAuthors,
-            days: activeDays,
-            goal: progressQuotesPct
-        };
-        
-        // Обнуляем дельты для weeklyReport (нет данных о предыдущей неделе)
-        this.reportData.deltas = {
-            quotes: 0,
-            authors: 0,
-            days: 0
-        };
-        
-        // Устанавливаем прогресс
-        this.reportData.progress = {
-            quotes: progressQuotesPct,
-            days: Math.min(Math.round((activeDays / 7) * 100), 100) // 7 дней в неделе
-        };
-        
-        console.log('✅ ReportsPage: Статистика вычислена из weeklyReport:', this.reportData.statistics);
+        console.log('✅ ReportsPage: Статистика обновлена:', this.reportData.statistics);
     }
     
     /**
@@ -473,15 +515,19 @@ class ReportsPage {
             }
             
             // ✅ ИСПРАВЛЕНО: Загружаем ТОЛЬКО еженедельные отчеты (убрали getWeeklyStats)
+            // ✅ НОВОЕ: Загружаем 2 отчета для вычисления дельт
             console.log('📡 ReportsPage: Загружаем еженедельные отчеты для userId:', userId);
-            const weeklyReports = await this.api.getWeeklyReports({ limit: 1 }, userId);
+            const weeklyReports = await this.api.getWeeklyReports({ limit: 2 }, userId);
             
-            // ✅ Обработка еженедельного отчета (только последний)
+            // ✅ Обработка еженедельных отчетов (включая дельты)
             if (weeklyReports && weeklyReports.success) {
                 // Обработка разных форматов ответа
                 const reports = weeklyReports.reports || weeklyReports.data?.reports || [];
                 if (reports.length > 0) {
                     this.weeklyReport = reports[0];
+                    // ✅ НОВОЕ: Сохраняем второй отчет для дельт (если есть)
+                    this.previousWeeklyReport = reports.length > 1 ? reports[1] : null;
+                    
                     // ✅ НОВОЕ: Сохраняем дату отчета для отображения
                     this.lastReportDate = this.weeklyReport.sentAt ? 
                         new Date(this.weeklyReport.sentAt) : new Date();
@@ -494,13 +540,18 @@ class ReportsPage {
                     }
 
                     console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
+                    if (this.previousWeeklyReport) {
+                        console.log('📊 ReportsPage: Загружен предыдущий отчет для дельт', this.previousWeeklyReport);
+                    }
                 } else {
                     console.log('📊 ReportsPage: Еженедельные отчеты не найдены - новый пользователь');
                     this.weeklyReport = null; // Явно устанавливаем null для новых пользователей
+                    this.previousWeeklyReport = null;
                 }
             } else {
                 console.log('📊 ReportsPage: Ошибка загрузки еженедельных отчетов');
                 this.weeklyReport = null; // Явно устанавливаем null при ошибке
+                this.previousWeeklyReport = null;
             }
             
             // ✅ ИСПРАВЛЕНО: Всегда помечаем как загруженное, даже если нет отчетов

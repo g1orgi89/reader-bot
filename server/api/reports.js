@@ -459,30 +459,29 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
         });
       }
 
-      // Получаем цитаты за текущую неделю
-      const currentWeek = weeklyReportService.getCurrentWeekNumber();
-      const currentYear = new Date().getFullYear();
+      // Получаем цитаты за предыдущую полную неделю (по ISO правилам)
+      const weekRange = weeklyReportService.getPreviousWeekRange();
       
       const quotes = await Quote.find({
         userId,
-        $or: [
-          { weekNumber: currentWeek, yearNumber: currentYear },
-          { 
-            createdAt: { 
-              $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Последние 7 дней
-            }
-          }
-        ]
+        createdAt: { 
+          $gte: weekRange.start,
+          $lt: weekRange.end
+        }
       }).lean();
 
       if (quotes.length === 0) {
         return res.json({
           success: true,
           data: {
-            message: 'No quotes found for this user in the current week',
+            message: 'No quotes found for this user in the previous week',
             userId,
-            weekNumber: currentWeek,
-            year: currentYear
+            weekRange: {
+              start: weekRange.start.toISOString(),
+              end: weekRange.end.toISOString(),
+              weekNumber: weekRange.isoWeekNumber,
+              year: weekRange.isoYear
+            }
           }
         });
       }
@@ -797,31 +796,40 @@ router.get('/cron/status', async (req, res) => {
   try {
     logger.info('⏰ Проверка статуса cron задач');
     
+    let cronStatus = null;
+    if (cronService && typeof cronService.getJobsStatus === 'function') {
+      cronStatus = cronService.getJobsStatus();
+    }
+    
     const status = {
       weeklyReports: {
         enabled: !!cronService,
-        schedule: '0 11 * * 0', // Каждое воскресенье в 11:00
-        nextRun: 'Воскресенье, 11:00 МСК',
-        lastRun: null
+        schedule: '0 12 * * 0', // Каждое воскресенье в 12:00 МСК  
+        nextRun: cronStatus?.jobs?.weekly_reports?.nextDate || null,
+        lastRun: cronStatus?.jobs?.weekly_reports?.lastDate || null,
+        running: cronStatus?.jobs?.weekly_reports?.running || false
       },
       monthlyReports: {
         enabled: !!cronService && !!monthlyReportService,
         schedule: '0 12 1 * *', // 1 числа каждого месяца в 12:00
-        nextRun: '1 число месяца, 12:00 МСК',
-        lastRun: null
+        nextRun: cronStatus?.jobs?.monthly_reports?.nextDate || null,
+        lastRun: cronStatus?.jobs?.monthly_reports?.lastDate || null,
+        running: cronStatus?.jobs?.monthly_reports?.running || false
       },
       reminders: {
         enabled: !!cronService,
-        schedule: '0 9,19 * * *', // Ежедневно в 9:00 и 19:00
-        nextRun: 'Ежедневно в 9:00 и 19:00 МСК',
-        lastRun: null
+        schedule: '0 19 * * *', // Ежедневно в 19:00
+        nextRun: cronStatus?.jobs?.optimized_reminders?.nextDate || null,
+        lastRun: cronStatus?.jobs?.optimized_reminders?.lastDate || null,
+        running: cronStatus?.jobs?.optimized_reminders?.running || false
       }
     };
     
     const schedule = {
       timezone: 'Europe/Moscow',
-      jobs: Object.keys(status).length,
-      cronServiceAvailable: !!cronService
+      jobs: cronStatus?.totalJobs || 0,
+      cronServiceAvailable: !!cronService,
+      cronServiceInitialized: cronStatus?.initialized || false
     };
     
     res.json({
@@ -831,7 +839,8 @@ router.get('/cron/status', async (req, res) => {
         schedule,
         timezone: 'Europe/Moscow',
         currentTime: new Date().toISOString(),
-        moscowTime: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
+        moscowTime: new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
+        cronJobsDetails: cronStatus
       }
     });
   } catch (error) {
