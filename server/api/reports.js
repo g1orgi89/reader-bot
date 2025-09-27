@@ -817,7 +817,7 @@ router.get('/cron/status', async (req, res) => {
     const status = {
       weeklyReports: {
         enabled: !!cronService,
-        schedule: '0 12 * * 0', // Каждое воскресенье в 12:00 МСК  
+        schedule: '35 16 * * *' // Каждый день в 16:35 
         nextRun: cronStatus?.jobs?.weekly_reports?.nextDate || null,
         lastRun: cronStatus?.jobs?.weekly_reports?.lastDate || null,
         running: cronStatus?.jobs?.weekly_reports?.running || false
