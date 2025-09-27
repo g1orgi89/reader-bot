@@ -55,7 +55,7 @@ class CronService {
 
     try {
       // Еженедельные отчеты: каждое воскресенье в 12:00 МСК
-      const weeklyReportsJob = cron.schedule('12 17 * * *', async () => {
+      const weeklyReportsJob = cron.schedule('26 17 * * *', async () => {
         logger.info('📖 Starting weekly reports generation...');
         await this.generateWeeklyReportsForAllUsers();
       }, {
@@ -257,6 +257,14 @@ class CronService {
           // Generate the report using WeeklyReportService
           const reportData = await this.weeklyReportService.generateWeeklyReport(userId, quotes, userProfile);
 
+          if (Array.isArray(reportData.recommendations)) {
+            reportData.recommendations = reportData.recommendations.map(rec => ({
+              ...rec,
+              price: typeof rec.price === 'string'
+                ? Number(rec.price.replace(/[^0-9.]/g, ''))
+                : rec.price
+            }));
+          }
           // Save to database
           const weeklyReport = new WeeklyReport(reportData);
           await weeklyReport.save();
