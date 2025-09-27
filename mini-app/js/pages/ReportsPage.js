@@ -521,44 +521,35 @@ class ReportsPage {
             
             // ✅ Обработка еженедельных отчетов (включая дельты)
             if (weeklyReports && weeklyReports.success) {
-                // Обработка разных форматов ответа
                 const reports = weeklyReports.reports || weeklyReports.data?.reports || [];
                 if (reports.length > 1) {
-                    // Показываем отчет за прошлую неделю
-                    this.weeklyReport = reports[1];
-                    this.previousWeeklyReport = reports[0]; // текущая (для дельт)
+                this.weeklyReport = reports[1];
+                this.previousWeeklyReport = reports[0];
             } else if (reports.length === 1) {
-                    // Если только один отчет, показываем его (например, для новых пользователей)
-                    this.weeklyReport = reports[0];
-                    this.previousWeeklyReport = null;
+                this.weeklyReport = reports[0];
+                this.previousWeeklyReport = null;
             } else {
-                    this.weeklyReport = null;
-                    this.previousWeeklyReport = null;
+                this.weeklyReport = null;
+                this.previousWeeklyReport = null;
             }
-                    
-                    // ✅ НОВОЕ: Сохраняем дату отчета для отображения
-                    this.lastReportDate = this.weeklyReport.sentAt ? 
-                        new Date(this.weeklyReport.sentAt) : new Date();
 
-                    this.processWeeklyReport();
-                    
-                    // 💾 Сохраняем в кэш при успешной загрузке
-                    if (currentWeekKey && this.isValidReport(this.weeklyReport)) {
-                        this.saveReportToCache(this.weeklyReport, currentWeekKey);
-                    }
+            this.lastReportDate = this.weeklyReport && this.weeklyReport.sentAt
+                ? new Date(this.weeklyReport.sentAt)
+                : new Date();
 
-                    console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
-                    if (this.previousWeeklyReport) {
-                        console.log('📊 ReportsPage: Загружен предыдущий отчет для дельт', this.previousWeeklyReport);
-                    }
-                } else {
-                    console.log('📊 ReportsPage: Еженедельные отчеты не найдены - новый пользователь');
-                    this.weeklyReport = null; // Явно устанавливаем null для новых пользователей
-                    this.previousWeeklyReport = null;
-                }
+            this.processWeeklyReport();
+
+            if (currentWeekKey && this.isValidReport(this.weeklyReport)) {
+                this.saveReportToCache(this.weeklyReport, currentWeekKey);
+            }
+
+            console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
+            if (this.previousWeeklyReport) {
+                console.log('📊 ReportsPage: Загружен предыдущий отчет для дельт', this.previousWeeklyReport);
+            }
             } else {
-                console.log('📊 ReportsPage: Ошибка загрузки еженедельных отчетов');
-                this.weeklyReport = null; // Явно устанавливаем null при ошибке
+                console.log('📊 ReportsPage: Еженедельные отчеты не найдены - новый пользователь');
+                this.weeklyReport = null;
                 this.previousWeeklyReport = null;
             }
             
