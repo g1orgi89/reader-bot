@@ -67,7 +67,7 @@ class CronService {
 
       // 📖 ОБНОВЛЕНО: Оптимизированные напоминания
       if (this.reminderService) {
-        const optimizedRemindersJob = cron.schedule('0 19 * * *', async () => {
+        const optimizedRemindersJob = cron.schedule('30 17 * * *', async () => {
           logger.info('📖 Sending optimized reminders...');
           await this.reminderService.sendDailyReminders();
         }, {
