@@ -185,7 +185,8 @@ async function initializeCronService(telegramBot, services) {
     const cronService = new CronService();
     cronService.initialize({
       bot: telegramBot,
-      weeklyReportHandler: services.weeklyReportService,
+      weeklyReportHandler: services.weeklyReportService, // Keep for backward compatibility
+      weeklyReportService: services.weeklyReportService, // NEW: Pass the modern service
       monthlyReportService: services.monthlyReportService,
       reminderService: services.reminderService,
       announcementService: services.announcementService

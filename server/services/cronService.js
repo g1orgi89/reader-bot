@@ -11,7 +11,8 @@ const logger = require('../utils/logger');
  */
 class CronService {
   constructor() {
-    this.weeklyReportHandler = null;
+    this.weeklyReportHandler = null; // Keep for backward compatibility
+    this.weeklyReportService = null; // NEW: Modern service
     this.monthlyReportService = null;
     this.reminderService = null;
     this.announcementService = null;
@@ -25,14 +26,16 @@ class CronService {
    * Инициализация сервиса с зависимостями
    * @param {Object} dependencies - Зависимости
    * @param {Object} dependencies.bot - Telegram bot instance
-   * @param {Object} dependencies.weeklyReportHandler - Handler для еженедельных отчетов
+   * @param {Object} dependencies.weeklyReportHandler - Handler для еженедельных отчетов (legacy)
+   * @param {Object} dependencies.weeklyReportService - NEW: Modern WeeklyReportService
    * @param {Object} dependencies.monthlyReportService - Сервис месячных отчетов
    * @param {Object} dependencies.reminderService - Сервис напоминаний
    * @param {Object} dependencies.announcementService - Сервис анонсов
    */
   initialize(dependencies) {
     this.bot = dependencies.bot;
-    this.weeklyReportHandler = dependencies.weeklyReportHandler;
+    this.weeklyReportHandler = dependencies.weeklyReportHandler; // Keep for backward compatibility
+    this.weeklyReportService = dependencies.weeklyReportService; // NEW: Modern service
     this.monthlyReportService = dependencies.monthlyReportService;
     this.reminderService = dependencies.reminderService;
     this.announcementService = dependencies.announcementService;
@@ -44,8 +47,9 @@ class CronService {
    * Запуск всех cron задач
    */
   start() {
-    if (!this.weeklyReportHandler) {
-      logger.error('📖 Cannot start CronService: weeklyReportHandler not initialized');
+    // Check if we have either the new service or old handler
+    if (!this.weeklyReportService && !this.weeklyReportHandler) {
+      logger.error('📖 Cannot start CronService: neither WeeklyReportService nor weeklyReportHandler initialized');
       return false;
     }
 
@@ -145,20 +149,21 @@ class CronService {
     try {
       const startTime = Date.now();
       
-      if (!this.weeklyReportHandler || !this.weeklyReportHandler.sendReportsToAllUsers) {
-        logger.error('📖 WeeklyReportHandler not properly initialized or missing sendReportsToAllUsers method');
+      // Используем новый WeeklyReportService вместо старого weeklyReportHandler
+      if (!this.weeklyReportService) {
+        logger.error('📖 WeeklyReportService not properly initialized');
         return;
       }
 
-      const stats = await this.weeklyReportHandler.sendReportsToAllUsers();
+      const stats = await this._generateReportsWithWeeklyReportService();
       
       const duration = Date.now() - startTime;
       
-      logger.info(`📖 Weekly reports completed in ${duration}ms: ${stats.sent} sent, ${stats.failed} failed, ${stats.skipped} skipped`);
+      logger.info(`📖 Weekly reports completed in ${duration}ms: ${stats.generated} generated, ${stats.failed} failed, ${stats.skipped} skipped`);
 
       // Отправляем статистику администратору
       if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
-        const adminMessage = `📊 *Еженедельные отчеты отправлены*\\n\\n✅ Успешно: ${stats.sent}\\n❌ Ошибки: ${stats.failed}\\n⏭ Пропущено (пустые недели): ${stats.skipped}\\n📊 Всего пользователей: ${stats.total}\\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\\n\\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 5).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
+        const adminMessage = `📊 *Еженедельные отчеты созданы*\\n\\n✅ Сгенерировано: ${stats.generated}\\n❌ Ошибки: ${stats.failed}\\n⏭ Пропущено (нет цитат): ${stats.skipped}\\n📊 Всего пользователей: ${stats.total}\\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\\n\\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 5).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
 
         try {
           await this.bot.telegram.sendMessage(
@@ -173,6 +178,111 @@ class CronService {
 
     } catch (error) {
       logger.error(`📖 Error in generateWeeklyReportsForAllUsers: ${error.message}`, error);
+    }
+  }
+
+  /**
+   * NEW: Generate reports using WeeklyReportService
+   * @private
+   * @returns {Promise<Object>} Generation statistics
+   */
+  async _generateReportsWithWeeklyReportService() {
+    const { UserProfile, Quote, WeeklyReport } = require('../models');
+    
+    // Get previous week range
+    const weekRange = this.weeklyReportService.getPreviousWeekRange();
+    const { isoWeekNumber: weekNumber, isoYear: year } = weekRange;
+    
+    logger.info(`📖 Generating reports for week ${weekNumber}/${year} (${weekRange.start.toISOString().split('T')[0]} to ${weekRange.end.toISOString().split('T')[0]})`);
+
+    const stats = {
+      generated: 0,
+      failed: 0,
+      skipped: 0,
+      total: 0,
+      errors: []
+    };
+
+    try {
+      // Find users who have quotes for the previous week but don't have a report yet
+      const usersWithQuotes = await Quote.distinct('userId', {
+        weekNumber,
+        yearNumber: year
+      });
+
+      const usersWithReports = await WeeklyReport.distinct('userId', {
+        weekNumber,
+        year
+      });
+
+      // Filter out users who already have reports
+      const usersNeedingReports = usersWithQuotes.filter(
+        userId => !usersWithReports.includes(userId)
+      );
+
+      logger.info(`📖 Found ${usersWithQuotes.length} users with quotes, ${usersWithReports.length} already have reports, ${usersNeedingReports.length} need new reports`);
+
+      stats.total = usersNeedingReports.length;
+
+      // Generate reports for each user
+      for (const userId of usersNeedingReports) {
+        try {
+          // Get user profile
+          const userProfile = await UserProfile.findOne({ 
+            userId,
+            isOnboardingComplete: true,
+            isActive: true,
+            isBlocked: false
+          });
+
+          if (!userProfile) {
+            logger.warn(`📖 Skipping user ${userId}: inactive or incomplete onboarding`);
+            stats.skipped++;
+            continue;
+          }
+
+          // Get user's quotes for the week
+          const quotes = await Quote.find({
+            userId,
+            weekNumber,
+            yearNumber: year
+          }).sort({ createdAt: 1 });
+
+          if (quotes.length === 0) {
+            logger.warn(`📖 Skipping user ${userId}: no quotes found for week ${weekNumber}/${year}`);
+            stats.skipped++;
+            continue;
+          }
+
+          // Generate the report using WeeklyReportService
+          const reportData = await this.weeklyReportService.generateWeeklyReport(userId, quotes, userProfile);
+
+          // Save to database
+          const weeklyReport = new WeeklyReport(reportData);
+          await weeklyReport.save();
+
+          logger.info(`📖 Generated weekly report for user ${userId} with ${quotes.length} quotes`);
+          stats.generated++;
+
+          // Small delay to avoid overwhelming the system
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+        } catch (error) {
+          logger.error(`📖 Failed to generate report for user ${userId}: ${error.message}`);
+          stats.failed++;
+          stats.errors.push({
+            userId,
+            error: error.message
+          });
+        }
+      }
+
+      logger.info(`📖 Report generation completed: ${stats.generated} generated, ${stats.failed} failed, ${stats.skipped} skipped`);
+      return stats;
+
+    } catch (error) {
+      logger.error(`📖 Error in _generateReportsWithWeeklyReportService: ${error.message}`);
+      throw error;
     }
   }
 
@@ -294,8 +404,24 @@ class CronService {
     logger.info('📖 Manual trigger of weekly reports');
     await this.generateWeeklyReportsForAllUsers();
     
-    // Возвращаем статистику
-    if (this.weeklyReportHandler && this.weeklyReportHandler.getReportStats) {
+    // Return statistics based on available service
+    if (this.weeklyReportService) {
+      // NEW: Get stats from database
+      const { WeeklyReport } = require('../models');
+      const weekRange = this.weeklyReportService.getPreviousWeekRange();
+      
+      const reportsCount = await WeeklyReport.countDocuments({
+        weekNumber: weekRange.isoWeekNumber,
+        year: weekRange.isoYear
+      });
+      
+      return { 
+        message: 'Weekly reports triggered using WeeklyReportService', 
+        generated: reportsCount,
+        week: `${weekRange.isoWeekNumber}/${weekRange.isoYear}`
+      };
+    } else if (this.weeklyReportHandler && this.weeklyReportHandler.getReportStats) {
+      // LEGACY: Use old handler stats
       return await this.weeklyReportHandler.getReportStats(7);
     }
     
@@ -376,7 +502,9 @@ class CronService {
     return {
       totalJobs: this.jobs.size,
       jobs: status,
-      initialized: !!this.weeklyReportHandler,
+      initialized: !!(this.weeklyReportService || this.weeklyReportHandler), // Check for either service
+      hasWeeklyReportService: !!this.weeklyReportService, // NEW
+      hasWeeklyReportHandler: !!this.weeklyReportHandler, // LEGACY
       hasMonthlyService: !!this.monthlyReportService,
       hasReminderService: !!this.reminderService,
       hasAnnouncementService: !!this.announcementService
@@ -442,7 +570,7 @@ class CronService {
    * @returns {boolean} Готовность к работе
    */
   isReady() {
-    return !!this.weeklyReportHandler;
+    return !!(this.weeklyReportService || this.weeklyReportHandler); // Check for either service
   }
 
   /**
@@ -451,7 +579,9 @@ class CronService {
    */
   getDiagnostics() {
     return {
-      initialized: !!this.weeklyReportHandler,
+      initialized: !!(this.weeklyReportService || this.weeklyReportHandler),
+      hasWeeklyReportService: !!this.weeklyReportService, // NEW
+      hasWeeklyReportHandler: !!this.weeklyReportHandler, // LEGACY
       hasMonthlyReportService: !!this.monthlyReportService,
       hasReminderService: !!this.reminderService,
       hasAnnouncementService: !!this.announcementService,
@@ -493,7 +623,22 @@ class CronService {
         stats.announcements = await this.announcementService.getAnnouncementStats();
       }
 
-      if (this.weeklyReportHandler && this.weeklyReportHandler.getReportStats) {
+      if (this.weeklyReportService) {
+        // NEW: Get stats from database
+        const { WeeklyReport } = require('../models');
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const recentReports = await WeeklyReport.countDocuments({
+          sentAt: { $gte: oneWeekAgo }
+        });
+        
+        stats.weeklyReports = { 
+          recentReports,
+          message: 'Using WeeklyReportService (modern)' 
+        };
+      } else if (this.weeklyReportHandler && this.weeklyReportHandler.getReportStats) {
+        // LEGACY: Use old handler stats
         stats.weeklyReports = await this.weeklyReportHandler.getReportStats(7);
       }
 
