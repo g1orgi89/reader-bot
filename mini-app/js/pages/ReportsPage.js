@@ -523,10 +523,18 @@ class ReportsPage {
             if (weeklyReports && weeklyReports.success) {
                 // Обработка разных форматов ответа
                 const reports = weeklyReports.reports || weeklyReports.data?.reports || [];
-                if (reports.length > 0) {
+                if (reports.length > 1) {
+                    // Показываем отчет за прошлую неделю
+                    this.weeklyReport = reports[1];
+                    this.previousWeeklyReport = reports[0]; // текущая (для дельт)
+            } else if (reports.length === 1) {
+                    // Если только один отчет, показываем его (например, для новых пользователей)
                     this.weeklyReport = reports[0];
-                    // ✅ НОВОЕ: Сохраняем второй отчет для дельт (если есть)
-                    this.previousWeeklyReport = reports.length > 1 ? reports[1] : null;
+                    this.previousWeeklyReport = null;
+            } else {
+                    this.weeklyReport = null;
+                    this.previousWeeklyReport = null;
+            }
                     
                     // ✅ НОВОЕ: Сохраняем дату отчета для отображения
                     this.lastReportDate = this.weeklyReport.sentAt ? 
