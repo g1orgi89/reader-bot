@@ -671,7 +671,11 @@ async function startServer() {
     logger.info(`   🎯 Target Audiences: ${config.app.apiPrefix}/target-audiences`);
     logger.info(`   🔗 UTM Templates: ${config.app.apiPrefix}/utm-templates`);
     logger.info(`   👩 Anna Persona: ${config.app.apiPrefix}/anna-persona`);
-    
+
+    // Импортируйте сервис
+    const WeeklyReportService = require('./services/weeklyReportService');
+    const weeklyReportService = new WeeklyReportService();
+   
     // 📖 Initialize and start CronService
     if (cronService) {
       try {
@@ -681,6 +685,7 @@ async function startServer() {
         cronService.initialize({
           bot: null, // Telegram bot not available in web server context
           weeklyReportHandler: telegramReportService,
+          weeklyReportService: weeklyReportService,
           monthlyReportService: null,
           reminderService: null,
           announcementService: null
