@@ -44,9 +44,23 @@ const logger = require('../utils/logger');
 class WeeklyReportService {
   constructor() {
     this.logger = logger;
-    // Получаем прямой доступ к Claude API для JSON анализа
+    // Получаем прямой доступ к API для JSON анализа
+    const { getAIProviderConfig } = require('../config/aiProvider');
+    this.config = getAIProviderConfig();
+
     this.anthropic = null;
-    this.initializeAnthropicClient();
+    this.openai = null;
+
+    if (this.config.provider === 'claude' && this.config.claude.apiKey) {
+      const { Anthropic } = require('@anthropic-ai/sdk');
+      this.anthropic = new Anthropic({ apiKey: this.config.claude.apiKey });
+      this.claudeConfig = this.config.claude;
+    }
+    if (this.config.provider === 'openai' && this.config.openai.apiKey) {
+      const OpenAI = require('openai');
+      this.openai = new OpenAI({ apiKey: this.config.openai.apiKey });
+      this.openaiConfig = this.config.openai;
+    }
     
     // 📋 NEW: Инициализация моделей для работы с БД
     this.initializeModels();
@@ -102,15 +116,38 @@ class WeeklyReportService {
    */
   async analyzeWeeklyQuotes(quotes, userProfile) {
     const quotesText = quotes.map(q => `"${q.text}" ${q.author ? `(${q.author})` : ''}`).join('\n\n');
-    
-    // 🔧 FIX: Минимальный промпт только для JSON анализа
-    const analysisPrompt = `Проанализируй цитаты пользователя за неделю в стиле психолога Анны Бусел.\n\nПользователь: ${userProfile.name}\nРезультаты теста: ${JSON.stringify(userProfile.testResults)}\n\nЦитаты за неделю:\n${quotesText}\n\nВерни СТРОГО JSON объект без markdown, комментариев или дополнительного текста:\n\n{\n  "summary": "Краткий анализ недели одним предложением",\n  "dominantThemes": ["тема1", "тема2"],\n  "emotionalTone": "позитивный/нейтральный/задумчивый/etc",\n  "insights": "Подробный психологический анализ от Анны (2-3 предложения)",\n  "personalGrowth": "Наблюдения о личностном росте пользователя"\n}`;
+    const analysisPrompt = `Проанализируй цитаты пользователя за неделю в стиле психолога Анны Бусел.\n\nПользователь: ${userProfile.name}\nЦитаты:\n${quotesText}\n\nСформируй JSON с ключами: summary, dominantThemes[], emotionalTone, insights, personalGrowth.`;
 
     try {
-      logger.info(`📖 Analyzing ${quotes.length} quotes for user ${userProfile.userId} (direct API)`);
-      
-      // 🔧 FIX: Прямой вызов Claude API без системного промпта
-      if (this.anthropic) {
+      logger.info(`📖 Analyzing ${quotes.length} quotes for user ${userProfile.userId} (provider: ${this.config.provider})`);
+
+      if (this.config.provider === 'openai' && this.openai) {
+        // GPT-4o prompt
+        const response = await this.openai.chat.completions.create({
+          model: this.openaiConfig.model,
+          messages: [
+            { role: 'system', content: 'Ты психолог Анна Бусел. Отвечай в формате JSON.' },
+            { role: 'user', content: analysisPrompt }
+          ],
+          max_tokens: this.openaiConfig.maxTokens,
+          temperature: this.openaiConfig.temperature
+        });
+        const aiText = response.choices[0].message.content;
+        const analysis = this._parseAIResponse(aiText);
+        if (!analysis.summary || !analysis.insights) {
+          logger.warn(`📖 Invalid analysis (OpenAI), using fallback for user ${userProfile.userId}`);
+          return this.getFallbackAnalysis(quotes, userProfile);
+        }
+        logger.info(`📖 OpenAI analysis completed for user ${userProfile.userId}`);
+        return {
+          summary: analysis.summary,
+          dominantThemes: analysis.dominantThemes || [],
+          emotionalTone: analysis.emotionalTone || 'размышляющий',
+          insights: analysis.insights,
+          personalGrowth: analysis.personalGrowth || 'Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг.'
+        };
+      } else if (this.anthropic) {
+        // ... как было для Anthropic
         const response = await this.anthropic.messages.create({
           model: this.claudeConfig.model,
           max_tokens: 1000,
@@ -120,15 +157,11 @@ class WeeklyReportService {
             content: analysisPrompt
           }]
         });
-        
         const analysis = this._parseAIResponse(response.content[0].text);
-        
-        // Валидация результата
         if (!analysis.summary || !analysis.insights) {
-          logger.warn(`📖 Invalid analysis structure, using fallback for user ${userProfile.userId}`);
+          logger.warn(`📖 Invalid analysis (Claude), using fallback for user ${userProfile.userId}`);
           return this.getFallbackAnalysis(quotes, userProfile);
         }
-
         logger.info(`📖 Direct AI analysis completed successfully for user ${userProfile.userId}`);
         return {
           summary: analysis.summary,
@@ -138,15 +171,11 @@ class WeeklyReportService {
           personalGrowth: analysis.personalGrowth || 'Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг.'
         };
       } else {
-        // Fallback если Anthropic клиент не инициализирован
-        logger.warn('📖 Anthropic client not available, using fallback analysis');
+        logger.warn('📖 No AI client available, using fallback analysis');
         return this.getFallbackAnalysis(quotes, userProfile);
       }
-      
     } catch (error) {
-      logger.error(`📖 Error in direct AI weekly analysis: ${error.message}`);
-      
-      // ✅ Fallback анализ в случае ошибки AI
+      logger.error(`📖 Error in AI weekly analysis: ${error.message}`);
       return this.getFallbackAnalysis(quotes, userProfile);
     }
   }
