@@ -711,7 +711,7 @@ router.get('/weekly/:userId', checkModelsAvailable, async (req, res) => {
     logger.info(`📊 Получение отчетов пользователя ${userId}`);
     
     const reports = await WeeklyReport.find({ userId })
-      .populate('quotes', 'text author category')
+      .populate('quotes', 'text author category createdAt')
       .sort({ sentAt: -1 })
       .limit(Number(limit))
       .lean();
@@ -725,13 +725,26 @@ router.get('/weekly/:userId', checkModelsAvailable, async (req, res) => {
           weekNumber: report.weekNumber,
           year: report.year,
           quotesCount: Array.isArray(report.quotes) ? report.quotes.length : (report.quotesCount || 0),
+          quotes: Array.isArray(report.quotes)
+            ? report.quotes.map(q => ({
+                text: q.text,
+                author: q.author,
+                category: q.category,
+                createdAt: q.createdAt
+              }))
+            : [],
+          metrics: Array.isArray(report.quotes) ? {
+            quotes: report.quotes.length,
+            uniqueAuthors: new Set(report.quotes.map(q => q.author).filter(Boolean)).size,
+            activeDays: new Set(report.quotes.map(q => new Date(q.createdAt).toISOString().slice(0,10))).size,
+            progressQuotesPct: Math.min(Math.round((report.quotes.length / 30) * 100), 100),
+            progressDaysPct: Math.min(Math.round((new Set(report.quotes.map(q => new Date(q.createdAt).toISOString().slice(0,10))).size / 7) * 100), 100)
+          } : null,
           sentAt: report.sentAt,
           isRead: report.isRead,
           feedback: report.feedback,
-          // Keep legacy top-level fields
           dominantThemes: report.analysis?.dominantThemes || [],
           emotionalTone: report.analysis?.emotionalTone || '',
-          // NEW: full analysis block
           analysis: {
             summary: report.analysis?.summary || '',
             insights: report.analysis?.insights || '',
