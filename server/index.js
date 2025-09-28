@@ -759,6 +759,41 @@ process.on('uncaughtException', (error) => {
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
+// 🤖 НОВОЕ: Опциональная инициализация Simple Telegram Bot
+let simpleBot = null;
+try {
+  if (process.env.ENABLE_SIMPLE_BOT === 'true') {
+    logger.info('🤖 ENABLE_SIMPLE_BOT is true, initializing Simple Telegram Bot...');
+    
+    const SimpleTelegramBot = require('../bot/simpleBot');
+    
+    simpleBot = new SimpleTelegramBot({
+      token: config.telegram.botToken,
+      environment: config.app.environment,
+      appWebAppUrl: process.env.APP_WEBAPP_URL || 'https://app.unibotz.com/mini-app/'
+    });
+    
+    // Инициализируем бота асинхронно
+    simpleBot.initialize()
+      .then(() => {
+        return simpleBot.start();
+      })
+      .then(() => {
+        global.simpleTelegramBot = simpleBot;
+        logger.info('✅ Simple Telegram Bot initialized and started in server process');
+      })
+      .catch(error => {
+        logger.error('❌ Failed to initialize Simple Telegram Bot:', error);
+        simpleBot = null;
+      });
+  } else {
+    logger.info('🤖 ENABLE_SIMPLE_BOT is not set, Simple Telegram Bot will not be initialized in server process');
+  }
+} catch (error) {
+  logger.error('❌ Error setting up Simple Telegram Bot:', error);
+  simpleBot = null;
+}
+
 // Экспорт для тестирования
 module.exports = {
   app,
