@@ -91,7 +91,7 @@ class IOSFixService {
   }
 
   /**
-   * Setup keyboard handling - hide/show nav on focus/blur only
+   * Setup keyboard handling - hide/show nav on focus/blur with enhanced viewport stabilization
    */
   setupKeyboardHandling() {
     // Hide navigation on input focus
@@ -100,12 +100,23 @@ class IOSFixService {
       
       // Only handle actual input elements
       if (target && (target.matches('input, textarea, select') || target.contentEditable === 'true')) {
+        // Add both nav-hidden and keyboard-open classes
         document.documentElement.classList.add('nav-hidden');
-        console.log('🔒 Navigation hidden for keyboard input');
+        document.documentElement.classList.add('keyboard-open');
+        
+        // Block content scrolling for viewport stability
+        const contentContainer = document.querySelector('.content') || 
+                                document.querySelector('.page-content') || 
+                                document.querySelector('.app-content');
+        if (contentContainer) {
+          contentContainer.style.overflow = 'hidden';
+        }
+        
+        console.log('🔒 Navigation hidden and viewport stabilized for keyboard input');
       }
     });
 
-    // Show navigation on input blur
+    // Show navigation on input blur with viewport stabilization
     window.addEventListener('focusout', (event) => {
       const target = event.target;
       
@@ -119,14 +130,67 @@ class IOSFixService {
             (activeElement.matches('input, textarea, select') || activeElement.contentEditable === 'true');
           
           if (!isStillFocusedOnInput) {
-            document.documentElement.classList.remove('nav-hidden');
-            console.log('🔓 Navigation shown after keyboard dismiss');
+            // Wait for viewport stabilization before showing nav
+            this.waitForViewportStabilization().then(() => {
+              document.documentElement.classList.remove('nav-hidden');
+              document.documentElement.classList.remove('keyboard-open');
+              
+              // Restore content scrolling
+              const contentContainer = document.querySelector('.content') || 
+                                     document.querySelector('.page-content') || 
+                                     document.querySelector('.app-content');
+              if (contentContainer) {
+                contentContainer.style.overflow = '';
+              }
+              
+              console.log('🔓 Navigation shown after keyboard dismiss and viewport stabilization');
+            });
           }
         }, 100);
       }
     });
 
-    console.log('✅ Keyboard handling configured');
+    console.log('✅ Enhanced keyboard handling configured with viewport stabilization');
+  }
+
+  /**
+   * Wait for visual viewport stabilization after keyboard dismiss
+   * @returns {Promise} Promise that resolves when viewport is stable
+   */
+  waitForViewportStabilization() {
+    return new Promise((resolve) => {
+      if (!window.visualViewport) {
+        // Fallback for devices without visualViewport API
+        setTimeout(resolve, 300);
+        return;
+      }
+
+      let stabilizationTimer;
+      let lastHeight = window.visualViewport.height;
+      
+      const checkStability = () => {
+        const currentHeight = window.visualViewport.height;
+        
+        if (Math.abs(currentHeight - lastHeight) < 1) {
+          // Viewport is stable
+          clearTimeout(stabilizationTimer);
+          resolve();
+        } else {
+          // Viewport still changing, continue monitoring
+          lastHeight = currentHeight;
+          stabilizationTimer = setTimeout(checkStability, 50);
+        }
+      };
+
+      // Start monitoring with initial delay
+      setTimeout(checkStability, 100);
+      
+      // Maximum wait time fallback
+      setTimeout(() => {
+        clearTimeout(stabilizationTimer);
+        resolve();
+      }, 1000);
+    });
   }
 
   /**

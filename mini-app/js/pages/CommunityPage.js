@@ -2142,8 +2142,13 @@ class CommunityPage {
             button.innerHTML = '<span class="add-icon">+</span>';
             button.disabled = false;
             
-            // Проверяем лимит и показываем соответствующее сообщение
-            if (error && (error.status === 429 || /limit|quota|exceed/i.test(error.message || '') || /limit|quota/i.test(error?.data?.message || ''))) {
+            // Проверяем лимит и показываем соответствующее сообщение (улучшенная проверка)
+            if (error && (error.status === 429 || 
+                         error.response?.status === 429 ||
+                         /limit|quota|exceed/i.test(error.message || '') || 
+                         /limit|quota|exceed/i.test(error?.data?.message || '') ||
+                         /limit|quota|exceed/i.test(error?.response?.data?.message || '') ||
+                         /Daily limit of 10 quotes exceeded/i.test(error?.response?.data?.error || ''))) {
                 this.showNotification('Достигнут дневной лимит: можно сохранять до 10 цитат в сутки.', 'info');
             } else {
                 this.showNotification('Ошибка при добавлении цитаты', 'error');
