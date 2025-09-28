@@ -232,7 +232,7 @@ class CatalogPage {
                         const mappedCategories = cleanedThemes
                             .map(theme => categoryMapping[theme] || theme.toUpperCase())
                             .filter((category, index, arr) => arr.indexOf(category) === index) // dedupe
-                            .slice(0, 4); // Максимум 4 категории
+                            .slice(0, 5); // Максимум 5 категорий
                         
                         if (mappedCategories.length > 0) {
                             this.userTags = mappedCategories;
@@ -373,14 +373,11 @@ class CatalogPage {
     
     /**
      * 🏅 Генерация badge на основе данных книги
+     * ❌ ИСПРАВЛЕНО: Старый бейдж "ТОП" больше не используется
      */
     generateBadge(apiBook) {
-        // Простая логика для генерации badges
-        if (apiBook.categories && apiBook.categories.includes('ПОИСК СЕБЯ')) {
-            return { type: 'top', text: 'ТОП' };
-        }
-        
-        // Можно добавить больше логики на основе других полей
+        // Возвращаем null - старые бейджи больше не нужны
+        // Только "Топ недели" бейдж добавляется в convertApiBookToDisplayFormat
         return null;
     }
     
@@ -541,7 +538,7 @@ class CatalogPage {
             return `
                 <div class="personalization-card">
                     <div class="personalization-title">🎯 Персональные рекомендации</div>
-                    <div class="personalization-subtitle">Добавляйте цитаты — и я подготовлю персональные темы</div>
+                    <div class="personalization-subtitle">Добавляйте цитаты — и появятся персональные темы</div>
                 </div>
             `;
         }

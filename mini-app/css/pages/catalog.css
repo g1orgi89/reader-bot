@@ -145,6 +145,11 @@
    ============================================================================ */
 
 .book-card {
+    /* ✅ RESET: Сброс конфликтующих стилей из components/cards.css */
+    all: unset;
+    /* ✅ LAYOUT: Применяем правильную структуру */
+    display: flex;
+    flex-direction: column;
     background: var(--bg-card);
     border-radius: var(--radius-lg);
     padding: var(--spacing-md);
@@ -291,10 +296,10 @@
 
 .book-footer {
     display: flex;
-    gap: var(--spacing-xs);
+    justify-content: space-between;
     align-items: center;
-    margin-top: var(--spacing-sm);
-}
+    margin-top: auto; /* Push footer to bottom */
+    gap: var(--spacing-xs);
 }
 
 .book-pricing {
@@ -516,6 +521,8 @@
     
     .book-description {
         font-size: 11px;
+        /* Allow 4 lines on very narrow screens */
+        -webkit-line-clamp: 4;
     }
     
     .book-meta {
