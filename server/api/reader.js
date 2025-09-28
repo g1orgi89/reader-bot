@@ -2752,4 +2752,79 @@ router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res)
   }
 });
 
+/**
+ * @description Отправка уведомления через Simple Telegram Bot
+ * @route POST /api/reader/notify
+ */
+router.post('/notify', async (req, res) => {
+  try {
+    // Проверка секретного заголовка
+    const providedSecret = req.headers['x-notify-secret'];
+    const expectedSecret = process.env.BOT_NOTIFICATIONS_SECRET;
+    
+    if (!expectedSecret) {
+      return res.status(500).json({
+        success: false,
+        error: 'Notification secret not configured. Please set BOT_NOTIFICATIONS_SECRET environment variable.'
+      });
+    }
+    
+    if (!providedSecret || providedSecret !== expectedSecret) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or missing X-Notify-Secret header'
+      });
+    }
+    
+    const { userId, message, parseMode } = req.body;
+    
+    // Валидация данных
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'userId is required'
+      });
+    }
+    
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        error: 'message is required'
+      });
+    }
+    
+    // Проверяем, доступен ли бот в этом процессе
+    if (!global.simpleTelegramBot) {
+      return res.status(503).json({
+        success: false,
+        error: 'Simple Telegram Bot is not available in this process. Please start bot/start.js as a separate process.'
+      });
+    }
+    
+    // Отправляем уведомление
+    const result = await global.simpleTelegramBot.sendNotification(userId, message, { parseMode });
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        messageId: result.messageId,
+        userId: userId
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Notification Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;

@@ -14,6 +14,8 @@
     "dev:win": "set PORT=3002 && nodemon server/index.js",
     "telegram": "node telegram/start.js",
     "telegram:dev": "nodemon telegram/start.js",
+    "bot:start": "node bot/start.js",
+    "bot:dev": "nodemon bot/start.js",
     "db:setup": "node scripts/setup-reader-db.js",
     "db:check": "node check-database.js",
     "migrate:content": "node scripts/migrateContent.js",
