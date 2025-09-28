@@ -493,6 +493,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// 🚩 Добавить ПЕРЕД общим static для /mini-app
+app.use('/mini-app/assets/book-covers', express.static(
+  path.join(__dirname, '../mini-app/assets/book-covers'),
+  { fallthrough: false }
+));
+
 // 📱 ИСПРАВЛЕНИЕ: Статические файлы для Mini App
 logger.info('📱 Setting up Mini App static files...');
 app.use('/mini-app', express.static(path.join(__dirname, '../mini-app'), {
