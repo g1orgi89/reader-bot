@@ -1189,10 +1189,13 @@ class DiaryPage {
             } catch (error) {
             console.error('❌ Ошибка сохранения цитаты:', error);
             
-            // 🔧 FIX 2: Обработка превышения лимита цитат
+            // 🔧 FIX 2: Обработка превышения лимита цитат (улучшенная проверка HTTP 429)
             const isQuotaLimitError = error.code === 'QUOTE_LIMIT_EXCEEDED' || 
-                                     (error.message && error.message.toLowerCase().includes('limit')) ||
-                                     (error.response?.data?.message && error.response.data.message.toLowerCase().includes('limit'));
+                                     error.status === 429 ||
+                                     (error.response?.status === 429) ||
+                                     (error.message && /limit|quota|exceed/i.test(error.message)) ||
+                                     (error.response?.data?.message && /limit|quota|exceed/i.test(error.response.data.message)) ||
+                                     (error.response?.data?.error && /Daily limit of 10 quotes exceeded/i.test(error.response.data.error));
             
             if (isQuotaLimitError) {
                 // Показываем дружелюбное сообщение о лимите

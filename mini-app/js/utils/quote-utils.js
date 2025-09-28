@@ -120,4 +120,15 @@ window.QuoteUtils = {
     removeQuoteFromDuplicateIndex
 };
 
+// Инициализируем индекс дубликатов при загрузке, если есть сохраненные цитаты
+document.addEventListener('DOMContentLoaded', () => {
+    // Попытка инициализации из state, если доступен
+    if (window.appState && window.appState.get) {
+        const existingQuotes = window.appState.get('quotes.items') || [];
+        if (existingQuotes.length > 0) {
+            rebuildDuplicateIndex(existingQuotes);
+        }
+    }
+});
+
 console.log('🔧 QuoteUtils loaded successfully');

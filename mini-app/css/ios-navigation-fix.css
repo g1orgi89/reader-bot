@@ -176,12 +176,31 @@ html, body, #app, .app-container, .page-content, .page-body, .content {
 }
 
 /* ============================================================================
-   ⌨️ KEYBOARD SCROLL LOCK
+   ⌨️ ENHANCED KEYBOARD SCROLL LOCK WITH VIEWPORT STABILIZATION
    ============================================================================ */
 
-/* Keyboard scroll lock (добавлено) */
+/* Keyboard scroll lock (улучшено для более стабильного поведения) */
 .keyboard-lock {
   overflow: hidden !important;
   overscroll-behavior: none;
   touch-action: none;
+}
+
+/* Дополнительные классы для стабилизации viewport на iOS */
+html.keyboard-open {
+  overflow: hidden;
+}
+
+html.keyboard-open body {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* Блокировка скролла контента при открытой клавиатуре */
+html.keyboard-open .content,
+html.keyboard-open .page-content,
+html.keyboard-open .app-content {
+  overflow: hidden !important;
 }
