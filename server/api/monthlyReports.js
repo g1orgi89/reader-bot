@@ -9,12 +9,11 @@ const logger = require('../utils/logger');
 
 // Import services and models
 const { MonthlyReportService } = require('../services/monthlyReportService');
-const { FeedbackHandler } = require('../../telegram/handlers/feedbackHandler');
 const { MonthlyReport, WeeklyReport, UserProfile, Quote } = require('../models');
 
 // Initialize services
 const monthlyReportService = new MonthlyReportService();
-const feedbackHandler = new FeedbackHandler();
+// Note: FeedbackHandler removed with Telegram bot cleanup
 
 /**
  * @route GET /api/monthly-reports

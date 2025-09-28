@@ -389,8 +389,8 @@ const messageService = require('./services/message');
 const ticketService = require('./services/ticketing');
 const ticketEmailService = require('./services/ticketEmail');
 
-// 📖 Безопасная загрузка CronService и TelegramReportService
-let cronService, telegramReportService;
+// 📖 Безопасная загрузка CronService
+let cronService;
 try {
   const { CronService } = require('./services/cronService');
   cronService = new CronService();
@@ -398,14 +398,6 @@ try {
 } catch (error) {
   logger.warn('⚠️ CronService not available:', error.message);
   cronService = null;
-}
-
-try {
-  telegramReportService = require('./services/telegramReportService');
-  logger.info('✅ TelegramReportService loaded successfully');
-} catch (error) {
-  logger.warn('⚠️ TelegramReportService not available:', error.message);
-  telegramReportService = null;
 }
 
 /**
@@ -690,7 +682,7 @@ async function startServer() {
         // Initialize cronService with dependencies
         cronService.initialize({
           bot: null, // Telegram bot not available in web server context
-          weeklyReportHandler: telegramReportService,
+          weeklyReportHandler: null, // TelegramReportService removed
           weeklyReportService: weeklyReportService,
           monthlyReportService: null,
           reminderService: null,
