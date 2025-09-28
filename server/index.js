@@ -562,11 +562,10 @@ app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
 app.use(`${config.app.apiPrefix}/users`, usersRoutes);
 // app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
 app.use(`${config.app.apiPrefix}/debug`, debugRoutes);
-app.use(`${config.app.apiPrefix}`, readerRoutes);
 
 // 📱 НОВОЕ: Reader Mini App API
 logger.info('📱 Registering Reader Mini App API routes...');
-app.use(`${config.app.apiPrefix}`, readerRoutes);
+app.use(`${config.app.apiPrefix}/reader`, readerRoutes);
 
 // 📋 НОВЫЕ API РОУТЫ для системы управления данными Reader Bot
 logger.info('📋 Registering Reader Bot data management API routes...');
