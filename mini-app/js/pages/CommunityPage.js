@@ -563,8 +563,8 @@ class CommunityPage {
                 text: fresh.text,
                 author: fresh.author,
                 createdAt: fresh.createdAt,
-                favorites: fresh.favorites || 0, // Ensure favorites default to 0
-                user: fresh.user || null // Propagate user data
+                favorites: typeof fresh.favorites === 'number' ? fresh.favorites : 0, // Ensure favorites is numeric >=0
+                user: fresh.user || null // Propagate user data if present
             });
         }
         
@@ -591,7 +591,8 @@ class CommunityPage {
                 favoritesSource = this.popularQuotes.map(q => ({
                     text: q.text,
                     author: q.author,
-                    favorites: q.favorites || q.count || q.likes || 0
+                    favorites: q.favorites || q.count || q.likes || 0,
+                    user: q.user || null // Propagate user data if available
                 }));
             }
         }
@@ -612,7 +613,7 @@ class CommunityPage {
                     id: fav.id || fav._id,
                     text: fav.text,
                     author: fav.author,
-                    favorites: fav.favorites || 0,
+                    favorites: typeof fav.favorites === 'number' ? fav.favorites : 0, // Ensure favorites is numeric >=0
                     user: fav.user || null // Propagate user data for favorites too
                 });
                 addedFavorites++;
@@ -641,8 +642,10 @@ class CommunityPage {
      * ✨ Рендер секции "Сейчас в сообществе"
      */
     renderSpotlightSection() {
-        // Для рендера используем кэшированные данные если есть, иначе показываем заглушку
+        // Для рендера используем кэшированные данные если есть, иначе показываем скелетон
         const items = this.isSpotlightFresh() ? this._spotlightCache.items : [];
+        
+        let cards = '';
         
         if (!items || items.length === 0) {
             // Если кэш пуст, инициируем загрузку в фоне
@@ -654,60 +657,82 @@ class CommunityPage {
                     console.warn('Spotlight загрузка не удалась:', error);
                 });
             }
-            return ''; // Не показываем пустую секцию
-        }
-        
-        const cards = items.map(item => {
-            const badge = item.kind === 'fresh' ? 'Новое' : 'Избранное';
-            const badgeClass = item.kind === 'fresh' ? 'spotlight-card--fresh' : 'spotlight-card--fav';
             
-            // Получаем пользователя из item.user (должно прийти от бэкенда)
-            const user = item.user;
-            const userAvatarHtml = this.getUserAvatarHtml(user);
-            const userName = user?.name || 'Пользователь';
-            
-            // Лайки для футера
-            const likesCount = item.favorites || 0;
-            
-            return `
-                <div class="quote-card ${badgeClass}" data-quote-id="${item.id || ''}">
-                    <div class="spotlight-badge">${badge}</div>
-                    
-                    <!-- Header с аватаром и именем пользователя -->
+            // Показываем скелетон вместо пустой секции
+            cards = `
+                <div class="quote-card skeleton">
+                    <div class="spotlight-badge">Загрузка...</div>
                     <div class="quote-card__header">
-                        ${userAvatarHtml}
+                        <div class="quote-card__user-avatar">
+                            <div class="avatar-initials">?</div>
+                        </div>
                         <div class="quote-card__user">
-                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                            <span class="quote-card__user-name">Загрузка...</span>
                         </div>
                     </div>
-                    
-                    <!-- Основной контент -->
-                    <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
-                    <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
-                    
-                    <!-- Footer с лайками слева и действиями справа -->
+                    <div class="quote-card__text">Загружаем свежие цитаты сообщества...</div>
+                    <div class="quote-card__author">— Подождите</div>
                     <div class="quote-card__footer">
-                        <div class="quote-card__likes">
-                            ❤ <span class="favorites-count">${likesCount}</span>
-                        </div>
-                        <div class="quote-card__actions">
-                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button class="quote-card__add-btn" 
-                                    data-quote-id="${item.id || ''}"
-                                    data-quote-text="${this.escapeHtml(item.text)}"
-                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    aria-label="Добавить цитату в дневник">+</button>` : ''}
-                            <button class="quote-card__heart-btn" 
-                                    data-quote-id="${item.id || ''}"
-                                    data-quote-text="${this.escapeHtml(item.text)}"
-                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    data-favorites="${likesCount}"
-                                    aria-label="Добавить в избранное">♡</button>
-                        </div>
+                        <div class="quote-card__likes">❤ 0</div>
+                        <div class="quote-card__actions"></div>
                     </div>
                 </div>
             `;
-        }).join('');
+        } else {
+            // Отображаем настоящие карточки
+            cards = items.map(item => {
+                const badge = item.kind === 'fresh' ? 'Новое' : 'Избранное';
+                const badgeClass = item.kind === 'fresh' ? 'spotlight-card--fresh' : 'spotlight-card--fav';
+                
+                // Получаем пользователя из item.user (должно прийти от бэкенда)
+                const user = item.user;
+                const userAvatarHtml = this.getUserAvatarHtml(user);
+                const userName = user?.name || 'Пользователь';
+                
+                // Лайки для футера
+                const likesCount = item.favorites || 0;
+                
+                return `
+                    <div class="quote-card ${badgeClass}" data-quote-id="${item.id || ''}">
+                        <div class="spotlight-badge">${badge}</div>
+                        
+                        <!-- Header с аватаром и именем пользователя -->
+                        <div class="quote-card__header">
+                            ${userAvatarHtml}
+                            <div class="quote-card__user">
+                                <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Основной контент -->
+                        <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
+                        <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
+                        
+                        <!-- Footer с лайками слева и действиями справа -->
+                        <div class="quote-card__footer">
+                            <div class="quote-card__likes">
+                                ❤ <span class="favorites-count">${likesCount}</span>
+                            </div>
+                            <div class="quote-card__actions">
+                                ${COMMUNITY_SHOW_ADD_BUTTON ? `<button class="quote-card__add-btn" 
+                                        data-quote-id="${item.id || ''}"
+                                        data-quote-text="${this.escapeHtml(item.text)}"
+                                        data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                        aria-label="Добавить цитату в дневник">+</button>` : ''}
+                                <button class="quote-card__heart-btn" 
+                                        data-quote-id="${item.id || ''}"
+                                        data-quote-text="${this.escapeHtml(item.text)}"
+                                        data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                        data-favorites="${likesCount}"
+                                        aria-label="Добавить в избранное">♡</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
         
+        // ALWAYS render container (with refresh button) even if no items
         return `
             <div class="community-spotlight">
                 <div class="spotlight-header">
@@ -2255,6 +2280,18 @@ class CommunityPage {
                         this.triggerHapticFeedback('success');
                         this.showNotification('Добавлено в избранное!', 'success');
                         
+                        // Update spotlight cache item favorites so rerender does not revert
+                        // Find item in this._spotlightCache.items by text+author and ++favorites  
+                        if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
+                            const spotlightItem = this._spotlightCache.items.find(item => 
+                                item.text === quoteText && item.author === quoteAuthor
+                            );
+                            if (spotlightItem) {
+                                spotlightItem.favorites = (spotlightItem.favorites || 0) + 1;
+                                console.log('🌟 Updated spotlight cache item favorites (existing quote):', spotlightItem.favorites);
+                            }
+                        }
+                        
                         // Диспатчим событие для статистики
                         document.dispatchEvent(new CustomEvent('quotes:changed', { 
                             detail: { type: 'edited', quoteId: existingQuote.id, updates: { isFavorite: true } } 
@@ -2320,6 +2357,18 @@ class CommunityPage {
                 // Успех
                 this.triggerHapticFeedback('success');
                 this.showNotification('Добавлено в избранное!', 'success');
+                
+                // Update spotlight cache item favorites so rerender does not revert
+                // Find item in this._spotlightCache.items by text+author and ++favorites
+                if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
+                    const spotlightItem = this._spotlightCache.items.find(item => 
+                        item.text === quoteText && item.author === quoteAuthor
+                    );
+                    if (spotlightItem) {
+                        spotlightItem.favorites = (spotlightItem.favorites || 0) + 1;
+                        console.log('🌟 Updated spotlight cache item favorites:', spotlightItem.favorites);
+                    }
+                }
                 
                 // Если API вернул актуальное количество лайков, используем его
                 if (response.data && typeof response.data.favorites === 'number') {

@@ -119,18 +119,19 @@ const adminLimiter = rateLimit({
 });
 
 /**
- * Community endpoints rate limiter - balanced for public access
- * 30 requests per 5 minutes per user
+ * Community endpoints rate limiter - relaxed for normal user flow
+ * 300 requests per 60 seconds per user (relaxed to prevent 429 spam)
  */
 const communityLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 30, // Limit each user to 30 community requests per 5 minutes
+  windowMs: 60 * 1000, // 60 seconds (relaxed)
+  max: 300, // Limit each user to 300 community requests per minute (relaxed)
   message: 'Too many community requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
   handler: createRateLimitError,
   keyGenerator: (req) => {
     // Use userId from telegram auth if available, otherwise IP
+    // NOTE: This requires telegramAuth middleware to run BEFORE this limiter
     return req.userId || req.ip;
   },
   skip: skipOptionsRequests // Skip OPTIONS requests
