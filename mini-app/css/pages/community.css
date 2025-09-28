@@ -2261,3 +2261,19 @@
         font-size: var(--font-size-xs);
     }
 }
+
+/* ============================================================================
+   🦴 SKELETON STYLES FOR QUOTE CARDS (REQUIRED FOR SPOTLIGHT)
+   ============================================================================ */
+
+/* Skeleton quote card styling - minimal, non-interactive */
+.quote-card.skeleton {
+    opacity: 0.7;
+    pointer-events: none;
+    cursor: default;
+}
+
+.quote-card.skeleton:hover {
+    transform: none;
+    box-shadow: none;
+}

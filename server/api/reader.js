@@ -1571,7 +1571,7 @@ router.get('/top-books', async (req, res) => {
  * @description Последние цитаты сообщества
  * @route GET /api/reader/community/quotes/latest
  */
-router.get('/community/quotes/latest', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const { limit: limitParam } = req.query;
     const { limit, isValid } = validateLimit(limitParam, 10, 50);
@@ -1583,9 +1583,9 @@ router.get('/community/quotes/latest', communityLimiter, telegramAuth, async (re
       });
     }
 
-    // Get latest quotes from all users with deterministic sorting
+    // Fetch latest quotes sorted by createdAt desc, tie-breaker _id
     const quotes = await Quote.find({})
-      .sort({ createdAt: -1, _id: -1 }) // Add _id as tie-breaker for deterministic sorting
+      .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .select({
         _id: 1,
@@ -1600,7 +1600,7 @@ router.get('/community/quotes/latest', communityLimiter, telegramAuth, async (re
         editedAt: 1,
         createdAt: 1,
         isFavorite: 1,
-        userId: 1
+        userId: 1 // Keep userId (do NOT delete)
       })
       .lean();
 
@@ -1612,32 +1612,71 @@ router.get('/community/quotes/latest', communityLimiter, telegramAuth, async (re
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Convert to DTO format with user info included
-    const quoteDTOs = quotes.map(q => {
+    // Collect unique (text, author) pairs for favorites aggregation
+    const uniquePairs = [];
+    const pairMap = new Map();
+    
+    quotes.forEach(q => {
+      const key = `${q.text.trim()}|||${(q.author || '').trim()}`;
+      if (!pairMap.has(key)) {
+        pairMap.set(key, { text: q.text, author: q.author });
+        uniquePairs.push({ text: q.text, author: q.author });
+      }
+    });
+
+    // Aggregate favorites by counting distinct userId where isFavorite=true for those pairs
+    const favoritesAgg = await Quote.aggregate([
+      {
+        $match: {
+          $or: uniquePairs.map(pair => ({
+            text: pair.text,
+            author: pair.author,
+            isFavorite: true
+          }))
+        }
+      },
+      {
+        $group: {
+          _id: { text: '$text', author: '$author' },
+          favorites: { $addToSet: '$userId' }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          favoritesCount: { $size: '$favorites' }
+        }
+      }
+    ]);
+
+    // Create favorites lookup map
+    const favoritesMap = new Map();
+    favoritesAgg.forEach(fav => {
+      const key = `${fav._id.text.trim()}|||${(fav._id.author || '').trim()}`;
+      favoritesMap.set(key, fav.favoritesCount);
+    });
+
+    // Enrich each quote with user info and favorites count
+    const enrichedQuotes = quotes.map(q => {
       const user = userMap.get(String(q.userId));
-      const sanitizedQuote = { ...q };
-      delete sanitizedQuote.userId; // Remove raw userId for privacy
+      const favoritesKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
+      const favoritesCount = favoritesMap.get(favoritesKey) || 0;
       
-      // Add user info if available
-      if (user) {
-        sanitizedQuote.user = {
+      return {
+        ...q,
+        // Keep userId (do NOT delete as per spec)
+        user: user ? {
           userId: user.userId,
           name: user.name,
           avatarUrl: user.avatarUrl
-        };
-      }
-      
-      return toQuoteDTO(sanitizedQuote);
+        } : null,
+        favorites: favoritesCount
+      };
     });
 
     res.json({
       success: true,
-      data: quoteDTOs,
-      pagination: {
-        total: quoteDTOs.length,
-        limit: limit,
-        hasMore: quoteDTOs.length === limit
-      }
+      data: enrichedQuotes
     });
 
   } catch (error) {
@@ -1650,7 +1689,7 @@ router.get('/community/quotes/latest', communityLimiter, telegramAuth, async (re
  * @description Популярные цитаты сообщества (агрегированные)
  * @route GET /api/reader/community/popular
  */
-router.get('/community/popular', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/popular', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const { period: periodParam, limit: limitParam } = req.query;
     
@@ -1735,7 +1774,7 @@ router.get('/community/popular', communityLimiter, telegramAuth, async (req, res
  * @description Популярные цитаты по лайкам за период
  * @route GET /api/reader/community/popular-favorites
  */
-router.get('/community/popular-favorites', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/popular-favorites', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const { period: periodParam, limit: limitParam } = req.query;
     const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
@@ -1861,7 +1900,7 @@ router.get('/community/popular-favorites', communityLimiter, telegramAuth, async
  * @description Недавние избранные цитаты сообщества для spotlight
  * @route GET /api/reader/community/favorites/recent
  */
-router.get('/community/favorites/recent', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/favorites/recent', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const { hours: hoursParam, limit: limitParam } = req.query;
     
@@ -1953,7 +1992,7 @@ router.get('/community/favorites/recent', communityLimiter, telegramAuth, async 
  * @description Популярные книги сообщества (унифицированный alias для /top-books)
  * @route GET /api/reader/community/popular-books
  */
-router.get('/community/popular-books', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/popular-books', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const { period: periodParam, limit: limitParam } = req.query;
     
@@ -2107,7 +2146,7 @@ router.get('/catalog/clicks/recent', telegramAuth, async (req, res) => {
  * @description Общая статистика сообщества
  * @route GET /api/reader/community/stats
  */
-router.get('/community/stats', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/stats', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const totalUsers = await UserProfile.countDocuments({ isOnboardingComplete: true });
     const totalQuotes = await Quote.countDocuments();
@@ -2151,7 +2190,7 @@ router.get('/community/stats', communityLimiter, telegramAuth, async (req, res) 
  * @description Периодный рейтинг пользователей (7d/30d)
  * @route GET /api/reader/community/leaderboard
  */
-router.get('/community/leaderboard', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/leaderboard', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const userId = req.userId;
     const { limit: limitParam, period: periodParam } = req.query;
@@ -2218,7 +2257,7 @@ router.get('/community/leaderboard', communityLimiter, telegramAuth, async (req,
  * @description Инсайты сообщества за период
  * @route GET /api/reader/community/insights
  */
-router.get('/community/insights', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/insights', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const userId = req.userId;
     const { period: periodParam } = req.query;
@@ -2351,7 +2390,7 @@ router.get('/community/insights', communityLimiter, telegramAuth, async (req, re
  * @description Интересный факт недели
  * @route GET /api/reader/community/fun-fact
  */
-router.get('/community/fun-fact', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/fun-fact', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const { period: periodParam } = req.query;
     const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
@@ -2457,7 +2496,7 @@ const COMMUNITY_MESSAGE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
  * @description Сообщение от Анны (динамическое, ежедневно уникальное)
  * @route GET /api/reader/community/message
  */
-router.get('/community/message', communityLimiter, telegramAuth, async (req, res) => {
+router.get('/community/message', telegramAuth, communityLimiter, async (req, res) => {
   try {
     // Check cache first
     const now = Date.now();
@@ -2534,7 +2573,7 @@ const COMMUNITY_TREND_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
  * @description Тренд недели по реальным данным (темы/категории цитат за 7 дней)
  * @route GET /api/reader/community/trend
  */
-router.get('/community/trend', communityLimiter, telegramAuth, async (_req, res) => {
+router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res) => {
   try {
     // Check cache first
     const now = Date.now();
