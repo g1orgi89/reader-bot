@@ -54,6 +54,9 @@ class CatalogPage {
         this.userTags = ['Психология', 'Отношения', 'Саморазвитие'];
         this.books = [];
         
+        // Top week IDs для бейджей
+        this.topWeekIds = [];
+        
         this.init();
     }
     
@@ -63,7 +66,17 @@ class CatalogPage {
     }
     
     setupSubscriptions() {
-        // Подписки на изменения состояния, если необходимо
+        // Подписка на изменения топ недели IDs
+        this.state.subscribe('catalog.topWeekIds', (topWeekData) => {
+            if (topWeekData && topWeekData.ids) {
+                console.log('📚 CatalogPage: Получены топ недели IDs:', topWeekData.ids);
+                this.topWeekIds = topWeekData.ids;
+                // Перерендер если каталог уже загружен
+                if (this.catalogLoaded) {
+                    this.rerender();
+                }
+            }
+        });
     }
     
     async loadCatalogData() {
@@ -118,24 +131,171 @@ class CatalogPage {
     }
     
     /**
+     * 🔥 Ensure top week IDs are available
+     */
+    async ensureTopWeekIds() {
+        const existingTopWeekData = this.state.get('catalog.topWeekIds');
+        if (existingTopWeekData && existingTopWeekData.ids && existingTopWeekData.ids.length > 0) {
+            this.topWeekIds = existingTopWeekData.ids;
+            console.log('✅ CatalogPage: Using existing top week IDs:', this.topWeekIds);
+            return;
+        }
+        
+        try {
+            console.log('📚 CatalogPage: Loading top week IDs...');
+            const res = await this.api.getTopBooks({ period: '7d' });
+            const items = res?.data || res || [];
+            const topWeekIds = items.map(i => i.id || i._id).filter(Boolean);
+            
+            if (topWeekIds.length > 0) {
+                this.topWeekIds = topWeekIds;
+                this.state.set('catalog.topWeekIds', {
+                    ids: topWeekIds,
+                    timestamp: Date.now()
+                });
+                console.log('✅ CatalogPage: Loaded and saved top week IDs:', topWeekIds);
+            }
+        } catch (error) {
+            console.error('❌ CatalogPage: Error loading top week IDs:', error);
+            // Use fallback IDs
+            this.topWeekIds = ['1', '2', '3'];
+        }
+    }
+    
+    /**
+     * 🎯 Загрузка персональных тем из weeklyReport
+     */
+    async loadPersonalizationTopics() {
+        try {
+            const userId = this.state.getCurrentUserId();
+            if (!userId || userId === 'demo-user') {
+                console.log('🎯 CatalogPage: No valid userId, using default tags');
+                return;
+            }
+            
+            // Попытка получить weeklyReport через API
+            if (this.api.getWeeklyReports) {
+                const response = await this.api.getWeeklyReports({ limit: 1 }, userId);
+                const weeklyReport = response?.data?.[0] || response?.[0] || response?.report;
+                
+                if (weeklyReport) {
+                    let dominantThemes = [];
+                    
+                    // Приоритет: analysis.dominantThemes (массив)
+                    if (weeklyReport.analysis?.dominantThemes && Array.isArray(weeklyReport.analysis.dominantThemes)) {
+                        dominantThemes = weeklyReport.analysis.dominantThemes;
+                    }
+                    // Fallback: weeklyReport.topics или reportData.topics (строка)
+                    else if (weeklyReport.topics || weeklyReport.reportData?.topics) {
+                        const topicsString = weeklyReport.topics || weeklyReport.reportData.topics;
+                        dominantThemes = topicsString.split(',').map(t => t.trim()).filter(Boolean);
+                    }
+                    
+                    if (dominantThemes.length > 0) {
+                        // Очистка и нормализация тем
+                        const cleanedThemes = dominantThemes
+                            .map(theme => String(theme).trim().toLowerCase())
+                            .filter(theme => theme.length > 1)
+                            .slice(0, 5); // Максимум 5 тем
+                        
+                        // Маппинг к 14 категориям
+                        const categoryMapping = {
+                            'психология отношений': 'ОТНОШЕНИЯ',
+                            'отношения': 'ОТНОШЕНИЯ',
+                            'саморазвитие': 'ПОИСК СЕБЯ',
+                            'личностный рост': 'ПОИСК СЕБЯ',
+                            'поиск себя': 'ПОИСК СЕБЯ',
+                            'финансы': 'ДЕНЬГИ',
+                            'деньги': 'ДЕНЬГИ',
+                            'любовь': 'ЛЮБОВЬ',
+                            'кризисы': 'КРИЗИСЫ',
+                            'кризис': 'КРИЗИСЫ',
+                            'женщина': 'Я — ЖЕНЩИНА',
+                            'я женщина': 'Я — ЖЕНЩИНА',
+                            'одиночество': 'ОДИНОЧЕСТВО',
+                            'смерть': 'СМЕРТЬ',
+                            'семья': 'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
+                            'семейные отношения': 'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
+                            'смысл жизни': 'СМЫСЛ ЖИЗНИ',
+                            'смысл': 'СМЫСЛ ЖИЗНИ',
+                            'счастье': 'СЧАСТЬЕ',
+                            'время': 'ВРЕМЯ И ПРИВЫЧКИ',
+                            'привычки': 'ВРЕМЯ И ПРИВЫЧКИ',
+                            'время и привычки': 'ВРЕМЯ И ПРИВЫЧКИ',
+                            'добро': 'ДОБРО И ЗЛО',
+                            'зло': 'ДОБРО И ЗЛО',
+                            'добро и зло': 'ДОБРО И ЗЛО',
+                            'общество': 'ОБЩЕСТВО',
+                            'психология': 'ПОИСК СЕБЯ'
+                        };
+                        
+                        const mappedCategories = cleanedThemes
+                            .map(theme => categoryMapping[theme] || theme.toUpperCase())
+                            .filter((category, index, arr) => arr.indexOf(category) === index) // dedupe
+                            .slice(0, 4); // Максимум 4 категории
+                        
+                        if (mappedCategories.length > 0) {
+                            this.userTags = mappedCategories;
+                            console.log('✅ CatalogPage: Loaded personalization topics:', this.userTags);
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('❌ CatalogPage: Error loading personalization topics:', error);
+        }
+        
+        // Если не удалось загрузить темы - оставляем пустым для placeholder
+        this.userTags = [];
+        console.log('📝 CatalogPage: No personalization topics, will show placeholder');
+    }
+    
+    /**
      * 🔄 Конвертация данных API в формат для отображения
      */
     convertApiBookToDisplayFormat(apiBook) {
+        // Нормализация автора: не выводить если отсутствует или совпадает с /неизвест/i
+        let author = apiBook.author || '';
+        if (!author || /неизвест/i.test(author)) {
+            author = '';
+        }
+        
+        // Определение isTopWeek: по id или bookSlug
+        const bookId = apiBook.id || apiBook._id;
+        const bookSlug = apiBook.bookSlug;
+        const isTopWeek = this.topWeekIds.includes(bookId) || 
+                         (bookSlug && this.topWeekIds.includes(bookSlug));
+        
+        // Генерация существующего бейджа
+        const existingBadge = this.generateBadge(apiBook);
+        
+        // Создание массива бейджей
+        let badgeList = [];
+        
+        // Если книга в топе - добавляем бейдж "Топ недели" первым
+        if (isTopWeek) {
+            badgeList.push({ type: 'top-week', text: 'Топ недели' });
+        }
+        
+        // Если есть существующий бейдж - добавляем его
+        if (existingBadge) {
+            badgeList.push(existingBadge);
+        }
+        
         return {
             id: apiBook.id,
             title: apiBook.title,
-            author: apiBook.author || 'Неизвестный автор',
+            author: author,
             description: apiBook.description,
             coverClass: `cover-${(parseInt(apiBook.id) % 6) + 1}`,
-            rating: 4.5 + Math.random() * 0.5,
-            reviews: Math.floor(Math.random() * 200) + 50,
-            duration: `${Math.floor(Math.random() * 3) + 1}.${Math.floor(Math.random() * 9)} часа`,
-            match: `${Math.floor(Math.random() * 20) + 80}% подходит`,
+            // removed meta (rating/duration/match) per redesign
             price: this.formatPrice(apiBook.priceRub, apiBook.priceByn, apiBook.price),
             oldPrice: null,
             category: this.mapApiCategoryToFilter(apiBook.categories),
             hasDiscount: false,
-            badge: this.generateBadge(apiBook),
+            badge: existingBadge, // Keep for backward compatibility
+            badgeList: badgeList, // New multiple badges support
             utmLink: apiBook.utmLink,
             bookSlug: apiBook.bookSlug // ← обязательно
         };
@@ -376,6 +536,16 @@ class CatalogPage {
      * 🎯 ПЕРСОНАЛИЗАЦИЯ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderPersonalizationCard() {
+        // Если нет тем - показать placeholder (вариант 2)
+        if (!this.userTags || this.userTags.length === 0) {
+            return `
+                <div class="personalization-card">
+                    <div class="personalization-title">🎯 Персональные рекомендации</div>
+                    <div class="personalization-subtitle">Добавляйте цитаты — и я подготовлю персональные темы</div>
+                </div>
+            `;
+        }
+        
         return `
             <div class="personalization-card">
                 <div class="personalization-title">🎯 Персональные рекомендации</div>
@@ -455,6 +625,23 @@ class CatalogPage {
      */
     renderBookCard(book) {
         const discountClass = book.hasDiscount ? 'discount-card' : '';
+        
+        // HTML escaping if available
+        const escapeHtml = window.escapeHtml || ((text) => text);
+        const safeTitle = escapeHtml(book.title || '');
+        const safeAuthor = escapeHtml(book.author || '');
+        const safeDescription = escapeHtml(book.description || '');
+        
+        // Multiple badges support
+        const badges = book.badgeList || (book.badge ? [book.badge] : []);
+        const badgesHtml = badges.length > 1 
+            ? `<div class="book-badges">${badges.map(badge => 
+                `<div class="book-badge ${badge.type}">${escapeHtml(badge.text)}</div>`
+              ).join('')}</div>`
+            : badges.length === 1
+            ? `<div class="book-badge ${badges[0].type}">${escapeHtml(badges[0].text)}</div>`
+            : '';
+        
         return `
             <div class="book-card ${discountClass}" data-book-id="${book.id}" data-book-slug="${book.bookSlug || ''}">
                 ${book.hasDiscount ? `
@@ -462,23 +649,16 @@ class CatalogPage {
                 ` : ''}
                 
                 <div class="book-main">
-                    <div class="book-cover ${book.coverClass}">${book.title}</div>
+                    <div class="book-cover ${book.coverClass}">${safeTitle}</div>
                     <div class="book-info">
                         <div class="book-header">
                             <div>
-                                <div class="book-title">${book.title}</div>
-                                <div class="book-author">${book.author}</div>
+                                <div class="book-title">${safeTitle}</div>
+                                ${book.author ? `<div class="book-author">${safeAuthor}</div>` : ''}
                             </div>
-                            ${book.badge ? `
-                                <div class="book-badge ${book.badge.type}">${book.badge.text}</div>
-                            ` : ''}
+                            ${badgesHtml}
                         </div>
-                        <div class="book-description">${book.description}</div>
-                        <div class="book-meta">
-                            <span class="book-meta-item">⭐ ${book.rating} (${book.reviews})</span>
-                            <span class="book-meta-item">📖 ${book.duration}</span>
-                            <span class="book-meta-item">🎯 ${book.match}</span>
-                        </div>
+                        <div class="book-description">${safeDescription}</div>
                     </div>
                 </div>
                 
@@ -491,7 +671,7 @@ class CatalogPage {
                     </div>
                     <button class="buy-button ${book.hasDiscount ? 'discount-button' : ''}" 
                             data-book-id="${book.id}">
-                        ${book.hasDiscount ? 'Купить со скидкой' : 'Купить разбор'}
+                        Купить разбор
                     </button>
                 </div>
             </div>
@@ -637,7 +817,19 @@ class CatalogPage {
         // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
         if (!this.catalogLoaded) {
             console.log('🔄 CatalogPage: Первый показ, загружаем данные');
-            this.loadCatalogData();
+            
+            // Parallel loading: ensureTopWeekIds + loadCatalogData, then personalization
+            Promise.all([
+                this.ensureTopWeekIds(),
+                this.loadCatalogData()
+            ]).then(() => {
+                // После загрузки каталога загружаем персонализацию
+                this.loadPersonalizationTopics().then(() => {
+                    if (this.catalogLoaded) {
+                        this.rerender();
+                    }
+                });
+            });
         } else {
             // Проверяем актуальность данных (10 минут)
             const lastUpdate = this.state.get('catalog.lastUpdate');
@@ -646,9 +838,23 @@ class CatalogPage {
             
             if (!lastUpdate || (now - lastUpdate) > tenMinutes) {
                 console.log('🔄 CatalogPage: Данные устарели, обновляем');
-                this.loadCatalogData();
+                Promise.all([
+                    this.ensureTopWeekIds(),
+                    this.loadCatalogData()
+                ]).then(() => {
+                    this.loadPersonalizationTopics().then(() => {
+                        if (this.catalogLoaded) {
+                            this.rerender();
+                        }
+                    });
+                });
             } else {
                 console.log('✅ CatalogPage: Данные актуальны');
+                // Проверяем есть ли topWeekIds
+                const existingTopWeekData = this.state.get('catalog.topWeekIds');
+                if (existingTopWeekData && existingTopWeekData.ids) {
+                    this.topWeekIds = existingTopWeekData.ids;
+                }
             }
         }
     }
