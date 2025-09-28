@@ -657,7 +657,13 @@ class CatalogPage {
                 ` : ''}
                 
                 <div class="book-main">
-                    <div class="book-cover ${book.coverClass}">${safeTitle}</div>
+                    <div class="book-cover ${book.coverClass}">
+                        <img class="book-cover-img" 
+                             src="/mini-app/assets/book-covers/${book.bookSlug}.png" 
+                             alt="${safeTitle}"
+                             onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
+                        <div class="cover-fallback-text">${safeTitle}</div>
+                    </div>
                     <div class="book-info">
                         <div class="book-header">
                             <div>
