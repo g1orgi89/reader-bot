@@ -197,6 +197,38 @@
 .book-cover.cover-5 { background: linear-gradient(135deg, #B22222, #DC143C); }
 .book-cover.cover-6 { background: linear-gradient(135deg, #191970, #4169E1); }
 
+/* Book cover image styles */
+.book-cover-img {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+}
+
+/* Fallback text for when image is not available */
+.cover-fallback-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    padding: var(--spacing-xs);
+}
+
+/* Show fallback when book cover has fallback class or image is hidden */
+.book-cover.fallback .book-cover-img,
+.book-cover .book-cover-img[style*="display: none"] {
+    display: none !important;
+}
+
 .book-info {
     flex: 1;
 }
@@ -504,6 +536,14 @@
         width: 50px;
         height: 70px;
         font-size: 9px;
+        /* Ensure minimum touch target area */
+        min-width: var(--touch-target-min);
+        min-height: var(--touch-target-min);
+    }
+    
+    .book-cover-img {
+        /* Maintain aspect ratio on smaller screens */
+        border-radius: var(--radius-xs);
     }
     
     .book-main {
@@ -648,6 +688,15 @@
   .buy-button { font-size: 12px; }
   .filter-tab { font-size: 11px; }
   .book-cover { font-size: 10px; }
+}
+
+/* Retina support for book cover images */
+@media screen and (-webkit-min-device-pixel-ratio: 2), 
+       screen and (min-resolution: 2dppx) {
+    .book-cover-img {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
 }
 
 .book-card.highlighted {
