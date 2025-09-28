@@ -11,6 +11,9 @@
  * ✅ ИСПРАВЛЕНО: Устранены дублирующиеся API вызовы как в HomePage и DiaryPage
  */
 
+// 🎛️ FEATURE FLAG: Show/hide + (add-to-diary) button in community sections
+const COMMUNITY_SHOW_ADD_BUTTON = false;
+
 class CommunityPage {
     constructor(app) {
         this.app = app;
@@ -138,7 +141,7 @@ class CommunityPage {
     }
 
     // Вспомогательный безопасный запуск
-    async _safe(fn) { try { await fn(); } catch (_) { /* ignore errors */ } }
+    async _safe(fn) { try { await fn(); } catch { /* ignore errors */ } }
     
     /**
      * Склонение слова "цитата" для корректного отображения
@@ -559,7 +562,9 @@ class CommunityPage {
                 id: fresh.id || fresh._id,
                 text: fresh.text,
                 author: fresh.author,
-                createdAt: fresh.createdAt
+                createdAt: fresh.createdAt,
+                favorites: fresh.favorites || 0, // Ensure favorites default to 0
+                user: fresh.user || null // Propagate user data
             });
         }
         
@@ -574,7 +579,7 @@ class CommunityPage {
             } else {
                 throw new Error('Recent favorites endpoint не доступен или пуст');
             }
-        } catch (error) {
+        } catch {
             console.log('🔄 Spotlight fallback: используем популярные избранные или агрегацию');
             
             // Fallback 1: popularFavorites
@@ -607,7 +612,8 @@ class CommunityPage {
                     id: fav.id || fav._id,
                     text: fav.text,
                     author: fav.author,
-                    favorites: fav.favorites || 0
+                    favorites: fav.favorites || 0,
+                    user: fav.user || null // Propagate user data for favorites too
                 });
                 addedFavorites++;
             }
@@ -685,11 +691,11 @@ class CommunityPage {
                             ❤ <span class="favorites-count">${likesCount}</span>
                         </div>
                         <div class="quote-card__actions">
-                            <button class="quote-card__add-btn" 
+                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button class="quote-card__add-btn" 
                                     data-quote-id="${item.id || ''}"
                                     data-quote-text="${this.escapeHtml(item.text)}"
                                     data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    aria-label="Добавить цитату в дневник">+</button>
+                                    aria-label="Добавить цитату в дневник">+</button>` : ''}
                             <button class="quote-card__heart-btn" 
                                     data-quote-id="${item.id || ''}"
                                     data-quote-text="${this.escapeHtml(item.text)}"
@@ -1233,11 +1239,11 @@ class CommunityPage {
                             ❤ <span class="favorites-count">${favorites}</span>
                         </div>
                         <div class="quote-card__actions">
-                            <button class="quote-card__add-btn" 
+                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button class="quote-card__add-btn" 
                                     data-quote-id="${quote.id || ''}"
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
-                                    aria-label="Добавить цитату в дневник">+</button>
+                                    aria-label="Добавить цитату в дневник">+</button>` : ''}
                             <button class="quote-card__heart-btn" 
                                     data-quote-id="${quote.id || ''}"
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
@@ -2415,7 +2421,7 @@ class CommunityPage {
             } else {
                 return clickDate.toLocaleDateString('ru-RU');
             }
-        } catch (error) {
+        } catch {
             return 'недавно';
         }
     }
@@ -2441,7 +2447,7 @@ class CommunityPage {
             } else {
                 return dateObj.toLocaleDateString('ru-RU');
             }
-        } catch (error) {
+        } catch {
             return '';
         }
     }
