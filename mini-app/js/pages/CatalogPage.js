@@ -102,6 +102,17 @@ class CatalogPage {
             if (response && response.success && response.books) {
                 // Конвертируем API данные в формат для отображения
                 this.books = response.books.map(book => this.convertApiBookToDisplayFormat(book));
+                
+                // ✅ СОРТИРОВКА: Топ-3 недели отображаются первыми
+                this.books.sort((a, b) => {
+                    const aIsTopWeek = a.badgeList?.some(badge => badge.type === 'top-week') || false;
+                    const bIsTopWeek = b.badgeList?.some(badge => badge.type === 'top-week') || false;
+                    
+                    if (aIsTopWeek && !bIsTopWeek) return -1; // a идет первым
+                    if (!aIsTopWeek && bIsTopWeek) return 1;  // b идет первым
+                    return 0; // сохраняем исходный порядок
+                });
+                
                 console.log('✅ CatalogPage: Загружено книг из API:', this.books.length);
             } else {
                 console.warn('⚠️ CatalogPage: Некорректный ответ API, используем заглушки');
