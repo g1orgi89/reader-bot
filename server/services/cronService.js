@@ -55,7 +55,7 @@ class CronService {
 
     try {
       // Еженедельные отчеты: каждое воскресенье в 12:00 МСК
-      const weeklyReportsJob = cron.schedule('40 17 * * *', async () => {
+      const weeklyReportsJob = cron.schedule('1 0 * * 0', async () => {
         logger.info('📖 Starting weekly reports generation...');
         await this.generateWeeklyReportsForAllUsers();
       }, {
