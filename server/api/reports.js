@@ -44,7 +44,7 @@ try {
 }
 
 // 🔧 FIX: Безопасная загрузка сервисов с обработкой ошибок и правильными экземплярами
-let weeklyReportService, monthlyReportService, telegramReportService, cronService;
+let weeklyReportService, monthlyReportService, cronService;
 
 try {
   const WeeklyReportService = require('../services/weeklyReportService');
@@ -64,13 +64,6 @@ try {
   monthlyReportService = null;
 }
 
-try {
-  telegramReportService = require('../services/telegramReportService');
-  logger.info('✅ telegramReportService loaded');
-} catch (error) {
-  logger.warn('⚠️ telegramReportService not available:', error.message);
-  telegramReportService = null;
-}
 
 try {
   const { CronService } = require('../services/cronService');
@@ -151,7 +144,6 @@ router.get('/stats', checkModelsAvailable, async (req, res) => {
       servicesStatus: {
         weeklyReportService: !!weeklyReportService,
         monthlyReportService: !!monthlyReportService,
-        telegramReportService: !!telegramReportService,
         cronService: !!cronService
       }
     };
@@ -505,14 +497,8 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
       });
 
       // Отправляем в Telegram (если доступно)
-      let sendSuccess = false;
-      if (telegramReportService && typeof telegramReportService.sendWeeklyReport === 'function') {
-        try {
-          sendSuccess = await telegramReportService.sendWeeklyReport(savedReport);
-        } catch (telegramError) {
-          logger.warn('Failed to send to Telegram:', telegramError.message);
-        }
-      }
+      // Note: Telegram delivery has been removed
+      const sendSuccess = false;
       
       res.json({
         success: true,
@@ -526,7 +512,7 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
             analysis: savedReport.analysis
           },
           telegramSent: sendSuccess,
-          telegramAvailable: !!telegramReportService
+          telegramAvailable: false
         }
       });
     } else {
@@ -767,41 +753,6 @@ router.get('/weekly/:userId', checkModelsAvailable, async (req, res) => {
 });
 
 /**
- * GET /api/reports/telegram/status
- * Проверка статуса Telegram сервиса
- */
-router.get('/telegram/status', async (req, res) => {
-  try {
-    logger.info('🤖 Проверка статуса Telegram сервиса');
-    
-    const serviceInfo = {
-      botStatus: telegramReportService ? 'active' : 'disabled',
-      lastReportSent: WeeklyReport ? await WeeklyReport.findOne().sort({ sentAt: -1 }).select('sentAt') : null,
-      nextScheduledReport: 'Воскресенье, 11:00 МСК',
-      serviceUptime: process.uptime(),
-      checkedAt: new Date().toISOString(),
-      available: {
-        telegramReportService: !!telegramReportService,
-        weeklyReportService: !!weeklyReportService,
-        cronService: !!cronService
-      }
-    };
-    
-    res.json({
-      success: true,
-      data: serviceInfo
-    });
-  } catch (error) {
-    logger.error(`📖 Error getting Telegram service status: ${error.message}`, error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get Telegram service status',
-      details: error.message
-    });
-  }
-});
-
-/**
  * GET /api/reports/cron/status
  * Получение статуса cron задач
  */
@@ -880,7 +831,6 @@ router.use((req, res, next) => {
       'GET /api/reports/list',
       'GET /api/reports/weekly/:userId',
       'POST /api/reports/weekly/generate',
-      'GET /api/reports/telegram/status',
       'GET /api/reports/cron/status'
     ]
   });
