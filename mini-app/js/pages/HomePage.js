@@ -467,12 +467,31 @@ class HomePage {
       try {
         const res = await this.api.getTopBooks({ period: '7d' });
         const items = res?.data || res || [];
-        return items.map(i => ({
+        const topBooks = items.map(i => ({
           _id: i.id || i._id,
           title: i.title,
           author: i.author,
           salesCount: (typeof i.salesCount === 'number' && i.salesCount > 0) ? i.salesCount : (i.clicksCount || 0)
         }));
+        
+        // Save top week IDs to state for catalog page
+        if (topBooks && topBooks.length > 0) {
+          const existingTopWeekIds = this.state.get('catalog.topWeekIds') || {};
+          const tenMinutes = 10 * 60 * 1000;
+          const now = Date.now();
+          
+          // Only update if we don't have fresh data (< 10 minutes)
+          if (!existingTopWeekIds.timestamp || (now - existingTopWeekIds.timestamp) > tenMinutes) {
+            const topWeekIds = topBooks.map(b => b._id || b.id).filter(Boolean);
+            this.state.set('catalog.topWeekIds', {
+              ids: topWeekIds,
+              timestamp: now
+            });
+            console.log('✅ HomePage: Saved top week IDs to state:', topWeekIds);
+          }
+        }
+        
+        return topBooks;
       } catch (error) {
         console.error('❌ Ошибка загрузки топ книг:', error);
         return this.getFallbackTopBooks();
