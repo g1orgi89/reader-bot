@@ -491,6 +491,27 @@ app.use('/mini-app/assets/book-covers', express.static(
   { fallthrough: false }
 ));
 
+// 🖼️ Статические файлы для пользовательских аватаров
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: (res, filePath) => {
+    // Set proper cache headers for uploaded files
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 hours
+    
+    if (filePath.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeTypes = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp'
+      };
+      res.setHeader('Content-Type', mimeTypes[ext] || 'image/jpeg');
+    }
+  },
+  fallthrough: false
+}));
+
 // 📱 ИСПРАВЛЕНИЕ: Статические файлы для Mini App
 logger.info('📱 Setting up Mini App static files...');
 app.use('/mini-app', express.static(path.join(__dirname, '../mini-app'), {
