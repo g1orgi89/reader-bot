@@ -597,6 +597,17 @@ class CommunityPage {
             }
         }
         
+        // Create enrichment map from popularFavorites for user info fallback
+        const enrichmentMap = new Map();
+        if (this.popularFavorites && this.popularFavorites.length > 0) {
+            this.popularFavorites.forEach(pf => {
+                if (pf.user) {
+                    const key = `${pf.text.toLowerCase().trim()}||${(pf.author || '').toLowerCase().trim()}`;
+                    enrichmentMap.set(key, pf.user);
+                }
+            });
+        }
+        
         // Берем первые 2 из избранных (исключая дубликат свежей цитаты)
         let addedFavorites = 0;
         for (const fav of favoritesSource) {
@@ -608,13 +619,22 @@ class CommunityPage {
             );
             
             if (!isDuplicate) {
+                // Use returned user directly from fav.user, with enrichment fallback
+                let user = fav.user || null;
+                
+                // If no user but we have enrichment data, try to enrich
+                if (!user && enrichmentMap.size > 0) {
+                    const enrichmentKey = `${fav.text.toLowerCase().trim()}||${(fav.author || '').toLowerCase().trim()}`;
+                    user = enrichmentMap.get(enrichmentKey) || null;
+                }
+                
                 items.push({
                     kind: 'fav',
                     id: fav.id || fav._id,
                     text: fav.text,
                     author: fav.author,
                     favorites: typeof fav.favorites === 'number' ? fav.favorites : 0, // Ensure favorites is numeric >=0
-                    user: fav.user || null // Propagate user data for favorites too
+                    user: user // Use enriched user data
                 });
                 addedFavorites++;
             }
