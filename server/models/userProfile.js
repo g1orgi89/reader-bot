@@ -116,15 +116,56 @@ const achievementSchema = new mongoose.Schema({
  * Схема настроек пользователя
  */
 const settingsSchema = new mongoose.Schema({
+  // New structured notification settings
+  reminders: {
+    enabled: {
+      type: Boolean,
+      default: true
+      // Включены ли напоминания
+    },
+    frequency: {
+      type: String,
+      default: 'often',
+      enum: ['often', 'standard', 'rare', 'off']
+      // Частота напоминаний
+    },
+    lastSentAt: {
+      type: Date,
+      default: null
+      // Когда последний раз отправляли напоминание
+    }
+  },
+  achievements: {
+    enabled: {
+      type: Boolean,
+      default: true
+      // Включены ли уведомления о достижениях
+    }
+  },
+  weeklyReports: {
+    enabled: {
+      type: Boolean,
+      default: true
+      // Включены ли уведомления о еженедельных отчетах
+    }
+  },
+  announcements: {
+    enabled: {
+      type: Boolean,
+      default: true
+      // Включены ли уведомления об анонсах
+    }
+  },
+  // Legacy fields (deprecated but kept for backward compatibility)
   reminderEnabled: {
     type: Boolean,
     default: true
-    // Включены ли напоминания
+    // Включены ли напоминания (legacy)
   },
   reminderTimes: [{
     type: String,
     match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
-    // Время напоминаний в формате HH:MM
+    // Время напоминаний в формате HH:MM (legacy)
   }],
   language: {
     type: String,
@@ -521,8 +562,46 @@ userProfileSchema.methods = {
       totalQuotes: this.statistics.totalQuotes,
       currentStreak: this.statistics.currentStreak,
       source: this.source,
-      isActive: this.isActive
+      isActive: this.isActive,
+      settings: this.getNormalizedSettings()
     };
+  },
+
+  /**
+   * Получить нормализованные настройки с миграцией от legacy полей
+   * @returns {Object}
+   */
+  getNormalizedSettings() {
+    const settings = this.settings || {};
+    
+    // Initialize new structure with defaults if missing
+    const normalized = {
+      reminders: {
+        enabled: settings.reminders?.enabled ?? settings.reminderEnabled ?? true,
+        frequency: settings.reminders?.frequency ?? 'often',
+        lastSentAt: settings.reminders?.lastSentAt ?? null
+      },
+      achievements: {
+        enabled: settings.achievements?.enabled ?? true
+      },
+      weeklyReports: {
+        enabled: settings.weeklyReports?.enabled ?? true
+      },
+      announcements: {
+        enabled: settings.announcements?.enabled ?? true
+      },
+      language: settings.language ?? 'ru'
+    };
+
+    // Keep legacy fields for backward compatibility
+    if (settings.reminderEnabled !== undefined) {
+      normalized.reminderEnabled = settings.reminderEnabled;
+    }
+    if (settings.reminderTimes) {
+      normalized.reminderTimes = settings.reminderTimes;
+    }
+
+    return normalized;
   }
 };
 
