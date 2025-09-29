@@ -1036,15 +1036,7 @@ class ReportsPage {
            this.rerender();
        }
    }
-               this.rerender();
-           }).catch((error) => {
-               console.error('❌ ReportsPage: Ошибка загрузки данных:', error);
-               this.reportsLoading = false;
-               this.rerender();
-           });
-       }
-    }
-    
+            
     /**
      * 🔄 Тихий refresh данных в фоне
      * @param {string} currentWeekKey - Текущий ключ недели
