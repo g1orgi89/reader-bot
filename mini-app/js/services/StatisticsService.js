@@ -619,8 +619,8 @@ class StatisticsService {
                 streakToYesterday: progress.streakToYesterday || 0,
                 isAwaitingToday: progress.isAwaitingToday || false,
                 // Protect optimistic weeklyQuotes from server rollback
-                weeklyQuotes: Math.max(currentStats.weeklyQuotes || 0, main.weeklyQuotes || 0),
-                thisWeek: Math.max(currentStats.weeklyQuotes || 0, main.weeklyQuotes || 0), // Mirror for UI compatibility
+                weeklyQuotes: weeklyQuotes: main.weeklyQuotes || 0,
+                thisWeek: main.weeklyQuotes || 0, // Mirror for UI compatibility
                 favoriteAuthor: progress.favoriteAuthor || '—',
                 activityLevel: progress.activityLevel || 'low',
                 daysInApp: main.daysInApp || 0,
@@ -654,7 +654,7 @@ class StatisticsService {
             const flatDiaryStats = {
                 totalQuotes: effectiveTotal, // Use effectiveTotal for consistency
                 // Protect optimistic weeklyQuotes from server rollback
-                weeklyQuotes: Math.max(currentDiaryStats.weeklyQuotes || 0, diaryStats.weeklyQuotes || 0),
+                weeklyQuotes: main.weeklyQuotes || 0,
                 monthlyQuotes: diaryStats.monthlyQuotes || 0,
                 favoritesCount: diaryStats.favoritesCount || 0,
                 favoriteAuthor: diaryStats.favoriteAuthor || '—',
