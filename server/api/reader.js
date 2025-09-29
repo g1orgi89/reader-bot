@@ -2827,4 +2827,8 @@ router.post('/notify', async (req, res) => {
   }
 });
 
+// Week Context API - import and mount the dedicated route
+const weekContextRoutes = require('./weekContext');
+router.use('/week-context', weekContextRoutes);
+
 module.exports = router;

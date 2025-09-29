@@ -60,6 +60,17 @@ class AppState {
                 loading: false
             },
 
+            // 📅 Week Context (NEW)
+            weekContext: {
+                loaded: false,
+                loading: false,
+                current: null,
+                previous: null,
+                lastReport: null,
+                fetchedAt: null,
+                serverNow: null
+            },
+
             // 🏆 Достижения
             achievements: {
                 items: [],
@@ -526,6 +537,60 @@ class AppState {
      */
     setCurrentReport(report) {
         this.set('reports.current', report);
+    }
+
+    // ===========================================
+    // 📅 УПРАВЛЕНИЕ WEEK CONTEXT (NEW)
+    // ===========================================
+
+    /**
+     * 📅 Установить контекст недели
+     * @param {Object} weekContext - Контекст недели от API
+     */
+    setWeekContext(weekContext) {
+        this.update('weekContext', {
+            ...weekContext,
+            loaded: true,
+            loading: false,
+            fetchedAt: Date.now()
+        });
+    }
+
+    /**
+     * 📅 Получить контекст недели
+     * @returns {Object|null} Контекст недели
+     */
+    getWeekContext() {
+        return this.get('weekContext');
+    }
+
+    /**
+     * 📅 Установить загрузку контекста недели
+     * @param {boolean} isLoading - Состояние загрузки
+     */
+    setWeekContextLoading(isLoading) {
+        this.set('weekContext.loading', isLoading);
+    }
+
+    /**
+     * 📅 Проверить, загружен ли контекст недели
+     * @returns {boolean} True если контекст загружен
+     */
+    isWeekContextLoaded() {
+        const context = this.get('weekContext');
+        return context && context.loaded && context.fetchedAt;
+    }
+
+    /**
+     * 📅 Проверить, нужно ли обновить контекст недели (например, каждые 30 минут)
+     * @returns {boolean} True если нужно обновить
+     */
+    shouldRefreshWeekContext() {
+        const context = this.get('weekContext');
+        if (!context || !context.fetchedAt) return true;
+        
+        const thirtyMinutes = 30 * 60 * 1000;
+        return (Date.now() - context.fetchedAt) > thirtyMinutes;
     }
 
     // ===========================================

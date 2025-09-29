@@ -365,12 +365,15 @@ quoteSchema.statics = {
 // Middleware перед сохранением
 quoteSchema.pre('save', function(next) {
   if (this.isNew) {
-    const now = new Date();
+    // Use business timezone aware ISO week calculation
+    const { getISOWeekInfo, getBusinessNow } = require('../utils/isoWeek');
+    const businessNow = getBusinessNow();
+    const weekInfo = getISOWeekInfo(businessNow);
     
-    // Автоматически устанавливаем номер недели и месяца
-    this.weekNumber = getWeekNumber(now);
-    this.monthNumber = now.getMonth() + 1;
-    this.yearNumber = now.getFullYear();
+    // Set ISO week/year based on business timezone (Moscow time)
+    this.weekNumber = weekInfo.isoWeek;
+    this.yearNumber = weekInfo.isoYear; // Note: ISO year may differ from calendar year at year boundaries
+    this.monthNumber = businessNow.getMonth() + 1;
   }
   
   next();
@@ -384,6 +387,8 @@ quoteSchema.index({
 });
 
 /**
+ * @deprecated Use getISOWeekInfo from ../utils/isoWeek.js instead
+ * Legacy function kept for backward compatibility
  * Получить номер недели ISO 8601
  * @param {Date} date - Дата
  * @returns {number} Номер недели

@@ -740,6 +740,22 @@ class ApiService {
         const reports = resp?.reports || resp?.data?.reports || [];
         return reports.find(r => r.id === reportId) || null;
     }
+
+    /**
+     * 📅 Получить контекст недели (NEW)
+     * @param {string} userId - ID пользователя
+     * @returns {Promise<Object>} Контекст недели с информацией о текущей/предыдущей неделе
+     */
+    async getWeekContext(userId) {
+        const resolvedUserId = userId || this.resolveUserId();
+        if (!resolvedUserId) {
+            throw new Error('UserId is required for week context');
+        }
+        
+        const params = new URLSearchParams({ userId: resolvedUserId });
+        console.log(`📅 API: Загружаем контекст недели для пользователя ${resolvedUserId}`);
+        return this.request('GET', `/week-context?${params.toString()}`);
+    }
     
     /**
      * 📅 Получить месячные отчеты
