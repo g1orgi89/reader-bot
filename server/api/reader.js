@@ -1050,6 +1050,15 @@ router.get('/stats', telegramAuth, async (req, res) => {
       quotes: scopedQuotes // Quotes for the requested scope (week/month/global)
     };
 
+    // Add scope-specific aliases for backward compatibility and clarity
+    if (scope === 'week') {
+      safeStats.weeklyQuotes = scopedQuotes;
+    } else if (scope === 'global') {
+      safeStats.globalQuotes = scopedQuotes;
+    } else if (scope === 'month') {
+      safeStats.monthScopedQuotes = scopedQuotes;
+    }
+
     // Add week metadata if requested
     if (weekMeta) {
       safeStats.weekMeta = weekMeta;
@@ -2731,17 +2740,52 @@ router.get('/catalog/clicks/recent', telegramAuth, async (req, res) => {
  */
 router.get('/community/stats', telegramAuth, communityLimiter, async (req, res) => {
   try {
+    const { scope } = req.query;
+    
     const totalUsers = await UserProfile.countDocuments({ isOnboardingComplete: true });
     const totalQuotes = await Quote.countDocuments();
 
+    let newQuotes, activeUsers;
+    
+    if (scope === 'week') {
+      // Use ISO week calculation
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo 
+      } = require('../utils/isoWeek');
+      
+      const businessNow = getBusinessNow();
+      const currentWeek = getISOWeekInfo(businessNow);
+      
+      // Count quotes for current ISO week using weekNumber/yearNumber fields
+      newQuotes = await Quote.countDocuments({ 
+        weekNumber: currentWeek.isoWeek, 
+        yearNumber: currentWeek.isoYear 
+      });
+      
+      // For active users, use rolling 7 days as fallback (scope=week affects quote counts mainly)
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      activeUsers = await UserProfile.countDocuments({
+        lastActiveAt: { $gte: oneWeekAgo },
+        isActive: true
+      });
+    } else {
+      // Default behavior (rolling 7 days)
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      activeUsers = await UserProfile.countDocuments({
+        lastActiveAt: { $gte: oneWeekAgo },
+        isActive: true
+      });
+      
+      newQuotes = await Quote.countDocuments({ createdAt: { $gte: oneWeekAgo } });
+    }
+
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    const activeUsers = await UserProfile.countDocuments({
-      lastActiveAt: { $gte: oneWeekAgo },
-      isActive: true
-    });
-
     const topAuthors = await Quote.getTopAuthors(oneWeekAgo);
 
     // Calculate dynamic daysActive from first quote in database
@@ -2756,7 +2800,7 @@ router.get('/community/stats', telegramAuth, communityLimiter, async (req, res) 
         totalQuotes,
         topAuthors: topAuthors.map(a => a._id).slice(0, 3),
         activeReaders: activeUsers,
-        newQuotes: await Quote.countDocuments({ createdAt: { $gte: oneWeekAgo } }),
+        newQuotes,
         totalReaders: totalUsers,
         totalAuthors: topAuthors.length,
         daysActive: daysActive
@@ -2874,21 +2918,79 @@ router.get('/community/leaderboard', telegramAuth, communityLimiter, async (req,
 router.get('/community/insights', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const userId = req.userId;
-    const { period: periodParam } = req.query;
-    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
-    if (!periodValid) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid period parameter. Use 7d or 30d.' 
-      });
+    const { period: periodParam, scope } = req.query;
+    
+    let startDate, period;
+    
+    if (scope === 'week') {
+      // Use ISO week calculation
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo, 
+        getISOWeekRange 
+      } = require('../utils/isoWeek');
+      
+      const businessNow = getBusinessNow();
+      const currentWeek = getISOWeekInfo(businessNow);
+      const weekRange = getISOWeekRange(currentWeek.isoWeek, currentWeek.isoYear);
+      
+      startDate = weekRange.start;
+      period = 'week';
+    } else {
+      // Use existing period validation
+      const validation = validatePeriod(periodParam);
+      if (!validation.isValid) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid period parameter. Use 7d or 30d, or scope=week.' 
+        });
+      }
+      startDate = validation.startDate;
+      period = validation.period;
     }
 
     // Previous period for growth calculation
-    const periodDays = parseInt(period, 10);
+    const periodDays = period === 'week' ? 7 : parseInt(period, 10);
     const previousStartDate = new Date(startDate);
     previousStartDate.setDate(previousStartDate.getDate() - periodDays);
 
-    // Interest analysis: leader by catalog clicks
+    // For ISO week scope, use weekNumber/yearNumber fields for quote aggregation
+    let quoteMatchQuery, previousQuoteMatchQuery;
+    
+    if (scope === 'week') {
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo 
+      } = require('../utils/isoWeek');
+      
+      const businessNow = getBusinessNow();
+      const currentWeek = getISOWeekInfo(businessNow);
+      
+      // Previous week calculation  
+      let prevWeek = currentWeek.isoWeek - 1;
+      let prevYear = currentWeek.isoYear;
+      if (prevWeek < 1) {
+        prevYear -= 1;
+        // Calculate weeks in previous year (simplified)
+        prevWeek = 52; // Simplified, could use proper ISO calculation
+      }
+      
+      quoteMatchQuery = { 
+        weekNumber: currentWeek.isoWeek, 
+        yearNumber: currentWeek.isoYear 
+      };
+      previousQuoteMatchQuery = { 
+        weekNumber: prevWeek, 
+        yearNumber: prevYear 
+      };
+    } else {
+      quoteMatchQuery = { createdAt: { $gte: startDate } };
+      previousQuoteMatchQuery = { 
+        createdAt: { $gte: previousStartDate, $lt: startDate } 
+      };
+    }
+
+    // Interest analysis: leader by catalog clicks (keep date-based for UTM clicks)
     const currentPeriodClicks = await UTMClick.aggregate([
       { $match: { timestamp: { $gte: startDate }, campaign: 'catalog' } },
       { $group: { _id: '$content', clicks: { $sum: 1 } } },
@@ -2940,9 +3042,9 @@ router.get('/community/insights', telegramAuth, communityLimiter, async (req, re
       activelyStudying: activelyStudying.length
     };
 
-    // Top authors in quotes for the period
+    // Top authors in quotes for the period (use appropriate match query)
     const topAuthors = await Quote.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
+      { $match: quoteMatchQuery },
       { $group: { _id: '$author', count: { $sum: 1 } } },
       { $match: { _id: { $ne: null, $ne: '' } } },
       { $sort: { count: -1, _id: 1 } },
@@ -2950,9 +3052,9 @@ router.get('/community/insights', telegramAuth, communityLimiter, async (req, re
       { $project: { author: '$_id', count: 1, _id: 0 } }
     ]);
 
-    // Community achievements by activity thresholds
+    // Community achievements by activity thresholds (use appropriate match query)
     const achievements = await Quote.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
+      { $match: quoteMatchQuery },
       { $group: { _id: '$userId', count: { $sum: 1 } } },
       { $bucket: {
         groupBy: '$count',
@@ -2964,7 +3066,7 @@ router.get('/community/insights', telegramAuth, communityLimiter, async (req, re
 
     // User rating (reuse leaderboard logic)
     const userStats = await Quote.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
+      { $match: quoteMatchQuery },
       { $group: { _id: '$userId', count: { $sum: 1 } } },
       { $sort: { count: -1, _id: 1 } }
     ]);
@@ -3006,20 +3108,45 @@ router.get('/community/insights', telegramAuth, communityLimiter, async (req, re
  */
 router.get('/community/fun-fact', telegramAuth, communityLimiter, async (req, res) => {
   try {
-    const { period: periodParam } = req.query;
-    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
-    if (!periodValid) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid period parameter. Use 7d or 30d.' 
-      });
+    const { period: periodParam, scope } = req.query;
+    
+    let startDate, period;
+    let quoteMatchQuery;
+    
+    if (scope === 'week') {
+      // Use ISO week calculation
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo 
+      } = require('../utils/isoWeek');
+      
+      const businessNow = getBusinessNow();
+      const currentWeek = getISOWeekInfo(businessNow);
+      
+      quoteMatchQuery = { 
+        weekNumber: currentWeek.isoWeek, 
+        yearNumber: currentWeek.isoYear 
+      };
+      period = 'week';
+    } else {
+      // Use existing period validation
+      const validation = validatePeriod(periodParam);
+      if (!validation.isValid) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid period parameter. Use 7d or 30d, or scope=week.' 
+        });
+      }
+      startDate = validation.startDate;
+      period = validation.period;
+      quoteMatchQuery = { createdAt: { $gte: startDate } };
     }
 
     let funFact = '';
 
-    // Try to get top author of the period
+    // Try to get top author of the period (use appropriate match query)
     const topAuthor = await Quote.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
+      { $match: quoteMatchQuery },
       { $group: { _id: '$author', count: { $sum: 1 } } },
       { $match: { _id: { $ne: null, $ne: '' } } },
       { $sort: { count: -1, _id: 1 } },
@@ -3031,36 +3158,46 @@ router.get('/community/fun-fact', telegramAuth, communityLimiter, async (req, re
       const count = topAuthor[0].count;
       funFact = `🏆 Автор недели: ${authorName} — ${count} ${count % 10 === 1 && count % 100 !== 11 ? 'цитата' : (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) ? 'цитаты' : 'цитат'}`;
     } else {
-      // Fallback: day with maximum quotes
-      const dailyStats = await Quote.aggregate([
-        { $match: { createdAt: { $gte: startDate } } },
-        { 
-          $group: { 
-            _id: { 
-              $dateToString: { 
-                format: '%Y-%m-%d', 
-                date: '$createdAt',
-                timezone: 'Europe/Moscow'
-              } 
-            }, 
-            count: { $sum: 1 } 
-          } 
-        },
-        { $sort: { count: -1, _id: 1 } },
-        { $limit: 1 }
-      ]);
-
-      if (dailyStats.length > 0 && dailyStats[0].count > 1) {
-        const date = dailyStats[0]._id;
-        const count = dailyStats[0].count;
-        const formattedDate = new Date(date).toLocaleDateString('ru-RU', { 
-          day: 'numeric', 
-          month: 'long' 
-        });
-        funFact = `📅 Самый продуктивный день: ${formattedDate} — ${count} ${count % 10 === 1 && count % 100 !== 11 ? 'цитата' : (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) ? 'цитаты' : 'цитат'}`;
+      if (scope === 'week') {
+        // For ISO week scope, use a different fallback since we can't easily aggregate by day
+        const totalQuotes = await Quote.countDocuments(quoteMatchQuery);
+        if (totalQuotes > 0) {
+          funFact = `📊 На этой неделе добавлено ${totalQuotes} ${totalQuotes % 10 === 1 && totalQuotes % 100 !== 11 ? 'цитата' : (totalQuotes % 10 >= 2 && totalQuotes % 10 <= 4 && (totalQuotes % 100 < 10 || totalQuotes % 100 >= 20)) ? 'цитаты' : 'цитат'}`;
+        } else {
+          funFact = '🌟 Сообщество активно развивается и изучает новые темы';
+        }
       } else {
-        // Neutral fallback
-        funFact = '🌟 Сообщество активно развивается и изучает новые темы';
+        // Fallback: day with maximum quotes (for date-based queries)
+        const dailyStats = await Quote.aggregate([
+          { $match: quoteMatchQuery },
+          { 
+            $group: { 
+              _id: { 
+                $dateToString: { 
+                  format: '%Y-%m-%d', 
+                  date: '$createdAt',
+                  timezone: 'Europe/Moscow'
+                } 
+              }, 
+              count: { $sum: 1 } 
+            } 
+          },
+          { $sort: { count: -1, _id: 1 } },
+          { $limit: 1 }
+        ]);
+
+        if (dailyStats.length > 0 && dailyStats[0].count > 1) {
+          const date = dailyStats[0]._id;
+          const count = dailyStats[0].count;
+          const formattedDate = new Date(date).toLocaleDateString('ru-RU', { 
+            day: 'numeric', 
+            month: 'long' 
+          });
+          funFact = `📅 Самый продуктивный день: ${formattedDate} — ${count} ${count % 10 === 1 && count % 100 !== 11 ? 'цитата' : (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) ? 'цитаты' : 'цитат'}`;
+        } else {
+          // Neutral fallback
+          funFact = '🌟 Сообщество активно развивается и изучает новые темы';
+        }
       }
     }
 
