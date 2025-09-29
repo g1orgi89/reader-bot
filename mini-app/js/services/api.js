@@ -1008,19 +1008,17 @@ class ApiService {
 
     /**
      * 🏆 Лидерборд за период
-     * @param {{period?: '7d'|'30d', scope?: 'week'|'month', limit?: number}} options
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * @param {{limit?: number}} options
      */
     async getLeaderboard(options = {}) {
         const params = new URLSearchParams();
-        // Prefer scope over period if provided
-        if (options.scope) {
-            params.append('scope', options.scope);
-        } else if (options.period) {
-            params.append('period', options.period);
-        }
+        // Always use scope=week for weekly community blocks
+        params.append('scope', 'week');
         if (options.limit) params.append('limit', options.limit);
-        const qs = params.toString();
-        return this.request('GET', qs ? `/community/leaderboard?${qs}` : '/community/leaderboard');
+        
+        const queryString = params.toString();
+        return this.request('GET', `/community/leaderboard?${queryString}`);
     }
 
     /**
@@ -1069,57 +1067,51 @@ class ApiService {
 
     /**
      * 🔥 Получить популярные цитаты сообщества (обновленная версия)
-     * НОВЫЙ: Переименованный метод для более точного соответствия требованиям PR-3
-     * @param {{period?: '7d'|'30d', scope?: 'week'|'month', limit?: number}} options
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * @param {{limit?: number}} options
      */
     async getCommunityPopularQuotes(options = {}) {
         const params = new URLSearchParams();
         if (options.limit) params.append('limit', options.limit);
-        // Prefer scope over period if provided
-        if (options.scope) {
-            params.append('scope', options.scope);
-        } else if (options.period) {
-            params.append('period', options.period);
-        }
+        // Always use scope=week for weekly community blocks
+        params.append('scope', 'week');
 
         const queryString = params.toString();
-        const endpoint = queryString ? `/community/popular?${queryString}` : '/community/popular';
+        const endpoint = `/community/popular?${queryString}`;
         
         return this.request('GET', endpoint);
     }
 
     /**
      * 📚 Получить популярные книги сообщества (обновленная версия)
-     * НОВЫЙ: Переименованный метод для более точного соответствия требованиям PR-3
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * @param {{limit?: number}} options
      */
     async getCommunityPopularBooks(options = {}) {
         const params = new URLSearchParams();
         if (options.limit) params.append('limit', options.limit);
-        if (options.period) params.append('period', options.period);
+        // Always use scope=week for weekly community blocks
+        params.append('scope', 'week');
 
         const queryString = params.toString();
-        const endpoint = queryString ? `/community/popular-books?${queryString}` : '/community/popular-books';
+        const endpoint = `/community/popular-books?${queryString}`;
         
         return this.request('GET', endpoint);
     }
 
     /**
      * ❤️ Получить популярные лайкнутые цитаты за период
-     * НОВЫЙ: Для отображения топа цитат недели по лайкам
-     * @param {{period?: '7d'|'30d', scope?: 'week'|'month', limit?: number}} options
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * @param {{limit?: number}} options
      */
     async getCommunityPopularFavorites(options = {}) {
         const params = new URLSearchParams();
         if (options.limit) params.append('limit', options.limit);
-        // Prefer scope over period if provided
-        if (options.scope) {
-            params.append('scope', options.scope);
-        } else if (options.period) {
-            params.append('period', options.period);
-        }
-        const qs = params.toString();
+        // Always use scope=week for weekly community blocks
+        params.append('scope', 'week');
         
-        const endpoint = qs ? `/community/popular-favorites?${qs}` : '/community/popular-favorites';
+        const queryString = params.toString();
+        const endpoint = `/community/popular-favorites?${queryString}`;
         return this.request('GET', endpoint);
     }
 
@@ -1169,39 +1161,31 @@ class ApiService {
 
     /**
      * 📊 Получить инсайты сообщества за период
-     * НОВЫЙ: API для инсайтов: GET /api/reader/community/insights
-     * @param {{period?: '7d'|'30d', scope?: 'week'|'month'}} options
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * @param {{}} options
      */
     async getCommunityInsights(options = {}) {
         const params = new URLSearchParams();
-        // Prefer scope over period if provided
-        if (options.scope) {
-            params.append('scope', options.scope);
-        } else if (options.period) {
-            params.append('period', options.period);
-        }
-        const qs = params.toString();
+        // Always use scope=week for weekly community blocks
+        params.append('scope', 'week');
         
-        const endpoint = qs ? `/community/insights?${qs}` : '/community/insights';
+        const queryString = params.toString();
+        const endpoint = `/community/insights?${queryString}`;
         return this.request('GET', endpoint);
     }
 
     /**
      * 🎉 Получить интересный факт недели
-     * НОВЫЙ: API для факта недели: GET /api/reader/community/fun-fact
-     * @param {{period?: '7d'|'30d', scope?: 'week'|'month'}} options
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * @param {{}} options
      */
     async getCommunityFunFact(options = {}) {
         const params = new URLSearchParams();
-        // Prefer scope over period if provided
-        if (options.scope) {
-            params.append('scope', options.scope);
-        } else if (options.period) {
-            params.append('period', options.period);
-        }
-        const qs = params.toString();
+        // Always use scope=week for weekly community blocks
+        params.append('scope', 'week');
         
-        const endpoint = qs ? `/community/fun-fact?${qs}` : '/community/fun-fact';
+        const queryString = params.toString();
+        const endpoint = `/community/fun-fact?${queryString}`;
         return this.request('GET', endpoint);
     }
 

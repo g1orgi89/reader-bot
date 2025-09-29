@@ -217,26 +217,19 @@ class CommunityPage {
     }
 
     /**
-     * 🔥 ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ СООБЩЕСТВА (PR-3)
-     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
+     * 🔥 ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ СООБЩЕСТВА (ОБНОВЛЕНО)
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      * @param {number} limit - number of quotes to load
      */
-    async loadPopularQuotes(period = 'week', limit = 10) {
+    async loadPopularQuotes(limit = 10) {
         if (this.loadingStates.popularQuotes) return;
         
         try {
             this.loadingStates.popularQuotes = true;
             this.errorStates.popularQuotes = null;
-            console.log('🔥 CommunityPage: Загружаем популярные цитаты...');
+            console.log('🔥 CommunityPage: Загружаем популярные цитаты недели...');
             
-            let options;
-            if (period === 'week') {
-                options = { scope: 'week', limit };
-            } else {
-                options = { period, limit };
-            }
-            
-            const response = await this.api.getCommunityPopularQuotes(options);
+            const response = await this.api.getCommunityPopularQuotes({ limit });
             if (response && response.success) {
                 this.popularQuotes = response.data || response.quotes || [];
                 console.log('✅ CommunityPage: Популярные цитаты загружены:', this.popularQuotes.length);
@@ -254,10 +247,10 @@ class CommunityPage {
 
     /**
      * ❤️ ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (ТОЛЬКО ТЕКУЩАЯ НЕДЕЛЯ)
-     * @param {string} period - 'week' for scope=week
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      * @param {number} limit - number of quotes to load
      */
-    async loadPopularFavorites(period = 'week', limit = 10) {
+    async loadPopularFavorites(limit = 10) {
         if (this.loadingStates.popularFavorites) return;
         
         try {
@@ -265,15 +258,8 @@ class CommunityPage {
             this.errorStates.popularFavorites = null;
             console.log('❤️ CommunityPage: Загружаем популярные избранные цитаты за неделю...');
             
-            let options;
-            if (period === 'week') {
-                options = { scope: 'week', limit };
-            } else {
-                options = { period, limit };
-            }
-            
             // Загружаем избранные только за текущую неделю - без fallback
-            const response = await this.api.getCommunityPopularFavorites(options);
+            const response = await this.api.getCommunityPopularFavorites({ limit });
             if (response && response.success && response.data) {
                 this.popularFavorites = response.data;
                 console.log('✅ CommunityPage: Популярные избранные цитаты загружены:', this.popularFavorites.length);
@@ -293,8 +279,10 @@ class CommunityPage {
 
     /**
      * 📚 ЗАГРУЗКА ПОПУЛЯРНЫХ КНИГ СООБЩЕСТВА (ОБНОВЛЕНО ДЛЯ ТОПА НЕДЕЛИ)
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * @param {number} limit - number of books to load
      */
-    async loadPopularBooks(period = 'week', limit = 10) {
+    async loadPopularBooks(limit = 10) {
         if (this.loadingStates.popularBooks) return;
         
         try {
@@ -302,15 +290,7 @@ class CommunityPage {
             this.errorStates.popularBooks = null;
             console.log('📚 CommunityPage: Загружаем популярные книги недели...');
             
-            // Используем scope='week' для получения популярных разборов недели
-            let options;
-            if (period === 'week') {
-                options = { scope: 'week', limit };
-            } else {
-                options = { period, limit };
-            }
-            
-            const response = await this.api.getTopBooks(options);
+            const response = await this.api.getCommunityPopularBooks({ limit });
             if (response && response.success) {
                 // Нормализация: читаем из resp.data или resp.books
                 this.popularBooks = response.data || response.books || [];
@@ -437,25 +417,18 @@ class CommunityPage {
     }
     
     /**
-     * 🏆 ЗАГРУЗКА ЛИДЕРБОРДА ЗА ПЕРИОД (НОВОЕ)
+     * 🏆 ЗАГРУЗКА ЛИДЕРБОРДА ЗА ПЕРИОД (ОБНОВЛЕНО)
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      * @param {number} limit - number of users to load
-     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
      */
-    async loadLeaderboard(limit = 10, period = 'week') {
+    async loadLeaderboard(limit = 10) {
         if (this.loadingStates.leaderboard) return;
         try {
             this.loadingStates.leaderboard = true;
             this.errorStates.leaderboard = null;
-            console.log('🏆 CommunityPage: Загружаем лидерборд за', period);
+            console.log('🏆 CommunityPage: Загружаем лидерборд за неделю');
             
-            let options;
-            if (period === 'week') {
-                options = { scope: 'week', limit };
-            } else {
-                options = { period, limit };
-            }
-            
-            const resp = await this.api.getLeaderboard(options);
+            const resp = await this.api.getLeaderboard({ limit });
             if (resp && resp.success) {
                 this.leaderboard = resp.data || [];
                 this.userProgress = resp.me || null;
@@ -477,24 +450,17 @@ class CommunityPage {
 
     /**
      * 📊 ЗАГРУЗКА ИНСАЙТОВ СООБЩЕСТВА
-     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      */
-    async loadCommunityInsights(period = 'week') {
+    async loadCommunityInsights() {
         if (this.loadingStates.communityInsights) return;
         
         try {
             this.loadingStates.communityInsights = true;
             this.errorStates.communityInsights = null;
-            console.log('📊 CommunityPage: Загружаем инсайты сообщества за', period);
+            console.log('📊 CommunityPage: Загружаем инсайты сообщества за неделю');
             
-            let options;
-            if (period === 'week') {
-                options = { scope: 'week' };
-            } else {
-                options = { period };
-            }
-            
-            const response = await this.api.getCommunityInsights(options);
+            const response = await this.api.getCommunityInsights();
             if (response && response.success) {
                 this.communityInsights = response.insights;
                 console.log('✅ CommunityPage: Инсайты загружены:', this.communityInsights);
@@ -513,24 +479,17 @@ class CommunityPage {
 
     /**
      * 🎉 ЗАГРУЗКА ИНТЕРЕСНОГО ФАКТА НЕДЕЛИ
-     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
+     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      */
-    async loadFunFact(period = 'week') {
+    async loadFunFact() {
         if (this.loadingStates.funFact) return;
         
         try {
             this.loadingStates.funFact = true;
             this.errorStates.funFact = null;
-            console.log('🎉 CommunityPage: Загружаем интересный факт за', period);
+            console.log('🎉 CommunityPage: Загружаем интересный факт за неделю');
             
-            let options;
-            if (period === 'week') {
-                options = { scope: 'week' };
-            } else {
-                options = { period };
-            }
-            
-            const response = await this.api.getCommunityFunFact(options);
+            const response = await this.api.getCommunityFunFact();
             if (response && response.success) {
                 this.funFact = response.data;
                 console.log('✅ CommunityPage: Интересный факт загружен:', this.funFact);
@@ -561,6 +520,7 @@ class CommunityPage {
 
     /**
      * Построение микса spotlight: 1 свежая + 2 недавние избранные
+     * ОБНОВЛЕНО: Убрано fallback загрязнение - только свежие данные
      */
     async buildSpotlightMix() {
         const items = [];
@@ -574,81 +534,43 @@ class CommunityPage {
                 text: fresh.text,
                 author: fresh.author,
                 createdAt: fresh.createdAt,
-                favorites: typeof fresh.favorites === 'number' ? fresh.favorites : 0, // Ensure favorites is numeric >=0
-                user: fresh.user || null // Propagate user data if present
+                favorites: typeof fresh.favorites === 'number' ? fresh.favorites : 0,
+                user: fresh.user || null
             });
         }
         
-        // 2. Добавляем до 2 недавних избранных с fallback логикой
-        let favoritesSource = [];
-        
+        // 2. Добавляем до 2 недавних избранных БЕЗ fallback логики
         try {
-            // Попытка использовать новый endpoint для недавних избранных
-            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 3 });
+            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 2 });
             if (recentResponse && recentResponse.success && recentResponse.data && recentResponse.data.length > 0) {
-                favoritesSource = recentResponse.data;
-            } else {
-                throw new Error('Recent favorites endpoint не доступен или пуст');
-            }
-        } catch {
-            console.log('🔄 Spotlight fallback: используем популярные избранные или агрегацию');
-            
-            // Fallback 1: popularFavorites
-            if (this.popularFavorites && this.popularFavorites.length > 0) {
-                favoritesSource = this.popularFavorites;
-            } 
-            // Fallback 2: popularQuotes (агрегация)
-            else if (this.popularQuotes && this.popularQuotes.length > 0) {
-                favoritesSource = this.popularQuotes.map(q => ({
-                    text: q.text,
-                    author: q.author,
-                    favorites: q.favorites || q.count || q.likes || 0,
-                    user: q.user || null // Propagate user data if available
-                }));
-            }
-        }
-        
-        // Create enrichment map from popularFavorites for user info fallback
-        const enrichmentMap = new Map();
-        if (this.popularFavorites && this.popularFavorites.length > 0) {
-            this.popularFavorites.forEach(pf => {
-                if (pf.user) {
-                    const key = `${pf.text.toLowerCase().trim()}||${(pf.author || '').toLowerCase().trim()}`;
-                    enrichmentMap.set(key, pf.user);
-                }
-            });
-        }
-        
-        // Берем первые 2 из избранных (исключая дубликат свежей цитаты)
-        let addedFavorites = 0;
-        for (const fav of favoritesSource) {
-            if (addedFavorites >= 2) break;
-            
-            // Проверяем, не дублируется ли с fresh цитатой
-            const isDuplicate = items.some(item => 
-                item.text === fav.text && item.author === fav.author
-            );
-            
-            if (!isDuplicate) {
-                // Use returned user directly from fav.user, with enrichment fallback
-                let user = fav.user || null;
+                const recentFavorites = recentResponse.data;
                 
-                // If no user but we have enrichment data, try to enrich
-                if (!user && enrichmentMap.size > 0) {
-                    const enrichmentKey = `${fav.text.toLowerCase().trim()}||${(fav.author || '').toLowerCase().trim()}`;
-                    user = enrichmentMap.get(enrichmentKey) || null;
+                // Берем первые 2 из недавних избранных (исключая дубликат свежей цитаты)
+                let addedFavorites = 0;
+                for (const fav of recentFavorites) {
+                    if (addedFavorites >= 2) break;
+                    
+                    // Проверяем, не дублируется ли с fresh цитатой
+                    const isDuplicate = items.some(item => 
+                        item.text === fav.text && item.author === fav.author
+                    );
+                    
+                    if (!isDuplicate) {
+                        items.push({
+                            kind: 'fav',
+                            id: fav.id || fav._id,
+                            text: fav.text,
+                            author: fav.author,
+                            favorites: typeof fav.favorites === 'number' ? fav.favorites : 0,
+                            user: fav.user || null
+                        });
+                        addedFavorites++;
+                    }
                 }
-                
-                items.push({
-                    kind: 'fav',
-                    id: fav.id || fav._id,
-                    text: fav.text,
-                    author: fav.author,
-                    favorites: typeof fav.favorites === 'number' ? fav.favorites : 0, // Ensure favorites is numeric >=0
-                    user: user // Use enriched user data
-                });
-                addedFavorites++;
             }
+        } catch (error) {
+            console.log('⚠️ Spotlight: Недавние избранные недоступны, показываем только свежую цитату');
+            // НЕ используем fallback - если нет недавних избранных, показываем меньше карточек
         }
         
         return items.slice(0, 3); // Гарантируем максимум 3 элемента
@@ -1786,10 +1708,10 @@ class CommunityPage {
                     // Очищаем кэш
                     this._spotlightCache = { ts: 0, items: [] };
                     
-                    // Параллельно перезагружаем данные
+                    // Параллельно перезагружаем только необходимые данные для spotlight
                     await Promise.all([
-                        this.loadLatestQuotes(5),
-                        this.loadPopularFavorites('7d', 10)
+                        this.loadLatestQuotes(5)
+                        // НЕ загружаем популярные избранные - spotlight использует только recent favorites
                     ]);
                     
                     // Пересобираем подборку
@@ -2049,7 +1971,7 @@ class CommunityPage {
     }
 
     /**
-     * 🔄 ЗАГРУЗКА ВСЕХ СЕКЦИЙ (ОБНОВЛЕНА ДЛЯ PR-3)
+     * 🔄 ЗАГРУЗКА ВСЕХ СЕКЦИЙ (ОБНОВЛЕНА - БЕЗ PERIOD АРГУМЕНТОВ)
      */
     async loadAllSections() {
         console.log('🔄 CommunityPage: Загружаем все секции...');
@@ -2057,14 +1979,14 @@ class CommunityPage {
         // Загружаем параллельно для лучшей производительности
         const loadPromises = [
             this.loadLatestQuotes(3), // Только 3 цитаты согласно требованиям
-            this.loadPopularFavorites('7d', 10), // Популярные избранные цитаты для топа недели
-            this.loadPopularBooks('7d', 10), // Популярные разборы недели для "Топ недели"
+            this.loadPopularFavorites(10), // Популярные избранные цитаты для топа недели
+            this.loadPopularBooks(10), // Популярные разборы недели для "Топ недели"
             this.loadRecentClicks(3), // Последние 3 клика для "Сейчас изучают"
             this.loadCommunityMessage(), // Сообщение от Анны
             this.loadCommunityTrend(), // Тренд недели
-            this.loadLeaderboard(10, '7d'), // Лидерборд за неделю
-            this.loadCommunityInsights('7d'), // Инсайты сообщества
-            this.loadFunFact('7d') // Интересный факт недели
+            this.loadLeaderboard(10), // Лидерборд за неделю
+            this.loadCommunityInsights(), // Инсайты сообщества
+            this.loadFunFact() // Интересный факт недели
         ];
 
         try {
@@ -2078,7 +2000,7 @@ class CommunityPage {
     }
 
     /**
-     * 🔄 МЕТОДЫ ПОВТОРА ЗАГРУЗКИ ДЛЯ ОБРАБОТКИ ОШИБОК (PR-3)
+     * 🔄 МЕТОДЫ ПОВТОРА ЗАГРУЗКИ ДЛЯ ОБРАБОТКИ ОШИБОК (ОБНОВЛЕНО - БЕЗ PERIOD)
      */
     retryLoadLatestQuotes() {
         this.triggerHapticFeedback('medium');
@@ -2087,22 +2009,22 @@ class CommunityPage {
 
     retryLoadPopularQuotes() {
         this.triggerHapticFeedback('medium');
-        this.loadPopularQuotes('7d', 10).then(() => this.rerender());
+        this.loadPopularQuotes(10).then(() => this.rerender());
     }
 
     retryLoadPopularFavorites() {
         this.triggerHapticFeedback('medium');
-        this.loadPopularFavorites('7d', 10).then(() => this.rerender());
+        this.loadPopularFavorites(10).then(() => this.rerender());
     }
 
     retryLoadPopularBooks() {
         this.triggerHapticFeedback('medium');
-        this.loadPopularBooks('7d', 10).then(() => this.rerender());
+        this.loadPopularBooks(10).then(() => this.rerender());
     }
 
     retryLoadLeaderboard() {
         this.triggerHapticFeedback('medium');
-        this.loadLeaderboard(10, '7d').then(() => this.rerender());
+        this.loadLeaderboard(10).then(() => this.rerender());
     }
 
     retryLoadRecentClicks() {
@@ -2323,9 +2245,10 @@ class CommunityPage {
                             }
                         }
                         
-                        // Диспатчим событие для статистики
+                        // Диспатчим событие для статистики с полным объектом цитаты
+                        const updatedQuote = updatedQuotes.find(q => q.id === existingQuote.id);
                         document.dispatchEvent(new CustomEvent('quotes:changed', { 
-                            detail: { type: 'edited', quoteId: existingQuote.id, updates: { isFavorite: true } } 
+                            detail: { type: 'edited', quote: updatedQuote } 
                         }));
                         
                         return;

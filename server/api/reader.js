@@ -2436,6 +2436,7 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     } = req.query;
     
     let matchCriteria = { isFavorite: true };
+    let hours = 48; // Default value
 
     if (scope === 'week') {
       // Use ISO week filtering
@@ -2453,9 +2454,11 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
         weekNumber: targetWeek, 
         yearNumber: targetYear 
       };
+      hours = null; // Not applicable for week scope
     } else {
       // Legacy hours-based filtering for backwards compatibility
-      const hours = Math.min(Math.max(parseInt(hoursParam) || 48, 1), 168);
+      const parsedHours = parseInt(hoursParam);
+      hours = Number.isFinite(parsedHours) ? Math.min(Math.max(parsedHours, 1), 168) : 48;
       
       // Calculate start date based on hours
       const startDate = new Date();
@@ -2532,8 +2535,21 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       }
     ]);
 
+    // Handle empty results gracefully
+    if (!recentFavorites || recentFavorites.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        pagination: {
+          hours: hours,
+          limit: limit,
+          total: 0
+        }
+      });
+    }
+
     // Get origin user IDs for each quote pair (earliest creator)
-    const quotePairs = recentFavorites.map(rf => ({ text: rf.text, author: rf.author }));
+    const quotePairs = recentFavorites.map(rf => ({ text: rf.text || '', author: rf.author || '' }));
     const originUserMap = await getOriginUserIds(quotePairs);
 
     // Collect all user IDs we need (origin users + fallback to firstUserId)
@@ -2604,23 +2620,29 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
 
   } catch (error) {
     console.error('❌ Get Recent Favorites Error:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 /**
- * @description Популярные книги сообщества (унифицированный alias для /top-books)
+ * @description Популярные книги сообщества с поддержкой ISO недель
  * @route GET /api/reader/community/popular-books
  */
 router.get('/community/popular-books', telegramAuth, communityLimiter, async (req, res) => {
   try {
-    const { period: periodParam, limit: limitParam } = req.query;
+    const { 
+      scope, 
+      weekNumber, 
+      year, 
+      limit: limitParam 
+    } = req.query;
     
-    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
-    if (!periodValid) {
+    // Enforce scope=week only as per requirements
+    if (scope !== 'week') {
       return res.status(400).json({ 
         success: false, 
-        error: 'Invalid period parameter. Use 7d or 30d.' 
+        error: 'Invalid scope parameter. Only scope=week is supported for community popular books.' 
       });
     }
     
@@ -2632,9 +2654,24 @@ router.get('/community/popular-books', telegramAuth, communityLimiter, async (re
       });
     }
 
-    // Reuse the logic from /top-books endpoint with deterministic sorting
+    // Use ISO week filtering
+    const { 
+      getBusinessNow, 
+      getISOWeekInfo,
+      getISOWeekRange
+    } = require('../utils/isoWeek');
+    
+    const currentWeek = getISOWeekInfo(getBusinessNow());
+    const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+    const targetYear = parseInt(year) || currentWeek.isoYear;
+    
+    const weekRange = getISOWeekRange(targetWeek, targetYear);
+    const startDate = weekRange.start;
+    const endDate = weekRange.end;
+
+    // Aggregate clicks within the ISO week range
     const clicksAgg = await UTMClick.aggregate([
-      { $match: { timestamp: { $gte: startDate }, campaign: 'catalog' } },
+      { $match: { timestamp: { $gte: startDate, $lte: endDate }, campaign: 'catalog' } },
       { $group: { _id: '$content', clicks: { $sum: 1 }, firstClick: { $min: '$_id' } } },
       { $sort: { clicks: -1, firstClick: 1 } }, // Deterministic sorting
       { $limit: limit }
@@ -2642,8 +2679,9 @@ router.get('/community/popular-books', telegramAuth, communityLimiter, async (re
 
     const slugs = clicksAgg.map(a => (a._id || '').toLowerCase()).filter(Boolean);
 
+    // Aggregate purchases within the ISO week range
     const purchasesAgg = await PromoCodeUsage.aggregate([
-      { $match: { timestamp: { $gte: startDate }, booksPurchased: { $exists: true, $ne: [] } } },
+      { $match: { timestamp: { $gte: startDate, $lte: endDate }, booksPurchased: { $exists: true, $ne: [] } } },
       { $unwind: '$booksPurchased' },
       { $group: { _id: { book: '$booksPurchased' }, purchases: { $sum: 1 } } }
     ]);
@@ -2679,7 +2717,8 @@ router.get('/community/popular-books', telegramAuth, communityLimiter, async (re
       pagination: {
         total: data.length,
         limit: limit,
-        period: period
+        weekNumber: targetWeek,
+        year: targetYear
       }
     });
 
