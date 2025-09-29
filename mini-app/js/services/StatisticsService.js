@@ -168,10 +168,14 @@ class StatisticsService {
                 activityLevel = 'medium';
             }
             
-            // Override activityLevel with lifetimeLevel for better UX on Monday
+            // FALLBACK BEHAVIOR: Override activityLevel with lifetimeLevel for better UX on Monday
             // Prevents showing "начинающий" for users with 40+ total quotes
+            // Also provides better fallback when current ISO week has low data
             if (totalQuotes >= 40 && weeklyQuotes === 0) {
                 activityLevel = 'medium'; // Show at least medium for experienced users
+            } else if (totalQuotes >= 20 && weeklyQuotes <= 2) {
+                // For users with some experience but low current week activity
+                activityLevel = Math.max(activityLevel === 'low' ? 'medium' : activityLevel, 'low');
             }
             
             let streak = main.currentStreak || 0;

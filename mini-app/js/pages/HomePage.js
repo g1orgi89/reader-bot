@@ -344,6 +344,7 @@ class HomePage {
                 let emoji = '🔍';
                 
                 // Use lifetimeLevel for better UX (prevents "начинающий" for experienced users on Monday)
+                // Also provides better fallback when current ISO week has low data
                 let displayLevel = lifetimeLevel;
                 if (activityLevel === 'high') {
                     displayLevel = 'Высокая';
@@ -364,8 +365,15 @@ class HomePage {
                     displayLevel = 'Развивающийся';
                     emoji = '🌱';
                 } else {
-                    displayLevel = 'Начинающий';
-                    emoji = '🔍';
+                    // Fallback for truly new users or when data is low
+                    const totalQuotes = stats.totalQuotes ?? 0;
+                    if (totalQuotes > 0) {
+                        displayLevel = 'Изучающий'; // Better than "Начинающий" for users with some quotes
+                        emoji = '📚';
+                    } else {
+                        displayLevel = 'Начинающий';
+                        emoji = '🔍';
+                    }
                 }
 
                 const newText = `Активность: ${displayLevel} ${emoji}`;
