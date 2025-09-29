@@ -42,6 +42,8 @@ function telegramAuth(req, res, next) {
  */
 
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
 const router = express.Router();
 
 // Импорты моделей
@@ -56,11 +58,41 @@ const PromoCodeUsage = require('../models/analytics').PromoCodeUsage;
 // Импорт сервисов
 const QuoteHandler = require('../services/quoteHandler');
 
+// Импорт утилит
+const { fetchTelegramAvatar, hasAvatar, updateUserAvatar } = require('../utils/telegramAvatarFetcher');
+
 // Импорт middleware
 const { communityLimiter } = require('../middleware/rateLimiting');
 
 // Инициализация обработчика цитат
 const quoteHandler = new QuoteHandler();
+
+// Конфигурация multer для загрузки аватаров
+const avatarStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(process.cwd(), 'uploads', 'avatars'));
+  },
+  filename: function (req, file, cb) {
+    const userId = getUserId(req);
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `${userId}_${Date.now()}${ext}`);
+  }
+});
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Поддерживаются только изображения (JPEG, PNG, GIF, WebP)'));
+    }
+  }
+});
 
 /**
  * Simple userId extraction from request
@@ -115,6 +147,74 @@ function validateLimit(limit, defaultLimit = 10, maxLimit = 50) {
   }
   
   return { limit: parsed, isValid: true };
+}
+
+/**
+ * Find the origin user (earliest creator) for a specific quote text+author pair
+ * @param {string} text - Quote text
+ * @param {string} author - Quote author
+ * @returns {Promise<string|null>} Origin userId or null if not found
+ */
+async function findOriginUserId(text, author) {
+  try {
+    const originQuote = await Quote.findOne({
+      text: text,
+      author: author
+    }).sort({ createdAt: 1, _id: 1 }).select('userId').lean();
+    
+    return originQuote ? originQuote.userId : null;
+  } catch (error) {
+    console.error('Error finding origin userId:', error);
+    return null;
+  }
+}
+
+/**
+ * Get origin user info for multiple quote pairs efficiently
+ * @param {Array} quotePairs - Array of {text, author} pairs
+ * @returns {Promise<Map>} Map from 'text|||author' key to origin userId
+ */
+async function getOriginUserIds(quotePairs) {
+  try {
+    if (!quotePairs || quotePairs.length === 0) {
+      return new Map();
+    }
+
+    // Build aggregation pipeline to find earliest quote for each pair
+    const pipeline = [
+      {
+        $match: {
+          $or: quotePairs.map(pair => ({
+            text: pair.text,
+            author: pair.author
+          }))
+        }
+      },
+      {
+        $sort: { createdAt: 1, _id: 1 }
+      },
+      {
+        $group: {
+          _id: { text: '$text', author: '$author' },
+          originUserId: { $first: '$userId' },
+          earliestCreated: { $first: '$createdAt' }
+        }
+      }
+    ];
+
+    const results = await Quote.aggregate(pipeline);
+    const originMap = new Map();
+
+    results.forEach(result => {
+      const key = `${result._id.text}|||${result._id.author}`;
+      originMap.set(key, result.originUserId);
+    });
+
+    return originMap;
+  } catch (error) {
+    console.error('Error getting origin user IDs:', error);
+    return new Map();
+  }
 }
 
 /**
@@ -208,7 +308,7 @@ router.get('/health', (req, res) => {
 });
 
 /**
- * @description Telegram аутентификация для Mini App
+ * @description Telegram аутентификация для Mini App с автоматическим получением аватара
  * @route POST /api/reader/auth/telegram
  */
 router.post('/auth/telegram', async (req, res) => {
@@ -225,6 +325,20 @@ router.post('/auth/telegram', async (req, res) => {
     const userId = user.id.toString();
     const userProfile = await UserProfile.findOne({ userId });
 
+    // Асинхронное получение аватара, если у пользователя его нет
+    if (userProfile && !hasAvatar(userProfile)) {
+      // Запускаем фетч аватара в фоне, не блокируя ответ
+      fetchTelegramAvatar(userId)
+        .then(avatarUrl => {
+          if (avatarUrl) {
+            return updateUserAvatar(userId, avatarUrl);
+          }
+        })
+        .catch(error => {
+          console.error(`❌ Background avatar fetch failed for user ${userId}:`, error.message);
+        });
+    }
+
     const authData = {
       success: true,
       user: {
@@ -233,7 +347,8 @@ router.post('/auth/telegram', async (req, res) => {
         lastName: user.last_name || '',
         username: user.username || '',
         telegramId: user.id,
-        isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false
+        isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false,
+        avatarUrl: userProfile ? userProfile.avatarUrl : null
       },
       isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false
     };
@@ -547,6 +662,53 @@ router.post('/auth/reset-onboarding', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error during onboarding reset'
+    });
+  }
+});
+
+/**
+ * @description Загрузка пользовательского аватара
+ * @route POST /api/reader/auth/upload-avatar
+ */
+router.post('/auth/upload-avatar', telegramAuth, avatarUpload.single('avatar'), async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Файл аватара не предоставлен'
+      });
+    }
+
+    // Путь к загруженному файлу
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    // Обновляем профиль пользователя
+    await updateUserAvatar(userId, avatarUrl);
+
+    res.json({
+      success: true,
+      avatarUrl: avatarUrl,
+      message: 'Аватар успешно загружен'
+    });
+
+  } catch (error) {
+    console.error('❌ Avatar Upload Error:', error);
+    
+    // Если произошла ошибка, попытаемся удалить загруженный файл
+    if (req.file) {
+      const fs = require('fs').promises;
+      try {
+        await fs.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error('❌ Failed to cleanup uploaded file:', unlinkError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка при загрузке аватара'
     });
   }
 });
@@ -1827,11 +1989,58 @@ router.get('/community/popular', telegramAuth, communityLimiter, async (req, res
       }
     ]);
 
+    // Get origin user IDs for each quote pair (earliest creator)
+    const quotePairs = popularQuotes.map(pq => ({ text: pq.text, author: pq.author }));
+    const originUserMap = await getOriginUserIds(quotePairs);
+
+    // Collect all origin user IDs
+    const originUserIds = [...new Set([...originUserMap.values()].filter(Boolean))];
+    
+    // Get user profiles for origin users
+    const users = await UserProfile.find(
+      { userId: { $in: originUserIds } },
+      { userId: 1, name: 1, avatarUrl: 1 }
+    ).lean();
+    const userMap = new Map(users.map(u => [String(u.userId), u]));
+
+    // Enrich popular quotes with origin user data
+    const enrichedPopularQuotes = popularQuotes.map(pq => {
+      const key = `${pq.text}|||${pq.author}`;
+      const originUserId = originUserMap.get(key);
+      const user = userMap.get(String(originUserId));
+      
+      const result = {
+        text: pq.text,
+        author: pq.author,
+        count: pq.count,
+        category: pq.category,
+        sentiment: pq.sentiment,
+        themes: pq.themes
+      };
+      
+      if (user) {
+        result.user = {
+          userId: user.userId,
+          name: user.name,
+          avatarUrl: user.avatarUrl
+        };
+      } else {
+        // Fallback for missing user data
+        result.user = {
+          userId: originUserId || 'unknown',
+          name: 'Пользователь',
+          avatarUrl: null
+        };
+      }
+      
+      return result;
+    });
+
     res.json({
       success: true,
-      data: popularQuotes,
+      data: enrichedPopularQuotes,
       pagination: {
-        total: popularQuotes.length,
+        total: enrichedPopularQuotes.length,
         limit: limit,
         period: period
       }
@@ -1921,17 +2130,38 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       }
     ]);
 
-    // Get user info for the first user who favorited each quote
-    const userIds = [...new Set(popularFavorites.map(pf => String(pf.firstUserId)).filter(Boolean))];
+    // Get origin user IDs for each quote pair (earliest creator)
+    const quotePairs = popularFavorites.map(pf => ({ text: pf.text, author: pf.author }));
+    const originUserMap = await getOriginUserIds(quotePairs);
+
+    // Collect all user IDs we need (origin users + fallback to firstUserId)
+    const allUserIds = new Set();
+    popularFavorites.forEach(pf => {
+      const key = `${pf.text}|||${pf.author}`;
+      const originUserId = originUserMap.get(key);
+      if (originUserId) {
+        allUserIds.add(String(originUserId));
+      } else if (pf.firstUserId) {
+        allUserIds.add(String(pf.firstUserId));
+      }
+    });
+
+    // Get user profiles for all needed users
     const users = await UserProfile.find(
-      { userId: { $in: userIds } },
+      { userId: { $in: [...allUserIds] } },
       { userId: 1, name: 1, avatarUrl: 1 }
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Add user info to each popular favorite
+    // Add user info to each popular favorite (prefer origin user)
     const enrichedPopularFavorites = popularFavorites.map(pf => {
-      const user = userMap.get(String(pf.firstUserId));
+      const key = `${pf.text}|||${pf.author}`;
+      const originUserId = originUserMap.get(key);
+      
+      // Use origin user if found, otherwise fall back to firstUserId
+      const targetUserId = originUserId || pf.firstUserId;
+      const user = userMap.get(String(targetUserId));
+      
       const result = {
         text: pf.text,
         author: pf.author,
@@ -1945,6 +2175,13 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
           userId: user.userId,
           name: user.name,
           avatarUrl: user.avatarUrl
+        };
+      } else {
+        // Fallback for missing user data
+        result.user = {
+          userId: targetUserId || 'unknown',
+          name: 'Пользователь',
+          avatarUrl: null
         };
       }
       
@@ -2052,17 +2289,38 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       }
     ]);
 
-    // Get user info for the first user who favorited each quote
-    const userIds = [...new Set(recentFavorites.map(rf => String(rf.firstUserId)).filter(Boolean))];
+    // Get origin user IDs for each quote pair (earliest creator)
+    const quotePairs = recentFavorites.map(rf => ({ text: rf.text, author: rf.author }));
+    const originUserMap = await getOriginUserIds(quotePairs);
+
+    // Collect all user IDs we need (origin users + fallback to firstUserId)
+    const allUserIds = new Set();
+    recentFavorites.forEach(rf => {
+      const key = `${rf.text}|||${rf.author}`;
+      const originUserId = originUserMap.get(key);
+      if (originUserId) {
+        allUserIds.add(String(originUserId));
+      } else if (rf.firstUserId) {
+        allUserIds.add(String(rf.firstUserId));
+      }
+    });
+
+    // Get user profiles for all needed users
     const users = await UserProfile.find(
-      { userId: { $in: userIds } },
+      { userId: { $in: [...allUserIds] } },
       { userId: 1, name: 1, avatarUrl: 1 }
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Enrich each recent favorite with user info
+    // Enrich each recent favorite with user info (prefer origin user)
     const enrichedRecentFavorites = recentFavorites.map(rf => {
-      const user = userMap.get(String(rf.firstUserId));
+      const key = `${rf.text}|||${rf.author}`;
+      const originUserId = originUserMap.get(key);
+      
+      // Use origin user if found, otherwise fall back to firstUserId
+      const targetUserId = originUserId || rf.firstUserId;
+      const user = userMap.get(String(targetUserId));
+      
       const result = {
         text: rf.text,
         author: rf.author,
@@ -2076,6 +2334,13 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
           userId: user.userId,
           name: user.name,
           avatarUrl: user.avatarUrl
+        };
+      } else {
+        // Fallback for missing user data
+        result.user = {
+          userId: targetUserId || 'unknown',
+          name: 'Пользователь',
+          avatarUrl: null
         };
       }
       
