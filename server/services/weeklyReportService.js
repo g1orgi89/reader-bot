@@ -9,6 +9,7 @@
  */
 
 const logger = require('../utils/logger');
+const { normalizeThemes } = require('../utils/normalizeCategory');
 
 /**
  * @typedef {Object} Quote
@@ -139,9 +140,13 @@ class WeeklyReportService {
           return this.getFallbackAnalysis(quotes, userProfile);
         }
         logger.info(`📖 OpenAI analysis completed for user ${userProfile.userId}`);
+        
+        // Normalize dominantThemes before returning
+        const normalizedDominantThemes = normalizeThemes(analysis.dominantThemes || []);
+        
         return {
           summary: analysis.summary,
-          dominantThemes: analysis.dominantThemes || [],
+          dominantThemes: normalizedDominantThemes,
           emotionalTone: analysis.emotionalTone || 'размышляющий',
           insights: analysis.insights,
           personalGrowth: analysis.personalGrowth || 'Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг.'
@@ -163,9 +168,13 @@ class WeeklyReportService {
           return this.getFallbackAnalysis(quotes, userProfile);
         }
         logger.info(`📖 Direct AI analysis completed successfully for user ${userProfile.userId}`);
+        
+        // Normalize dominantThemes before returning
+        const normalizedDominantThemes = normalizeThemes(analysis.dominantThemes || []);
+        
         return {
           summary: analysis.summary,
-          dominantThemes: analysis.dominantThemes || [],
+          dominantThemes: normalizedDominantThemes,
           emotionalTone: analysis.emotionalTone || 'размышляющий',
           insights: analysis.insights,
           personalGrowth: analysis.personalGrowth || 'Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг.'
@@ -260,7 +269,7 @@ class WeeklyReportService {
   }
 
   /**
-   * Fallback анализ для случаев ошибки AI
+   * Fallback анализ для случаев ошибки AI с нормализацией тем
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
    * @returns {WeeklyAnalysis} Базовый анализ
@@ -269,10 +278,11 @@ class WeeklyReportService {
     logger.info(`📖 Using fallback analysis for user ${userProfile.userId}`);
     
     const themes = this.extractBasicThemes(quotes);
+    const normalizedThemes = normalizeThemes(themes);
     
     return {
       summary: `За эту неделю вы собрали ${quotes.length} цитат, что говорит о вашем стремлении к знаниям и самопознанию.`,
-      dominantThemes: themes,
+      dominantThemes: normalizedThemes,
       emotionalTone: 'вдохновленный',
       insights: `Дорогой ${userProfile.name}, ваши цитаты показывают глубокий интерес к мудрости и саморазвитию. Продолжайте этот прекрасный путь познания себя через слова великих людей.`,
       personalGrowth: 'Ваш выбор цитат говорит о стремлении к пониманию себя и мира вокруг.'

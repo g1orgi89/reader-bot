@@ -8,6 +8,7 @@ const { Quote, UserProfile } = require('../models');
 const AchievementService = require('./achievementService');
 const claudeService = require('./claude');
 const promptService = require('./promptService');
+const { normalizeCategory, normalizeThemes, normalizeAnalysis: normalizeAnalysisUtil } = require('../utils/normalizeCategory');
 
 /**
  * @typedef {Object} ParsedQuote
@@ -355,10 +356,22 @@ class QuoteHandler {
       const rawAnalysis = safeJsonExtract(response.message);
       const analysis = normalizeAnalysis(rawAnalysis);
       
-      // Валидация результата с БД категориями
+      // Apply category normalization
+      const normalizedCategory = normalizeCategory(analysis.category);
+      const normalizedThemes = normalizeThemes(analysis.themes);
+      
+      // Ensure themes fallback to [category] if empty after filtering
+      const finalThemes = normalizedThemes.length === 0 || 
+        (normalizedThemes.length === 1 && normalizedThemes[0] === 'размышления')
+        ? [normalizedCategory]
+        : normalizedThemes;
+      
+      // Валидация результата с БД категориями (as fallback)
+      const validatedCategory = await this._validateCategory(normalizedCategory, text);
+      
       return {
-        category: await this._validateCategory(analysis.category, text),
-        themes: analysis.themes,
+        category: validatedCategory,
+        themes: finalThemes,
         sentiment: analysis.sentiment,
         insights: analysis.insights
       };
@@ -366,10 +379,13 @@ class QuoteHandler {
     } catch (error) {
       console.error('Error analyzing quote:', error);
       
-      // В случае ошибки — возвращаем fallback анализ с категорией из БД и дефолтными темами/инсайтом
+      // В случае ошибки — возвращаем fallback анализ с нормализованной категорией
+      const fallbackCategory = await this._getFallbackCategory(text);
+      const normalizedFallbackCategory = normalizeCategory(fallbackCategory);
+      
       return {
-        category: await this._getFallbackCategory(text),
-        themes: ['жизненный опыт'],
+        category: normalizedFallbackCategory,
+        themes: [normalizedFallbackCategory === 'ДРУГОЕ' ? 'жизненный опыт' : normalizedFallbackCategory.toLowerCase()],
         sentiment: 'positive',
         insights: 'Глубокая мысль для размышления'
       };
@@ -424,21 +440,20 @@ class QuoteHandler {
   }
 
   /**
-   * 📋 NEW: Валидировать категорию цитаты с использованием БД
-   * @param {string} category - Категория от AI
+   * 📋 NEW: Валидировать категорию цитаты с использованием нормализации
+   * @param {string} category - Категория от AI  
    * @param {string} text - Текст цитаты для fallback
-   * @returns {Promise<string>} Валидная категория
+   * @returns {Promise<string>} Валидная нормализованная категория
    * @private
    */
   async _validateCategory(category, text) {
-    // 1. Нормализация "Другое" в любой вариации к "ДРУГОЕ"
-    if (typeof category === 'string' && category.trim().toUpperCase() === 'ДРУГОЕ') {
-    return 'ДРУГОЕ';
-    }
+    // First normalize the category
+    const normalizedCategory = normalizeCategory(category);
+    
     try {
       if (this.Category) {
         // Проверяем, есть ли такая категория в БД
-        const validCategory = await this.Category.validateAICategory(category);
+        const validCategory = await this.Category.validateAICategory(normalizedCategory);
         if (validCategory) {
           return validCategory.name;
         }
@@ -446,43 +461,29 @@ class QuoteHandler {
         // Если нет - используем fallback поиск по тексту
         const foundCategory = await this.Category.findByText(text);
         if (foundCategory) {
-          return foundCategory.name;
+          return normalizeCategory(foundCategory.name);
         }
       }
       
-      // Fallback к старой логике
-      const categories = await this._getAvailableCategories();
-      const validCategories = categories.map(c => c.name);
-      return validCategories.includes(category) ? category : 'ДРУГОЕ';
+      // Return normalized category as it's already canonical
+      return normalizedCategory;
       
     } catch (error) {
       console.error('📋 Error validating category:', error);
-      return await this._getFallbackCategory(text);
+      return normalizedCategory; // Return normalized version as fallback
     }
   }
 
   /**
-   * 📋 NEW: Fallback определение категории по тексту
+   * 📋 NEW: Fallback определение категории по тексту с нормализацией
    * @param {string} text - Текст цитаты
-   * @returns {Promise<string>} Категория
+   * @returns {Promise<string>} Нормализованная категория
    * @private
    */
   async _getFallbackCategory(text) {
-    const textLower = text.toLowerCase();
-    const categories = await this._getAvailableCategories();
-    
-    for (const category of categories) {
-      if (category.keywords) {
-        const hasKeyword = category.keywords.some(keyword => 
-          textLower.includes(keyword.toLowerCase())
-        );
-        if (hasKeyword) {
-          return category.name;
-        }
-      }
-    }
-    
-    return 'ДРУГОЕ';
+    // Use the new detectCategoriesFromText utility
+    const detectedCategories = require('../utils/normalizeCategory').detectCategoriesFromText(text);
+    return detectedCategories[0] || 'ДРУГОЕ';
   }
 
   /**

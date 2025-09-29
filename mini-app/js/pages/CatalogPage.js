@@ -203,51 +203,21 @@ class CatalogPage {
                     }
                     
                     if (dominantThemes.length > 0) {
-                        // Очистка и нормализация тем
+                        // Clean and filter themes to canonical set
                         const cleanedThemes = dominantThemes
-                            .map(theme => String(theme).trim().toLowerCase())
+                            .map(theme => String(theme).trim())
                             .filter(theme => theme.length > 1)
-                            .slice(0, 5); // Максимум 5 тем
+                            .filter(theme => CATALOG_CATEGORIES.includes(theme) || theme === 'ДРУГОЕ') // Only keep canonical categories
+                            .slice(0, 5); // Maximum 5 themes
                         
-                        // Маппинг к 14 категориям
-                        const categoryMapping = {
-                            'психология отношений': 'ОТНОШЕНИЯ',
-                            'отношения': 'ОТНОШЕНИЯ',
-                            'саморазвитие': 'ПОИСК СЕБЯ',
-                            'личностный рост': 'ПОИСК СЕБЯ',
-                            'поиск себя': 'ПОИСК СЕБЯ',
-                            'финансы': 'ДЕНЬГИ',
-                            'деньги': 'ДЕНЬГИ',
-                            'любовь': 'ЛЮБОВЬ',
-                            'кризисы': 'КРИЗИСЫ',
-                            'кризис': 'КРИЗИСЫ',
-                            'женщина': 'Я — ЖЕНЩИНА',
-                            'я женщина': 'Я — ЖЕНЩИНА',
-                            'одиночество': 'ОДИНОЧЕСТВО',
-                            'смерть': 'СМЕРТЬ',
-                            'семья': 'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
-                            'семейные отношения': 'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
-                            'смысл жизни': 'СМЫСЛ ЖИЗНИ',
-                            'смысл': 'СМЫСЛ ЖИЗНИ',
-                            'счастье': 'СЧАСТЬЕ',
-                            'время': 'ВРЕМЯ И ПРИВЫЧКИ',
-                            'привычки': 'ВРЕМЯ И ПРИВЫЧКИ',
-                            'время и привычки': 'ВРЕМЯ И ПРИВЫЧКИ',
-                            'добро': 'ДОБРО И ЗЛО',
-                            'зло': 'ДОБРО И ЗЛО',
-                            'добро и зло': 'ДОБРО И ЗЛО',
-                            'общество': 'ОБЩЕСТВО',
-                            'психология': 'ПОИСК СЕБЯ'
-                        };
+                        // If we have ДРУГОЕ and others, prefer others (first 5 excluding ДРУГОЕ)
+                        const finalThemes = cleanedThemes.length > 1 && cleanedThemes.includes('ДРУГОЕ')
+                            ? cleanedThemes.filter(theme => theme !== 'ДРУГОЕ').slice(0, 5)
+                            : cleanedThemes;
                         
-                        const mappedCategories = cleanedThemes
-                            .map(theme => categoryMapping[theme] || theme.toUpperCase())
-                            .filter((category, index, arr) => arr.indexOf(category) === index) // dedupe
-                            .slice(0, 5); // Максимум 5 категорий
-                        
-                        if (mappedCategories.length > 0) {
-                            this.userTags = mappedCategories;
-                            console.log('✅ CatalogPage: Loaded personalization topics:', this.userTags);
+                        if (finalThemes.length > 0) {
+                            this.userTags = finalThemes;
+                            console.log('✅ CatalogPage: Loaded normalized personalization topics:', this.userTags);
                             return;
                         }
                     }
