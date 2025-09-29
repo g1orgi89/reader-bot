@@ -1087,15 +1087,16 @@ class ApiService {
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      * @param {{limit?: number}} options
      */
-    async getCommunityPopularBooks(options = {}) {
+    async getCommunityPopularFavorites(options = {}) {
         const params = new URLSearchParams();
-        if (options.limit) params.append('limit', options.limit);
-        // Always use scope=week for weekly community blocks
+        // Добавляем limit только если это число и положительное
+        if (typeof options.limit === 'number' && options.limit > 0) {
+            params.append('limit', options.limit);
+        }
+        // Всегда scope=week
         params.append('scope', 'week');
-
         const queryString = params.toString();
-        const endpoint = `/community/popular-books?${queryString}`;
-        
+        const endpoint = `/community/popular-favorites?${queryString}`;
         return this.request('GET', endpoint);
     }
 
