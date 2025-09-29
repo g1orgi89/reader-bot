@@ -484,6 +484,9 @@ class StatisticsService {
                     pendingDeletes: (stats.pendingDeletes || 0) + 1
                 });
                 this._updateTotalQuotes();
+                
+                // Update optimistic stats (weeklyQuotes, etc.)
+                this._updateOptimisticStats();
             } else if (reverted) {
                 // Revert failed delete: decrease pendingDeletes
                 console.log('📊 Reverting delete: decreasing pendingDeletes');
@@ -492,6 +495,9 @@ class StatisticsService {
                     pendingDeletes: Math.max(0, (stats.pendingDeletes || 0) - 1)
                 });
                 this._updateTotalQuotes();
+                
+                // Update optimistic stats after revert
+                this._updateOptimisticStats();
             } else {
                 // Regular delete confirmation (after successful API call)
                 // No delta changes needed, will be handled in next refresh
@@ -612,8 +618,9 @@ class StatisticsService {
                 backendStreak: progress.backendStreak || 0,
                 streakToYesterday: progress.streakToYesterday || 0,
                 isAwaitingToday: progress.isAwaitingToday || false,
-                weeklyQuotes: main.weeklyQuotes || 0, // Use main.weeklyQuotes from backend instead of progress
-                thisWeek: main.weeklyQuotes || 0, // Mirror for UI compatibility
+                // Protect optimistic weeklyQuotes from server rollback
+                weeklyQuotes: Math.max(currentStats.weeklyQuotes || 0, main.weeklyQuotes || 0),
+                thisWeek: Math.max(currentStats.weeklyQuotes || 0, main.weeklyQuotes || 0), // Mirror for UI compatibility
                 favoriteAuthor: progress.favoriteAuthor || '—',
                 activityLevel: progress.activityLevel || 'low',
                 daysInApp: main.daysInApp || 0,
@@ -640,10 +647,14 @@ class StatisticsService {
             // Use effectiveTotal instead of server totalQuotes
             const effectiveTotal = this._getEffectiveTotal();
             
+            // Get current diary stats to preserve optimistic values
+            const currentDiaryStats = this.state.get('diaryStats') || {};
+            
             // Create flat diary stats object
             const flatDiaryStats = {
                 totalQuotes: effectiveTotal, // Use effectiveTotal for consistency
-                weeklyQuotes: diaryStats.weeklyQuotes || 0,
+                // Protect optimistic weeklyQuotes from server rollback
+                weeklyQuotes: Math.max(currentDiaryStats.weeklyQuotes || 0, diaryStats.weeklyQuotes || 0),
                 monthlyQuotes: diaryStats.monthlyQuotes || 0,
                 favoritesCount: diaryStats.favoritesCount || 0,
                 favoriteAuthor: diaryStats.favoriteAuthor || '—',
@@ -654,7 +665,6 @@ class StatisticsService {
             };
             
             // Update state with flat diary stats (merge with existing to preserve optimistic updates)
-            const currentDiaryStats = this.state.get('diaryStats') || {};
             const mergedDiaryStats = { ...currentDiaryStats, ...flatDiaryStats };
             this.state.set('diaryStats', mergedDiaryStats);
             
@@ -738,16 +748,31 @@ class StatisticsService {
 }
 if (typeof window !== 'undefined') window.StatisticsService = StatisticsService;
 
-// --- ДОБАВЬ этот блок ниже ---
+// --- OPTIMISTIC GLOBAL LISTENER REPLACEMENT ---
 if (typeof document !== 'undefined') {
-    document.addEventListener('quotes:changed', () => {
-        if (window.StatisticsService) {
-            // Если есть инстанс StatisticsService (например, window.statisticsService или app.statistics)
-            // Вызови refresh методов для обновления статистики
-            // Обычно инстанс создается как window.statisticsService = new StatisticsService(...)
-            if (window.statisticsService) {
-                window.statisticsService.refreshMainStatsSilent();
-                window.statisticsService.refreshDiaryStatsSilent();
+    let refreshTimeout = null;
+    
+    document.addEventListener('quotes:changed', (e) => {
+        const detail = e.detail || {};
+        
+        // Only handle if there's no StatisticsService instance to avoid duplication
+        // (The instance handlers in constructor already handle added/deleted/edited)
+        if (window.statisticsService) {
+            // Clear any pending refresh
+            if (refreshTimeout) {
+                clearTimeout(refreshTimeout);
+            }
+            
+            // For non-handled events or as fallback, do optimistic update + debounced refresh
+            if (detail.type && !['added', 'deleted', 'edited'].includes(detail.type)) {
+                // Unknown event type, update optimistically and refresh
+                window.statisticsService._updateOptimisticStats?.();
+                
+                // Debounced refresh after 100ms
+                refreshTimeout = setTimeout(() => {
+                    window.statisticsService.refreshMainStatsSilent?.();
+                    window.statisticsService.refreshDiaryStatsSilent?.();
+                }, 100);
             }
         }
     });
