@@ -1984,7 +1984,7 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     const startDate = new Date();
     startDate.setHours(startDate.getHours() - hours);
 
-    // Aggregate recent favorites
+    // Aggregate recent favorites with sorted input for deterministic firstUserId
     const recentFavorites = await Quote.aggregate([
       {
         $match: {
@@ -1996,6 +1996,13 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
         }
       },
       {
+        $sort: { 
+          editedAt: -1, 
+          createdAt: -1, 
+          _id: -1 
+        }
+      },
+      {
         $group: {
           _id: {
             text: '$text',
@@ -2004,7 +2011,8 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
           favorites: { $addToSet: '$userId' },
           latestEdit: { $max: '$editedAt' },
           latestCreated: { $max: '$createdAt' },
-          firstId: { $first: '$_id' }
+          firstId: { $first: '$_id' },
+          firstUserId: { $first: '$userId' } // Get the first user who favorited for user info
         }
       },
       {
@@ -2029,16 +2037,47 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
           favorites: '$favoritesCount',
           latestEdit: 1,
           latestCreated: 1,
+          firstUserId: 1,
           _id: 0
         }
       }
     ]);
 
-    const total = recentFavorites.length;
+    // Get user info for the first user who favorited each quote
+    const userIds = [...new Set(recentFavorites.map(rf => String(rf.firstUserId)).filter(Boolean))];
+    const users = await UserProfile.find(
+      { userId: { $in: userIds } },
+      { userId: 1, name: 1, avatarUrl: 1 }
+    ).lean();
+    const userMap = new Map(users.map(u => [String(u.userId), u]));
+
+    // Enrich each recent favorite with user info
+    const enrichedRecentFavorites = recentFavorites.map(rf => {
+      const user = userMap.get(String(rf.firstUserId));
+      const result = {
+        text: rf.text,
+        author: rf.author,
+        favorites: rf.favorites,
+        latestEdit: rf.latestEdit,
+        latestCreated: rf.latestCreated
+      };
+      
+      if (user) {
+        result.user = {
+          userId: user.userId,
+          name: user.name,
+          avatarUrl: user.avatarUrl
+        };
+      }
+      
+      return result;
+    });
+
+    const total = enrichedRecentFavorites.length;
 
     res.json({
       success: true,
-      data: recentFavorites,
+      data: enrichedRecentFavorites,
       pagination: {
         hours: hours,
         limit: limit,
