@@ -2148,81 +2148,53 @@ router.get('/community/popular', telegramAuth, communityLimiter, async (req, res
 
     const popularQuotes = await Quote.aggregate(pipeline);
 
-    return res.json({
-      success: true,
-      data: popularQuotes,
-      meta: {
-        weekNumber,
-        yearNumber,
-        total: popularQuotes.length
-      }
-    });
-  } catch (error) {
-    console.error('❌ Weekly Popular (ISO) Error:', error);
-    return res.status(500).json({ success: false, error: 'POPULAR_WEEK_INTERNAL_ERROR' });
-  }
-});
-
-    // Get origin user IDs for each quote pair (earliest creator)
+    // enrichment (origin user)
     const quotePairs = popularQuotes.map(pq => ({ text: pq.text, author: pq.author }));
     const originUserMap = await getOriginUserIds(quotePairs);
-
-    // Collect all origin user IDs
     const originUserIds = [...new Set([...originUserMap.values()].filter(Boolean))];
-    
-    // Get user profiles for origin users
     const users = await UserProfile.find(
       { userId: { $in: originUserIds } },
       { userId: 1, name: 1, avatarUrl: 1 }
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Enrich popular quotes with origin user data
     const enrichedPopularQuotes = popularQuotes.map(pq => {
       const key = `${pq.text}|||${pq.author}`;
       const originUserId = originUserMap.get(key);
       const user = userMap.get(String(originUserId));
-      
-      const result = {
+      return {
         text: pq.text,
         author: pq.author,
         count: pq.count,
         category: pq.category,
         sentiment: pq.sentiment,
-        themes: pq.themes
-      };
-      
-      if (user) {
-        result.user = {
+        themes: pq.themes,
+        user: user ? {
           userId: user.userId,
           name: user.name,
           avatarUrl: user.avatarUrl
-        };
-      } else {
-        // Fallback for missing user data
-        result.user = {
+        } : {
           userId: originUserId || 'unknown',
           name: 'Пользователь',
           avatarUrl: null
-        };
-      }
-      
-      return result;
+        }
+      };
     });
 
-    res.json({
+    // ОДИН return/res.json!
+    return res.json({
       success: true,
       data: enrichedPopularQuotes,
-      pagination: {
-        total: enrichedPopularQuotes.length,
-        limit: limit,
-        period: period
+      meta: {
+        weekNumber,
+        yearNumber,
+        total: enrichedPopularQuotes.length
       }
     });
 
   } catch (error) {
-    console.error('❌ Get Popular Community Quotes Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('❌ Weekly Popular (ISO) Error:', error);
+    return res.status(500).json({ success: false, error: 'POPULAR_WEEK_INTERNAL_ERROR' });
   }
 });
 
