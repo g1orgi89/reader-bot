@@ -318,30 +318,97 @@ class WeeklyReportService {
   }
 
   /**
+   * Нормализует цену из строки в число
+   * @param {string|number} price - Цена в любом формате
+   * @returns {number|undefined} Нормализованная цена или undefined если не удалось распарсить
+   */
+  normalizePrice(price) {
+    if (typeof price === 'number') {
+      return price >= 0 ? price : undefined;
+    }
+    
+    if (typeof price === 'string') {
+      // Убираем валютные символы и лишние пробелы
+      const cleanPrice = price
+        .replace(/[$€£¥₽₴₸BYN\s]/gi, '')
+        .replace(/[,]/g, '.')
+        .trim();
+      
+      const parsed = parseFloat(cleanPrice);
+      return (!isNaN(parsed) && parsed >= 0) ? parsed : undefined;
+    }
+    
+    return undefined;
+  }
+
+  /**
    * Генерирует полный еженедельный отчет
    * @param {string} userId - ID пользователя
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
-   * @param {Object} weekMeta - Optional week metadata override for cron/catch-up
-   * @param {number} weekMeta.isoWeek - ISO week number
-   * @param {number} weekMeta.isoYear - ISO year
+   * @param {Object} options - Опции генерации
+   * @param {Object} options.weekMeta - Метаданные недели
+   * @param {number} options.weekMeta.isoWeek - ISO week number
+   * @param {number} options.weekMeta.isoYear - ISO year
+   * @param {Date} options.weekMeta.start - Начало недели
+   * @param {Date} options.weekMeta.end - Конец недели
    * @returns {Promise<Object>} Полный отчет
    */
-  async generateWeeklyReport(userId, quotes, userProfile, weekMeta = null) {
+  async generateWeeklyReport(userId, quotes, userProfile, options = {}) {
     try {
       logger.info(`📖 Generating weekly report for user ${userId} with ${quotes.length} quotes`);
+      
+      // Extract weekMeta from options and validate
+      const weekMeta = options.weekMeta || null;
+      let weekRange;
+      
+      if (weekMeta) {
+        // Validate required weekMeta fields
+        if (!weekMeta.isoWeek || !weekMeta.isoYear) {
+          throw new Error(`Missing required weekMeta fields: isoWeek=${weekMeta.isoWeek}, isoYear=${weekMeta.isoYear}`);
+        }
+        
+        weekRange = {
+          isoWeek: weekMeta.isoWeek,
+          isoYear: weekMeta.isoYear,
+          start: weekMeta.start || new Date(),
+          end: weekMeta.end || new Date()
+        };
+        
+        logger.info(`📖 Using provided weekMeta: week ${weekRange.isoWeek}/${weekRange.isoYear}`);
+      } else {
+        // Fallback to previous week range
+        weekRange = this.getPreviousWeekRange();
+        logger.info(`📖 Using previous week range: week ${weekRange.isoWeek}/${weekRange.isoYear}`);
+      }
       
       // Получаем AI-анализ цитат
       const analysis = await this.analyzeWeeklyQuotes(quotes, userProfile);
       
       // Получаем персональные категории из теста
-      const personalCategories = this.extractCategoriesFromOnboarding(userProfile.testResults);
+      // const personalCategories = this.extractCategoriesFromOnboarding(userProfile.testResults);
 
       // Используем улучшенный матчинг
-      const recommendations = await this.getBookRecommendations(analysis, userProfile);
+      const rawRecommendations = await this.getBookRecommendations(analysis, userProfile);
       
-      // Use provided weekMeta or get current week range
-      const weekRange = weekMeta || this.getPreviousWeekRange();
+      // Normalize recommendation prices
+      const recommendations = rawRecommendations.map(rec => {
+        const normalizedRec = { ...rec };
+        
+        // Normalize main price field
+        if (rec.price !== undefined) {
+          const normalizedPrice = this.normalizePrice(rec.price);
+          normalizedRec.price = normalizedPrice;
+        }
+        
+        // Normalize priceByn field if present
+        if (rec.priceByn !== undefined) {
+          const normalizedPriceByn = this.normalizePrice(rec.priceByn);
+          normalizedRec.priceByn = normalizedPriceByn;
+        }
+        
+        return normalizedRec;
+      });
       
       // Вычисляем метрики
       const quotesCount = quotes.length;
@@ -375,6 +442,14 @@ class WeeklyReportService {
       
       // 📋 NEW: Создаем промокод из БД
       const promoCode = await this.generatePromoCode();
+      
+      // Defensive validation: ensure weekNumber and year are present
+      if (!weekRange.isoWeek || !weekRange.isoYear) {
+        logger.error(`📖 Critical error: weekNumber=${weekRange.isoWeek} or year=${weekRange.isoYear} is missing for user ${userId}`);
+        throw new Error(`Missing required week metadata: weekNumber=${weekRange.isoWeek}, year=${weekRange.isoYear}`);
+      }
+      
+      logger.info(`📖 Creating report for user ${userId}, week ${weekRange.isoWeek}/${weekRange.isoYear} with ${recommendations.length} recommendations`);
       
       const report = {
         userId,
@@ -664,7 +739,7 @@ class WeeklyReportService {
    * @returns {string} Форматированное сообщение
    */
   formatTelegramReport(report, quotes) {
-    const quotesText = quotes.slice(0, 5).map((quote, index) => {
+    const quotesText = quotes.slice(0, 5).map((quote) => {
       const author = quote.author ? ` (${quote.author})` : '';
       return `✅ "${quote.text.substring(0, 80)}..."${author}`;
     }).join('\n');
@@ -704,11 +779,11 @@ class WeeklyReportService {
      'ПОИСК СЕБЯ': ['саморазвитие', 'рост', 'познание']
     };
   
-   Object.entries(mappings).forEach(([category, keywords]) => {
-     if (keywords.some(keyword => answers.includes(keyword))) {
-       categories.add(category);
-     }
-   });
+    Object.entries(mappings).forEach(([category, keywords]) => {
+      if (keywords.some(keyword => answers.includes(keyword))) {
+        categories.add(category);
+      }
+    });
   
    return categories.size > 0 ? Array.from(categories) : ['ПОИСК СЕБЯ'];
    }
@@ -735,7 +810,7 @@ class WeeklyReportService {
       .replace(/[а-я]/g, (char) => cyrillicMap[char] || char)
       .replace(/[^a-z0-9\s-]/g, '') // только латиница, цифры, пробелы и дефисы
       .replace(/\s+/g, '-')         // пробелы на дефисы
-      .replace(/\-+/g, '-')         // несколько дефисов — один дефис
+      .replace(/-+/g, '-')         // несколько дефисов — один дефис
       .replace(/^-+|-+$/g, '')      // дефисы в начале/конце
       .substring(0, 50);            // ограничиваем длину
   }
@@ -743,7 +818,7 @@ class WeeklyReportService {
 /**
  * Персонализированное обоснование
  */
- generatePersonalizedReasoning(book, analysis, testResults) {
+ generatePersonalizedReasoning(book, analysis, _testResults) {
    const base = book.reasoning || `Рекомендуется на основе ваших интересов`;
   
    const toneAdaptation = {
