@@ -232,7 +232,7 @@ class StatisticsService {
      * Получить комплексную статистику для дневника (блоки "добавить" и "мои цитаты")
      */
     async getDiaryStats() {
-        const userId = this._requireUserId();
+        this._requireUserId(); // Ensure userId is available
         const [main, progress, detailed, activityPercent] = await Promise.all([
             this.getMainStats(),
             this.getUserProgress(),
@@ -420,12 +420,17 @@ class StatisticsService {
             const currentStats = this.state.get('stats') || {};
             const currentDiaryStats = this.state.get('diaryStats') || {};
             
-            // Update main stats with optimistic values + preserve API fields
+            // Use effective calculations if baseline+deltas are available, otherwise use optimistic
+            const effectiveTotal = this._getEffectiveTotal();
+            const effectiveWeekly = this._getEffectiveWeekly();
+            const hasBaseline = currentStats.baselineTotal !== undefined;
+            
+            // Update main stats with effective values when baseline exists, optimistic otherwise
             const updatedStats = {
                 ...currentStats,
-                totalQuotes: optimisticStats.totalQuotes,
-                weeklyQuotes: optimisticStats.weeklyQuotes,
-                thisWeek: optimisticStats.weeklyQuotes, // Mirror for UI compatibility
+                totalQuotes: hasBaseline ? effectiveTotal : optimisticStats.totalQuotes,
+                weeklyQuotes: hasBaseline ? effectiveWeekly : optimisticStats.weeklyQuotes,
+                thisWeek: hasBaseline ? effectiveWeekly : optimisticStats.weeklyQuotes, // Mirror for UI compatibility
                 favoriteAuthor: optimisticStats.favoriteAuthor,
                 currentStreak: Math.max(optimisticStats.currentStreak, currentStats.currentStreak || 0),
                 computedStreak: optimisticStats.computedStreak,
@@ -436,11 +441,11 @@ class StatisticsService {
                 loadedAt: Date.now()
             };
             
-            // Update diary stats with optimistic values + preserve API fields
+            // Update diary stats with effective values when baseline exists, optimistic otherwise
             const updatedDiaryStats = {
                 ...currentDiaryStats,
-                totalQuotes: optimisticStats.totalQuotes,
-                weeklyQuotes: optimisticStats.weeklyQuotes,
+                totalQuotes: hasBaseline ? effectiveTotal : optimisticStats.totalQuotes,
+                weeklyQuotes: hasBaseline ? effectiveWeekly : optimisticStats.weeklyQuotes,
                 favoriteAuthor: optimisticStats.favoriteAuthor,
                 favoritesCount,
                 loading: false,
@@ -462,9 +467,9 @@ class StatisticsService {
     }
 
     // -------- event handlers --------
-    async onQuoteAdded(detail) {
+    async onQuoteAdded(_detail) {
         try {
-            const userId = this._requireUserId();
+            this._requireUserId(); // Ensure userId is available
             console.log('📊 StatisticsService: Quote added, applying baseline + deltas');
             
             // 1. Increase pendingAdds and pendingWeeklyAdds for instant UI update
@@ -496,7 +501,7 @@ class StatisticsService {
 
     async onQuoteDeleted(detail) {
         try {
-            const userId = this._requireUserId();
+            this._requireUserId(); // Ensure userId is available
             console.log('📊 StatisticsService: Quote deleted, processing with baseline + deltas');
             
             const { optimistic, reverted } = detail;
@@ -545,9 +550,9 @@ class StatisticsService {
         }
     }
 
-    async onQuoteEdited(detail) {
+    async onQuoteEdited(_detail) {
         try {
-            const userId = this._requireUserId();
+            this._requireUserId(); // Ensure userId is available
             console.log('📊 StatisticsService: Quote edited, no totalQuotes change needed');
             
             // Quote editing doesn't affect totalQuotes, only other stats like favoriteAuthor
