@@ -2112,87 +2112,30 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
  */
 router.get('/community/popular', telegramAuth, communityLimiter, async (req, res) => {
   try {
-    const { 
-      period: periodParam, 
-      limit: limitParam,
-      scope,
-      weekNumber,
-      year 
-    } = req.query;
-    
-    let matchCriteria = {};
-    let period = periodParam;
+    // Получаем ISO неделю и год через utils
+    const { getBusinessNow, getISOWeekInfo } = require('../utils/isoWeek');
+    const currentWeek = getISOWeekInfo(getBusinessNow());
+    const weekNumber = currentWeek.isoWeek;
+    const yearNumber = currentWeek.isoYear;
 
-    if (scope === 'week') {
-      // Use ISO week filtering
-      const { 
-        getBusinessNow, 
-        getISOWeekInfo 
-      } = require('../utils/isoWeek');
-      
-      const currentWeek = getISOWeekInfo(getBusinessNow());
-      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
-      const targetYear = parseInt(year) || currentWeek.isoYear;
-      
-      matchCriteria = { 
-        weekNumber: targetWeek, 
-        yearNumber: targetYear 
-      };
-      period = `week-${targetYear}-${targetWeek}`;
-    } else {
-      // Use legacy period logic for backwards compatibility
-      const { startDate, isValid: periodValid, period: validPeriod } = validatePeriod(periodParam);
-      if (!periodValid) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Invalid period parameter. Use 7d, 30d, or scope=week with optional weekNumber/year.' 
-        });
-      }
-      
-      matchCriteria = { createdAt: { $gte: startDate } };
-      period = validPeriod;
-    }
-    
-    const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
-    if (!limitValid) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid limit parameter. Must be between 1 and 50.' 
-      });
-    }
+    // Фильтруем по weekNumber и yearNumber
+    const matchCriteria = { weekNumber, yearNumber };
 
-    // Aggregate quotes by text+author combination, count occurrences
-    const popularQuotes = await Quote.aggregate([
-      {
-        $match: matchCriteria
-      },
-      {
-        $group: {
-          _id: {
-            text: '$text',
-            author: '$author'
-          },
+    // Агрегация: выбираем топ-3 цитаты за ISO неделю
+    const pipeline = [
+      { $match: matchCriteria },
+      { $group: {
+          _id: { text: '$text', author: '$author' },
           count: { $sum: 1 },
           latestCreated: { $max: '$createdAt' },
-          firstId: { $first: '$_id' }, // For deterministic sorting
+          firstId: { $first: '$_id' },
           category: { $first: '$category' },
           sentiment: { $first: '$sentiment' },
           themes: { $first: '$themes' }
-        }
-      },
-      {
-        $match: {
-          count: { $gt: 1 } // Only quotes that appear more than once
-        }
-      },
-      {
-        $sort: { count: -1, latestCreated: -1, firstId: 1 } // Deterministic sorting
-      },
-      {
-        $limit: limit
-      },
-      {
-        $project: {
+      }},
+      { $sort: { count: -1, latestCreated: -1, firstId: 1 } },
+      { $limit: 3 },
+      { $project: {
           text: '$_id.text',
           author: '$_id.author',
           count: 1,
@@ -2200,9 +2143,25 @@ router.get('/community/popular', telegramAuth, communityLimiter, async (req, res
           sentiment: 1,
           themes: 1,
           _id: 0
-        }
+      }}
+    ];
+
+    const popularQuotes = await Quote.aggregate(pipeline);
+
+    return res.json({
+      success: true,
+      data: popularQuotes,
+      meta: {
+        weekNumber,
+        yearNumber,
+        total: popularQuotes.length
       }
-    ]);
+    });
+  } catch (error) {
+    console.error('❌ Weekly Popular (ISO) Error:', error);
+    return res.status(500).json({ success: false, error: 'POPULAR_WEEK_INTERNAL_ERROR' });
+  }
+});
 
     // Get origin user IDs for each quote pair (earliest creator)
     const quotePairs = popularQuotes.map(pq => ({ text: pq.text, author: pq.author }));
