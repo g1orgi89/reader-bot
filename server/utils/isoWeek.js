@@ -59,32 +59,28 @@ function getISOWeekInfo(date = null) {
  * @returns {{start: Date, end: Date, isoWeek: number, isoYear: number}}
  */
 function getISOWeekRange(isoWeek, isoYear) {
+  // Work entirely in business timezone to avoid confusion
   // Find January 4th of the given year (always in week 1)
-  const jan4 = new Date(Date.UTC(isoYear, 0, 4));
-  const jan4DayOfWeek = jan4.getUTCDay() || 7; // Monday = 1, Sunday = 7
+  const jan4 = new Date(isoYear, 0, 4); // Business timezone
+  const jan4DayOfWeek = jan4.getDay() || 7; // Monday = 1, Sunday = 7
   
-  // Find Monday of week 1
+  // Find Monday of week 1 in business timezone
   const mondayOfWeek1 = new Date(jan4);
-  mondayOfWeek1.setUTCDate(jan4.getUTCDate() - jan4DayOfWeek + 1);
+  mondayOfWeek1.setDate(jan4.getDate() - jan4DayOfWeek + 1);
+  mondayOfWeek1.setHours(0, 0, 0, 0);
   
-  // Calculate Monday of the target week
+  // Calculate Monday of the target week in business timezone
   const mondayOfTargetWeek = new Date(mondayOfWeek1);
-  mondayOfTargetWeek.setUTCDate(mondayOfWeek1.getUTCDate() + (isoWeek - 1) * 7);
+  mondayOfTargetWeek.setDate(mondayOfWeek1.getDate() + (isoWeek - 1) * 7);
   
-  // Calculate Sunday of the target week  
+  // Calculate Sunday of the target week in business timezone
   const sundayOfTargetWeek = new Date(mondayOfTargetWeek);
-  sundayOfTargetWeek.setUTCDate(mondayOfTargetWeek.getUTCDate() + 6);
-  sundayOfTargetWeek.setUTCHours(23, 59, 59, 999);
-  
-  // Convert back to business timezone
-  const start = new Date(mondayOfTargetWeek.getTime() - (BUSINESS_TZ_OFFSET_MIN * 60 * 1000));
-  const end = new Date(sundayOfTargetWeek.getTime() - (BUSINESS_TZ_OFFSET_MIN * 60 * 1000));
-  
-  start.setHours(0, 0, 0, 0);
+  sundayOfTargetWeek.setDate(mondayOfTargetWeek.getDate() + 6);
+  sundayOfTargetWeek.setHours(23, 59, 59, 999);
   
   return {
-    start,
-    end,
+    start: mondayOfTargetWeek,
+    end: sundayOfTargetWeek,
     isoWeek,
     isoYear
   };
