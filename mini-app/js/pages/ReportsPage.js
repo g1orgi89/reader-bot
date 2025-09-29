@@ -37,6 +37,10 @@ class ReportsPage {
         this.lastWeekKey = localStorage.getItem('reader-bot-last-week-key') || '';
         this.lastReportDate = null;
         
+        // ✅ НОВОЕ: Флаги состояния для отслеживания fallback
+        this.isFallback = false;
+        this.needsReload = false;
+        
         // Данные отчета (точно из концепта)
         this.reportData = {
             statistics: {
@@ -178,6 +182,9 @@ class ReportsPage {
             days: 86
         };
         
+        // ✅ НОВОЕ: Устанавливаем флаг fallback
+        this.isFallback = true;
+        
         // Устанавливаем флаги для предотвращения повторных попыток
         this.reportsLoaded = true;
         this.state.set('reports.lastUpdate', Date.now());
@@ -252,6 +259,22 @@ class ReportsPage {
         return true;
     }
     
+    /**
+     * 📦 Получение ключа недели для конкретного отчета
+     * @param {Object} report - Отчет для которого нужен ключ
+     * @returns {string} ISO week key for the report
+     */
+    getReportWeekKey(report) {
+        if (!report) return null;
+        
+        if (report.weekNumber && report.year) {
+            return `${report.year}-W${String(report.weekNumber).padStart(2, '0')}`;
+        }
+        
+        // Fallback - текущий ключ недели
+        return this.getCurrentWeekKey();
+    }
+
     /**
      * 📦 Получение текущего ключа недели для кэширования (NEW: ISO week based)
      * @returns {string} ISO week key for caching
@@ -403,6 +426,16 @@ class ReportsPage {
             return;
         }
 
+        // ✅ НОВОЕ: Проверяем, является ли отчет частичным (без metrics)
+        const isPartialReport = !this.weeklyReport.metrics && this.weeklyReport.quotes?.length === 0;
+        
+        if (isPartialReport) {
+            console.warn('⚠️ ReportsPage: Получен частичный отчет без metrics и quotes, устанавливаем флаг перезагрузки');
+            this.needsReload = true;
+            this.applyFallbackStats('partial-report');
+            return;
+        }
+
         // ✅ НОВОЕ: Используем сохраненные метрики, если доступны
         if (this.weeklyReport.metrics) {
             console.log('✅ ReportsPage: Используем сохраненные метрики (не пересчитываем)');
@@ -465,8 +498,32 @@ class ReportsPage {
             };
         }
         
-        // ✅ НОВОЕ: Вычисляем дельты если есть предыдущий отчет с метриками
-        if (this.previousWeeklyReport && this.previousWeeklyReport.metrics && this.weeklyReport.metrics) {
+        // ✅ НОВОЕ: Вычисляем дельты если есть предыдущий отчет
+        this.calculateDeltas();
+        
+        // ✅ НОВОЕ: Сбрасываем флаг fallback при успешном вычислении
+        this.isFallback = false;
+        
+        console.log('✅ ReportsPage: Статистика обновлена:', this.reportData.statistics);
+    }
+    
+    /**
+     * 📊 Вычисление дельт между текущим и предыдущим отчетом
+     * Включает поддержку legacy отчетов без metrics
+     */
+    calculateDeltas() {
+        if (!this.previousWeeklyReport) {
+            // Обнуляем дельты если нет предыдущего отчета
+            this.reportData.deltas = {
+                quotes: 0,
+                authors: 0,
+                days: 0
+            };
+            return;
+        }
+
+        // Если у обоих отчетов есть метрики - используем их
+        if (this.weeklyReport.metrics && this.previousWeeklyReport.metrics) {
             const currentMetrics = this.weeklyReport.metrics;
             const prevMetrics = this.previousWeeklyReport.metrics;
             
@@ -477,16 +534,101 @@ class ReportsPage {
             };
             
             console.log('📊 ReportsPage: Дельты вычислены из метрик:', this.reportData.deltas);
-        } else {
-            // Обнуляем дельты если нет данных для сравнения
-            this.reportData.deltas = {
-                quotes: 0,
-                authors: 0,
-                days: 0
-            };
+            return;
         }
-        
-        console.log('✅ ReportsPage: Статистика обновлена:', this.reportData.statistics);
+
+        // ✅ НОВОЕ: Legacy поддержка - если у предыдущего отчета есть quotes но нет metrics
+        if (this.previousWeeklyReport.quotes && !this.previousWeeklyReport.metrics) {
+            console.log('📊 ReportsPage: Вычисляем metrics для предыдущего отчета (legacy поддержка)');
+            
+            const prevQuotes = this.previousWeeklyReport.quotes || [];
+            const prevQuotesCount = this.previousWeeklyReport.quotesCount || prevQuotes.length;
+            
+            const prevUniqueAuthors = new Set(
+                prevQuotes
+                    .filter(quote => quote.author && quote.author.trim())
+                    .map(quote => quote.author.trim())
+            ).size;
+            
+            const prevActiveDays = new Set(
+                prevQuotes
+                    .filter(quote => quote.createdAt)
+                    .map(quote => new Date(quote.createdAt).toISOString().split('T')[0])
+            ).size;
+
+            // Получаем текущие метрики
+            const currentQuotes = this.reportData.statistics.quotes;
+            const currentAuthors = this.reportData.statistics.authors;
+            const currentDays = this.reportData.statistics.days;
+
+            this.reportData.deltas = {
+                quotes: currentQuotes - prevQuotesCount,
+                authors: currentAuthors - prevUniqueAuthors,
+                days: currentDays - prevActiveDays
+            };
+            
+            console.log('📊 ReportsPage: Дельты вычислены для legacy отчета:', this.reportData.deltas);
+            return;
+        }
+
+        // В остальных случаях обнуляем дельты
+        this.reportData.deltas = {
+            quotes: 0,
+            authors: 0,
+            days: 0
+        };
+    }
+    
+    /**
+     * 🔄 Принудительное обновление данных после генерации отчета
+     * Этот метод должен вызываться после успешной генерации нового отчета
+     */
+    async refreshAfterGeneration() {
+        try {
+            console.log('🔄 ReportsPage: Начинаем refreshAfterGeneration');
+            
+            // Ждем валидный userId
+            const userId = await this.waitForValidUserId();
+            
+            if (userId === 'demo-user') {
+                console.log('🔄 Demo-user, пропускаем refreshAfterGeneration');
+                return;
+            }
+            
+            // Принудительно загружаем свежие данные (без кэша)
+            console.log('📡 refreshAfterGeneration: Загружаем еженедельные отчеты для userId:', userId);
+            const weeklyReports = await this.api.getWeeklyReports({ limit: 2 }, userId);
+            
+            if (weeklyReports && weeklyReports.success) {
+                const reports = weeklyReports.reports || weeklyReports.data?.reports || [];
+                if (reports.length > 0) {
+                    // Обновляем отчеты
+                    this.weeklyReport = reports[0];
+                    this.previousWeeklyReport = reports.length > 1 ? reports[1] : null;
+                    
+                    // Обрабатываем новый отчет
+                    this.processWeeklyReport();
+                    
+                    // Сохраняем в кэш с правильным ключом недели
+                    const reportWeekKey = this.getReportWeekKey(this.weeklyReport);
+                    if (reportWeekKey) {
+                        this.saveReportToCache(this.weeklyReport, reportWeekKey);
+                    }
+                    
+                    // Перерисовываем интерфейс
+                    this.rerender();
+                    
+                    console.log('✅ refreshAfterGeneration: Данные успешно обновлены');
+                } else {
+                    console.warn('⚠️ refreshAfterGeneration: Нет отчетов после генерации');
+                }
+            } else {
+                console.error('❌ refreshAfterGeneration: Ошибка загрузки отчетов');
+            }
+            
+        } catch (error) {
+            console.error('❌ refreshAfterGeneration: Ошибка:', error);
+        }
     }
     
     /**
@@ -497,6 +639,15 @@ class ReportsPage {
         
         // ✅ ИСПРАВЛЕНО: Вычисляем статистику ТОЛЬКО из weeklyReport данных
         this.calculateStatisticsFromWeeklyReport();
+
+        // ✅ НОВОЕ: Если установлен флаг needsReload, инициируем тихую перезагрузку
+        if (this.needsReload && !this.reportsLoading) {
+            console.log('🔄 ReportsPage: Инициируем тихую перезагрузку из-за частичного отчета');
+            this.needsReload = false;
+            setTimeout(() => {
+                this.loadReportData();
+            }, 2000); // Задержка 2 сек перед повторной попыткой
+        }
 
         // 📋 НОВОЕ: Легковесная проверка bookSlug для legacy записей (только если отсутствует)
         if (this.weeklyReport.recommendations && Array.isArray(this.weeklyReport.recommendations)) {
@@ -602,8 +753,13 @@ class ReportsPage {
 
             this.processWeeklyReport();
 
-            if (currentWeekKey && this.isValidReport(this.weeklyReport)) {
-                this.saveReportToCache(this.weeklyReport, currentWeekKey);
+            // ✅ ИСПРАВЛЕНО: Используем ключ недели самого отчета, а не текущий
+            if (this.isValidReport(this.weeklyReport)) {
+                const reportWeekKey = this.getReportWeekKey(this.weeklyReport);
+                if (reportWeekKey) {
+                    this.saveReportToCache(this.weeklyReport, reportWeekKey);
+                    console.log(`💾 Отчет сохранен с ключом: ${reportWeekKey}`);
+                }
             }
 
             console.log('✅ ReportsPage: Загружен еженедельный отчет', this.weeklyReport);
@@ -816,11 +972,22 @@ class ReportsPage {
             }
         }
         
+        // ✅ НОВОЕ: Динамический заголовок на основе данных отчета
+        let reportTitle = '📈 Ваш отчет';
+        if (this.weeklyReport && this.weeklyReport.weekMeta && this.weeklyReport.weekMeta.label) {
+            reportTitle = `📈 Ваш отчет: ${this.weeklyReport.weekMeta.label}`;
+        } else if (reportDateText) {
+            reportTitle = `📈 Ваш отчет: ${reportDateText}`;
+        } else {
+            reportTitle = '📈 Ваш отчет за предыдущую неделю';
+        }
+        
         return `
             <div class="weekly-report">
                 <div class="report-header">
-                    <div class="report-title">📈 Ваш отчет за предыдущую неделю</div>
-                    ${reportDateText ? `<div class="report-date">${reportDateText}</div>` : ''}
+                    <div class="report-title">${reportTitle}</div>
+                    ${reportDateText && !reportTitle.includes(reportDateText) ? `<div class="report-date">${reportDateText}</div>` : ''}
+                    ${this.isFallback || this.needsReload ? `<div class="report-updating">🔄 Обновляем отчёт...</div>` : ''}
                 </div>
                 <div class="report-stats-grid">
                     <div class="report-stat">
@@ -991,6 +1158,12 @@ class ReportsPage {
        console.log('📊 ReportsPage: onShow - Starting with prefetch and ISO week logic');
        
        try {
+           // ✅ НОВОЕ: Добавляем CSS классы для правильного отображения
+           const container = document.getElementById('page-content');
+           if (container) {
+               container.classList.add('content', 'reports-page');
+           }
+           
            // 📅 NEW: Prefetch week context first
            await this.prefetch();
            
@@ -1006,8 +1179,14 @@ class ReportsPage {
            this.isoWeekKey = currentWeekKey;
            this.lastWeekKey = currentWeekKey; // Keep for internal compatibility
            
-           // Try loading from cache with ISO week key
-           const cachedReport = this.loadReportFromCache(currentWeekKey);
+           // ✅ ИСПРАВЛЕНО: Попробуем загрузить из кэша, но проверим ключ отчета
+           let cachedReport = this.loadReportFromCache(currentWeekKey);
+           
+           // Если кэшированный отчет есть, но у него другой ключ недели, загружаем с правильным ключом
+           if (cachedReport && this.getReportWeekKey(cachedReport) !== currentWeekKey) {
+               console.log('💾 Кэшированный отчет для другой недели, ищем правильный');
+               cachedReport = this.loadReportFromCache(this.getReportWeekKey(cachedReport));
+           }
            
            if (cachedReport) {
                console.log('⚡ Показываем кэшированный отчет с ISO week key');
@@ -1097,7 +1276,7 @@ class ReportsPage {
     onHide() {
         console.log('📊 ReportsPage: onHide');
         
-        // ✅ НОВОЕ: Сброс флагов для предотвращения "вечной загрузки"
+        // ✅ ИСПРАВЛЕНО: Только сбрасываем флаг загрузки, НЕ зануляем weeklyReport для мгновенного возврата
         this.reportsLoading = false;
         
         // ✅ НОВОЕ: Очистка контейнера и удаление событий
