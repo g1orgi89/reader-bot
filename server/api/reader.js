@@ -746,10 +746,12 @@ router.get('/stats', telegramAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    // ---- Time boundaries ----
-    const now = new Date();
-    const startOfToday = new Date(now); startOfToday.setHours(0,0,0,0);
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // ---- Time boundaries using business timezone ----
+    const { getBusinessNow } = require('../utils/isoWeek');
+    const businessNow = getBusinessNow();
+    const startOfToday = new Date(businessNow); 
+    startOfToday.setHours(0,0,0,0);
+    const startOfMonth = new Date(businessNow.getFullYear(), businessNow.getMonth(), 1);
 
     // ---- Parallel base counts ----
     const [ totalQuotes, todayQuotes, currentMonthQuotes ] = await Promise.all([
@@ -767,13 +769,20 @@ router.get('/stats', telegramAuth, async (req, res) => {
       .lean();
 
     // ---- Helpers ----
-    const getDayKey = (d) => { const dt = new Date(d); dt.setHours(0,0,0,0); return dt.toISOString().slice(0,10); };
+    const getDayKey = (d) => { 
+      const dt = new Date(d);
+      // Apply business timezone offset for consistent day boundaries
+      const businessDate = new Date(dt.getTime() + (180 * 60 * 1000)); // Moscow time offset
+      businessDate.setHours(0,0,0,0); 
+      return businessDate.toISOString().slice(0,10); 
+    };
 
     const computeDynamicStreak = (quotes) => {
       if (!quotes.length) return 0;
       const daySet = new Set(quotes.map(q => getDayKey(q.createdAt)));
       let streak = 0;
-      const cursor = new Date(); cursor.setHours(0,0,0,0);
+      const cursor = new Date(businessNow); 
+      cursor.setHours(0,0,0,0);
       while (true) {
         const key = getDayKey(cursor);
         if (daySet.has(key)) { streak++; cursor.setDate(cursor.getDate() - 1); } else { break; }

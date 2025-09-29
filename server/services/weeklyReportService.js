@@ -322,9 +322,12 @@ class WeeklyReportService {
    * @param {string} userId - ID пользователя
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
+   * @param {Object} weekMeta - Optional week metadata override for cron/catch-up
+   * @param {number} weekMeta.isoWeek - ISO week number
+   * @param {number} weekMeta.isoYear - ISO year
    * @returns {Promise<Object>} Полный отчет
    */
-  async generateWeeklyReport(userId, quotes, userProfile) {
+  async generateWeeklyReport(userId, quotes, userProfile, weekMeta = null) {
     try {
       logger.info(`📖 Generating weekly report for user ${userId} with ${quotes.length} quotes`);
       
@@ -336,8 +339,9 @@ class WeeklyReportService {
 
       // Используем улучшенный матчинг
       const recommendations = await this.getBookRecommendations(analysis, userProfile);
-      // Получаем диапазон предыдущей недели
-      const weekRange = this.getPreviousWeekRange();
+      
+      // Use provided weekMeta or get current week range
+      const weekRange = weekMeta || this.getPreviousWeekRange();
       
       // Вычисляем метрики
       const quotesCount = quotes.length;
@@ -374,7 +378,7 @@ class WeeklyReportService {
       
       const report = {
         userId,
-        weekNumber: weekRange.isoWeekNumber,
+        weekNumber: weekRange.isoWeek,
         year: weekRange.isoYear,
         quotes: quotes.map(q => q._id || q.id),
         analysis,
@@ -646,7 +650,7 @@ class WeeklyReportService {
 
   /**
    * Получает диапазон предыдущей полной недели по ISO 8601
-   * @returns {{start: Date, end: Date, isoWeekNumber: number, isoYear: number}}
+   * @returns {{start: Date, end: Date, isoWeek: number, isoYear: number}}
    */
   getPreviousWeekRange() {
     const { getPreviousCompleteISOWeek } = require('../utils/isoWeek');
