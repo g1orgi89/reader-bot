@@ -185,18 +185,16 @@ class DiaryPage {
             if (this.currentFilter === 'favorites') {
                 params.favorites = true;
             } else if (this.currentFilter === 'this-week') {
-                // Use ISO week filtering instead of rolling 7 days
+                // Use ISO week filtering only - no fallback
                 if (window.DateUtils && window.DateUtils.getISOWeekInfo) {
                     const weekInfo = window.DateUtils.getISOWeekInfo();
                     params.weekNumber = weekInfo.isoWeek;
                     params.year = weekInfo.isoYear;
                 } else {
-                    // Fallback to rolling 7 days if DateUtils not available
-                    const now = new Date();
-                    const weekAgo = new Date(now);
-                    weekAgo.setDate(now.getDate() - 7);
-                    params.dateFrom = weekAgo.toISOString();
-                    params.dateTo = now.toISOString();
+                    console.error('DateUtils not available for ISO week filtering');
+                    // Leave params empty - let server handle current week calculation
+                    params.weekNumber = null; // Server will use current week
+                    params.year = null;
                 }
             } else if (this.currentFilter === 'this-month') {
                 // Use ISO month filtering instead of rolling date range

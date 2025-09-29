@@ -1858,26 +1858,52 @@ router.post('/catalog/track-click', async (req, res) => {
 });
 
 /**
- * @route GET /api/reader/top-books?period=7d
+ * @route GET /api/reader/top-books?period=7d or GET /api/reader/top-books?scope=week
  */
 router.get('/top-books', async (req, res) => {
   try {
-    const period = String(req.query.period || '7d');
-    const now = new Date();
-    const startDate = new Date(now);
-    const m = period.match(/^(\d+)([dwm])$/i);
-    if (m) {
-      const val = parseInt(m[1], 10);
-      const unit = m[2].toLowerCase();
-      if (unit === 'd') startDate.setDate(now.getDate() - val);
-      if (unit === 'w') startDate.setDate(now.getDate() - val * 7);
-      if (unit === 'm') startDate.setMonth(now.getMonth() - val);
+    const { period: periodParam, scope, weekNumber, year } = req.query;
+    let startDate;
+    let matchCriteria = { campaign: 'catalog' };
+    
+    if (scope === 'week') {
+      // Use ISO week filtering
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo,
+        getISOWeekRange
+      } = require('../utils/isoWeek');
+      
+      const currentWeek = getISOWeekInfo(getBusinessNow());
+      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+      const targetYear = parseInt(year) || currentWeek.isoYear;
+      
+      const weekRange = getISOWeekRange(targetWeek, targetYear);
+      startDate = weekRange.start;
+      const endDate = weekRange.end;
+      
+      matchCriteria.timestamp = { $gte: startDate, $lte: endDate };
     } else {
-      startDate.setDate(now.getDate() - 7);
+      // Legacy period logic for backwards compatibility
+      const period = String(periodParam || '7d');
+      const now = new Date();
+      startDate = new Date(now);
+      const m = period.match(/^(\d+)([dwm])$/i);
+      if (m) {
+        const val = parseInt(m[1], 10);
+        const unit = m[2].toLowerCase();
+        if (unit === 'd') startDate.setDate(now.getDate() - val);
+        if (unit === 'w') startDate.setDate(now.getDate() - val * 7);
+        if (unit === 'm') startDate.setMonth(now.getMonth() - val);
+      } else {
+        startDate.setDate(now.getDate() - 7);
+      }
+      
+      matchCriteria.timestamp = { $gte: startDate };
     }
 
     const clicksAgg = await UTMClick.aggregate([
-      { $match: { timestamp: { $gte: startDate }, campaign: 'catalog' } },
+      { $match: matchCriteria },
       { $group: { _id: '$content', clicks: { $sum: 1 } } },
       { $sort: { clicks: -1 } },
       { $limit: 3 }
@@ -1885,8 +1911,10 @@ router.get('/top-books', async (req, res) => {
 
     const slugs = clicksAgg.map(a => (a._id || '').toLowerCase()).filter(Boolean);
 
+    // Use same criteria for purchases
+    const purchaseMatchCriteria = { ...matchCriteria, booksPurchased: { $exists: true, $ne: [] } };
     const purchasesAgg = await PromoCodeUsage.aggregate([
-      { $match: { timestamp: { $gte: startDate }, booksPurchased: { $exists: true, $ne: [] } } },
+      { $match: purchaseMatchCriteria },
       { $unwind: '$booksPurchased' },
       { $group: { _id: { book: '$booksPurchased' }, purchases: { $sum: 1 } } }
     ]);

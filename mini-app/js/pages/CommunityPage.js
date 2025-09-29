@@ -113,14 +113,14 @@ class CommunityPage {
         await Promise.allSettled([
             this._safe(async () => { const r = await this.api.getCommunityStats({ scope: 'week' }); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityLatestQuotes({ limit: 3 }); if (r?.success) { this.latestQuotes = r.data || []; this.loaded.latestQuotes = true; } }),
-            this._safe(async () => { const r = await this.api.getTopBooks({ period: '7d', limit: 10 }); if (r?.success) { this.popularBooks = r.data || []; this.loaded.popularBooks = true; } }),
+            this._safe(async () => { const r = await this.api.getTopBooks({ scope: 'week', limit: 10 }); if (r?.success) { this.popularBooks = r.data || []; this.loaded.popularBooks = true; } }),
             this._safe(async () => { const r = await this.api.getCatalogRecentClicks({ limit: 3 }); if (r?.success) { this.recentClicks = r.clicks || r.data || []; this.loaded.recentClicks = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityMessage(); if (r?.success) { this.communityMessage = r.data; this.loaded.message = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityTrend(); if (r?.success) { this.communityTrend = r.data; this.loaded.trend = true; } }),
-            this._safe(async () => { // Популярные избранные цитаты с улучшенным fallback
+            this._safe(async () => { // Популярные избранные цитаты недели (для топа недели)
                 await this.loadPopularFavorites('week', 10);
             }),
-            this._safe(async () => { // Популярные цитаты (агрегация) как fallback для spotlight
+            this._safe(async () => { // Популярные цитаты недели (для топа недели)
                 await this.loadPopularQuotes('week', 10);
             }),
             this._safe(async () => { // лидерборд + me
@@ -253,8 +253,8 @@ class CommunityPage {
     }
 
     /**
-     * ❤️ ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (НОВОЕ)
-     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
+     * ❤️ ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (ТОЛЬКО ТЕКУЩАЯ НЕДЕЛЯ)
+     * @param {string} period - 'week' for scope=week
      * @param {number} limit - number of quotes to load
      */
     async loadPopularFavorites(period = 'week', limit = 10) {
@@ -263,7 +263,7 @@ class CommunityPage {
         try {
             this.loadingStates.popularFavorites = true;
             this.errorStates.popularFavorites = null;
-            console.log('❤️ CommunityPage: Загружаем популярные избранные цитаты...');
+            console.log('❤️ CommunityPage: Загружаем популярные избранные цитаты за неделю...');
             
             let options;
             if (period === 'week') {
@@ -272,55 +272,15 @@ class CommunityPage {
                 options = { period, limit };
             }
             
-            // Попытка загрузить избранные с scope=week или period
-            let response = await this.api.getCommunityPopularFavorites(options);
-            if (response && response.success && response.data && response.data.length > 0) {
+            // Загружаем избранные только за текущую неделю - без fallback
+            const response = await this.api.getCommunityPopularFavorites(options);
+            if (response && response.success && response.data) {
                 this.popularFavorites = response.data;
                 console.log('✅ CommunityPage: Популярные избранные цитаты загружены:', this.popularFavorites.length);
-                return;
+            } else {
+                this.popularFavorites = [];
+                console.log('ℹ️ CommunityPage: Нет избранных цитат за текущую неделю');
             }
-            
-            // Fallback 1: Попытка 30d если scope=week или 7d пустой
-            if (period === 'week' || period === '7d') {
-                console.log('🔄 Fallback 1: пытаемся загрузить избранные за 30d...');
-                response = await this.api.getCommunityPopularFavorites({ period: '30d', limit });
-                if (response && response.success && response.data && response.data.length > 0) {
-                    this.popularFavorites = response.data;
-                    console.log('✅ CommunityPage: Популярные избранные цитаты (30d) загружены:', this.popularFavorites.length);
-                    return;
-                }
-            }
-            
-            // Fallback 2: Обычные популярные цитаты (агрегация)
-            console.log('🔄 Fallback 2: загружаем обычные популярные цитаты (агрегация)...');
-            await this.loadPopularQuotes('7d', limit);
-            if (this.popularQuotes && this.popularQuotes.length > 0) {
-                // Используем популярные цитаты как резерв
-                this.popularFavorites = this.popularQuotes.map(q => ({
-                    text: q.text,
-                    author: q.author,
-                    favorites: q.favorites || q.count || q.likes || 0
-                }));
-                console.log('✅ CommunityPage: Используем популярные цитаты как fallback:', this.popularFavorites.length);
-                return;
-            }
-            
-            // Fallback 3: Обычные популярные цитаты за 30d если 7d пустые
-            console.log('🔄 Fallback 3: загружаем обычные популярные цитаты за 30d...');
-            await this.loadPopularQuotes('30d', limit);
-            if (this.popularQuotes && this.popularQuotes.length > 0) {
-                this.popularFavorites = this.popularQuotes.map(q => ({
-                    text: q.text,
-                    author: q.author,
-                    favorites: q.favorites || q.count || q.likes || 0
-                }));
-                console.log('✅ CommunityPage: Используем популярные цитаты (30d) как fallback:', this.popularFavorites.length);
-                return;
-            }
-            
-            // Если все fallback не сработали
-            this.popularFavorites = [];
-            console.log('⚠️ CommunityPage: Все fallback не сработали, popularFavorites пуст');
             
         } catch (error) {
             console.error('❌ Ошибка загрузки популярных избранных цитат:', error);
@@ -334,7 +294,7 @@ class CommunityPage {
     /**
      * 📚 ЗАГРУЗКА ПОПУЛЯРНЫХ КНИГ СООБЩЕСТВА (ОБНОВЛЕНО ДЛЯ ТОПА НЕДЕЛИ)
      */
-    async loadPopularBooks(period = '7d', limit = 10) {
+    async loadPopularBooks(period = 'week', limit = 10) {
         if (this.loadingStates.popularBooks) return;
         
         try {
@@ -342,8 +302,15 @@ class CommunityPage {
             this.errorStates.popularBooks = null;
             console.log('📚 CommunityPage: Загружаем популярные книги недели...');
             
-            // Используем getTopBooks для получения популярных разборов недели
-            const response = await this.api.getTopBooks({ period, limit });
+            // Используем scope='week' для получения популярных разборов недели
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week', limit };
+            } else {
+                options = { period, limit };
+            }
+            
+            const response = await this.api.getTopBooks(options);
             if (response && response.success) {
                 // Нормализация: читаем из resp.data или resp.books
                 this.popularBooks = response.data || response.books || [];
@@ -1286,8 +1253,8 @@ class CommunityPage {
             `;
         }
 
-        // Use popularFavorites if available, otherwise fallback to popularQuotes
-        const quotes = this.popularFavorites?.length > 0 ? this.popularFavorites : this.popularQuotes || [];
+        // Используем только популярные избранные цитаты недели - без fallback
+        const quotes = this.popularFavorites || [];
         
         if (quotes.length === 0) {
             return `

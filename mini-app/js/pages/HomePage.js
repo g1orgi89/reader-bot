@@ -465,7 +465,7 @@ class HomePage {
     }
     async loadTopBooks() {
       try {
-        const res = await this.api.getTopBooks({ period: '7d' });
+        const res = await this.api.getTopBooks({ scope: 'week' });
         const items = res?.data || res || [];
         const topBooks = items.map(i => ({
           _id: i.id || i._id,
