@@ -118,10 +118,10 @@ class CommunityPage {
             this._safe(async () => { const r = await this.api.getCommunityMessage(); if (r?.success) { this.communityMessage = r.data; this.loaded.message = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityTrend(); if (r?.success) { this.communityTrend = r.data; this.loaded.trend = true; } }),
             this._safe(async () => { // Популярные избранные цитаты недели (для топа недели)
-                await this.loadPopularFavorites('week', 10);
+                await this.loadPopularFavorites(10);
             }),
             this._safe(async () => { // Популярные цитаты недели (для топа недели)
-                await this.loadPopularQuotes('week', 10);
+                await this.loadPopularQuotes(10);
             }),
             this._safe(async () => { // лидерборд + me
                 const r = await this.api.getLeaderboard({ scope: 'week', limit: 10 });
