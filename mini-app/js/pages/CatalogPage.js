@@ -282,7 +282,7 @@ class CatalogPage {
         const existingBadge = this.generateBadge(apiBook);
         
         // Создание массива бейджей
-        let badgeList = [];
+        const badgeList = [];
         
         // Если книга в топе - добавляем бейдж "Топ недели" первым
         if (isTopWeek) {

@@ -787,9 +787,12 @@ class ReportsPage {
             return `<span class="stat-delta ${direction}">${symbol}${value}</span>`;
         };
         
-        // ✅ NEW: ISO week date formatting using week context or report data
+        // ✅ NEW: ISO week date formatting using weekMeta from API response
         let reportDateText = '';
-        if (this.weeklyReport && this.weeklyReport.weekNumber && this.weeklyReport.year) {
+        if (this.weeklyReport && this.weeklyReport.weekMeta) {
+            // Use weekMeta from the API response - this provides the exact Mon-Sun range
+            reportDateText = this.weeklyReport.weekMeta.label;
+        } else if (this.weeklyReport && this.weeklyReport.weekNumber && this.weeklyReport.year) {
             // Use ISO week from the report data
             if (window.DateUtils && window.DateUtils.formatIsoWeekLabel) {
                 reportDateText = window.DateUtils.formatIsoWeekLabel(

@@ -313,7 +313,7 @@ class HomePage {
             } else {
                 // Show actual data with smooth transition - ensure touch-friendly sizes
                 const newContent = [
-                    { label: 'За 7 дней', value: stats.weeklyQuotes ?? '—' },
+                    { label: 'За неделю', value: stats.weeklyQuotes ?? '—' },
                     { label: 'Серия (дней подряд)', value: stats.currentStreak ?? '—' },
                     { label: 'Любимый автор', value: stats.favoriteAuthor || '—' }
                 ].map(item => `

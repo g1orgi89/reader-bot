@@ -520,9 +520,29 @@ class ApiService {
     /**
      * 📊 Получить статистику пользователя
      */
-    async getStats(userId = 'demo-user') {
+    /**
+     * 📊 Получить статистику пользователя с поддержкой ISO недель
+     */
+    async getStats(userId = 'demo-user', options = {}) {
         try {
-            const result = await this.request('GET', `/stats?userId=${userId}`);
+            const { 
+                scope = 'week', 
+                weekNumber, 
+                year, 
+                monthNumber, 
+                includeWeekMeta = false 
+            } = options;
+
+            const params = new URLSearchParams({ userId });
+            
+            // Add scope and related parameters
+            if (scope) params.append('scope', scope);
+            if (weekNumber) params.append('weekNumber', weekNumber.toString());
+            if (year) params.append('year', year.toString());
+            if (monthNumber) params.append('monthNumber', monthNumber.toString());
+            if (includeWeekMeta) params.append('includeWeekMeta', 'true');
+
+            const result = await this.request('GET', `/stats?${params.toString()}`);
             
             // Защита от undefined значений в ответе API
             const safeStats = {
@@ -533,7 +553,11 @@ class ApiService {
                 monthlyQuotes: result?.stats?.monthlyQuotes || 0,
                 todayQuotes: result?.stats?.todayQuotes || 0,
                 daysSinceRegistration: result?.stats?.daysSinceRegistration || 0,
-                weeksSinceRegistration: result?.stats?.weeksSinceRegistration || 0
+                weeksSinceRegistration: result?.stats?.weeksSinceRegistration || 0,
+                // New scoped fields
+                scope: result?.stats?.scope || scope,
+                quotes: result?.stats?.quotes || 0, // Scoped quote count
+                weekMeta: result?.stats?.weekMeta || null // Week metadata if requested
             };
             
             return { ...result, stats: safeStats };
@@ -550,7 +574,10 @@ class ApiService {
                     monthlyQuotes: 0,
                     todayQuotes: 0,
                     daysSinceRegistration: 0,
-                    weeksSinceRegistration: 0
+                    weeksSinceRegistration: 0,
+                    scope: options.scope || 'week',
+                    quotes: 0,
+                    weekMeta: null
                 },
                 warning: 'Статистика временно недоступна'
             };
