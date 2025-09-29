@@ -509,7 +509,9 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
             weekNumber: savedReport.weekNumber,
             year: savedReport.year,
             quotesCount: quotes.length,
-            analysis: savedReport.analysis
+            analysis: savedReport.analysis,
+            recommendations: savedReport.recommendations || [],
+            metrics: savedReport.metrics
           },
           telegramSent: sendSuccess,
           telegramAvailable: false
