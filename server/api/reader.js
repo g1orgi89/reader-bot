@@ -1980,11 +1980,58 @@ router.get('/community/popular', telegramAuth, communityLimiter, async (req, res
       }
     ]);
 
+    // Get origin user IDs for each quote pair (earliest creator)
+    const quotePairs = popularQuotes.map(pq => ({ text: pq.text, author: pq.author }));
+    const originUserMap = await getOriginUserIds(quotePairs);
+
+    // Collect all origin user IDs
+    const originUserIds = [...new Set([...originUserMap.values()].filter(Boolean))];
+    
+    // Get user profiles for origin users
+    const users = await UserProfile.find(
+      { userId: { $in: originUserIds } },
+      { userId: 1, name: 1, avatarUrl: 1 }
+    ).lean();
+    const userMap = new Map(users.map(u => [String(u.userId), u]));
+
+    // Enrich popular quotes with origin user data
+    const enrichedPopularQuotes = popularQuotes.map(pq => {
+      const key = `${pq.text}|||${pq.author}`;
+      const originUserId = originUserMap.get(key);
+      const user = userMap.get(String(originUserId));
+      
+      const result = {
+        text: pq.text,
+        author: pq.author,
+        count: pq.count,
+        category: pq.category,
+        sentiment: pq.sentiment,
+        themes: pq.themes
+      };
+      
+      if (user) {
+        result.user = {
+          userId: user.userId,
+          name: user.name,
+          avatarUrl: user.avatarUrl
+        };
+      } else {
+        // Fallback for missing user data
+        result.user = {
+          userId: originUserId || 'unknown',
+          name: 'Пользователь',
+          avatarUrl: null
+        };
+      }
+      
+      return result;
+    });
+
     res.json({
       success: true,
-      data: popularQuotes,
+      data: enrichedPopularQuotes,
       pagination: {
-        total: popularQuotes.length,
+        total: enrichedPopularQuotes.length,
         limit: limit,
         period: period
       }
