@@ -82,8 +82,8 @@ class StatisticsService {
                 totalQuotes: raw.totalQuotes || 0,
                 currentStreak: raw.currentStreak || 0,
                 daysInApp: raw.daysSinceRegistration || raw.daysInApp || 0,
-                // NEW: Weekly metrics
-                weeklyQuotes: raw.quotes || 0, // Quotes for current week
+                // NEW: Use weeklyQuotes from backend instead of recomputing
+                weeklyQuotes: raw.weeklyQuotes || raw.quotes || 0, // Prefer weeklyQuotes alias, fallback to quotes
                 weekMeta: raw.weekMeta || null // Week metadata for display
             };
         }, this.TTL_SHORT);
@@ -132,24 +132,29 @@ class StatisticsService {
             } catch {
                 quotes = this.state?.get('quotes.items') || [];
             }
+            
+            // Get main stats to use backend weeklyQuotes instead of rolling calculation
+            const main = await this.getMainStats();
+            const weeklyQuotes = main.weeklyQuotes || 0;
+            
             const now = Date.now();
-            const weekAgo = now - 7 * 86400_000;
             const thirtyAgo = now - 30 * 86400_000;
-            let weekly = 0;
             const authorFreq = new Map();
+            
             for (const q of quotes) {
                 const ts = new Date(q.createdAt || q.dateAdded).getTime();
                 if (!ts) continue;
-                if (ts >= weekAgo) weekly++;
+                // Only calculate author frequency for last 30 days
                 if (ts >= thirtyAgo && q.author) {
                     authorFreq.set(q.author, (authorFreq.get(q.author) || 0) + 1);
                 }
             }
+            
             const favoriteAuthor = this._top(authorFreq);
             let activityLevel = 'low';
-            if (weekly >= 15) activityLevel = 'high';
-            else if (weekly >= 5) activityLevel = 'medium';
-            const main = await this.getMainStats();
+            if (weeklyQuotes >= 15) activityLevel = 'high';
+            else if (weeklyQuotes >= 5) activityLevel = 'medium';
+            
             let streak = main.currentStreak || 0;
             const computedStreak = this._computeStreak(quotes);
             if (computedStreak > streak) streak = computedStreak;
@@ -158,7 +163,7 @@ class StatisticsService {
             const { streakToYesterday, isAwaitingToday } = this._computeStreakToYesterday(quotes, computedStreak);
             
             return {
-                weeklyQuotes: weekly,
+                weeklyQuotes, // Use backend ISO week count
                 favoriteAuthor,
                 activityLevel,
                 currentStreak: streak,
@@ -322,15 +327,22 @@ class StatisticsService {
      */
     _calculateOptimisticStats(quotes) {
         const now = Date.now();
-        const weekAgo = now - 7 * 86400_000;
         const thirtyAgo = now - 30 * 86400_000;
+        
+        // Calculate current ISO week key for comparison
+        const currentWeekKey = this._getIsoWeekKey(new Date());
         let weekly = 0;
         const authorFreq = new Map();
         
         for (const q of quotes) {
             const ts = new Date(q.createdAt || q.dateAdded).getTime();
             if (!ts) continue;
-            if (ts >= weekAgo) weekly++;
+            
+            // Use ISO week comparison instead of rolling 7 days
+            const quoteDate = new Date(ts);
+            const quoteWeekKey = this._getIsoWeekKey(quoteDate);
+            if (quoteWeekKey === currentWeekKey) weekly++;
+            
             if (ts >= thirtyAgo && q.author) {
                 authorFreq.set(q.author, (authorFreq.get(q.author) || 0) + 1);
             }
@@ -349,6 +361,20 @@ class StatisticsService {
             streakToYesterday,
             isAwaitingToday
         };
+    }
+
+    /**
+     * Get ISO week key for date comparison (fallback implementation)
+     * @param {Date} date 
+     * @returns {string} Week key like "2024-W01"
+     */
+    _getIsoWeekKey(date) {
+        // Simple ISO week calculation (fallback if DateUtils not available)
+        const d = new Date(date);
+        const yearStart = new Date(d.getFullYear(), 0, 1);
+        const dayOfYear = Math.floor((d - yearStart) / (24 * 60 * 60 * 1000)) + 1;
+        const weekNum = Math.ceil(dayOfYear / 7);
+        return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
     }
     
     /**
@@ -577,8 +603,8 @@ class StatisticsService {
                 backendStreak: progress.backendStreak || 0,
                 streakToYesterday: progress.streakToYesterday || 0,
                 isAwaitingToday: progress.isAwaitingToday || false,
-                weeklyQuotes: progress.weeklyQuotes || 0,
-                thisWeek: progress.weeklyQuotes || 0, // Mirror for UI compatibility
+                weeklyQuotes: main.weeklyQuotes || 0, // Use main.weeklyQuotes from backend instead of progress
+                thisWeek: main.weeklyQuotes || 0, // Mirror for UI compatibility
                 favoriteAuthor: progress.favoriteAuthor || '—',
                 activityLevel: progress.activityLevel || 'low',
                 daysInApp: main.daysInApp || 0,

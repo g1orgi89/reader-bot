@@ -111,24 +111,24 @@ class CommunityPage {
 
         // Параллельная загрузка без ререндера
         await Promise.allSettled([
-            this._safe(async () => { const r = await this.api.getCommunityStats(); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } }),
+            this._safe(async () => { const r = await this.api.getCommunityStats({ scope: 'week' }); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityLatestQuotes({ limit: 3 }); if (r?.success) { this.latestQuotes = r.data || []; this.loaded.latestQuotes = true; } }),
             this._safe(async () => { const r = await this.api.getTopBooks({ period: '7d', limit: 10 }); if (r?.success) { this.popularBooks = r.data || []; this.loaded.popularBooks = true; } }),
             this._safe(async () => { const r = await this.api.getCatalogRecentClicks({ limit: 3 }); if (r?.success) { this.recentClicks = r.clicks || r.data || []; this.loaded.recentClicks = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityMessage(); if (r?.success) { this.communityMessage = r.data; this.loaded.message = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityTrend(); if (r?.success) { this.communityTrend = r.data; this.loaded.trend = true; } }),
             this._safe(async () => { // Популярные избранные цитаты с улучшенным fallback
-                await this.loadPopularFavorites('7d', 10);
+                await this.loadPopularFavorites('week', 10);
             }),
             this._safe(async () => { // Популярные цитаты (агрегация) как fallback для spotlight
-                await this.loadPopularQuotes('7d', 10);
+                await this.loadPopularQuotes('week', 10);
             }),
             this._safe(async () => { // лидерборд + me
-                const r = await this.api.getLeaderboard({ period: '7d', limit: 10 });
+                const r = await this.api.getLeaderboard({ scope: 'week', limit: 10 });
                 if (r?.success) { this.leaderboard = r.data || []; this.userProgress = r.me || null; this.loaded.leaderboard = true; }
             }),
-            this._safe(async () => { const r = await this.api.getCommunityInsights?.({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } }),
-            this._safe(async () => { const r = await this.api.getCommunityFunFact?.({ period: '7d' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } })
+            this._safe(async () => { const r = await this.api.getCommunityInsights?.({ scope: 'week' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } }),
+            this._safe(async () => { const r = await this.api.getCommunityFunFact?.({ scope: 'week' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } })
         ]);
 
         // ✨ Инициализация spotlight кэша после загрузки основных данных
@@ -218,8 +218,10 @@ class CommunityPage {
 
     /**
      * 🔥 ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ СООБЩЕСТВА (PR-3)
+     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
+     * @param {number} limit - number of quotes to load
      */
-    async loadPopularQuotes(period = '7d', limit = 10) {
+    async loadPopularQuotes(period = 'week', limit = 10) {
         if (this.loadingStates.popularQuotes) return;
         
         try {
@@ -227,7 +229,14 @@ class CommunityPage {
             this.errorStates.popularQuotes = null;
             console.log('🔥 CommunityPage: Загружаем популярные цитаты...');
             
-            const response = await this.api.getCommunityPopularQuotes({ period, limit });
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week', limit };
+            } else {
+                options = { period, limit };
+            }
+            
+            const response = await this.api.getCommunityPopularQuotes(options);
             if (response && response.success) {
                 this.popularQuotes = response.data || response.quotes || [];
                 console.log('✅ CommunityPage: Популярные цитаты загружены:', this.popularQuotes.length);
@@ -245,8 +254,10 @@ class CommunityPage {
 
     /**
      * ❤️ ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (НОВОЕ)
+     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
+     * @param {number} limit - number of quotes to load
      */
-    async loadPopularFavorites(period = '7d', limit = 10) {
+    async loadPopularFavorites(period = 'week', limit = 10) {
         if (this.loadingStates.popularFavorites) return;
         
         try {
@@ -254,16 +265,23 @@ class CommunityPage {
             this.errorStates.popularFavorites = null;
             console.log('❤️ CommunityPage: Загружаем популярные избранные цитаты...');
             
-            // Попытка загрузить избранные за 7d
-            let response = await this.api.getCommunityPopularFavorites({ period, limit });
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week', limit };
+            } else {
+                options = { period, limit };
+            }
+            
+            // Попытка загрузить избранные с scope=week или period
+            let response = await this.api.getCommunityPopularFavorites(options);
             if (response && response.success && response.data && response.data.length > 0) {
                 this.popularFavorites = response.data;
                 console.log('✅ CommunityPage: Популярные избранные цитаты загружены:', this.popularFavorites.length);
                 return;
             }
             
-            // Fallback 1: Попытка 30d если 7d пустой
-            if (period === '7d') {
+            // Fallback 1: Попытка 30d если scope=week или 7d пустой
+            if (period === 'week' || period === '7d') {
                 console.log('🔄 Fallback 1: пытаемся загрузить избранные за 30d...');
                 response = await this.api.getCommunityPopularFavorites({ period: '30d', limit });
                 if (response && response.success && response.data && response.data.length > 0) {
@@ -453,14 +471,24 @@ class CommunityPage {
     
     /**
      * 🏆 ЗАГРУЗКА ЛИДЕРБОРДА ЗА ПЕРИОД (НОВОЕ)
+     * @param {number} limit - number of users to load
+     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
      */
-    async loadLeaderboard(limit = 10, period = '7d') {
+    async loadLeaderboard(limit = 10, period = 'week') {
         if (this.loadingStates.leaderboard) return;
         try {
             this.loadingStates.leaderboard = true;
             this.errorStates.leaderboard = null;
             console.log('🏆 CommunityPage: Загружаем лидерборд за', period);
-            const resp = await this.api.getLeaderboard({ period, limit });
+            
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week', limit };
+            } else {
+                options = { period, limit };
+            }
+            
+            const resp = await this.api.getLeaderboard(options);
             if (resp && resp.success) {
                 this.leaderboard = resp.data || [];
                 this.userProgress = resp.me || null;
@@ -482,8 +510,9 @@ class CommunityPage {
 
     /**
      * 📊 ЗАГРУЗКА ИНСАЙТОВ СООБЩЕСТВА
+     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
      */
-    async loadCommunityInsights(period = '7d') {
+    async loadCommunityInsights(period = 'week') {
         if (this.loadingStates.communityInsights) return;
         
         try {
@@ -491,7 +520,14 @@ class CommunityPage {
             this.errorStates.communityInsights = null;
             console.log('📊 CommunityPage: Загружаем инсайты сообщества за', period);
             
-            const response = await this.api.getCommunityInsights({ period });
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week' };
+            } else {
+                options = { period };
+            }
+            
+            const response = await this.api.getCommunityInsights(options);
             if (response && response.success) {
                 this.communityInsights = response.insights;
                 console.log('✅ CommunityPage: Инсайты загружены:', this.communityInsights);
@@ -510,8 +546,9 @@ class CommunityPage {
 
     /**
      * 🎉 ЗАГРУЗКА ИНТЕРЕСНОГО ФАКТА НЕДЕЛИ
+     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
      */
-    async loadFunFact(period = '7d') {
+    async loadFunFact(period = 'week') {
         if (this.loadingStates.funFact) return;
         
         try {
@@ -519,7 +556,14 @@ class CommunityPage {
             this.errorStates.funFact = null;
             console.log('🎉 CommunityPage: Загружаем интересный факт за', period);
             
-            const response = await this.api.getCommunityFunFact({ period });
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week' };
+            } else {
+                options = { period };
+            }
+            
+            const response = await this.api.getCommunityFunFact(options);
             if (response && response.success) {
                 this.funFact = response.data;
                 console.log('✅ CommunityPage: Интересный факт загружен:', this.funFact);
@@ -1951,7 +1995,7 @@ class CommunityPage {
             Promise.allSettled([
                 this._safe(async () => { 
                     if (!this.loaded.leaderboard) { 
-                        const r = await this.api.getLeaderboard({ period: '7d', limit: 10 }); 
+                        const r = await this.api.getLeaderboard({ scope: 'week', limit: 10 }); 
                         if (r?.success) { 
                             this.leaderboard = r.data || []; 
                             this.userProgress = r.me || null; 
@@ -1961,8 +2005,8 @@ class CommunityPage {
                 }),
                 this._safe(async () => { 
                     if (!this.loaded.popularQuotes) { 
-                        let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null); 
-                        if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null); 
+                        let r = await this.api.getCommunityPopularFavorites({ scope: 'week', limit: 10 }).catch(() => null); 
+                        if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ scope: 'week', limit: 10 }).catch(() => null); 
                         if (r?.success) { 
                             const arr = r.data || r.quotes || []; 
                             this.popularQuotes = arr.map(q => ({ 
@@ -1993,9 +2037,9 @@ class CommunityPage {
             ]).then(() => this.rerender());
         } else if (tabName === 'stats') {
             Promise.allSettled([
-                this._safe(async () => { if (!this.loaded.stats) { const r = await this.api.getCommunityStats(); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } } }),
-                this._safe(async () => { if (!this.loaded.insights && this.api.getCommunityInsights) { const r = await this.api.getCommunityInsights({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } } }),
-                this._safe(async () => { if (!this.loaded.funFact && this.api.getCommunityFunFact) { const r = await this.api.getCommunityFunFact({ period: '7d' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } } })
+                this._safe(async () => { if (!this.loaded.stats) { const r = await this.api.getCommunityStats({ scope: 'week' }); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } } }),
+                this._safe(async () => { if (!this.loaded.insights && this.api.getCommunityInsights) { const r = await this.api.getCommunityInsights({ scope: 'week' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } } }),
+                this._safe(async () => { if (!this.loaded.funFact && this.api.getCommunityFunFact) { const r = await this.api.getCommunityFunFact({ scope: 'week' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } } })
             ]).then(() => this.rerender());
         }
     }
@@ -2025,9 +2069,9 @@ class CommunityPage {
             console.log('🔄 CommunityPage: Данные устарели - запускаем фоновое обновление');
             // В фоне обновляем ключевые секции, но НЕ трогаем разметку до завершения, затем один общий rerender
             Promise.allSettled([
-                this._safe(async () => { const r = await this.api.getCommunityStats(); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; } }),
+                this._safe(async () => { const r = await this.api.getCommunityStats({ scope: 'week' }); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; } }),
                 this._safe(async () => { const r = await this.api.getCommunityTrend(); if (r?.success) { this.communityTrend = r.data; } }),
-                this._safe(async () => { const r = await this.api.getCommunityInsights?.({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; } })
+                this._safe(async () => { const r = await this.api.getCommunityInsights?.({ scope: 'week' }); if (r?.success) { this.communityInsights = r.insights; } })
             ]).then(() => {
                 console.log('✅ CommunityPage: Фоновое обновление завершено');
                 this.rerender();
