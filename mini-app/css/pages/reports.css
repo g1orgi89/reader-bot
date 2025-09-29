@@ -29,6 +29,11 @@
     scroll-behavior: smooth;
 }
 
+/* ✅ НОВОЕ: Специальные стили для страницы отчетов */
+.reports-page.content {
+    padding-bottom: calc(var(--bottom-nav-height, 70px) + 16px);
+}
+
 /* ============================================================================
    📈 КАРТОЧКА ЕЖЕНЕДЕЛЬНОГО ОТЧЕТА (ТОЧНО ИЗ КОНЦЕПТА!)
    ============================================================================ */
@@ -64,6 +69,21 @@
     color: var(--text-secondary, #666666);
     font-weight: 500;
     opacity: 0.8;
+}
+
+/* ✅ НОВОЕ: Индикатор обновления отчета */
+.report-updating {
+    font-size: 10px;
+    color: var(--primary-color, #D2452C);
+    font-weight: 500;
+    margin-top: 2px;
+    opacity: 0.9;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
 }
 
 .report-stats-grid {
