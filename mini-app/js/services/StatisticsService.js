@@ -108,7 +108,7 @@ class StatisticsService {
     async getTopAnalyses(limit = 3) {
       return this._cached(`topAnalyses_${limit}`, async () => {
         try {
-          const resp = await this.api.getTopBooks({ period: '7d' });
+          const resp = await this.api.getTopBooks({ scope: 'week' });
           const items = resp?.data || resp || [];
           return items.slice(0, limit).map((b, i) => ({
             id: b.id || b._id || String(i),

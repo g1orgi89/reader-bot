@@ -154,7 +154,7 @@ class CatalogPage {
         
         try {
             console.log('📚 CatalogPage: Loading top week IDs...');
-            const res = await this.api.getTopBooks({ period: '7d' });
+            const res = await this.api.getTopBooks({ scope: 'week' });
             const items = res?.data || res || [];
             const topWeekIds = items.map(i => i.id || i._id).filter(Boolean);
             
