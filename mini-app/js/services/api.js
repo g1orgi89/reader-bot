@@ -653,6 +653,11 @@ class ApiService {
         if (options.search) params.append('search', options.search);
         if (options.dateFrom) params.append('dateFrom', options.dateFrom);
         if (options.dateTo) params.append('dateTo', options.dateTo);
+        
+        // Add ISO week parameters for filtering
+        if (options.weekNumber) params.append('weekNumber', options.weekNumber);
+        if (options.year) params.append('year', options.year);
+        if (options.monthNumber) params.append('monthNumber', options.monthNumber);
 
         if (typeof options.favorites !== 'undefined') {
             params.append('favorites', String(!!options.favorites));
