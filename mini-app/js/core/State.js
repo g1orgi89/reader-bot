@@ -463,10 +463,11 @@ class AppState {
             lastUpdate: Date.now()
         });
         
-        // Dispatch quotes:changed event for StatisticsService
+        // Dispatch quotes:changed event for StatisticsService with updated quote object
         if (typeof document !== 'undefined') {
+            const updatedQuote = updatedQuotes.find(quote => quote.id === quoteId);
             document.dispatchEvent(new CustomEvent('quotes:changed', {
-                detail: { type: 'edited', quoteId, updates }
+                detail: { type: 'edited', quoteId, updates, quote: updatedQuote }
             }));
         }
     }
@@ -475,16 +476,19 @@ class AppState {
      * 🗑️ Удалить цитату
      */
     removeQuote(quoteId) {
+        const quotes = this.get('quotes.items');
+        const quoteToDelete = quotes.find(quote => (quote.id === quoteId) || (quote._id === quoteId));
+        
         this.remove('quotes.items', quote => (quote.id === quoteId) || (quote._id === quoteId));
         this.update('quotes', {
             total: this.get('quotes.total') - 1,
             lastUpdate: Date.now()
         });
         
-        // Dispatch quotes:changed event for StatisticsService
+        // Dispatch quotes:changed event for StatisticsService with deleted quote object
         if (typeof document !== 'undefined') {
             document.dispatchEvent(new CustomEvent('quotes:changed', {
-                detail: { type: 'deleted', quoteId }
+                detail: { type: 'deleted', quoteId, quote: quoteToDelete }
             }));
         }
     }
