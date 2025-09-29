@@ -1649,7 +1649,7 @@ router.get('/reports/weekly/:userId', telegramAuth, async (req, res) => {
     const { limit = 10 } = req.query;
 
     const reports = await WeeklyReport.find({ userId })
-      .populate('quotes', 'text author category')
+      .populate('quotes', 'text author category createdAt')
       .sort({ sentAt: -1 })
       .limit(parseInt(limit))
       .lean();
@@ -1657,6 +1657,35 @@ router.get('/reports/weekly/:userId', telegramAuth, async (req, res) => {
     const mapReport = (r) => {
       const { getISOWeekRange, formatISOWeekLabel } = require('../utils/isoWeek');
       const weekRange = getISOWeekRange(r.weekNumber, r.year);
+      
+      // Calculate metrics if not present but we have quotes
+      let metrics = r.metrics;
+      if (!metrics && r.quotes && Array.isArray(r.quotes)) {
+        const quotes = r.quotes.filter(q => q); // Remove null/undefined quotes
+        const quotesCount = quotes.length;
+        const uniqueAuthors = new Set(
+          quotes
+            .filter(quote => quote.author && quote.author.trim())
+            .map(quote => quote.author.trim())
+        ).size;
+        const activeDays = new Set(
+          quotes
+            .filter(quote => quote.createdAt)
+            .map(quote => new Date(quote.createdAt).toISOString().split('T')[0])
+        ).size;
+        const targetQuotes = 30;
+        const progressQuotesPct = Math.min(Math.round((quotesCount / targetQuotes) * 100), 100);
+        const progressDaysPct = Math.min(Math.round((activeDays / 7) * 100), 100);
+
+        metrics = {
+          quotes: quotesCount,
+          uniqueAuthors,
+          activeDays,
+          targetQuotes,
+          progressQuotesPct,
+          progressDaysPct
+        };
+      }
       
       return {
         id: r._id,
@@ -1666,6 +1695,10 @@ router.get('/reports/weekly/:userId', telegramAuth, async (req, res) => {
         sentAt: r.sentAt,
         isRead: r.isRead,
         feedback: r.feedback,
+        // Include quotes array for frontend calculation if needed
+        quotes: r.quotes || [],
+        // Include metrics if available (either from DB or calculated)
+        metrics: metrics,
         // Week metadata for proper period display
         weekMeta: {
           weekNumber: r.weekNumber,

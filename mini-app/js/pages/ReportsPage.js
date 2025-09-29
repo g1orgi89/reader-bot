@@ -43,20 +43,15 @@ class ReportsPage {
         
         // Данные отчета (точно из концепта)
         this.reportData = {
-            statistics: {
-                quotes: 7,
-                authors: 5,
-                days: 6,
-                goal: 85
-            },
+            statistics: null, // Remove hardcoded values - will be calculated from actual data
             deltas: {
                 quotes: 0,
                 authors: 0,
                 days: 0
             },
             progress: {
-                quotes: 50,
-                days: 86
+                quotes: 0,
+                days: 0
             },
             topics: "психология, саморазвитие, отношения",
             aiAnalysis: "Ваши цитаты показывают активный поиск внутренней гармонии. Рекомендую углубиться в тему саморазвития.",
@@ -156,41 +151,8 @@ class ReportsPage {
     }
 
     /**
-     * 📊 Применение fallback статистики
-     * @param {string} reason - Причина применения fallback
+     * 📊 Удален applyFallbackStats - теперь используем null для отсутствия статистики
      */
-    applyFallbackStats(reason) {
-        console.warn(`📊 ReportsPage: Применяем fallback статистику (${reason})`);
-        
-        this.reportData.statistics = {
-            quotes: 7,
-            authors: 5,
-            days: 6,
-            goal: 85
-        };
-        
-        // Обнуляем дельты при fallback
-        this.reportData.deltas = {
-            quotes: 0,
-            authors: 0,
-            days: 0
-        };
-        
-        // Устанавливаем дефолтный прогресс
-        this.reportData.progress = {
-            quotes: 50,
-            days: 86
-        };
-        
-        // ✅ НОВОЕ: Устанавливаем флаг fallback
-        this.isFallback = true;
-        
-        // Устанавливаем флаги для предотвращения повторных попыток
-        this.reportsLoaded = true;
-        this.state.set('reports.lastUpdate', Date.now());
-        
-        console.log('✅ ReportsPage: Fallback статистика применена');
-    }
     
     /**
      * 📋 Генерирует fallback slug для legacy записей без bookSlug
@@ -420,25 +382,16 @@ class ReportsPage {
      * Это обеспечивает отображение "замороженной" статистики на момент создания отчета
      */
     calculateStatisticsFromWeeklyReport() {
-        if (!this.weeklyReport || !this.weeklyReport.quotes) {
-            console.warn('⚠️ ReportsPage: Нет данных weeklyReport для вычисления статистики');
-            this.applyFallbackStats('no-weekly-report');
+        // If no weeklyReport, set statistics to null (don't render the block)
+        if (!this.weeklyReport) {
+            console.warn('⚠️ ReportsPage: Нет weeklyReport - статистика будет null');
+            this.reportData.statistics = null;
             return;
         }
 
-        // ✅ НОВОЕ: Проверяем, является ли отчет частичным (без metrics)
-        const isPartialReport = !this.weeklyReport.metrics && this.weeklyReport.quotes?.length === 0;
-        
-        if (isPartialReport) {
-            console.warn('⚠️ ReportsPage: Получен частичный отчет без metrics и quotes, устанавливаем флаг перезагрузки');
-            this.needsReload = true;
-            this.applyFallbackStats('partial-report');
-            return;
-        }
-
-        // ✅ НОВОЕ: Используем сохраненные метрики, если доступны
+        // ✅ ПРИОРИТЕТ 1: Используем сохраненные метрики, если доступны
         if (this.weeklyReport.metrics) {
-            console.log('✅ ReportsPage: Используем сохраненные метрики (не пересчитываем)');
+            console.log('✅ ReportsPage: Используем сохраненные метрики');
             
             const metrics = this.weeklyReport.metrics;
             
@@ -457,10 +410,11 @@ class ReportsPage {
             };
             
             console.log('📊 ReportsPage: Статистика из метрик:', this.reportData.statistics);
-        } else {
-            console.log('⚠️ ReportsPage: Метрики отсутствуют, пересчитываем (legacy fallback)');
+        } else if (this.weeklyReport.quotes && Array.isArray(this.weeklyReport.quotes)) {
+            // ✅ ПРИОРИТЕТ 2: Пересчитываем из quotes с createdAt
+            console.log('⚠️ ReportsPage: Метрики отсутствуют, пересчитываем из quotes');
 
-            const quotes = this.weeklyReport.quotes || [];
+            const quotes = this.weeklyReport.quotes;
             
             // Количество цитат - используем quotesCount если есть, иначе длину массива
             const quotesCount = this.weeklyReport.quotesCount || quotes.length;
@@ -496,13 +450,17 @@ class ReportsPage {
                 quotes: progressQuotesPct,
                 days: Math.min(Math.round((activeDays / 7) * 100), 100) // 7 дней в неделе
             };
+            
+            console.log('📊 ReportsPage: Статистика пересчитана из quotes:', this.reportData.statistics);
+        } else {
+            // ✅ ПРИОРИТЕТ 3: Нет данных - устанавливаем null (блок не будет отображаться)
+            console.warn('⚠️ ReportsPage: Нет данных для расчета статистики - устанавливаем null');
+            this.reportData.statistics = null;
+            return;
         }
         
         // ✅ НОВОЕ: Вычисляем дельты если есть предыдущий отчет
         this.calculateDeltas();
-        
-        // ✅ НОВОЕ: Сбрасываем флаг fallback при успешном вычислении
-        this.isFallback = false;
         
         console.log('✅ ReportsPage: Статистика обновлена:', this.reportData.statistics);
     }
@@ -512,8 +470,8 @@ class ReportsPage {
      * Включает поддержку legacy отчетов без metrics
      */
     calculateDeltas() {
-        if (!this.previousWeeklyReport) {
-            // Обнуляем дельты если нет предыдущего отчета
+        // Если нет текущей статистики или предыдущего отчета - обнуляем дельты
+        if (!this.reportData.statistics || !this.previousWeeklyReport) {
             this.reportData.deltas = {
                 quotes: 0,
                 authors: 0,
@@ -717,10 +675,10 @@ class ReportsPage {
             // ✅ Ждем валидный userId
             const userId = await this.waitForValidUserId();
             
-            // ✅ Если получили demo-user после timeout - применяем fallback
+            // ✅ Если получили demo-user после timeout - устанавливаем null статистику
             if (userId === 'demo-user') {
-                console.warn('⚠️ ReportsPage: Получен demo-user, применяем fallback статистику');
-                this.applyFallbackStats('demo-user');
+                console.warn('⚠️ ReportsPage: Получен demo-user, статистика будет null');
+                this.reportData.statistics = null;
                 // ✅ ИСПРАВЛЕНО: Устанавливаем флаги перед выходом
                 this.reportsLoaded = true;
                 this.reportsLoading = false;
@@ -807,9 +765,9 @@ class ReportsPage {
                 }
             }
             
-            // ✅ Если кэш тоже пуст - устанавливаем null и показываем плейсхолдер
+            // ✅ Если кэш тоже пуст - устанавливаем null статистику
             this.weeklyReport = null;
-            this.applyFallbackStats('error');
+            this.reportData.statistics = null;
         } finally {
             this.reportsLoading = false;
             this.rerender();
@@ -931,6 +889,12 @@ class ReportsPage {
             return '';
         }
 
+        // ✅ НОВОЕ: Если нет статистики - не рендерим блок статистики
+        if (!this.reportData.statistics) {
+            console.warn('⚠️ ReportsPage: Нет статистики для отображения');
+            return this.renderWeeklyReportWithoutStats();
+        }
+
         const { quotes, authors, days, goal } = this.reportData.statistics;
         const deltas = this.reportData.deltas || {};
         const progress = this.reportData.progress || {};
@@ -1014,6 +978,44 @@ class ReportsPage {
                             </div>
                         ` : ''}
                     </div>
+                </div>
+                <div class="report-themes">Темы: ${this.reportData.topics}</div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 📊 Рендер еженедельного отчета без блока статистики (когда данных нет)
+     */
+    renderWeeklyReportWithoutStats() {
+        // ✅ NEW: ISO week date formatting using weekMeta from API response
+        let reportDateText = '';
+        if (this.weeklyReport && this.weeklyReport.weekMeta) {
+            // Use weekMeta from the API response - this provides the exact Mon-Sun range
+            reportDateText = this.weeklyReport.weekMeta.label;
+        } else if (this.weeklyReport && this.weeklyReport.weekNumber && this.weeklyReport.year) {
+            // Use ISO week from the report data
+            if (window.DateUtils && window.DateUtils.formatIsoWeekLabel) {
+                reportDateText = window.DateUtils.formatIsoWeekLabel(
+                    this.weeklyReport.weekNumber, 
+                    this.weeklyReport.year
+                );
+            } else {
+                // Fallback for ISO week
+                reportDateText = `Неделя ${this.weeklyReport.weekNumber}, ${this.weeklyReport.year}`;
+            }
+        } else {
+            reportDateText = 'Еженедельный отчет';
+        }
+
+        return `
+            <div class="weekly-report">
+                <div class="report-header">
+                    <div class="report-title">📈 ${reportDateText}</div>
+                </div>
+                <div class="report-message">
+                    <p>📊 Данные статистики недоступны</p>
+                    <p>Отчет будет обновлен при появлении данных.</p>
                 </div>
                 <div class="report-themes">Темы: ${this.reportData.topics}</div>
             </div>
