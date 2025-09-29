@@ -1245,7 +1245,10 @@ router.get('/quotes', telegramAuth, async (req, res) => {
       author,
       search,
       dateFrom,
-      dateTo
+      dateTo,
+      weekNumber,
+      year,
+      monthNumber
     } = req.query;
 
     const query = { userId };
@@ -1267,7 +1270,20 @@ router.get('/quotes', telegramAuth, async (req, res) => {
       ];
     }
 
-    if (dateFrom || dateTo) {
+    // ISO week filtering (takes precedence over date range)
+    if (weekNumber && year) {
+      query.weekNumber = parseInt(weekNumber);
+      query.yearNumber = parseInt(year);
+    }
+    
+    // ISO month filtering (takes precedence over date range)
+    else if (monthNumber && year) {
+      query.monthNumber = parseInt(monthNumber);
+      query.yearNumber = parseInt(year);
+    }
+    
+    // Legacy date range filtering (used when ISO week/month not specified)
+    else if (dateFrom || dateTo) {
       query.createdAt = {};
       if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
       if (dateTo) query.createdAt.$lte = new Date(dateTo);
@@ -2369,15 +2385,53 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
 });
 
 /**
- * @description Недавние избранные цитаты сообщества для spotlight
+ * @description Недавние избранные цитаты сообщества с поддержкой ISO недель
  * @route GET /api/reader/community/favorites/recent
  */
 router.get('/community/favorites/recent', telegramAuth, communityLimiter, async (req, res) => {
   try {
-    const { hours: hoursParam, limit: limitParam } = req.query;
+    const { 
+      hours: hoursParam, 
+      limit: limitParam,
+      scope,
+      weekNumber,
+      year 
+    } = req.query;
     
-    // Validate hours parameter (default 48, max 168 hours = 7 days)
-    const hours = Math.min(Math.max(parseInt(hoursParam) || 48, 1), 168);
+    let matchCriteria = { isFavorite: true };
+
+    if (scope === 'week') {
+      // Use ISO week filtering
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo 
+      } = require('../utils/isoWeek');
+      
+      const currentWeek = getISOWeekInfo(getBusinessNow());
+      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+      const targetYear = parseInt(year) || currentWeek.isoYear;
+      
+      matchCriteria = { 
+        isFavorite: true,
+        weekNumber: targetWeek, 
+        yearNumber: targetYear 
+      };
+    } else {
+      // Legacy hours-based filtering for backwards compatibility
+      const hours = Math.min(Math.max(parseInt(hoursParam) || 48, 1), 168);
+      
+      // Calculate start date based on hours
+      const startDate = new Date();
+      startDate.setHours(startDate.getHours() - hours);
+
+      matchCriteria = {
+        isFavorite: true,
+        $or: [
+          { editedAt: { $gte: startDate } },
+          { createdAt: { $gte: startDate } }
+        ]
+      };
+    }
     
     // Validate limit parameter (default 10, max 50)
     const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
@@ -2388,20 +2442,10 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       });
     }
 
-    // Calculate start date based on hours
-    const startDate = new Date();
-    startDate.setHours(startDate.getHours() - hours);
-
     // Aggregate recent favorites with sorted input for deterministic firstUserId
     const recentFavorites = await Quote.aggregate([
       {
-        $match: {
-          isFavorite: true,
-          $or: [
-            { editedAt: { $gte: startDate } },
-            { createdAt: { $gte: startDate } }
-          ]
-        }
+        $match: matchCriteria
       },
       {
         $sort: { 

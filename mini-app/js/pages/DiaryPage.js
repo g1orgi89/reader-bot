@@ -185,17 +185,24 @@ class DiaryPage {
             if (this.currentFilter === 'favorites') {
                 params.favorites = true;
             } else if (this.currentFilter === 'this-week') {
-                const now = new Date();
-                const weekAgo = new Date(now);
-                weekAgo.setDate(now.getDate() - 7);
-                params.dateFrom = weekAgo.toISOString();
-                params.dateTo = now.toISOString();
+                // Use ISO week filtering instead of rolling 7 days
+                if (window.DateUtils && window.DateUtils.getISOWeekInfo) {
+                    const weekInfo = window.DateUtils.getISOWeekInfo();
+                    params.weekNumber = weekInfo.isoWeek;
+                    params.year = weekInfo.isoYear;
+                } else {
+                    // Fallback to rolling 7 days if DateUtils not available
+                    const now = new Date();
+                    const weekAgo = new Date(now);
+                    weekAgo.setDate(now.getDate() - 7);
+                    params.dateFrom = weekAgo.toISOString();
+                    params.dateTo = now.toISOString();
+                }
             } else if (this.currentFilter === 'this-month') {
+                // Use ISO month filtering instead of rolling date range
                 const now = new Date();
-                const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-                const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
-                params.dateFrom = firstDay.toISOString();
-                params.dateTo = lastDay.toISOString();
+                params.monthNumber = now.getMonth() + 1; // 1-12
+                params.year = now.getFullYear();
             }
 
             // Гарантия очистки лишних параметров для 'all'
@@ -428,8 +435,8 @@ class DiaryPage {
                 <div class="filter-tabs">
                     <button class="filter-tab ${this.currentFilter === 'all' ? 'active' : ''}" data-filter="all">Все</button>
                     <button class="filter-tab ${this.currentFilter === 'favorites' ? 'active' : ''}" data-filter="favorites">Избранные</button>
-                    <button class="filter-tab ${this.currentFilter === 'this-week' ? 'active' : ''}" data-filter="this-week">Эта неделя</button>
-                    <button class="filter-tab ${this.currentFilter === 'this-month' ? 'active' : ''}" data-filter="this-month">Этот месяц</button>
+                    <button class="filter-tab ${this.currentFilter === 'this-week' ? 'active' : ''}" data-filter="this-week">За неделю</button>
+                    <button class="filter-tab ${this.currentFilter === 'this-month' ? 'active' : ''}" data-filter="this-month">За месяц</button>
                 </div>
             </div>
         `;
