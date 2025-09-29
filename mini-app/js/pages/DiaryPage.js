@@ -125,6 +125,25 @@ class DiaryPage {
                 this.updateDiaryStatsUI(e.detail);
             }
         });
+        
+        // Listen for quote changes to refresh diary list if needed
+        document.addEventListener('quotes:changed', (e) => {
+            const detail = e.detail || {};
+            console.log('📖 DiaryPage: Received quotes:changed for diary refresh', detail);
+            
+            // If we're on my-quotes tab and showing current week filter, refresh the list
+            if (this.activeTab === 'my-quotes' && this.currentFilter === 'this-week') {
+                if (detail.type === 'added' || detail.type === 'deleted') {
+                    // Debounce the refresh to avoid too many API calls
+                    clearTimeout(this._diaryRefreshTimeout);
+                    this._diaryRefreshTimeout = setTimeout(() => {
+                        this.waitForValidUserId().then(userId => {
+                            this.loadQuotes(true, userId);
+                        }).catch(e => console.debug('Diary refresh error:', e));
+                    }, 500); // 500ms debounce
+                }
+            }
+        });
     }
     
     /**
@@ -1644,6 +1663,12 @@ class DiaryPage {
         // Unmount MyQuotesView if mounted
         this.unmountMyQuotesView();
         
+        // Clean up diary refresh timeout
+        if (this._diaryRefreshTimeout) {
+            clearTimeout(this._diaryRefreshTimeout);
+            this._diaryRefreshTimeout = null;
+        }
+        
         // Reset loading flags
         this.quotesLoaded = false;
         this.quotesLoading = false;
@@ -1854,7 +1879,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
             // Send optimistic delete event for instant -1 in counter
             if (typeof document !== 'undefined') {
                 document.dispatchEvent(new CustomEvent('quotes:changed', {
-                    detail: { type: 'deleted', quoteId, optimistic: true }
+                    detail: { type: 'deleted', quoteId, quote, optimistic: true }
                 }));
             }
 
@@ -1874,7 +1899,7 @@ async editQuote(quoteId) {  // ✅ ОДНА async функция
                 // Send revert event to undo optimistic -1
                 if (typeof document !== 'undefined') {
                     document.dispatchEvent(new CustomEvent('quotes:changed', {
-                        detail: { type: 'deleted', quoteId, reverted: true }
+                        detail: { type: 'deleted', quoteId, quote, reverted: true }
                     }));
                 }
 

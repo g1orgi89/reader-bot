@@ -124,15 +124,6 @@ class StatisticsService {
 
     async getUserProgress() {
         return this._cached(`userProgress:${this._requireUserId()}`, async () => {
-            const userId = this._requireUserId();
-            let quotes = [];
-            try {
-                const resp = await this.api.getQuotes({ limit: 200 }, userId);
-                quotes = resp?.quotes || resp?.data?.quotes || resp?.items || [];
-            } catch {
-                quotes = this.state?.get('quotes.items') || [];
-            }
-            
             // Get main stats to use backend weeklyQuotes instead of rolling calculation
             const main = await this.getMainStats();
             const weeklyQuotes = main.weeklyQuotes || 0;
@@ -140,6 +131,9 @@ class StatisticsService {
             const now = Date.now();
             const thirtyAgo = now - 30 * 86400_000;
             const authorFreq = new Map();
+            
+            // Get quotes from state since we're computing from cache
+            const quotes = this.state?.get('quotes.items') || [];
             
             for (const q of quotes) {
                 const ts = new Date(q.createdAt || q.dateAdded).getTime();
@@ -151,9 +145,34 @@ class StatisticsService {
             }
             
             const favoriteAuthor = this._top(authorFreq);
+            // Calculate lifetime activity level based on totalQuotes (not just weekly)
+            const totalQuotes = main.totalQuotes || 0;
             let activityLevel = 'low';
-            if (weeklyQuotes >= 15) activityLevel = 'high';
-            else if (weeklyQuotes >= 5) activityLevel = 'medium';
+            let lifetimeLevel = 'начинающий'; // Default for lifetime
+            
+            // Lifetime activity thresholds based on total quotes
+            if (totalQuotes >= 100) {
+                lifetimeLevel = 'эксперт';
+            } else if (totalQuotes >= 50) {
+                lifetimeLevel = 'продвинутый';
+            } else if (totalQuotes >= 20) {
+                lifetimeLevel = 'активный';
+            } else if (totalQuotes >= 10) {
+                lifetimeLevel = 'развивающийся';
+            }
+            
+            // Weekly activity for immediate feedback
+            if (weeklyQuotes >= 15) {
+                activityLevel = 'high';
+            } else if (weeklyQuotes >= 5) {
+                activityLevel = 'medium';
+            }
+            
+            // Override activityLevel with lifetimeLevel for better UX on Monday
+            // Prevents showing "начинающий" for users with 40+ total quotes
+            if (totalQuotes >= 40 && weeklyQuotes === 0) {
+                activityLevel = 'medium'; // Show at least medium for experienced users
+            }
             
             let streak = main.currentStreak || 0;
             const computedStreak = this._computeStreak(quotes);
@@ -166,6 +185,7 @@ class StatisticsService {
                 weeklyQuotes, // Use backend ISO week count
                 favoriteAuthor,
                 activityLevel,
+                lifetimeLevel, // NEW: lifetime activity level based on totalQuotes
                 currentStreak: streak,
                 computedStreak,
                 backendStreak: main.currentStreak,
@@ -208,7 +228,6 @@ class StatisticsService {
      * Получить комплексную статистику для дневника (блоки "добавить" и "мои цитаты")
      */
     async getDiaryStats() {
-        const userId = this._requireUserId();
         const [main, progress, detailed, activityPercent] = await Promise.all([
             this.getMainStats(),
             this.getUserProgress(),
@@ -230,10 +249,9 @@ class StatisticsService {
      */
     async getDetailedQuoteStats() {
         return this._cached(`detailedStats:${this._requireUserId()}`, async () => {
-            const userId = this._requireUserId();
             let quotes = [];
             try {
-                const resp = await this.api.getQuotes({ limit: 500 }, userId);
+                const resp = await this.api.getQuotes({ limit: 500 }, this._requireUserId());
                 quotes = resp?.quotes || resp?.data?.quotes || resp?.items || [];
             } catch {
                 quotes = this.state?.get('quotes.items') || [];
@@ -364,17 +382,24 @@ class StatisticsService {
     }
 
     /**
-     * Get ISO week key for date comparison (fallback implementation)
+     * Get ISO week key for date comparison (prefer DateUtils if available)
      * @param {Date} date 
      * @returns {string} Week key like "2024-W01"
      */
     _getIsoWeekKey(date) {
-        // Simple ISO week calculation (fallback if DateUtils not available)
+        // Use DateUtils for accurate ISO week calculation if available
+        if (typeof window !== 'undefined' && window.DateUtils && window.DateUtils.getIsoWeekKey) {
+            return window.DateUtils.getIsoWeekKey(date);
+        }
+        
+        // Fallback to proper ISO week calculation
         const d = new Date(date);
+        const dayNum = d.getDay() || 7; // Monday = 1, Sunday = 7
+        d.setDate(d.getDate() + 4 - dayNum); // Thursday of the same week
+        
         const yearStart = new Date(d.getFullYear(), 0, 1);
-        const dayOfYear = Math.floor((d - yearStart) / (24 * 60 * 60 * 1000)) + 1;
-        const weekNum = Math.ceil(dayOfYear / 7);
-        return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+        const isoWeek = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return `${d.getFullYear()}-W${String(isoWeek).padStart(2, '0')}`;
     }
     
     /**
@@ -434,10 +459,23 @@ class StatisticsService {
     // -------- event handlers --------
     async onQuoteAdded(detail) {
         try {
-            const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote added, applying baseline + deltas');
             
-            // 1. Increase pendingAdds for instant UI update
+            // Get current ISO week key for comparison
+            const currentWeekKey = this._getIsoWeekKey(new Date());
+            let shouldIncrementWeekly = false;
+            
+            // Check if the added quote is for current week
+            if (detail.quote && detail.quote.createdAt) {
+                const quoteDate = new Date(detail.quote.createdAt);
+                const quoteWeekKey = this._getIsoWeekKey(quoteDate);
+                shouldIncrementWeekly = (quoteWeekKey === currentWeekKey);
+            } else {
+                // If no quote date available, assume it's current week (safe assumption for new quotes)
+                shouldIncrementWeekly = true;
+            }
+            
+            // 1. Increase pendingAdds for instant totalQuotes update
             const stats = this.state.get('stats') || {};
             this.state.update('stats', {
                 pendingAdds: (stats.pendingAdds || 0) + 1
@@ -446,14 +484,30 @@ class StatisticsService {
             // 2. Update totalQuotes instantly using effectiveTotal
             this._updateTotalQuotes();
             
-            // 3. Invalidate cache for fresh API data
+            // 3. OPTIMISTIC WEEKLY UPDATE: Increment weeklyQuotes if quote is for current week
+            if (shouldIncrementWeekly) {
+                const currentWeeklyQuotes = stats.weeklyQuotes || 0;
+                this.state.update('stats', {
+                    weeklyQuotes: currentWeeklyQuotes + 1,
+                    thisWeek: currentWeeklyQuotes + 1 // Mirror for UI compatibility
+                });
+                
+                // Also update diary stats
+                this.state.update('diaryStats', {
+                    weeklyQuotes: currentWeeklyQuotes + 1
+                });
+                
+                console.log('📊 Optimistically incremented weeklyQuotes:', currentWeeklyQuotes + 1);
+            }
+            
+            // 4. Invalidate cache for fresh API data
             this.invalidateAll();
             
-            // 4. Silent sync with API (no loading flags)
+            // 5. Silent sync with API (no loading flags)
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
-            // 5. Refresh activity percent from API
+            // 6. Refresh activity percent from API
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteAdded error:', e);
@@ -462,10 +516,31 @@ class StatisticsService {
 
     async onQuoteDeleted(detail) {
         try {
-            const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote deleted, processing with baseline + deltas');
             
-            const { optimistic, reverted } = detail;
+            const { optimistic, reverted, quote } = detail;
+            
+            // Determine if deleted quote affects current week count
+            let shouldDecrementWeekly = false;
+            if (quote && quote.createdAt) {
+                const currentWeekKey = this._getIsoWeekKey(new Date());
+                const quoteDate = new Date(quote.createdAt);
+                const quoteWeekKey = this._getIsoWeekKey(quoteDate);
+                shouldDecrementWeekly = (quoteWeekKey === currentWeekKey);
+            } else if (!quote) {
+                // If no quote object available, try to look up from state
+                const quoteId = detail.quoteId || detail.id;
+                if (quoteId) {
+                    const quotes = this.state.get('quotes.items') || [];
+                    const foundQuote = quotes.find(q => (q._id || q.id) === quoteId);
+                    if (foundQuote && foundQuote.createdAt) {
+                        const currentWeekKey = this._getIsoWeekKey(new Date());
+                        const quoteDate = new Date(foundQuote.createdAt);
+                        const quoteWeekKey = this._getIsoWeekKey(quoteDate);
+                        shouldDecrementWeekly = (quoteWeekKey === currentWeekKey);
+                    }
+                }
+            }
             
             if (optimistic) {
                 // Optimistic delete: instant -1 by increasing pendingDeletes
@@ -475,6 +550,23 @@ class StatisticsService {
                     pendingDeletes: (stats.pendingDeletes || 0) + 1
                 });
                 this._updateTotalQuotes();
+                
+                // OPTIMISTIC WEEKLY UPDATE: Decrement weeklyQuotes if quote is from current week
+                if (shouldDecrementWeekly) {
+                    const currentWeeklyQuotes = stats.weeklyQuotes || 0;
+                    const newWeeklyQuotes = Math.max(0, currentWeeklyQuotes - 1);
+                    this.state.update('stats', {
+                        weeklyQuotes: newWeeklyQuotes,
+                        thisWeek: newWeeklyQuotes // Mirror for UI compatibility
+                    });
+                    
+                    // Also update diary stats
+                    this.state.update('diaryStats', {
+                        weeklyQuotes: newWeeklyQuotes
+                    });
+                    
+                    console.log('📊 Optimistically decremented weeklyQuotes:', newWeeklyQuotes);
+                }
             } else if (reverted) {
                 // Revert failed delete: decrease pendingDeletes
                 console.log('📊 Reverting delete: decreasing pendingDeletes');
@@ -483,6 +575,22 @@ class StatisticsService {
                     pendingDeletes: Math.max(0, (stats.pendingDeletes || 0) - 1)
                 });
                 this._updateTotalQuotes();
+                
+                // REVERT WEEKLY UPDATE: Increment weeklyQuotes back if it was decremented
+                if (shouldDecrementWeekly) {
+                    const currentWeeklyQuotes = stats.weeklyQuotes || 0;
+                    this.state.update('stats', {
+                        weeklyQuotes: currentWeeklyQuotes + 1,
+                        thisWeek: currentWeeklyQuotes + 1 // Mirror for UI compatibility
+                    });
+                    
+                    // Also update diary stats
+                    this.state.update('diaryStats', {
+                        weeklyQuotes: currentWeeklyQuotes + 1
+                    });
+                    
+                    console.log('📊 Reverted weeklyQuotes increment:', currentWeeklyQuotes + 1);
+                }
             } else {
                 // Regular delete confirmation (after successful API call)
                 // No delta changes needed, will be handled in next refresh
@@ -503,9 +611,8 @@ class StatisticsService {
         }
     }
 
-    async onQuoteEdited(detail) {
+    async onQuoteEdited(_detail) {
         try {
-            const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote edited, no totalQuotes change needed');
             
             // Quote editing doesn't affect totalQuotes, only other stats like favoriteAuthor
@@ -607,6 +714,7 @@ class StatisticsService {
                 thisWeek: main.weeklyQuotes || 0, // Mirror for UI compatibility
                 favoriteAuthor: progress.favoriteAuthor || '—',
                 activityLevel: progress.activityLevel || 'low',
+                lifetimeLevel: progress.lifetimeLevel || 'начинающий', // NEW: lifetime activity level
                 daysInApp: main.daysInApp || 0,
                 loadedAt: Date.now(),
                 isFresh: true,

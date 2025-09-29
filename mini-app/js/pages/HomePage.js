@@ -187,10 +187,9 @@ class HomePage {
             console.log('📊 HomePage: Используем userId:', userId);
             
             // PRODUCTION REFACTOR: Используем только StatisticsService для статистики
-            let stats = null;
             if (this.statistics) {
                 await this.statistics.warmupInitialStats();
-                stats = this.state.get('stats'); // Получаем из state после warmup
+                // Stats будут доступны через state после warmup
             }
             
             // Параллельная загрузка данных (без прямых API вызовов статистики)
@@ -339,14 +338,37 @@ class HomePage {
             if (isLoading) {
                 activityNode.innerHTML = '<div class="skeleton-line" style="width: 60%; height: 16px; margin: 0 auto;"></div>';
             } else {
-                // Always get activityPercent from API data
-                const activityPercent = stats.activityPercent ?? 1;
+                // Get activity data for display
                 const activityLevel = stats.activityLevel || 'low';
+                const lifetimeLevel = stats.lifetimeLevel || 'начинающий'; // NEW: use lifetime level
                 let emoji = '🔍';
-                if (activityLevel === 'high') emoji = '🔥';
-                else if (activityLevel === 'medium') emoji = '💪';
                 
-                const newText = `Активность: ${activityLevel === 'high' ? 'Высокая' : activityLevel === 'medium' ? 'Средняя' : 'Начинающий'} ${emoji}`;
+                // Use lifetimeLevel for better UX (prevents "начинающий" for experienced users on Monday)
+                let displayLevel = lifetimeLevel;
+                if (activityLevel === 'high') {
+                    displayLevel = 'Высокая';
+                    emoji = '🔥';
+                } else if (activityLevel === 'medium') {
+                    displayLevel = 'Средняя';
+                    emoji = '💪';
+                } else if (lifetimeLevel === 'эксперт') {
+                    displayLevel = 'Эксперт';
+                    emoji = '🏆';
+                } else if (lifetimeLevel === 'продвинутый') {
+                    displayLevel = 'Продвинутый';
+                    emoji = '⭐';
+                } else if (lifetimeLevel === 'активный') {
+                    displayLevel = 'Активный';
+                    emoji = '💪';
+                } else if (lifetimeLevel === 'развивающийся') {
+                    displayLevel = 'Развивающийся';
+                    emoji = '🌱';
+                } else {
+                    displayLevel = 'Начинающий';
+                    emoji = '🔍';
+                }
+
+                const newText = `Активность: ${displayLevel} ${emoji}`;
                 if (activityNode.textContent !== newText) {
                     activityNode.textContent = newText;
                     activityNode.classList.add('fade-in');

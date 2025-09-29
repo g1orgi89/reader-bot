@@ -100,6 +100,7 @@ class CommunityPage {
     
     init() {
         this.setupSubscriptions();
+        this.setupRealTimeListeners(); // NEW: Listen for real-time updates
         // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init()
     }
 
@@ -142,6 +143,103 @@ class CommunityPage {
 
     // Вспомогательный безопасный запуск
     async _safe(fn) { try { await fn(); } catch { /* ignore errors */ } }
+    
+    /**
+     * Setup real-time listeners for community block updates
+     */
+    setupRealTimeListeners() {
+        // Listen for new quotes/favorites to refresh community blocks
+        document.addEventListener('quotes:changed', (e) => {
+            const detail = e.detail || {};
+            console.log('👥 CommunityPage: Received quotes:changed event', detail);
+            
+            if (detail.type === 'added' || detail.type === 'deleted') {
+                // Refresh community blocks after quote changes
+                this.refreshCommunityBlocks();
+            } else if (detail.type === 'edited' && detail.updates?.isFavorite !== undefined) {
+                // Refresh blocks when favorites change
+                this.refreshCommunityBlocks();
+            }
+        });
+        
+        // Listen for statistics updates that might affect leaderboard
+        document.addEventListener('stats:updated', () => {
+            console.log('👥 CommunityPage: Received stats:updated, refreshing leaderboard');
+            this.refreshLeaderboard();
+        });
+    }
+    
+    /**
+     * Refresh community blocks in the background (no loading indicators)
+     */
+    async refreshCommunityBlocks() {
+        try {
+            console.log('🔄 CommunityPage: Refreshing community blocks in background');
+            
+            // Refresh popular quotes, favorites, and spotlight in parallel
+            await Promise.allSettled([
+                this._refreshPopularQuotes(),
+                this._refreshPopularFavorites(),
+                this._refreshSpotlight(),
+                this._refreshCommunityStats()
+            ]);
+            
+            // Re-render the current tab if we're visible
+            if (document.contains(document.getElementById('page-content'))) {
+                this.rerender();
+            }
+        } catch (error) {
+            console.debug('Community blocks refresh error:', error);
+        }
+    }
+    
+    /**
+     * Refresh leaderboard data
+     */
+    async refreshLeaderboard() {
+        try {
+            const r = await this.api.getLeaderboard({ scope: 'week', limit: 10 });
+            if (r?.success) {
+                this.leaderboard = r.data || [];
+                this.userProgress = r.me || null;
+                this.loaded.leaderboard = true;
+                
+                // Re-render if we're visible and on the stats tab
+                if (this.activeTab === 'stats' && document.contains(document.getElementById('page-content'))) {
+                    this.rerender();
+                }
+            }
+        } catch (error) {
+            console.debug('Leaderboard refresh error:', error);
+        }
+    }
+    
+    /**
+     * Background refresh methods (no loading states)
+     */
+    async _refreshPopularQuotes() {
+        const r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 });
+        if (r?.success) {
+            this.popularQuotes = r.data || [];
+        }
+    }
+    
+    async _refreshPopularFavorites() {
+        await this.loadPopularFavorites('week', 10);
+    }
+    
+    async _refreshSpotlight() {
+        // Clear spotlight cache to force refresh
+        this._spotlightCache.ts = 0;
+        await this.getSpotlightItems();
+    }
+    
+    async _refreshCommunityStats() {
+        const r = await this.api.getCommunityStats({ scope: 'week' });
+        if (r?.success) {
+            this.communityData = { ...this.communityData, ...r.data };
+        }
+    }
     
     /**
      * Склонение слова "цитата" для корректного отображения
