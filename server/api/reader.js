@@ -152,6 +152,49 @@ function toQuoteDTO(q, { summary = '', user = null } = {}) {
 }
 
 /**
+ * Local helper to normalize user settings with safe defaults
+ * @param {Object|null} user - User profile object 
+ * @returns {Object} Normalized settings object
+ */
+function normalizeSettings(user) {
+  if (!user) {
+    // Default settings for non-existent users
+    return {
+      reminders: { enabled: true, frequency: 'often', lastSentAt: null },
+      achievements: { enabled: true },
+      weeklyReports: { enabled: true },
+      announcements: { enabled: true },
+      language: 'ru'
+    };
+  }
+
+  // Use the model method if available, otherwise provide fallback
+  if (typeof user.getNormalizedSettings === 'function') {
+    return user.getNormalizedSettings();
+  }
+
+  // Fallback normalization logic
+  const settings = user.settings || {};
+  return {
+    reminders: {
+      enabled: settings.reminders?.enabled ?? settings.reminderEnabled ?? true,
+      frequency: settings.reminders?.frequency ?? 'often',
+      lastSentAt: settings.reminders?.lastSentAt ?? null
+    },
+    achievements: {
+      enabled: settings.achievements?.enabled ?? true
+    },
+    weeklyReports: {
+      enabled: settings.weeklyReports?.enabled ?? true
+    },
+    announcements: {
+      enabled: settings.announcements?.enabled ?? true
+    },
+    language: settings.language ?? 'ru'
+  };
+}
+
+/**
  * @description Health check endpoint
  * @route GET /api/reader/health
  */
@@ -918,7 +961,7 @@ router.post('/quotes', telegramAuth, async (req, res) => {
       // Send achievement notifications if enabled
       if (result.newAchievements && result.newAchievements.length > 0) {
         const user = await UserProfile.findOne({ userId });
-        const settings = user ? user.getNormalizedSettings() : null;
+        const settings = normalizeSettings(user);
         
         if (settings && settings.achievements.enabled && global.simpleTelegramBot) {
           try {
@@ -2850,7 +2893,7 @@ router.post('/notify', async (req, res) => {
 
 const weekContextRoutes = require('./weekContext');
 router.use('/week-context', weekContextRoutes);
-=======
+
 // ===========================================
 // ⚙️ НАСТРОЙКИ УВЕДОМЛЕНИЙ
 // ===========================================
@@ -2871,7 +2914,7 @@ router.get('/settings', telegramAuth, async (req, res) => {
       });
     }
 
-    const normalizedSettings = user.getNormalizedSettings();
+    const normalizedSettings = normalizeSettings(user);
 
     res.json({
       success: true,
@@ -2965,7 +3008,7 @@ router.patch('/settings', telegramAuth, async (req, res) => {
     await user.save();
 
     // Return normalized settings
-    const normalizedSettings = user.getNormalizedSettings();
+    const normalizedSettings = normalizeSettings(user);
 
     res.json({
       success: true,
