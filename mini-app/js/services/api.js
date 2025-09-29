@@ -557,7 +557,11 @@ class ApiService {
                 // New scoped fields
                 scope: result?.stats?.scope || scope,
                 quotes: result?.stats?.quotes || 0, // Scoped quote count
-                weekMeta: result?.stats?.weekMeta || null // Week metadata if requested
+                weekMeta: result?.stats?.weekMeta || null, // Week metadata if requested
+                // Surface scope-specific aliases
+                weeklyQuotes: result?.stats?.weeklyQuotes || (scope === 'week' ? result?.stats?.quotes : undefined),
+                globalQuotes: result?.stats?.globalQuotes || (scope === 'global' ? result?.stats?.quotes : undefined),
+                monthScopedQuotes: result?.stats?.monthScopedQuotes || (scope === 'month' ? result?.stats?.quotes : undefined)
             };
             
             return { ...result, stats: safeStats };
@@ -993,18 +997,27 @@ class ApiService {
     /**
      * 📊 Получить статистику сообщества
      * НОВЫЙ: Добавлен недостающий метод для CommunityPage
+     * @param {{scope?: 'week'}} options
      */
-    async getCommunityStats() {
-        return this.request('GET', '/community/stats');
+    async getCommunityStats(options = {}) {
+        const params = new URLSearchParams();
+        if (options.scope) params.append('scope', options.scope);
+        const qs = params.toString();
+        return this.request('GET', qs ? `/community/stats?${qs}` : '/community/stats');
     }
 
     /**
      * 🏆 Лидерборд за период
-     * @param {{period?: '7d'|'30d', limit?: number}} options
+     * @param {{period?: '7d'|'30d', scope?: 'week'|'month', limit?: number}} options
      */
     async getLeaderboard(options = {}) {
         const params = new URLSearchParams();
-        if (options.period) params.append('period', options.period);
+        // Prefer scope over period if provided
+        if (options.scope) {
+            params.append('scope', options.scope);
+        } else if (options.period) {
+            params.append('period', options.period);
+        }
         if (options.limit) params.append('limit', options.limit);
         const qs = params.toString();
         return this.request('GET', qs ? `/community/leaderboard?${qs}` : '/community/leaderboard');
@@ -1057,11 +1070,17 @@ class ApiService {
     /**
      * 🔥 Получить популярные цитаты сообщества (обновленная версия)
      * НОВЫЙ: Переименованный метод для более точного соответствия требованиям PR-3
+     * @param {{period?: '7d'|'30d', scope?: 'week'|'month', limit?: number}} options
      */
     async getCommunityPopularQuotes(options = {}) {
         const params = new URLSearchParams();
         if (options.limit) params.append('limit', options.limit);
-        if (options.period) params.append('period', options.period);
+        // Prefer scope over period if provided
+        if (options.scope) {
+            params.append('scope', options.scope);
+        } else if (options.period) {
+            params.append('period', options.period);
+        }
 
         const queryString = params.toString();
         const endpoint = queryString ? `/community/popular?${queryString}` : '/community/popular';
@@ -1087,11 +1106,17 @@ class ApiService {
     /**
      * ❤️ Получить популярные лайкнутые цитаты за период
      * НОВЫЙ: Для отображения топа цитат недели по лайкам
+     * @param {{period?: '7d'|'30d', scope?: 'week'|'month', limit?: number}} options
      */
     async getCommunityPopularFavorites(options = {}) {
         const params = new URLSearchParams();
         if (options.limit) params.append('limit', options.limit);
-        if (options.period) params.append('period', options.period);
+        // Prefer scope over period if provided
+        if (options.scope) {
+            params.append('scope', options.scope);
+        } else if (options.period) {
+            params.append('period', options.period);
+        }
         const qs = params.toString();
         
         const endpoint = qs ? `/community/popular-favorites?${qs}` : '/community/popular-favorites';
@@ -1145,10 +1170,16 @@ class ApiService {
     /**
      * 📊 Получить инсайты сообщества за период
      * НОВЫЙ: API для инсайтов: GET /api/reader/community/insights
+     * @param {{period?: '7d'|'30d', scope?: 'week'|'month'}} options
      */
     async getCommunityInsights(options = {}) {
         const params = new URLSearchParams();
-        if (options.period) params.append('period', options.period);
+        // Prefer scope over period if provided
+        if (options.scope) {
+            params.append('scope', options.scope);
+        } else if (options.period) {
+            params.append('period', options.period);
+        }
         const qs = params.toString();
         
         const endpoint = qs ? `/community/insights?${qs}` : '/community/insights';
@@ -1158,10 +1189,16 @@ class ApiService {
     /**
      * 🎉 Получить интересный факт недели
      * НОВЫЙ: API для факта недели: GET /api/reader/community/fun-fact
+     * @param {{period?: '7d'|'30d', scope?: 'week'|'month'}} options
      */
     async getCommunityFunFact(options = {}) {
         const params = new URLSearchParams();
-        if (options.period) params.append('period', options.period);
+        // Prefer scope over period if provided
+        if (options.scope) {
+            params.append('scope', options.scope);
+        } else if (options.period) {
+            params.append('period', options.period);
+        }
         const qs = params.toString();
         
         const endpoint = qs ? `/community/fun-fact?${qs}` : '/community/fun-fact';
