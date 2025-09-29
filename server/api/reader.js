@@ -60,6 +60,7 @@ const QuoteHandler = require('../services/quoteHandler');
 
 // Импорт утилит
 const { fetchTelegramAvatar, hasAvatar, updateUserAvatar } = require('../utils/telegramAvatarFetcher');
+const { getAllCategories } = require('../utils/normalizeCategory');
 
 // Импорт middleware
 const { communityLimiter } = require('../middleware/rateLimiting');
@@ -3736,6 +3737,33 @@ router.patch('/settings', telegramAuth, async (req, res) => {
 
   } catch (error) {
     console.error('❌ Update Settings Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// ===========================================
+// 📂 CATEGORIES API
+// ===========================================
+
+/**
+ * @description Get all canonical categories
+ * @route GET /api/reader/categories
+ */
+router.get('/categories', async (req, res) => {
+  try {
+    const categories = getAllCategories();
+    
+    res.json({
+      success: true,
+      data: categories
+    });
+
+  } catch (error) {
+    console.error('❌ Get Categories Error:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',

@@ -1683,7 +1683,14 @@ class CommunityPage {
         if (exploreBtn) {
             exploreBtn.addEventListener('click', () => {
                 this.triggerHapticFeedback('medium');
-                const link = this.communityTrend?.link || '/catalog';
+                // Defensive code: ensure link is valid, fallback to /catalog if slug missing
+                let link = '/catalog'; // Default fallback
+                if (this.communityTrend?.link) {
+                    link = this.communityTrend.link;
+                } else if (this.communityTrend?.category?.slug) {
+                    // Build link from category slug if available
+                    link = `/catalog?category=${this.communityTrend.category.slug}`;
+                }
                 this.app.router.navigate(link);
             });
         }
