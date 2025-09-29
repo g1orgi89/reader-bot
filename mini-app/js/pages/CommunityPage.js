@@ -471,14 +471,24 @@ class CommunityPage {
     
     /**
      * 🏆 ЗАГРУЗКА ЛИДЕРБОРДА ЗА ПЕРИОД (НОВОЕ)
+     * @param {number} limit - number of users to load
+     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
      */
-    async loadLeaderboard(limit = 10, period = '7d') {
+    async loadLeaderboard(limit = 10, period = 'week') {
         if (this.loadingStates.leaderboard) return;
         try {
             this.loadingStates.leaderboard = true;
             this.errorStates.leaderboard = null;
             console.log('🏆 CommunityPage: Загружаем лидерборд за', period);
-            const resp = await this.api.getLeaderboard({ period, limit });
+            
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week', limit };
+            } else {
+                options = { period, limit };
+            }
+            
+            const resp = await this.api.getLeaderboard(options);
             if (resp && resp.success) {
                 this.leaderboard = resp.data || [];
                 this.userProgress = resp.me || null;
@@ -500,8 +510,9 @@ class CommunityPage {
 
     /**
      * 📊 ЗАГРУЗКА ИНСАЙТОВ СООБЩЕСТВА
+     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
      */
-    async loadCommunityInsights(period = '7d') {
+    async loadCommunityInsights(period = 'week') {
         if (this.loadingStates.communityInsights) return;
         
         try {
@@ -509,7 +520,14 @@ class CommunityPage {
             this.errorStates.communityInsights = null;
             console.log('📊 CommunityPage: Загружаем инсайты сообщества за', period);
             
-            const response = await this.api.getCommunityInsights({ period });
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week' };
+            } else {
+                options = { period };
+            }
+            
+            const response = await this.api.getCommunityInsights(options);
             if (response && response.success) {
                 this.communityInsights = response.insights;
                 console.log('✅ CommunityPage: Инсайты загружены:', this.communityInsights);
@@ -528,8 +546,9 @@ class CommunityPage {
 
     /**
      * 🎉 ЗАГРУЗКА ИНТЕРЕСНОГО ФАКТА НЕДЕЛИ
+     * @param {string} period - 'week' for scope=week, or '7d'/'30d' for period
      */
-    async loadFunFact(period = '7d') {
+    async loadFunFact(period = 'week') {
         if (this.loadingStates.funFact) return;
         
         try {
@@ -537,7 +556,14 @@ class CommunityPage {
             this.errorStates.funFact = null;
             console.log('🎉 CommunityPage: Загружаем интересный факт за', period);
             
-            const response = await this.api.getCommunityFunFact({ period });
+            let options;
+            if (period === 'week') {
+                options = { scope: 'week' };
+            } else {
+                options = { period };
+            }
+            
+            const response = await this.api.getCommunityFunFact(options);
             if (response && response.success) {
                 this.funFact = response.data;
                 console.log('✅ CommunityPage: Интересный факт загружен:', this.funFact);
@@ -1969,7 +1995,7 @@ class CommunityPage {
             Promise.allSettled([
                 this._safe(async () => { 
                     if (!this.loaded.leaderboard) { 
-                        const r = await this.api.getLeaderboard({ period: '7d', limit: 10 }); 
+                        const r = await this.api.getLeaderboard({ scope: 'week', limit: 10 }); 
                         if (r?.success) { 
                             this.leaderboard = r.data || []; 
                             this.userProgress = r.me || null; 
@@ -1979,8 +2005,8 @@ class CommunityPage {
                 }),
                 this._safe(async () => { 
                     if (!this.loaded.popularQuotes) { 
-                        let r = await this.api.getCommunityPopularFavorites({ period: '7d', limit: 10 }).catch(() => null); 
-                        if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ period: '7d', limit: 10 }).catch(() => null); 
+                        let r = await this.api.getCommunityPopularFavorites({ scope: 'week', limit: 10 }).catch(() => null); 
+                        if (!(r && r.success)) r = await this.api.getCommunityPopularQuotes({ scope: 'week', limit: 10 }).catch(() => null); 
                         if (r?.success) { 
                             const arr = r.data || r.quotes || []; 
                             this.popularQuotes = arr.map(q => ({ 
@@ -2011,9 +2037,9 @@ class CommunityPage {
             ]).then(() => this.rerender());
         } else if (tabName === 'stats') {
             Promise.allSettled([
-                this._safe(async () => { if (!this.loaded.stats) { const r = await this.api.getCommunityStats(); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } } }),
-                this._safe(async () => { if (!this.loaded.insights && this.api.getCommunityInsights) { const r = await this.api.getCommunityInsights({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } } }),
-                this._safe(async () => { if (!this.loaded.funFact && this.api.getCommunityFunFact) { const r = await this.api.getCommunityFunFact({ period: '7d' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } } })
+                this._safe(async () => { if (!this.loaded.stats) { const r = await this.api.getCommunityStats({ scope: 'week' }); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } } }),
+                this._safe(async () => { if (!this.loaded.insights && this.api.getCommunityInsights) { const r = await this.api.getCommunityInsights({ scope: 'week' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } } }),
+                this._safe(async () => { if (!this.loaded.funFact && this.api.getCommunityFunFact) { const r = await this.api.getCommunityFunFact({ scope: 'week' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } } })
             ]).then(() => this.rerender());
         }
     }
@@ -2043,9 +2069,9 @@ class CommunityPage {
             console.log('🔄 CommunityPage: Данные устарели - запускаем фоновое обновление');
             // В фоне обновляем ключевые секции, но НЕ трогаем разметку до завершения, затем один общий rerender
             Promise.allSettled([
-                this._safe(async () => { const r = await this.api.getCommunityStats(); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; } }),
+                this._safe(async () => { const r = await this.api.getCommunityStats({ scope: 'week' }); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; } }),
                 this._safe(async () => { const r = await this.api.getCommunityTrend(); if (r?.success) { this.communityTrend = r.data; } }),
-                this._safe(async () => { const r = await this.api.getCommunityInsights?.({ period: '7d' }); if (r?.success) { this.communityInsights = r.insights; } })
+                this._safe(async () => { const r = await this.api.getCommunityInsights?.({ scope: 'week' }); if (r?.success) { this.communityInsights = r.insights; } })
             ]).then(() => {
                 console.log('✅ CommunityPage: Фоновое обновление завершено');
                 this.rerender();
