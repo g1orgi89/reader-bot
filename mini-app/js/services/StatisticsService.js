@@ -619,7 +619,7 @@ class StatisticsService {
                 streakToYesterday: progress.streakToYesterday || 0,
                 isAwaitingToday: progress.isAwaitingToday || false,
                 // Protect optimistic weeklyQuotes from server rollback
-                weeklyQuotes: weeklyQuotes: main.weeklyQuotes || 0,
+                weeklyQuotes: main.weeklyQuotes || 0,
                 thisWeek: main.weeklyQuotes || 0, // Mirror for UI compatibility
                 favoriteAuthor: progress.favoriteAuthor || '—',
                 activityLevel: progress.activityLevel || 'low',
