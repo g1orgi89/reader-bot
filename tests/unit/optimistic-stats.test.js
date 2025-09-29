@@ -61,18 +61,35 @@ describe('Optimistic Statistics Updates', () => {
     });
 
     describe('Optimistic calculation helpers', () => {
-        test('should calculate weekly quotes correctly', () => {
-            const now = Date.now();
+        test('should calculate weekly quotes correctly using ISO weeks', () => {
+            // Create quotes within current ISO week and outside
+            const now = new Date();
+            
+            // Get Monday of current ISO week
+            const dayOfWeek = now.getDay() || 7; // Sunday = 7
+            const mondayOffset = dayOfWeek === 7 ? 1 : (1 - dayOfWeek);
+            const monday = new Date(now);
+            monday.setDate(now.getDate() + mondayOffset);
+            monday.setHours(12, 0, 0, 0); // Noon on Monday
+            
+            const tuesday = new Date(monday);
+            tuesday.setDate(monday.getDate() + 1);
+            tuesday.setHours(12, 0, 0, 0); // Noon on Tuesday
+            
+            const lastWeek = new Date(monday);
+            lastWeek.setDate(monday.getDate() - 7); // One week before
+            lastWeek.setHours(12, 0, 0, 0);
+            
             const testQuotes = [
-                { id: 1, text: 'Quote 1', author: 'Author A', createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000) }, // 2 days ago
-                { id: 2, text: 'Quote 2', author: 'Author A', createdAt: new Date(now - 5 * 24 * 60 * 60 * 1000) }, // 5 days ago
-                { id: 3, text: 'Quote 3', author: 'Author B', createdAt: new Date(now - 10 * 24 * 60 * 60 * 1000) }, // 10 days ago
+                { id: 1, text: 'Quote 1', author: 'Author A', createdAt: monday }, // This week
+                { id: 2, text: 'Quote 2', author: 'Author A', createdAt: tuesday }, // This week
+                { id: 3, text: 'Quote 3', author: 'Author B', createdAt: lastWeek }, // Last week
             ];
 
             const result = statsService._calculateOptimisticStats(testQuotes);
 
             expect(result.totalQuotes).toBe(3);
-            expect(result.weeklyQuotes).toBe(2); // Only quotes from last 7 days
+            expect(result.weeklyQuotes).toBe(2); // Only quotes from current ISO week
             expect(result.favoriteAuthor).toBe('Author A'); // 2 quotes vs 1
         });
 

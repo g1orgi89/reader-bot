@@ -185,16 +185,32 @@ class DiaryPage {
             if (this.currentFilter === 'favorites') {
                 params.favorites = true;
             } else if (this.currentFilter === 'this-week') {
-                // Use ISO week filtering only - no fallback
+                // Use ISO week filtering with fallback to dateFrom/dateTo
                 if (window.DateUtils && window.DateUtils.getISOWeekInfo) {
                     const weekInfo = window.DateUtils.getISOWeekInfo();
                     params.weekNumber = weekInfo.isoWeek;
                     params.year = weekInfo.isoYear;
                 } else {
-                    console.error('DateUtils not available for ISO week filtering');
-                    // Leave params empty - let server handle current week calculation
-                    params.weekNumber = null; // Server will use current week
-                    params.year = null;
+                    // Fallback: Calculate ISO Monday to Sunday range for current week
+                    const now = new Date();
+                    const dayOfWeek = now.getDay() || 7; // Sunday = 7
+                    const mondayOffset = dayOfWeek === 7 ? 1 : (1 - dayOfWeek);
+                    
+                    const monday = new Date(now);
+                    monday.setDate(now.getDate() + mondayOffset);
+                    monday.setHours(0, 0, 0, 0);
+                    
+                    const sunday = new Date(monday);
+                    sunday.setDate(monday.getDate() + 6);
+                    sunday.setHours(23, 59, 59, 999);
+                    
+                    params.dateFrom = monday.toISOString();
+                    params.dateTo = sunday.toISOString();
+                    
+                    console.log('DEBUG: Using ISO week fallback dateFrom/dateTo', {
+                        dateFrom: params.dateFrom,
+                        dateTo: params.dateTo
+                    });
                 }
             } else if (this.currentFilter === 'this-month') {
                 // Use ISO month filtering instead of rolling date range

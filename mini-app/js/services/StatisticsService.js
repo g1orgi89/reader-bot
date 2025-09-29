@@ -364,17 +364,23 @@ class StatisticsService {
     }
 
     /**
-     * Get ISO week key for date comparison (fallback implementation)
+     * Get ISO week key for date comparison (proper ISO 8601 implementation)
      * @param {Date} date 
      * @returns {string} Week key like "2024-W01"
      */
     _getIsoWeekKey(date) {
-        // Simple ISO week calculation (fallback if DateUtils not available)
-        const d = new Date(date);
-        const yearStart = new Date(d.getFullYear(), 0, 1);
-        const dayOfYear = Math.floor((d - yearStart) / (24 * 60 * 60 * 1000)) + 1;
-        const weekNum = Math.ceil(dayOfYear / 7);
-        return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+        // Proper ISO 8601 week calculation with Thursday as anchor
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        
+        // ISO week starts on Monday, Thursday is always in the same week
+        const dayNum = d.getUTCDay() || 7; // Monday = 1, Sunday = 7
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum); // Move to Thursday of the same week
+        
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        const isoYear = d.getUTCFullYear();
+        
+        return `${isoYear}-W${String(weekNum).padStart(2, '0')}`;
     }
     
     /**
@@ -446,14 +452,17 @@ class StatisticsService {
             // 2. Update totalQuotes instantly using effectiveTotal
             this._updateTotalQuotes();
             
-            // 3. Invalidate cache for fresh API data
+            // 3. UPDATE OPTIMISTIC STATS (weeklyQuotes, streak, etc.) BEFORE invalidation
+            this._updateOptimisticStats();
+            
+            // 4. Invalidate cache for fresh API data
             this.invalidateAll();
             
-            // 4. Silent sync with API (no loading flags)
+            // 5. Silent sync with API (no loading flags)
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
             
-            // 5. Refresh activity percent from API
+            // 6. Refresh activity percent from API
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteAdded error:', e);
