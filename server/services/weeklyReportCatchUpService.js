@@ -141,20 +141,36 @@ class WeeklyReportCatchUpService {
             continue;
           }
           
-          // Generate the weekly report
-          const weekRange = getISOWeekRange(isoWeek, isoYear);
-          await this.weeklyReportService.generateWeeklyReport(
+          // Get user profile for report generation
+          const { UserProfile } = require('../models');
+          const userProfile = await UserProfile.findOne({ 
+            userId,
+            isOnboardingComplete: true,
+            isActive: true,
+            isBlocked: false
+          });
+
+          if (!userProfile) {
+            this.logger.debug(`Skipping user ${userId}: inactive or incomplete onboarding`);
+            continue;
+          }
+          
+          // Generate the weekly report with explicit week metadata
+          const weekMeta = { isoWeek, isoYear };
+          const reportData = await this.weeklyReportService.generateWeeklyReport(
             userId, 
-            weekRange.start, 
-            weekRange.end,
-            {
-              isoWeekNumber: isoWeek,
-              isoYear: isoYear
-            }
+            quotes, 
+            userProfile,
+            weekMeta
           );
           
+          // Save to database
+          const { WeeklyReport } = require('../models');
+          const weeklyReport = new WeeklyReport(reportData);
+          await weeklyReport.save();
+          
           generatedCount++;
-          this.logger.info(`Generated catch-up report for user ${userId}, week ${isoWeek}/${isoYear}`);
+          this.logger.info(`Catch-up: created report for user ${userId}, week ${isoWeek}/${isoYear}`);
           
         } catch (userError) {
           this.logger.error(`Error generating report for user ${userId}, week ${isoWeek}/${isoYear}:`, userError);

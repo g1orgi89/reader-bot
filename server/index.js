@@ -632,6 +632,23 @@ async function startServer() {
     await dbService.connect();
     logger.info('✅ MongoDB connected successfully');
     
+    // 🔧 Run weekly report catch-up after database connection
+    logger.info('🔄 Running weekly report catch-up service...');
+    try {
+      const WeeklyReportCatchUpService = require('./services/weeklyReportCatchUpService');
+      const catchUpService = new WeeklyReportCatchUpService();
+      const catchUpResult = await catchUpService.run();
+      
+      if (catchUpResult.totalGenerated > 0) {
+        logger.info(`✅ Catch-up completed: ${catchUpResult.totalGenerated} reports generated across ${catchUpResult.weeksProcessed} weeks`);
+      } else {
+        logger.info('✅ Catch-up completed: no missing reports found');
+      }
+    } catch (catchUpError) {
+      logger.error('❌ Error in catch-up service during startup:', catchUpError.message);
+      // Don't fail server startup if catch-up fails
+    }
+    
     logger.info('🍄 Initializing PromptService...');
     try {
       await promptService.initialize();

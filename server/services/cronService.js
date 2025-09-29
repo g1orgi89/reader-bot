@@ -212,7 +212,7 @@ class CronService {
     
     // Get previous week range
     const weekRange = this.weeklyReportService.getPreviousWeekRange();
-    const { isoWeekNumber: weekNumber, isoYear: year } = weekRange;
+    const { isoWeek: weekNumber, isoYear: year } = weekRange;
     
     logger.info(`📖 Generating reports for week ${weekNumber}/${year} (${weekRange.start.toISOString().split('T')[0]} to ${weekRange.end.toISOString().split('T')[0]})`);
 
@@ -275,8 +275,9 @@ class CronService {
             continue;
           }
 
-          // Generate the report using WeeklyReportService
-          const reportData = await this.weeklyReportService.generateWeeklyReport(userId, quotes, userProfile);
+          // Generate the report using WeeklyReportService with explicit week metadata
+          const weekMeta = { isoWeek: weekNumber, isoYear: year };
+          const reportData = await this.weeklyReportService.generateWeeklyReport(userId, quotes, userProfile, weekMeta);
 
           if (Array.isArray(reportData.recommendations)) {
             reportData.recommendations = reportData.recommendations.map(rec => ({
@@ -453,14 +454,14 @@ class CronService {
       const weekRange = this.weeklyReportService.getPreviousWeekRange();
       
       const reportsCount = await WeeklyReport.countDocuments({
-        weekNumber: weekRange.isoWeekNumber,
+        weekNumber: weekRange.isoWeek,
         year: weekRange.isoYear
       });
       
       return { 
         message: 'Weekly reports triggered using WeeklyReportService', 
         generated: reportsCount,
-        week: `${weekRange.isoWeekNumber}/${weekRange.isoYear}`
+        week: `${weekRange.isoWeek}/${weekRange.isoYear}`
       };
     } else if (this.weeklyReportHandler && this.weeklyReportHandler.getReportStats) {
       // LEGACY: Use old handler stats
