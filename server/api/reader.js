@@ -908,12 +908,33 @@ router.post('/quotes', telegramAuth, async (req, res) => {
         annaSummary = '';
       }
 
-      return res.json({
+      const responseData = {
         success: true,
         quote: toQuoteDTO(result.quote, { summary: annaSummary }),
         newAchievements: result.newAchievements || [],
         todayCount: result.todayCount
-      });
+      };
+
+      // Send achievement notifications if enabled
+      if (result.newAchievements && result.newAchievements.length > 0) {
+        const user = await UserProfile.findOne({ userId });
+        const settings = user ? user.getNormalizedSettings() : null;
+        
+        if (settings && settings.achievements.enabled && global.simpleTelegramBot) {
+          try {
+            for (const achievement of result.newAchievements) {
+              const message = `🎉 Новое достижение: ${achievement.title || achievement.id || achievement.achievementId}`;
+              await global.simpleTelegramBot.telegram.sendMessage(userId, message);
+              console.log(`🎉 Achievement notification sent to user ${userId}: ${achievement.title || achievement.id}`);
+            }
+          } catch (notificationError) {
+            console.error('❌ Failed to send achievement notifications:', notificationError);
+            // Don't fail the main request if notification fails
+          }
+        }
+      }
+
+      return res.json(responseData);
 
     } catch (error) {
       // Ошибка внутри вложенного try
@@ -2827,8 +2848,139 @@ router.post('/notify', async (req, res) => {
   }
 });
 
-// Week Context API - import and mount the dedicated route
 const weekContextRoutes = require('./weekContext');
 router.use('/week-context', weekContextRoutes);
+=======
+// ===========================================
+// ⚙️ НАСТРОЙКИ УВЕДОМЛЕНИЙ
+// ===========================================
+
+/**
+ * @description Получение настроек пользователя
+ * @route GET /api/reader/settings
+ */
+router.get('/settings', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const user = await UserProfile.findOne({ userId });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const normalizedSettings = user.getNormalizedSettings();
+
+    res.json({
+      success: true,
+      settings: normalizedSettings
+    });
+
+  } catch (error) {
+    console.error('❌ Get Settings Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @description Обновление настроек пользователя
+ * @route PATCH /api/reader/settings
+ */
+router.patch('/settings', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { settings } = req.body;
+
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Settings object is required'
+      });
+    }
+
+    const user = await UserProfile.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Validate and merge settings
+    const currentSettings = user.settings || {};
+    const updatedSettings = { ...currentSettings };
+
+    // Update reminders settings
+    if (settings.reminders) {
+      if (!updatedSettings.reminders) {
+        updatedSettings.reminders = {};
+      }
+      
+      if (typeof settings.reminders.enabled === 'boolean') {
+        updatedSettings.reminders.enabled = settings.reminders.enabled;
+      }
+      
+      if (settings.reminders.frequency && ['often', 'standard', 'rare', 'off'].includes(settings.reminders.frequency)) {
+        updatedSettings.reminders.frequency = settings.reminders.frequency;
+      }
+    }
+
+    // Update achievement settings
+    if (settings.achievements && typeof settings.achievements.enabled === 'boolean') {
+      if (!updatedSettings.achievements) {
+        updatedSettings.achievements = {};
+      }
+      updatedSettings.achievements.enabled = settings.achievements.enabled;
+    }
+
+    // Update weekly reports settings
+    if (settings.weeklyReports && typeof settings.weeklyReports.enabled === 'boolean') {
+      if (!updatedSettings.weeklyReports) {
+        updatedSettings.weeklyReports = {};
+      }
+      updatedSettings.weeklyReports.enabled = settings.weeklyReports.enabled;
+    }
+
+    // Update announcements settings
+    if (settings.announcements && typeof settings.announcements.enabled === 'boolean') {
+      if (!updatedSettings.announcements) {
+        updatedSettings.announcements = {};
+      }
+      updatedSettings.announcements.enabled = settings.announcements.enabled;
+    }
+
+    // Update language if provided
+    if (settings.language && ['ru', 'en'].includes(settings.language)) {
+      updatedSettings.language = settings.language;
+    }
+
+    // Save updated settings
+    user.settings = updatedSettings;
+    await user.save();
+
+    // Return normalized settings
+    const normalizedSettings = user.getNormalizedSettings();
+
+    res.json({
+      success: true,
+      settings: normalizedSettings,
+      message: 'Settings updated successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Update Settings Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
 
 module.exports = router;

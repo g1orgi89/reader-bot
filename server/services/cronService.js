@@ -65,17 +65,38 @@ class CronService {
 
       this.jobs.set('weekly_reports', weeklyReportsJob);
 
-      // 📖 ОБНОВЛЕНО: Оптимизированные напоминания
+      // 🔔 NEW: Three slot-based reminder jobs with timezone Europe/Moscow
       if (this.reminderService) {
-        const optimizedRemindersJob = cron.schedule('30 17 * * *', async () => {
-          logger.info('📖 Sending optimized reminders...');
-          await this.reminderService.sendDailyReminders();
+        // Morning reminders: 10:00 Moscow time
+        const morningRemindersJob = cron.schedule('0 10 * * *', async () => {
+          logger.info('🔔 Sending morning reminders...');
+          await this.reminderService.sendSlotReminders('morning');
         }, {
           timezone: "Europe/Moscow",
           scheduled: false
         });
 
-        this.jobs.set('optimized_reminders', optimizedRemindersJob);
+        // Day reminders: 16:00 Moscow time
+        const dayRemindersJob = cron.schedule('0 16 * * *', async () => {
+          logger.info('🔔 Sending day reminders...');
+          await this.reminderService.sendSlotReminders('day');
+        }, {
+          timezone: "Europe/Moscow",
+          scheduled: false
+        });
+
+        // Evening reminders: 22:00 Moscow time
+        const eveningRemindersJob = cron.schedule('0 22 * * *', async () => {
+          logger.info('🔔 Sending evening reminders...');
+          await this.reminderService.sendSlotReminders('evening');
+        }, {
+          timezone: "Europe/Moscow",
+          scheduled: false
+        });
+
+        this.jobs.set('morning_reminders', morningRemindersJob);
+        this.jobs.set('day_reminders', dayRemindersJob);
+        this.jobs.set('evening_reminders', eveningRemindersJob);
       }
 
       // 📖 НОВОЕ: Анонсы продуктов (25 числа каждого месяца в 12:00 МСК)
@@ -268,6 +289,19 @@ class CronService {
           // Save to database
           const weeklyReport = new WeeklyReport(reportData);
           await weeklyReport.save();
+
+          // Send weekly report notification if enabled
+          try {
+            const settings = user.getNormalizedSettings();
+            if (settings && settings.weeklyReports.enabled && this.bot) {
+              const message = "📝 Ваш еженедельный отчёт готов. Откройте приложение, чтобы посмотреть инсайты.";
+              await this.bot.telegram.sendMessage(userId, message);
+              logger.info(`📝 Weekly report notification sent to user ${userId}`);
+            }
+          } catch (notificationError) {
+            logger.error(`📝 Failed to send weekly report notification to user ${userId}:`, notificationError);
+            // Don't fail the main report generation if notification fails
+          }
 
           logger.info(`📖 Generated weekly report for user ${userId} with ${quotes.length} quotes`);
           stats.generated++;
@@ -566,7 +600,9 @@ class CronService {
   getSchedule() {
     return {
       weekly_reports: 'Sundays at 12:00 MSK',
-      optimized_reminders: '19:00 MSK daily (smart frequency based on user stage)',
+      morning_reminders: '10:00 MSK daily (frequency-based filtering)',
+      day_reminders: '16:00 MSK daily (frequency-based filtering)',
+      evening_reminders: '22:00 MSK daily (frequency-based filtering)',
       monthly_announcements: '25th day of month at 12:00 MSK',
       monthly_reports: '1st day of month at 12:00 MSK',
       daily_cleanup: '3:00 MSK daily'
@@ -598,13 +634,15 @@ class CronService {
       activeJobs: Array.from(this.jobs.keys()),
       nextRuns: {
         weekly_reports: this.getNextRunTime('weekly_reports'),
-        optimized_reminders: this.getNextRunTime('optimized_reminders'),
+        morning_reminders: this.getNextRunTime('morning_reminders'),
+        day_reminders: this.getNextRunTime('day_reminders'),
+        evening_reminders: this.getNextRunTime('evening_reminders'),
         monthly_announcements: this.getNextRunTime('monthly_announcements'),
         monthly_reports: this.getNextRunTime('monthly_reports'),
         daily_cleanup: this.getNextRunTime('daily_cleanup')
       },
       serviceStatuses: {
-        reminderService: this.reminderService?.isReady() || false,
+        reminderService: this.reminderService?.getDiagnostics() || { status: 'not_initialized' },
         announcementService: this.announcementService?.isReady() || false,
         monthlyReportService: !!this.monthlyReportService
       },
