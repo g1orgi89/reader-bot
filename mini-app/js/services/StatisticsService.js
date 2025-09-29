@@ -72,12 +72,19 @@ class StatisticsService {
     async getMainStats() {
         return this._cached(`mainStats:${this._requireUserId()}`, async () => {
             const userId = this._requireUserId();
-            const resp = await this.api.getStats(userId);
+            // Use new scoped stats API with current week and metadata
+            const resp = await this.api.getStats(userId, {
+                scope: 'week',
+                includeWeekMeta: true
+            });
             const raw = resp?.stats || resp || {};
             return {
                 totalQuotes: raw.totalQuotes || 0,
                 currentStreak: raw.currentStreak || 0,
-                daysInApp: raw.daysSinceRegistration || raw.daysInApp || 0
+                daysInApp: raw.daysSinceRegistration || raw.daysInApp || 0,
+                // NEW: Weekly metrics
+                weeklyQuotes: raw.quotes || 0, // Quotes for current week
+                weekMeta: raw.weekMeta || null // Week metadata for display
             };
         }, this.TTL_SHORT);
     }

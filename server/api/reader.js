@@ -908,11 +908,73 @@ router.get('/stats', telegramAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
+    // ---- Parse query parameters ----
+    const {
+      scope = 'week',
+      weekNumber,
+      year,
+      monthNumber,
+      includeWeekMeta = 'false'
+    } = req.query;
+
+    const { 
+      getBusinessNow, 
+      getISOWeekInfo, 
+      getISOWeekRange 
+    } = require('../utils/isoWeek');
+
     // ---- Time boundaries using business timezone ----
-    const { getBusinessNow } = require('../utils/isoWeek');
     const businessNow = getBusinessNow();
     const startOfToday = new Date(businessNow); 
     startOfToday.setHours(0,0,0,0);
+    
+    let scopedQuotes, weekMeta = null;
+
+    if (scope === 'week') {
+      // Use provided week/year or current week
+      const currentWeek = getISOWeekInfo(businessNow);
+      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+      const targetYear = parseInt(year) || currentWeek.isoYear;
+      
+      // Get week range and meta
+      const weekRange = getISOWeekRange(targetWeek, targetYear);
+      
+      if (includeWeekMeta === 'true') {
+        weekMeta = {
+          weekNumber: targetWeek,
+          year: targetYear,
+          range: {
+            start: weekRange.start,
+            end: weekRange.end
+          }
+        };
+      }
+      
+      // Count quotes for this specific ISO week using weekNumber/yearNumber fields
+      scopedQuotes = await Quote.countDocuments({ 
+        userId, 
+        weekNumber: targetWeek, 
+        yearNumber: targetYear 
+      });
+    } else if (scope === 'month') {
+      const targetMonth = parseInt(monthNumber) || (businessNow.getMonth() + 1);
+      const targetYear = parseInt(year) || businessNow.getFullYear();
+      
+      // Count quotes for this specific month using monthNumber/yearNumber fields
+      scopedQuotes = await Quote.countDocuments({ 
+        userId, 
+        monthNumber: targetMonth, 
+        yearNumber: targetYear 
+      });
+    } else if (scope === 'global') {
+      scopedQuotes = await Quote.countDocuments({ userId });
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid scope. Use week, month, or global' 
+      });
+    }
+
     const startOfMonth = new Date(businessNow.getFullYear(), businessNow.getMonth(), 1);
 
     // ---- Parallel base counts ----
@@ -982,14 +1044,22 @@ router.get('/stats', telegramAuth, async (req, res) => {
       monthlyQuotes: currentMonthQuotes, // expose numeric current month count (legacy field name)
       todayQuotes,
       daysSinceRegistration,
-      weeksSinceRegistration
+      weeksSinceRegistration,
+      // New scoped fields
+      scope,
+      quotes: scopedQuotes // Quotes for the requested scope (week/month/global)
     };
+
+    // Add week metadata if requested
+    if (weekMeta) {
+      safeStats.weekMeta = weekMeta;
+    }
 
     // ---- Async snapshot update (do not await) ----
     (async () => {
       try {
-        const month = now.getMonth() + 1;
-        const year = now.getFullYear();
+        const month = businessNow.getMonth() + 1;
+        const year = businessNow.getFullYear();
         const statsUpdate = user.statistics || {};
         statsUpdate.totalQuotes = totalQuotes;
         statsUpdate.currentStreak = dynamicStreak;
@@ -1511,16 +1581,31 @@ router.get('/reports/weekly', telegramAuth, async (req, res) => {
 
     res.json({
       success: true,
-      reports: reports.map(r => ({
-        id: r._id,
-        weekNumber: r.weekNumber,
-        year: r.year,
-        quotesCount: r.quotesCount,
-        analysis: r.analysis,
-        recommendations: r.recommendations,
-        sentAt: r.sentAt,
-        isRead: r.isRead
-      }))
+      reports: reports.map(r => {
+        const { getISOWeekRange, formatISOWeekLabel } = require('../utils/isoWeek');
+        const weekRange = getISOWeekRange(r.weekNumber, r.year);
+        
+        return {
+          id: r._id,
+          weekNumber: r.weekNumber,
+          year: r.year,
+          quotesCount: r.quotesCount,
+          analysis: r.analysis,
+          recommendations: r.recommendations,
+          sentAt: r.sentAt,
+          isRead: r.isRead,
+          // Week metadata for proper period display
+          weekMeta: {
+            weekNumber: r.weekNumber,
+            year: r.year,
+            range: {
+              start: weekRange.start,
+              end: weekRange.end
+            },
+            label: formatISOWeekLabel(r.weekNumber, r.year)
+          }
+        };
+      })
     });
 
   } catch (error) {
@@ -1544,26 +1629,41 @@ router.get('/reports/weekly/:userId', telegramAuth, async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
-    const mapReport = (r) => ({
-      id: r._id,
-      weekNumber: r.weekNumber,
-      year: r.year,
-      quotesCount: Array.isArray(r.quotes) ? r.quotes.length : (r.quotesCount || 0),
-      sentAt: r.sentAt,
-      isRead: r.isRead,
-      feedback: r.feedback,
-      // Backward compatibility top-level fields
-      dominantThemes: r.analysis?.dominantThemes || [],
-      emotionalTone: r.analysis?.emotionalTone || '',
-      // Full analysis block for Mini App UI
-      analysis: {
-        summary: r.analysis?.summary || '',
-        insights: r.analysis?.insights || '',
+    const mapReport = (r) => {
+      const { getISOWeekRange, formatISOWeekLabel } = require('../utils/isoWeek');
+      const weekRange = getISOWeekRange(r.weekNumber, r.year);
+      
+      return {
+        id: r._id,
+        weekNumber: r.weekNumber,
+        year: r.year,
+        quotesCount: Array.isArray(r.quotes) ? r.quotes.length : (r.quotesCount || 0),
+        sentAt: r.sentAt,
+        isRead: r.isRead,
+        feedback: r.feedback,
+        // Week metadata for proper period display
+        weekMeta: {
+          weekNumber: r.weekNumber,
+          year: r.year,
+          range: {
+            start: weekRange.start,
+            end: weekRange.end
+          },
+          label: formatISOWeekLabel(r.weekNumber, r.year)
+        },
+        // Backward compatibility top-level fields
+        dominantThemes: r.analysis?.dominantThemes || [],
         emotionalTone: r.analysis?.emotionalTone || '',
-        dominantThemes: r.analysis?.dominantThemes || []
-      },
-      recommendations: r.recommendations || []
-    });
+        // Full analysis block for Mini App UI
+        analysis: {
+          summary: r.analysis?.summary || '',
+          insights: r.analysis?.insights || '',
+          emotionalTone: r.analysis?.emotionalTone || '',
+          dominantThemes: r.analysis?.dominantThemes || []
+        },
+        recommendations: r.recommendations || []
+      };
+    };
 
     return res.json({
       success: true,
@@ -1921,19 +2021,50 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
 });
 
 /**
- * @description Популярные цитаты сообщества (агрегированные)
+ * @description Популярные цитаты сообщества с поддержкой ISO недель
  * @route GET /api/reader/community/popular
  */
 router.get('/community/popular', telegramAuth, communityLimiter, async (req, res) => {
   try {
-    const { period: periodParam, limit: limitParam } = req.query;
+    const { 
+      period: periodParam, 
+      limit: limitParam,
+      scope,
+      weekNumber,
+      year 
+    } = req.query;
     
-    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
-    if (!periodValid) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid period parameter. Use 7d or 30d.' 
-      });
+    let matchCriteria = {};
+    let period = periodParam;
+
+    if (scope === 'week') {
+      // Use ISO week filtering
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo 
+      } = require('../utils/isoWeek');
+      
+      const currentWeek = getISOWeekInfo(getBusinessNow());
+      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+      const targetYear = parseInt(year) || currentWeek.isoYear;
+      
+      matchCriteria = { 
+        weekNumber: targetWeek, 
+        yearNumber: targetYear 
+      };
+      period = `week-${targetYear}-${targetWeek}`;
+    } else {
+      // Use legacy period logic for backwards compatibility
+      const { startDate, isValid: periodValid, period: validPeriod } = validatePeriod(periodParam);
+      if (!periodValid) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid period parameter. Use 7d, 30d, or scope=week with optional weekNumber/year.' 
+        });
+      }
+      
+      matchCriteria = { createdAt: { $gte: startDate } };
+      period = validPeriod;
     }
     
     const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
@@ -1947,9 +2078,7 @@ router.get('/community/popular', telegramAuth, communityLimiter, async (req, res
     // Aggregate quotes by text+author combination, count occurrences
     const popularQuotes = await Quote.aggregate([
       {
-        $match: {
-          createdAt: { $gte: startDate }
-        }
+        $match: matchCriteria
       },
       {
         $group: {
@@ -2058,13 +2187,52 @@ router.get('/community/popular', telegramAuth, communityLimiter, async (req, res
  */
 router.get('/community/popular-favorites', telegramAuth, communityLimiter, async (req, res) => {
   try {
-    const { period: periodParam, limit: limitParam } = req.query;
-    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
-    if (!periodValid) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid period. Use 7d or 30d.' 
-      });
+    const { 
+      period: periodParam, 
+      limit: limitParam,
+      scope,
+      weekNumber,
+      year 
+    } = req.query;
+
+    let matchCriteria = { isFavorite: true };
+    let period = periodParam;
+
+    if (scope === 'week') {
+      // Use ISO week filtering
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo 
+      } = require('../utils/isoWeek');
+      
+      const currentWeek = getISOWeekInfo(getBusinessNow());
+      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+      const targetYear = parseInt(year) || currentWeek.isoYear;
+      
+      matchCriteria = { 
+        isFavorite: true,
+        weekNumber: targetWeek, 
+        yearNumber: targetYear 
+      };
+      period = `week-${targetYear}-${targetWeek}`;
+    } else {
+      // Use legacy period logic for backwards compatibility
+      const { startDate, isValid: periodValid, period: validPeriod } = validatePeriod(periodParam);
+      if (!periodValid) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid period. Use 7d, 30d, or scope=week with optional weekNumber/year.' 
+        });
+      }
+      
+      matchCriteria = {
+        isFavorite: true,
+        $or: [
+          { editedAt: { $gte: startDate } },
+          { createdAt: { $gte: startDate } }
+        ]
+      };
+      period = validPeriod;
     }
 
     const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
@@ -2078,13 +2246,7 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
     // Aggregate quotes by text+author combination, count unique users who favorited
     const popularFavorites = await Quote.aggregate([
       {
-        $match: {
-          isFavorite: true,
-          $or: [
-            { editedAt: { $gte: startDate } },
-            { createdAt: { $gte: startDate } }
-          ]
-        }
+        $match: matchCriteria
       },
       {
         $group: {
@@ -2564,22 +2726,53 @@ router.get('/community/stats', telegramAuth, communityLimiter, async (req, res) 
 });
 
 /**
- * @description Периодный рейтинг пользователей (7d/30d)
+ * @description Периодный рейтинг пользователей с поддержкой ISO недель
  * @route GET /api/reader/community/leaderboard
  */
 router.get('/community/leaderboard', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const userId = req.userId;
-    const { limit: limitParam, period: periodParam } = req.query;
+    const { 
+      limit: limitParam, 
+      period: periodParam, 
+      scope,
+      weekNumber,
+      year 
+    } = req.query;
 
     const { limit, isValid: limitValid } = validateLimit(limitParam, 10, 50);
     if (!limitValid) return res.status(400).json({ success: false, error: 'Invalid limit parameter. Must be between 1 and 50.' });
 
-    const { startDate, isValid: periodValid, period } = validatePeriod(periodParam);
-    if (!periodValid) return res.status(400).json({ success: false, error: 'Invalid period parameter. Use 7d or 30d.' });
+    let matchCriteria = {};
+    let period = periodParam;
+
+    if (scope === 'week') {
+      // Use ISO week filtering
+      const { 
+        getBusinessNow, 
+        getISOWeekInfo 
+      } = require('../utils/isoWeek');
+      
+      const currentWeek = getISOWeekInfo(getBusinessNow());
+      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+      const targetYear = parseInt(year) || currentWeek.isoYear;
+      
+      matchCriteria = { 
+        weekNumber: targetWeek, 
+        yearNumber: targetYear 
+      };
+      period = `week-${targetYear}-${targetWeek}`;
+    } else {
+      // Use legacy period logic for backwards compatibility
+      const { startDate, isValid: periodValid, period: validPeriod } = validatePeriod(periodParam);
+      if (!periodValid) return res.status(400).json({ success: false, error: 'Invalid period parameter. Use 7d, 30d, or scope=week with optional weekNumber/year.' });
+      
+      matchCriteria = { createdAt: { $gte: startDate } };
+      period = validPeriod;
+    }
 
     const agg = await Quote.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
+      { $match: matchCriteria },
       { $group: { _id: '$userId', quotesWeek: { $sum: 1 } } },
       { $sort: { quotesWeek: -1, _id: 1 } }
     ]);

@@ -141,6 +141,9 @@ class AppState {
         // 💾 Загружаем сохраненное состояние
         this.loadPersistedState();
 
+        // 📅 Initialize week key management
+        this.initializeWeekKey();
+
         this.log('🚀 AppState инициализирован');
     }
 
@@ -730,6 +733,106 @@ class AppState {
      */
     updateLastSync() {
         this.set('network.lastSync', Date.now());
+    }
+
+    // ===========================================
+    // 📅 WEEK KEY MANAGEMENT (NEW)
+    // ===========================================
+
+    /**
+     * 📅 Get current ISO week key for cache invalidation
+     * @returns {string} Current week key in format "2024-W01"
+     */
+    getCurrentWeekKey() {
+        if (typeof window !== 'undefined' && window.DateUtils) {
+            return window.DateUtils.getIsoWeekKey();
+        }
+        // Fallback for server-side or when DateUtils not loaded
+        const { getISOWeekInfo } = require('../utils/dateUtils');
+        const weekInfo = getISOWeekInfo();
+        return `${weekInfo.isoYear}-W${String(weekInfo.isoWeek).padStart(2, '0')}`;
+    }
+
+    /**
+     * 📅 Check if current week has changed (for cache invalidation)
+     * @returns {boolean} True if week has rolled over
+     */
+    hasWeekChanged() {
+        const storedWeekKey = localStorage.getItem('reader-bot-week-key');
+        const currentWeekKey = this.getCurrentWeekKey();
+        return storedWeekKey !== currentWeekKey;
+    }
+
+    /**
+     * 📅 Update stored week key and trigger invalidation if needed
+     * @returns {boolean} True if week changed and caches were invalidated
+     */
+    updateWeekKey() {
+        const currentWeekKey = this.getCurrentWeekKey();
+        const hasChanged = this.hasWeekChanged();
+        
+        if (hasChanged) {
+            // Week has rolled over - invalidate weekly caches
+            this.invalidateWeeklyCaches();
+            
+            // Update stored week key
+            localStorage.setItem('reader-bot-week-key', currentWeekKey);
+            
+            // Dispatch week rollover event
+            if (typeof document !== 'undefined') {
+                document.dispatchEvent(new CustomEvent('week:rollover', {
+                    detail: { weekKey: currentWeekKey, previousKey: localStorage.getItem('reader-bot-week-key') }
+                }));
+            }
+            
+            this.log('📅 Week rollover detected:', currentWeekKey);
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * 📅 Invalidate weekly caches when week rolls over
+     */
+    invalidateWeeklyCaches() {
+        // Clear weekly stats cache
+        this.reset('stats');
+        this.set('stats.loading', true);
+        
+        // Clear weekly reports cache
+        const weeklyReportCache = localStorage.getItem('reader-bot-weekly-report-cache');
+        if (weeklyReportCache) {
+            localStorage.removeItem('reader-bot-weekly-report-cache');
+        }
+        
+        // Reset weekly quotes in diary stats
+        this.update('diaryStats', {
+            weeklyQuotes: 0,
+            loading: true
+        });
+        
+        // Mark need to refetch week context
+        this.set('weekContext.loaded', false);
+        
+        this.log('🧹 Weekly caches invalidated due to week rollover');
+    }
+
+    /**
+     * 📅 Initialize week key on app startup
+     */
+    initializeWeekKey() {
+        const currentWeekKey = this.getCurrentWeekKey();
+        const storedWeekKey = localStorage.getItem('reader-bot-week-key');
+        
+        if (!storedWeekKey) {
+            // First time - set current week key
+            localStorage.setItem('reader-bot-week-key', currentWeekKey);
+            this.log('📅 Week key initialized:', currentWeekKey);
+        } else if (storedWeekKey !== currentWeekKey) {
+            // Week has changed since last visit
+            this.updateWeekKey();
+        }
     }
 
     // ===========================================
