@@ -1,262 +1,218 @@
 /**
- * @fileoverview Weekly Report Catch-Up Service
- * @description Generates missing weekly reports for past completed weeks
- * @author Reader Bot Team
+ * @fileoverview Weekly Report Catch-Up Service (FIXED)
+ * - Устранён ReferenceError (ленивые require моделей внутри методов)
+ * - Корректная передача quotes + weekMeta в generateWeeklyReport
+ * - Пропуск demo-user и пустых недель
+ * - Расширенное логирование и защита от дублей
  */
 
-const Quote = require('../models/quote');
-const WeeklyReport = require('../models/weeklyReport');
 const WeeklyReportService = require('./weeklyReportService');
-const { 
-  getBusinessNow, 
-  getISOWeekInfo, 
-  getPreviousCompleteISOWeek,
-  getISOWeekRange 
+const {
+  getBusinessNow,
+  getISOWeekInfo,
+  getISOWeekRange
 } = require('../utils/isoWeek');
+const logger = require('../utils/logger');
 
-/**
- * @class WeeklyReportCatchUpService
- * @description Service to generate missing weekly reports for past N completed weeks
- */
 class WeeklyReportCatchUpService {
-  constructor() {
+  constructor(options = {}) {
     this.weeklyReportService = new WeeklyReportService();
-    this.lookbackWeeks = parseInt(process.env.CATCHUP_LOOKBACK_WEEKS) || 8;
-    this.logger = require('../utils/logger');
+    this.lookbackWeeks = parseInt(process.env.CATCHUP_LOOKBACK_WEEKS, 10) ||
+      options.lookbackWeeks ||
+      8;
+    this.minDelayMs = 150;
+    this.maxUsersPerWeek = options.maxUsersPerWeek || 500; // защита от лавины
+    logger.info(`[CatchUp] Initialized (lookback=${this.lookbackWeeks})`);
   }
 
   /**
-   * Find missing weeks where quotes exist but no weekly report was generated
-   * @returns {Promise<Array<{isoWeek: number, isoYear: number}>>}
+   * Ленивый доступ к моделям (разрываем циклы require)
+   */
+  _models() {
+    // Подгружаем только тогда, когда реально нужны
+    const Quote = require('../models/quote');
+    const WeeklyReport = require('../models/weeklyReport');
+    const UserProfile = require('../models/userProfile');
+    return { Quote, WeeklyReport, UserProfile };
+  }
+
+  /**
+   * Находит недели, где есть цитаты, но отсутствуют отчёты
+   * @returns {Promise<Array<{isoWeek:number, isoYear:number, users:string[] }>>}
    */
   async findMissingWeeks() {
     try {
+      const { Quote, WeeklyReport } = this._models();
       const businessNow = getBusinessNow();
       const currentWeekInfo = getISOWeekInfo(businessNow);
-      
-      const missingWeeks = [];
-      
-      // Check past N weeks
-      for (let weekOffset = 1; weekOffset <= this.lookbackWeeks; weekOffset++) {
-        let targetWeek = currentWeekInfo.isoWeek - weekOffset;
-        let targetYear = currentWeekInfo.isoYear;
-        
-        // Handle year boundary
-        if (targetWeek < 1) {
-          targetYear = currentWeekInfo.isoYear - 1;
-          const weeksInPrevYear = this.getWeeksInISOYear(targetYear);
-          targetWeek = weeksInPrevYear + targetWeek;
+
+      const missing = [];
+
+      for (let offset = 1; offset <= this.lookbackWeeks; offset++) {
+        // Смотрим прошлые недели
+        let isoWeek = currentWeekInfo.isoWeek - offset;
+        let isoYear = currentWeekInfo.isoYear;
+
+        // Переход через границу года
+        if (isoWeek < 1) {
+            // Узнаём число недель в предыдущем ISO году через 28 декабря
+            const prevDec28 = new Date(Date.UTC(isoYear - 1, 11, 28));
+            const weeksInPrevYear = getISOWeekInfo(prevDec28).isoWeek;
+            isoWeek = weeksInPrevYear + isoWeek;
+            isoYear = isoYear - 1;
         }
-        
-        // Check if week is fully completed (ended at least 1 day ago)
-        const weekRange = getISOWeekRange(targetWeek, targetYear);
-        const oneDayAfterWeekEnd = new Date(weekRange.end.getTime() + 24 * 60 * 60 * 1000);
-        
-        if (businessNow < oneDayAfterWeekEnd) {
-          continue; // Week not fully completed yet
-        }
-        
-        // Check if quotes exist for this week
-        const quotesExist = await Quote.exists({
-          weekNumber: targetWeek,
-          yearNumber: targetYear
-        });
-        
-        if (!quotesExist) {
-          continue; // No quotes for this week
-        }
-        
-        // Get distinct users who have quotes for this week
+
+        // Находим пользователей с цитатами
         const usersWithQuotes = await Quote.distinct('userId', {
-          weekNumber: targetWeek,
-          yearNumber: targetYear
+          weekNumber: isoWeek,
+          yearNumber: isoYear
         });
-        
-        if (usersWithQuotes.length === 0) {
-          continue;
-        }
-        
-        // Check which users are missing reports
-        const existingReports = await WeeklyReport.find({
-          weekNumber: targetWeek,
-          year: targetYear
-        }).distinct('userId');
-        
-        const usersNeedingReports = usersWithQuotes.filter(
-          userId => !existingReports.includes(userId)
-        );
-        
-        if (usersNeedingReports.length > 0) {
-          missingWeeks.push({
-            isoWeek: targetWeek,
-            isoYear: targetYear,
-            usersNeedingReports
+
+        if (!usersWithQuotes.length) continue;
+
+        // Находим пользователей, у которых уже есть отчёт
+        const usersWithReports = await WeeklyReport.distinct('userId', {
+          weekNumber: isoWeek,
+          year: isoYear
+        });
+
+        const needing = usersWithQuotes.filter(u => !usersWithReports.includes(u));
+
+        if (needing.length) {
+          missing.push({
+            isoWeek,
+            isoYear,
+            users: needing.slice(0, this.maxUsersPerWeek)
           });
         }
       }
-      
-      return missingWeeks;
-    } catch (error) {
-      this.logger.error('Error finding missing weeks:', error);
-      throw error;
+
+      logger.info(`[CatchUp] Missing weeks found: ${missing.length}`);
+      return missing;
+    } catch (e) {
+      logger.error('[CatchUp] findMissingWeeks failed:', e);
+      return [];
     }
   }
 
   /**
-   * Generate weekly report for a specific week and year
-   * @param {number} isoWeek - ISO week number
-   * @param {number} isoYear - ISO year
-   * @param {Array<string>} userIds - User IDs needing reports
-   * @returns {Promise<number>} Number of reports generated
+   * Генерирует отчёты для конкретной недели
+   * @param {number} isoWeek
+   * @param {number} isoYear
+   * @param {string[]} userIds
+   * @returns {Promise<{generated:number, skipped:number, failed:number}>}
    */
   async generateWeek(isoWeek, isoYear, userIds) {
-    let generatedCount = 0;
-    
-    try {
-      this.logger.info(`Generating reports for week ${isoWeek}/${isoYear} for ${userIds.length} users`);
-      
-      for (const userId of userIds) {
-        try {
-          // Check if report already exists (race condition protection)
-          const existingReport = await WeeklyReport.findOne({
-            userId,
-            weekNumber: isoWeek,
-            year: isoYear
-          });
-          
-          if (existingReport) {
-            this.logger.debug(`Report already exists for user ${userId}, week ${isoWeek}/${isoYear}`);
-            continue;
-          }
-          
-          // Get quotes for this user and week
-          const quotes = await Quote.find({
-            userId,
-            weekNumber: isoWeek,
-            yearNumber: isoYear
-          }).sort({ createdAt: 1 });
-          
-          if (quotes.length === 0) {
-            this.logger.debug(`No quotes found for user ${userId}, week ${isoWeek}/${isoYear}`);
-            continue;
-          }
-          
-          // Get user profile for report generation
-          const { UserProfile } = require('../models');
-          const userProfile = await UserProfile.findOne({ 
-            userId,
-            isOnboardingComplete: true,
-            isActive: true,
-            isBlocked: false
-          });
+    const { Quote, WeeklyReport, UserProfile } = this._models();
+    const weekRange = getISOWeekRange(isoWeek, isoYear);
 
-          if (!userProfile) {
-            this.logger.debug(`Skipping user ${userId}: inactive or incomplete onboarding`);
-            continue;
-          }
-          
-          // Generate the weekly report with explicit week metadata
-          const weekMeta = { isoWeek, isoYear };
-          const reportData = await this.weeklyReportService.generateWeeklyReport(
-            userId, 
-            quotes, 
-            userProfile,
-            weekMeta
-          );
-          
-          // Save to database
-          const { WeeklyReport } = require('../models');
-          const weeklyReport = new WeeklyReport(reportData);
-          await weeklyReport.save();
-          
-          generatedCount++;
-          this.logger.info(`Catch-up: created report for user ${userId}, week ${isoWeek}/${isoYear}`);
-          
-        } catch (userError) {
-          this.logger.error(`Error generating report for user ${userId}, week ${isoWeek}/${isoYear}:`, userError);
-          // Continue with other users
-        }
+    let generated = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    logger.info(`[CatchUp] Week ${isoWeek}/${isoYear}: processing users=${userIds.length}`);
+
+    for (const userId of userIds) {
+      if (!userId || userId === 'demo-user') {
+        skipped++;
+        continue;
       }
-      
-      return generatedCount;
-    } catch (error) {
-      this.logger.error(`Error generating week ${isoWeek}/${isoYear}:`, error);
-      throw error;
+
+      try {
+        // Дубли (страховка — несмотря на unique индекс)
+        const exists = await WeeklyReport.findOne({
+          userId,
+          weekNumber: isoWeek,
+          year: isoYear
+        }).select({ _id: 1 }).lean();
+
+        if (exists) {
+          skipped++;
+          continue;
+        }
+
+        const profile = await UserProfile.findOne({
+          userId,
+          isOnboardingComplete: true,
+          isActive: true,
+          isBlocked: false
+        }).lean();
+
+        if (!profile) {
+          skipped++;
+          continue;
+        }
+
+        const quotes = await Quote.find({
+          userId,
+          weekNumber: isoWeek,
+          yearNumber: isoYear
+        }).sort({ createdAt: 1 });
+
+        if (!quotes.length) {
+          skipped++;
+          continue;
+        }
+
+        const reportData = await this.weeklyReportService.generateWeeklyReport(
+          userId,
+          quotes,
+          profile,
+          {
+            weekMeta: {
+              isoWeek,
+              isoYear,
+              start: weekRange.start,
+              end: weekRange.end
+            }
+          }
+        );
+
+        const wr = new WeeklyReport(reportData);
+        await wr.save();
+        generated++;
+        logger.info(`[CatchUp] ✅ Report created user=${userId} week=${isoWeek}/${isoYear} quotes=${quotes.length}`);
+
+      } catch (err) {
+        failed++;
+        logger.error(`[CatchUp] ❌ Fail user=${userId} week=${isoWeek}/${isoYear}: ${err.message}`);
+      }
+
+      // Небольшая задержка — сгладить нагрузку
+      await new Promise(r => setTimeout(r, this.minDelayMs));
     }
+
+    logger.info(`[CatchUp] Week summary ${isoWeek}/${isoYear}: generated=${generated}, skipped=${skipped}, failed=${failed}`);
+    return { generated, skipped, failed };
   }
 
   /**
-   * Main catch-up process
-   * @returns {Promise<{totalGenerated: number, weeksProcessed: number}>}
+   * Основной запуск
    */
   async run() {
-    try {
-      this.logger.info('Starting weekly report catch-up service...');
-      
-      const missingWeeks = await this.findMissingWeeks();
-      
-      if (missingWeeks.length === 0) {
-        this.logger.info('No missing weekly reports found');
-        return { totalGenerated: 0, weeksProcessed: 0 };
-      }
-      
-      this.logger.info(`Found ${missingWeeks.length} weeks with missing reports`);
-      
-      let totalGenerated = 0;
-      
-      for (const week of missingWeeks) {
-        try {
-          const generated = await this.generateWeek(
-            week.isoWeek, 
-            week.isoYear, 
-            week.usersNeedingReports
-          );
-          totalGenerated += generated;
-          
-          // Small delay to avoid overwhelming the system
-          await this.delay(1000);
-          
-        } catch (weekError) {
-          this.logger.error(`Error processing week ${week.isoWeek}/${week.isoYear}:`, weekError);
-          // Continue with other weeks
-        }
-      }
-      
-      this.logger.info(`Catch-up completed: ${totalGenerated} reports generated across ${missingWeeks.length} weeks`);
-      
-      return {
-        totalGenerated,
-        weeksProcessed: missingWeeks.length
-      };
-      
-    } catch (error) {
-      this.logger.error('Error in catch-up service:', error);
-      throw error;
+    logger.info('[CatchUp] Running weekly report catch-up scan...');
+    const weeks = await this.findMissingWeeks();
+
+    if (!weeks.length) {
+      logger.info('[CatchUp] No missing weeks — nothing to do');
+      return { totalGenerated: 0, weeksProcessed: 0 };
     }
-  }
 
-  /**
-   * Utility method to add delay
-   * @param {number} ms - Milliseconds to delay
-   * @returns {Promise<void>}
-   */
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+    let totalGenerated = 0;
+    let processed = 0;
 
-  /**
-   * Get number of weeks in ISO year (helper method)
-   * @param {number} isoYear - ISO year
-   * @returns {number} Number of weeks (52 or 53)
-   */
-  getWeeksInISOYear(isoYear) {
-    const jan1 = new Date(isoYear, 0, 1);
-    const dec31 = new Date(isoYear, 11, 31);
-    
-    const jan1Day = jan1.getDay();
-    const dec31Day = dec31.getDay();
-    
-    return (jan1Day === 4 || dec31Day === 4) ? 53 : 52;
+    for (const w of weeks) {
+      try {
+        const res = await this.generateWeek(w.isoWeek, w.isoYear, w.users);
+        totalGenerated += res.generated;
+        processed++;
+      } catch (e) {
+        logger.error(`[CatchUp] Week loop failure ${w.isoWeek}/${w.isoYear}: ${e.message}`);
+      }
+    }
+
+    logger.info(`[CatchUp] Completed: weeksProcessed=${processed}, totalGenerated=${totalGenerated}`);
+    return { totalGenerated, weeksProcessed: processed };
   }
 }
 
