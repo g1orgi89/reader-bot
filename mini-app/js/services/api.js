@@ -1215,6 +1215,25 @@ class ApiService {
     async delete(endpoint) {
         return this.request('DELETE', endpoint);
     }
+
+    /**
+     * ⚙️ Получить настройки пользователя
+     * @param {string} userId - ID пользователя
+     * @returns {Promise<Object>} Настройки
+     */
+    async getSettings(userId) {
+        return this.request('GET', '/settings');
+    }
+
+    /**
+     * ⚙️ Сохранить настройки пользователя
+     * @param {string} userId - ID пользователя
+     * @param {Object} settings - Настройки для сохранения
+     * @returns {Promise<Object>} Обновленные настройки
+     */
+    async saveSettings(userId, settings) {
+        return this.request('PATCH', '/settings', { settings });
+    }
 }
 
 // 🌍 Глобальный экспорт (только если window доступен)

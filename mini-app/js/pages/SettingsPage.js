@@ -126,19 +126,38 @@ class SettingsPage {
      * 🔔 Рендер настроек уведомлений
      */
     renderNotificationSettings() {
+        const settings = this.settings;
+        const reminders = settings.reminders || {};
+        const achievements = settings.achievements || {};
+        const weeklyReports = settings.weeklyReports || {};
+        const announcements = settings.announcements || {};
+
         return `
             <div class="settings-section">
                 <h3>🔔 Уведомления</h3>
                 
                 <div class="setting-item">
                     <div class="setting-info">
-                        <h4>Ежедневные напоминания</h4>
+                        <h4>Напоминания</h4>
                         <p>Получать напоминания о добавлении цитат</p>
                     </div>
                     <div class="form-toggle">
-                        <input type="checkbox" id="dailyReminders" ${this.settings.dailyReminders ? 'checked' : ''}>
+                        <input type="checkbox" id="remindersEnabled" ${reminders.enabled !== false ? 'checked' : ''}>
                         <div class="toggle-switch"></div>
                     </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>Частота напоминаний</h4>
+                        <p>Как часто получать напоминания</p>
+                    </div>
+                    <select class="form-select" id="reminderFrequency">
+                        <option value="often" ${reminders.frequency === 'often' ? 'selected' : ''}>Часто (3 раза / день)</option>
+                        <option value="standard" ${reminders.frequency === 'standard' ? 'selected' : ''}>Стандартно (утром)</option>
+                        <option value="rare" ${reminders.frequency === 'rare' ? 'selected' : ''}>Редко (2 раза в неделю)</option>
+                        <option value="off" ${reminders.frequency === 'off' ? 'selected' : ''}>Выключено</option>
+                    </select>
                 </div>
                 
                 <div class="setting-item">
@@ -147,22 +166,31 @@ class SettingsPage {
                         <p>Получать уведомления о новых наградах</p>
                     </div>
                     <div class="form-toggle">
-                        <input type="checkbox" id="achievementNotifications" ${this.settings.achievementNotifications ? 'checked' : ''}>
+                        <input type="checkbox" id="achievementsEnabled" ${achievements.enabled !== false ? 'checked' : ''}>
                         <div class="toggle-switch"></div>
                     </div>
                 </div>
                 
                 <div class="setting-item">
                     <div class="setting-info">
-                        <h4>Время напоминаний</h4>
-                        <p>Во сколько присылать ежедневные напоминания</p>
+                        <h4>Еженедельные отчёты</h4>
+                        <p>Получать уведомления о готовых отчётах</p>
                     </div>
-                    <select class="form-select" id="reminderTime">
-                        <option value="09:00" ${this.settings.reminderTime === '09:00' ? 'selected' : ''}>09:00</option>
-                        <option value="12:00" ${this.settings.reminderTime === '12:00' ? 'selected' : ''}>12:00</option>
-                        <option value="18:00" ${this.settings.reminderTime === '18:00' ? 'selected' : ''}>18:00</option>
-                        <option value="21:00" ${this.settings.reminderTime === '21:00' ? 'selected' : ''}>21:00</option>
-                    </select>
+                    <div class="form-toggle">
+                        <input type="checkbox" id="weeklyReportsEnabled" ${weeklyReports.enabled !== false ? 'checked' : ''}>
+                        <div class="toggle-switch"></div>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>Анонсы</h4>
+                        <p>Получать уведомления о новых возможностях</p>
+                    </div>
+                    <div class="form-toggle">
+                        <input type="checkbox" id="announcementsEnabled" ${announcements.enabled !== false ? 'checked' : ''}>
+                        <div class="toggle-switch"></div>
+                    </div>
                 </div>
             </div>
         `;
@@ -354,11 +382,42 @@ class SettingsPage {
      */
     async updateSetting(key, value) {
         try {
-            this.settings[key] = value;
-            this.state.set(`settings.${key}`, value);
+            // Handle structured settings based on the field ID
+            switch (key) {
+                case 'remindersEnabled':
+                    if (!this.settings.reminders) this.settings.reminders = {};
+                    this.settings.reminders.enabled = value;
+                    break;
+                case 'reminderFrequency':
+                    if (!this.settings.reminders) this.settings.reminders = {};
+                    this.settings.reminders.frequency = value;
+                    break;
+                case 'achievementsEnabled':
+                    if (!this.settings.achievements) this.settings.achievements = {};
+                    this.settings.achievements.enabled = value;
+                    break;
+                case 'weeklyReportsEnabled':
+                    if (!this.settings.weeklyReports) this.settings.weeklyReports = {};
+                    this.settings.weeklyReports.enabled = value;
+                    break;
+                case 'announcementsEnabled':
+                    if (!this.settings.announcements) this.settings.announcements = {};
+                    this.settings.announcements.enabled = value;
+                    break;
+                default:
+                    // Handle legacy or other settings
+                    this.settings[key] = value;
+                    break;
+            }
+            
+            // Update local state
+            this.state.set('settings', this.settings);
             
             // Save to server if possible
             await this.saveSettings();
+            
+            // Update UI to reflect changes
+            this.updateSettingsUI();
             
         } catch (error) {
             console.error('❌ Ошибка сохранения настройки:', error);
@@ -494,14 +553,28 @@ class SettingsPage {
      */
     getDefaultSettings() {
         return {
-            dailyReminders: true,
-            achievementNotifications: true,
-            reminderTime: '18:00',
+            reminders: {
+                enabled: true,
+                frequency: 'often'
+            },
+            achievements: {
+                enabled: true
+            },
+            weeklyReports: {
+                enabled: true
+            },
+            announcements: {
+                enabled: true
+            },
             theme: 'auto',
             fontSize: 'medium',
             animations: true,
             analytics: true,
-            publicProfile: false
+            publicProfile: false,
+            // Legacy support for backward compatibility
+            dailyReminders: true,
+            achievementNotifications: true,
+            reminderTime: '18:00'
         };
     }
     

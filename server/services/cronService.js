@@ -290,6 +290,19 @@ class CronService {
           const weeklyReport = new WeeklyReport(reportData);
           await weeklyReport.save();
 
+          // Send weekly report notification if enabled
+          try {
+            const settings = user.getNormalizedSettings();
+            if (settings && settings.weeklyReports.enabled && this.bot) {
+              const message = "📝 Ваш еженедельный отчёт готов. Откройте приложение, чтобы посмотреть инсайты.";
+              await this.bot.telegram.sendMessage(userId, message);
+              logger.info(`📝 Weekly report notification sent to user ${userId}`);
+            }
+          } catch (notificationError) {
+            logger.error(`📝 Failed to send weekly report notification to user ${userId}:`, notificationError);
+            // Don't fail the main report generation if notification fails
+          }
+
           logger.info(`📖 Generated weekly report for user ${userId} with ${quotes.length} quotes`);
           stats.generated++;
 

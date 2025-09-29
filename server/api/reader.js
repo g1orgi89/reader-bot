@@ -908,12 +908,33 @@ router.post('/quotes', telegramAuth, async (req, res) => {
         annaSummary = '';
       }
 
-      return res.json({
+      const responseData = {
         success: true,
         quote: toQuoteDTO(result.quote, { summary: annaSummary }),
         newAchievements: result.newAchievements || [],
         todayCount: result.todayCount
-      });
+      };
+
+      // Send achievement notifications if enabled
+      if (result.newAchievements && result.newAchievements.length > 0) {
+        const user = await UserProfile.findOne({ userId });
+        const settings = user ? user.getNormalizedSettings() : null;
+        
+        if (settings && settings.achievements.enabled && global.simpleTelegramBot) {
+          try {
+            for (const achievement of result.newAchievements) {
+              const message = `🎉 Новое достижение: ${achievement.title || achievement.id || achievement.achievementId}`;
+              await global.simpleTelegramBot.telegram.sendMessage(userId, message);
+              console.log(`🎉 Achievement notification sent to user ${userId}: ${achievement.title || achievement.id}`);
+            }
+          } catch (notificationError) {
+            console.error('❌ Failed to send achievement notifications:', notificationError);
+            // Don't fail the main request if notification fails
+          }
+        }
+      }
+
+      return res.json(responseData);
 
     } catch (error) {
       // Ошибка внутри вложенного try
