@@ -27,7 +27,7 @@ class StatisticsService {
     }
 
     /**
-     * Initialize baseline + deltas model for instant totalQuotes updates
+     * Initialize baseline + deltas model for instant totalQuotes and weeklyQuotes updates
      */
     _initializeBaselineDeltas() {
         const currentStats = this.state.get('stats') || {};
@@ -35,7 +35,10 @@ class StatisticsService {
             this.state.update('stats', {
                 baselineTotal: currentStats.totalQuotes || 0,
                 pendingAdds: 0,
-                pendingDeletes: 0
+                pendingDeletes: 0,
+                baselineWeekly: currentStats.weeklyQuotes || 0,
+                pendingWeeklyAdds: 0,
+                pendingWeeklyDeletes: 0
             });
         }
     }
@@ -52,15 +55,36 @@ class StatisticsService {
     }
 
     /**
-     * Update totalQuotes using only effectiveTotal calculation
+     * Calculate effective weekly quotes using baseline + deltas model
+     */
+    _getEffectiveWeekly() {
+        const stats = this.state.get('stats') || {};
+        const baselineWeekly = stats.baselineWeekly || 0;
+        const pendingWeeklyAdds = stats.pendingWeeklyAdds || 0;
+        const pendingWeeklyDeletes = stats.pendingWeeklyDeletes || 0;
+        return baselineWeekly + pendingWeeklyAdds - pendingWeeklyDeletes;
+    }
+
+    /**
+     * Update totalQuotes and weeklyQuotes using effectiveTotal and effectiveWeekly calculations
      */
     _updateTotalQuotes() {
         const effectiveTotal = this._getEffectiveTotal();
-        this.state.update('stats', { totalQuotes: effectiveTotal });
+        const effectiveWeekly = this._getEffectiveWeekly();
+        
+        this.state.update('stats', { 
+            totalQuotes: effectiveTotal,
+            weeklyQuotes: effectiveWeekly,
+            thisWeek: effectiveWeekly // Mirror for UI compatibility
+        });
         
         // Also update diaryStats for consistency
         const currentDiaryStats = this.state.get('diaryStats') || {};
-        this.state.set('diaryStats', { ...currentDiaryStats, totalQuotes: effectiveTotal });
+        this.state.set('diaryStats', { 
+            ...currentDiaryStats, 
+            totalQuotes: effectiveTotal,
+            weeklyQuotes: effectiveWeekly
+        });
         
         // Emit events for UI updates
         const updatedStats = this.state.get('stats');
@@ -443,16 +467,17 @@ class StatisticsService {
             const userId = this._requireUserId();
             console.log('📊 StatisticsService: Quote added, applying baseline + deltas');
             
-            // 1. Increase pendingAdds for instant UI update
+            // 1. Increase pendingAdds and pendingWeeklyAdds for instant UI update
             const stats = this.state.get('stats') || {};
             this.state.update('stats', {
-                pendingAdds: (stats.pendingAdds || 0) + 1
+                pendingAdds: (stats.pendingAdds || 0) + 1,
+                pendingWeeklyAdds: (stats.pendingWeeklyAdds || 0) + 1
             });
             
-            // 2. Update totalQuotes instantly using effectiveTotal
+            // 2. Update totalQuotes and weeklyQuotes instantly using effective calculations
             this._updateTotalQuotes();
             
-            // 3. UPDATE OPTIMISTIC STATS (weeklyQuotes, streak, etc.) BEFORE invalidation
+            // 3. UPDATE OPTIMISTIC STATS (streak, etc.) BEFORE invalidation
             this._updateOptimisticStats();
             
             // 4. Invalidate cache for fresh API data
@@ -477,22 +502,24 @@ class StatisticsService {
             const { optimistic, reverted } = detail;
             
             if (optimistic) {
-                // Optimistic delete: instant -1 by increasing pendingDeletes
-                console.log('📊 Optimistic delete: increasing pendingDeletes');
+                // Optimistic delete: instant -1 by increasing pendingDeletes and pendingWeeklyDeletes
+                console.log('📊 Optimistic delete: increasing pendingDeletes and pendingWeeklyDeletes');
                 const stats = this.state.get('stats') || {};
                 this.state.update('stats', {
-                    pendingDeletes: (stats.pendingDeletes || 0) + 1
+                    pendingDeletes: (stats.pendingDeletes || 0) + 1,
+                    pendingWeeklyDeletes: (stats.pendingWeeklyDeletes || 0) + 1
                 });
                 this._updateTotalQuotes();
                 
-                // Update optimistic stats (weeklyQuotes, etc.)
+                // Update optimistic stats (streak, etc.)
                 this._updateOptimisticStats();
             } else if (reverted) {
-                // Revert failed delete: decrease pendingDeletes
-                console.log('📊 Reverting delete: decreasing pendingDeletes');
+                // Revert failed delete: decrease pendingDeletes and pendingWeeklyDeletes
+                console.log('📊 Reverting delete: decreasing pendingDeletes and pendingWeeklyDeletes');
                 const stats = this.state.get('stats') || {};
                 this.state.update('stats', {
-                    pendingDeletes: Math.max(0, (stats.pendingDeletes || 0) - 1)
+                    pendingDeletes: Math.max(0, (stats.pendingDeletes || 0) - 1),
+                    pendingWeeklyDeletes: Math.max(0, (stats.pendingWeeklyDeletes || 0) - 1)
                 });
                 this._updateTotalQuotes();
                 
@@ -580,47 +607,68 @@ class StatisticsService {
             const main = await this.getMainStats();
             const progress = await this.getUserProgress();
 
-            // Get server totalQuotes as new baseline
+            // Get server values as new baselines
             const serverTotalQuotes = main.totalQuotes || 0;
+            const serverWeeklyQuotes = main.weeklyQuotes || 0;
             
             // Get current deltas
             const currentStats = this.state.get('stats') || {};
             const currentPendingAdds = currentStats.pendingAdds || 0;
             const currentPendingDeletes = currentStats.pendingDeletes || 0;
             const currentBaselineTotal = currentStats.baselineTotal || 0;
+            const currentPendingWeeklyAdds = currentStats.pendingWeeklyAdds || 0;
+            const currentPendingWeeklyDeletes = currentStats.pendingWeeklyDeletes || 0;
+            const currentBaselineWeekly = currentStats.baselineWeekly || 0;
             
-            // Calculate the difference and adjust deltas accordingly
-            const serverDiff = serverTotalQuotes - currentBaselineTotal;
+            // Calculate the differences and adjust deltas accordingly
+            const serverTotalDiff = serverTotalQuotes - currentBaselineTotal;
+            const serverWeeklyDiff = serverWeeklyQuotes - currentBaselineWeekly;
+            
             let newPendingAdds = currentPendingAdds;
             let newPendingDeletes = currentPendingDeletes;
+            let newPendingWeeklyAdds = currentPendingWeeklyAdds;
+            let newPendingWeeklyDeletes = currentPendingWeeklyDeletes;
             
-            // Adjust deltas based on server changes
-            if (serverDiff > 0) {
+            // Adjust total deltas based on server changes
+            if (serverTotalDiff > 0) {
                 // Server shows more quotes, reduce pending adds by the difference
-                newPendingAdds = Math.max(0, newPendingAdds - serverDiff);
-            } else if (serverDiff < 0) {
+                newPendingAdds = Math.max(0, newPendingAdds - serverTotalDiff);
+            } else if (serverTotalDiff < 0) {
                 // Server shows fewer quotes, reduce pending deletes by absolute difference
-                newPendingDeletes = Math.max(0, newPendingDeletes - Math.abs(serverDiff));
+                newPendingDeletes = Math.max(0, newPendingDeletes - Math.abs(serverTotalDiff));
             }
             
-            // Set new baseline and corrected deltas
+            // Adjust weekly deltas based on server changes
+            if (serverWeeklyDiff > 0) {
+                // Server shows more weekly quotes, reduce pending weekly adds by the difference
+                newPendingWeeklyAdds = Math.max(0, newPendingWeeklyAdds - serverWeeklyDiff);
+            } else if (serverWeeklyDiff < 0) {
+                // Server shows fewer weekly quotes, reduce pending weekly deletes by absolute difference
+                newPendingWeeklyDeletes = Math.max(0, newPendingWeeklyDeletes - Math.abs(serverWeeklyDiff));
+            }
+            
+            // Set new baselines and corrected deltas
             const baselineTotal = serverTotalQuotes;
+            const baselineWeekly = serverWeeklyQuotes;
             const effectiveTotal = baselineTotal + newPendingAdds - newPendingDeletes;
+            const effectiveWeekly = baselineWeekly + newPendingWeeklyAdds - newPendingWeeklyDeletes;
 
             // Create flat stats object with baseline + deltas model
             const flatStats = {
                 baselineTotal,
                 pendingAdds: newPendingAdds,
                 pendingDeletes: newPendingDeletes,
+                baselineWeekly,
+                pendingWeeklyAdds: newPendingWeeklyAdds,
+                pendingWeeklyDeletes: newPendingWeeklyDeletes,
                 totalQuotes: effectiveTotal, // Use only effectiveTotal, no Math.max
+                weeklyQuotes: effectiveWeekly, // Use only effectiveWeekly, no Math.max
+                thisWeek: effectiveWeekly, // Mirror for UI compatibility
                 currentStreak: progress.currentStreak || 0,
                 computedStreak: progress.computedStreak || 0,
                 backendStreak: progress.backendStreak || 0,
                 streakToYesterday: progress.streakToYesterday || 0,
                 isAwaitingToday: progress.isAwaitingToday || false,
-                // Protect optimistic weeklyQuotes from server rollback
-                weeklyQuotes: main.weeklyQuotes || 0,
-                thisWeek: main.weeklyQuotes || 0, // Mirror for UI compatibility
                 favoriteAuthor: progress.favoriteAuthor || '—',
                 activityLevel: progress.activityLevel || 'low',
                 daysInApp: main.daysInApp || 0,
@@ -644,8 +692,9 @@ class StatisticsService {
             // NO loading flags for silent refresh
             const diaryStats = await this.getDiaryStats();
             
-            // Use effectiveTotal instead of server totalQuotes
+            // Use effective calculations instead of server values
             const effectiveTotal = this._getEffectiveTotal();
+            const effectiveWeekly = this._getEffectiveWeekly();
             
             // Get current diary stats to preserve optimistic values
             const currentDiaryStats = this.state.get('diaryStats') || {};
@@ -653,8 +702,7 @@ class StatisticsService {
             // Create flat diary stats object
             const flatDiaryStats = {
                 totalQuotes: effectiveTotal, // Use effectiveTotal for consistency
-                // Protect optimistic weeklyQuotes from server rollback
-                weeklyQuotes: main.weeklyQuotes || 0,
+                weeklyQuotes: effectiveWeekly, // Use effectiveWeekly for consistency
                 monthlyQuotes: diaryStats.monthlyQuotes || 0,
                 favoritesCount: diaryStats.favoritesCount || 0,
                 favoriteAuthor: diaryStats.favoriteAuthor || '—',
@@ -670,7 +718,7 @@ class StatisticsService {
             
             // Dispatch event with flat stats
             document.dispatchEvent(new CustomEvent('diary-stats:updated', { detail: mergedDiaryStats }));
-            console.log('📊 Diary stats silently updated with effectiveTotal:', mergedDiaryStats);
+            console.log('📊 Diary stats silently updated with effective values:', mergedDiaryStats);
         } catch (e) {
             console.debug('refreshDiaryStatsSilent failed:', e);
         }
