@@ -634,16 +634,14 @@ class WeeklyReportService {
   }
 
   /**
-   * Получает номер текущей недели в году (ISO 8601)
+   * Получает номер текущей недели в году (ISO 8601) - DEPRECATED
+   * @deprecated Use getISOWeekInfo from ../utils/isoWeek.js instead
    * @returns {number} Номер недели
    */
   getCurrentWeekNumber() {
-    const now = new Date();
-    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    const { getISOWeekInfo } = require('../utils/isoWeek');
+    const weekInfo = getISOWeekInfo();
+    return weekInfo.isoWeek;
   }
 
   /**
@@ -651,37 +649,8 @@ class WeeklyReportService {
    * @returns {{start: Date, end: Date, isoWeekNumber: number, isoYear: number}}
    */
   getPreviousWeekRange() {
-    const now = new Date();
-    
-    // Находим понедельник текущей недели
-    const currentMonday = new Date(now);
-    const dayOfWeek = now.getDay() || 7; // Воскресенье = 7
-    currentMonday.setDate(now.getDate() - dayOfWeek + 1);
-    currentMonday.setHours(0, 0, 0, 0);
-    
-    // Понедельник предыдущей недели
-    const prevMonday = new Date(currentMonday);
-    prevMonday.setDate(currentMonday.getDate() - 7);
-    
-    // Воскресенье предыдущей недели (конец недели)
-    const prevSunday = new Date(prevMonday);
-    prevSunday.setDate(prevMonday.getDate() + 6);
-    prevSunday.setHours(23, 59, 59, 999);
-    
-    // ISO номер недели для предыдущей недели
-    const d = new Date(Date.UTC(prevMonday.getFullYear(), prevMonday.getMonth(), prevMonday.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const isoWeekNumber = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-    const isoYear = d.getUTCFullYear();
-    
-    return {
-      start: prevMonday,
-      end: prevSunday,
-      isoWeekNumber,
-      isoYear
-    };
+    const { getPreviousCompleteISOWeek } = require('../utils/isoWeek');
+    return getPreviousCompleteISOWeek();
   }
 
   /**

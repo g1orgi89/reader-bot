@@ -2848,6 +2848,9 @@ router.post('/notify', async (req, res) => {
   }
 });
 
+const weekContextRoutes = require('./weekContext');
+router.use('/week-context', weekContextRoutes);
+=======
 // ===========================================
 // ⚙️ НАСТРОЙКИ УВЕДОМЛЕНИЙ
 // ===========================================

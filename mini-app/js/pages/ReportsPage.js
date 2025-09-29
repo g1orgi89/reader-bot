@@ -253,20 +253,82 @@ class ReportsPage {
     }
     
     /**
-     * 📦 Получение текущего ключа недели для кэширования
-     * @returns {string} Ключ недели
+     * 📦 Получение текущего ключа недели для кэширования (NEW: ISO week based)
+     * @returns {string} ISO week key for caching
      */
     getCurrentWeekKey() {
-        if (window.DateUtils && window.DateUtils.getWeekKey) {
-            return window.DateUtils.getWeekKey();
+        if (window.DateUtils && window.DateUtils.getIsoWeekKey) {
+            return window.DateUtils.getIsoWeekKey();
         }
         
-        // Fallback если DateUtils недоступен
+        // Fallback если DateUtils недоступен - используем ISO week calculation
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        const week = Math.ceil(now.getDate() / 7);
-        return `${year}-${month}-${week}`;
+        const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const isoWeek = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        const isoYear = d.getUTCFullYear();
+        
+        return `${isoYear}-W${String(isoWeek).padStart(2, '0')}`;
+    }
+
+    /**
+     * 📅 NEW: Prefetch week context before showing page
+     * @returns {Promise<void>}
+     */
+    async prefetch() {
+        try {
+            console.log('📅 ReportsPage: Prefetching week context...');
+            
+            // Check if we need to refresh week context
+            if (!this.state.isWeekContextLoaded() || this.state.shouldRefreshWeekContext()) {
+                this.state.setWeekContextLoading(true);
+                
+                const userId = await this.waitForValidUserId();
+                const weekContext = await this.api.getWeekContext(userId);
+                
+                if (weekContext.success) {
+                    this.state.setWeekContext(weekContext);
+                    console.log('📅 Week context loaded:', weekContext);
+                } else {
+                    console.warn('⚠️ Failed to load week context:', weekContext.error);
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Error prefetching week context:', error);
+            this.state.setWeekContextLoading(false);
+        }
+    }
+
+    /**
+     * 📅 NEW: Get formatted label for previous week
+     * @returns {string} Formatted week range label
+     */
+    getPreviousWeekLabel() {
+        const weekContext = this.state.getWeekContext();
+        
+        if (weekContext && weekContext.previous) {
+            return weekContext.previous.label;
+        }
+        
+        // Fallback to current date-based calculation
+        if (window.DateUtils && window.DateUtils.formatIsoWeekLabel) {
+            const weekInfo = window.DateUtils.getISOWeekInfo();
+            // Previous week
+            let prevWeek = weekInfo.isoWeek - 1;
+            let prevYear = weekInfo.isoYear;
+            
+            if (prevWeek < 1) {
+                prevYear = weekInfo.isoYear - 1;
+                prevWeek = 52; // Simplified - most years have 52 weeks
+            }
+            
+            return window.DateUtils.formatIsoWeekLabel(prevWeek, prevYear);
+        }
+        
+        return 'предыдущую неделю';
     }
     
     /**
@@ -519,19 +581,20 @@ class ReportsPage {
             console.log('📡 ReportsPage: Загружаем еженедельные отчеты для userId:', userId);
             const weeklyReports = await this.api.getWeeklyReports({ limit: 2 }, userId);
             
-            // ✅ Обработка еженедельных отчетов (включая дельты)
+            // ✅ CORRECTED: Fixed report ordering - reports[0] is most recent, reports[1] is previous
+            // as per API DESC ordering by sentAt
             if (weeklyReports && weeklyReports.success) {
                 const reports = weeklyReports.reports || weeklyReports.data?.reports || [];
                 if (reports.length > 1) {
-                this.weeklyReport = reports[1];
-                this.previousWeeklyReport = reports[0];
-            } else if (reports.length === 1) {
-                this.weeklyReport = reports[0];
-                this.previousWeeklyReport = null;
-            } else {
-                this.weeklyReport = null;
-                this.previousWeeklyReport = null;
-            }
+                    this.weeklyReport = reports[0];        // Most recent report (current)
+                    this.previousWeeklyReport = reports[1]; // Previous report (for deltas)
+                } else if (reports.length === 1) {
+                    this.weeklyReport = reports[0];         // Only one report available
+                    this.previousWeeklyReport = null;
+                } else {
+                    this.weeklyReport = null;
+                    this.previousWeeklyReport = null;
+                }
 
             this.lastReportDate = this.weeklyReport && this.weeklyReport.sentAt
                 ? new Date(this.weeklyReport.sentAt)
@@ -634,9 +697,32 @@ class ReportsPage {
 
     /**
      * 🆕 ПЛЕЙСХОЛДЕР ДЛЯ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ БЕЗ ОТЧЕТОВ
+     * NEW: Uses week context to show appropriate waiting message
      */
     renderNewUserPlaceholder() {
-        // Вычисляем дату следующего воскресенья
+        const weekContext = this.state.getWeekContext();
+        
+        // Check if we're waiting for previous week report
+        if (weekContext && weekContext.previous && !weekContext.previous.hasReport) {
+            const previousWeekLabel = this.getPreviousWeekLabel();
+            
+            return `
+                <div class="new-user-placeholder">
+                    <div class="placeholder-content">
+                        <div class="placeholder-icon">📊</div>
+                        <div class="placeholder-title">Готовим ваш отчет</div>
+                        <div class="placeholder-text">
+                            Анализируем цитаты за <strong>${previousWeekLabel}</strong>
+                        </div>
+                        <div class="placeholder-hint">
+                            Отчет появится в ближайшее время
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Default placeholder for new users
         const nextSundayDate = this.getNextSundayDate();
         const formattedDate = nextSundayDate.toLocaleDateString('ru-RU', {
             day: 'numeric',
@@ -701,17 +787,30 @@ class ReportsPage {
             return `<span class="stat-delta ${direction}">${symbol}${value}</span>`;
         };
         
-        // ✅ НОВОЕ: Форматирование даты отчета "Месяц, неделя N"
+        // ✅ NEW: ISO week date formatting using week context or report data
         let reportDateText = '';
-        if (this.lastReportDate && window.DateUtils) {
-            reportDateText = window.DateUtils.formatReportDate(this.lastReportDate);
+        if (this.weeklyReport && this.weeklyReport.weekNumber && this.weeklyReport.year) {
+            // Use ISO week from the report data
+            if (window.DateUtils && window.DateUtils.formatIsoWeekLabel) {
+                reportDateText = window.DateUtils.formatIsoWeekLabel(
+                    this.weeklyReport.weekNumber, 
+                    this.weeklyReport.year
+                );
+            } else {
+                // Fallback for ISO week
+                reportDateText = `Неделя ${this.weeklyReport.weekNumber}, ${this.weeklyReport.year}`;
+            }
         } else if (this.lastReportDate) {
-            // Fallback если DateUtils не загружен
-            const date = this.lastReportDate;
-            const monthName = date.toLocaleString('ru', { month: 'long' });
-            const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-            const weekNumber = Math.ceil(date.getDate() / 7);
-            reportDateText = `${capitalizedMonth}, неделя ${weekNumber}`;
+            // Legacy fallback using month-based logic (deprecated)
+            if (window.DateUtils && window.DateUtils.formatReportDate) {
+                reportDateText = window.DateUtils.formatReportDate(this.lastReportDate);
+            } else {
+                const date = this.lastReportDate;
+                const monthName = date.toLocaleString('ru', { month: 'long' });
+                const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                const weekNumber = Math.ceil(date.getDate() / 7);
+                reportDateText = `${capitalizedMonth}, неделя ${weekNumber}`;
+            }
         }
         
         return `
@@ -885,47 +984,58 @@ class ReportsPage {
      * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
      * ✅ ИСПРАВЛЕНО: Предотвращает загрузку старых данных, всегда показывает лоадер до получения актуальных данных
      */
-   onShow() {
-       console.log('📊 ReportsPage: onShow - Проверяем кэш и загружаем данные');
+   async onShow() {
+       console.log('📊 ReportsPage: onShow - Starting with prefetch and ISO week logic');
        
-       // ✅ ИСПРАВЛЕНИЕ: Гарантированно сбрасываем ключевые флаги при каждом входе на страницу
-       // Это устраняет баг "вечной загрузки" из-за "зависшего" состояния
-       this.reportsLoading = false;
-       this.reportsLoaded = false;
-       // ✅ ИСПРАВЛЕНО: НЕ сбрасываем weeklyReport, чтобы не ломать рабочий кеш
-       
-       // Получаем текущий ключ недели
-       const currentWeekKey = this.getCurrentWeekKey();
-       console.log('🔑 Текущий ключ недели:', currentWeekKey);
-       
-       // Пытаемся загрузить из кэша
-       const cachedReport = this.loadReportFromCache(currentWeekKey);
-       
-       if (cachedReport) {
-           console.log('⚡ Показываем кэшированный отчет мгновенно');
-           // Мгновенно показываем кэшированные данные
-           this.weeklyReport = cachedReport;
-           this.calculateStatisticsFromWeeklyReport();
-           this.reportsLoaded = true;
-           this.reportsLoading = false;
-           this.rerender();
+       try {
+           // 📅 NEW: Prefetch week context first
+           await this.prefetch();
            
-           // Запускаем тихий refresh в фоне
-           console.log('🔄 Запускаем тихий refresh в фоне');
-           this.silentRefresh(currentWeekKey);
-       } else {
-           console.log('💾 Кэш пуст или невалидный, загружаем данные');
-           // ✅ ИСПРАВЛЕНИЕ: НЕ устанавливаем reportsLoading здесь, пусть loadReportData сам управляет флагом
-           // Кэш пуст - показываем лоадер только если нет уже загруженного отчета
+           // ✅ ИСПРАВЛЕНИЕ: Гарантированно сбрасываем ключевые флаги при каждом входе на страницу
+           this.reportsLoading = false;
            this.reportsLoaded = false;
-           // ✅ НЕ устанавливаем weeklyReport = null если отчет уже есть
-           if (!this.weeklyReport) {
-               this.rerender(); // Рендерим лоадер только если нет отчета
+           
+           // NEW: Use ISO week key for caching
+           const currentWeekKey = this.getCurrentWeekKey();
+           console.log('🔑 Текущий ISO week key:', currentWeekKey);
+           
+           // Store ISO week key for backward compatibility with cache mechanism
+           this.isoWeekKey = currentWeekKey;
+           this.lastWeekKey = currentWeekKey; // Keep for internal compatibility
+           
+           // Try loading from cache with ISO week key
+           const cachedReport = this.loadReportFromCache(currentWeekKey);
+           
+           if (cachedReport) {
+               console.log('⚡ Показываем кэшированный отчет с ISO week key');
+               this.weeklyReport = cachedReport;
+               this.calculateStatisticsFromWeeklyReport();
+               this.reportsLoaded = true;
+               this.reportsLoading = false;
+               this.rerender();
+               
+               // Silent refresh in background
+               console.log('🔄 Запускаем тихий refresh с ISO week key');
+               this.silentRefresh(currentWeekKey);
+           } else {
+               console.log('💾 Кэш пуст, загружаем данные с ISO week key');
+               this.reportsLoaded = false;
+               
+               if (!this.weeklyReport) {
+                   this.rerender(); // Show loader only if no report exists
+               }
+               
+               // Load data with ISO week key
+               await this.loadReportData(currentWeekKey);
+               console.log('✅ ReportsPage: Данные загружены с ISO week key');
            }
            
-           // Загружаем данные с API
-           this.loadReportData(currentWeekKey).then(() => {
-               console.log('✅ ReportsPage: Данные загружены, перерендериваем');
+       } catch (error) {
+           console.error('❌ Error in ReportsPage onShow:', error);
+           this.reportsLoading = false;
+           this.rerender();
+       }
+   }
                this.rerender();
            }).catch((error) => {
                console.error('❌ ReportsPage: Ошибка загрузки данных:', error);
