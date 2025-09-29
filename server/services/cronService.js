@@ -276,24 +276,23 @@ class CronService {
           }
 
           // Generate the report using WeeklyReportService with explicit week metadata
-          const weekMeta = { isoWeek: weekNumber, isoYear: year };
-          const reportData = await this.weeklyReportService.generateWeeklyReport(userId, quotes, userProfile, weekMeta);
+          const reportData = await this.weeklyReportService.generateWeeklyReport(userId, quotes, userProfile, {
+            weekMeta: {
+              isoWeek: weekNumber,
+              isoYear: year,
+              start: weekRange.start,
+              end: weekRange.end
+            }
+          });
 
-          if (Array.isArray(reportData.recommendations)) {
-            reportData.recommendations = reportData.recommendations.map(rec => ({
-              ...rec,
-              price: typeof rec.price === 'string'
-                ? Number(rec.price.replace(/[^0-9.]/g, ''))
-                : rec.price
-            }));
-          }
           // Save to database
           const weeklyReport = new WeeklyReport(reportData);
           await weeklyReport.save();
 
           // Send weekly report notification if enabled
           try {
-            const settings = user.getNormalizedSettings();
+            const userDoc = await UserProfile.findOne({ userId }).lean();
+            const settings = userDoc?.getNormalizedSettings ? userDoc.getNormalizedSettings() : null;
             if (settings && settings.weeklyReports.enabled && this.bot) {
               const message = "📝 Ваш еженедельный отчёт готов. Откройте приложение, чтобы посмотреть инсайты.";
               await this.bot.telegram.sendMessage(userId, message);

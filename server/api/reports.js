@@ -471,7 +471,7 @@ router.post('/weekly/generate', checkModelsAvailable, async (req, res) => {
             weekRange: {
               start: weekRange.start.toISOString(),
               end: weekRange.end.toISOString(),
-              weekNumber: weekRange.isoWeekNumber,
+              weekNumber: weekRange.isoWeek,
               year: weekRange.isoYear
             }
           }
@@ -818,7 +818,7 @@ router.get('/cron/status', async (req, res) => {
 });
 
 // Fallback endpoints for graceful degradation
-router.use((req, res, next) => {
+router.use((req, res) => {
   logger.warn(`📖 Reports API: Unknown endpoint ${req.method} ${req.path}`);
   res.status(404).json({
     success: false,
