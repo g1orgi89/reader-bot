@@ -593,6 +593,34 @@
 }
 
 /* ============================================================================
+   🏷️ ДЕТАЛИ НЕДЕЛИ - ВТОРИЧНЫЕ ТЕМЫ
+   ============================================================================ */
+
+.weekly-details {
+    background: var(--surface, #FFFFFF);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-light, #F0F0F0);
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+.weekly-details-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #2D2D2D);
+    margin-bottom: 6px;
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+.weekly-details-list {
+    font-size: 12px;
+    color: var(--text-secondary, #666666);
+    line-height: 1.5;
+    transition: color var(--transition-normal, 0.3s ease);
+}
+
+/* ============================================================================
    📱 МОБИЛЬНАЯ АДАПТАЦИЯ ДЛЯ НОВЫХ СТИЛЕЙ
    ============================================================================ */
 
@@ -636,5 +664,18 @@
         background: var(--surface, #2A2A2A);
         border-color: var(--border, #404040);
         box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
+    }
+    
+    .weekly-details {
+        background: var(--surface, #2A2A2A);
+        border-color: var(--border, #404040);
+    }
+    
+    .weekly-details-label {
+        color: var(--text-primary, #EFEFEF);
+    }
+    
+    .weekly-details-list {
+        color: var(--text-secondary, #B8B8B8);
     }
 }

@@ -69,6 +69,10 @@ const weeklyAnalysisSchema = new mongoose.Schema({
     type: String
     // Доминирующие темы
   }],
+  secondaryThemes: [{
+    type: String
+    // Вторичные (детализированные) темы из targetThemes BookCatalog - optional для обратной совместимости
+  }],
   emotionalTone: {
     type: String,
     required: true,

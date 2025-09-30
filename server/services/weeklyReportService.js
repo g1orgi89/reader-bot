@@ -328,6 +328,87 @@ class WeeklyReportService {
   }
 
   /**
+   * 🆕 Извлекает вторичные (детализированные) темы из цитат на основе targetThemes из BookCatalog
+   * @param {Array<Quote>} quotes - Цитаты за неделю
+   * @returns {Promise<string[]>} Массив вторичных тем (до 5 штук)
+   * @private
+   */
+  async _extractSecondaryThemes(quotes) {
+    try {
+      // Guard: если нет BookCatalog или цитат, возвращаем пустой массив
+      if (!this.BookCatalog || !quotes || quotes.length === 0) {
+        return [];
+      }
+
+      // Получаем все активные книги с targetThemes
+      const activeBooks = await this.BookCatalog.find({ isActive: true }).select('targetThemes');
+      
+      if (!activeBooks || activeBooks.length === 0) {
+        return [];
+      }
+
+      // Строим множество уникальных targetThemes (lowercased)
+      const targetThemesSet = new Set();
+      activeBooks.forEach(book => {
+        if (book.targetThemes && Array.isArray(book.targetThemes)) {
+          book.targetThemes.forEach(theme => {
+            if (theme && typeof theme === 'string' && theme.length >= 4) {
+              targetThemesSet.add(theme.toLowerCase());
+            }
+          });
+        }
+      });
+
+      if (targetThemesSet.size === 0) {
+        return [];
+      }
+
+      // Получаем список 14 канонических категорий для фильтрации
+      const { CANONICAL_CATEGORIES } = require('../shared/categoriesConfig');
+      const canonicalKeys = CANONICAL_CATEGORIES.map(cat => cat.key.toUpperCase());
+
+      // Сканируем цитаты и считаем частоту встречаемости каждой темы
+      const themeFrequency = new Map();
+      
+      quotes.forEach(quote => {
+        const quoteLower = quote.text.toLowerCase();
+        
+        targetThemesSet.forEach(theme => {
+          // Проверяем, содержит ли цитата тему как подстроку
+          if (quoteLower.includes(theme)) {
+            themeFrequency.set(theme, (themeFrequency.get(theme) || 0) + 1);
+          }
+        });
+      });
+
+      // Фильтруем темы:
+      // 1. Исключаем канонические категории (после приведения к верхнему регистру)
+      // 2. Применяем частотный порог
+      const minFrequency = quotes.length > 15 ? 2 : 1;
+      
+      const filteredThemes = Array.from(themeFrequency.entries())
+        .filter(([theme, freq]) => {
+          // Проверяем, не является ли тема одной из 14 категорий
+          const themeUpper = theme.toUpperCase();
+          const isCanonical = canonicalKeys.some(key => key === themeUpper);
+          
+          return !isCanonical && freq >= minFrequency;
+        })
+        .sort((a, b) => b[1] - a[1]) // Сортируем по убыванию частоты
+        .map(([theme]) => theme);
+
+      // Берем топ N тем (3 по умолчанию, до 5 если есть)
+      const topThemes = filteredThemes.slice(0, 5);
+
+      return topThemes;
+
+    } catch (error) {
+      logger.error(`🎯 Error extracting secondary themes: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
    * Нормализует цену из строки в число
    * @param {string|number} price - Цена в любом формате
    * @returns {number|undefined} Нормализованная цена или undefined если не удалось распарсить
@@ -394,6 +475,15 @@ class WeeklyReportService {
       
       // Получаем AI-анализ цитат
       const analysis = await this.analyzeWeeklyQuotes(quotes, userProfile);
+      
+      // 🆕 Извлекаем вторичные темы из цитат на основе targetThemes из BookCatalog
+      const secondaryThemes = await this._extractSecondaryThemes(quotes);
+      
+      // Добавляем secondaryThemes в анализ, если они есть
+      if (secondaryThemes && secondaryThemes.length > 0) {
+        analysis.secondaryThemes = secondaryThemes;
+        logger.info(`🎯 Secondary themes user=${userId} week=${weekRange.isoWeek}/${weekRange.isoYear}: [ ${secondaryThemes.map(t => `'${t}'`).join(', ')} ]`);
+      }
       
       // Получаем персональные категории из теста
       // const personalCategories = this.extractCategoriesFromOnboarding(userProfile.testResults);
@@ -491,8 +581,21 @@ class WeeklyReportService {
   async getBookRecommendations(analysis, userProfile) {
     try {
       if (this.BookCatalog) {
-        // Получаем рекомендации из БД на основе анализа
-        let recommendations = await this.BookCatalog.getRecommendationsByThemes(analysis.dominantThemes);
+        // 🆕 Комбинируем dominantThemes и secondaryThemes для рекомендаций
+        // Сначала dominantThemes, затем secondaryThemes (без дубликатов)
+        const recThemes = [...(analysis.dominantThemes || [])];
+        
+        if (analysis.secondaryThemes && analysis.secondaryThemes.length > 0) {
+          analysis.secondaryThemes.forEach(theme => {
+            // Добавляем только уникальные темы
+            if (!recThemes.includes(theme)) {
+              recThemes.push(theme);
+            }
+          });
+        }
+        
+        // Получаем рекомендации из БД на основе комбинированного списка тем
+        let recommendations = await this.BookCatalog.getRecommendationsByThemes(recThemes);
         
         // Если не нашли подходящих книг по темам, берем универсальные
         if (!recommendations || recommendations.length === 0) {
