@@ -109,7 +109,7 @@
     </div>
 
     <!-- 🏠 ГЛАВНОЕ ПРИЛОЖЕНИЕ -->
-    <div id="app" class="app-container" style="display: none;">
+    <div id="app" class="app-container">
         
         <!-- 📄 КОНТЕЙНЕР ДЛЯ СОДЕРЖИМОГО СТРАНИЦ (БЕЗ ХЕДЕРОВ!) -->
         <div id="page-content" class="page-content">
@@ -121,35 +121,35 @@
 
         <!-- 📱 НИЖНЯЯ НАВИГАЦИЯ -->
         <nav id="bottom-nav" class="bottom-nav">
-            <div class="nav-item active" data-page="home">
+            <div class="nav-item active" data-route="/home" data-nav-id="home">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                 </svg>
                 <span class="nav-label">Главная</span>
             </div>
             
-            <div class="nav-item" data-page="diary">
+            <div class="nav-item" data-route="/diary" data-nav-id="diary">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 </svg>
                 <span class="nav-label">Дневник</span>
             </div>
             
-            <div class="nav-item" data-page="reports">
+            <div class="nav-item" data-route="/reports" data-nav-id="reports">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
                 </svg>
                 <span class="nav-label">Отчеты</span>
             </div>
             
-            <div class="nav-item" data-page="catalog">
+            <div class="nav-item" data-route="/catalog" data-nav-id="catalog">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
                 </svg>
                 <span class="nav-label">Каталог</span>
             </div>
             
-            <div class="nav-item" data-page="community">
+            <div class="nav-item" data-route="/community" data-nav-id="community">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>

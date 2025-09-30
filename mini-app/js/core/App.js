@@ -306,9 +306,12 @@ class ReaderApp {
 
     async initializeUI() {
         console.log('🔄 Инициализация UI...');
-        if (typeof BottomNavigation !== 'undefined') {
-            const bottomNav = new BottomNavigation();
-            bottomNav?.init?.();
+        // 🔧 FIX: Используем правильное имя класса BottomNav
+        if (typeof BottomNav !== 'undefined') {
+            const bottomNav = new BottomNav(this, this.router, this.telegram);
+            // bottomNav.init() уже вызывается в конструкторе
+        } else {
+            console.warn('⚠️ BottomNav класс не найден');
         }
         this.topMenu = null;
         this.setupEventListeners();

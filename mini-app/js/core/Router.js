@@ -692,9 +692,12 @@ class AppRouter {
         const navButtons = document.querySelectorAll('.nav-item');
         
         navButtons.forEach(button => {
-            const buttonPath = '/' + button.dataset.page;
+            // 🔧 FIX: Используем data-route вместо data-page
+            const buttonPath = button.dataset.route;
             button.classList.toggle('active', buttonPath === path);
         });
+        
+        console.log(`🎯 Router: Активна навигация для ${path}`);
     }
 
     /**
@@ -748,9 +751,10 @@ class AppRouter {
         
         event.preventDefault();
         
-        const page = navItem.dataset.page;
-        if (page) {
-            this.navigate(`/${page}`);
+        // 🔧 FIX: Используем data-route вместо data-page
+        const route = navItem.dataset.route;
+        if (route) {
+            this.navigate(route);
             
             // Haptic feedback для Telegram
             if (window.Telegram?.WebApp?.HapticFeedback) {
