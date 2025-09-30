@@ -83,6 +83,14 @@ class ViewportHeightCalculator {
      */
     updateViewportHeight() {
         try {
+            // 🔧 FIX: Check for page-content first
+            const pageContent = document.getElementById('page-content');
+            if (!pageContent) {
+                console.warn('[viewport] ⚠️ No scroll container (#page-content) detected - using body');
+            } else if (pageContent.clientHeight <= 0) {
+                console.warn('[viewport] ⚠️ page-content has no height (clientHeight=0)');
+            }
+            
             // 🔧 FIX: Skip updates when keyboard is open to prevent layout jumps
             const isKeyboardOpen = document.body.classList.contains('keyboard-open');
             if (isKeyboardOpen) {
@@ -128,6 +136,8 @@ class ViewportHeightCalculator {
                 realNav: realSizes.bottomNavHeight,
                 available: availableHeight,
                 page: this.getCurrentPage(),
+                pageContentExists: !!pageContent,
+                pageContentHeight: pageContent ? pageContent.clientHeight : 0,
                 updated: {
                     '--header-height': `${realSizes.headerHeight}px`,
                     '--bottom-nav-height': `${realSizes.bottomNavHeight}px`

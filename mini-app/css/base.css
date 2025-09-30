@@ -10,6 +10,13 @@
    ✏️ БАЗОВАЯ ТИПОГРАФИКА
    ============================================================================ */
 
+/* 🔧 FIX: Ensure html and body take full height for proper flex layout */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
 body {
     font-family: var(--font-family-primary);
     font-size: var(--font-size-base);
@@ -21,7 +28,12 @@ body {
     background: var(--background, #F5F2EC);
     padding: 20px 20px 0;
     min-height: 100vh;
-    /* 🔧 FIX: Prevent double scroll - body should not scroll */
+    /* 🔧 FIX: Default to auto, will be set to hidden by JS if #page-content exists */
+    overflow: auto;
+}
+
+/* 🔧 FIX: Body with valid scroll container should not scroll */
+body.has-scroll-container {
     overflow: hidden;
 }
 
@@ -113,13 +125,14 @@ p {
    📱 PHONE-FRAME ДИЗАЙН (ИЗ КОНЦЕПТА)
    ============================================================================ */
 
+/* 🔧 FIX: app-container as flex container (app-shell structure) */
 .app-container {
     max-width: 480px;
     margin: 0 auto 20px;
     min-height: calc(100vh - 40px);
     background: var(--surface, #FFFFFF);
     border-radius: 20px;
-    overflow-x: hidden;
+    overflow: hidden; /* 🔧 FIX: Prevent container itself from scrolling */
     box-shadow: 
         0 8px 32px var(--shadow-color-strong, rgba(210, 69, 44, 0.15)),
         0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08)),
@@ -130,30 +143,27 @@ p {
     transition: all var(--transition-normal, 0.3s ease);
 }
 
-/* 🔧 ИСПРАВЛЕНО: Упрощенный viewport БЕЗ ХЕДЕРОВ */
+/* 🔧 FIX: page-content as THE SINGLE scroll container */
 .page-content {
     flex: 1;
-    min-height: 0;
+    min-height: 0; /* CRITICAL: allows flex item to shrink */
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overscroll-behavior: contain;
+    padding-bottom: calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px));
 }
 
-/* 🔧 FIX: Remove fixed height to avoid double scroll - let .content be flexible */
+/* 🔧 FIX: Protective reset for .content - should NOT create its own scroll */
 .content {
-    /* 🔧 FIX: Single scroll container - no fixed height, just padding for bottom nav */
+    /* 🔧 FIX: Content should NOT scroll - only page-content should scroll */
     width: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
+    overflow: visible !important; /* Force no scroll on .content */
+    height: auto !important; /* Force no fixed height */
     padding: 16px;
-    padding-bottom: calc(var(--bottom-nav-height, 60px) + 16px);
     box-sizing: border-box;
-    /* 🔧 FIX: Allow content to grow naturally */
-    min-height: calc(100vh - var(--bottom-nav-height, 60px));
+    /* Allow content to grow naturally within the scrolling page-content */
 }
 
 /* 🔧 СПЕЦИАЛЬНОЕ ИСПРАВЛЕНИЕ ДЛЯ TELEGRAM WEB APP */
@@ -173,8 +183,7 @@ p {
     }
     .content {
         padding: 12px;
-        padding-bottom: calc(var(--bottom-nav-height, 60px) + 12px);
-        min-height: calc(100vh - var(--bottom-nav-height, 60px));
+        /* 🔧 FIX: No min-height needed, content grows naturally */
     }
 }
 
