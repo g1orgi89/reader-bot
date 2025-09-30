@@ -29,6 +29,12 @@ class BottomNav {
      * @param {Object} telegram - Telegram интеграция
      */
     constructor(app, router, telegram) {
+        // 🔧 FIX: Implement singleton pattern
+        if (window.__BottomNavInstance) {
+            console.log('BottomNav: Singleton already exists, returning existing instance');
+            return window.__BottomNavInstance;
+        }
+        
         this.app = app;
         this.router = router;
         this.telegram = telegram;
@@ -71,6 +77,9 @@ class BottomNav {
             }
         ];
         
+        // 🔧 FIX: Store singleton instance
+        window.__BottomNavInstance = this;
+        
         this.init();
     }
 
@@ -78,6 +87,7 @@ class BottomNav {
      * Инициализация компонента
      */
     init() {
+        this.removeDuplicateNavigations();
         this.createElement();
         this.attachEventListeners();
         this.subscribeToRouteChanges();
@@ -86,6 +96,29 @@ class BottomNav {
         window.bottomNavInstance = this;
         
         console.log('BottomNav: Инициализирован с', this.navItems.length, 'страницами');
+    }
+
+    /**
+     * 🔧 FIX: Remove duplicate bottom navigation elements
+     */
+    removeDuplicateNavigations() {
+        const navElements = document.querySelectorAll('nav.bottom-nav');
+        
+        if (navElements.length > 1) {
+            console.warn(`⚠️ Found ${navElements.length} bottom navigation elements! Removing duplicates...`);
+            
+            // Keep the first one (or the one with id="bottom-nav")
+            let keepElement = document.getElementById('bottom-nav') || navElements[0];
+            
+            navElements.forEach((nav, index) => {
+                if (nav !== keepElement) {
+                    console.warn(`  Removing duplicate nav element ${index + 1}`);
+                    nav.remove();
+                }
+            });
+            
+            console.log('✅ Duplicate navigations removed, keeping only one');
+        }
     }
 
     /**
