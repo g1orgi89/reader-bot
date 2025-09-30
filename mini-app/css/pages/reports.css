@@ -10,14 +10,13 @@
    📄 КОНТЕНТ ОТЧЕТОВ (✅ ИСПРАВЛЕНО!)
    ============================================================================ */
 
-/* 🔧 FIX: Scope reports styles to .reports-page to avoid global .content override */
-.reports-page {
+.content {
     width: 100%;
     padding: 16px;
-    /* 🔧 FIX: No overflow on reports-page wrapper - let page-content handle scroll */
+    overflow-y: auto;
 }
 
-/* 🔧 FIX: Inner scroll wrapper for reports (if needed for specific sections) */
+/* Inner scroll wrapper for reports (if needed for specific sections) */
 .reports-scroll {
     /* No overflow-y here - content flows naturally in page-content scroll */
 }
@@ -250,7 +249,7 @@
    ============================================================================ */
 
 @media (max-width: 480px) {
-    .reports-page {
+    .content {
         padding: 12px;
         padding-bottom: calc(var(--bottom-nav-height, 70px) + 12px);
     }

@@ -37,22 +37,11 @@
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     
-    /* 🔧 FIX: Add smooth transition for keyboard hide/show */
+    /* Add smooth transition */
     transition: transform 0.3s ease;
 }
 
-/* 🔧 FIX: Hide bottom-nav when keyboard is open (iOS/Telegram) */
-body.keyboard-open .bottom-nav {
-    transform: translateY(100%);
-    pointer-events: none;
-}
-
-html.keyboard-open .bottom-nav {
-    transform: translateY(100%);
-    pointer-events: none;
-}
-
-/* 🔧 iOS ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ - УБИРАЕМ БОЛЬШИЕ ОТСТУПЫ */
+/* iOS ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ - УБИРАЕМ БОЛЬШИЕ ОТСТУПЫ */
 @supports (padding: max(0px)) {
     .bottom-nav {
         /* Используем max() для правильной работы safe-area - НО НЕ УВЕЛИЧИВАЕМ ВЫСОТУ! */

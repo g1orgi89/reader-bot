@@ -29,12 +29,6 @@ class BottomNav {
      * @param {Object} telegram - Telegram интеграция
      */
     constructor(app, router, telegram) {
-        // 🔧 FIX: Implement singleton pattern
-        if (window.__BottomNavInstance) {
-            console.log('BottomNav: Singleton already exists, returning existing instance');
-            return window.__BottomNavInstance;
-        }
-        
         this.app = app;
         this.router = router;
         this.telegram = telegram;
@@ -43,9 +37,6 @@ class BottomNav {
         this.element = null;
         this.subscriptions = [];
         
-        // 🔧 FIX: Store singleton instance
-        window.__BottomNavInstance = this;
-        
         this.init();
     }
 
@@ -53,26 +44,33 @@ class BottomNav {
      * Инициализация компонента
      */
     init() {
-        // 🔧 FIX: Просто находим существующий элемент, НЕ создаем новый
-        this.element = document.getElementById('bottom-nav');
+        // Создаем или находим элемент навигации
+        this.element = document.querySelector('.bottom-nav');
         
         if (!this.element) {
-            console.error('❌ BottomNav: #bottom-nav не найден в DOM!');
-            return;
+            this.element = this.createNavigationElement();
+            document.body.appendChild(this.element);
         }
         
-        console.log('✅ BottomNav: Найден существующий элемент навигации');
-        
-        // Прикрепляем обработчики событий к существующему элементу
+        // Прикрепляем обработчики событий
         this.attachEventListeners();
         
         // Подписываемся на изменения маршрута
         this.subscribeToRouteChanges();
         
-        // 🔧 ИСПРАВЛЕНО: Экспортируем глобальный экземпляр для ios-fix.js
+        // Экспортируем глобальный экземпляр для ios-fix.js
         window.bottomNavInstance = this;
         
-        console.log('✅ BottomNav: Инициализирован с существующей статической разметкой');
+        console.log('✅ BottomNav: Инициализирован');
+    }
+
+    /**
+     * Создание элемента навигации
+     */
+    createNavigationElement() {
+        const nav = document.createElement('nav');
+        nav.className = 'bottom-nav';
+        return nav;
     }
 
     /**

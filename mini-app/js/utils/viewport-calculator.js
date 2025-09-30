@@ -12,18 +12,12 @@
 class ViewportHeightCalculator {
     constructor() {
         this.isActive = false;
-        this.lastUpdateTime = 0; // 🔧 FIX: Add debounce tracking
-        this.minUpdateInterval = 150; // 🔧 FIX: Minimum 150ms between updates
-        this._pageContentWarningLogged = false; // 🔧 FIX: Track if warning was logged
-        this._lastZeroHeightWarning = 0; // 🔧 FIX: Track last zero height warning
-        this._lastLogTime = 0; // 🔧 FIX: Track last full log time
-        this._lastDuplicateNavWarning = 0; // 🔧 FIX: Track last duplicate nav warning
         
         // Привязываем методы к контексту
         this.updateViewportHeight = this.updateViewportHeight.bind(this);
         this.handleResize = this.handleResize.bind(this);
         
-        console.log('🔧 ViewportHeightCalculator initialized v1.2.0 with debounce');
+        console.log('🔧 ViewportHeightCalculator initialized');
     }
 
     /**
@@ -34,20 +28,8 @@ class ViewportHeightCalculator {
         
         this.isActive = true;
         
-        // 🔧 FIX: Ждем, пока #page-content появится и получит высоту
-        const waitForPageContent = () => {
-            const pageContent = document.getElementById('page-content');
-            if (pageContent && pageContent.clientHeight > 0) {
-                console.log('✅ ViewportCalculator: #page-content ready, starting measurements');
-                this.updateViewportHeight();
-            } else {
-                // Попробуем снова через 100мс
-                setTimeout(waitForPageContent, 100);
-            }
-        };
-        
-        // Даем время на инициализацию DOM
-        setTimeout(waitForPageContent, 500);
+        // Первоначальное обновление
+        this.updateViewportHeight();
         
         // Обновляем при изменении размеров
         window.addEventListener('resize', this.handleResize);
@@ -72,7 +54,7 @@ class ViewportHeightCalculator {
             window.Telegram.WebApp.onEvent('viewportChanged', this.handleResize);
         }
         
-        console.log('✅ ViewportHeightCalculator started with debounce and delayed init');
+        console.log('✅ ViewportHeightCalculator started');
     }
 
     /**
@@ -99,36 +81,6 @@ class ViewportHeightCalculator {
      */
     updateViewportHeight() {
         try {
-            // 🔧 FIX: Check for page-content first
-            const pageContent = document.getElementById('page-content');
-            if (!pageContent) {
-                // Only log once if not found
-                if (!this._pageContentWarningLogged) {
-                    console.warn('[viewport] ⚠️ No scroll container (#page-content) detected - using fallback');
-                    this._pageContentWarningLogged = true;
-                }
-            } else if (pageContent.clientHeight <= 0) {
-                // Only log occasionally if height is 0 (not every time)
-                const now = Date.now();
-                if (!this._lastZeroHeightWarning || (now - this._lastZeroHeightWarning) > 5000) {
-                    console.warn('[viewport] ⚠️ page-content has no height (clientHeight=0)');
-                    this._lastZeroHeightWarning = now;
-                }
-            }
-            
-            // 🔧 FIX: Skip updates when keyboard is open to prevent layout jumps
-            const isKeyboardOpen = document.body.classList.contains('keyboard-open');
-            if (isKeyboardOpen) {
-                return;
-            }
-            
-            // 🔧 FIX: Debounce - skip if updated too recently
-            const now = Date.now();
-            if (now - this.lastUpdateTime < this.minUpdateInterval) {
-                return;
-            }
-            this.lastUpdateTime = now;
-            
             const realSizes = this.measureRealElementSizes();
 
             const tg = window.Telegram?.WebApp;
@@ -140,7 +92,7 @@ class ViewportHeightCalculator {
             // Рассчитываем доступную высоту для контента
             const availableHeight = telegramHeight - realSizes.headerHeight - realSizes.bottomNavHeight;
             
-            // 🔧 ИСПРАВЛЕНО: Обновляем ОСНОВНЫЕ CSS переменные
+            // Обновляем ОСНОВНЫЕ CSS переменные
             // Эти переменные используются в base.css для расчета высоты контента
             document.documentElement.style.setProperty('--header-height', `${realSizes.headerHeight}px`);
             document.documentElement.style.setProperty('--bottom-nav-height', `${realSizes.bottomNavHeight}px`);
@@ -151,17 +103,11 @@ class ViewportHeightCalculator {
             document.documentElement.style.setProperty('--real-available-height', `${availableHeight}px`);
             document.documentElement.style.setProperty('--real-viewport-height', `${telegramHeight}px`);
             
-            // Only log occasionally (every 5 seconds max)
-            if (!this._lastLogTime || (now - this._lastLogTime) > 5000) {
-                console.log('🔧 Viewport heights updated:', {
-                    viewport: telegramHeight,
-                    realNav: realSizes.bottomNavHeight,
-                    available: availableHeight,
-                    pageContentExists: !!pageContent,
-                    pageContentHeight: pageContent ? pageContent.clientHeight : 0
-                });
-                this._lastLogTime = now;
-            }
+            console.log('🔧 Viewport heights updated:', {
+                viewport: telegramHeight,
+                realNav: realSizes.bottomNavHeight,
+                available: availableHeight
+            });
             
         } catch (error) {
             console.error('❌ ViewportHeightCalculator error:', error);
@@ -218,12 +164,7 @@ class ViewportHeightCalculator {
         const visibleNavElements = allNavElements.filter(item => item.height > 0);
         
         if (visibleNavElements.length > 1) {
-            // Only log warning occasionally (every 10 seconds)
-            const now = Date.now();
-            if (!this._lastDuplicateNavWarning || (now - this._lastDuplicateNavWarning) > 10000) {
-                console.warn(`⚠️ Found ${visibleNavElements.length} visible bottom navigation elements!`);
-                this._lastDuplicateNavWarning = now;
-            }
+            console.warn(`⚠️ Found ${visibleNavElements.length} visible bottom navigation elements!`);
             
             // Используем элемент с максимальной высотой (скорее всего правильный)
             const maxHeightNav = visibleNavElements.reduce((prev, current) => 
