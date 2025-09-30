@@ -47,8 +47,8 @@
   scroll-behavior: smooth;
   touch-action: pan-y; /* Allow vertical panning */
   
-  /* Ensure proper padding for bottom navigation */
-  padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
+  /* 🔧 REMOVED: Padding handled by base.css as single source of truth */
+  /* padding-bottom is defined in base.css only */
   
   /* Visual properties */
   background: var(--bg-primary);

@@ -252,7 +252,7 @@
 @media (max-width: 480px) {
     .reports-page {
         padding: 12px;
-        padding-bottom: calc(var(--bottom-nav-height, 70px) + 12px);
+        /* 🔧 REMOVED: padding-bottom handled by #page-content in base.css as single source */
     }
     
     .weekly-report {

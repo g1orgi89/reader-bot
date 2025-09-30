@@ -37,19 +37,20 @@
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     
-    /* 🔧 FIX: Add smooth transition for keyboard hide/show */
-    transition: transform 0.3s ease;
+    /* 🔧 REMOVED: transition for stability - only transform changes during keyboard hide/show */
 }
 
-/* 🔧 FIX: Hide bottom-nav when keyboard is open (iOS/Telegram) */
+/* 🔧 FIX: Hide bottom-nav when keyboard is open (iOS/Telegram) - uses transform only */
 body.keyboard-open .bottom-nav {
     transform: translateY(100%);
     pointer-events: none;
+    transition: transform 0.3s ease; /* Only transition when hiding/showing for keyboard */
 }
 
 html.keyboard-open .bottom-nav {
     transform: translateY(100%);
     pointer-events: none;
+    transition: transform 0.3s ease; /* Only transition when hiding/showing for keyboard */
 }
 
 /* 🔧 iOS ДОПОЛНИТЕЛЬНЫЕ ФИКСЫ - УБИРАЕМ БОЛЬШИЕ ОТСТУПЫ */
@@ -938,13 +939,11 @@ body[data-theme="telegram"] .menu-title {
     padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom, 0px)) !important;
 }
 
-/* 🔧 КОНТЕНТ ФИКС: Правильное позиционирование БЕЗ огромных отступов */
+/* 🔧 КОНТЕНТ ФИКС: Remove duplicate padding and conflicting min-height */
 .ios-device .page-content {
-    /* НОРМАЛЬНЫЙ отступ снизу */
-    padding-bottom: calc(var(--bottom-nav-height) + 16px + env(safe-area-inset-bottom, 0px));
-    /* Минимальная высота для обеспечения скролла */
-    min-height: calc(100vh - var(--bottom-nav-height));
-    min-height: calc(100dvh - var(--bottom-nav-height));
+    /* 🔧 REMOVED: Padding and min-height rules that conflict with single scroll architecture */
+    /* All padding handled by base.css #page-content as single source of truth */
+    /* min-height constraints break flex shrink and cause layout jumps */
 }
 
 /* 🔧 FAB ФИКС: Убираем большие отступы */
