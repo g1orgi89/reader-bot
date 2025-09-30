@@ -15,6 +15,8 @@
     width: 100%;
     padding: 16px;
     /* 🔧 FIX: No overflow on reports-page wrapper - let page-content handle scroll */
+    /* 🔧 FIX: Force zero bottom padding - only global #page-content padding applies */
+    padding-bottom: 0 !important;
 }
 
 /* 🔧 FIX: Inner scroll wrapper for reports (if needed for specific sections) */
@@ -252,7 +254,7 @@
 @media (max-width: 480px) {
     .reports-page {
         padding: 12px;
-        padding-bottom: calc(var(--bottom-nav-height, 70px) + 12px);
+        /* 🔧 FIX: Removed duplicate padding-bottom - global #page-content handles bottom nav spacing */
     }
     
     .weekly-report {
