@@ -156,6 +156,7 @@ p {
 }
 
 /* 🔧 ROLLBACK: .content as THE SINGLE scroll container (stable model) */
+/* TODO: phase 2 – migrate to #page-content single scroll container after baseline stabilizes */
 .content {
     /* Restore .content as main scroll container */
     width: 100%;
