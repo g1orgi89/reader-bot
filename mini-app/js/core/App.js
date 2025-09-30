@@ -451,12 +451,65 @@ class ReaderApp {
         // - .content class is for padding only, not scroll management
         console.log('[scroll] ✅ Using unified #page-content scroll architecture');
         
+        // 🔧 Ensure scroll root integrity
+        this.ensureScrollRootIntegrity();
+        
         this.hideLoadingScreen();
         this.showApp();
         this.registerLifecycleHandlers();
         this.isInitialized = true;
         this.telegram?.ready?.();
         console.log('✅ Приложение полностью готово к работе');
+    }
+
+    /**
+     * 🔧 Guard function to ensure scroll root integrity
+     * - Verifies #page-content exists
+     * - Removes conflicting classes from #page-content
+     * - Checks html/body overflow (warns if not hidden)
+     */
+    ensureScrollRootIntegrity() {
+        const pageContent = document.getElementById('page-content');
+        
+        if (!pageContent) {
+            console.error('❌ [scroll] #page-content not found! Scroll architecture broken.');
+            return;
+        }
+        
+        // Remove forbidden classes that could conflict with scroll architecture
+        const forbiddenClasses = ['content', 'main-content', 'app-content'];
+        let removedClasses = [];
+        
+        forbiddenClasses.forEach(cls => {
+            if (pageContent.classList.contains(cls)) {
+                pageContent.classList.remove(cls);
+                removedClasses.push(cls);
+            }
+        });
+        
+        if (removedClasses.length > 0) {
+            console.warn(`⚠️ [scroll] Removed forbidden classes from #page-content: ${removedClasses.join(', ')}`);
+        }
+        
+        // Check html/body overflow
+        const htmlOverflow = getComputedStyle(document.documentElement).overflow;
+        const bodyOverflow = getComputedStyle(document.body).overflow;
+        
+        if (htmlOverflow !== 'hidden' && htmlOverflow !== 'clip') {
+            console.warn(`⚠️ [scroll] html overflow is '${htmlOverflow}', expected 'hidden'`);
+        }
+        
+        if (bodyOverflow !== 'hidden' && bodyOverflow !== 'clip') {
+            console.warn(`⚠️ [scroll] body overflow is '${bodyOverflow}', expected 'hidden'`);
+        }
+        
+        // Check #page-content overflow
+        const pageContentOverflow = getComputedStyle(pageContent).overflowY;
+        if (pageContentOverflow !== 'auto' && pageContentOverflow !== 'scroll') {
+            console.warn(`⚠️ [scroll] #page-content overflow-y is '${pageContentOverflow}', expected 'auto'`);
+        }
+        
+        console.log('✅ [scroll] Root integrity check complete');
     }
 
     setupHashRouter() {

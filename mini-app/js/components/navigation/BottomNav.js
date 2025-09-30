@@ -193,8 +193,8 @@ class BottomNav {
             document.body.appendChild(this.element);
         }
         
-        // Инжектируем стили только один раз
-        this.injectStyles();
+        // 🔧 FIX: Styles are now in navigation.css - no need to inject
+        // this.injectStyles();
     }
 
     /**
@@ -211,7 +211,10 @@ class BottomNav {
 
     /**
      * 💉 Инжектирование стилей (один раз)
+     * 🔧 COMMENTED OUT: Styles are now in navigation.css to avoid duplication
+     * Keeping this code for reference in case we need to rollback
      */
+    /*
     injectStyles() {
         // Проверяем, не инжектированы ли стили уже
         if (document.getElementById('bottom-nav-inline-styles')) {
@@ -318,6 +321,7 @@ class BottomNav {
         document.head.appendChild(styleElement);
         console.log('✅ BottomNav: Styles injected');
     }
+    */
 
     /**
      * 🎯 Рендер отдельного элемента навигации

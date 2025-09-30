@@ -148,13 +148,15 @@ p {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     overscroll-behavior: contain;
+    /* Padding to account for bottom nav + safe area */
+    padding-bottom: calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 8px);
 }
 
 /* 🔧 FIX: .content is now ONLY for padding, NOT for scroll management */
 .content {
     width: 100%;
     padding: 16px;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    /* NO padding-bottom here - it's handled by #page-content to avoid double padding */
     box-sizing: border-box;
     /* NO height, NO overflow - these are handled by #page-content */
 }
@@ -180,12 +182,13 @@ p {
 }
 
 /* 📦 Основной контент БЕЗ ОТСТУПОВ ДЛЯ ХЕДЕРОВ */
+/* 🔧 FIX: .main-content should NOT be a scroll container - that's #page-content's job */
 .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
+    /* NO overflow - scroll is handled by #page-content */
+    overflow: visible;
 }
 
 /* ============================================================================
