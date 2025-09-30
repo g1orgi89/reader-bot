@@ -810,8 +810,8 @@ class ReportsPage {
             contentHtml = '';
         }
         
-        // 🔧 FIX: Wrap in .reports-page instead of .content to avoid conflicts
-        return `<div class="reports-page">${contentHtml}</div>`;
+        // 🔧 ROLLBACK: Use .content class as primary scroll container, keep .reports-page as additional
+        return `<div class="content reports-page">${contentHtml}</div>`;
     }
 
     /**
