@@ -32,6 +32,7 @@
    ============================================================================ */
 
 /* 
+ * CRITICAL: scroll root override
  * #page-content (.page-content) is THE ONLY scroll container
  * Override any min-height:100dvh or competing overflow rules
  */
@@ -47,8 +48,8 @@
   scroll-behavior: smooth;
   touch-action: pan-y; /* Allow vertical panning */
   
-  /* Ensure proper padding for bottom navigation */
-  padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
+  /* CRITICAL: scroll root override - ensure proper padding for bottom navigation */
+  padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px)) !important;
   
   /* Visual properties */
   background: var(--bg-primary);
@@ -59,6 +60,7 @@
    ============================================================================ */
 
 /*
+ * CRITICAL: scroll root override
  * Reset competing containers that were previously set as scroll containers
  * These should NOT have min-height:100dvh or overflow-y:auto
  * They should be natural layout containers only
@@ -75,6 +77,20 @@
   /* These are now just padding/layout containers */
   height: auto;
   flex: none; /* Don't participate in flex growth */
+}
+
+/* 
+ * CRITICAL: scroll root override
+ * Ensure nested containers inside #page-content never create competing scroll containers
+ * This is essential for preventing empty spaces and scroll issues on reports/diary pages
+ */
+#page-content > .content,
+#page-content > .reports-page,
+#page-content > .diary-page,
+#page-content > .catalog-page {
+  min-height: 0 !important; /* Never constrain height */
+  overflow: visible !important; /* Never create a scroll container */
+  padding-bottom: 0 !important; /* No bottom padding - only #page-content has padding */
 }
 
 /* ============================================================================
@@ -127,10 +143,12 @@ html.keyboard-open body {
    ============================================================================ */
 
 /*
+ * CRITICAL: scroll root override
  * Ensure bottom nav stays fixed and doesn't interfere with scroll
+ * Bottom nav must ALWAYS be position: fixed and never be affected by scroll
  */
 .bottom-nav {
-  position: fixed;
+  position: fixed !important;
   bottom: 0;
   left: 0;
   right: 0;
