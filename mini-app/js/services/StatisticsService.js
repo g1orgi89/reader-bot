@@ -467,17 +467,26 @@ class StatisticsService {
     }
 
     // -------- event handlers --------
-    async onQuoteAdded(_detail) {
+    async onQuoteAdded(detail) {
         try {
             this._requireUserId(); // Ensure userId is available
             console.log('📊 StatisticsService: Quote added, applying baseline + deltas');
+            
+            // 🔧 FIX: Check if quote is in current ISO week before incrementing weekly
+            const quoteDate = detail?.quote?.createdAt ? new Date(detail.quote.createdAt) : new Date();
+            const currentWeekKey = this._getIsoWeekKey(new Date());
+            const quoteWeekKey = this._getIsoWeekKey(quoteDate);
+            const isCurrentWeek = quoteWeekKey === currentWeekKey;
             
             // 1. Increase pendingAdds and pendingWeeklyAdds for instant UI update
             const stats = this.state.get('stats') || {};
             this.state.update('stats', {
                 pendingAdds: (stats.pendingAdds || 0) + 1,
-                pendingWeeklyAdds: (stats.pendingWeeklyAdds || 0) + 1
+                // 🔧 FIX: Only increment weekly if quote is in current ISO week
+                pendingWeeklyAdds: (stats.pendingWeeklyAdds || 0) + (isCurrentWeek ? 1 : 0)
             });
+            
+            console.log(`📊 Quote ${isCurrentWeek ? 'IS' : 'IS NOT'} in current week (${currentWeekKey} vs ${quoteWeekKey})`);
             
             // 2. Update totalQuotes and weeklyQuotes instantly using effective calculations
             this._updateTotalQuotes();
@@ -504,7 +513,17 @@ class StatisticsService {
             this._requireUserId(); // Ensure userId is available
             console.log('📊 StatisticsService: Quote deleted, processing with baseline + deltas');
             
-            const { optimistic, reverted } = detail;
+            const { optimistic, reverted, quote } = detail;
+            
+            // 🔧 FIX: Check if quote was in current ISO week
+            let isCurrentWeek = false;
+            if (quote?.createdAt) {
+                const quoteDate = new Date(quote.createdAt);
+                const currentWeekKey = this._getIsoWeekKey(new Date());
+                const quoteWeekKey = this._getIsoWeekKey(quoteDate);
+                isCurrentWeek = quoteWeekKey === currentWeekKey;
+                console.log(`📊 Deleted quote ${isCurrentWeek ? 'WAS' : 'WAS NOT'} in current week (${currentWeekKey} vs ${quoteWeekKey})`);
+            }
             
             if (optimistic) {
                 // Optimistic delete: instant -1 by increasing pendingDeletes and pendingWeeklyDeletes
@@ -512,7 +531,8 @@ class StatisticsService {
                 const stats = this.state.get('stats') || {};
                 this.state.update('stats', {
                     pendingDeletes: (stats.pendingDeletes || 0) + 1,
-                    pendingWeeklyDeletes: (stats.pendingWeeklyDeletes || 0) + 1
+                    // 🔧 FIX: Only increment weekly deletes if quote was in current ISO week
+                    pendingWeeklyDeletes: (stats.pendingWeeklyDeletes || 0) + (isCurrentWeek ? 1 : 0)
                 });
                 this._updateTotalQuotes();
                 
@@ -524,7 +544,8 @@ class StatisticsService {
                 const stats = this.state.get('stats') || {};
                 this.state.update('stats', {
                     pendingDeletes: Math.max(0, (stats.pendingDeletes || 0) - 1),
-                    pendingWeeklyDeletes: Math.max(0, (stats.pendingWeeklyDeletes || 0) - 1)
+                    // 🔧 FIX: Only decrement weekly deletes if quote was in current ISO week
+                    pendingWeeklyDeletes: Math.max(0, (stats.pendingWeeklyDeletes || 0) - (isCurrentWeek ? 1 : 0))
                 });
                 this._updateTotalQuotes();
                 

@@ -92,12 +92,45 @@ class BottomNav {
      * 🏗️ Создание DOM элемента навигации
      */
     createElement() {
-        // 🔧 ИСПРАВЛЕНО: Проверяем существующую навигацию перед созданием новой
-        const existing = document.getElementById('bottom-nav') || document.querySelector('.bottom-nav');
+        // 🔧 FIX: Ensure single bottom-nav instance with id="bottom-nav"
+        // First, check for existing navigation by id
+        let existing = document.getElementById('bottom-nav');
+        
+        // If no id found, check for class-based navigation
+        if (!existing) {
+            const navElements = document.querySelectorAll('.bottom-nav');
+            if (navElements.length > 0) {
+                // Multiple bottom-navs found - remove duplicates
+                if (navElements.length > 1) {
+                    console.warn(`⚠️ Found ${navElements.length} .bottom-nav elements! Removing duplicates...`);
+                    // Keep first, remove rest
+                    for (let i = 1; i < navElements.length; i++) {
+                        navElements[i].remove();
+                        console.log(`🗑️ Removed duplicate bottom-nav #${i + 1}`);
+                    }
+                }
+                existing = navElements[0];
+                // Ensure it has id
+                if (!existing.id) {
+                    existing.id = 'bottom-nav';
+                    console.log('✅ Added id="bottom-nav" to existing navigation');
+                }
+            }
+        }
         
         if (existing) {
+            // Check if already initialized
+            if (existing.dataset.initialized) {
+                console.log('✅ BottomNav: Already initialized, skipping recreation');
+                this.element = existing;
+                return;
+            }
+            
             console.log('✅ BottomNav: Reusing existing navigation element');
             this.element = existing;
+            // Mark as initialized
+            this.element.dataset.initialized = 'true';
+            
             // Обновляем содержимое существующего элемента
             const navItemsHTML = this.navItems.map(item => 
                 this.renderNavItem(item)
@@ -119,6 +152,8 @@ class BottomNav {
             console.log('✅ BottomNav: Creating new navigation element');
             this.element = document.createElement('div');
             this.element.className = 'bottom-nav';
+            this.element.id = 'bottom-nav'; // 🔧 FIX: Always set id
+            this.element.dataset.initialized = 'true'; // 🔧 FIX: Mark as initialized
             this.element.innerHTML = this.render();
             
             // 📱 Добавляем в конец body для фиксированного позиционирования

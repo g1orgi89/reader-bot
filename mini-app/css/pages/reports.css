@@ -9,9 +9,11 @@
    📄 КОНТЕНТ ОТЧЕТОВ (✅ ИСПРАВЛЕНО!)
    ============================================================================ */
 
-.content {
-    /* ✅ ИСПРАВЛЕНО: Убрана фиксированная высота */
+/* 🔧 FIX: Scope reports styles to .reports-page to avoid global .content override */
+.reports-page {
+    width: 100%;
     padding: 16px;
+    padding-bottom: calc(var(--bottom-nav-height, 70px) + 16px);
     /* ✅ ИСПРАВЛЕНО: Используем flex вместо фиксированной высоты */
     flex: 1;
     min-height: 0; /* КРИТИЧНО: позволяет flex-элементу сжиматься */
@@ -29,9 +31,9 @@
     scroll-behavior: smooth;
 }
 
-/* ✅ НОВОЕ: Специальные стили для страницы отчетов */
-.reports-page.content {
-    padding-bottom: calc(var(--bottom-nav-height, 70px) + 16px);
+/* 🔧 FIX: Fallback for pages using .content class directly */
+.content.reports-page {
+    /* Inherit reports-page styles when both classes are present */
 }
 
 /* ============================================================================
@@ -262,8 +264,9 @@
    ============================================================================ */
 
 @media (max-width: 480px) {
-    .content {
+    .reports-page {
         padding: 12px;
+        padding-bottom: calc(var(--bottom-nav-height, 70px) + 12px);
     }
     
     .weekly-report {
