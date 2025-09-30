@@ -777,11 +777,14 @@ class ReportsPage {
     /**
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
      * ✅ ИСПРАВЛЕНО: Отчет показывается сразу если есть, лоадер только при отсутствии отчета
+     * ✅ ИСПРАВЛЕНО: Обертка в .reports-page вместо .content
      */
     render() {
+        let contentHtml = '';
+        
         // 1. Если идет загрузка — показываем лоадер
         if (this.reportsLoading) {
-            return `
+            contentHtml = `
                 <div class="weekly-report">
                     <div class="report-header">
                         <div class="report-title">📈 Ваш отчет за предыдущую неделю</div>
@@ -792,21 +795,23 @@ class ReportsPage {
                 </div>
             `;
         }
-
         // 2. Если есть отчет — показываем его
-        if (this.weeklyReport) {
-            return this.renderWeeklyReport()
+        else if (this.weeklyReport) {
+            contentHtml = this.renderWeeklyReport()
                 + this.renderAIAnalysis()
                 + this.renderRecommendations();
         }
-
         // 3. Если загрузка завершена и отчета нет — показываем плейсхолдер
-        if (this.reportsLoaded && !this.weeklyReport) {
-            return this.renderNewUserPlaceholder();
+        else if (this.reportsLoaded && !this.weeklyReport) {
+            contentHtml = this.renderNewUserPlaceholder();
         }
-
         // 4. В остальных случаях — пусто
-        return '';
+        else {
+            contentHtml = '';
+        }
+        
+        // 🔧 FIX: Wrap in .reports-page instead of .content to avoid conflicts
+        return `<div class="reports-page">${contentHtml}</div>`;
     }
 
     /**

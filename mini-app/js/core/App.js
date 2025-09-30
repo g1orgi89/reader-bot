@@ -444,12 +444,116 @@ class ReaderApp {
 
     async finalizeInitialization() {
         console.log('🔄 Финализация инициализации...');
+        
+        // 🔧 FIX: Initialize scroll framework before showing app
+        this.initScrollFramework();
+        
         this.hideLoadingScreen();
         this.showApp();
         this.registerLifecycleHandlers();
         this.isInitialized = true;
         this.telegram?.ready?.();
         console.log('✅ Приложение полностью готово к работе');
+    }
+
+    /**
+     * 🔧 НОВОЕ: Scroll Safety Framework
+     * Инициализирует правильную архитектуру скролла
+     */
+    initScrollFramework() {
+        console.log('[scroll] Initializing scroll framework...');
+        
+        const pageContent = document.getElementById('page-content');
+        const body = document.body;
+        
+        if (!pageContent) {
+            console.error('[scroll] ❌ #page-content not found! Creating emergency fallback...');
+            
+            // Emergency: Create page-content if missing
+            const appContainer = document.getElementById('app') || document.querySelector('.app-container');
+            if (appContainer) {
+                const newPageContent = document.createElement('div');
+                newPageContent.id = 'page-content';
+                newPageContent.className = 'page-content';
+                
+                // Move existing content into page-content
+                const existingContent = Array.from(appContainer.children).filter(
+                    child => !child.classList.contains('bottom-nav') && child.id !== 'page-content'
+                );
+                existingContent.forEach(child => newPageContent.appendChild(child));
+                
+                // Insert before bottom-nav
+                const bottomNav = appContainer.querySelector('.bottom-nav');
+                if (bottomNav) {
+                    appContainer.insertBefore(newPageContent, bottomNav);
+                } else {
+                    appContainer.appendChild(newPageContent);
+                }
+                
+                console.warn('[scroll] ⚠️ Created emergency #page-content');
+                return this.initScrollFramework(); // Retry
+            } else {
+                console.error('[scroll] ❌ Cannot create page-content: app-container not found');
+                return; // Keep body scrollable as fallback
+            }
+        }
+        
+        // Validate page-content overflow
+        const computedStyle = getComputedStyle(pageContent);
+        const overflowY = computedStyle.overflowY;
+        
+        if (overflowY !== 'auto' && overflowY !== 'scroll') {
+            console.warn(`[scroll] ⚠️ page-content overflow-y is "${overflowY}", forcing to "auto"`);
+            pageContent.style.overflowY = 'auto';
+        }
+        
+        // Enable body.has-scroll-container to hide body scroll
+        body.classList.add('has-scroll-container');
+        console.log('[scroll] ✅ body.has-scroll-container added, body overflow hidden');
+        
+        // Monitor for page-content removal
+        if (window.MutationObserver) {
+            const observer = new MutationObserver((mutations) => {
+                const pageContentExists = document.getElementById('page-content');
+                if (!pageContentExists) {
+                    console.error('[scroll] ❌ CRITICAL: #page-content was removed from DOM!');
+                    body.classList.remove('has-scroll-container');
+                    body.style.overflow = 'auto';
+                    console.log('[scroll] 🆘 Emergency fallback: restored body scroll');
+                    observer.disconnect();
+                }
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            this._scrollObserver = observer;
+        }
+        
+        // Diagnostic logging
+        setTimeout(() => {
+            const diagnostic = {
+                bodyOverflow: getComputedStyle(body).overflow,
+                bodyHasScrollContainer: body.classList.contains('has-scroll-container'),
+                pageContentExists: !!document.getElementById('page-content'),
+                pageContentOverflow: pageContent ? getComputedStyle(pageContent).overflowY : 'N/A',
+                pageContentScrollHeight: pageContent ? pageContent.scrollHeight : 0,
+                pageContentClientHeight: pageContent ? pageContent.clientHeight : 0
+            };
+            
+            console.log('[scroll] 📊 Diagnostic:', diagnostic);
+            
+            if (pageContent && pageContent.scrollHeight <= pageContent.clientHeight) {
+                console.warn('[scroll] ⚠️ page-content may not need scroll yet (content fits)');
+            }
+            
+            // Expose for debugging
+            window.__SCROLL_DIAG__ = diagnostic;
+        }, 500);
+        
+        console.log('[scroll] ✅ Scroll framework initialized');
     }
 
     setupHashRouter() {
