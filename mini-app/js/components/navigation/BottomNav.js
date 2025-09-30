@@ -82,6 +82,9 @@ class BottomNav {
         this.attachEventListeners();
         this.subscribeToRouteChanges();
         
+        // 🔧 ИСПРАВЛЕНО: Экспортируем глобальный экземпляр для ios-fix.js
+        window.bottomNavInstance = this;
+        
         console.log('BottomNav: Инициализирован с', this.navItems.length, 'страницами');
     }
 
@@ -89,16 +92,45 @@ class BottomNav {
      * 🏗️ Создание DOM элемента навигации
      */
     createElement() {
-        this.element = document.createElement('div');
-        this.element.className = 'bottom-nav';
-        this.element.innerHTML = this.render();
+        // 🔧 ИСПРАВЛЕНО: Проверяем существующую навигацию перед созданием новой
+        const existing = document.getElementById('bottom-nav') || document.querySelector('.bottom-nav');
         
-        // 📱 Добавляем в конец body для фиксированного позиционирования
-        document.body.appendChild(this.element);
+        if (existing) {
+            console.log('✅ BottomNav: Reusing existing navigation element');
+            this.element = existing;
+            // Обновляем содержимое существующего элемента
+            const navItemsHTML = this.navItems.map(item => 
+                this.renderNavItem(item)
+            ).join('');
+            
+            // Создаем обертку для элементов навигации если её нет
+            let navItemsContainer = existing.querySelector('.nav-items');
+            if (!navItemsContainer) {
+                // Сохраняем существующие элементы, если они есть
+                const existingItems = Array.from(existing.querySelectorAll('.nav-item'));
+                if (existingItems.length > 0) {
+                    console.log('✅ BottomNav: Found existing nav items, keeping them');
+                } else {
+                    // Добавляем наши элементы
+                    existing.innerHTML = navItemsHTML;
+                }
+            }
+        } else {
+            console.log('✅ BottomNav: Creating new navigation element');
+            this.element = document.createElement('div');
+            this.element.className = 'bottom-nav';
+            this.element.innerHTML = this.render();
+            
+            // 📱 Добавляем в конец body для фиксированного позиционирования
+            document.body.appendChild(this.element);
+        }
+        
+        // Инжектируем стили только один раз
+        this.injectStyles();
     }
 
     /**
-     * 🎨 Рендер компонента (HTML + инлайн стили)
+     * 🎨 Рендер компонента (HTML только, без инлайн стилей)
      * @returns {string} HTML разметка
      */
     render() {
@@ -106,103 +138,117 @@ class BottomNav {
             this.renderNavItem(item)
         ).join('');
 
-        return `
-            <style>
-                .bottom-nav {
-                    position: fixed;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    background: var(--surface, #FFFFFF);
-                    display: flex;
-                    border-top: 1px solid var(--border, #E6E0D6);
-                    height: 60px;
-                    z-index: 100;
-                    transition: all 0.3s ease;
-                    box-shadow: 0 -2px 12px rgba(210, 69, 44, 0.08);
-                }
-                
-                .nav-item {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    padding: 8px 4px;
-                    color: var(--text-muted, #999999);
-                    position: relative;
-                    text-decoration: none;
-                    user-select: none;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                
-                .nav-item.active {
-                    color: var(--primary-color, #D2452C);
-                }
-                
-                .nav-item.active::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 30px;
-                    height: 3px;
-                    background: var(--primary-color, #D2452C);
-                    border-radius: 0 0 3px 3px;
-                    transition: all 0.3s ease;
-                }
-                
-                .nav-item:hover:not(.active) {
-                    color: var(--text-secondary, #666666);
-                    background: var(--background-light, #FAF8F3);
-                }
-                
-                .nav-item:active {
-                    transform: scale(0.95);
-                }
-                
-                .nav-icon {
-                    width: 18px;
-                    height: 18px;
-                    margin-bottom: 2px;
-                    stroke-width: 2;
-                    transition: all 0.3s ease;
-                }
-                
-                .nav-label {
-                    font-size: 9px;
-                    font-weight: 500;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    transition: all 0.3s ease;
-                }
-                
-                /* 📱 iOS стили для Telegram Mini App */
-                @media (max-width: 480px) {
-                    .bottom-nav {
-                        padding-bottom: env(safe-area-inset-bottom, 0);
-                    }
-                }
-                
-                /* 🌙 Темная тема */
-                body.dark-theme .bottom-nav {
-                    background: var(--surface, #2A2A2A);
-                    border-top-color: var(--border, #404040);
-                }
-                
-                body.dark-theme .nav-item.active {
-                    color: var(--primary-color, #E85A42);
-                }
-                
-                body.dark-theme .nav-item.active::before {
-                    background: var(--primary-color, #E85A42);
-                }
-            </style>
+        return navItemsHTML;
+    }
+
+    /**
+     * 💉 Инжектирование стилей (один раз)
+     */
+    injectStyles() {
+        // Проверяем, не инжектированы ли стили уже
+        if (document.getElementById('bottom-nav-inline-styles')) {
+            console.log('✅ BottomNav: Styles already injected, skipping');
+            return;
+        }
+
+        const styleElement = document.createElement('style');
+        styleElement.id = 'bottom-nav-inline-styles';
+        styleElement.textContent = `
+            .bottom-nav {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: var(--surface, #FFFFFF);
+                display: flex;
+                border-top: 1px solid var(--border, #E6E0D6);
+                height: 60px;
+                z-index: 100;
+                transition: all 0.3s ease;
+                box-shadow: 0 -2px 12px rgba(210, 69, 44, 0.08);
+            }
             
-            ${navItemsHTML}
+            .nav-item {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                padding: 8px 4px;
+                color: var(--text-muted, #999999);
+                position: relative;
+                text-decoration: none;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .nav-item.active {
+                color: var(--primary-color, #D2452C);
+            }
+            
+            .nav-item.active::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 30px;
+                height: 3px;
+                background: var(--primary-color, #D2452C);
+                border-radius: 0 0 3px 3px;
+                transition: all 0.3s ease;
+            }
+            
+            .nav-item:hover:not(.active) {
+                color: var(--text-secondary, #666666);
+                background: var(--background-light, #FAF8F3);
+            }
+            
+            .nav-item:active {
+                transform: scale(0.95);
+            }
+            
+            .nav-icon {
+                width: 18px;
+                height: 18px;
+                margin-bottom: 2px;
+                stroke-width: 2;
+                transition: all 0.3s ease;
+            }
+            
+            .nav-label {
+                font-size: 9px;
+                font-weight: 500;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                transition: all 0.3s ease;
+            }
+            
+            /* 📱 iOS стили для Telegram Mini App */
+            @media (max-width: 480px) {
+                .bottom-nav {
+                    padding-bottom: env(safe-area-inset-bottom, 0);
+                }
+            }
+            
+            /* 🌙 Темная тема */
+            body.dark-theme .bottom-nav {
+                background: var(--surface, #2A2A2A);
+                border-top-color: var(--border, #404040);
+            }
+            
+            body.dark-theme .nav-item.active {
+                color: var(--primary-color, #E85A42);
+            }
+            
+            body.dark-theme .nav-item.active::before {
+                background: var(--primary-color, #E85A42);
+            }
         `;
+        
+        document.head.appendChild(styleElement);
+        console.log('✅ BottomNav: Styles injected');
     }
 
     /**
@@ -350,8 +396,19 @@ class BottomNav {
     setVisible(visible) {
         if (!this.element) return;
         
-        // Use CSS class instead of inline styles
-        document.body.classList.toggle('nav-hidden', !visible);
+        // 🔧 ИСПРАВЛЕНО: Применяем класс nav-hidden к ОБОИМ html и body
+        const html = document.documentElement;
+        const body = document.body;
+        
+        if (visible) {
+            html.classList.remove('nav-hidden');
+            body.classList.remove('nav-hidden');
+        } else {
+            html.classList.add('nav-hidden');
+            body.classList.add('nav-hidden');
+        }
+        
+        console.log(`🎭 Navigation ${visible ? 'shown' : 'hidden'} (classes applied to both html and body)`);
     }
 
     /**

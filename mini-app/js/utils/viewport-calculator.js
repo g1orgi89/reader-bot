@@ -162,22 +162,51 @@ class ViewportHeightCalculator {
             }
         }
 
-        // Ищем bottom navigation (должен быть всегда)
+        // 🔧 ИСПРАВЛЕНО: Ищем bottom navigation с защитой от дубликатов
         const navSelectors = ['.bottom-nav', '#bottom-nav', '.navigation', '.nav-bottom', '.footer-nav'];
+        const allNavElements = [];
+        
         for (const selector of navSelectors) {
-            const element = document.querySelector(selector);
-            if (element && this.isElementVisible(element)) {
-                bottomNavHeight = element.getBoundingClientRect().height;
-                console.log(`📏 Found bottom nav: ${selector} = ${bottomNavHeight}px`);
-                break;
-            }
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(element => {
+                if (element && this.isElementVisible(element)) {
+                    allNavElements.push({
+                        element,
+                        selector,
+                        height: element.getBoundingClientRect().height
+                    });
+                }
+            });
+        }
+        
+        // Фильтруем только видимые элементы с положительной высотой
+        const visibleNavElements = allNavElements.filter(item => item.height > 0);
+        
+        if (visibleNavElements.length > 1) {
+            console.warn(`⚠️ Found ${visibleNavElements.length} visible bottom navigation elements! This may cause issues.`);
+            visibleNavElements.forEach((item, index) => {
+                console.warn(`  Nav ${index + 1}: ${item.selector} = ${item.height}px`);
+            });
+            
+            // Используем элемент с максимальной высотой (скорее всего правильный)
+            const maxHeightNav = visibleNavElements.reduce((prev, current) => 
+                current.height > prev.height ? current : prev
+            );
+            bottomNavHeight = maxHeightNav.height;
+            console.log(`📏 Using largest bottom nav: ${maxHeightNav.selector} = ${bottomNavHeight}px`);
+        } else if (visibleNavElements.length === 1) {
+            bottomNavHeight = visibleNavElements[0].height;
+            console.log(`📏 Found bottom nav: ${visibleNavElements[0].selector} = ${bottomNavHeight}px`);
+        } else {
+            console.warn('⚠️ No visible bottom navigation found');
         }
 
         // 🔧 НОВОЕ: Логирование для отладки
         console.log('📏 Real element sizes measured:', {
             headerHeight,
             bottomNavHeight,
-            currentPage: this.getCurrentPage()
+            currentPage: this.getCurrentPage(),
+            navElementsFound: visibleNavElements.length
         });
 
         return {
