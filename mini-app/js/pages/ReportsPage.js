@@ -811,8 +811,9 @@ class ReportsPage {
             contentHtml = '';
         }
         
-        // 🔧 ROLLBACK: Use .content class as primary scroll container, keep .reports-page as additional
-        return `<div class="content reports-page">${contentHtml}</div>`;
+        // 🔧 FIX: Remove .content class to avoid nested scroll containers
+        // Only .reports-page wrapper, no .content duplication
+        return `<div class="reports-page">${contentHtml}</div>`;
     }
 
     /**
@@ -1195,11 +1196,8 @@ class ReportsPage {
        console.log('📊 ReportsPage: onShow - Starting with prefetch and ISO week logic');
        
        try {
-           // ✅ НОВОЕ: Добавляем CSS классы для правильного отображения
-           const container = document.getElementById('page-content');
-           if (container) {
-               container.classList.add('content', 'reports-page');
-           }
+           // 🔧 FIX: Do NOT inject classes into #page-content
+           // Let the single scroll root remain unstyled beyond global layout rules
            
            // 📅 NEW: Prefetch week context first
            await this.prefetch();
@@ -1313,18 +1311,20 @@ class ReportsPage {
     onHide() {
         console.log('📊 ReportsPage: onHide');
         
-        // ✅ ИСПРАВЛЕНО: Только сбрасываем флаг загрузки, НЕ зануляем weeklyReport для мгновенного возврата
-        this.reportsLoading = false;
-        
-        // ✅ НОВОЕ: Очистка контейнера и удаление событий
+        // 🔧 FIX: Defensive cleanup - remove any lingering classes from older versions
         const container = document.getElementById('page-content');
         if (container) {
+            container.classList.remove('reports-page', 'content');
+            
             // Удаляем все обработчики событий
             const buttons = container.querySelectorAll('button, a, [onclick]');
             buttons.forEach(btn => {
                 btn.replaceWith(btn.cloneNode(true));
             });
         }
+        
+        // ✅ ИСПРАВЛЕНО: Только сбрасываем флаг загрузки, НЕ зануляем weeklyReport для мгновенного возврата
+        this.reportsLoading = false;
     }
     
     rerender() {
