@@ -1,52 +1,23 @@
 /**
- * 🍎 iOS Navigation Fix - Simplified for single scroll architecture
+ * 🍎 iOS Navigation Fix - DEPRECATED in Stage 1 Stabilization
  * 
- * Features:
- * - Safe-area handling for bottom navigation
- * - Keyboard handling (hide nav when keyboard is open)
- * - Modal overlay fixes if needed
+ * STATUS: This file is being phased out as part of scroll architecture stabilization.
+ * All rules have been integrated into:
+ * - base.css (scroll container definition)
+ * - scroll-fix.css (single scroll architecture)
+ * - navigation.css (bottom nav behavior and keyboard handling)
  * 
- * TODO: This file is being cleaned up as part of scroll architecture stabilization (Stage 1).
- * Most rules have been integrated into base.css and scroll-fix.css.
- * This file will be removed in Stage 2 after verification.
+ * STAGE 2: This file will be removed completely after verification.
+ * For now, keeping it empty but loaded to prevent any dependent code from breaking.
  */
 
 /* ============================================================================
-   🧭 BOTTOM NAVIGATION - SAFE AREA SUPPORT
+   ALL RULES MOVED TO OTHER FILES
    ============================================================================ */
 
-/* Safe area padding for bottom navigation (iOS notch support) */
-/* Already handled in navigation.css - kept here for reference */
+/* 🔧 Bottom navigation safe-area → navigation.css */
+/* 🔧 Keyboard handling → navigation.css & scroll-fix.css */
+/* 🔧 Scroll lock → scroll-fix.css */
+/* 🔧 Page content padding → base.css (single source of truth) */
 
-/* ============================================================================
-   ⌨️ KEYBOARD HANDLING - HIDE NAV WHEN KEYBOARD IS OPEN
-   ============================================================================ */
-
-/* Hide navigation when keyboard is visible (iOS/Telegram) */
-html.keyboard-open .bottom-nav,
-body.keyboard-open .bottom-nav,
-html.nav-hidden .bottom-nav,
-body.nav-hidden .bottom-nav {
-  transform: translateY(100%);
-  pointer-events: none;
-}
-
-/* ============================================================================
-   ⌨️ KEYBOARD SCROLL LOCK (Prevent body scroll during keyboard input)
-   ============================================================================ */
-
-/* Lock body scroll when keyboard is open */
-html.keyboard-open,
-body.keyboard-open {
-  overflow: hidden !important;
-}
-
-html.keyboard-open body {
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
-  height: 100%;
-}
-
-/* 🔧 IMPORTANT: Keep #page-content scrollable even when keyboard is open */
-/* This is overridden in scroll-fix.css to ensure content remains scrollable */
+/* File intentionally left mostly empty - to be removed in Stage 2 */
