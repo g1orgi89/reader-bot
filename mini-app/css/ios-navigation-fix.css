@@ -1,194 +1,41 @@
 /**
- * 🍎 iOS Navigation Fix - Instagram-style always-raised bottom navigation
+ * 🍎 iOS Navigation Fix - Simplified for single scroll architecture
  * 
  * Features:
- * - Root scroll isolation (mobile only, when content container exists)
- * - Always-raised navigation with internal top strip (96px height)
- * - Safe-area handling (internal padding, not external gap)
- * - No transforms on .bottom-nav except when hidden
- * - Touch-device only via media queries
- * - No overlay belts covering content
+ * - Safe-area handling for bottom navigation
+ * - Keyboard handling (hide nav when keyboard is open)
+ * - Modal overlay fixes if needed
+ * 
+ * TODO: This file is being cleaned up as part of scroll architecture stabilization (Stage 1).
+ * Most rules have been integrated into base.css and scroll-fix.css.
+ * This file will be removed in Stage 2 after verification.
  */
 
 /* ============================================================================
-   📱 MOBILE-ONLY ROOT SCROLL ISOLATION (CONDITIONAL)
+   🧭 BOTTOM NAVIGATION - SAFE AREA SUPPORT
    ============================================================================ */
 
-@media (hover: none) and (pointer: coarse) {
-  /* Root elements should not scroll on mobile ONLY when content container exists */
-  html.has-content-container, 
-  html.has-content-container body {
-    height: 100%;
-    overflow: hidden;
-    background: var(--bg-primary);
-  }
-  
-  /* Content layer handles all scrolling */
-  .page-content, .page-body, .content, .app-content, .screen-content {
-    min-height: 100dvh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-    background: var(--bg-primary);
-    /* Ensure content doesn't overlap with nav - include strip height */
-    padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
-  }
-  
-  /* Additional content selectors */
-  #app .content {
-    min-height: 100dvh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-    background: var(--bg-primary);
-    padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
-  }
-  
-  /* Fallback for older browsers without dvh support */
-  @supports not (height: 100dvh) {
-    .page-content, .page-body, .content, .app-content, .screen-content, #app .content {
-      min-height: 100vh;
-    }
-  }
-}
+/* Safe area padding for bottom navigation (iOS notch support) */
+/* Already handled in navigation.css - kept here for reference */
 
 /* ============================================================================
-   🧭 BOTTOM NAVIGATION - ALWAYS FIXED, NO TRANSFORMS
+   ⌨️ KEYBOARD HANDLING - HIDE NAV WHEN KEYBOARD IS OPEN
    ============================================================================ */
 
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  min-height: 96px;
-  z-index: 1000;
-  background-color: var(--bg-card);
-  border-top: 1px solid var(--bg-secondary);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  
-  /* Subtle shadow for raised effect */
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-  
-  /* Remove transforms - position: fixed should be reliable */
-  transform: none;
-  will-change: auto;
-  
-  /* iOS WebKit stability */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  
-  /* No animations on the container itself */
-  animation: none;
-}
-
-/* Hide navigation when keyboard is visible (only toggle allowed) - ИСПРАВЛЕНО: Поддержка обоих контекстов */
+/* Hide navigation when keyboard is visible (iOS/Telegram) */
+html.keyboard-open .bottom-nav,
+body.keyboard-open .bottom-nav,
 html.nav-hidden .bottom-nav,
-body.nav-hidden .bottom-nav,
-.nav-hidden .bottom-nav {
+body.nav-hidden .bottom-nav {
   transform: translateY(100%);
+  pointer-events: none;
 }
 
 /* ============================================================================
-   📱 MOBILE-ONLY: ALWAYS-RAISED STATE WITH INTERNAL TOP STRIP
+   ⌨️ KEYBOARD SCROLL LOCK (Prevent body scroll during keyboard input)
    ============================================================================ */
 
-@media (hover: none) and (pointer: coarse) {
-  /* Always-raised state: add internal top strip */
-  html.nav-raised .bottom-nav::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--spacing-2xs, 6px);
-    background: var(--bg-primary);
-    pointer-events: none;
-    z-index: 1;
-  }
-  
-  /* Push down navigation content when raised to sit below strip */
-  html.nav-raised .bottom-nav {
-    padding-top: calc(var(--spacing-2xs, 6px) + var(--spacing-xs, 8px));
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-  }
-  
-  /* Center nav items vertically in the taller bar */
-  html.nav-raised .bottom-nav .nav-items {
-    display: flex;
-    width: 100%;
-    justify-content: space-around;
-    align-items: center;
-    height: calc(96px - var(--spacing-2xs, 6px) - var(--spacing-xs, 8px) - env(safe-area-inset-bottom, 0px));
-  }
-  
-  /* Ensure nav items are properly centered vertically below the strip */
-  html.nav-raised .bottom-nav .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin-top: 0;
-    /* Prevent overlap with strip */
-    position: relative;
-    z-index: 2;
-  }
-  
-  /* Ensure nav icons and labels have proper spacing */
-  html.nav-raised .bottom-nav .nav-icon {
-    margin-bottom: var(--spacing-xs, 8px);
-  }
-  
-  html.nav-raised .bottom-nav .nav-label {
-    margin-top: 0;
-  }
-}
-
-/* ============================================================================
-   🔧 PREVENT TRANSFORM ANCESTORS BREAKING POSITION FIXED
-   ============================================================================ */
-
-/* Ensure no transforms/filters on critical ancestors that could break position: fixed */
-.app-container,
-#app,
-body {
-  transform: none;
-  filter: none;
-  perspective: none;
-}
-
-/* ============================================================================
-   🧪 FALLBACKS AND COMPATIBILITY
-   ============================================================================ */
-
-/* Unified background to prevent white seams */
-html, body, #app, .app-container, .page-content, .page-body, .content {
-  background: var(--bg-primary);
-}
-
-/* Desktop behavior unchanged - basic content padding only */
-@media (hover: hover) and (pointer: fine) {
-  .page-content, .page-body, .content, .app-content, .screen-content, #app .content {
-    padding-bottom: calc(var(--bottom-nav-height, 96px) + var(--spacing-md, 16px));
-    min-height: auto;
-    overflow-y: visible;
-  }
-}
-
-/* ============================================================================
-   ⌨️ ENHANCED KEYBOARD SCROLL LOCK WITH VIEWPORT STABILIZATION
-   ============================================================================ */
-
-/* Keyboard scroll lock (улучшено для более стабильного поведения) */
-.keyboard-lock {
-  overflow: hidden !important;
-  overscroll-behavior: none;
-  touch-action: none;
-}
-
-/* Дополнительные классы для стабилизации viewport на iOS - ИСПРАВЛЕНО: Поддержка обоих контекстов */
+/* Lock body scroll when keyboard is open */
 html.keyboard-open,
 body.keyboard-open {
   overflow: hidden !important;
@@ -201,12 +48,5 @@ html.keyboard-open body {
   height: 100%;
 }
 
-/* Блокировка скролла контента при открытой клавиатуре - ИСПРАВЛЕНО: Поддержка обоих контекстов */
-html.keyboard-open .content,
-html.keyboard-open .page-content,
-html.keyboard-open .app-content,
-body.keyboard-open .content,
-body.keyboard-open .page-content,
-body.keyboard-open .app-content {
-  overflow: hidden !important;
-}
+/* 🔧 IMPORTANT: Keep #page-content scrollable even when keyboard is open */
+/* This is overridden in scroll-fix.css to ensure content remains scrollable */

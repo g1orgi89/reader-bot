@@ -87,7 +87,7 @@ class ViewportHeightCalculator {
      */
     updateViewportHeight() {
         try {
-            // 🔧 FIX: Check for page-content first
+            // 🔧 FIX: Check for page-content first and guard against zero-height
             const pageContent = document.getElementById('page-content');
             if (!pageContent) {
                 // Only log once if not found
@@ -95,13 +95,23 @@ class ViewportHeightCalculator {
                     console.warn('[viewport] ⚠️ No scroll container (#page-content) detected - using fallback');
                     this._pageContentWarningLogged = true;
                 }
+                return; // Exit early - can't calculate without page-content
             } else if (pageContent.clientHeight <= 0) {
-                // Only log occasionally if height is 0 (not every time)
+                // 🔧 GUARD: Don't update when height is 0 - defer until valid height
                 const now = Date.now();
                 if (!this._lastZeroHeightWarning || (now - this._lastZeroHeightWarning) > 5000) {
-                    console.warn('[viewport] ⚠️ page-content has no height (clientHeight=0)');
+                    console.warn('[viewport] ⚠️ page-content has no height (clientHeight=0) - deferring update');
                     this._lastZeroHeightWarning = now;
                 }
+                // Schedule retry in 100ms
+                if (!this._retryScheduled) {
+                    this._retryScheduled = true;
+                    setTimeout(() => {
+                        this._retryScheduled = false;
+                        this.updateViewportHeight();
+                    }, 100);
+                }
+                return; // Exit early - don't update with invalid measurements
             }
             
             // 🔧 FIX: Skip updates when keyboard is open to prevent layout jumps
@@ -128,12 +138,8 @@ class ViewportHeightCalculator {
             // Рассчитываем доступную высоту для контента
             const availableHeight = telegramHeight - realSizes.headerHeight - realSizes.bottomNavHeight;
             
-            // 🔧 ИСПРАВЛЕНО: Обновляем ОСНОВНЫЕ CSS переменные
-            // Эти переменные используются в base.css для расчета высоты контента
-            document.documentElement.style.setProperty('--header-height', `${realSizes.headerHeight}px`);
-            document.documentElement.style.setProperty('--bottom-nav-height', `${realSizes.bottomNavHeight}px`);
-            
-            // Дополнительные переменные для отладки
+            // 🔧 FIX: DON'T update --bottom-nav-height (it's set in CSS)
+            // Only update debug/real variables for monitoring
             document.documentElement.style.setProperty('--real-header-height', `${realSizes.headerHeight}px`);
             document.documentElement.style.setProperty('--real-bottom-nav-height', `${realSizes.bottomNavHeight}px`);
             document.documentElement.style.setProperty('--real-available-height', `${availableHeight}px`);

@@ -811,8 +811,9 @@ class ReportsPage {
             contentHtml = '';
         }
         
-        // 🔧 ROLLBACK: Use .content class as primary scroll container, keep .reports-page as additional
-        return `<div class="content reports-page">${contentHtml}</div>`;
+        // 🔧 FIX: Use .reports-page wrapper INSIDE #page-content (which is the scroll container)
+        // Don't add 'content' class here - it will be a child div for padding only
+        return `<div class="reports-page"><div class="content">${contentHtml}</div></div>`;
     }
 
     /**
@@ -1195,10 +1196,12 @@ class ReportsPage {
        console.log('📊 ReportsPage: onShow - Starting with prefetch and ISO week logic');
        
        try {
-           // ✅ НОВОЕ: Добавляем CSS классы для правильного отображения
+           // 🔧 FIX: Don't add 'content' class to #page-content - it's the scroll container
+           // The .content class should only be used as a child div for padding
            const container = document.getElementById('page-content');
            if (container) {
-               container.classList.add('content', 'reports-page');
+               // Remove any accidentally added classes that could conflict with scroll architecture
+               container.classList.remove('content', 'reports-page');
            }
            
            // 📅 NEW: Prefetch week context first

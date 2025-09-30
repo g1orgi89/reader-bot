@@ -429,6 +429,11 @@ class AppRouter {
                 console.log(`✅ Router: onShow вызван для ${route.title}`);
             }
             
+            // 🔧 Ensure scroll root integrity after route change
+            if (this.app && typeof this.app.ensureScrollRootIntegrity === 'function') {
+                this.app.ensureScrollRootIntegrity();
+            }
+            
             console.log(`✅ Router: Навигация к ${normalizedPath} завершена`);
             
         } catch (error) {
