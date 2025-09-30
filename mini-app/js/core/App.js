@@ -445,8 +445,21 @@ class ReaderApp {
     async finalizeInitialization() {
         console.log('🔄 Финализация инициализации...');
         
-        // 🔧 FIX: Initialize scroll framework before showing app
-        this.initScrollFramework();
+        // 🔧 ROLLBACK: Disable scroll framework - return to stable .content scroll model
+        // TODO: migrate to unified #page-content scroll architecture (phase 2)
+        // Phase 2 plan:
+        // 1. Implement proper testing for scroll architecture
+        // 2. Ensure all pages properly wrap content in scrollable containers
+        // 3. Validate no double scroll issues
+        // 4. Feature flag controlled rollout
+        const ENABLE_SCROLL_FRAMEWORK = false;
+        if (ENABLE_SCROLL_FRAMEWORK) {
+            this.initScrollFramework();
+        } else {
+            console.log('[scroll] ⏭️ Scroll framework disabled - using legacy .content scroll model');
+            // Ensure body can scroll as fallback
+            document.body.classList.remove('has-scroll-container');
+        }
         
         this.hideLoadingScreen();
         this.showApp();
