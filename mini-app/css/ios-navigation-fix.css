@@ -82,7 +82,9 @@
   animation: none;
 }
 
-/* Hide navigation when keyboard is visible (only toggle allowed) */
+/* Hide navigation when keyboard is visible (only toggle allowed) - ИСПРАВЛЕНО: Поддержка обоих контекстов */
+html.nav-hidden .bottom-nav,
+body.nav-hidden .bottom-nav,
 .nav-hidden .bottom-nav {
   transform: translateY(100%);
 }
@@ -186,9 +188,10 @@ html, body, #app, .app-container, .page-content, .page-body, .content {
   touch-action: none;
 }
 
-/* Дополнительные классы для стабилизации viewport на iOS */
-html.keyboard-open {
-  overflow: hidden;
+/* Дополнительные классы для стабилизации viewport на iOS - ИСПРАВЛЕНО: Поддержка обоих контекстов */
+html.keyboard-open,
+body.keyboard-open {
+  overflow: hidden !important;
 }
 
 html.keyboard-open body {
@@ -198,9 +201,12 @@ html.keyboard-open body {
   height: 100%;
 }
 
-/* Блокировка скролла контента при открытой клавиатуре */
+/* Блокировка скролла контента при открытой клавиатуре - ИСПРАВЛЕНО: Поддержка обоих контекстов */
 html.keyboard-open .content,
 html.keyboard-open .page-content,
-html.keyboard-open .app-content {
+html.keyboard-open .app-content,
+body.keyboard-open .content,
+body.keyboard-open .page-content,
+body.keyboard-open .app-content {
   overflow: hidden !important;
 }

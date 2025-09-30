@@ -809,11 +809,15 @@
    🔧 УТИЛИТАРНЫЕ КЛАССЫ
    ============================================================================ */
 
-/* Скрытие навигации */
+/* Скрытие навигации - ИСПРАВЛЕНО: Поддержка обоих контекстов */
+html.nav-hidden .bottom-nav,
+body.nav-hidden .bottom-nav,
 .nav-hidden .bottom-nav {
     transform: translateY(100%);
 }
 
+html.nav-hidden .top-menu,
+body.nav-hidden .top-menu,
 .nav-hidden .top-menu {
     transform: translateY(-100%);
 }

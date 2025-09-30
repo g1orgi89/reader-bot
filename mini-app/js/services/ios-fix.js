@@ -100,9 +100,19 @@ class IOSFixService {
       
       // Only handle actual input elements
       if (target && (target.matches('input, textarea, select') || target.contentEditable === 'true')) {
-        // Add both nav-hidden and keyboard-open classes
-        document.documentElement.classList.add('nav-hidden');
-        document.documentElement.classList.add('keyboard-open');
+        // 🔧 ИСПРАВЛЕНО: Добавляем классы к ОБОИМ html и body
+        const html = document.documentElement;
+        const body = document.body;
+        
+        html.classList.add('nav-hidden');
+        html.classList.add('keyboard-open');
+        body.classList.add('nav-hidden');
+        body.classList.add('keyboard-open');
+        
+        // 🔧 ИСПРАВЛЕНО: Вызываем метод bottomNavInstance если доступен
+        if (window.bottomNavInstance) {
+          window.bottomNavInstance.setVisible(false);
+        }
         
         // Block content scrolling for viewport stability
         const contentContainer = document.querySelector('.content') || 
@@ -111,6 +121,9 @@ class IOSFixService {
         if (contentContainer) {
           contentContainer.style.overflow = 'hidden';
         }
+        
+        // 🔧 НОВОЕ: Диспетчеризация события открытия клавиатуры
+        window.dispatchEvent(new Event('keyboard:open'));
         
         console.log('🔒 Navigation hidden and viewport stabilized for keyboard input');
       }
@@ -132,8 +145,19 @@ class IOSFixService {
           if (!isStillFocusedOnInput) {
             // Wait for viewport stabilization before showing nav
             this.waitForViewportStabilization().then(() => {
-              document.documentElement.classList.remove('nav-hidden');
-              document.documentElement.classList.remove('keyboard-open');
+              // 🔧 ИСПРАВЛЕНО: Удаляем классы с ОБОИХ html и body
+              const html = document.documentElement;
+              const body = document.body;
+              
+              html.classList.remove('nav-hidden');
+              html.classList.remove('keyboard-open');
+              body.classList.remove('nav-hidden');
+              body.classList.remove('keyboard-open');
+              
+              // 🔧 ИСПРАВЛЕНО: Вызываем метод bottomNavInstance если доступен
+              if (window.bottomNavInstance) {
+                window.bottomNavInstance.setVisible(true);
+              }
               
               // Restore content scrolling
               const contentContainer = document.querySelector('.content') || 
@@ -142,6 +166,9 @@ class IOSFixService {
               if (contentContainer) {
                 contentContainer.style.overflow = '';
               }
+              
+              // 🔧 НОВОЕ: Диспетчеризация события закрытия клавиатуры
+              window.dispatchEvent(new Event('keyboard:close'));
               
               console.log('🔓 Navigation shown after keyboard dismiss and viewport stabilization');
             });
