@@ -799,6 +799,7 @@ class ReportsPage {
         else if (this.weeklyReport) {
             contentHtml = this.renderWeeklyReport()
                 + this.renderAIAnalysis()
+                + this.renderSecondaryThemes()
                 + this.renderRecommendations();
         }
         // 3. Если загрузка завершена и отчета нет — показываем плейсхолдер
@@ -1082,6 +1083,35 @@ class ReportsPage {
                     ${toneChip}
                 </div>
                 <div class="ai-text">${safeAnalysisText}</div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🏷️ ДЕТАЛИ НЕДЕЛИ - ВТОРИЧНЫЕ ТЕМЫ (NEW)
+     */
+    renderSecondaryThemes() {
+        // Проверяем наличие weeklyReport и secondaryThemes
+        if (!this.weeklyReport) {
+            return '';
+        }
+        
+        const secondaryThemes = this.weeklyReport?.analysis?.secondaryThemes;
+        
+        // Если нет secondaryThemes или массив пустой - не рендерим блок
+        if (!secondaryThemes || !Array.isArray(secondaryThemes) || secondaryThemes.length === 0) {
+            return '';
+        }
+        
+        // Безопасное экранирование тем
+        const safeThemes = secondaryThemes.map(theme => 
+            window.escapeHtml ? window.escapeHtml(theme) : theme
+        );
+        
+        return `
+            <div class="weekly-details">
+                <div class="weekly-details-label">🏷️ Детали недели:</div>
+                <div class="weekly-details-list">${safeThemes.join(', ')}</div>
             </div>
         `;
     }
