@@ -22,6 +22,16 @@ const isIOS = () => {
 };
 
 /**
+ * Detects if device has touch capabilities
+ * @returns {boolean} True if touch device
+ */
+const detectTouchDevice = () => {
+  return ('ontouchstart' in window) ||
+         (navigator.maxTouchPoints > 0) ||
+         (navigator.msMaxTouchPoints > 0);
+};
+
+/**
  * iOS Fix Service Class
  */
 class IOSFixService {
@@ -96,4 +106,6 @@ window.IOSFixService = IOSFixService;
 window.initIOSFixes = initIOSFixes;
 window.getIOSFixService = getIOSFixService;
 
+// Export touch device detection
+const isTouchDevice = detectTouchDevice();
 window.isTouchDevice = isTouchDevice;

@@ -87,15 +87,19 @@ class BottomNav {
      * Инициализация компонента
      */
     init() {
-        this.removeDuplicateNavigations();
-        this.createElement();
-        this.attachEventListeners();
-        this.subscribeToRouteChanges();
-        
-        // 🔧 ИСПРАВЛЕНО: Экспортируем глобальный экземпляр для ios-fix.js
-        window.bottomNavInstance = this;
-        
-        console.log('BottomNav: Инициализирован с', this.navItems.length, 'страницами');
+        try {
+            this.removeDuplicateNavigations();
+            this.createElement();
+            this.attachEventListeners();
+            this.subscribeToRouteChanges();
+            
+            console.log('BottomNav: Инициализирован с', this.navItems.length, 'страницами');
+        } catch (error) {
+            console.error('BottomNav: Ошибка инициализации', error);
+        } finally {
+            // 🔧 ИСПРАВЛЕНО: Экспортируем глобальный экземпляр для ios-fix.js ВСЕГДА
+            window.bottomNavInstance = this;
+        }
     }
 
     /**
@@ -183,7 +187,7 @@ class BottomNav {
             }
         } else {
             console.log('✅ BottomNav: Creating new navigation element');
-            this.element = document.createElement('div');
+            this.element = document.createElement('nav');
             this.element.className = 'bottom-nav';
             this.element.id = 'bottom-nav'; // 🔧 FIX: Always set id
             this.element.dataset.initialized = 'true'; // 🔧 FIX: Mark as initialized
@@ -194,7 +198,6 @@ class BottomNav {
         }
         
         // 🔧 FIX: Styles are now in navigation.css - no need to inject
-        // this.injectStyles();
     }
 
     /**
@@ -208,120 +211,6 @@ class BottomNav {
 
         return navItemsHTML;
     }
-
-    /**
-     * 💉 Инжектирование стилей (один раз)
-     * 🔧 COMMENTED OUT: Styles are now in navigation.css to avoid duplication
-     * Keeping this code for reference in case we need to rollback
-     */
-    /*
-    injectStyles() {
-        // Проверяем, не инжектированы ли стили уже
-        if (document.getElementById('bottom-nav-inline-styles')) {
-            console.log('✅ BottomNav: Styles already injected, skipping');
-            return;
-        }
-
-        const styleElement = document.createElement('style');
-        styleElement.id = 'bottom-nav-inline-styles';
-        styleElement.textContent = `
-            .bottom-nav {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                background: var(--surface, #FFFFFF);
-                display: flex;
-                border-top: 1px solid var(--border, #E6E0D6);
-                height: 60px;
-                z-index: 100;
-                transition: all 0.3s ease;
-                box-shadow: 0 -2px 12px rgba(210, 69, 44, 0.08);
-            }
-            
-            .nav-item {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                padding: 8px 4px;
-                color: var(--text-muted, #999999);
-                position: relative;
-                text-decoration: none;
-                user-select: none;
-                -webkit-tap-highlight-color: transparent;
-            }
-            
-            .nav-item.active {
-                color: var(--primary-color, #D2452C);
-            }
-            
-            .nav-item.active::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 30px;
-                height: 3px;
-                background: var(--primary-color, #D2452C);
-                border-radius: 0 0 3px 3px;
-                transition: all 0.3s ease;
-            }
-            
-            .nav-item:hover:not(.active) {
-                color: var(--text-secondary, #666666);
-                background: var(--background-light, #FAF8F3);
-            }
-            
-            .nav-item:active {
-                transform: scale(0.95);
-            }
-            
-            .nav-icon {
-                width: 18px;
-                height: 18px;
-                margin-bottom: 2px;
-                stroke-width: 2;
-                transition: all 0.3s ease;
-            }
-            
-            .nav-label {
-                font-size: 9px;
-                font-weight: 500;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                transition: all 0.3s ease;
-            }
-            
-            /* 📱 iOS стили для Telegram Mini App */
-            @media (max-width: 480px) {
-                .bottom-nav {
-                    padding-bottom: env(safe-area-inset-bottom, 0);
-                }
-            }
-            
-            /* 🌙 Темная тема */
-            body.dark-theme .bottom-nav {
-                background: var(--surface, #2A2A2A);
-                border-top-color: var(--border, #404040);
-            }
-            
-            body.dark-theme .nav-item.active {
-                color: var(--primary-color, #E85A42);
-            }
-            
-            body.dark-theme .nav-item.active::before {
-                background: var(--primary-color, #E85A42);
-            }
-        `;
-        
-        document.head.appendChild(styleElement);
-        console.log('✅ BottomNav: Styles injected');
-    }
-    */
 
     /**
      * 🎯 Рендер отдельного элемента навигации
@@ -369,6 +258,12 @@ class BottomNav {
      * @param {string} navId - ID навигации
      */
     navigateToPage(route, navId) {
+        // 🔧 Guard: Early return if route unchanged
+        if (this.currentRoute === route) {
+            console.log('BottomNav: Already on route', route);
+            return;
+        }
+        
         try {
             // ⚡ Haptic feedback
             if (this.telegram?.hapticFeedback) {
