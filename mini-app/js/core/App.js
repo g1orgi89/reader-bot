@@ -445,20 +445,17 @@ class ReaderApp {
     async finalizeInitialization() {
         console.log('🔄 Финализация инициализации...');
         
-        // 🔧 ROLLBACK: Disable scroll framework - return to stable .content scroll model
-        // TODO: migrate to unified #page-content scroll architecture (phase 2)
-        // Phase 2 plan:
-        // 1. Implement proper testing for scroll architecture
-        // 2. Ensure all pages properly wrap content in scrollable containers
-        // 3. Validate no double scroll issues
-        // 4. Feature flag controlled rollout
+        // 🔧 FIX: Disable scroll framework - use unified #page-content scroll architecture
+        // The scroll framework is not needed because:
+        // 1. #page-content is already in index.html as the single scroll container
+        // 2. body overflow:hidden prevents double scroll
+        // 3. .content is now only for padding, not scroll management
+        // TODO: evaluate keyboard manager refinement after scroll stabilization
         const ENABLE_SCROLL_FRAMEWORK = false;
         if (ENABLE_SCROLL_FRAMEWORK) {
             this.initScrollFramework();
         } else {
-            console.log('[scroll] ⏭️ Scroll framework disabled - using legacy .content scroll model');
-            // Ensure body can scroll as fallback
-            document.body.classList.remove('has-scroll-container');
+            console.log('[scroll] ⏭️ Scroll framework disabled - using #page-content as single scroll container');
         }
         
         this.hideLoadingScreen();

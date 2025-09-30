@@ -14,6 +14,10 @@ class ViewportHeightCalculator {
         this.isActive = false;
         this.lastUpdateTime = 0; // 🔧 FIX: Add debounce tracking
         this.minUpdateInterval = 150; // 🔧 FIX: Minimum 150ms between updates
+        this._pageContentWarningLogged = false; // 🔧 FIX: Track if warning was logged
+        this._lastZeroHeightWarning = 0; // 🔧 FIX: Track last zero height warning
+        this._lastLogTime = 0; // 🔧 FIX: Track last full log time
+        this._lastDuplicateNavWarning = 0; // 🔧 FIX: Track last duplicate nav warning
         
         // Привязываем методы к контексту
         this.updateViewportHeight = this.updateViewportHeight.bind(this);
@@ -86,22 +90,29 @@ class ViewportHeightCalculator {
             // 🔧 FIX: Check for page-content first
             const pageContent = document.getElementById('page-content');
             if (!pageContent) {
-                console.warn('[viewport] ⚠️ No scroll container (#page-content) detected - using body');
+                // Only log once if not found
+                if (!this._pageContentWarningLogged) {
+                    console.warn('[viewport] ⚠️ No scroll container (#page-content) detected - using fallback');
+                    this._pageContentWarningLogged = true;
+                }
             } else if (pageContent.clientHeight <= 0) {
-                console.warn('[viewport] ⚠️ page-content has no height (clientHeight=0)');
+                // Only log occasionally if height is 0 (not every time)
+                const now = Date.now();
+                if (!this._lastZeroHeightWarning || (now - this._lastZeroHeightWarning) > 5000) {
+                    console.warn('[viewport] ⚠️ page-content has no height (clientHeight=0)');
+                    this._lastZeroHeightWarning = now;
+                }
             }
             
             // 🔧 FIX: Skip updates when keyboard is open to prevent layout jumps
             const isKeyboardOpen = document.body.classList.contains('keyboard-open');
             if (isKeyboardOpen) {
-                console.log('🔧 Skipping viewport update - keyboard is open');
                 return;
             }
             
             // 🔧 FIX: Debounce - skip if updated too recently
             const now = Date.now();
             if (now - this.lastUpdateTime < this.minUpdateInterval) {
-                console.log('🔧 Skipping viewport update - too soon (debounce)');
                 return;
             }
             this.lastUpdateTime = now;
@@ -128,21 +139,17 @@ class ViewportHeightCalculator {
             document.documentElement.style.setProperty('--real-available-height', `${availableHeight}px`);
             document.documentElement.style.setProperty('--real-viewport-height', `${telegramHeight}px`);
             
-            console.log('🔧 Viewport heights updated:', {
-                viewport: telegramHeight,
-                stable: tg?.viewportStableHeight,
-                keyboardOpen: false,
-                realHeader: realSizes.headerHeight,
-                realNav: realSizes.bottomNavHeight,
-                available: availableHeight,
-                page: this.getCurrentPage(),
-                pageContentExists: !!pageContent,
-                pageContentHeight: pageContent ? pageContent.clientHeight : 0,
-                updated: {
-                    '--header-height': `${realSizes.headerHeight}px`,
-                    '--bottom-nav-height': `${realSizes.bottomNavHeight}px`
-                }
-            });
+            // Only log occasionally (every 5 seconds max)
+            if (!this._lastLogTime || (now - this._lastLogTime) > 5000) {
+                console.log('🔧 Viewport heights updated:', {
+                    viewport: telegramHeight,
+                    realNav: realSizes.bottomNavHeight,
+                    available: availableHeight,
+                    pageContentExists: !!pageContent,
+                    pageContentHeight: pageContent ? pageContent.clientHeight : 0
+                });
+                this._lastLogTime = now;
+            }
             
         } catch (error) {
             console.error('❌ ViewportHeightCalculator error:', error);
@@ -162,7 +169,6 @@ class ViewportHeightCalculator {
             const element = document.querySelector(selector);
             if (element && this.isElementVisible(element)) {
                 headerHeight = element.getBoundingClientRect().height;
-                console.log(`📏 Found inline header: ${selector} = ${headerHeight}px`);
                 break;
             }
         }
@@ -174,7 +180,6 @@ class ViewportHeightCalculator {
                 const element = document.querySelector(selector);
                 if (element && this.isElementVisible(element)) {
                     headerHeight = element.getBoundingClientRect().height;
-                    console.log(`⚠️ Found external header: ${selector} = ${headerHeight}px (should be removed!)`);
                     break;
                 }
             }
@@ -201,32 +206,21 @@ class ViewportHeightCalculator {
         const visibleNavElements = allNavElements.filter(item => item.height > 0);
         
         if (visibleNavElements.length > 1) {
-            console.warn(`⚠️ Found ${visibleNavElements.length} visible bottom navigation elements! This may cause issues.`);
-            console.warn('⚠️ To fix: Ensure BottomNav.js creates only one .bottom-nav with id="bottom-nav"');
-            visibleNavElements.forEach((item, index) => {
-                console.warn(`  Nav ${index + 1}: ${item.selector} = ${item.height}px`, item.element);
-            });
+            // Only log warning occasionally (every 10 seconds)
+            const now = Date.now();
+            if (!this._lastDuplicateNavWarning || (now - this._lastDuplicateNavWarning) > 10000) {
+                console.warn(`⚠️ Found ${visibleNavElements.length} visible bottom navigation elements!`);
+                this._lastDuplicateNavWarning = now;
+            }
             
             // Используем элемент с максимальной высотой (скорее всего правильный)
             const maxHeightNav = visibleNavElements.reduce((prev, current) => 
                 current.height > prev.height ? current : prev
             );
             bottomNavHeight = maxHeightNav.height;
-            console.log(`📏 Using largest bottom nav: ${maxHeightNav.selector} = ${bottomNavHeight}px`);
         } else if (visibleNavElements.length === 1) {
             bottomNavHeight = visibleNavElements[0].height;
-            console.log(`📏 Found bottom nav: ${visibleNavElements[0].selector} = ${bottomNavHeight}px`);
-        } else {
-            console.warn('⚠️ No visible bottom navigation found');
         }
-
-        // 🔧 НОВОЕ: Логирование для отладки
-        console.log('📏 Real element sizes measured:', {
-            headerHeight,
-            bottomNavHeight,
-            currentPage: this.getCurrentPage(),
-            navElementsFound: visibleNavElements.length
-        });
 
         return {
             headerHeight,
