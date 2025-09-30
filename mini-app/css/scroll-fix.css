@@ -1,0 +1,202 @@
+/**
+ * 🔧 SCROLL FIX OVERRIDE - Consolidate Single Scroll Container
+ * 
+ * Purpose: Restore vertical scrolling by ensuring #page-content is the ONLY scroll container
+ * Loaded LAST (after ios-navigation-fix.css) to override competing scroll rules
+ * 
+ * Problem: Multiple competing scroll containers (.content, .page-content, etc.) with
+ *          min-height:100dvh and overflow rules create nested scroll contexts that
+ *          break gesture-based scrolling on mobile devices
+ * 
+ * Solution: Reset all competing containers, designate #page-content as single scroll source
+ * 
+ * Safe rollback: Remove this file + link tag in index.html
+ */
+
+/* ============================================================================
+   🎯 ROOT FLEX CONTAINER - App Shell Structure
+   ============================================================================ */
+
+/* Ensure #app is a flex column root with proper height constraints */
+#app,
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0; /* Allow flex items to shrink below their content size */
+  overflow: hidden; /* Container itself should not scroll */
+}
+
+/* ============================================================================
+   📜 SINGLE SCROLL CONTAINER - #page-content
+   ============================================================================ */
+
+/* 
+ * #page-content (.page-content) is THE ONLY scroll container
+ * Override any min-height:100dvh or competing overflow rules
+ */
+#page-content,
+.page-content {
+  flex: 1 1 auto; /* Grow to fill space, shrink if needed, auto basis */
+  min-height: 0 !important; /* Critical: allows flex item to shrink, overrides 100dvh */
+  max-height: 100%; /* Prevent overflow beyond available space */
+  overflow-y: auto !important; /* Force scrolling here */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
+  overscroll-behavior-y: contain; /* Prevent scroll chaining to parent */
+  scroll-behavior: smooth;
+  touch-action: pan-y; /* Allow vertical panning */
+  
+  /* Ensure proper padding for bottom navigation */
+  padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
+  
+  /* Visual properties */
+  background: var(--bg-primary);
+}
+
+/* ============================================================================
+   🔄 NEUTRALIZE COMPETING SCROLL CONTAINERS
+   ============================================================================ */
+
+/*
+ * Reset competing containers that were previously set as scroll containers
+ * These should NOT have min-height:100dvh or overflow-y:auto
+ * They should be natural layout containers only
+ */
+.content,
+.app-content,
+.screen-content,
+.page-body,
+.main-content,
+#app .content {
+  min-height: 0 !important; /* Remove 100dvh constraint */
+  overflow-y: visible !important; /* Not a scroll container */
+  overflow-x: visible !important;
+  /* These are now just padding/layout containers */
+  height: auto;
+  flex: none; /* Don't participate in flex growth */
+}
+
+/* ============================================================================
+   📱 MOBILE TOUCH OPTIMIZATION
+   ============================================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  /* On mobile, ensure #page-content handles all scrolling */
+  #page-content,
+  .page-content {
+    /* Reinforce scroll container behavior on touch devices */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  
+  /* Ensure root elements don't interfere */
+  html.has-content-container,
+  html.has-content-container body {
+    overflow: hidden !important;
+    touch-action: pan-y;
+  }
+}
+
+/* ============================================================================
+   ⌨️ KEYBOARD HANDLING - Preserve Scroll During Input
+   ============================================================================ */
+
+/*
+ * When keyboard is open, don't lock scroll on page-content
+ * Override any keyboard-open rules that set overflow:hidden
+ */
+html.keyboard-open #page-content,
+html.keyboard-open .page-content,
+body.keyboard-open #page-content,
+body.keyboard-open .page-content {
+  overflow-y: auto !important; /* Keep scrolling even when keyboard is open */
+}
+
+/* Keep body locked during keyboard to prevent viewport jumps */
+html.keyboard-open body {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================================
+   🧭 BOTTOM NAVIGATION - Fixed Position
+   ============================================================================ */
+
+/*
+ * Ensure bottom nav stays fixed and doesn't interfere with scroll
+ */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  /* No min-height constraints that could affect layout */
+}
+
+/* ============================================================================
+   🔧 DESKTOP COMPATIBILITY
+   ============================================================================ */
+
+@media (hover: hover) and (pointer: fine) {
+  /* On desktop, more relaxed rules */
+  .content,
+  .app-content,
+  .screen-content,
+  .page-body,
+  .main-content,
+  #app .content {
+    overflow-y: visible;
+    min-height: auto;
+  }
+}
+
+/* ============================================================================
+   🎨 PREVENT HORIZONTAL SCROLL
+   ============================================================================ */
+
+/* Ensure no horizontal scrollbar appears anywhere */
+html,
+body,
+#app,
+.app-container,
+#page-content,
+.page-content {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* ============================================================================
+   📐 HEIGHT CONSTRAINTS FOR FLEX LAYOUT
+   ============================================================================ */
+
+/* Ensure html/body provide 100% height for flex children */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  /* Body should not scroll - only #page-content */
+  overflow: hidden;
+  /* But allow padding for phone-frame design */
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   ✅ VERIFICATION RULES
+   ============================================================================ */
+
+/*
+ * For debugging: verify these in DevTools
+ * - #page-content should have overflow-y: auto
+ * - #page-content.scrollHeight should be > clientHeight when content overflows
+ * - body should have overflow: hidden
+ * - Only ONE element should have overflow-y: auto (the #page-content)
+ */
