@@ -148,8 +148,8 @@ p {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     overscroll-behavior: contain;
-    /* Padding to account for bottom nav + safe area */
-    padding-bottom: calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom, 0px) + 8px);
+    /* 🔧 SINGLE SOURCE: Padding to account for bottom nav + safe area + spacing */
+    padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-sm, 8px));
 }
 
 /* 🔧 FIX: .content is now ONLY for padding, NOT for scroll management */
