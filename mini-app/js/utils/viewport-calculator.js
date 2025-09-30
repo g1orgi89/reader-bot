@@ -34,8 +34,20 @@ class ViewportHeightCalculator {
         
         this.isActive = true;
         
-        // Обновляем сразу
-        this.updateViewportHeight();
+        // 🔧 FIX: Ждем, пока #page-content появится и получит высоту
+        const waitForPageContent = () => {
+            const pageContent = document.getElementById('page-content');
+            if (pageContent && pageContent.clientHeight > 0) {
+                console.log('✅ ViewportCalculator: #page-content ready, starting measurements');
+                this.updateViewportHeight();
+            } else {
+                // Попробуем снова через 100мс
+                setTimeout(waitForPageContent, 100);
+            }
+        };
+        
+        // Даем время на инициализацию DOM
+        setTimeout(waitForPageContent, 500);
         
         // Обновляем при изменении размеров
         window.addEventListener('resize', this.handleResize);
@@ -60,7 +72,7 @@ class ViewportHeightCalculator {
             window.Telegram.WebApp.onEvent('viewportChanged', this.handleResize);
         }
         
-        console.log('✅ ViewportHeightCalculator started');
+        console.log('✅ ViewportHeightCalculator started with debounce and delayed init');
     }
 
     /**

@@ -39,43 +39,9 @@ class BottomNav {
         this.router = router;
         this.telegram = telegram;
         
-        this.currentRoute = '/';
+        this.currentRoute = '/home';
         this.element = null;
         this.subscriptions = [];
-        
-        // 🎨 Конфигурация навигации (из концепта 5 страниц)
-        this.navItems = [
-            {
-                id: 'home',
-                label: 'Главная',
-                icon: this.getHomeIcon(),
-                route: '/'
-            },
-            {
-                id: 'diary',
-                label: 'Дневник',
-                icon: this.getDiaryIcon(),
-                route: '/diary'
-            },
-            {
-                id: 'reports',
-                label: 'Отчеты',
-                icon: this.getReportsIcon(),
-                route: '/reports'
-            },
-            {
-                id: 'catalog',
-                label: 'Каталог',
-                icon: this.getCatalogIcon(),
-                route: '/catalog'
-            },
-            {
-                id: 'community',
-                label: 'Сообщество',
-                icon: this.getCommunityIcon(),
-                route: '/community'
-            }
-        ];
         
         // 🔧 FIX: Store singleton instance
         window.__BottomNavInstance = this;
@@ -87,256 +53,26 @@ class BottomNav {
      * Инициализация компонента
      */
     init() {
-        this.removeDuplicateNavigations();
-        this.createElement();
+        // 🔧 FIX: Просто находим существующий элемент, НЕ создаем новый
+        this.element = document.getElementById('bottom-nav');
+        
+        if (!this.element) {
+            console.error('❌ BottomNav: #bottom-nav не найден в DOM!');
+            return;
+        }
+        
+        console.log('✅ BottomNav: Найден существующий элемент навигации');
+        
+        // Прикрепляем обработчики событий к существующему элементу
         this.attachEventListeners();
+        
+        // Подписываемся на изменения маршрута
         this.subscribeToRouteChanges();
         
         // 🔧 ИСПРАВЛЕНО: Экспортируем глобальный экземпляр для ios-fix.js
         window.bottomNavInstance = this;
         
-        console.log('BottomNav: Инициализирован с', this.navItems.length, 'страницами');
-    }
-
-    /**
-     * 🔧 FIX: Remove duplicate bottom navigation elements
-     */
-    removeDuplicateNavigations() {
-        const navElements = document.querySelectorAll('nav.bottom-nav');
-        
-        if (navElements.length > 1) {
-            console.warn(`⚠️ Found ${navElements.length} bottom navigation elements! Removing duplicates...`);
-            
-            // Keep the first one (or the one with id="bottom-nav")
-            let keepElement = document.getElementById('bottom-nav') || navElements[0];
-            
-            navElements.forEach((nav, index) => {
-                if (nav !== keepElement) {
-                    console.warn(`  Removing duplicate nav element ${index + 1}`);
-                    nav.remove();
-                }
-            });
-            
-            console.log('✅ Duplicate navigations removed, keeping only one');
-        }
-    }
-
-    /**
-     * 🏗️ Создание DOM элемента навигации
-     */
-    createElement() {
-        // 🔧 FIX: Ensure single bottom-nav instance with id="bottom-nav"
-        // First, check for existing navigation by id
-        let existing = document.getElementById('bottom-nav');
-        
-        // If no id found, check for class-based navigation
-        if (!existing) {
-            const navElements = document.querySelectorAll('.bottom-nav');
-            if (navElements.length > 0) {
-                // Multiple bottom-navs found - remove duplicates
-                if (navElements.length > 1) {
-                    console.warn(`⚠️ Found ${navElements.length} .bottom-nav elements! Removing duplicates...`);
-                    // Keep first, remove rest
-                    for (let i = 1; i < navElements.length; i++) {
-                        navElements[i].remove();
-                        console.log(`🗑️ Removed duplicate bottom-nav #${i + 1}`);
-                    }
-                }
-                existing = navElements[0];
-                // Ensure it has id
-                if (!existing.id) {
-                    existing.id = 'bottom-nav';
-                    console.log('✅ Added id="bottom-nav" to existing navigation');
-                }
-            }
-        }
-        
-        if (existing) {
-            // Check if already initialized
-            if (existing.dataset.initialized) {
-                console.log('✅ BottomNav: Already initialized, skipping recreation');
-                this.element = existing;
-                return;
-            }
-            
-            console.log('✅ BottomNav: Reusing existing navigation element');
-            this.element = existing;
-            // Mark as initialized
-            this.element.dataset.initialized = 'true';
-            
-            // Обновляем содержимое существующего элемента
-            const navItemsHTML = this.navItems.map(item => 
-                this.renderNavItem(item)
-            ).join('');
-            
-            // Создаем обертку для элементов навигации если её нет
-            let navItemsContainer = existing.querySelector('.nav-items');
-            if (!navItemsContainer) {
-                // Сохраняем существующие элементы, если они есть
-                const existingItems = Array.from(existing.querySelectorAll('.nav-item'));
-                if (existingItems.length > 0) {
-                    console.log('✅ BottomNav: Found existing nav items, keeping them');
-                } else {
-                    // Добавляем наши элементы
-                    existing.innerHTML = navItemsHTML;
-                }
-            }
-        } else {
-            console.log('✅ BottomNav: Creating new navigation element');
-            this.element = document.createElement('div');
-            this.element.className = 'bottom-nav';
-            this.element.id = 'bottom-nav'; // 🔧 FIX: Always set id
-            this.element.dataset.initialized = 'true'; // 🔧 FIX: Mark as initialized
-            this.element.innerHTML = this.render();
-            
-            // 📱 Добавляем в конец body для фиксированного позиционирования
-            document.body.appendChild(this.element);
-        }
-        
-        // Инжектируем стили только один раз
-        this.injectStyles();
-    }
-
-    /**
-     * 🎨 Рендер компонента (HTML только, без инлайн стилей)
-     * @returns {string} HTML разметка
-     */
-    render() {
-        const navItemsHTML = this.navItems.map(item => 
-            this.renderNavItem(item)
-        ).join('');
-
-        return navItemsHTML;
-    }
-
-    /**
-     * 💉 Инжектирование стилей (один раз)
-     */
-    injectStyles() {
-        // Проверяем, не инжектированы ли стили уже
-        if (document.getElementById('bottom-nav-inline-styles')) {
-            console.log('✅ BottomNav: Styles already injected, skipping');
-            return;
-        }
-
-        const styleElement = document.createElement('style');
-        styleElement.id = 'bottom-nav-inline-styles';
-        styleElement.textContent = `
-            .bottom-nav {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                background: var(--surface, #FFFFFF);
-                display: flex;
-                border-top: 1px solid var(--border, #E6E0D6);
-                height: 60px;
-                z-index: 100;
-                transition: all 0.3s ease;
-                box-shadow: 0 -2px 12px rgba(210, 69, 44, 0.08);
-            }
-            
-            .nav-item {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                padding: 8px 4px;
-                color: var(--text-muted, #999999);
-                position: relative;
-                text-decoration: none;
-                user-select: none;
-                -webkit-tap-highlight-color: transparent;
-            }
-            
-            .nav-item.active {
-                color: var(--primary-color, #D2452C);
-            }
-            
-            .nav-item.active::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 30px;
-                height: 3px;
-                background: var(--primary-color, #D2452C);
-                border-radius: 0 0 3px 3px;
-                transition: all 0.3s ease;
-            }
-            
-            .nav-item:hover:not(.active) {
-                color: var(--text-secondary, #666666);
-                background: var(--background-light, #FAF8F3);
-            }
-            
-            .nav-item:active {
-                transform: scale(0.95);
-            }
-            
-            .nav-icon {
-                width: 18px;
-                height: 18px;
-                margin-bottom: 2px;
-                stroke-width: 2;
-                transition: all 0.3s ease;
-            }
-            
-            .nav-label {
-                font-size: 9px;
-                font-weight: 500;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                transition: all 0.3s ease;
-            }
-            
-            /* 📱 iOS стили для Telegram Mini App */
-            @media (max-width: 480px) {
-                .bottom-nav {
-                    padding-bottom: env(safe-area-inset-bottom, 0);
-                }
-            }
-            
-            /* 🌙 Темная тема */
-            body.dark-theme .bottom-nav {
-                background: var(--surface, #2A2A2A);
-                border-top-color: var(--border, #404040);
-            }
-            
-            body.dark-theme .nav-item.active {
-                color: var(--primary-color, #E85A42);
-            }
-            
-            body.dark-theme .nav-item.active::before {
-                background: var(--primary-color, #E85A42);
-            }
-        `;
-        
-        document.head.appendChild(styleElement);
-        console.log('✅ BottomNav: Styles injected');
-    }
-
-    /**
-     * 🎯 Рендер отдельного элемента навигации
-     * @param {NavItem} item - Элемент навигации
-     * @returns {string} HTML элемента
-     */
-    renderNavItem(item) {
-        const isActive = this.currentRoute === item.route;
-        
-        return `
-            <div class="nav-item ${isActive ? 'active' : ''}" 
-                 data-route="${item.route}" 
-                 data-nav-id="${item.id}">
-                <div class="nav-icon">
-                    ${item.icon}
-                </div>
-                <div class="nav-label">${item.label}</div>
-            </div>
-        `;
+        console.log('✅ BottomNav: Инициализирован с существующей статической разметкой');
     }
 
     /**
@@ -353,10 +89,16 @@ class BottomNav {
             const route = navItem.dataset.route;
             const navId = navItem.dataset.navId;
             
+            if (!route) {
+                console.warn('⚠️ BottomNav: nav-item без data-route:', navItem);
+                return;
+            }
+            
             this.navigateToPage(route, navId);
         });
 
         // Touch feedback is handled by CSS :active pseudo-class
+        console.log('✅ BottomNav: Обработчики событий подключены');
     }
 
     /**
@@ -419,6 +161,9 @@ class BottomNav {
         const activeItem = this.element.querySelector(`[data-route="${this.currentRoute}"]`);
         if (activeItem) {
             activeItem.classList.add('active');
+            console.log(`✅ BottomNav: Активен маршрут ${this.currentRoute}`);
+        } else {
+            console.warn(`⚠️ BottomNav: Не найден элемент с data-route="${this.currentRoute}"`);
         }
     }
 
@@ -505,96 +250,10 @@ class BottomNav {
         });
         this.subscriptions = [];
 
-        // Удаляем DOM элемент
-        if (this.element && this.element.parentNode) {
-            this.element.parentNode.removeChild(this.element);
-        }
-        
+        // НЕ удаляем DOM элемент, т.к. он статический в index.html!
+        // Только отвязываем ссылку
         this.element = null;
         console.log('BottomNav: Компонент уничтожен');
-    }
-
-    // 🎨 SVG ИКОНКИ (из концепта 5 страниц)
-
-    /**
-     * 🏠 Иконка главной страницы
-     * @returns {string} SVG иконка
-     */
-    getHomeIcon() {
-        return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9,22 9,12 15,12 15,22"/>
-            </svg>
-        `;
-    }
-
-    /**
-     * 📖 Иконка дневника
-     * @returns {string} SVG иконка
-     */
-    getDiaryIcon() {
-        return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14,2 14,8 20,8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10,9 9,9 8,9"/>
-            </svg>
-        `;
-    }
-
-    /**
-     * 📊 Иконка отчетов
-     * @returns {string} SVG иконка
-     */
-    getReportsIcon() {
-        return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-                <path d="M8 14h.01"/>
-                <path d="M12 14h.01"/>
-                <path d="M16 14h.01"/>
-                <path d="M8 18h.01"/>
-                <path d="M12 18h.01"/>
-                <path d="M16 18h.01"/>
-            </svg>
-        `;
-    }
-
-    /**
-     * 📚 Иконка каталога
-     * @returns {string} SVG иконка
-     */
-    getCatalogIcon() {
-        return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                <path d="M8 7h8"/>
-                <path d="M8 11h8"/>
-                <path d="M8 15h5"/>
-            </svg>
-        `;
-    }
-
-    /**
-     * 👥 Иконка сообщества
-     * @returns {string} SVG иконка  
-     */
-    getCommunityIcon() {
-        return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-        `;
     }
 }
 
