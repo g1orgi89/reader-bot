@@ -12,12 +12,14 @@
 class ViewportHeightCalculator {
     constructor() {
         this.isActive = false;
+        this.lastUpdateTime = 0; // 🔧 FIX: Add debounce tracking
+        this.minUpdateInterval = 150; // 🔧 FIX: Minimum 150ms between updates
         
         // Привязываем методы к контексту
         this.updateViewportHeight = this.updateViewportHeight.bind(this);
         this.handleResize = this.handleResize.bind(this);
         
-        console.log('🔧 ViewportHeightCalculator initialized v1.1.0');
+        console.log('🔧 ViewportHeightCalculator initialized v1.2.0 with debounce');
     }
 
     /**
@@ -81,22 +83,28 @@ class ViewportHeightCalculator {
      */
     updateViewportHeight() {
         try {
+            // 🔧 FIX: Skip updates when keyboard is open to prevent layout jumps
+            const isKeyboardOpen = document.body.classList.contains('keyboard-open');
+            if (isKeyboardOpen) {
+                console.log('🔧 Skipping viewport update - keyboard is open');
+                return;
+            }
+            
+            // 🔧 FIX: Debounce - skip if updated too recently
+            const now = Date.now();
+            if (now - this.lastUpdateTime < this.minUpdateInterval) {
+                console.log('🔧 Skipping viewport update - too soon (debounce)');
+                return;
+            }
+            this.lastUpdateTime = now;
+            
             const realSizes = this.measureRealElementSizes();
 
             const tg = window.Telegram?.WebApp;
             const baseHeight = tg?.viewportHeight || window.innerHeight;
             
             // Используем стабильную высоту во время открытой клавиатуры
-            let telegramHeight;
-            if (document.body.classList.contains('keyboard-open')) {
-                // Приоритет: WebApp.viewportStableHeight > CSS переменная > обычная высота
-                telegramHeight = tg?.viewportStableHeight || 
-                               parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tg-viewport-stable-height')) || 
-                               baseHeight;
-                console.log('🔧 Using stable viewport height during keyboard:', telegramHeight);
-            } else {
-                telegramHeight = baseHeight;
-            }
+            let telegramHeight = baseHeight;
             
             // Рассчитываем доступную высоту для контента
             const availableHeight = telegramHeight - realSizes.headerHeight - realSizes.bottomNavHeight;
@@ -115,7 +123,7 @@ class ViewportHeightCalculator {
             console.log('🔧 Viewport heights updated:', {
                 viewport: telegramHeight,
                 stable: tg?.viewportStableHeight,
-                keyboardOpen: document.body.classList.contains('keyboard-open'),
+                keyboardOpen: false,
                 realHeader: realSizes.headerHeight,
                 realNav: realSizes.bottomNavHeight,
                 available: availableHeight,
@@ -184,8 +192,9 @@ class ViewportHeightCalculator {
         
         if (visibleNavElements.length > 1) {
             console.warn(`⚠️ Found ${visibleNavElements.length} visible bottom navigation elements! This may cause issues.`);
+            console.warn('⚠️ To fix: Ensure BottomNav.js creates only one .bottom-nav with id="bottom-nav"');
             visibleNavElements.forEach((item, index) => {
-                console.warn(`  Nav ${index + 1}: ${item.selector} = ${item.height}px`);
+                console.warn(`  Nav ${index + 1}: ${item.selector} = ${item.height}px`, item.element);
             });
             
             // Используем элемент с максимальной высотой (скорее всего правильный)
@@ -280,4 +289,4 @@ if (typeof window !== 'undefined') {
     }
 }
 
-console.log('🔧 ViewportHeightCalculator module loaded v1.1.0');
+console.log('🔧 ViewportHeightCalculator module loaded v1.2.0');

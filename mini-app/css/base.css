@@ -21,6 +21,8 @@ body {
     background: var(--background, #F5F2EC);
     padding: 20px 20px 0;
     min-height: 100vh;
+    /* 🔧 FIX: Prevent double scroll - body should not scroll */
+    overflow: hidden;
 }
 
 /* 📝 Заголовки */
@@ -139,46 +141,26 @@ p {
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* 🔧 ИСПРАВЛЕНО: КОРРЕКТНАЯ ФОРМУЛА БЕЗ ХЕДЕРОВ */
+/* 🔧 FIX: Remove fixed height to avoid double scroll - let .content be flexible */
 .content {
-    /* 🔧 ПРАВИЛЬНАЯ ФОРМУЛА: Только нижняя навигация (60px) */
-    height: calc(100vh - var(--bottom-nav-height, 60px));
-    max-height: calc(100vh - var(--bottom-nav-height, 60px));
-    min-height: calc(100vh - var(--bottom-nav-height, 60px));
+    /* 🔧 FIX: Single scroll container - no fixed height, just padding for bottom nav */
     width: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     padding: 16px;
+    padding-bottom: calc(var(--bottom-nav-height, 60px) + 16px);
     box-sizing: border-box;
+    /* 🔧 FIX: Allow content to grow naturally */
+    min-height: calc(100vh - var(--bottom-nav-height, 60px));
 }
 
 /* 🔧 СПЕЦИАЛЬНОЕ ИСПРАВЛЕНИЕ ДЛЯ TELEGRAM WEB APP */
-@supports (height: var(--tg-viewport-height)) {
-    .content {
-        height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
-        max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
-        min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px));
-    }
-}
+/* 🔧 FIX: Removed fixed height support for Telegram - use natural scroll instead */
 
 /* ✅ iOS ИСПРАВЛЕНИЯ */
-@supports (padding: max(0px)) {
-    .content {
-        height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        max-height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        min-height: calc(100vh - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    }
-    
-    @supports (height: var(--tg-viewport-height)) {
-        .content {
-            height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            max-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-            min-height: calc(var(--tg-viewport-height, 100vh) - var(--bottom-nav-height, 60px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        }
-    }
-}
+/* 🔧 FIX: Removed fixed height overrides for iOS - natural scroll is better */
 
 /* 📱 МОБИЛЬНАЯ АДАПТАЦИЯ */
 @media (max-width: 480px) {
@@ -191,8 +173,7 @@ p {
     }
     .content {
         padding: 12px;
-        height: calc(100vh - var(--bottom-nav-height, 60px));
-        max-height: calc(100vh - var(--bottom-nav-height, 60px));
+        padding-bottom: calc(var(--bottom-nav-height, 60px) + 12px);
         min-height: calc(100vh - var(--bottom-nav-height, 60px));
     }
 }
