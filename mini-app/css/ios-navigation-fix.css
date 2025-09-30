@@ -23,33 +23,31 @@
     background: var(--bg-primary);
   }
   
-  /* Content layer handles all scrolling */
+  /* 
+   * WEAKENED: Content layer scroll handling - now handled by scroll-fix.css
+   * These rules are kept minimal to avoid conflicts with scroll-fix.css
+   * The primary scroll container rules are in scroll-fix.css
+   */
   .page-content, .page-body, .content, .app-content, .screen-content {
-    min-height: 100dvh;
-    overflow-y: auto;
+    /* REMOVED: min-height: 100dvh - conflicts with scroll-fix.css */
+    /* REMOVED: overflow-y: auto - conflicts with scroll-fix.css */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     background: var(--bg-primary);
-    /* Ensure content doesn't overlap with nav - include strip height */
-    padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
+    /* REMOVED: padding-bottom - now handled by scroll-fix.css on #page-content only */
   }
   
-  /* Additional content selectors */
+  /* Additional content selectors - minimal styling only */
   #app .content {
-    min-height: 100dvh;
-    overflow-y: auto;
+    /* REMOVED: min-height: 100dvh - conflicts with scroll-fix.css */
+    /* REMOVED: overflow-y: auto - conflicts with scroll-fix.css */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     background: var(--bg-primary);
-    padding-bottom: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom, 0px) + var(--spacing-xs, 8px));
+    /* REMOVED: padding-bottom - now handled by scroll-fix.css on #page-content only */
   }
   
-  /* Fallback for older browsers without dvh support */
-  @supports not (height: 100dvh) {
-    .page-content, .page-body, .content, .app-content, .screen-content, #app .content {
-      min-height: 100vh;
-    }
-  }
+  /* Fallback for older browsers without dvh support - REMOVED to avoid conflicts */
 }
 
 /* ============================================================================
@@ -171,8 +169,8 @@ html, body, #app, .app-container, .page-content, .page-body, .content {
 /* Desktop behavior unchanged - basic content padding only */
 @media (hover: hover) and (pointer: fine) {
   .page-content, .page-body, .content, .app-content, .screen-content, #app .content {
-    padding-bottom: calc(var(--bottom-nav-height, 96px) + var(--spacing-md, 16px));
-    min-height: auto;
+    /* REMOVED: padding-bottom - now handled by scroll-fix.css on #page-content only */
+    /* REMOVED: min-height: auto - conflicts with scroll-fix.css */
     overflow-y: visible;
   }
 }
