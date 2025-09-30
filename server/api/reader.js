@@ -3350,71 +3350,48 @@ router.get('/community/message', telegramAuth, communityLimiter, async (req, res
 // In-memory cache for community trend (15 minutes)
 let communityTrendCache = null;
 let communityTrendCacheTime = 0;
+let communityTrendCacheWeek = null;
 const COMMUNITY_TREND_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 /**
- * @description Тренд недели по реальным данным (темы/категории цитат за 7 дней)
+ * @description Тренд недели по реальным данным (категории цитат за текущую ISO неделю)
  * @route GET /api/reader/community/trend
  */
 router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res) => {
   try {
-    // Check cache first
+    const { getBusinessNow, getISOWeekInfo, getISOWeekRange } = require('../utils/isoWeek');
+    const { normalizeCategory, getCategorySlug } = require('../utils/normalizeCategory');
+    
+    // Get current ISO week info
+    const currentWeek = getISOWeekInfo(getBusinessNow());
+    const weekNumber = currentWeek.isoWeek;
+    const yearNumber = currentWeek.isoYear;
+    const weekKey = `${yearNumber}-W${weekNumber}`;
+
+    // Check cache first (invalidate if week changed)
     const now = Date.now();
-    if (communityTrendCache && (now - communityTrendCacheTime) < COMMUNITY_TREND_CACHE_TTL) {
+    if (communityTrendCache && 
+        communityTrendCacheWeek === weekKey &&
+        (now - communityTrendCacheTime) < COMMUNITY_TREND_CACHE_TTL) {
       return res.json({
         success: true,
         data: communityTrendCache
       });
     }
 
-    // Get quotes from last 7 days
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    // Aggregate themes from Quote.themes (unwind) and Quote.category as fallback
-    const themeAggregation = await Quote.aggregate([
-      { $match: { createdAt: { $gte: oneWeekAgo } } },
-      {
-        $facet: {
-          // Themes from themes array
-          fromThemes: [
-            { $match: { themes: { $exists: true, $ne: [] } } },
-            { $unwind: '$themes' },
-            { $group: { _id: '$themes', count: { $sum: 1 } } }
-          ],
-          // Categories as fallback
-          fromCategories: [
-            { $match: { category: { $exists: true, $ne: null } } },
-            { $group: { _id: '$category', count: { $sum: 1 } } }
-          ]
-        }
-      },
-      {
-        $project: {
-          allThemes: { $concatArrays: ['$fromThemes', '$fromCategories'] }
-        }
-      },
-      { $unwind: '$allThemes' },
-      {
-        $group: {
-          _id: '$allThemes._id',
-          count: { $sum: '$allThemes.count' }
-        }
-      },
-      { $sort: { count: -1 } },
-      { $limit: 1 }
+    // Aggregate categories from Quote.category for current ISO week
+    const categoryAggregation = await Quote.aggregate([
+      { $match: { weekNumber, yearNumber } },
+      { $match: { category: { $exists: true, $ne: null, $ne: '' } } },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
     ]);
 
-    let topTheme = null;
-    let topThemeCount = 0;
+    // Filter out null/empty _id
+    const validCategories = categoryAggregation.filter(cat => cat._id && cat._id.trim());
 
-    if (themeAggregation.length > 0) {
-      topTheme = themeAggregation[0]._id;
-      topThemeCount = themeAggregation[0].count;
-    }
-
-    // If no theme found, use fallback
-    if (!topTheme) {
+    // If no categories found, use fallback
+    if (validCategories.length === 0) {
       const result = {
         title: 'Тренд недели',
         text: 'Сообщество активно изучает разнообразные темы',
@@ -3425,6 +3402,7 @@ router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res)
 
       communityTrendCache = result;
       communityTrendCacheTime = now;
+      communityTrendCacheWeek = weekKey;
 
       return res.json({
         success: true,
@@ -3432,31 +3410,37 @@ router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res)
       });
     }
 
-    // Slugify theme for URL
-    const slugifiedTheme = topTheme.toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-zа-я0-9\-]/gi, '')
-      .replace(/\-+/g, '-')
-      .replace(/^\-|\-$/g, '');
+    // Exclude 'ДРУГОЕ' if any other category exists
+    const filteredCategories = validCategories.length > 1
+      ? validCategories.filter(cat => cat._id !== 'ДРУГОЕ')
+      : validCategories;
+
+    // Get top category
+    const topCategory = filteredCategories[0];
+    const categoryKey = normalizeCategory(topCategory._id);
+    const categorySlug = getCategorySlug(categoryKey);
+
+    // Get ISO week range for book highlight logic
+    const weekRange = getISOWeekRange(weekNumber, yearNumber);
 
     // Find books in BookCatalog with matching categories
     const matchingBooks = await BookCatalog.find({
       isActive: true,
-      categories: { $regex: new RegExp(topTheme, 'i') }
-    }).sort({ priority: -1 }).limit(10);
+      categories: categoryKey
+    }).sort({ priority: -1, createdAt: -1 }).limit(10);
 
     let topBook = null;
     let highlightBookId = null;
 
     if (matchingBooks.length > 0) {
-      // Try to find top book by clicks in last week from UTMClick
+      // Try to find top book by clicks in current ISO week from UTMClick
       const bookSlugs = matchingBooks.map(b => b.bookSlug).filter(Boolean);
       
       if (bookSlugs.length > 0) {
         const topClickedBooks = await UTMClick.aggregate([
           {
             $match: {
-              timestamp: { $gte: oneWeekAgo },
+              timestamp: { $gte: weekRange.start, $lte: weekRange.end },
               campaign: 'catalog',
               content: { $in: bookSlugs }
             }
@@ -3480,13 +3464,13 @@ router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res)
         }
       }
 
-      // If no top clicked book, just use first matching book
+      // Fallback: first candidate sorted by priority desc, createdAt desc
       if (!topBook && matchingBooks.length > 0) {
         topBook = matchingBooks[0];
       }
     }
 
-    // Build result
+    // Build result with strict payload shape
     let result;
     if (topBook) {
       result = {
@@ -3494,24 +3478,25 @@ router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res)
         text: `Чаще всего изучают «${topBook.title}» — ${topBook.author || 'Анна Бусел'}`,
         buttonText: `Изучить «${topBook.title}»`,
         link: highlightBookId 
-          ? `/catalog?category=${slugifiedTheme}&highlight=${highlightBookId}`
-          : `/catalog?category=${slugifiedTheme}`,
-        category: { key: slugifiedTheme, label: topTheme },
+          ? `/catalog?category=${categorySlug}&highlight=${highlightBookId}`
+          : `/catalog?category=${categorySlug}`,
+        category: { key: categoryKey, label: categoryKey, slug: categorySlug },
         book: { id: topBook._id.toString(), title: topBook.title }
       };
     } else {
       result = {
         title: 'Тренд недели',
-        text: `Тема «${topTheme}» набирает популярность`,
+        text: `Тема «${categoryKey}» набирает популярность`,
         buttonText: 'Изучить разборы',
-        link: `/catalog?category=${slugifiedTheme}`,
-        category: { key: slugifiedTheme, label: topTheme }
+        link: `/catalog?category=${categorySlug}`,
+        category: { key: categoryKey, label: categoryKey, slug: categorySlug }
       };
     }
 
     // Cache the result
     communityTrendCache = result;
     communityTrendCacheTime = now;
+    communityTrendCacheWeek = weekKey;
 
     return res.json({
       success: true,
