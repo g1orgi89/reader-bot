@@ -22,18 +22,15 @@ function initReminderCron({ reminderService }) {
 
   const jobs = {};
 
-  // Morning reminders: 09:05 Moscow time
-  jobs.morning = cron.schedule('* * * * *', async () => { ... }, {
+  / Morning reminders: 09:05 Moscow time (ТЕСТОВО: каждую минуту)
+  jobs.morning = cron.schedule('* * * * *', async () => {
     const startTime = new Date();
     logger.info('🌅 Starting morning reminders...');
-    
     try {
       const stats = await reminderService.sendSlotReminders('morning');
       const endTime = new Date();
       const duration = endTime - startTime;
-      
       logger.info(`🌅 Morning reminders completed in ${duration}ms: sent=${stats.sent}, skipped=${stats.skipped}, failed=${stats.failed}`);
-      
       if (stats.failed > 0) {
         logger.warn(`🌅 Morning reminders had ${stats.failed} failures:`, stats.errors);
       }
