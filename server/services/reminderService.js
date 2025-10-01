@@ -78,7 +78,7 @@ class ReminderService {
 
       // Получаем пользователей для отправки напоминаний
       const eligibleUsers = await this.getEligibleUsers(slot, dayOfWeek);
-      
+      logger.info(`[DEBUG] eligibleUsers: ` + eligibleUsers.map(u => `${u.userId} (${u.name})`).join(', '));
       logger.info(`🔔 Processing ${slot} reminders for ${eligibleUsers.length} users`);
 
       for (const user of eligibleUsers) {
