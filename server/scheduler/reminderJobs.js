@@ -6,6 +6,8 @@
 const cron = require('node-cron');
 const logger = require('../utils/logger');
 
+console.log('DEBUG: reminderJobs.js загружен');
+
 /**
  * Initialize reminder cron jobs
  * @param {Object} options - Configuration options
@@ -13,6 +15,8 @@ const logger = require('../utils/logger');
  * @returns {Object} Cron job instances
  */
 function initReminderCron({ reminderService }) {
+  console.log('DEBUG: initReminderCron вызван');
+  
   if (!reminderService) {
     logger.error('🔔 Cannot initialize reminder cron: reminderService is required');
     return null;
