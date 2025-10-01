@@ -4,15 +4,20 @@
  * @author Reader Bot Team
  */
 
+// Set timezone to Moscow
+process.env.TZ = process.env.TZ || 'Europe/Moscow';
+
 // Load environment variables
 require('dotenv').config();
 
 const logger = require('../server/utils/logger');
 const SimpleTelegramBot = require('./simpleBot');
+const { ReminderService } = require('../server/services/reminderService');
+const { initReminderCron, stopReminderCron } = require('../server/scheduler/reminderJobs');
 
 /**
  * Start Simple Telegram Bot
- * @returns {Promise<SimpleTelegramBot>}
+ * @returns {Promise<Object>}
  */
 async function startSimpleBot() {
   try {
@@ -32,6 +37,7 @@ async function startSimpleBot() {
     
     logger.info(`🤖 Environment: ${config.environment}`);
     logger.info(`📱 Mini App URL: ${config.appWebAppUrl}`);
+    logger.info(`🌍 Timezone: ${process.env.TZ}`);
     
     // Create and start bot
     const bot = new SimpleTelegramBot(config);
@@ -49,7 +55,31 @@ async function startSimpleBot() {
       hasToken: botInfo.hasToken
     });
     
-    return bot;
+    // Initialize ReminderService
+    logger.info('🔔 Initializing ReminderService...');
+    const reminderService = new ReminderService();
+    reminderService.initialize({ bot: bot.bot });
+    global.reminderService = reminderService;
+    logger.info('✅ ReminderService initialized and available globally');
+    
+    // Initialize reminder cron jobs if enabled
+    let reminderJobs = null;
+    const enableCron = process.env.ENABLE_REMINDER_CRON !== 'false';
+    
+    if (enableCron) {
+      logger.info('🔔 Initializing reminder cron jobs...');
+      reminderJobs = initReminderCron({ reminderService });
+      
+      if (reminderJobs) {
+        logger.info('✅ Reminder cron jobs started successfully');
+      } else {
+        logger.warn('⚠️ Failed to initialize reminder cron jobs');
+      }
+    } else {
+      logger.info('⏸️ Reminder cron jobs disabled (ENABLE_REMINDER_CRON=false)');
+    }
+    
+    return { bot, reminderService, reminderJobs };
     
   } catch (error) {
     logger.error(`❌ Failed to start Simple Telegram Bot: ${error.message}`);
@@ -60,15 +90,23 @@ async function startSimpleBot() {
 
 /**
  * Graceful shutdown handler
- * @param {SimpleTelegramBot} bot - Bot instance to stop
+ * @param {Object} services - Services to stop
+ * @param {SimpleTelegramBot} services.bot - Bot instance to stop
+ * @param {Object} services.reminderJobs - Cron jobs to stop
  * @param {string} signal - Signal received
  */
-async function gracefulShutdown(bot, signal) {
+async function gracefulShutdown(services, signal) {
   logger.info(`🔄 Received ${signal}, shutting down gracefully...`);
   
   try {
-    if (bot) {
-      await bot.stop(signal);
+    // Stop reminder cron jobs
+    if (services.reminderJobs) {
+      stopReminderCron(services.reminderJobs);
+    }
+    
+    // Stop bot
+    if (services.bot) {
+      await services.bot.stop(signal);
     }
     
     logger.info('✅ Simple Telegram Bot shutdown completed');
@@ -100,10 +138,10 @@ module.exports = {
 // Run if called directly
 if (require.main === module) {
   startSimpleBot()
-    .then((bot) => {
+    .then((services) => {
       // Setup graceful shutdown
-      process.on('SIGTERM', () => gracefulShutdown(bot, 'SIGTERM'));
-      process.on('SIGINT', () => gracefulShutdown(bot, 'SIGINT'));
+      process.on('SIGTERM', () => gracefulShutdown(services, 'SIGTERM'));
+      process.on('SIGINT', () => gracefulShutdown(services, 'SIGINT'));
       
       logger.info('🔗 Simple Telegram Bot process is running...');
       logger.info('💡 Use Ctrl+C to stop the bot');

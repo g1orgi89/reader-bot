@@ -121,21 +121,27 @@ class ReminderService {
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-      // Базовый запрос для активных пользователей с завершенным онбордингом
+      // Optimized MongoDB query with filtering
       const baseQuery = {
         isActive: true,
         isBlocked: { $ne: true },
-        isOnboardingComplete: true
+        isOnboardingComplete: true,
+        $or: [
+          { 'settings.reminders.enabled': true },
+          { 'settings.reminderEnabled': true } // legacy fallback
+        ]
       };
 
-      // Получаем всех потенциальных пользователей
-      const allUsers = await UserProfile.find(baseQuery);
+      // Получаем пользователей с фильтрацией на уровне БД
+      const allUsers = await UserProfile.find(baseQuery)
+        .select({ userId: 1, name: 1, statistics: 1, settings: 1 });
+      
       const eligibleUsers = [];
 
       for (const user of allUsers) {
         const settings = user.getNormalizedSettings();
         
-        // Проверяем включены ли напоминания
+        // Проверяем включены ли напоминания (double-check after DB query)
         if (!settings.reminders.enabled) {
           continue;
         }
