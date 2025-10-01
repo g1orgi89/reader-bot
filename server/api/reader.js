@@ -3671,6 +3671,7 @@ router.patch('/settings', telegramAuth, async (req, res) => {
       
       if (typeof settings.reminders.enabled === 'boolean') {
         updatedSettings.reminders.enabled = settings.reminders.enabled;
+        updatedSettings.reminderEnabled = settings.reminders.enabled; // legacy sync
       }
       
       if (settings.reminders.frequency && ['often', 'standard', 'rare', 'off'].includes(settings.reminders.frequency)) {
@@ -3711,6 +3712,21 @@ router.patch('/settings', telegramAuth, async (req, res) => {
     user.settings = updatedSettings;
     await user.save();
 
+    // Log changes for diagnostics
+    const changes = {};
+    if (settings.reminders?.enabled !== undefined && 
+        currentSettings.reminders?.enabled !== settings.reminders.enabled) {
+      changes.remindersEnabled = `${currentSettings.reminders?.enabled} → ${settings.reminders.enabled}`;
+    }
+    if (settings.reminders?.frequency && 
+        currentSettings.reminders?.frequency !== settings.reminders.frequency) {
+      changes.reminderFrequency = `${currentSettings.reminders?.frequency} → ${settings.reminders.frequency}`;
+    }
+    
+    if (Object.keys(changes).length > 0) {
+      console.info(`⚙️ Settings updated for user ${userId}:`, changes);
+    }
+
     // Return normalized settings
     const normalizedSettings = normalizeSettings(user);
 
@@ -3722,6 +3738,32 @@ router.patch('/settings', telegramAuth, async (req, res) => {
 
   } catch (error) {
     console.error('❌ Update Settings Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @description Diagnostic endpoint for reminders
+ * @route GET /api/reader/settings/reminders/diag
+ */
+router.get('/settings/reminders/diag', (req, res) => {
+  try {
+    const diagnostics = {
+      serverTime: new Date().toISOString(),
+      timezone: process.env.TZ || 'Not set',
+      reminderService: global.reminderService ? global.reminderService.getDiagnostics() : null
+    };
+
+    res.json({
+      success: true,
+      diagnostics
+    });
+  } catch (error) {
+    console.error('❌ Diagnostics Error:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',

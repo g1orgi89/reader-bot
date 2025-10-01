@@ -320,7 +320,8 @@ userProfileSchema.index({ source: 1, registeredAt: -1 });
 userProfileSchema.index({ lastActiveAt: -1 });
 userProfileSchema.index({ isOnboardingComplete: 1 });
 userProfileSchema.index({ registeredAt: -1 });
-userProfileSchema.index({ 'settings.reminderEnabled': 1 });
+userProfileSchema.index({ 'settings.reminderEnabled': 1 }); // legacy
+userProfileSchema.index({ 'settings.reminders.enabled': 1 }); // new structured
 
 // Виртуальные поля
 userProfileSchema.virtual('daysSinceRegistration').get(function() {

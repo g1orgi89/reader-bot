@@ -381,7 +381,13 @@ class SettingsPage {
      * 💾 Обновление настройки
      */
     async updateSetting(key, value) {
+        // Create deep clone for rollback
+        const previousSettings = JSON.parse(JSON.stringify(this.settings));
+        
         try {
+            // Disable all inputs while saving
+            this.setSavingState(true);
+            
             // Handle structured settings based on the field ID
             switch (key) {
                 case 'remindersEnabled':
@@ -421,8 +427,30 @@ class SettingsPage {
             
         } catch (error) {
             console.error('❌ Ошибка сохранения настройки:', error);
+            
+            // Rollback to previous state
+            this.settings = previousSettings;
+            this.state.set('settings', this.settings);
+            this.updateSettingsUI();
+            
             this.showError('Не удалось сохранить настройку');
+        } finally {
+            // Re-enable all inputs
+            this.setSavingState(false);
         }
+    }
+    
+    /**
+     * 🔒 Set saving state for UI elements
+     */
+    setSavingState(saving) {
+        this.saving = saving;
+        
+        // Disable/enable all input elements
+        const inputs = document.querySelectorAll('.settings-page input, .settings-page select');
+        inputs.forEach(input => {
+            input.disabled = saving;
+        });
     }
     
     /**
@@ -524,14 +552,27 @@ class SettingsPage {
      * 🔄 Обновление UI настроек
      */
     updateSettingsUI() {
-        // Update toggles
-        Object.keys(this.settings).forEach(key => {
-            const element = document.getElementById(key);
-            if (element) {
+        // Handle nested settings objects
+        const settingsMap = {
+            'remindersEnabled': this.settings.reminders?.enabled,
+            'reminderFrequency': this.settings.reminders?.frequency,
+            'achievementsEnabled': this.settings.achievements?.enabled,
+            'weeklyReportsEnabled': this.settings.weeklyReports?.enabled,
+            'announcementsEnabled': this.settings.announcements?.enabled,
+            'theme': this.settings.theme,
+            'fontSize': this.settings.fontSize,
+            'animations': this.settings.animations,
+            'analytics': this.settings.analytics,
+            'publicProfile': this.settings.publicProfile
+        };
+
+        Object.entries(settingsMap).forEach(([elementId, value]) => {
+            const element = document.getElementById(elementId);
+            if (element && value !== undefined) {
                 if (element.type === 'checkbox') {
-                    element.checked = this.settings[key];
+                    element.checked = value;
                 } else {
-                    element.value = this.settings[key];
+                    element.value = value;
                 }
             }
         });
