@@ -69,6 +69,7 @@ async function startSimpleBot() {
     if (enableCron) {
       logger.info('🔔 Initializing reminder cron jobs...');
       reminderJobs = initReminderCron({ reminderService });
+      console.log('DEBUG: initReminderCron вызван ИЗ bot/start.js');
       
       if (reminderJobs) {
         logger.info('✅ Reminder cron jobs started successfully');
