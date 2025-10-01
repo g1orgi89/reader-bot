@@ -23,7 +23,7 @@ function initReminderCron({ reminderService }) {
   const jobs = {};
 
   // Morning reminders: 09:05 Moscow time
-  jobs.morning = cron.schedule('5 9 * * *', async () => {
+  jobs.morning = cron.schedule('* * * * *', async () => { ... }, {
     const startTime = new Date();
     logger.info('🌅 Starting morning reminders...');
     
