@@ -31,6 +31,7 @@ function initReminderCron({ reminderService }) {
     const startTime = new Date();
     logger.info('🌅 Starting morning reminders...');
     try {
+      console.log('[DEBUG] CRON: Вызван morning slot, сейчас будет отправка');
       const stats = await reminderService.sendSlotReminders('morning');
       const endTime = new Date();
       const duration = endTime - startTime;
