@@ -592,12 +592,13 @@ class HomePage {
         return `
             <div class="user-header-inline">
                 <div class="user-info-inline">
-                    ${this.renderUserAvatar(user.avatarUrl, initials)}
                     <div class="user-details-inline">
                         <h3 class="user-name-inline">${name}</h3>
                     </div>
                 </div>
-                <button class="menu-button-inline" id="homeMenuBtn">☰</button>
+                <button class="menu-avatar-button" id="homeMenuBtn" aria-label="Открыть меню">
+                    ${this.renderUserAvatar(user.avatarUrl, initials)}
+                </button>
             </div>
         `;
     }

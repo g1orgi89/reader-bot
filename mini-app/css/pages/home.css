@@ -202,6 +202,28 @@
     transform: scale(0.95);
 }
 
+/* Avatar as menu trigger */
+.menu-avatar-button {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    flex-shrink: 0;
+}
+
+.menu-avatar-button:hover {
+    transform: scale(1.05);
+}
+
+.menu-avatar-button:active {
+    transform: scale(0.95);
+}
+
+.menu-avatar-button .user-avatar-inline {
+    pointer-events: none;
+}
+
 /* ============================================================================
    🏠 СТАРАЯ ШАПКА (ОСТАЕТСЯ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ)
    ============================================================================ */
