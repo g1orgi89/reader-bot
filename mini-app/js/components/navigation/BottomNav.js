@@ -330,7 +330,8 @@ class BottomNav {
         return `
             <div class="nav-item ${isActive ? 'active' : ''}" 
                  data-route="${item.route}" 
-                 data-nav-id="${item.id}">
+                 data-nav-id="${item.id}"
+                 data-page="${item.id}">
                 <div class="nav-icon">
                     ${item.icon}
                 </div>
@@ -573,11 +574,10 @@ class BottomNav {
     getCatalogIcon() {
         return `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                <path d="M8 7h8"/>
-                <path d="M8 11h8"/>
-                <path d="M8 15h5"/>
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H10v20H6.5A2.5 2.5 0 0 1 4 19.5z"/>
+                <path d="M12 2h3.5A2.5 2.5 0 0 1 18 4.5v15a2.5 2.5 0 0 1-2.5 2.5H12V2z"/>
+                <path d="M20 2h1.5a2.5 2.5 0 0 1 2.5 2.5v15a2.5 2.5 0 0 1-2.5 2.5H20V2z"/>
+                <line x1="2" y1="22" x2="22" y2="22"/>
             </svg>
         `;
     }
