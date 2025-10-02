@@ -126,42 +126,71 @@
         </div>
 
         <!-- 📱 НИЖНЯЯ НАВИГАЦИЯ -->
-        <nav id="bottom-nav" class="bottom-nav">
-            <div class="nav-item active" data-page="home">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                </svg>
-                <span class="nav-label">Главная</span>
+        <nav id="bottom-nav" class="bottom-nav" data-initialized="static">
+          <div class="nav-item" data-page="home" data-route="/home">
+            <div class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9,22 9,12 15,12 15,22"/>
+              </svg>
             </div>
-            
-            <div class="nav-item" data-page="diary">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                </svg>
-                <span class="nav-label">Дневник</span>
+            <span class="nav-label">Главная</span>
+          </div>
+
+          <div class="nav-item" data-page="diary" data-route="/diary">
+            <div class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14,2 14,8 20,8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10,9 9,9 8,9"/>
+              </svg>
             </div>
-            
-            <div class="nav-item" data-page="reports">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
-                </svg>
-                <span class="nav-label">Отчеты</span>
+            <span class="nav-label">Дневник</span>
+          </div>
+
+          <div class="nav-item" data-page="reports" data-route="/reports">
+            <div class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+                <path d="M8 14h.01"/>
+                <path d="M12 14h.01"/>
+                <path d="M16 14h.01"/>
+                <path d="M8 18h.01"/>
+                <path d="M12 18h.01"/>
+                <path d="M16 18h.01"/>
+              </svg>
             </div>
-            
-            <div class="nav-item" data-page="catalog">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                </svg>
-                <span class="nav-label">Каталог</span>
+            <span class="nav-label">Отчеты</span>
+          </div>
+
+          <div class="nav-item" data-page="catalog" data-route="/catalog">
+            <div class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H10v20H6.5A2.5 2.5 0 0 1 4 19.5z"/>
+                <path d="M12 2h3.5A2.5 2.5 0 0 1 18 4.5v15a2.5 2.5 0 0 1-2.5 2.5H12V2z"/>
+                <path d="M20 2h1.5a2.5 2.5 0 0 1 2.5 2.5v15a2.5 2.5 0 0 1-2.5 2.5H20V2z"/>
+                <line x1="2" y1="22" x2="22" y2="22"/>
+              </svg>
             </div>
-            
-            <div class="nav-item" data-page="community">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                </svg>
-                <span class="nav-label">Сообщество</span>
+            <span class="nav-label">Каталог</span>
+          </div>
+    
+          <div class="nav-item" data-page="community" data-route="/community">
+            <div class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
             </div>
+            <span class="nav-label">Сообщество</span>
+          </div>
         </nav>
 
         <!-- 🎯 МОДАЛЬНЫЕ ОКНА -->
