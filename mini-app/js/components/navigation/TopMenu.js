@@ -28,10 +28,9 @@ class TopMenu {
         this._navBusy = false; // защита от повторного быстрого клика
 
         this.menuItems = [
-            { id: 'profile',       label: 'Профиль',      icon: this.getProfileIcon(),       action: 'profile' },
+            { id: 'settings',      label: 'Настройки',    icon: this.getSettingsIcon(),      action: 'settings' },
             { id: 'achievements',  label: 'Достижения',   icon: this.getAchievementsIcon(),  action: 'achievements' },
             { id: 'divider1',      isDivider: true },
-            { id: 'settings',      label: 'Настройки',    icon: this.getSettingsIcon(),      action: 'settings' },
             { id: 'help',          label: 'Помощь',       icon: this.getHelpIcon(),          action: 'help' },
             { id: 'about',         label: 'О приложении', icon: this.getAboutIcon(),         action: 'about' }
         ];
@@ -197,7 +196,6 @@ class TopMenu {
      */
     navigateToRoute(action) {
         const routes = {
-            profile: '/profile',
             achievements: '/achievements',
             settings: '/settings',
             help: '/help',

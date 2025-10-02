@@ -182,15 +182,6 @@ class AppRouter {
         
         // ✨ NEW ROUTES: Menu navigation pages
         
-        // Profile page
-        this.routes.set('/profile', {
-            path: '/profile',
-            component: ProfilePage,
-            title: 'Профиль',
-            requiresAuth: true,
-            showBottomNav: false
-        });
-        
         // Achievements page  
         this.routes.set('/achievements', {
             path: '/achievements',
@@ -275,6 +266,13 @@ class AppRouter {
     async navigate(path, options = {}) {
         const normalizedPath = this.normalizePath(path);
         const query = this.parseQuery(path);
+        
+        // Redirect /profile to /settings for backward compatibility
+        if (normalizedPath === '/profile') {
+            console.log('🔄 Router: Redirecting /profile to /settings');
+            return this.navigate('/settings', { replace: true, force: true });
+        }
+        
         console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`, query);
 
         // Усиленная защита от дублирования навигации
