@@ -1386,7 +1386,7 @@ if (typeof document !== 'undefined' && !document.getElementById('quote-form-styl
             border: 2px solid var(--border, #E6E0D6);
             border-radius: var(--border-radius-small, 8px);
             padding: 12px;
-            font-family: Georgia, 'Times New Roman', serif;
+            font-family: var(--font-family-secondary, 'MerriweatherVariable', serif);
             font-style: italic;
             font-size: 15px;
             line-height: 1.5;
@@ -1551,7 +1551,7 @@ if (typeof document !== 'undefined' && !document.getElementById('quote-form-styl
 
         .quote-form__ai-content,
         .quote-form__ai-insight {
-            font-family: Georgia, 'Times New Roman', serif;
+            font-family: var(--font-family-secondary, 'MerriweatherVariable', serif);
             font-style: italic;
             font-size: 13px;
             color: var(--text-primary, #2D2D2D);
