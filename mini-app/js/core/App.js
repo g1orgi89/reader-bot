@@ -43,12 +43,36 @@ class ReaderApp {
         } catch (e) {
             console.warn('persistTelegramAuth failed:', e);
         }
+    }
+
+    /**
+     * 📏 Apply saved font size preference before first paint
+     * This prevents FOUC (Flash of Unstyled Content) by applying
+     * the user's font size preference immediately during initialization.
+     */
+    applyFontSizePreference() {
+        try {
+            const savedFontSize = localStorage.getItem('reader-font-size') || 'medium';
+            const validSizes = ['small', 'medium', 'large'];
+            const fontSize = validSizes.includes(savedFontSize) ? savedFontSize : 'medium';
+            
+            // Remove any existing font size classes
+            document.body.classList.remove('font-small', 'font-medium', 'font-large');
+            // Apply the saved font size class
+            document.body.classList.add(`font-${fontSize}`);
+            
+            console.log(`📏 Font size preference applied: ${fontSize}`);
+        } catch (e) {
+            console.warn('⚠️ Failed to apply font size preference:', e);
+            document.body.classList.add('font-medium'); // Fallback to medium
+        }
     }    
     
     async init() {
         try {
             console.log('🔄 Reader App: Начало инициализации');
             this.persistTelegramAuth();
+            this.applyFontSizePreference();
             this.showLoadingScreen();
             await this.initializeServices();
             await this.initializeTelegram();

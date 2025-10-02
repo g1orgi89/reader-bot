@@ -117,6 +117,37 @@ p {
 }
 
 /* ============================================================================
+   📏 FONT SIZE SCALING (USER PREFERENCE)
+   ============================================================================ */
+
+/* Small font scale - slightly reduced sizes */
+body.font-small {
+    --font-size-xs: calc(12px * 0.9);
+    --font-size-sm: calc(14px * 0.9);
+    --font-size-base: calc(16px * 0.92);
+    --font-size-lg: calc(18px * 0.92);
+    --font-size-xl: calc(20px * 0.94);
+    --font-size-2xl: calc(24px * 0.94);
+    --font-size-3xl: calc(32px * 0.94);
+}
+
+/* Medium font scale - default (no changes) */
+body.font-medium {
+    /* Explicitly keep default values for clarity */
+}
+
+/* Large font scale - slightly increased sizes */
+body.font-large {
+    --font-size-xs: calc(12px * 1.1);
+    --font-size-sm: calc(14px * 1.1);
+    --font-size-base: calc(16px * 1.08);
+    --font-size-lg: calc(18px * 1.08);
+    --font-size-xl: calc(20px * 1.06);
+    --font-size-2xl: calc(24px * 1.06);
+    --font-size-3xl: calc(32px * 1.06);
+}
+
+/* ============================================================================
    📱 PHONE-FRAME ДИЗАЙН (ИЗ КОНЦЕПТА)
    ============================================================================ */
 
