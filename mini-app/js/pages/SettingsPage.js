@@ -9,6 +9,10 @@
  * - Управление данными
  * - Интеграция с API и State Management
  * - Использует существующий дизайн-систему
+ * 
+ * NOTE: ProfilePage.js temporarily coexists with SettingsPage during migration.
+ * Both pages can work independently without conflicts through state subscription pattern.
+ * TODO: After user verification, remove ProfilePage and convert /profile to redirect here.
  */
 
 class SettingsPage {
