@@ -122,13 +122,13 @@ p {
 
 /* Small font scale - slightly reduced sizes */
 body.font-small {
-    --font-size-xs: calc(12px * 0.9);
-    --font-size-sm: calc(14px * 0.9);
-    --font-size-base: calc(16px * 0.92);
-    --font-size-lg: calc(18px * 0.92);
-    --font-size-xl: calc(20px * 0.94);
-    --font-size-2xl: calc(24px * 0.94);
-    --font-size-3xl: calc(32px * 0.94);
+    --font-size-xs: calc(var(--font-size-xs) * 0.9);
+    --font-size-sm: calc(var(--font-size-sm) * 0.9);
+    --font-size-base: calc(var(--font-size-base) * 0.92);
+    --font-size-lg: calc(var(--font-size-lg) * 0.92);
+    --font-size-xl: calc(var(--font-size-xl) * 0.94);
+    --font-size-2xl: calc(var(--font-size-2xl) * 0.94);
+    --font-size-3xl: calc(var(--font-size-3xl) * 0.94);
 }
 
 /* Medium font scale - default (no changes) */
@@ -138,13 +138,13 @@ body.font-medium {
 
 /* Large font scale - slightly increased sizes */
 body.font-large {
-    --font-size-xs: calc(12px * 1.1);
-    --font-size-sm: calc(14px * 1.1);
-    --font-size-base: calc(16px * 1.08);
-    --font-size-lg: calc(18px * 1.08);
-    --font-size-xl: calc(20px * 1.06);
-    --font-size-2xl: calc(24px * 1.06);
-    --font-size-3xl: calc(32px * 1.06);
+    --font-size-xs: calc(var(--font-size-xs) * 1.1);
+    --font-size-sm: calc(var(--font-size-sm) * 1.1);
+    --font-size-base: calc(var(--font-size-base) * 1.08);
+    --font-size-lg: calc(var(--font-size-lg) * 1.08);
+    --font-size-xl: calc(var(--font-size-xl) * 1.06);
+    --font-size-2xl: calc(var(--font-size-2xl) * 1.06);
+    --font-size-3xl: calc(var(--font-size-3xl) * 1.06);
 }
 
 /* ============================================================================
