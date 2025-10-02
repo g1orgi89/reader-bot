@@ -1,6 +1,6 @@
 /**
  * ⚙️ НАСТРОЙКИ - settings.css
- * Стили для страницы настроек приложения
+ * Стили для страницы настроек приложения с профилем
  * Используются только переменные из variables.css, мобильно-ориентированный дизайн
  */
 
@@ -13,6 +13,186 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     padding: var(--spacing-md) var(--spacing-sm);
+}
+
+/* ============================================================================
+   👤 ПРОФИЛЬ В НАСТРОЙКАХ
+   ============================================================================ */
+
+.profile-header-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.profile-header-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+}
+
+.profile-avatar-container {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.profile-avatar-large {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    border-radius: var(--radius-round);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-inverse);
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.profile-avatar-large.fallback .profile-avatar-img {
+    display: none;
+}
+
+.profile-avatar-fallback {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-inverse);
+    z-index: 1;
+}
+
+.avatar-upload-btn {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-round);
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: 2px solid var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.avatar-upload-btn:hover {
+    background: var(--primary-dark);
+    transform: scale(1.05);
+}
+
+.avatar-upload-btn:active {
+    transform: scale(0.95);
+}
+
+.avatar-upload-btn.uploading {
+    opacity: 0.6;
+    pointer-events: none;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.avatar-upload-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+.profile-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-name {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0 0 var(--spacing-xs) 0;
+}
+
+.profile-username {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.profile-mini-stats {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.mini-stat {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.profile-email-section {
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settings-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.profile-email-container {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.profile-email-container .form-input {
+    flex: 1;
+}
+
+.profile-email-container .btn {
+    white-space: nowrap;
+}
+
+.settings-hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin: var(--spacing-xs) 0 0 0;
+    line-height: var(--line-height-normal);
+}
+
+.profile-actions-section {
+    padding: var(--spacing-lg);
+}
+
+.btn-block {
+    width: 100%;
+    margin-bottom: var(--spacing-sm);
 }
 
 .settings-header {
@@ -214,6 +394,38 @@
 @media (max-width: 480px) {
     .settings-page {
         padding: var(--spacing-sm);
+    }
+    
+    .profile-header-card {
+        flex-direction: column;
+        text-align: center;
+        padding: var(--spacing-md);
+    }
+    
+    .profile-avatar-large {
+        width: 70px;
+        height: 70px;
+        font-size: var(--font-size-xl);
+    }
+    
+    .profile-avatar-fallback {
+        font-size: var(--font-size-xl);
+    }
+    
+    .profile-name {
+        font-size: var(--font-size-lg);
+    }
+    
+    .profile-mini-stats {
+        justify-content: center;
+    }
+    
+    .profile-email-container {
+        flex-direction: column;
+    }
+    
+    .profile-email-container .btn {
+        width: 100%;
     }
     
     .settings-item {
