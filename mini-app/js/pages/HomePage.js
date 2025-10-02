@@ -580,6 +580,7 @@ class HomePage {
     
     /**
      * 👤 Рендер встроенного блока с аватаром и меню (ТОЛЬКО на главной!)
+     * 🔧 UPDATED: Avatar on left, menu button on right (Option C)
      */
     renderUserHeader(user) {
         const name =
@@ -590,21 +591,19 @@ class HomePage {
         const initials = name ? this.getInitials(name) : '';
         
         return `
-            <div class="user-header-inline">
-                <div class="user-info-inline">
-                    <div class="user-details-inline">
-                        <h3 class="user-name-inline">${name}</h3>
-                    </div>
-                </div>
-                <button class="menu-avatar-button" id="homeMenuBtn" aria-label="Открыть меню">
+            <div class="home-header">
+                <button class="home-header-avatar" id="homeHeaderAvatar" aria-label="Профиль">
                     ${this.renderUserAvatar(user.avatarUrl, initials)}
                 </button>
+                <div class="home-header-spacer"></div>
+                <button class="home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">⋮</button>
             </div>
         `;
     }
 
     /**
      * 🖼️ Рендер аватара с поддержкой изображений
+     * 🔧 UPDATED: Simplified for new home header structure
      */
     renderUserAvatar(avatarUrl, initials) {
         const telegramPhotoUrl = this.telegram.getUser()?.photo_url;
@@ -614,18 +613,12 @@ class HomePage {
         
         if (imageUrl) {
             return `
-                <div class="user-avatar-inline">
-                    <img class="user-avatar-img" src="${imageUrl}" alt="Аватар" 
-                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
-                    <div class="user-avatar-fallback">${initials || 'А'}</div>
-                </div>
+                <img src="${imageUrl}" alt="Аватар" 
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+                <div class="home-header-avatar-fallback" style="display:none">${initials || 'А'}</div>
             `;
         } else {
-            return `
-                <div class="user-avatar-inline fallback">
-                    <div class="user-avatar-fallback">${initials || 'А'}</div>
-                </div>
-            `;
+            return `<div class="home-header-avatar-fallback">${initials || 'А'}</div>`;
         }
     }
     
@@ -846,8 +839,14 @@ class HomePage {
      * 📱 Навешивание обработчиков событий
      */
     attachEventListeners() {
-        // Кнопка меню
-        const menuBtn = document.getElementById('homeMenuBtn');
+        // 🔧 NEW: Home header avatar button (navigate to settings)
+        const avatarBtn = document.getElementById('homeHeaderAvatar');
+        if (avatarBtn) {
+            avatarBtn.addEventListener('click', () => this.handleAvatarClick());
+        }
+        
+        // 🔧 NEW: Home header menu button (open TopMenu)
+        const menuBtn = document.getElementById('homeHeaderMenuBtn');
         if (menuBtn) {
             menuBtn.addEventListener('click', () => this.handleMenuClick());
         }
@@ -880,6 +879,17 @@ class HomePage {
         
         // Обработчики для последних цитат
         this.attachRecentQuoteEvents();
+    }
+    
+    /**
+     * 👤 Обработчик клика по аватару (навигация в настройки)
+     * 🔧 NEW: Navigate to /settings when avatar is clicked
+     */
+    handleAvatarClick() {
+        this.telegram.hapticFeedback('light');
+        if (this.app && this.app.router) {
+            this.app.router.navigate('/settings');
+        }
     }
     
     /**

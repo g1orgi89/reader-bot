@@ -542,3 +542,59 @@
     outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
 }
+
+/* ============================================================================
+   🔧 ENLARGED AVATAR WRAPPER (PROFILE→SETTINGS CONSOLIDATION)
+   ============================================================================ */
+
+/* Desktop: 160x160 avatar */
+.settings-avatar-wrapper {
+    width: 160px;
+    height: 160px;
+}
+
+.settings-avatar-wrapper .profile-avatar-large {
+    width: 160px;
+    height: 160px;
+}
+
+.settings-avatar-wrapper .profile-avatar-fallback {
+    font-size: 60px;
+}
+
+/* Override existing avatar sizes in settings for desktop */
+.profile-avatar-container .profile-avatar-large {
+    width: 160px;
+    height: 160px;
+}
+
+.profile-avatar-container .profile-avatar-fallback {
+    font-size: 60px;
+}
+
+/* Mobile: 120x120 avatar */
+@media (max-width: 480px) {
+    .settings-avatar-wrapper {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .settings-avatar-wrapper .profile-avatar-large {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .settings-avatar-wrapper .profile-avatar-fallback {
+        font-size: 48px;
+    }
+    
+    /* Override existing avatar sizes in settings for mobile */
+    .profile-avatar-container .profile-avatar-large {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .profile-avatar-container .profile-avatar-fallback {
+        font-size: 48px;
+    }
+}
