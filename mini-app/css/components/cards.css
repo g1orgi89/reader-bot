@@ -142,37 +142,7 @@
     border-left-width: 6px;
 }
 
-/* Текст цитаты */
-.quote-text {
-    font-family: var(--font-family-secondary);
-    font-size: var(--font-size-lg);
-    line-height: var(--line-height-loose);
-    color: var(--text-primary);
-    margin-bottom: var(--spacing-md);
-    position: relative;
-}
-
-.quote-text::before {
-    content: '"';
-    font-size: var(--font-size-3xl);
-    color: var(--primary-color);
-    position: absolute;
-    left: -12px;
-    top: -8px;
-    font-family: var(--font-family-secondary);
-    opacity: 0.7;
-}
-
-.quote-text::after {
-    content: '"';
-    font-size: var(--font-size-3xl);
-    color: var(--primary-color);
-    position: absolute;
-    right: -8px;
-    bottom: -16px;
-    font-family: var(--font-family-secondary);
-    opacity: 0.7;
-}
+/* Текст цитаты - стили наследуются из base.css */
 
 /* Автор цитаты */
 .quote-author {
@@ -221,11 +191,6 @@
 .quote-card-compact .quote-text {
     font-size: var(--font-size-base);
     margin-bottom: var(--spacing-sm);
-}
-
-.quote-card-compact .quote-text::before,
-.quote-card-compact .quote-text::after {
-    font-size: var(--font-size-lg);
 }
 
 /* Карточка цитаты с категорией */

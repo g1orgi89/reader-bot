@@ -227,13 +227,10 @@
     box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
 }
 
+/* .quote-text styles inherited from base.css - only local overrides here */
 .quote-text {
-    font-style: italic;
     font-size: 12px;
     margin-bottom: 8px;
-    color: var(--text-primary, #2D2D2D);
-    line-height: 1.4;
-    transition: color var(--transition-normal, 0.3s ease);
 }
 
 .quote-meta {

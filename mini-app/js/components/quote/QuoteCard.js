@@ -1033,7 +1033,7 @@ if (typeof document !== 'undefined' && !document.getElementById('quote-card-styl
         }
 
         .quote-card__quote-text {
-            font-family: Georgia, 'Times New Roman', serif;
+            font-family: var(--font-family-secondary, 'MerriweatherVariable', serif);
             font-style: italic;
             font-size: 15px;
             line-height: 1.5;
@@ -1153,7 +1153,7 @@ if (typeof document !== 'undefined' && !document.getElementById('quote-card-styl
         }
 
         .quote-card__edit-textarea {
-            font-family: Georgia, 'Times New Roman', serif;
+            font-family: var(--font-family-secondary, 'MerriweatherVariable', serif);
             font-style: italic;
         }
 

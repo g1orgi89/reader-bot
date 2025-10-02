@@ -420,13 +420,7 @@
 }
 */
 
-.quote-text {
-    font-size: 14px;
-    line-height: 1.4;
-    color: var(--text-primary);
-    font-style: italic;
-    transition: color var(--transition-normal);
-}
+/* .quote-text styles inherited from base.css */
 
 .quote-author {
     font-size: 12px;

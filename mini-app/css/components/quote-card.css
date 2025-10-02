@@ -20,13 +20,14 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Текст цитаты — рукописный шрифт */
+/* Текст цитаты — вторичный шрифт Merriweather */
 .quote-card .quote-text,
 .quote-item .quote-text,
 [data-quote-id] .quote-text,
 .my-quotes .quote-text {
-  font-family: 'Neucha', cursive;
-  line-height: 1.4;
+  font-family: var(--font-family-secondary);
+  font-style: italic;
+  line-height: var(--line-height-loose);
   font-size: var(--font-size-lg);
   margin-bottom: var(--spacing-sm);
   padding-right: calc(var(--touch-target-min) + var(--spacing-sm)); /* Prevent kebab overlap */
