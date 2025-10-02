@@ -29,6 +29,15 @@ class SettingsPage {
         // Подписки на изменения состояния
         this.subscriptions = [];
         
+        // 🎯 Feature flags for soft hiding sections
+        this.settingsFeatureFlags = {
+            notifications: true,
+            personalization: false,
+            privacy: false,
+            dataExport: false,
+            cacheClear: false
+        };
+        
         this.init();
     }
     
@@ -118,9 +127,9 @@ class SettingsPage {
             <div class="content">
                 ${this.renderHeader()}
                 ${this.renderProfileSection(profile, stats, telegramData)}
-                ${this.renderNotificationSettings()}
-                ${this.renderPersonalizationSettings()}
-                ${this.renderPrivacySettings()}
+                ${this.settingsFeatureFlags.notifications ? this.renderNotificationSettings() : ''}
+                ${this.settingsFeatureFlags.personalization ? this.renderPersonalizationSettings() : ''}
+                ${this.settingsFeatureFlags.privacy ? this.renderPrivacySettings() : ''}
                 ${this.renderDataSettings()}
                 ${this.renderError()}
             </div>
@@ -384,21 +393,21 @@ class SettingsPage {
             <div class="settings-section">
                 <h3>📊 Управление данными</h3>
                 
+                ${this.settingsFeatureFlags.dataExport ? `
                 <button class="btn btn-secondary btn-block" id="exportDataBtn">
                     📤 Экспорт данных
                 </button>
+                ` : ''}
                 
+                ${this.settingsFeatureFlags.cacheClear ? `
                 <button class="btn btn-secondary btn-block" id="clearCacheBtn">
                     🗑️ Очистить кэш
                 </button>
+                ` : ''}
                 
                 <button class="btn btn-error btn-block" id="deleteAccountBtn">
                     ⚠️ Удалить аккаунт
                 </button>
-                
-                <div class="setting-info">
-                    <small>Экспорт включает все ваши цитаты, достижения и настройки</small>
-                </div>
             </div>
         `;
     }
@@ -461,15 +470,19 @@ class SettingsPage {
             select.addEventListener('change', (e) => this.handleSelectChange(e));
         });
         
-        // Action buttons
-        const exportBtn = document.getElementById('exportDataBtn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.handleExportData());
+        // Action buttons (guard with feature flags)
+        if (this.settingsFeatureFlags.dataExport) {
+            const exportBtn = document.getElementById('exportDataBtn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => this.handleExportData());
+            }
         }
         
-        const clearCacheBtn = document.getElementById('clearCacheBtn');
-        if (clearCacheBtn) {
-            clearCacheBtn.addEventListener('click', () => this.handleClearCache());
+        if (this.settingsFeatureFlags.cacheClear) {
+            const clearCacheBtn = document.getElementById('clearCacheBtn');
+            if (clearCacheBtn) {
+                clearCacheBtn.addEventListener('click', () => this.handleClearCache());
+            }
         }
         
         const deleteAccountBtn = document.getElementById('deleteAccountBtn');
