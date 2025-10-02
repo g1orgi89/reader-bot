@@ -70,15 +70,6 @@ class TopMenu {
 
         return `
             <div class="drawer-header">
-                <button class="drawer-close" aria-label="Закрыть меню">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-                <h2 id="topMenuTitle" class="drawer-title">Меню</h2>
-            </div>
-            <div class="drawer-body">
                 <div class="menu-user-info">
                     ${this.renderUserAvatar()}
                     <div class="user-details">
@@ -86,6 +77,14 @@ class TopMenu {
                         <p class="user-stats">${this.formatUserStats(userInfo.stats)}</p>
                     </div>
                 </div>
+                <button class="drawer-close" aria-label="Закрыть меню">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="drawer-body">
                 <nav class="menu-items" role="navigation">
                     ${menuItemsHTML}
                 </nav>

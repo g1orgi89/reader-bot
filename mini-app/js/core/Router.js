@@ -182,6 +182,16 @@ class AppRouter {
         
         // ✨ NEW ROUTES: Menu navigation pages
         
+        // Profile page - TODO: Remove in final cleanup PR after user verification
+        // Temporarily restored during migration to avoid functionality loss
+        this.routes.set('/profile', {
+            path: '/profile',
+            component: ProfilePage,
+            title: 'Профиль',
+            requiresAuth: true,
+            showBottomNav: false
+        });
+        
         // Achievements page  
         this.routes.set('/achievements', {
             path: '/achievements',
@@ -267,11 +277,9 @@ class AppRouter {
         const normalizedPath = this.normalizePath(path);
         const query = this.parseQuery(path);
         
-        // Redirect /profile to /settings for backward compatibility
-        if (normalizedPath === '/profile') {
-            console.log('🔄 Router: Redirecting /profile to /settings');
-            return this.navigate('/settings', { replace: true, force: true });
-        }
+        // TODO: After user verification, add redirect from /profile to /settings here
+        // TODO: Remove ProfilePage.js and profile.css in final cleanup PR
+        // For now, allow /profile to work as separate route during migration
         
         console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`, query);
 
