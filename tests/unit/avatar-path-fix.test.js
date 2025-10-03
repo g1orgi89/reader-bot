@@ -9,28 +9,47 @@ describe('Avatar Path Configuration', () => {
   test('should use __dirname-based paths instead of process.cwd()', () => {
     // Simulate what the server/api/reader.js does
     const mockDirname = '/home/runner/work/reader-bot/reader-bot/server/api';
-    const UPLOADS_ROOT = path.join(mockDirname, '../uploads');
+    const UPLOADS_ROOT = path.join(mockDirname, '../../uploads');
     const AVATARS_DIR = path.join(UPLOADS_ROOT, 'avatars');
     
-    // Verify the paths are constructed correctly
-    expect(UPLOADS_ROOT).toBe(path.normalize('/home/runner/work/reader-bot/reader-bot/server/uploads'));
-    expect(AVATARS_DIR).toBe(path.normalize('/home/runner/work/reader-bot/reader-bot/server/uploads/avatars'));
+    // Verify the paths are constructed correctly to reach repository root
+    expect(UPLOADS_ROOT).toBe(path.normalize('/home/runner/work/reader-bot/reader-bot/uploads'));
+    expect(AVATARS_DIR).toBe(path.normalize('/home/runner/work/reader-bot/reader-bot/uploads/avatars'));
     
     // Verify they don't contain process.cwd()
     expect(AVATARS_DIR).not.toContain('process.cwd()');
   });
 
   test('should match paths between reader.js and telegramAvatarFetcher.js', () => {
-    // reader.js path construction
+    // reader.js path construction (from server/api)
     const readerDirname = '/home/runner/work/reader-bot/reader-bot/server/api';
-    const readerAvatarsDir = path.join(readerDirname, '../uploads/avatars');
+    const readerAvatarsDir = path.join(readerDirname, '../../uploads/avatars');
     
-    // telegramAvatarFetcher.js path construction
+    // telegramAvatarFetcher.js path construction (from server/utils)
     const utilsDirname = '/home/runner/work/reader-bot/reader-bot/server/utils';
-    const utilsAvatarsDir = path.join(utilsDirname, '../uploads/avatars');
+    const utilsAvatarsDir = path.join(utilsDirname, '../../uploads/avatars');
     
-    // Both should resolve to the same directory
+    // Both should resolve to the same directory at repository root
     expect(path.resolve(readerAvatarsDir)).toBe(path.resolve(utilsAvatarsDir));
+    expect(path.resolve(readerAvatarsDir)).toBe('/home/runner/work/reader-bot/reader-bot/uploads/avatars');
+  });
+
+  test('should align with express.static serving path', () => {
+    // server/index.js serves from __dirname/../uploads
+    const serverDirname = '/home/runner/work/reader-bot/reader-bot/server';
+    const staticUploadsDir = path.join(serverDirname, '../uploads');
+    
+    // server/api/reader.js stores avatars at __dirname/../../uploads/avatars
+    const readerDirname = '/home/runner/work/reader-bot/reader-bot/server/api';
+    const readerAvatarsDir = path.join(readerDirname, '../../uploads/avatars');
+    
+    // Avatar storage should be within the static serving directory
+    const staticAvatarsPath = path.join(staticUploadsDir, 'avatars');
+    expect(path.resolve(readerAvatarsDir)).toBe(path.resolve(staticAvatarsPath));
+    
+    // Both should point to repo root /uploads/avatars
+    expect(path.resolve(staticUploadsDir)).toBe('/home/runner/work/reader-bot/reader-bot/uploads');
+    expect(path.resolve(readerAvatarsDir)).toBe('/home/runner/work/reader-bot/reader-bot/uploads/avatars');
   });
 });
 
