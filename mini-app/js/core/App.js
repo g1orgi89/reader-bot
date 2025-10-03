@@ -27,6 +27,12 @@ class ReaderApp {
         this.handleError = this.handleError.bind(this);
         this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
 
+        // === GLOBAL DEBUG REFERENCES ===
+        // Set global window references for manual debugging in console
+        window.App = this;
+        window.ReaderAppInstance = this;
+        console.log('🔍 Global debug references set: window.App and window.ReaderAppInstance');
+
         console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНА ПЕРЕДАЧА APP В ROUTER!');
     }
 

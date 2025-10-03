@@ -1,5 +1,56 @@
-  function parseUserIdFromInitData(initData) {
+  /**
+ * Safely extract userId from request with enhanced error handling
+ * @param {Object} req - Express request object
+ * @returns {string|null} userId or null if not found
+ */
+function safeExtractUserId(req) {
   try {
+    // Priority 1: req.userId (set by telegramAuth middleware)
+    if (req.userId) {
+      return String(req.userId);
+    }
+    
+    // Priority 2: Try to parse from headers
+    const initData = req.headers['authorization']?.startsWith('tma ')
+      ? req.headers['authorization'].slice(4)
+      : req.headers['x-telegram-init-data'];
+    
+    if (initData) {
+      const userId = parseUserIdFromInitData(initData);
+      if (userId) return userId;
+    }
+    
+    // Priority 3: From query or body (fallback)
+    if (req.query?.userId) return String(req.query.userId);
+    if (req.body?.userId) return String(req.body.userId);
+    
+    return null;
+  } catch (error) {
+    console.error('safeExtractUserId error:', error);
+    return null;
+  }
+}
+
+/**
+ * Parse userId from Telegram initData string
+ * Enhanced with better validation and error handling
+ * @param {string} initData - Telegram initData string
+ * @returns {string|null} userId or null if invalid
+ */
+function parseUserIdFromInitData(initData) {
+  try {
+    // Validate input is a string
+    if (!initData || typeof initData !== 'string') {
+      console.warn('parseUserIdFromInitData: initData is not a valid string');
+      return null;
+    }
+    
+    // Check if initData contains expected pattern
+    if (!initData.includes('=')) {
+      console.warn('parseUserIdFromInitData: initData does not match expected pattern');
+      return null;
+    }
+    
     // Не декодируй второй раз, если строка уже декодирована Express'ом
     const params = new URLSearchParams(initData);
     const userStr = params.get('user');
@@ -8,7 +59,7 @@
       if (userObj && userObj.id) return String(userObj.id);
     }
   } catch (e) {
-    console.warn('InitData parse error:', e, initData);
+    console.warn('InitData parse error:', e.message);
   }
   return null;
 }
@@ -44,6 +95,7 @@ function telegramAuth(req, res, next) {
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 
 // Импорты моделей
@@ -68,15 +120,44 @@ const { communityLimiter } = require('../middleware/rateLimiting');
 // Инициализация обработчика цитат
 const quoteHandler = new QuoteHandler();
 
+// === AVATAR STORAGE CONFIGURATION ===
+// Use __dirname to ensure consistent path resolution regardless of process.cwd()
+const UPLOADS_ROOT = path.join(__dirname, '../uploads');
+const AVATARS_DIR = path.join(UPLOADS_ROOT, 'avatars');
+
+// Ensure avatars directory exists at module load time
+try {
+  fs.mkdirSync(AVATARS_DIR, { recursive: true });
+  console.log(`✅ Avatars directory ready: ${AVATARS_DIR}`);
+} catch (error) {
+  console.error(`❌ Failed to create avatars directory: ${error.message}`);
+}
+
 // Конфигурация multer для загрузки аватаров
 const avatarStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(process.cwd(), 'uploads', 'avatars'));
+    // Use standardized __dirname-based path
+    cb(null, AVATARS_DIR);
   },
   filename: function (req, file, cb) {
-    const userId = getUserId(req);
+    // Extract userId safely and validate it's numeric
+    const userId = safeExtractUserId(req);
+    
+    if (!userId || userId === 'demo-user') {
+      console.error('❌ Avatar upload rejected: NO_USER_ID_FOR_AVATAR');
+      return cb(new Error('NO_USER_ID_FOR_AVATAR'));
+    }
+    
+    // Validate userId is numeric for Telegram users
+    if (!/^\d+$/.test(userId)) {
+      console.error(`❌ Avatar upload rejected: Invalid userId format: ${userId}`);
+      return cb(new Error('INVALID_USER_ID_FORMAT'));
+    }
+    
     const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `${userId}_${Date.now()}${ext}`);
+    const filename = `${userId}_${Date.now()}${ext}`;
+    console.log(`📁 Avatar filename generated: ${filename} for userId: ${userId}`);
+    cb(null, filename);
   }
 });
 
@@ -668,6 +749,70 @@ router.post('/auth/reset-onboarding', async (req, res) => {
 });
 
 /**
+ * @description Debug endpoint to verify avatar file existence
+ * @route GET /api/reader/debug/avatar/:file
+ * TODO: Remove this endpoint after debugging is complete
+ */
+router.get('/debug/avatar/:file', (req, res) => {
+  try {
+    const filename = req.params.file;
+    
+    // Validate filename to prevent directory traversal
+    if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid filename format'
+      });
+    }
+    
+    // Validate filename pattern (userId_timestamp.ext)
+    if (!/^\d+_\d+\.(jpg|jpeg|png|gif|webp)$/i.test(filename)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Filename does not match expected pattern'
+      });
+    }
+    
+    const filePath = path.join(AVATARS_DIR, filename);
+    const fileExists = fs.existsSync(filePath);
+    
+    let fileStats = null;
+    if (fileExists) {
+      try {
+        fileStats = fs.statSync(filePath);
+      } catch (statsError) {
+        console.error('Error reading file stats:', statsError);
+      }
+    }
+    
+    console.log(`🔍 Debug avatar check: ${filename} - exists: ${fileExists}`);
+    
+    res.json({
+      success: true,
+      filename,
+      exists: fileExists,
+      paths: {
+        relative: `/uploads/avatars/${filename}`,
+        absolute: filePath,
+        avatarsDir: AVATARS_DIR
+      },
+      stats: fileStats ? {
+        size: fileStats.size,
+        created: fileStats.birthtime,
+        modified: fileStats.mtime
+      } : null
+    });
+  } catch (error) {
+    console.error('❌ Debug avatar check error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+/**
  * @description Загрузка пользовательского аватара
  * @route POST /api/reader/auth/upload-avatar
  */
@@ -684,16 +829,41 @@ router.post('/auth/upload-avatar', telegramAuth, avatarUpload.single('avatar'), 
 
     // Путь к загруженному файлу
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const fsPath = req.file.path;
+
+    // === RUNTIME DIAGNOSTICS: Verify file existence ===
+    try {
+      await fs.promises.access(fsPath, fs.constants.R_OK);
+      console.log(`✅ File verified on filesystem: ${fsPath}`);
+    } catch (accessError) {
+      console.error(`❌ File NOT accessible after upload: ${fsPath}`, accessError);
+      return res.status(500).json({
+        success: false,
+        error: 'File was uploaded but not accessible',
+        debug: {
+          fsPath,
+          accessError: accessError.message
+        }
+      });
+    }
 
     // Обновляем профиль пользователя
     await updateUserAvatar(userId, avatarUrl);
 
     console.log(`✅ Multipart avatar upload successful for user ${userId}: ${avatarUrl}`);
+    console.log(`📁 File stored at: ${fsPath}`);
 
     res.json({
       success: true,
       avatarUrl: avatarUrl,
-      message: 'Аватар успешно загружен'
+      message: 'Аватар успешно загружен',
+      debug: {
+        fsPath: fsPath,
+        filename: req.file.filename,
+        size: req.file.size,
+        uploadDir: AVATARS_DIR,
+        fileExists: true
+      }
     });
 
   } catch (error) {
@@ -701,9 +871,8 @@ router.post('/auth/upload-avatar', telegramAuth, avatarUpload.single('avatar'), 
     
     // Если произошла ошибка, попытаемся удалить загруженный файл
     if (req.file) {
-      const fs = require('fs').promises;
       try {
-        await fs.unlink(req.file.path);
+        await fs.promises.unlink(req.file.path);
       } catch (unlinkError) {
         console.error('❌ Failed to cleanup uploaded file:', unlinkError);
       }
@@ -711,7 +880,8 @@ router.post('/auth/upload-avatar', telegramAuth, avatarUpload.single('avatar'), 
 
     res.status(500).json({
       success: false,
-      error: 'Ошибка при загрузке аватара'
+      error: 'Ошибка при загрузке аватара',
+      details: error.message
     });
   }
 });

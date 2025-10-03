@@ -538,8 +538,8 @@ class SettingsPage {
             // Upload avatar
             const result = await this.api.uploadAvatar(fileToUpload, userId);
             
+            // 🔧 PATCH: Prevent overwriting existing avatarUrl when server returns null
             if (result && result.avatarUrl) {
-                // 🔧 PATCH: Update state using state.update instead of state.set
                 this.state.update('user.profile', { avatarUrl: result.avatarUrl });
                 
                 console.log('✅ Avatar uploaded successfully:', result.avatarUrl);
@@ -548,6 +548,9 @@ class SettingsPage {
                 if (this.telegram?.hapticFeedback) {
                     this.telegram.hapticFeedback('success');
                 }
+            } else if (result && result.success && !result.avatarUrl) {
+                // Server returned success but no avatarUrl - don't overwrite existing
+                console.warn('⚠️ Server returned success without avatarUrl, keeping existing avatar');
             }
             
         } catch (error) {

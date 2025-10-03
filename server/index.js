@@ -491,6 +491,14 @@ app.use('/mini-app/assets/book-covers', express.static(
   { fallthrough: false }
 ));
 
+// === AVATAR STATIC REQUEST LOGGER (for debugging) ===
+// Log all avatar requests to help diagnose 404 issues
+app.use('/uploads/avatars', (req, res, next) => {
+  const userAgent = req.headers['user-agent'] || 'unknown';
+  logger.info(`📥 [avatar-static-request] ${req.method} ${req.originalUrl} - UA: ${userAgent.substring(0, 50)}`);
+  next();
+});
+
 // 🖼️ Статические файлы для пользовательских аватаров
 app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
   setHeaders: (res, filePath) => {
