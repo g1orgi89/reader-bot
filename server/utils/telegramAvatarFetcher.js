@@ -134,7 +134,13 @@ async function fetchTelegramAvatar(userId) {
     return avatarUrl;
     
   } catch (error) {
-    logger.error(`❌ Failed to fetch avatar for user ${userId}:`, error.message);
+    // Keep error level for configuration issues, warn for expected failures
+    if (error.message.includes('BOT_TOKEN') || error.message.includes('configured')) {
+      logger.error(`❌ Configuration error fetching avatar for user ${userId}:`, error.message);
+    } else {
+      // Downgrade to warning since it's common for users to not have Telegram photos
+      logger.warn(`⚠️ Could not fetch avatar for user ${userId}:`, error.message);
+    }
     return null;
   }
 }

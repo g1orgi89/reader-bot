@@ -426,23 +426,50 @@ class ApiService {
         try {
             console.log('🖼️ Загружаем аватар для пользователя:', userId);
 
-            let base64Data;
-            
-            // Обрабатываем разные типы входных данных
-            if (fileOrBlob instanceof Blob || fileOrBlob instanceof File) {
-                // Конвертируем файл в base64
-                base64Data = await this.fileToBase64(fileOrBlob);
-            } else if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
-                // Уже base64 data URL
-                base64Data = fileOrBlob;
-            } else {
-                throw new Error('Unsupported file format');
+            // Demo user: return base64 locally without network call
+            if (userId === 'demo-user') {
+                let base64Data;
+                if (fileOrBlob instanceof Blob || fileOrBlob instanceof File) {
+                    base64Data = await this.fileToBase64(fileOrBlob);
+                } else if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
+                    base64Data = fileOrBlob;
+                } else {
+                    throw new Error('Unsupported file format');
+                }
+                console.log('✅ Demo-user: Avatar preview (local, no upload)');
+                return {
+                    success: true,
+                    avatarUrl: base64Data,
+                    message: 'Demo avatar (not uploaded)'
+                };
             }
 
-            // Отправляем как JSON с base64 данными
-            const result = await this.request('POST', `/profile/avatar?userId=${userId}`, {
-                image: base64Data
+            // Real users: multipart upload
+            if (!(fileOrBlob instanceof Blob || fileOrBlob instanceof File)) {
+                throw new Error('Expected File or Blob for upload');
+            }
+
+            const formData = new FormData();
+            formData.append('avatar', fileOrBlob);
+
+            const initData = this.resolveTelegramInitData();
+            if (!initData) {
+                throw new Error('Telegram authentication required');
+            }
+
+            const response = await fetch(`${this.baseURL}/auth/upload-avatar`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `tma ${initData}`
+                },
+                body: formData
             });
+
+            const result = await response.json();
+            
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || `HTTP ${response.status}`);
+            }
             
             console.log('✅ Аватар загружен успешно:', result);
             return result;
@@ -450,9 +477,9 @@ class ApiService {
         } catch (error) {
             console.error('❌ Ошибка загрузки аватара:', error);
             
-            if (error.status === 413) {
-                throw new Error('Файл слишком большой. Максимальный размер: 3MB');
-            } else if (error.status === 415) {
+            if (error.status === 413 || error.message.includes('413')) {
+                throw new Error('Файл слишком большой. Максимальный размер: 5MB');
+            } else if (error.status === 415 || error.message.includes('415')) {
                 throw new Error('Неподдерживаемый формат файла. Используйте JPG, PNG или WebP');
             } else {
                 throw new Error(`Не удалось загрузить аватар: ${error.message}`);

@@ -688,6 +688,8 @@ router.post('/auth/upload-avatar', telegramAuth, avatarUpload.single('avatar'), 
     // Обновляем профиль пользователя
     await updateUserAvatar(userId, avatarUrl);
 
+    console.log(`✅ Multipart avatar upload successful for user ${userId}: ${avatarUrl}`);
+
     res.json({
       success: true,
       avatarUrl: avatarUrl,
@@ -810,47 +812,23 @@ router.patch('/profile', telegramAuth, async (req, res) => {
 });
 
 /**
- * @description Загрузка аватара пользователя
+ * @deprecated This endpoint is deprecated and will be removed in a future release.
+ * @description Legacy base64 avatar upload endpoint - DEPRECATED
  * @route POST /api/reader/profile/avatar
+ * Clients should use POST /api/reader/auth/upload-avatar with multipart/form-data instead.
  */
 router.post('/profile/avatar', async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { image } = req.body;
-
-    if (!image || !image.startsWith('data:image/')) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid image data. Expected base64 data URL'
-      });
+  // Return 410 Gone to indicate deprecated endpoint
+  return res.status(410).json({
+    success: false,
+    error: 'Deprecated endpoint. Please use POST /api/reader/auth/upload-avatar with multipart/form-data.',
+    migration: {
+      newEndpoint: '/api/reader/auth/upload-avatar',
+      method: 'POST',
+      contentType: 'multipart/form-data',
+      fieldName: 'avatar'
     }
-
-    const user = await UserProfile.findOne({ userId });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
-    user.avatarUrl = image; // TODO: заменить на загрузку в облако
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Avatar uploaded successfully',
-      avatarUrl: user.avatarUrl,
-      user: {
-        userId: user.userId,
-        name: user.name,
-        email: user.email,
-        avatarUrl: user.avatarUrl
-      }
-    });
-  } catch (error) {
-    console.error('❌ Avatar Upload Error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
+  });
 });
 
 /**
