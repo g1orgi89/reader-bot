@@ -10,6 +10,7 @@ process.env.TZ = process.env.TZ || 'Europe/Moscow';
 // Load environment variables
 require('dotenv').config();
 
+const dbService = require('../server/services/database');
 const logger = require('../server/utils/logger');
 const SimpleTelegramBot = require('./simpleBot');
 const { ReminderService } = require('../server/services/reminderService');
@@ -22,6 +23,10 @@ const { initReminderCron, stopReminderCron } = require('../server/scheduler/remi
 async function startSimpleBot() {
   try {
     logger.info('🚀 Starting Simple Telegram Bot...');
+
+    logger.info('📡 Connecting to MongoDB from bot process...');
+    await dbService.connect();
+    logger.info('✅ MongoDB connected (bot process)');
     
     // Validate required environment variables
     if (!process.env.TELEGRAM_BOT_TOKEN) {
