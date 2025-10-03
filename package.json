@@ -12,10 +12,8 @@
     "dev:reader": "cross-env PORT=3002 nodemon reader-bot.js",
     "dev:debug": "cross-env PORT=3002 nodemon --inspect server/index.js",
     "dev:win": "set PORT=3002 && nodemon server/index.js",
-
     "bot:start": "node bot/start.js",
     "bot:dev": "nodemon bot/start.js",
-
     "db:setup": "node scripts/setup-reader-db.js",
     "db:check": "node check-database.js",
     "migrate:content": "node scripts/migrateContent.js",
@@ -29,7 +27,6 @@
     "test:core": "node test-core.js",
     "test:claude": "node test-claude.js",
     "test:api": "node test-api-quick.js",
-
     "test:weekly": "node test-weekly-service.js",
     "test:monthly": "node test-monthly-service.js",
     "test:reminders": "node test-reminder-announcement-services.js",
@@ -50,7 +47,6 @@
     "setup:reader": "npm run db:setup && npm run migrate:content && npm run seed:books && echo Reader bot setup complete!",
     "start:prod": "cross-env NODE_ENV=production PORT=3002 node server/index.js",
     "start:reader:prod": "cross-env NODE_ENV=production PORT=3002 node reader-bot.js",
-
     "logs": "tail -f logs/reader/combined.log",
     "logs:error": "tail -f logs/reader/error.log",
     "reports:generate": "curl -X POST http://localhost:3002/api/reader/reports/weekly/generate -H Content-Type: application/json",
@@ -114,11 +110,11 @@
     "multer": "^1.4.5-lts.1",
     "node-cron": "^3.0.3",
     "openai": "^4.100.0",
-    "pdf-parse": "^1.1.1",
     "pdf-extract": "^1.0.2",
+    "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^3.11.174",
     "socket.io": "^4.7.2",
-
+    "telegraf": "^4.16.3",
     "uuid": "^9.0.0",
     "winston": "^3.11.0",
     "xlsx": "^0.18.5"

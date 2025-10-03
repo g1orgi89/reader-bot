@@ -156,7 +156,7 @@ class SimpleTelegramBot {
   }
 
   /**
-   * Start the bot
+   * Start the bot in polling mode (deprecated - use webhook in production)
    */
   async start() {
     if (!this.isInitialized) {
@@ -165,7 +165,7 @@ class SimpleTelegramBot {
 
     try {
       await this.bot.launch();
-      logger.info('✅ SimpleTelegramBot started successfully');
+      logger.info('✅ SimpleTelegramBot started successfully (polling mode)');
       
       // Graceful shutdown handlers
       process.once('SIGINT', () => this.stop('SIGINT'));
@@ -173,6 +173,71 @@ class SimpleTelegramBot {
       
     } catch (error) {
       logger.error(`❌ Failed to start SimpleTelegramBot: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get webhook callback for Express integration
+   * @param {string} webhookPath - Path for webhook endpoint (e.g., '/api/telegram/webhook')
+   * @returns {Function} Express middleware function
+   */
+  webhookCallback(webhookPath) {
+    if (!this.isInitialized) {
+      throw new Error('Bot must be initialized before creating webhook callback');
+    }
+
+    logger.info(`🔗 Creating webhook callback for path: ${webhookPath}`);
+    return this.bot.webhookCallback(webhookPath);
+  }
+
+  /**
+   * Set webhook URL for Telegram Bot API
+   * @param {string} webhookUrl - Full webhook URL (e.g., 'https://yourdomain.com/api/telegram/webhook')
+   * @returns {Promise<boolean>} Success status
+   */
+  async setWebhook(webhookUrl) {
+    if (!this.isInitialized) {
+      throw new Error('Bot must be initialized before setting webhook');
+    }
+
+    try {
+      logger.info(`🔗 Setting webhook URL: ${webhookUrl}`);
+      await this.bot.telegram.setWebhook(webhookUrl);
+      logger.info('✅ Webhook set successfully');
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to set webhook: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get webhook info from Telegram
+   * @returns {Promise<Object>} Webhook info
+   */
+  async getWebhookInfo() {
+    try {
+      const info = await this.bot.telegram.getWebhookInfo();
+      return info;
+    } catch (error) {
+      logger.error(`❌ Failed to get webhook info: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete webhook (switch back to polling mode)
+   * @returns {Promise<boolean>} Success status
+   */
+  async deleteWebhook() {
+    try {
+      logger.info('🔗 Deleting webhook...');
+      await this.bot.telegram.deleteWebhook();
+      logger.info('✅ Webhook deleted successfully');
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to delete webhook: ${error.message}`);
       throw error;
     }
   }

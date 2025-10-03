@@ -1,8 +1,18 @@
 /**
- * Standalone startup script for Simple Telegram Bot
+ * Standalone startup script for Simple Telegram Bot (DEPRECATED - use server/index.js)
  * @file bot/start.js
  * @author Reader Bot Team
+ * 
+ * ⚠️ DEPRECATED: This file is deprecated in favor of webhook integration in server/index.js
+ * 
+ * The bot now runs in webhook mode integrated with the main server.
+ * To start the bot, use: npm start (with ENABLE_SIMPLE_BOT=true in .env)
+ * 
+ * This file is kept for reference and backwards compatibility only.
+ * DO NOT use this file for production deployments.
  */
+
+/* DEPRECATED - Polling mode startup (kept for reference)
 
 setInterval(() => {
   console.log('[DEBUG] PROCESS ALIVE', new Date().toISOString());
@@ -151,25 +161,27 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
-// Export for module usage
-module.exports = {
-  startSimpleBot,
-  SimpleTelegramBot
-};
+*/ // End of deprecated polling mode code
 
-// Run if called directly
-if (require.main === module) {
-  startSimpleBot()
-    .then((services) => {
-      // Setup graceful shutdown
-      process.on('SIGTERM', () => gracefulShutdown(services, 'SIGTERM'));
-      process.on('SIGINT', () => gracefulShutdown(services, 'SIGINT'));
-      
-      logger.info('🔗 Simple Telegram Bot process is running...');
-      logger.info('💡 Use Ctrl+C to stop the bot');
-    })
-    .catch((error) => {
-      logger.error('❌ Startup failed:', error);
-      process.exit(1);
-    });
-}
+// Show deprecation warning
+console.warn('⚠️⚠️⚠️ WARNING: bot/start.js is DEPRECATED ⚠️⚠️⚠️');
+console.warn('');
+console.warn('This standalone bot startup is no longer the recommended way to run the bot.');
+console.warn('The bot now runs in webhook mode integrated with the main server.');
+console.warn('');
+console.warn('To start the bot properly:');
+console.warn('  1. Set ENABLE_SIMPLE_BOT=true in your .env file');
+console.warn('  2. Set TELEGRAM_WEBHOOK_URL to your public webhook URL');
+console.warn('  3. Run: npm start (starts server with webhook bot)');
+console.warn('');
+console.warn('Exiting...');
+console.warn('');
+
+process.exit(1);
+
+// Export for module usage (kept for backwards compatibility)
+module.exports = {
+  // Functions are commented out as this file is deprecated
+  // startSimpleBot,
+  // SimpleTelegramBot
+};
