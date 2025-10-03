@@ -78,7 +78,19 @@ async function startSimpleBot() {
       logger.info('🔔 Initializing reminder cron jobs...');
       reminderJobs = initReminderCron({ reminderService });
       console.log('DEBUG: initReminderCron вызван ИЗ bot/start.js');
-      
+
+      console.log('DEBUG: reminderJobs:', reminderJobs);
+      if (reminderJobs && reminderJobs.morning) {
+      console.log('DEBUG: typeof morning:', typeof reminderJobs.morning);
+      console.log('DEBUG: morning.start:', reminderJobs.morning.start ? 'yes' : 'no');
+      console.log('DEBUG: morning.stop:', reminderJobs.morning.stop ? 'yes' : 'no');
+        try {
+        reminderJobs.morning.start();
+        console.log('DEBUG: Forced morning.start() called');
+      } catch (e) {
+        console.error('ERROR: calling morning.start()', e);
+      }
+    }
       if (reminderJobs) {
         logger.info('✅ Reminder cron jobs started successfully');
       } else {
