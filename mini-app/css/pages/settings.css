@@ -23,9 +23,10 @@
     margin-bottom: var(--spacing-lg);
 }
 
+/* 🔧 PATCH: Adjusted alignment for larger avatar (160px desktop / 120px mobile from PR #219) */
 .profile-header-card {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--spacing-md);
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-md);
@@ -396,8 +397,10 @@
         padding: var(--spacing-sm);
     }
     
+    /* 🔧 PATCH: Keep center alignment on mobile */
     .profile-header-card {
         flex-direction: column;
+        align-items: center;
         text-align: center;
         padding: var(--spacing-md);
     }
