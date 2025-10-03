@@ -82,7 +82,7 @@ class SettingsPage {
             this.loading = true;
             
             // Load from local state first
-            this.settings = this.state.get('settings') || this.getDefaultSettings();
+            const localSettings = this.state.get('settings') || this.getDefaultSettings();
             
             // Get userId with fallback methods
             let userId = null;
@@ -93,23 +93,29 @@ class SettingsPage {
             }
             
             if (!userId || userId === 'demo-user') {
+                this.settings = this.adaptLegacySettings(localSettings);
                 return;
             }
             
             // Load from API if available
             try {
-                const serverSettings = await this.api.getSettings(userId);
+                const serverResponse = await this.api.getSettings(userId);
+                const serverSettings = serverResponse?.settings || serverResponse || {};
+                
                 if (serverSettings) {
-                    this.settings = { ...this.settings, ...serverSettings };
+                    const combinedSettings = { ...localSettings, ...serverSettings };
+                    this.settings = this.adaptLegacySettings(combinedSettings);
                     this.state.set('settings', this.settings);
                 }
             } catch (apiError) {
                 console.warn('⚠️ Не удалось загрузить настройки с сервера');
+                this.settings = this.adaptLegacySettings(localSettings);
             }
             
         } catch (error) {
             console.error('❌ Ошибка загрузки настроек:', error);
             this.error = error.message;
+            this.settings = this.getDefaultSettings();
         } finally {
             this.loading = false;
         }
@@ -875,7 +881,9 @@ class SettingsPage {
                 return; // Only save locally for demo users
             }
             
-            await this.api.saveSettings(userId, this.settings);
+            // Convert to canonical structure before saving
+            const canonicalSettings = this.toCanonicalSettings(this.settings);
+            await this.api.saveSettings(userId, canonicalSettings);
             
         } catch (error) {
             console.warn('⚠️ Не удалось сохранить настройки на сервер:', error);
@@ -1106,7 +1114,7 @@ class SettingsPage {
     }
     
     /**
-     * 🔧 Получить настройки по умолчанию
+     * 🔧 Получить настройки по умолчанию (canonical structure)
      */
     getDefaultSettings() {
         return {
@@ -1127,11 +1135,93 @@ class SettingsPage {
             fontSize: 'medium',
             animations: true,
             analytics: true,
-            publicProfile: false,
-            // Legacy support for backward compatibility
-            dailyReminders: true,
-            achievementNotifications: true,
-            reminderTime: '18:00'
+            publicProfile: false
+        };
+    }
+    
+    /**
+     * 🔄 Convert legacy structure to canonical
+     * @param {Object} settings - Settings with possible legacy structure
+     * @returns {Object} Settings with canonical structure
+     */
+    adaptLegacySettings(settings) {
+        if (!settings) return this.getDefaultSettings();
+        
+        const adapted = { ...settings };
+        
+        // Handle legacy notifications structure
+        if (settings.notifications) {
+            if (!adapted.reminders) adapted.reminders = {};
+            if (!adapted.achievements) adapted.achievements = {};
+            if (!adapted.weeklyReports) adapted.weeklyReports = {};
+            if (!adapted.announcements) adapted.announcements = {};
+            
+            if (settings.notifications.daily !== undefined) {
+                adapted.reminders.enabled = settings.notifications.daily;
+            }
+            if (settings.notifications.weekly !== undefined) {
+                adapted.weeklyReports.enabled = settings.notifications.weekly;
+            }
+            if (settings.notifications.achievements !== undefined) {
+                adapted.achievements.enabled = settings.notifications.achievements;
+            }
+        }
+        
+        // Handle other legacy keys
+        if (settings.dailyReminders !== undefined && !adapted.reminders?.enabled) {
+            if (!adapted.reminders) adapted.reminders = {};
+            adapted.reminders.enabled = settings.dailyReminders;
+        }
+        if (settings.achievementNotifications !== undefined && !adapted.achievements?.enabled) {
+            if (!adapted.achievements) adapted.achievements = {};
+            adapted.achievements.enabled = settings.achievementNotifications;
+        }
+        
+        // Ensure canonical structure with defaults
+        if (!adapted.reminders) {
+            adapted.reminders = { enabled: true, frequency: 'often' };
+        } else {
+            if (adapted.reminders.enabled === undefined) adapted.reminders.enabled = true;
+            if (!adapted.reminders.frequency) adapted.reminders.frequency = 'often';
+        }
+        
+        if (!adapted.achievements) adapted.achievements = { enabled: true };
+        if (adapted.achievements.enabled === undefined) adapted.achievements.enabled = true;
+        
+        if (!adapted.weeklyReports) adapted.weeklyReports = { enabled: true };
+        if (adapted.weeklyReports.enabled === undefined) adapted.weeklyReports.enabled = true;
+        
+        if (!adapted.announcements) adapted.announcements = { enabled: true };
+        if (adapted.announcements.enabled === undefined) adapted.announcements.enabled = true;
+        
+        return adapted;
+    }
+    
+    /**
+     * 📤 Convert settings to canonical structure for server
+     * @param {Object} settings - Current settings
+     * @returns {Object} Canonical settings structure
+     */
+    toCanonicalSettings(settings) {
+        return {
+            reminders: {
+                enabled: settings.reminders?.enabled ?? true,
+                frequency: settings.reminders?.frequency ?? 'often'
+            },
+            achievements: {
+                enabled: settings.achievements?.enabled ?? true
+            },
+            weeklyReports: {
+                enabled: settings.weeklyReports?.enabled ?? true
+            },
+            announcements: {
+                enabled: settings.announcements?.enabled ?? true
+            },
+            theme: settings.theme,
+            fontSize: settings.fontSize,
+            animations: settings.animations,
+            analytics: settings.analytics,
+            publicProfile: settings.publicProfile
         };
     }
     

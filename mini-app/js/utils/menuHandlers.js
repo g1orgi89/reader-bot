@@ -19,6 +19,7 @@ class MenuHandler {
         this.currentPage = window.PAGES?.HOME || 'home';
         this.isMenuOpen = false;
         this.activeModals = new Set();
+        this.persistTimeout = null;
     }
 
     // 📱 ГЛАВНОЕ ВЫДВИЖНОЕ МЕНЮ
@@ -531,13 +532,78 @@ class MenuHandler {
      * @param {boolean} enabled - Включены ли уведомления
      */
     toggleNotifications(type, enabled) {
-        // Здесь будет сохранение настроек
         console.log(`Уведомления ${type}: ${enabled ? 'включены' : 'выключены'}`);
+        
+        // Get current settings from global state
+        const appState = window.app?.state || window.appState;
+        if (!appState) {
+            console.warn('⚠️ App state not available, cannot persist notification settings');
+            return;
+        }
+        
+        const currentSettings = appState.get('settings') || {};
+        
+        // Map notification type to canonical settings structure
+        const settingsUpdate = {};
+        
+        switch (type) {
+            case 'daily':
+                if (!settingsUpdate.reminders) settingsUpdate.reminders = { ...currentSettings.reminders };
+                settingsUpdate.reminders.enabled = enabled;
+                if (!settingsUpdate.reminders.frequency) settingsUpdate.reminders.frequency = 'often';
+                break;
+            case 'weekly':
+                settingsUpdate.weeklyReports = { enabled };
+                break;
+            case 'achievements':
+                settingsUpdate.achievements = { enabled };
+                break;
+            case 'announcements':
+                settingsUpdate.announcements = { enabled };
+                break;
+            default:
+                console.warn(`⚠️ Unknown notification type: ${type}`);
+                return;
+        }
+        
+        // Update local state immediately
+        const updatedSettings = { ...currentSettings, ...settingsUpdate };
+        appState.set('settings', updatedSettings);
+        
+        // Persist to server with debounce
+        this.debouncedPersistSettings(settingsUpdate);
         
         // Haptic feedback
         if (window.Telegram?.WebApp?.HapticFeedback) {
             window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
         }
+    }
+    
+    /**
+     * Debounced persist settings to server
+     * @param {Object} settingsUpdate - Settings to persist
+     */
+    debouncedPersistSettings(settingsUpdate) {
+        // Clear existing timeout
+        if (this.persistTimeout) {
+            clearTimeout(this.persistTimeout);
+        }
+        
+        // Set new timeout
+        this.persistTimeout = setTimeout(async () => {
+            try {
+                const api = window.app?.api || window.api;
+                if (!api) {
+                    console.warn('⚠️ API service not available');
+                    return;
+                }
+                
+                await api.updateSettings(settingsUpdate);
+                console.log('✅ Settings persisted successfully');
+            } catch (error) {
+                console.error('❌ Failed to persist settings:', error);
+            }
+        }, 600);
     }
 
     /**

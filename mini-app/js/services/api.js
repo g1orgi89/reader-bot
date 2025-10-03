@@ -1331,6 +1331,15 @@ class ApiService {
     async saveSettings(userId, settings) {
         return this.request('PATCH', '/settings', { settings });
     }
+
+    /**
+     * ⚙️ Обновить настройки пользователя (алиас для saveSettings)
+     * @param {Object} settings - Настройки для сохранения
+     * @returns {Promise<Object>} Обновленные настройки
+     */
+    async updateSettings(settings) {
+        return this.request('PATCH', '/settings', { settings });
+    }
 }
 
 // 🌍 Глобальный экспорт (только если window доступен)

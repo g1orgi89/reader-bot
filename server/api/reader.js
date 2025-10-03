@@ -3865,7 +3865,35 @@ router.patch('/settings', telegramAuth, async (req, res) => {
     const currentSettings = user.settings || {};
     const updatedSettings = { ...currentSettings };
 
-    // Update reminders settings
+    // Map legacy notifications.* fields to canonical structure
+    if (settings.notifications) {
+      // Map notifications.daily → reminders.enabled
+      if (typeof settings.notifications.daily === 'boolean') {
+        if (!updatedSettings.reminders) updatedSettings.reminders = {};
+        updatedSettings.reminders.enabled = settings.notifications.daily;
+        updatedSettings.reminderEnabled = settings.notifications.daily; // legacy sync
+      }
+      
+      // Map notifications.weekly → weeklyReports.enabled
+      if (typeof settings.notifications.weekly === 'boolean') {
+        if (!updatedSettings.weeklyReports) updatedSettings.weeklyReports = {};
+        updatedSettings.weeklyReports.enabled = settings.notifications.weekly;
+      }
+      
+      // Map notifications.achievements → achievements.enabled
+      if (typeof settings.notifications.achievements === 'boolean') {
+        if (!updatedSettings.achievements) updatedSettings.achievements = {};
+        updatedSettings.achievements.enabled = settings.notifications.achievements;
+      }
+      
+      // Map notifications.announcements → announcements.enabled
+      if (typeof settings.notifications.announcements === 'boolean') {
+        if (!updatedSettings.announcements) updatedSettings.announcements = {};
+        updatedSettings.announcements.enabled = settings.notifications.announcements;
+      }
+    }
+
+    // Update reminders settings (canonical)
     if (settings.reminders) {
       if (!updatedSettings.reminders) {
         updatedSettings.reminders = {};
@@ -3916,13 +3944,20 @@ router.patch('/settings', telegramAuth, async (req, res) => {
 
     // Log changes for diagnostics
     const changes = {};
-    if (settings.reminders?.enabled !== undefined && 
-        currentSettings.reminders?.enabled !== settings.reminders.enabled) {
-      changes.remindersEnabled = `${currentSettings.reminders?.enabled} → ${settings.reminders.enabled}`;
+    if (updatedSettings.reminders?.enabled !== currentSettings.reminders?.enabled) {
+      changes.remindersEnabled = `${currentSettings.reminders?.enabled} → ${updatedSettings.reminders.enabled}`;
     }
-    if (settings.reminders?.frequency && 
-        currentSettings.reminders?.frequency !== settings.reminders.frequency) {
-      changes.reminderFrequency = `${currentSettings.reminders?.frequency} → ${settings.reminders.frequency}`;
+    if (updatedSettings.reminders?.frequency !== currentSettings.reminders?.frequency) {
+      changes.reminderFrequency = `${currentSettings.reminders?.frequency} → ${updatedSettings.reminders.frequency}`;
+    }
+    if (updatedSettings.achievements?.enabled !== currentSettings.achievements?.enabled) {
+      changes.achievementsEnabled = `${currentSettings.achievements?.enabled} → ${updatedSettings.achievements.enabled}`;
+    }
+    if (updatedSettings.weeklyReports?.enabled !== currentSettings.weeklyReports?.enabled) {
+      changes.weeklyReportsEnabled = `${currentSettings.weeklyReports?.enabled} → ${updatedSettings.weeklyReports.enabled}`;
+    }
+    if (updatedSettings.announcements?.enabled !== currentSettings.announcements?.enabled) {
+      changes.announcementsEnabled = `${currentSettings.announcements?.enabled} → ${updatedSettings.announcements.enabled}`;
     }
     
     if (Object.keys(changes).length > 0) {
