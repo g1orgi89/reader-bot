@@ -1,5 +1,6 @@
   /**
  * Safely extract userId from request with enhanced error handling
+ * ОБНОВЛЕНО: Добавлен fallback на X-User-Id если initData parsing fails
  * @param {Object} req - Express request object
  * @returns {string|null} userId or null if not found
  */
@@ -10,7 +11,7 @@ function safeExtractUserId(req) {
       return String(req.userId);
     }
     
-    // Priority 2: Try to parse from headers
+    // Priority 2: Try to parse from headers (Authorization or X-Telegram-Init-Data)
     const initData = req.headers['authorization']?.startsWith('tma ')
       ? req.headers['authorization'].slice(4)
       : req.headers['x-telegram-init-data'];
@@ -20,7 +21,12 @@ function safeExtractUserId(req) {
       if (userId) return userId;
     }
     
-    // Priority 3: From query or body (fallback)
+    // Priority 3: Fallback to X-User-Id header (клиент всегда отправляет этот заголовок)
+    if (req.headers['x-user-id']) {
+      return String(req.headers['x-user-id']);
+    }
+    
+    // Priority 4: From query or body (legacy fallback)
     if (req.query?.userId) return String(req.query.userId);
     if (req.body?.userId) return String(req.body.userId);
     
@@ -34,7 +40,8 @@ function safeExtractUserId(req) {
 /**
  * Parse userId from Telegram initData string
  * Enhanced with better validation and error handling
- * @param {string} initData - Telegram initData string
+ * ОБНОВЛЕНО: Добавлена безопасная декодировка для санитизированных данных
+ * @param {string} initData - Telegram initData string (может быть закодирован)
  * @returns {string|null} userId or null if invalid
  */
 function parseUserIdFromInitData(initData) {
@@ -45,14 +52,28 @@ function parseUserIdFromInitData(initData) {
       return null;
     }
     
+    // Безопасная декодировка: клиент может отправить закодированную строку
+    let decodedInitData = initData;
+    try {
+      // Пробуем декодировать, если строка закодирована
+      const decoded = decodeURIComponent(initData);
+      // Используем декодированную версию только если она выглядит как initData
+      if (decoded.includes('=')) {
+        decodedInitData = decoded;
+      }
+    } catch (decodeError) {
+      // Если декодирование не удалось, используем оригинал
+      console.debug('parseUserIdFromInitData: initData already decoded or invalid encoding');
+    }
+    
     // Check if initData contains expected pattern
-    if (!initData.includes('=')) {
+    if (!decodedInitData.includes('=')) {
       console.warn('parseUserIdFromInitData: initData does not match expected pattern');
       return null;
     }
     
-    // Не декодируй второй раз, если строка уже декодирована Express'ом
-    const params = new URLSearchParams(initData);
+    // Парсим параметры из initData
+    const params = new URLSearchParams(decodedInitData);
     const userStr = params.get('user');
     if (userStr) {
       const userObj = JSON.parse(userStr);
