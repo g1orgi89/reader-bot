@@ -148,6 +148,7 @@ class ApiService {
 
     /**
      * 📱 Разрешает Telegram initData для аутентификации
+     * ОБНОВЛЕНО: Добавлена санитизация для безопасной передачи в HTTP заголовках
      */
     resolveTelegramInitData() {
         try {
@@ -156,17 +157,27 @@ class ApiService {
                 return null;
             }
 
+            let rawInitData = null;
+
             // Получаем initData из Telegram WebApp
             if (window.Telegram?.WebApp?.initData) {
-                return window.Telegram.WebApp.initData;
+                rawInitData = window.Telegram.WebApp.initData;
             }
 
             // Fallback на localStorage (с проверкой доступности)
-            if (typeof localStorage !== 'undefined') {
+            if (!rawInitData && typeof localStorage !== 'undefined') {
                 const storedInitData = localStorage.getItem('reader-telegram-initdata');
                 if (storedInitData) {
-                    return storedInitData;
+                    rawInitData = storedInitData;
                 }
+            }
+
+            // Санитизация: удаляем CR/LF и кодируем для HTTP заголовков
+            if (rawInitData) {
+                // Удаляем все символы возврата каретки и переноса строки
+                const sanitized = rawInitData.replace(/[\r\n]/g, '').trim();
+                // Кодируем для безопасной передачи в HTTP заголовках
+                return encodeURIComponent(sanitized);
             }
 
             return null;
