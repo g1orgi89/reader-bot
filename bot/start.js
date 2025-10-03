@@ -50,6 +50,7 @@ async function startSimpleBot() {
     // Create and start bot
     const bot = new SimpleTelegramBot(config);
     await bot.start();
+    console.log('DEBUG: после await bot.start()');
     
     logger.info('✅ Simple Telegram Bot started successfully');
     logger.info('🤖 Bot is ready to receive messages');
