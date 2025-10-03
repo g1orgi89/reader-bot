@@ -848,5 +848,38 @@ class ReaderApp {
         this.isInitialized = false;
         console.log('✅ Очистка завершена');
     }
+
+    /**
+     * 🖼️ PATCH: Resolve avatar URL with fallback priority
+     * Returns custom avatarUrl -> Telegram photo_url -> null
+     */
+    resolveAvatar() {
+        const profile = this.state?.get('user.profile');
+        const avatarUrl = profile?.avatarUrl;
+        
+        if (avatarUrl) {
+            return avatarUrl;
+        }
+        
+        const telegramUser = this.telegram?.getUser();
+        const telegramPhotoUrl = telegramUser?.photo_url;
+        
+        return telegramPhotoUrl || null;
+    }
+
+    /**
+     * 🔄 PATCH: Placeholder for future backend auto-import of Telegram avatar
+     * Not invoked automatically yet - reserved for future backend integration
+     */
+    async ensureImportedAvatar() {
+        // Placeholder for future backend call to import Telegram avatar
+        // Example:
+        // const profile = this.state?.get('user.profile');
+        // if (!profile?.avatarUrl) {
+        //     const userId = this.state.getCurrentUserId();
+        //     await this.api.importTelegramAvatar(userId);
+        // }
+        console.log('🔄 ensureImportedAvatar: Placeholder for future backend integration');
+    }
 }
 window.ReaderApp = ReaderApp;

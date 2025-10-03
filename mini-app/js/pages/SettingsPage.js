@@ -493,6 +493,7 @@ class SettingsPage {
     
     /**
      * 🖼️ Обработчик загрузки аватара
+     * 🔧 PATCH: Increased limit to 5MB + client-side compression
      */
     async handleAvatarUpload(event) {
         const file = event.target.files[0];
@@ -505,10 +506,10 @@ class SettingsPage {
             return;
         }
         
-        // Validate file size (max 3MB)
-        const maxSize = 3 * 1024 * 1024;
+        // 🔧 PATCH: Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024;
         if (file.size > maxSize) {
-            this.showError('Файл слишком большой. Максимальный размер: 3MB');
+            this.showError('Файл слишком большой. Максимальный размер: 5MB');
             return;
         }
         
@@ -524,16 +525,22 @@ class SettingsPage {
             // Get userId
             const userId = this.getUserId();
             
+            // 🔧 PATCH: Compress image if >1.5MB
+            let fileToUpload = file;
+            const compressionThreshold = 1.5 * 1024 * 1024;
+            
+            if (file.size > compressionThreshold) {
+                console.log(`🔄 Image size ${(file.size / 1024 / 1024).toFixed(2)}MB, compressing...`);
+                fileToUpload = await this.compressImage(file);
+                console.log(`✅ Image compressed to ${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
+            }
+            
             // Upload avatar
-            const result = await this.api.uploadAvatar(file, userId);
+            const result = await this.api.uploadAvatar(fileToUpload, userId);
             
             if (result && result.avatarUrl) {
-                // Update state
-                const currentProfile = this.state.get('user.profile') || {};
-                this.state.set('user.profile', {
-                    ...currentProfile,
-                    avatarUrl: result.avatarUrl
-                });
+                // 🔧 PATCH: Update state using state.update instead of state.set
+                this.state.update('user.profile', { avatarUrl: result.avatarUrl });
                 
                 console.log('✅ Avatar uploaded successfully:', result.avatarUrl);
                 
@@ -558,6 +565,68 @@ class SettingsPage {
             // Clear input
             event.target.value = '';
         }
+    }
+
+    /**
+     * 🗜️ PATCH: Compress image using canvas (resize to max 1024px, WebP quality ~0.82)
+     */
+    async compressImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                const img = new Image();
+                
+                img.onload = () => {
+                    // Create canvas
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Calculate new dimensions (max 1024px)
+                    const maxSize = 1024;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height && width > maxSize) {
+                        height = Math.round((height * maxSize) / width);
+                        width = maxSize;
+                    } else if (height > maxSize) {
+                        width = Math.round((width * maxSize) / height);
+                        height = maxSize;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    // Draw image
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert to blob (WebP, quality 0.82)
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                // Create a new File object
+                                const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), {
+                                    type: 'image/webp',
+                                    lastModified: Date.now()
+                                });
+                                resolve(compressedFile);
+                            } else {
+                                reject(new Error('Failed to compress image'));
+                            }
+                        },
+                        'image/webp',
+                        0.82
+                    );
+                };
+                
+                img.onerror = () => reject(new Error('Failed to load image'));
+                img.src = e.target.result;
+            };
+            
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
+        });
     }
     
     /**

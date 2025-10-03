@@ -580,7 +580,7 @@ class HomePage {
     
     /**
      * 👤 Рендер встроенного блока с аватаром и меню (ТОЛЬКО на главной!)
-     * 🔧 UPDATED: Avatar on left, menu button on right (Option C)
+     * 🔧 PATCH: Redesigned header with larger avatar, name, and username
      */
     renderUserHeader(user) {
         const name =
@@ -589,12 +589,17 @@ class HomePage {
             user.username ||
             '';
         const initials = name ? this.getInitials(name) : '';
+        const username = user.username ? `@${user.username}` : '';
         
         return `
             <div class="home-header">
-                <button class="home-header-avatar" id="homeHeaderAvatar" aria-label="Профиль">
+                <button class="home-header-avatar-large" id="homeHeaderAvatar" aria-label="Профиль">
                     ${this.renderUserAvatar(user.avatarUrl, initials)}
                 </button>
+                <div class="home-header-info">
+                    <div class="home-header-name">${name || 'Пользователь'}</div>
+                    ${username ? `<div class="home-header-username">${username}</div>` : ''}
+                </div>
                 <div class="home-header-spacer"></div>
                 <button class="home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">⋮</button>
             </div>
@@ -603,13 +608,11 @@ class HomePage {
 
     /**
      * 🖼️ Рендер аватара с поддержкой изображений
-     * 🔧 UPDATED: Simplified for new home header structure
+     * 🔧 PATCH: Use app.resolveAvatar() for unified avatar handling
      */
     renderUserAvatar(avatarUrl, initials) {
-        const telegramPhotoUrl = this.telegram.getUser()?.photo_url;
-        
-        // Определяем источник изображения по приоритету
-        const imageUrl = avatarUrl || telegramPhotoUrl;
+        // Use app.resolveAvatar() if available, otherwise fallback to direct check
+        const imageUrl = this.app?.resolveAvatar?.() || avatarUrl || this.telegram?.getUser()?.photo_url;
         
         if (imageUrl) {
             return `
@@ -1036,6 +1039,7 @@ class HomePage {
     
     /**
      * 👤 Обновление UI информации о пользователе во встроенном блоке
+     * 🔧 PATCH: Updated to support new home header with name and username
      */
     updateUserInfoUI(profile) {
         if (!profile) return;
@@ -1046,24 +1050,40 @@ class HomePage {
             profile.username ||
             '';
 
-        const userAvatarContainer = document.querySelector('.user-avatar-inline');
-        const userName = document.querySelector('.user-name-inline');
+        // Update new header structure
+        const homeHeaderAvatar = document.querySelector('.home-header-avatar-large');
+        const homeHeaderName = document.querySelector('.home-header-name');
+        const homeHeaderUsername = document.querySelector('.home-header-username');
 
-        // ✅ FIX: Do not overwrite DOM with empty values
-        if (userName) {
-            const currentName = userName.textContent || '';
+        // Update name
+        if (homeHeaderName) {
+            const currentName = homeHeaderName.textContent || '';
             const nameToShow = computed || currentName;
             
-            // Only update if we have a meaningful name to show
             if (nameToShow.trim()) {
-                userName.textContent = nameToShow;
-                
-                // Update avatar based on the name and new avatar URL
-                if (userAvatarContainer) {
-                    const initials = this.getInitials(nameToShow);
-                    userAvatarContainer.outerHTML = this.renderUserAvatar(profile.avatarUrl, initials);
-                }
+                homeHeaderName.textContent = nameToShow;
             }
+        }
+
+        // Update username
+        const username = profile.username ? `@${profile.username}` : '';
+        if (homeHeaderUsername) {
+            homeHeaderUsername.textContent = username;
+        } else if (username) {
+            // Add username element if it doesn't exist
+            const homeHeaderInfo = document.querySelector('.home-header-info');
+            if (homeHeaderInfo && homeHeaderName) {
+                const usernameEl = document.createElement('div');
+                usernameEl.className = 'home-header-username';
+                usernameEl.textContent = username;
+                homeHeaderInfo.appendChild(usernameEl);
+            }
+        }
+
+        // Update avatar
+        if (homeHeaderAvatar && computed) {
+            const initials = this.getInitials(computed);
+            homeHeaderAvatar.innerHTML = this.renderUserAvatar(profile.avatarUrl, initials);
         }
     }
 

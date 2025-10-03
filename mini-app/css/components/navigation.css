@@ -1002,3 +1002,144 @@ body[data-theme="telegram"] .menu-title {
     right: 0 !important;
     bottom: 0 !important;
 }
+
+/* ============================================================================
+   🏠 HOME HEADER REDESIGN - PATCH
+   Larger avatar (desktop 80px, mobile 64px) with name and username
+   ============================================================================ */
+
+.home-header {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
+}
+
+.home-header-avatar-large {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-round);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: var(--text-inverse);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xl);
+    border: none;
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+    flex-shrink: 0;
+    position: relative;
+    /* Ensure minimum touch target */
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.home-header-avatar-large:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb, 210, 69, 44), 0.3);
+}
+
+.home-header-avatar-large:active {
+    transform: scale(0.95);
+}
+
+.home-header-avatar-large img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.home-header-avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xl);
+    text-transform: uppercase;
+    position: relative;
+}
+
+.home-header-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    min-width: 0;
+    flex: 1;
+}
+
+.home-header-name {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-header-username {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-header-menu-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--text-primary);
+    transition: all var(--duration-normal) var(--ease-out);
+    flex-shrink: 0;
+}
+
+.home-header-menu-btn:hover {
+    background: var(--bg-overlay);
+}
+
+.home-header-menu-btn:active {
+    transform: scale(0.95);
+}
+
+.home-header-spacer {
+    flex: 1;
+}
+
+/* Desktop: Larger avatar (80px) */
+@media (min-width: 768px) {
+    .home-header-avatar-large {
+        width: 80px;
+        height: 80px;
+        font-size: var(--font-size-2xl);
+    }
+    
+    .home-header-name {
+        font-size: var(--font-size-xl);
+    }
+    
+    .home-header-username {
+        font-size: var(--font-size-base);
+    }
+}

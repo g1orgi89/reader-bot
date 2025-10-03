@@ -258,12 +258,13 @@ class TopMenu {
         console.log('🔄 TopMenu: Информация о пользователе обновлена');
     }
 
+    /**
+     * 🔧 PATCH: Use app.resolveAvatar() for unified avatar handling
+     */
     renderUserAvatar() {
-        const profile = this.state?.get('user.profile');
-        const avatarUrl = profile?.avatarUrl;
-        const telegramPhotoUrl = this.telegram?.getUser()?.photo_url;
         const userInfo = this.getUserInfo();
-        const imageUrl = avatarUrl || telegramPhotoUrl;
+        const imageUrl = this.app?.resolveAvatar?.() || null;
+        
         if (imageUrl) {
             return `
                 <div class="user-avatar">
