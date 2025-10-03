@@ -101,7 +101,7 @@ const avatarUpload = multer({
  * Always returns String for consistency
  */
 function getUserId(req) {
-  return String(req.query.userId || req.body.userId || 'demo-user');
+  return String(req.userId || req.query.userId || req.body.userId || 'demo-user');
 }
 
 /**
