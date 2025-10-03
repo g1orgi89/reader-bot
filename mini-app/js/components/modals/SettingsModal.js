@@ -66,17 +66,21 @@ class SettingsModal {
     async loadSettings() {
         try {
             // Загружаем настройки с сервера
-            const serverSettings = await this.api.getSettings();
+            const serverResponse = await this.api.getSettings();
+            const serverSettings = serverResponse?.settings || serverResponse || {};
             
             // Загружаем локальные настройки
             const localSettings = this.loadLocalSettings();
             
             // Объединяем с настройками по умолчанию
-            this.settings = {
+            const combinedSettings = {
                 ...this.defaultSettings,
                 ...serverSettings,
                 ...localSettings
             };
+            
+            // Adapt legacy structure to canonical
+            this.settings = this.adaptLegacySettings(combinedSettings);
             
             // Обновляем состояние приложения
             this.state.set('settings', this.settings);
@@ -146,7 +150,7 @@ class SettingsModal {
      * 🔔 Рендер группы настроек уведомлений
      */
     renderNotificationsGroup() {
-        const { notifications } = this.settings;
+        const { reminders, achievements, weeklyReports, announcements } = this.settings;
         
         return `
             <div class="settings-group">
@@ -161,7 +165,7 @@ class SettingsModal {
                         </div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="dailyReminders" ${notifications.daily ? 'checked' : ''}>
+                        <input type="checkbox" id="dailyReminders" ${reminders?.enabled ? 'checked' : ''}>
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -175,7 +179,7 @@ class SettingsModal {
                         </div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="weeklyReports" ${notifications.weekly ? 'checked' : ''}>
+                        <input type="checkbox" id="weeklyReports" ${weeklyReports?.enabled ? 'checked' : ''}>
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -189,21 +193,21 @@ class SettingsModal {
                         </div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="achievements" ${notifications.achievements ? 'checked' : ''}>
+                        <input type="checkbox" id="achievements" ${achievements?.enabled ? 'checked' : ''}>
                         <span class="slider"></span>
                     </label>
                 </div>
                 
                 <div class="settings-item">
                     <div class="settings-item-info">
-                        <span class="settings-icon">📚</span>
+                        <span class="settings-icon">📢</span>
                         <div class="settings-text">
-                            <div class="settings-label">Рекомендации книг</div>
-                            <div class="settings-description">Персональные советы от Анны</div>
+                            <div class="settings-label">Анонсы</div>
+                            <div class="settings-description">Уведомления об обновлениях</div>
                         </div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="bookRecommendations" ${notifications.books ? 'checked' : ''}>
+                        <input type="checkbox" id="announcements" ${announcements?.enabled ? 'checked' : ''}>
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -461,10 +465,10 @@ class SettingsModal {
      */
     attachToggleListeners() {
         const toggles = [
-            { id: 'dailyReminders', setting: 'notifications.daily' },
-            { id: 'weeklyReports', setting: 'notifications.weekly' },
-            { id: 'achievements', setting: 'notifications.achievements' },
-            { id: 'bookRecommendations', setting: 'notifications.books' },
+            { id: 'dailyReminders', setting: 'reminders.enabled' },
+            { id: 'weeklyReports', setting: 'weeklyReports.enabled' },
+            { id: 'achievements', setting: 'achievements.enabled' },
+            { id: 'announcements', setting: 'announcements.enabled' },
             { id: 'darkTheme', setting: 'theme', handler: this.handleThemeToggle.bind(this) },
             { id: 'compactMode', setting: 'compactMode' }
         ];
@@ -1115,10 +1119,10 @@ class SettingsModal {
      */
     updateToggleStates() {
         const toggles = [
-            { id: 'dailyReminders', value: this.settings.notifications?.daily },
-            { id: 'weeklyReports', value: this.settings.notifications?.weekly },
-            { id: 'achievements', value: this.settings.notifications?.achievements },
-            { id: 'bookRecommendations', value: this.settings.notifications?.books },
+            { id: 'dailyReminders', value: this.settings.reminders?.enabled },
+            { id: 'weeklyReports', value: this.settings.weeklyReports?.enabled },
+            { id: 'achievements', value: this.settings.achievements?.enabled },
+            { id: 'announcements', value: this.settings.announcements?.enabled },
             { id: 'compactMode', value: this.settings.compactMode }
         ];
         
@@ -1169,11 +1173,13 @@ class SettingsModal {
         clearTimeout(this.saveTimeout);
         this.saveTimeout = setTimeout(async () => {
             try {
-                await this.api.updateSettings(this.settings);
+                // Convert to canonical structure before sending
+                const canonicalSettings = this.toCanonicalSettings(this.settings);
+                await this.api.updateSettings(canonicalSettings);
             } catch (error) {
                 console.error('❌ Ошибка сохранения настроек:', error);
             }
-        }, 1000);
+        }, 600);
     }
     
     /**
@@ -1201,15 +1207,22 @@ class SettingsModal {
     }
     
     /**
-     * ⚙️ Настройки по умолчанию
+     * ⚙️ Настройки по умолчанию (canonical structure)
      */
     getDefaultSettings() {
         return {
-            notifications: {
-                daily: true,
-                weekly: true,
-                achievements: true,
-                books: true
+            reminders: {
+                enabled: true,
+                frequency: 'often'
+            },
+            achievements: {
+                enabled: true
+            },
+            weeklyReports: {
+                enabled: true
+            },
+            announcements: {
+                enabled: true
             },
             theme: 'light',
             fontSize: 'medium',
@@ -1217,6 +1230,84 @@ class SettingsModal {
             privacy: {
                 analytics: true
             }
+        };
+    }
+    
+    /**
+     * 🔄 Convert legacy notifications.* structure to canonical
+     * @param {Object} settings - Settings with possible notifications.* structure
+     * @returns {Object} Settings with canonical structure
+     */
+    adaptLegacySettings(settings) {
+        if (!settings) return this.getDefaultSettings();
+        
+        const adapted = { ...settings };
+        
+        // If we have legacy notifications structure, convert it
+        if (settings.notifications) {
+            if (!adapted.reminders) adapted.reminders = {};
+            if (!adapted.achievements) adapted.achievements = {};
+            if (!adapted.weeklyReports) adapted.weeklyReports = {};
+            if (!adapted.announcements) adapted.announcements = {};
+            
+            if (settings.notifications.daily !== undefined) {
+                adapted.reminders.enabled = settings.notifications.daily;
+            }
+            if (settings.notifications.weekly !== undefined) {
+                adapted.weeklyReports.enabled = settings.notifications.weekly;
+            }
+            if (settings.notifications.achievements !== undefined) {
+                adapted.achievements.enabled = settings.notifications.achievements;
+            }
+            if (settings.notifications.announcements !== undefined) {
+                adapted.announcements.enabled = settings.notifications.announcements;
+            }
+        }
+        
+        // Ensure canonical structure exists with defaults
+        if (!adapted.reminders) {
+            adapted.reminders = { enabled: true, frequency: 'often' };
+        } else {
+            if (adapted.reminders.enabled === undefined) adapted.reminders.enabled = true;
+            if (!adapted.reminders.frequency) adapted.reminders.frequency = 'often';
+        }
+        
+        if (!adapted.achievements) adapted.achievements = { enabled: true };
+        if (adapted.achievements.enabled === undefined) adapted.achievements.enabled = true;
+        
+        if (!adapted.weeklyReports) adapted.weeklyReports = { enabled: true };
+        if (adapted.weeklyReports.enabled === undefined) adapted.weeklyReports.enabled = true;
+        
+        if (!adapted.announcements) adapted.announcements = { enabled: true };
+        if (adapted.announcements.enabled === undefined) adapted.announcements.enabled = true;
+        
+        return adapted;
+    }
+    
+    /**
+     * 📤 Convert settings to canonical structure for server
+     * @param {Object} settings - Current settings
+     * @returns {Object} Canonical settings structure
+     */
+    toCanonicalSettings(settings) {
+        return {
+            reminders: {
+                enabled: settings.reminders?.enabled ?? true,
+                frequency: settings.reminders?.frequency ?? 'often'
+            },
+            achievements: {
+                enabled: settings.achievements?.enabled ?? true
+            },
+            weeklyReports: {
+                enabled: settings.weeklyReports?.enabled ?? true
+            },
+            announcements: {
+                enabled: settings.announcements?.enabled ?? true
+            },
+            theme: settings.theme,
+            fontSize: settings.fontSize,
+            compactMode: settings.compactMode,
+            privacy: settings.privacy
         };
     }
     
