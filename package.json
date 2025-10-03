@@ -31,6 +31,7 @@
     "test:monthly": "node test-monthly-service.js",
     "test:reminders": "node test-reminder-announcement-services.js",
     "test:announcements": "node test-reminder-announcement-services.js",
+    "test:webhook": "node test-webhook-bot.js",
     "test:all-services": "node reader-bot.js test",
     "diagnose": "node diagnose-mongodb.js",
     "lint": "eslint .",
