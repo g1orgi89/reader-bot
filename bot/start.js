@@ -4,6 +4,9 @@
  * @author Reader Bot Team
  */
 
+setInterval(() => {
+  console.log('[DEBUG] PROCESS ALIVE', new Date().toISOString());
+}, 60000);
 // Set timezone to Moscow
 process.env.TZ = process.env.TZ || 'Europe/Moscow';
 
