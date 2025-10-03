@@ -10,7 +10,8 @@ const logger = require('./logger');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 // Use __dirname for consistent path resolution (same as reader.js)
-const UPLOADS_DIR = path.join(__dirname, '../uploads/avatars');
+// Two levels up (../../) from server/utils to reach repository root
+const UPLOADS_DIR = path.join(__dirname, '../../uploads/avatars');
 
 /**
  * Ensure uploads directory exists

@@ -122,7 +122,8 @@ const quoteHandler = new QuoteHandler();
 
 // === AVATAR STORAGE CONFIGURATION ===
 // Use __dirname to ensure consistent path resolution regardless of process.cwd()
-const UPLOADS_ROOT = path.join(__dirname, '../uploads');
+// Two levels up (../../) from server/api to reach repository root
+const UPLOADS_ROOT = path.join(__dirname, '../../uploads');
 const AVATARS_DIR = path.join(UPLOADS_ROOT, 'avatars');
 
 // Ensure avatars directory exists at module load time
@@ -131,6 +132,33 @@ try {
   console.log(`✅ Avatars directory ready: ${AVATARS_DIR}`);
 } catch (error) {
   console.error(`❌ Failed to create avatars directory: ${error.message}`);
+}
+
+// === MIGRATION: Move files from legacy server/uploads/avatars to repo root ===
+const LEGACY_AVATARS_DIR = path.join(__dirname, '../uploads/avatars');
+try {
+  if (fs.existsSync(LEGACY_AVATARS_DIR) && LEGACY_AVATARS_DIR !== AVATARS_DIR) {
+    console.log(`🔄 Migrating avatars from legacy location: ${LEGACY_AVATARS_DIR}`);
+    const legacyFiles = fs.readdirSync(LEGACY_AVATARS_DIR);
+    let migratedCount = 0;
+    
+    for (const file of legacyFiles) {
+      const sourcePath = path.join(LEGACY_AVATARS_DIR, file);
+      const destPath = path.join(AVATARS_DIR, file);
+      
+      // Only migrate if destination doesn't exist
+      if (!fs.existsSync(destPath)) {
+        fs.copyFileSync(sourcePath, destPath);
+        migratedCount++;
+        console.log(`  ✅ Migrated: ${file}`);
+      }
+    }
+    
+    console.log(`✅ Migration complete: ${migratedCount} file(s) migrated`);
+  }
+} catch (error) {
+  console.error(`⚠️ Avatar migration warning: ${error.message}`);
+  // Don't fail if migration has issues, just log the warning
 }
 
 // Конфигурация multer для загрузки аватаров
