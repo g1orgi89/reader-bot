@@ -29,7 +29,7 @@ class TopMenu {
 
         this.menuItems = [
             { id: 'settings',      label: 'Настройки',    icon: this.getSettingsIcon(),      action: 'settings' },
-            { id: 'achievements',  label: 'Достижения',   icon: this.getAchievementsIcon(),  action: 'achievements' },
+            //{ id: 'achievements',  label: 'Достижения',   icon: this.getAchievementsIcon(),  action: 'achievements' },
             { id: 'divider1',      isDivider: true },
             { id: 'help',          label: 'Помощь',       icon: this.getHelpIcon(),          action: 'help' },
             { id: 'about',         label: 'О приложении', icon: this.getAboutIcon(),         action: 'about' }
