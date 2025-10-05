@@ -156,14 +156,6 @@ class WeeklyReportService {
   
   ${previousReport ? `ПРОШЛЫЙ ОТЧЁТ:\n${previousReport}` : ""}
   `.trim();
-    
-ЦИТАТЫ ЗА НЕДЕЛЮ:
-${quotesText}
-
-Имя пользователя: ${userProfile.name || ""}
-
-${previousReport ? `ПРОШЛЫЙ ОТЧЁТ:\n${previousReport}` : ""}
-`.trim();
 
     try {
       logger.info(`📖 Analyzing ${quotes.length} quotes for user ${userProfile.userId} (provider: ${this.config.provider})`);
