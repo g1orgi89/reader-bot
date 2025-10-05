@@ -589,7 +589,7 @@ class CatalogPage {
         if (!this.userTags || this.userTags.length === 0) {
             return `
                 <div class="personalization-card">
-                    <div class="personalization-title">🎯 Персональные рекомендации</div>
+                    <div class="personalization-title">🎯 Персональные рекомендации по категориям</div>
                     <div class="personalization-subtitle">Добавляйте цитаты — и появятся персональные темы</div>
                 </div>
             `;
