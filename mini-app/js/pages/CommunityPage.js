@@ -1457,17 +1457,14 @@ class CommunityPage {
                 </div>
             `;
         }
-
+    
         const interest = this.communityInsights.interest;
         const leader = interest.leader;
-        //const growthText = interest.growthPct > 0 ? `+${interest.growthPct}%` : 
-                          //interest.growthPct < 0 ? `${interest.growthPct}%` : '0%';
-        
+    
         return `
             <div class="stats-detail-section">
                 <div class="stats-detail-title">📚 Интерес к разборам</div>
                 ${leader ? `<div class="stats-detail-item">🔥 Лидер недели: "${leader.title}" — ${leader.author}</div>` : ''}
-                <div class="stats-detail-item">📈 Рост интереса: ${growthText} к прошлой неделе</div>
                 <div class="stats-detail-item">📖 Активно изучают ${interest.activelyStudying} разборов</div>
             </div>
         `;
