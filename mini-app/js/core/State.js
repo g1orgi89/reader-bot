@@ -864,6 +864,9 @@ class AppState {
             target[lastKey] = value;
         } else {
             console.warn('State.js: setNestedValue — попытка записать свойство у null/undefined для path:', path, value);
+            // Можно return или throw, чтобы не ломать всё приложение
+        }
+    }
 
     /**
      * 🎯 Получить значение по умолчанию
