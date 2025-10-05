@@ -245,7 +245,7 @@ class SettingsPage {
     /**
      * 🔔 Рендер настроек уведомлений
      */
-    renderNotificationSettings() {
+    //renderNotificationSettings() {
         const settings = this.settings;
         const reminders = settings.reminders || {};
         const achievements = settings.achievements || {};
