@@ -141,7 +141,6 @@ class SettingsPage {
                 ${this.settingsFeatureFlags.privacy ? this.renderPrivacySettings() : ''}
                 ${this.renderDataSettings()}
                 ${this.renderError()
-                // ${this.settingsFeatureFlags.notifications ? this.renderNotificationSettings() : ''}
             </div>
         `;
     }
