@@ -130,7 +130,7 @@ class SettingsPage {
         const telegramData = this.state.get('user.telegramData') || {};
         
         return `
-            <div class="content">
+            <div class="content settings-page" id="settingsPageRoot">
                 ${this.renderHeader()}
                 ${this.renderProfileSection(profile, stats, telegramData)}
                 ${this.settingsFeatureFlags.notifications ? this.renderNotificationSettings() : ''}
@@ -471,6 +471,24 @@ class SettingsPage {
         if (deleteAccountBtn) {
             deleteAccountBtn.addEventListener('click', () => this.handleDeleteAccount());
         }
+        
+        // Delegated event listeners on the root element for robustness
+        const settingsRoot = document.getElementById('settingsPageRoot');
+        if (settingsRoot) {
+            // Delegated change handler for checkboxes and selects
+            settingsRoot.addEventListener('change', (e) => {
+                const target = e.target;
+                
+                // Handle settings checkboxes
+                if (target.id === 'remindersEnabled' && target.type === 'checkbox') {
+                    this.updateSetting('remindersEnabled', target.checked);
+                } else if (target.id === 'achievementsEnabled' && target.type === 'checkbox') {
+                    this.updateSetting('achievementsEnabled', target.checked);
+                } else if (target.id === 'reminderFrequency' && target.tagName === 'SELECT') {
+                    this.updateSetting('reminderFrequency', target.value);
+                }
+            });
+        }
     }
     
     /**
@@ -694,6 +712,10 @@ class SettingsPage {
                 case 'remindersEnabled':
                     if (!this.settings.reminders) this.settings.reminders = {};
                     this.settings.reminders.enabled = value;
+                    // Ensure frequency has a safe default if enabled and missing
+                    if (value && !this.settings.reminders.frequency) {
+                        this.settings.reminders.frequency = 'standard';
+                    }
                     break;
                 case 'reminderFrequency':
                     if (!this.settings.reminders) this.settings.reminders = {};
@@ -1115,10 +1137,20 @@ class SettingsPage {
      */
     onShow() {
         console.log('⚙️ SettingsPage: onShow');
+        
+        // Close any visible menu overlay to avoid click interception
+        const menuOverlay = document.querySelector('.menu-overlay.show');
+        if (menuOverlay) {
+            menuOverlay.classList.remove('show');
+        }
+        
         // Refresh settings if needed
         if (Object.keys(this.settings).length === 0) {
             this.loadSettings();
         }
+        
+        // Always attach event listeners after render
+        this.attachEventListeners();
     }
     
     /**
