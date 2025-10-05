@@ -984,7 +984,7 @@ class DiaryPage {
         
         this.analysisTimer = setTimeout(() => {
             this.resetAnalysisToDefault();
-        }, 20000); // 20 seconds
+        }, 120000); // 120 seconds
     }
     
     /**
