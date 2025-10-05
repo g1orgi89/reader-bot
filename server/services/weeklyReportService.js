@@ -117,7 +117,9 @@ class WeeklyReportService {
    * @param {string} previousReport - Текст прошлого отчета для сравнения (по умолчанию пустая строка)
    * @returns {Promise<WeeklyAnalysis>} Анализ недели
    */
-  const analysisPrompt = `
+  async analyzeWeeklyQuotes(quotes, userProfile, previousReport = '') {
+    const quotesText = quotes.map(q => `"${q.text}" ${q.author ? `(${q.author})` : ''}`).join('\n\n');
+    const analysisPrompt = `
   Ты — литературный психолог, делаешь подробный еженедельный анализ для женщины 30–45 лет (часто мама), ищущей баланс и поддержку.
   
   Проанализируй все цитаты недели и верни ТОЛЬКО сырой JSON-объект строго по формату:
