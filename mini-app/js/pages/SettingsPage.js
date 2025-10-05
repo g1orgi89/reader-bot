@@ -526,23 +526,6 @@ class SettingsPage {
             // Get userId
             const userId = this.getUserId();
 
-            // Сжимаем если >1.5MB
-            let fileToUpload = file;
-            const compressionThreshold = 1.5 * 1024 * 1024;
-
-            if (file.size > compressionThreshold) {
-                console.log(`🔄 Исходный размер: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
-                const compressed = await this.compressImage(file);
-                console.log(`✅ После сжатия: ${(compressed.size / 1024 / 1024).toFixed(2)} MB`);
-                // Используем меньший файл
-                if (compressed.size < file.size) {
-                    fileToUpload = compressed;
-                } else {
-                    console.log('Сжатие не помогло — используем оригинал');
-                    fileToUpload = file;
-                }
-            }
-
             // Проверяем итоговый размер
             if (fileToUpload.size > maxSize) {
                 this.showError('Файл слишком большой для загрузки (макс. 5MB). Попробуйте выбрать другое фото или уменьшить разрешение.');
@@ -583,68 +566,7 @@ class SettingsPage {
         }
     }
     
-    /**
-     * 🗜️ PATCH: Compress image using canvas (resize to max 1024px, WebP quality ~0.82)
-     */
-    async compressImage(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                const img = new Image();
-                
-                img.onload = () => {
-                    // Create canvas
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    // Calculate new dimensions (max 1024px)
-                    const maxSize = 1024;
-                    let width = img.width;
-                    let height = img.height;
-                    
-                    if (width > height && width > maxSize) {
-                        height = Math.round((height * maxSize) / width);
-                        width = maxSize;
-                    } else if (height > maxSize) {
-                        width = Math.round((width * maxSize) / height);
-                        height = maxSize;
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    
-                    // Draw image
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // Convert to blob (WebP, quality 0.82)
-                    canvas.toBlob(
-                        (blob) => {
-                            if (blob) {
-                                // Create a new File object
-                                const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), {
-                                    type: 'image/webp',
-                                    lastModified: Date.now()
-                                });
-                                resolve(compressedFile);
-                            } else {
-                                reject(new Error('Failed to compress image'));
-                            }
-                        },
-                        'image/webp',
-                        0.82
-                    );
-                };
-                
-                img.onerror = () => reject(new Error('Failed to load image'));
-                img.src = e.target.result;
-            };
-            
-            reader.onerror = () => reject(new Error('Failed to read file'));
-            reader.readAsDataURL(file);
-        });
-    }
-    
+  
     /**
      * 📧 Обработчик сохранения email
      */
