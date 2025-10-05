@@ -57,12 +57,14 @@ class ApiService {
      * @param {Object} [options]
      * @param {string} [options.period] - напр. "7d"
      * @param {number} [options.limit] - количество книг
+     * @param {string} [options.scope] - напр. "week" для недельных топов
      * @returns {Promise<any>}
      */
     async getTopBooks(options = {}) {
         const params = new URLSearchParams();
         if (options.period) params.append('period', options.period);
         if (options.limit) params.append('limit', options.limit);
+        if (options.scope) params.append('scope', options.scope);
 
         const queryString = params.toString();
         const endpoint = queryString ? `/top-books?${queryString}` : '/top-books';
