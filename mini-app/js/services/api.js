@@ -145,7 +145,14 @@ class ApiService {
             return 'demo-user';
         }
     }
-
+    
+    // --------- NEW: жёсткая санитизация для значений HTTP-заголовков ----------
+    sanitizeHeaderValue(str) {
+        if (!str) return '';
+        // удаляем любые управляющие символы (0x00-0x1F и 0x7F), в т.ч. скрытые переносы строк
+        return String(str).replace(/[\u0000-\u001F\u007F]/g, '').trim();
+    }
+    
     /**
      * 📱 Разрешает Telegram initData для аутентификации
      * ОБНОВЛЕНО: Добавлена санитизация для безопасной передачи в HTTP заголовках
@@ -187,6 +194,48 @@ class ApiService {
         }
     }
 
+    // --------- NEW: RAW initData без encodeURIComponent для безопасной вставки в заголовки ----------
+    resolveTelegramInitDataRaw() {
+        try {
+            if (typeof window === 'undefined') return null;
+            let raw = null;
+            if (window.Telegram?.WebApp?.initData) raw = window.Telegram.WebApp.initData;
+            if (!raw && typeof localStorage !== 'undefined') {
+                const stored = localStorage.getItem('reader-telegram-initdata');
+                if (stored) raw = stored;
+            }
+            if (!raw) return null;
+            // удаляем все управляющие символы, в т.ч. любые скрытые переносы
+            return this.sanitizeHeaderValue(raw);
+        } catch (e) {
+            console.warn('⚠️ ApiService: Ошибка получения RAW initData:', e);
+            return null;
+        }
+    }
+
+    getHeaders(endpoint = '') {
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        const userId = this.resolveUserId();
+        const initData = this.resolveTelegramInitData();
+
+        let finalUserId = userId;
+        if (endpoint) {
+            const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
+            const endpointUserId = urlParams.get('userId');
+            if (endpointUserId) finalUserId = endpointUserId;
+        }
+
+        if (finalUserId) headers['X-User-Id'] = finalUserId;
+        if (initData) {
+            headers['Authorization'] = `tma ${initData}`;
+            headers['X-Telegram-Init-Data'] = initData;
+        }
+        return headers;
+    }
+    
     /**
      * 📡 Универсальный HTTP клиент с обработкой ошибок
      * ИСПРАВЛЕНО: Убраны все debug заглушки - только реальный API
