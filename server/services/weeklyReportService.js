@@ -173,7 +173,7 @@ ${previousReport ? `ПРОШЛЫЙ ОТЧЁТ:\n${previousReport}` : ""}
         });
         const aiText = response.choices[0].message.content;
         const analysis = this._parseAIResponse(aiText);
-        if (!analysis.summary || !analysis.insights) {
+        if (!analysis.insights) {
           logger.warn(`📖 Invalid analysis (OpenAI), using fallback for user ${userProfile.userId}`);
           return this.getFallbackAnalysis(quotes, userProfile);
         }
@@ -183,7 +183,6 @@ ${previousReport ? `ПРОШЛЫЙ ОТЧЁТ:\n${previousReport}` : ""}
         const normalizedDominantThemes = normalizeThemes(analysis.dominantThemes || []);
         
         return {
-          summary: analysis.summary,
           dominantThemes: normalizedDominantThemes,
           emotionalTone: analysis.emotionalTone || 'размышляющий',
           insights: analysis.insights,
@@ -201,7 +200,7 @@ ${previousReport ? `ПРОШЛЫЙ ОТЧЁТ:\n${previousReport}` : ""}
           }]
         });
         const analysis = this._parseAIResponse(response.content[0].text);
-        if (!analysis.summary || !analysis.insights) {
+        if (!analysis.insights) {
           logger.warn(`📖 Invalid analysis (Claude), using fallback for user ${userProfile.userId}`);
           return this.getFallbackAnalysis(quotes, userProfile);
         }
@@ -211,7 +210,6 @@ ${previousReport ? `ПРОШЛЫЙ ОТЧЁТ:\n${previousReport}` : ""}
         const normalizedDominantThemes = normalizeThemes(analysis.dominantThemes || []);
         
         return {
-          summary: analysis.summary,
           dominantThemes: normalizedDominantThemes,
           emotionalTone: analysis.emotionalTone || 'размышляющий',
           insights: analysis.insights,
@@ -532,7 +530,6 @@ ${previousReport ? `ПРОШЛЫЙ ОТЧЁТ:\n${previousReport}` : ""}
           
           if (previousReport && previousReport.analysis) {
             // Собираем текст прошлого анализа
-            const summary = previousReport.analysis.summary || '';
             const insights = previousReport.analysis.insights || '';
             previousReportText = `${summary}\n\n${insights}`.trim();
             logger.info(`📖 Found previous report for user ${userId}, week ${prevWeek}/${prevYear}`);
