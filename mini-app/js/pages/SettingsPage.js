@@ -245,8 +245,6 @@ class SettingsPage {
         const settings = this.settings;
         const reminders = settings.reminders || {};
         const achievements = settings.achievements || {};
-        const weeklyReports = settings.weeklyReports || {};
-        const announcements = settings.announcements || {};
 
         return `
             <div class="settings-section">
@@ -283,28 +281,6 @@ class SettingsPage {
                     </div>
                     <div class="form-toggle">
                         <input type="checkbox" id="achievementsEnabled" ${achievements.enabled !== false ? 'checked' : ''}>
-                        <div class="toggle-switch"></div>
-                    </div>
-                </div>
-                
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <h4>Еженедельные отчёты</h4>
-                        <p>Получать уведомления о готовых отчётах</p>
-                    </div>
-                    <div class="form-toggle">
-                        <input type="checkbox" id="weeklyReportsEnabled" ${weeklyReports.enabled !== false ? 'checked' : ''}>
-                        <div class="toggle-switch"></div>
-                    </div>
-                </div>
-                
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <h4>Анонсы</h4>
-                        <p>Получать уведомления о новых возможностях</p>
-                    </div>
-                    <div class="form-toggle">
-                        <input type="checkbox" id="announcementsEnabled" ${announcements.enabled !== false ? 'checked' : ''}>
                         <div class="toggle-switch"></div>
                     </div>
                 </div>
@@ -809,14 +785,6 @@ class SettingsPage {
                     if (!this.settings.achievements) this.settings.achievements = {};
                     this.settings.achievements.enabled = value;
                     break;
-                case 'weeklyReportsEnabled':
-                    if (!this.settings.weeklyReports) this.settings.weeklyReports = {};
-                    this.settings.weeklyReports.enabled = value;
-                    break;
-                case 'announcementsEnabled':
-                    if (!this.settings.announcements) this.settings.announcements = {};
-                    this.settings.announcements.enabled = value;
-                    break;
                 default:
                     // Handle legacy or other settings
                     this.settings[key] = value;
@@ -966,8 +934,6 @@ class SettingsPage {
             'remindersEnabled': this.settings.reminders?.enabled,
             'reminderFrequency': this.settings.reminders?.frequency,
             'achievementsEnabled': this.settings.achievements?.enabled,
-            'weeklyReportsEnabled': this.settings.weeklyReports?.enabled,
-            'announcementsEnabled': this.settings.announcements?.enabled,
             'theme': this.settings.theme,
             'fontSize': this.settings.fontSize,
             'animations': this.settings.animations,
@@ -1125,12 +1091,6 @@ class SettingsPage {
             achievements: {
                 enabled: true
             },
-            weeklyReports: {
-                enabled: true
-            },
-            announcements: {
-                enabled: true
-            },
             theme: 'auto',
             fontSize: 'medium',
             animations: true,
@@ -1153,14 +1113,9 @@ class SettingsPage {
         if (settings.notifications) {
             if (!adapted.reminders) adapted.reminders = {};
             if (!adapted.achievements) adapted.achievements = {};
-            if (!adapted.weeklyReports) adapted.weeklyReports = {};
-            if (!adapted.announcements) adapted.announcements = {};
             
             if (settings.notifications.daily !== undefined) {
                 adapted.reminders.enabled = settings.notifications.daily;
-            }
-            if (settings.notifications.weekly !== undefined) {
-                adapted.weeklyReports.enabled = settings.notifications.weekly;
             }
             if (settings.notifications.achievements !== undefined) {
                 adapted.achievements.enabled = settings.notifications.achievements;
@@ -1188,12 +1143,6 @@ class SettingsPage {
         if (!adapted.achievements) adapted.achievements = { enabled: true };
         if (adapted.achievements.enabled === undefined) adapted.achievements.enabled = true;
         
-        if (!adapted.weeklyReports) adapted.weeklyReports = { enabled: true };
-        if (adapted.weeklyReports.enabled === undefined) adapted.weeklyReports.enabled = true;
-        
-        if (!adapted.announcements) adapted.announcements = { enabled: true };
-        if (adapted.announcements.enabled === undefined) adapted.announcements.enabled = true;
-        
         return adapted;
     }
     
@@ -1210,12 +1159,6 @@ class SettingsPage {
             },
             achievements: {
                 enabled: settings.achievements?.enabled ?? true
-            },
-            weeklyReports: {
-                enabled: settings.weeklyReports?.enabled ?? true
-            },
-            announcements: {
-                enabled: settings.announcements?.enabled ?? true
             },
             theme: settings.theme,
             fontSize: settings.fontSize,

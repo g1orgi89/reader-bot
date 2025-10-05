@@ -150,7 +150,7 @@ class SettingsModal {
      * 🔔 Рендер группы настроек уведомлений
      */
     renderNotificationsGroup() {
-        const { reminders, achievements, weeklyReports, announcements } = this.settings;
+        const { reminders, achievements } = this.settings;
         
         return `
             <div class="settings-group">
@@ -172,20 +172,6 @@ class SettingsModal {
                 
                 <div class="settings-item">
                     <div class="settings-item-info">
-                        <span class="settings-icon">📊</span>
-                        <div class="settings-text">
-                            <div class="settings-label">Еженедельные отчеты</div>
-                            <div class="settings-description">Получать анализ от Анны</div>
-                        </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="weeklyReports" ${weeklyReports?.enabled ? 'checked' : ''}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                
-                <div class="settings-item">
-                    <div class="settings-item-info">
                         <span class="settings-icon">🏆</span>
                         <div class="settings-text">
                             <div class="settings-label">Достижения</div>
@@ -194,20 +180,6 @@ class SettingsModal {
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="achievements" ${achievements?.enabled ? 'checked' : ''}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                
-                <div class="settings-item">
-                    <div class="settings-item-info">
-                        <span class="settings-icon">📢</span>
-                        <div class="settings-text">
-                            <div class="settings-label">Анонсы</div>
-                            <div class="settings-description">Уведомления об обновлениях</div>
-                        </div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="announcements" ${announcements?.enabled ? 'checked' : ''}>
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -466,9 +438,7 @@ class SettingsModal {
     attachToggleListeners() {
         const toggles = [
             { id: 'dailyReminders', setting: 'reminders.enabled' },
-            { id: 'weeklyReports', setting: 'weeklyReports.enabled' },
             { id: 'achievements', setting: 'achievements.enabled' },
-            { id: 'announcements', setting: 'announcements.enabled' },
             { id: 'darkTheme', setting: 'theme', handler: this.handleThemeToggle.bind(this) },
             { id: 'compactMode', setting: 'compactMode' }
         ];
@@ -1218,12 +1188,6 @@ class SettingsModal {
             achievements: {
                 enabled: true
             },
-            weeklyReports: {
-                enabled: true
-            },
-            announcements: {
-                enabled: true
-            },
             theme: 'light',
             fontSize: 'medium',
             compactMode: false,
@@ -1247,20 +1211,12 @@ class SettingsModal {
         if (settings.notifications) {
             if (!adapted.reminders) adapted.reminders = {};
             if (!adapted.achievements) adapted.achievements = {};
-            if (!adapted.weeklyReports) adapted.weeklyReports = {};
-            if (!adapted.announcements) adapted.announcements = {};
             
             if (settings.notifications.daily !== undefined) {
                 adapted.reminders.enabled = settings.notifications.daily;
             }
-            if (settings.notifications.weekly !== undefined) {
-                adapted.weeklyReports.enabled = settings.notifications.weekly;
-            }
             if (settings.notifications.achievements !== undefined) {
                 adapted.achievements.enabled = settings.notifications.achievements;
-            }
-            if (settings.notifications.announcements !== undefined) {
-                adapted.announcements.enabled = settings.notifications.announcements;
             }
         }
         
@@ -1274,12 +1230,6 @@ class SettingsModal {
         
         if (!adapted.achievements) adapted.achievements = { enabled: true };
         if (adapted.achievements.enabled === undefined) adapted.achievements.enabled = true;
-        
-        if (!adapted.weeklyReports) adapted.weeklyReports = { enabled: true };
-        if (adapted.weeklyReports.enabled === undefined) adapted.weeklyReports.enabled = true;
-        
-        if (!adapted.announcements) adapted.announcements = { enabled: true };
-        if (adapted.announcements.enabled === undefined) adapted.announcements.enabled = true;
         
         return adapted;
     }
@@ -1297,12 +1247,6 @@ class SettingsModal {
             },
             achievements: {
                 enabled: settings.achievements?.enabled ?? true
-            },
-            weeklyReports: {
-                enabled: settings.weeklyReports?.enabled ?? true
-            },
-            announcements: {
-                enabled: settings.announcements?.enabled ?? true
             },
             theme: settings.theme,
             fontSize: settings.fontSize,

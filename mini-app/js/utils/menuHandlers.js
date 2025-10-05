@@ -377,10 +377,10 @@ class MenuHandler {
                 
                 <div class="settings-item">
                     <div class="settings-item-info">
-                        <span class="settings-text">Еженедельные отчеты</span>
+                        <span class="settings-text">Достижения</span>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" checked onchange="menuHandler.toggleNotifications('weekly', this.checked)">
+                        <input type="checkbox" checked onchange="menuHandler.toggleNotifications('achievements', this.checked)">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -552,14 +552,8 @@ class MenuHandler {
                 settingsUpdate.reminders.enabled = enabled;
                 if (!settingsUpdate.reminders.frequency) settingsUpdate.reminders.frequency = 'often';
                 break;
-            case 'weekly':
-                settingsUpdate.weeklyReports = { enabled };
-                break;
             case 'achievements':
                 settingsUpdate.achievements = { enabled };
-                break;
-            case 'announcements':
-                settingsUpdate.announcements = { enabled };
                 break;
             default:
                 console.warn(`⚠️ Unknown notification type: ${type}`);
