@@ -137,11 +137,11 @@ class SettingsPage {
             <div class="content settings-page" id="settingsPageRoot">
                 ${this.renderHeader()}
                 ${this.renderProfileSection(profile, stats, telegramData)}
-                ${this.settingsFeatureFlags.notifications ? this.renderNotificationSettings() : ''}
                 ${this.settingsFeatureFlags.personalization ? this.renderPersonalizationSettings() : ''}
                 ${this.settingsFeatureFlags.privacy ? this.renderPrivacySettings() : ''}
                 ${this.renderDataSettings()}
-                ${this.renderError()}
+                ${this.renderError()
+                // ${this.settingsFeatureFlags.notifications ? this.renderNotificationSettings() : ''}
             </div>
         `;
     }
@@ -245,7 +245,7 @@ class SettingsPage {
     /**
      * 🔔 Рендер настроек уведомлений
      */
-    //renderNotificationSettings() {
+    renderNotificationSettings() {
         const settings = this.settings;
         const reminders = settings.reminders || {};
         const achievements = settings.achievements || {};
