@@ -444,18 +444,6 @@ class SettingsPage {
             });
         }
         
-        // Toggle switches
-        const toggles = document.querySelectorAll('.form-toggle input[type="checkbox"]');
-        toggles.forEach(toggle => {
-            toggle.addEventListener('change', (e) => this.handleToggleChange(e));
-        });
-        
-        // Select dropdowns
-        const selects = document.querySelectorAll('.form-select');
-        selects.forEach(select => {
-            select.addEventListener('change', (e) => this.handleSelectChange(e));
-        });
-        
         // Action buttons (guard with feature flags)
         if (this.settingsFeatureFlags.dataExport) {
             const exportBtn = document.getElementById('exportDataBtn');
@@ -483,13 +471,20 @@ class SettingsPage {
             this.delegatedChangeHandler = (e) => {
                 const target = e.target;
                 
-                // Handle settings checkboxes
-                if (target.id === 'remindersEnabled' && target.type === 'checkbox') {
-                    this.updateSetting('remindersEnabled', target.checked);
-                } else if (target.id === 'achievementsEnabled' && target.type === 'checkbox') {
-                    this.updateSetting('achievementsEnabled', target.checked);
-                } else if (target.id === 'reminderFrequency' && target.tagName === 'SELECT') {
-                    this.updateSetting('reminderFrequency', target.value);
+                // Haptic feedback for all interactions
+                if (this.telegram?.hapticFeedback) {
+                    this.telegram.hapticFeedback('light');
+                }
+                
+                // Handle all checkboxes in settings sections
+                if (target.type === 'checkbox' && target.closest('.settings-section')) {
+                    const settingKey = target.id;
+                    this.updateSetting(settingKey, target.checked);
+                }
+                // Handle all select dropdowns in settings sections
+                else if (target.tagName === 'SELECT' && target.closest('.settings-section')) {
+                    const settingKey = target.id;
+                    this.updateSetting(settingKey, target.value);
                 }
             };
             
@@ -676,38 +671,18 @@ class SettingsPage {
         }
     }
     
-    /**
-     * 🔄 Обработчик изменения переключателей
-     */
-    handleToggleChange(event) {
-        const { id, checked } = event.target;
-        
-        // Haptic feedback
-        if (this.telegram?.hapticFeedback) {
-            this.telegram.hapticFeedback('light');
-        }
-        
-        this.updateSetting(id, checked);
-    }
-    
-    /**
-     * 📝 Обработчик изменения выпадающих списков
-     */
-    handleSelectChange(event) {
-        const { id, value } = event.target;
-        
-        // Haptic feedback
-        if (this.telegram?.hapticFeedback) {
-            this.telegram.hapticFeedback('light');
-        }
-        
-        this.updateSetting(id, value);
-    }
+
     
     /**
      * 💾 Обновление настройки
      */
     async updateSetting(key, value) {
+        // Prevent concurrent updates
+        if (this.saving) {
+            console.log('⏳ Saving already in progress, skipping update');
+            return;
+        }
+        
         // Create deep clone for rollback
         const previousSettings = JSON.parse(JSON.stringify(this.settings));
         
@@ -733,8 +708,16 @@ class SettingsPage {
                     if (!this.settings.achievements) this.settings.achievements = {};
                     this.settings.achievements.enabled = value;
                     break;
+                case 'theme':
+                case 'fontSize':
+                case 'animations':
+                case 'analytics':
+                case 'publicProfile':
+                    // Handle flat settings
+                    this.settings[key] = value;
+                    break;
                 default:
-                    // Handle legacy or other settings
+                    console.warn(`⚠️ Unknown setting key: ${key}`);
                     this.settings[key] = value;
                     break;
             }
@@ -742,10 +725,10 @@ class SettingsPage {
             // Update local state
             this.state.set('settings', this.settings);
             
-            // Save to server if possible
+            // Save to server (PATCH)
             await this.saveSettings();
             
-            // Update UI to reflect changes
+            // Update UI to reflect changes after successful save
             this.updateSettingsUI();
             
         } catch (error) {
