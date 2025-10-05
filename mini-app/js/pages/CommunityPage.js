@@ -219,6 +219,7 @@ class CommunityPage {
     /**
      * 🔥 ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ СООБЩЕСТВА (ОБНОВЛЕНО)
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * ОБНОВЛЕНО: Добавлена нормализация owner для правильной атрибуции
      * @param {number} limit - number of quotes to load
      */
     async loadPopularQuotes(limit = 10) {
@@ -231,7 +232,9 @@ class CommunityPage {
             
             const response = await this.api.getCommunityPopularQuotes({ limit });
             if (response && response.success) {
-                this.popularQuotes = response.data || response.quotes || [];
+                // Normalize owner field for each quote
+                const rawQuotes = response.data || response.quotes || [];
+                this.popularQuotes = rawQuotes.map(q => this._normalizeOwner(q));
                 console.log('✅ CommunityPage: Популярные цитаты загружены:', this.popularQuotes.length);
             } else {
                 this.popularQuotes = [];
@@ -248,6 +251,7 @@ class CommunityPage {
     /**
      * ❤️ ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (ТОЛЬКО ТЕКУЩАЯ НЕДЕЛЯ)
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * ОБНОВЛЕНО: Добавлена нормализация owner для правильной атрибуции
      * @param {number} limit - number of quotes to load
      */
     async loadPopularFavorites(limit = 10) {
@@ -261,7 +265,8 @@ class CommunityPage {
             // Загружаем избранные только за текущую неделю - без fallback
             const response = await this.api.getCommunityPopularFavorites({ limit });
             if (response && response.success && response.data) {
-                this.popularFavorites = response.data;
+                // Normalize owner field for each quote
+                this.popularFavorites = response.data.map(q => this._normalizeOwner(q));
                 console.log('✅ CommunityPage: Популярные избранные цитаты загружены:', this.popularFavorites.length);
             } else {
                 this.popularFavorites = [];
@@ -519,57 +524,277 @@ class CommunityPage {
     }
 
     /**
-     * Построение микса spotlight: 1 свежая + 2 недавние избранные
-     * ОБНОВЛЕНО: Убрано fallback загрязнение - только свежие данные
+     * 📊 EXPOSURE TRACKING HELPERS (for anti-repeat logic)
+     */
+    
+    /**
+     * Get exposure store from localStorage
+     * @returns {{byQuote: Object, byOwner: Object}} exposure store
+     */
+    _getExposureStore() {
+        try {
+            const stored = localStorage.getItem('spotlight_exposure_v1');
+            if (stored) {
+                return JSON.parse(stored);
+            }
+        } catch (e) {
+            console.warn('Failed to parse exposure store:', e);
+        }
+        return { byQuote: {}, byOwner: {} };
+    }
+
+    /**
+     * Save exposure store to localStorage
+     * @param {{byQuote: Object, byOwner: Object}} store - exposure store
+     */
+    _saveExposureStore(store) {
+        try {
+            localStorage.setItem('spotlight_exposure_v1', JSON.stringify(store));
+        } catch (e) {
+            console.warn('Failed to save exposure store:', e);
+        }
+    }
+
+    /**
+     * Mark a quote as shown in the exposure store
+     * @param {string} quoteId - quote ID or text+author key
+     * @param {string} ownerId - owner ID
+     */
+    _markShown(quoteId, ownerId) {
+        const store = this._getExposureStore();
+        const now = Date.now();
+        
+        // Track by quote
+        if (!store.byQuote[quoteId]) {
+            store.byQuote[quoteId] = { lastShownAt: now, impressions: 0 };
+        }
+        store.byQuote[quoteId].lastShownAt = now;
+        store.byQuote[quoteId].impressions++;
+        
+        // Track by owner
+        if (ownerId) {
+            if (!store.byOwner[ownerId]) {
+                store.byOwner[ownerId] = { lastShownAt: now, impressions: 0 };
+            }
+            store.byOwner[ownerId].lastShownAt = now;
+            store.byOwner[ownerId].impressions++;
+        }
+        
+        this._saveExposureStore(store);
+    }
+
+    /**
+     * Check if quote was shown recently (within 24 hours)
+     * @param {string} quoteId - quote ID or text+author key
+     * @returns {boolean} true if shown within last 24h
+     */
+    _wasShownRecently(quoteId) {
+        const store = this._getExposureStore();
+        const exposure = store.byQuote[quoteId];
+        if (!exposure) return false;
+        
+        const now = Date.now();
+        const hoursSinceShown = (now - exposure.lastShownAt) / (1000 * 60 * 60);
+        return hoursSinceShown < 24;
+    }
+
+    /**
+     * Get owner ID from a quote object
+     * @param {Object} quote - quote object
+     * @returns {string|null} owner ID
+     */
+    _getOwnerId(quote) {
+        if (!quote) return null;
+        const owner = quote.owner || quote.creator || quote.addedBy || quote.user;
+        return owner?.id || owner?._id || owner?.userId || null;
+    }
+
+    /**
+     * Get owner impressions count
+     * @param {string} ownerId - owner ID
+     * @returns {number} number of impressions
+     */
+    _getOwnerImpressions(ownerId) {
+        if (!ownerId) return 0;
+        const store = this._getExposureStore();
+        return store.byOwner[ownerId]?.impressions || 0;
+    }
+
+    /**
+     * Normalize owner field in a quote object
+     * @param {Object} quote - quote object
+     * @returns {Object} quote with normalized owner field
+     */
+    _normalizeOwner(quote) {
+        if (!quote) return quote;
+        const owner = quote.owner || quote.creator || quote.addedBy || quote.user;
+        return { ...quote, owner };
+    }
+
+    /**
+     * Построение микса spotlight: 1 свежая + 2 недавние избранные с round-robin ротацией
+     * ОБНОВЛЕНО: Реализована логика ротации, anti-repeat и fairness constraint
      */
     async buildSpotlightMix() {
         const items = [];
         
-        // 1. Добавляем 1 свежую цитату
+        // 1. Slot #1: Добавляем 1 самую свежую цитату (latest by createdAt)
         if (this.latestQuotes && this.latestQuotes.length > 0) {
             const fresh = this.latestQuotes[0];
+            const normalizedFresh = this._normalizeOwner(fresh);
             items.push({
                 kind: 'fresh',
-                id: fresh.id || fresh._id,
-                text: fresh.text,
-                author: fresh.author,
-                createdAt: fresh.createdAt,
-                favorites: typeof fresh.favorites === 'number' ? fresh.favorites : 0,
-                user: fresh.user || null
+                id: normalizedFresh.id || normalizedFresh._id,
+                text: normalizedFresh.text,
+                author: normalizedFresh.author,
+                createdAt: normalizedFresh.createdAt,
+                favorites: typeof normalizedFresh.favorites === 'number' ? normalizedFresh.favorites : 0,
+                owner: normalizedFresh.owner,
+                user: normalizedFresh.user || normalizedFresh.owner || null
             });
         }
         
-        // 2. Добавляем до 2 недавних избранных БЕЗ fallback логики
+        // 2. Slots #2-3: Добавляем до 2 недавних избранных с round-robin ротацией
         try {
-            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 2 });
+            // Fetch recent favorites from last 48 hours
+            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 100 });
+            let recentFavorites = [];
+            
             if (recentResponse && recentResponse.success && recentResponse.data && recentResponse.data.length > 0) {
-                const recentFavorites = recentResponse.data;
-                
-                // Берем первые 2 из недавних избранных (исключая дубликат свежей цитаты)
-                let addedFavorites = 0;
-                for (const fav of recentFavorites) {
-                    if (addedFavorites >= 2) break;
-                    
-                    // Проверяем, не дублируется ли с fresh цитатой
-                    const isDuplicate = items.some(item => 
-                        item.text === fav.text && item.author === fav.author
-                    );
-                    
-                    if (!isDuplicate) {
-                        items.push({
-                            kind: 'fav',
-                            id: fav.id || fav._id,
-                            text: fav.text,
-                            author: fav.author,
-                            favorites: typeof fav.favorites === 'number' ? fav.favorites : 0,
-                            user: fav.user || null
-                        });
-                        addedFavorites++;
+                recentFavorites = recentResponse.data.map(f => this._normalizeOwner(f));
+            }
+            
+            // Fallback to weekly popular favorites if not enough in 48h window
+            if (recentFavorites.length < 2) {
+                console.log('⚠️ Spotlight: Недостаточно избранных за 48ч, используем fallback к weekly popular');
+                const weeklyResponse = await this.api.getCommunityPopularFavorites({ scope: 'week', limit: 100 });
+                if (weeklyResponse && weeklyResponse.success && weeklyResponse.data) {
+                    const weeklyFavorites = weeklyResponse.data.map(f => this._normalizeOwner(f));
+                    // Merge recent + weekly, prioritizing recent
+                    const existingIds = new Set(recentFavorites.map(f => f.id || f._id));
+                    const additionalFavorites = weeklyFavorites.filter(f => !existingIds.has(f.id || f._id));
+                    recentFavorites = [...recentFavorites, ...additionalFavorites];
+                }
+            }
+            
+            if (recentFavorites.length > 0) {
+                // Get round-robin cursor from localStorage
+                let cursor = 0;
+                try {
+                    const storedCursor = localStorage.getItem('spotlight_rr_cursor_v1');
+                    if (storedCursor) {
+                        cursor = parseInt(storedCursor, 10) || 0;
                     }
+                } catch (e) {
+                    console.warn('Failed to read RR cursor:', e);
+                }
+                
+                // Filter out duplicates with fresh quote and recently shown quotes
+                const freshQuoteKey = items[0] ? `${items[0].text}_${items[0].author}` : null;
+                const candidatePool = recentFavorites.filter(fav => {
+                    const quoteKey = `${fav.text}_${fav.author}`;
+                    // Exclude duplicate with fresh quote
+                    if (freshQuoteKey && quoteKey === freshQuoteKey) return false;
+                    // Exclude if shown in last 24h
+                    if (this._wasShownRecently(quoteKey)) return false;
+                    return true;
+                });
+                
+                if (candidatePool.length === 0) {
+                    console.log('⚠️ Spotlight: Все кандидаты были показаны недавно, используем весь пул');
+                    // Relaxed constraint: use all except fresh duplicate
+                    candidatePool.push(...recentFavorites.filter(fav => {
+                        const quoteKey = `${fav.text}_${fav.author}`;
+                        return freshQuoteKey !== quoteKey;
+                    }));
+                }
+                
+                // Round-robin selection for slots #2-3 with fairness constraint
+                const selectedFavs = [];
+                const usedOwnerIds = new Set();
+                
+                // Track fresh quote owner for fairness
+                if (items[0] && this._getOwnerId(items[0])) {
+                    usedOwnerIds.add(this._getOwnerId(items[0]));
+                }
+                
+                let attempts = 0;
+                const maxAttempts = candidatePool.length * 2; // Prevent infinite loop
+                
+                while (selectedFavs.length < 2 && attempts < maxAttempts) {
+                    // Normalize cursor if out of bounds
+                    if (cursor >= candidatePool.length) {
+                        cursor = 0;
+                    }
+                    
+                    const candidate = candidatePool[cursor];
+                    const candidateOwnerId = this._getOwnerId(candidate);
+                    
+                    // Fairness check: avoid two quotes from same owner in one set
+                    if (candidateOwnerId && usedOwnerIds.has(candidateOwnerId)) {
+                        // Skip this candidate, try next
+                        cursor++;
+                        attempts++;
+                        continue;
+                    }
+                    
+                    // Add candidate to selection
+                    selectedFavs.push(candidate);
+                    if (candidateOwnerId) {
+                        usedOwnerIds.add(candidateOwnerId);
+                    }
+                    
+                    cursor++;
+                    attempts++;
+                }
+                
+                // Fallback: if fairness constraint prevents filling slots, relax it
+                if (selectedFavs.length < 2 && candidatePool.length >= 2) {
+                    console.log('⚠️ Spotlight: Relaxing fairness constraint to fill slots');
+                    // Reset and pick without fairness constraint
+                    selectedFavs.length = 0;
+                    usedOwnerIds.clear();
+                    
+                    if (items[0] && this._getOwnerId(items[0])) {
+                        usedOwnerIds.add(this._getOwnerId(items[0]));
+                    }
+                    
+                    for (let i = 0; i < Math.min(2, candidatePool.length); i++) {
+                        const idx = (cursor + i) % candidatePool.length;
+                        selectedFavs.push(candidatePool[idx]);
+                    }
+                    cursor += selectedFavs.length;
+                }
+                
+                // Save updated cursor
+                try {
+                    localStorage.setItem('spotlight_rr_cursor_v1', cursor.toString());
+                } catch (e) {
+                    console.warn('Failed to save RR cursor:', e);
+                }
+                
+                // Add selected favorites to items
+                for (const fav of selectedFavs) {
+                    items.push({
+                        kind: 'fav',
+                        id: fav.id || fav._id,
+                        text: fav.text,
+                        author: fav.author,
+                        favorites: typeof fav.favorites === 'number' ? fav.favorites : 0,
+                        owner: fav.owner,
+                        user: fav.user || fav.owner || null
+                    });
+                }
+                
+                // Mark selected items as shown
+                for (const item of items) {
+                    const quoteKey = `${item.text}_${item.author}`;
+                    const ownerId = this._getOwnerId(item);
+                    this._markShown(quoteKey, ownerId);
                 }
             }
         } catch (error) {
-            console.log('⚠️ Spotlight: Недавние избранные недоступны, показываем только свежую цитату');
+            console.log('⚠️ Spotlight: Ошибка загрузки избранных:', error);
             // НЕ используем fallback - если нет недавних избранных, показываем меньше карточек
         }
         
@@ -637,10 +862,10 @@ class CommunityPage {
                 const badge = item.kind === 'fresh' ? 'Новое' : 'Избранное';
                 const badgeClass = item.kind === 'fresh' ? 'spotlight-card--fresh' : 'spotlight-card--fav';
                 
-                // Получаем пользователя из item.user (должно прийти от бэкенда)
-                const user = item.user;
-                const userAvatarHtml = this.getUserAvatarHtml(user);
-                const userName = user?.name || 'Пользователь';
+                // Получаем ВЛАДЕЛЬЦА (original uploader) - используем owner, не user
+                const owner = item.owner || item.user;
+                const userAvatarHtml = this.getUserAvatarHtml(owner);
+                const userName = owner?.name || 'Пользователь';
                 
                 // Лайки для футера
                 const likesCount = item.favorites || 0;
@@ -1139,8 +1364,14 @@ class CommunityPage {
 
         return `
             <div class="leaders-week-section">
-                <div class="leaders-week-title">🏆 Лидеры недели</div>
-                <div class="leaders-week-subtitle">Самые активные читатели сообщества</div>
+                <div class="spotlight-header">
+                    <div>
+                        <div class="leaders-week-title">🏆 Лидеры недели</div>
+                        <div class="leaders-week-subtitle">Самые активные читатели сообщества</div>
+                    </div>
+                    <button class="spotlight-refresh-btn" id="leaderboardRefreshBtn" 
+                            aria-label="Обновить лидерборд">↻</button>
+                </div>
                 <div class="leaderboard-list">
                     ${leaderboardItems}
                 </div>
@@ -1192,10 +1423,10 @@ class CommunityPage {
         const quotesCards = quotes.slice(0, 3).map((quote, _index) => {
             const favorites = quote.favorites || quote.count || 0;
             
-            // Получаем пользователя из quote.user (должно прийти от бэкенда)
-            const user = quote.user;
-            const userAvatarHtml = this.getUserAvatarHtml(user);
-            const userName = user?.name || 'Пользователь';
+            // Получаем ВЛАДЕЛЬЦА (original uploader) - используем owner, не user
+            const owner = quote.owner || quote.user;
+            const userAvatarHtml = this.getUserAvatarHtml(owner);
+            const userName = owner?.name || 'Пользователь';
             
             return `
                 <div class="quote-card popular-quote-card" data-quote-id="${quote.id || ''}">
@@ -1236,7 +1467,11 @@ class CommunityPage {
 
         return `
             <div class="popular-quotes-week-section">
-                <div class="popular-quotes-week-title">⭐ Популярные цитаты недели</div>
+                <div class="spotlight-header">
+                    <h3 class="popular-quotes-week-title">⭐ Популярные цитаты недели</h3>
+                    <button class="spotlight-refresh-btn" id="popularWeekRefreshBtn" 
+                            aria-label="Обновить популярные цитаты">↻</button>
+                </div>
                 <div class="popular-quotes-grid">
                     ${quotesCards}
                 </div>
@@ -1617,6 +1852,8 @@ renderAchievementsSection() {
         this.attachRetryButtons(); // ✅ НОВОЕ PR-3
         this.attachQuoteCardListeners(); // ✅ НОВОЕ: Обработчики для карточек цитат
         this.attachSpotlightRefreshButton(); // ✅ НОВОЕ: Кнопка обновления spotlight
+        this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели
+        this.attachLeaderboardRefreshButton(); // ✅ НОВОЕ: Кнопка обновления лидерборда
         this.setupQuoteChangeListeners();
     }
 
@@ -1731,6 +1968,80 @@ renderAchievementsSection() {
                     
                 } catch (error) {
                     console.error('❌ Ошибка обновления spotlight:', error);
+                    this.showNotification('Ошибка обновления', 'error');
+                } finally {
+                    // Восстанавливаем кнопку
+                    if (refreshBtn) {
+                        refreshBtn.innerHTML = '↻';
+                        refreshBtn.disabled = false;
+                        refreshBtn.style.animation = '';
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ПОПУЛЯРНЫХ ЦИТАТ НЕДЕЛИ
+     */
+    attachPopularWeekRefreshButton() {
+        const refreshBtn = document.getElementById('popularWeekRefreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async () => {
+                try {
+                    // Haptic feedback
+                    this.triggerHapticFeedback('medium');
+                    
+                    // Показываем loading состояние с анимацией
+                    refreshBtn.innerHTML = '⟳';
+                    refreshBtn.disabled = true;
+                    refreshBtn.style.animation = 'spin 1s linear infinite';
+                    
+                    // Перезагружаем популярные избранные
+                    await this.loadPopularFavorites(10);
+                    
+                    // Обновляем интерфейс
+                    this.rerender();
+                    
+                } catch (error) {
+                    console.error('❌ Ошибка обновления популярных цитат недели:', error);
+                    this.showNotification('Ошибка обновления', 'error');
+                } finally {
+                    // Восстанавливаем кнопку
+                    if (refreshBtn) {
+                        refreshBtn.innerHTML = '↻';
+                        refreshBtn.disabled = false;
+                        refreshBtn.style.animation = '';
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ЛИДЕРБОРДА
+     */
+    attachLeaderboardRefreshButton() {
+        const refreshBtn = document.getElementById('leaderboardRefreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async () => {
+                try {
+                    // Haptic feedback
+                    this.triggerHapticFeedback('medium');
+                    
+                    // Показываем loading состояние с анимацией
+                    refreshBtn.innerHTML = '⟳';
+                    refreshBtn.disabled = true;
+                    refreshBtn.style.animation = 'spin 1s linear infinite';
+                    
+                    // Перезагружаем лидерборд
+                    await this.loadLeaderboard(10);
+                    
+                    // Обновляем интерфейс
+                    this.rerender();
+                    
+                } catch (error) {
+                    console.error('❌ Ошибка обновления лидерборда:', error);
                     this.showNotification('Ошибка обновления', 'error');
                 } finally {
                     // Восстанавливаем кнопку
@@ -2254,6 +2565,17 @@ renderAchievementsSection() {
                             }
                         }
                         
+                        // Also update popularFavorites array to keep counts in sync
+                        if (this.popularFavorites && this.popularFavorites.length > 0) {
+                            const popularItem = this.popularFavorites.find(item => 
+                                item.text === quoteText && item.author === quoteAuthor
+                            );
+                            if (popularItem) {
+                                popularItem.favorites = (popularItem.favorites || 0) + 1;
+                                console.log('⭐ Updated popular favorites item count (existing quote):', popularItem.favorites);
+                            }
+                        }
+                        
                         // Диспатчим событие для статистики с полным объектом цитаты
                         const updatedQuote = updatedQuotes.find(q => q.id === existingQuote.id);
                         document.dispatchEvent(new CustomEvent('quotes:changed', { 
@@ -2330,6 +2652,17 @@ renderAchievementsSection() {
                     if (spotlightItem) {
                         spotlightItem.favorites = (spotlightItem.favorites || 0) + 1;
                         console.log('🌟 Updated spotlight cache item favorites:', spotlightItem.favorites);
+                    }
+                }
+                
+                // Also update popularFavorites array to keep counts in sync
+                if (this.popularFavorites && this.popularFavorites.length > 0) {
+                    const popularItem = this.popularFavorites.find(item => 
+                        item.text === quoteText && item.author === quoteAuthor
+                    );
+                    if (popularItem) {
+                        popularItem.favorites = (popularItem.favorites || 0) + 1;
+                        console.log('⭐ Updated popular favorites item count:', popularItem.favorites);
                     }
                 }
                 
