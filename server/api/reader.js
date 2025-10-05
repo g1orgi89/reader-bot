@@ -393,8 +393,6 @@ function normalizeSettings(user) {
     return {
       reminders: { enabled: true, frequency: 'often', lastSentAt: null },
       achievements: { enabled: true },
-      weeklyReports: { enabled: true },
-      announcements: { enabled: true },
       language: 'ru'
     };
   }
@@ -414,12 +412,6 @@ function normalizeSettings(user) {
     },
     achievements: {
       enabled: settings.achievements?.enabled ?? true
-    },
-    weeklyReports: {
-      enabled: settings.weeklyReports?.enabled ?? true
-    },
-    announcements: {
-      enabled: settings.announcements?.enabled ?? true
     },
     language: settings.language ?? 'ru'
   };
@@ -3923,23 +3915,13 @@ router.patch('/settings', telegramAuth, async (req, res) => {
         updatedSettings.reminderEnabled = settings.notifications.daily; // legacy sync
       }
       
-      // Map notifications.weekly → weeklyReports.enabled
-      if (typeof settings.notifications.weekly === 'boolean') {
-        if (!updatedSettings.weeklyReports) updatedSettings.weeklyReports = {};
-        updatedSettings.weeklyReports.enabled = settings.notifications.weekly;
-      }
-      
       // Map notifications.achievements → achievements.enabled
       if (typeof settings.notifications.achievements === 'boolean') {
         if (!updatedSettings.achievements) updatedSettings.achievements = {};
         updatedSettings.achievements.enabled = settings.notifications.achievements;
       }
       
-      // Map notifications.announcements → announcements.enabled
-      if (typeof settings.notifications.announcements === 'boolean') {
-        if (!updatedSettings.announcements) updatedSettings.announcements = {};
-        updatedSettings.announcements.enabled = settings.notifications.announcements;
-      }
+      // Ignore notifications.weekly and notifications.announcements (no longer supported)
     }
 
     // Update reminders settings (canonical)
@@ -3966,21 +3948,7 @@ router.patch('/settings', telegramAuth, async (req, res) => {
       updatedSettings.achievements.enabled = settings.achievements.enabled;
     }
 
-    // Update weekly reports settings
-    if (settings.weeklyReports && typeof settings.weeklyReports.enabled === 'boolean') {
-      if (!updatedSettings.weeklyReports) {
-        updatedSettings.weeklyReports = {};
-      }
-      updatedSettings.weeklyReports.enabled = settings.weeklyReports.enabled;
-    }
-
-    // Update announcements settings
-    if (settings.announcements && typeof settings.announcements.enabled === 'boolean') {
-      if (!updatedSettings.announcements) {
-        updatedSettings.announcements = {};
-      }
-      updatedSettings.announcements.enabled = settings.announcements.enabled;
-    }
+    // Ignore weeklyReports and announcements updates (no longer supported)
 
     // Update language if provided
     if (settings.language && ['ru', 'en'].includes(settings.language)) {
@@ -4001,12 +3969,6 @@ router.patch('/settings', telegramAuth, async (req, res) => {
     }
     if (updatedSettings.achievements?.enabled !== currentSettings.achievements?.enabled) {
       changes.achievementsEnabled = `${currentSettings.achievements?.enabled} → ${updatedSettings.achievements.enabled}`;
-    }
-    if (updatedSettings.weeklyReports?.enabled !== currentSettings.weeklyReports?.enabled) {
-      changes.weeklyReportsEnabled = `${currentSettings.weeklyReports?.enabled} → ${updatedSettings.weeklyReports.enabled}`;
-    }
-    if (updatedSettings.announcements?.enabled !== currentSettings.announcements?.enabled) {
-      changes.announcementsEnabled = `${currentSettings.announcements?.enabled} → ${updatedSettings.announcements.enabled}`;
     }
     
     if (Object.keys(changes).length > 0) {

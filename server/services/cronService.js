@@ -47,24 +47,7 @@ class CronService {
    * Запуск всех cron задач
    */
   start() {
-    // Check if we have either the new service or old handler
-    if (!this.weeklyReportService && !this.weeklyReportHandler) {
-      logger.error('📖 Cannot start CronService: neither WeeklyReportService nor weeklyReportHandler initialized');
-      return false;
-    }
-
     try {
-      // Еженедельные отчеты: каждый понедельник в 00:01 МСК
-      const weeklyReportsJob = cron.schedule('1 0 * * 0', async () => {
-        logger.info('📖 Starting weekly reports generation...');
-        await this.generateWeeklyReportsForAllUsers();
-      }, {
-        timezone: "Europe/Moscow",
-        scheduled: false
-      });
-
-      this.jobs.set('weekly_reports', weeklyReportsJob);
-
       // 🔔 NEW: Three slot-based reminder jobs with timezone Europe/Moscow
       if (this.reminderService) {
         // Morning reminders: 10:00 Moscow time
@@ -97,19 +80,6 @@ class CronService {
         this.jobs.set('morning_reminders', morningRemindersJob);
         this.jobs.set('day_reminders', dayRemindersJob);
         this.jobs.set('evening_reminders', eveningRemindersJob);
-      }
-
-      // 📖 НОВОЕ: Анонсы продуктов (25 числа каждого месяца в 12:00 МСК)
-      if (this.announcementService) {
-        const announcementsJob = cron.schedule('0 12 25 * *', async () => {
-          logger.info('📖 Starting monthly product announcements...');
-          await this.sendMonthlyAnnouncements();
-        }, {
-          timezone: "Europe/Moscow",
-          scheduled: false
-        });
-
-        this.jobs.set('monthly_announcements', announcementsJob);
       }
 
       // Месячные отчеты: 1 числа каждого месяца в 12:00 МСК
@@ -599,11 +569,9 @@ class CronService {
    */
   getSchedule() {
     return {
-      weekly_reports: 'Sundays at 12:00 MSK',
       morning_reminders: '10:00 MSK daily (frequency-based filtering)',
       day_reminders: '16:00 MSK daily (frequency-based filtering)',
       evening_reminders: '22:00 MSK daily (frequency-based filtering)',
-      monthly_announcements: '25th day of month at 12:00 MSK',
       monthly_reports: '1st day of month at 12:00 MSK',
       daily_cleanup: '3:00 MSK daily'
     };
@@ -614,7 +582,7 @@ class CronService {
    * @returns {boolean} Готовность к работе
    */
   isReady() {
-    return !!(this.weeklyReportService || this.weeklyReportHandler); // Check for either service
+    return !!this.reminderService; // Service is ready if reminderService is available
   }
 
   /**
@@ -623,27 +591,21 @@ class CronService {
    */
   getDiagnostics() {
     return {
-      initialized: !!(this.weeklyReportService || this.weeklyReportHandler),
-      hasWeeklyReportService: !!this.weeklyReportService, // NEW
-      hasWeeklyReportHandler: !!this.weeklyReportHandler, // LEGACY
+      initialized: !!this.reminderService,
       hasMonthlyReportService: !!this.monthlyReportService,
       hasReminderService: !!this.reminderService,
-      hasAnnouncementService: !!this.announcementService,
       hasBot: !!this.bot,
       jobsCount: this.jobs.size,
       activeJobs: Array.from(this.jobs.keys()),
       nextRuns: {
-        weekly_reports: this.getNextRunTime('weekly_reports'),
         morning_reminders: this.getNextRunTime('morning_reminders'),
         day_reminders: this.getNextRunTime('day_reminders'),
         evening_reminders: this.getNextRunTime('evening_reminders'),
-        monthly_announcements: this.getNextRunTime('monthly_announcements'),
         monthly_reports: this.getNextRunTime('monthly_reports'),
         daily_cleanup: this.getNextRunTime('daily_cleanup')
       },
       serviceStatuses: {
         reminderService: this.reminderService?.getDiagnostics() || { status: 'not_initialized' },
-        announcementService: this.announcementService?.isReady() || false,
         monthlyReportService: !!this.monthlyReportService
       },
       timezone: 'Europe/Moscow'
