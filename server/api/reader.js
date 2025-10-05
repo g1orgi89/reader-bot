@@ -3752,7 +3752,8 @@ router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res)
           const topSlug = topClickedBooks[0]._id;
           topBook = matchingBooks.find(b => b.bookSlug === topSlug);
           if (topBook) {
-            highlightBookId = topBook._id.toString();
+            // Use bookSlug when available, otherwise fallback to _id
+            highlightBookId = topBook.bookSlug || topBook._id.toString();
           }
         }
       }
@@ -3763,26 +3764,22 @@ router.get('/community/trend', telegramAuth, communityLimiter, async (_req, res)
       }
     }
 
-    // Build result with strict payload shape
-    let result;
+    // Build result with category-centric text always
+    const result = {
+      title: 'Тренд недели',
+      text: `Тема «${categoryKey}» набирает популярность`,
+      buttonText: 'Изучить разборы',
+      link: highlightBookId 
+        ? `/catalog?category=${categorySlug}&highlight=${encodeURIComponent(highlightBookId)}`
+        : `/catalog?category=${categorySlug}`,
+      category: { key: categoryKey, label: categoryKey, slug: categorySlug }
+    };
+
+    // Optionally include book meta for future use, but NOT in text/button
     if (topBook) {
-      result = {
-        title: 'Тренд недели',
-        text: `Чаще всего изучают «${topBook.title}» — ${topBook.author || 'Анна Бусел'}`,
-        buttonText: `Изучить «${topBook.title}»`,
-        link: highlightBookId 
-          ? `/catalog?category=${categorySlug}&highlight=${highlightBookId}`
-          : `/catalog?category=${categorySlug}`,
-        category: { key: categoryKey, label: categoryKey, slug: categorySlug },
-        book: { id: topBook._id.toString(), title: topBook.title }
-      };
-    } else {
-      result = {
-        title: 'Тренд недели',
-        text: `Тема «${categoryKey}» набирает популярность`,
-        buttonText: 'Изучить разборы',
-        link: `/catalog?category=${categorySlug}`,
-        category: { key: categoryKey, label: categoryKey, slug: categorySlug }
+      result.book = { 
+        id: topBook._id.toString(), 
+        title: topBook.title 
       };
     }
 
