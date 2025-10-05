@@ -84,6 +84,7 @@ class SettingsPage {
             
             // Load from local state first
             const localSettings = this.state.get('settings') || this.getDefaultSettings();
+            this.settings = this.adaptLegacySettings(localSettings);
             
             // Get userId with fallback methods
             let userId = null;
@@ -93,24 +94,20 @@ class SettingsPage {
                 userId = this.state.get('user.profile.id') || this.state.get('user.telegramData.id');
             }
             
-            if (!userId || userId === 'demo-user') {
-                this.settings = this.adaptLegacySettings(localSettings);
-                return;
-            }
-            
-            // Load from API if available
-            try {
-                const serverResponse = await this.api.getSettings(userId);
-                const serverSettings = serverResponse?.settings || serverResponse || {};
-                
-                if (serverSettings) {
-                    const combinedSettings = { ...localSettings, ...serverSettings };
-                    this.settings = this.adaptLegacySettings(combinedSettings);
-                    this.state.set('settings', this.settings);
+            // Always attempt to load from server if userId available
+            if (userId && userId !== 'demo-user') {
+                try {
+                    const serverResponse = await this.api.getSettings(userId);
+                    const serverSettings = serverResponse?.settings || serverResponse || {};
+                    
+                    if (serverSettings) {
+                        const combinedSettings = { ...localSettings, ...serverSettings };
+                        this.settings = this.adaptLegacySettings(combinedSettings);
+                        this.state.set('settings', this.settings);
+                    }
+                } catch (apiError) {
+                    console.warn('⚠️ Не удалось загрузить настройки с сервера');
                 }
-            } catch (apiError) {
-                console.warn('⚠️ Не удалось загрузить настройки с сервера');
-                this.settings = this.adaptLegacySettings(localSettings);
             }
             
         } catch (error) {
@@ -119,6 +116,8 @@ class SettingsPage {
             this.settings = this.getDefaultSettings();
         } finally {
             this.loading = false;
+            // Update UI after loading to reflect server values
+            this.updateSettingsUI();
         }
     }
     
