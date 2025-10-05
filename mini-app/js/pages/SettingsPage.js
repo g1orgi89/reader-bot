@@ -30,6 +30,10 @@ class SettingsPage {
         // Подписки на изменения состояния
         this.subscriptions = [];
         
+        // Event listener tracking
+        this.delegatedListenerAttached = false;
+        this.delegatedChangeHandler = null;
+        
         // 🎯 Feature flags for soft hiding sections
         this.settingsFeatureFlags = {
             notifications: true,
@@ -474,9 +478,9 @@ class SettingsPage {
         
         // Delegated event listeners on the root element for robustness
         const settingsRoot = document.getElementById('settingsPageRoot');
-        if (settingsRoot) {
-            // Delegated change handler for checkboxes and selects
-            settingsRoot.addEventListener('change', (e) => {
+        if (settingsRoot && !this.delegatedListenerAttached) {
+            // Create handler function to store reference for removal
+            this.delegatedChangeHandler = (e) => {
                 const target = e.target;
                 
                 // Handle settings checkboxes
@@ -487,7 +491,11 @@ class SettingsPage {
                 } else if (target.id === 'reminderFrequency' && target.tagName === 'SELECT') {
                     this.updateSetting('reminderFrequency', target.value);
                 }
-            });
+            };
+            
+            // Add delegated change handler
+            settingsRoot.addEventListener('change', this.delegatedChangeHandler);
+            this.delegatedListenerAttached = true;
         }
     }
     
@@ -1119,6 +1127,14 @@ class SettingsPage {
             }
         });
         this.subscriptions = [];
+        
+        // Remove delegated event listener
+        const settingsRoot = document.getElementById('settingsPageRoot');
+        if (settingsRoot && this.delegatedChangeHandler) {
+            settingsRoot.removeEventListener('change', this.delegatedChangeHandler);
+            this.delegatedListenerAttached = false;
+            this.delegatedChangeHandler = null;
+        }
         
         // Очистка состояния компонента
         this.loading = false;
