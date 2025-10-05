@@ -31,7 +31,6 @@ const { normalizeThemes } = require('../utils/normalizeCategory');
 
 /**
  * @typedef {Object} WeeklyAnalysis
- * @property {string} summary - Краткий анализ недели
  * @property {string[]} dominantThemes - Доминирующие темы
  * @property {string} emotionalTone - Эмоциональный тон
  * @property {string} insights - Психологические инсайты
@@ -287,12 +286,10 @@ class WeeklyReportService {
     
     try {
       // Пытаемся найти ключевые поля в тексте
-      const summaryMatch = aiResponse.match(/(?:summary|анализ|итог)[\s"':]*([^"\n]+)/i);
       const insightsMatch = aiResponse.match(/(?:insights|инсайт|вывод)[\s"':]*([^"\n,}]+)/i);
       const toneMatch = aiResponse.match(/(?:tone|тон|настрое)[\s"':]*([^"\n,}]+)/i);
       
       return {
-        summary: summaryMatch ? summaryMatch[1].trim() : `За эту неделю пользователь собрал цитаты, отражающие внутренние размышления.`,
         dominantThemes: ['Саморазвитие', 'Мудрость'],
         emotionalTone: toneMatch ? toneMatch[1].trim() : 'размышляющий',
         insights: insightsMatch ? insightsMatch[1].trim() : `Ваши цитаты показывают стремление к пониманию жизни и себя.`,
@@ -317,7 +314,6 @@ class WeeklyReportService {
     const normalizedThemes = normalizeThemes(themes);
     
     return {
-      summary: `За эту неделю вы собрали ${quotes.length} цитат, что говорит о вашем стремлении к знаниям и самопознанию.`,
       dominantThemes: normalizedThemes,
       emotionalTone: 'вдохновленный',
       insights: `Дорогой ${userProfile.name}, ваши цитаты показывают глубокий интерес к мудрости и саморазвитию. Продолжайте этот прекрасный путь познания себя через слова великих людей.`,
@@ -531,7 +527,7 @@ class WeeklyReportService {
           if (previousReport && previousReport.analysis) {
             // Собираем текст прошлого анализа
             const insights = previousReport.analysis.insights || '';
-            previousReportText = `${summary}\n\n${insights}`.trim();
+            previousReportText = insights.trim();
             logger.info(`📖 Found previous report for user ${userId}, week ${prevWeek}/${prevYear}`);
           } else {
             logger.info(`📖 No previous report found for user ${userId}, week ${prevWeek}/${prevYear}`);
