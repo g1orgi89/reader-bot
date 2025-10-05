@@ -361,6 +361,14 @@ class MenuHandler {
      * @returns {string} - HTML контент
      */
     getSettingsModalContent() {
+        // Get current settings from app state
+        const appState = window.app?.state || window.appState;
+        const settings = appState?.get('settings') || {};
+        
+        // Derive checked state from actual settings
+        const dailyRemindersChecked = settings.reminders?.enabled !== false;
+        const achievementsChecked = settings.achievements?.enabled !== false;
+        
         return `
             <div class="settings-group">
                 <div class="settings-group-title">Уведомления</div>
@@ -370,7 +378,7 @@ class MenuHandler {
                         <span class="settings-text">Ежедневные напоминания</span>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" checked onchange="menuHandler.toggleNotifications('daily', this.checked)">
+                        <input type="checkbox" ${dailyRemindersChecked ? 'checked' : ''} onchange="menuHandler.toggleNotifications('daily', this.checked)">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -380,7 +388,7 @@ class MenuHandler {
                         <span class="settings-text">Достижения</span>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" checked onchange="menuHandler.toggleNotifications('achievements', this.checked)">
+                        <input type="checkbox" ${achievementsChecked ? 'checked' : ''} onchange="menuHandler.toggleNotifications('achievements', this.checked)">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -548,9 +556,12 @@ class MenuHandler {
         
         switch (type) {
             case 'daily':
-                if (!settingsUpdate.reminders) settingsUpdate.reminders = { ...currentSettings.reminders };
+                settingsUpdate.reminders = { ...currentSettings.reminders };
                 settingsUpdate.reminders.enabled = enabled;
-                if (!settingsUpdate.reminders.frequency) settingsUpdate.reminders.frequency = 'often';
+                // Ensure frequency has a safe default if missing
+                if (!settingsUpdate.reminders.frequency) {
+                    settingsUpdate.reminders.frequency = currentSettings.reminders?.frequency || 'standard';
+                }
                 break;
             case 'achievements':
                 settingsUpdate.achievements = { enabled };
