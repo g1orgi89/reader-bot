@@ -61,20 +61,20 @@ class ApiService {
      * @param {number} [options.weekNumber] - номер ISO недели
      * @param {number} [options.year] - год
      * @param {number} [options.limit] - количество книг
+     * @param {string} [options.scope] - напр. "week" для недельных топов
      * @returns {Promise<any>}
      */
     async getTopBooks(options = {}) {
-        const params = new URLSearchParams();
-        if (options.period) params.append('period', options.period);
-        if (options.limit) params.append('limit', options.limit);
-        if (options.scope) params.append('scope', options.scope);
-        if (options.weekNumber) params.append('weekNumber', options.weekNumber);
-        if (options.year) params.append('year', options.year);
+      const params = new URLSearchParams();
+      if (options.period) params.append('period', options.period);
+      if (options.limit) params.append('limit', options.limit);
+      if (options.scope) params.append('scope', options.scope);
+      if (options.weekNumber) params.append('weekNumber', options.weekNumber);
+      if (options.year) params.append('year', options.year);
 
-        const queryString = params.toString();
-        const endpoint = queryString ? `/top-books?${queryString}` : '/top-books';
-        
-        return this.request('GET', endpoint);
+      const queryString = params.toString();
+      const endpoint = queryString ? `/top-books?${queryString}` : '/top-books';
+      return this.request('GET', endpoint);
     }
    
     /**
