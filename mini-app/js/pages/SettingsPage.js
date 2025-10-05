@@ -489,55 +489,42 @@ class SettingsPage {
         }
 
         const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            this.showError('Файл слишком большой. Максимальный размер: 5MB');
+            return;
+        }
 
         try {
             this.uploadingAvatar = true;
             this.updateUploadButtonState(true);
 
-            // Haptic feedback
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('light');
             }
 
-            // Get userId
             const userId = this.getUserId();
 
-            // Проверяем итоговый размер
-            if (fileToUpload.size > maxSize) {
-                this.showError('Файл слишком большой для загрузки (макс. 5MB). Попробуйте выбрать другое фото или уменьшить разрешение.');
-                return;
-            }
-
-            // Upload avatar
-            const result = await this.api.uploadAvatar(fileToUpload, userId);
+            // Upload avatar (теперь всегда исходный файл)
+            const result = await this.api.uploadAvatar(file, userId);
 
             if (result && result.avatarUrl) {
                 this.state.update('user.profile', { avatarUrl: result.avatarUrl });
-
-                console.log('✅ Avatar uploaded successfully:', result.avatarUrl);
-
-                // Haptic success feedback
                 if (this.telegram?.hapticFeedback) {
                     this.telegram.hapticFeedback('success');
                 }
             } else if (result && result.success && !result.avatarUrl) {
-                // Server returned success but no avatarUrl - don't overwrite existing
                 console.warn('⚠️ Server returned success without avatarUrl, keeping existing avatar');
             }
 
         } catch (error) {
             console.error('❌ Error uploading avatar:', error);
             this.showError(error.message || 'Не удалось загрузить аватар');
-
-            // Haptic error feedback
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('error');
             }
         } finally {
             this.uploadingAvatar = false;
             this.updateUploadButtonState(false);
-
-            // Clear input
             event.target.value = '';
         }
     }
