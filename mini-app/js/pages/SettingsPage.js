@@ -132,7 +132,7 @@ class SettingsPage {
         const profile = this.state.get('user.profile') || {};
         const stats = this.state.get('stats') || {};
         const telegramData = this.state.get('user.telegramData') || {};
-        
+    
         return `
             <div class="content settings-page" id="settingsPageRoot">
                 ${this.renderHeader()}
@@ -141,7 +141,7 @@ class SettingsPage {
                 ${this.settingsFeatureFlags.personalization ? this.renderPersonalizationSettings() : ''}
                 ${this.settingsFeatureFlags.privacy ? this.renderPrivacySettings() : ''}
                 ${this.renderDataSettings()}
-                ${this.renderError()
+                ${this.renderError()}
             </div>
         `;
     }
