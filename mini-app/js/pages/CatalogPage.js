@@ -77,6 +77,16 @@ class CatalogPage {
                 }
             }
         });
+        
+        // Подписка на профиль для отложенной загрузки персонализации
+        this.state.subscribe('user.profile', (profile) => {
+            if (profile && profile.id && this.userTags.length === 0 && this.catalogLoaded) {
+                console.log('📚 CatalogPage: Profile ready, loading personalization');
+                this.loadPersonalizationTopics().then(() => {
+                    this.rerender();
+                });
+            }
+        });
     }
     
     async loadCatalogData() {
@@ -174,11 +184,69 @@ class CatalogPage {
     }
     
     /**
+     * 🔄 Нормализация темы в каноническую категорию каталога
+     * @param {string} theme - Исходная тема
+     * @returns {string|null} - Каноническая категория или null
+     */
+    normalizeTheme(theme) {
+        if (!theme || typeof theme !== 'string') return null;
+        
+        const themeLower = theme.trim().toLowerCase();
+        if (themeLower.length < 2) return null;
+        
+        // Synonym map (lowercase keys)
+        const synonyms = {
+            'саморазвитие': 'ПОИСК СЕБЯ',
+            'самопознание': 'ПОИСК СЕБЯ',
+            'мудрость': 'СМЫСЛ ЖИЗНИ',
+            'философия': 'СМЫСЛ ЖИЗНИ',
+            'жизненная философия': 'СМЫСЛ ЖИЗНИ',
+            'карьера': 'ДЕНЬГИ',
+            'работа': 'ДЕНЬГИ',
+            'семья': 'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
+            'родители': 'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
+            'дети': 'СЕМЕЙНЫЕ ОТНОШЕНИЯ',
+            'счастье': 'СЧАСТЬЕ',
+            'радость': 'СЧАСТЬЕ',
+            'время': 'ВРЕМЯ И ПРИВЫЧКИ',
+            'привычки': 'ВРЕМЯ И ПРИВЫЧКИ'
+        };
+        
+        // Check direct synonym match
+        if (synonyms[themeLower]) {
+            return synonyms[themeLower];
+        }
+        
+        // Exact case-insensitive match with catalog categories
+        const exactMatch = CATALOG_CATEGORIES.find(cat => 
+            cat.toLowerCase() === themeLower
+        );
+        if (exactMatch) return exactMatch;
+        
+        // Partial match both directions (theme contains category or vice versa)
+        const partialMatch = CATALOG_CATEGORIES.find(cat => {
+            const catLower = cat.toLowerCase();
+            return themeLower.includes(catLower) || catLower.includes(themeLower);
+        });
+        if (partialMatch) return partialMatch;
+        
+        return null;
+    }
+    
+    /**
      * 🎯 Загрузка персональных тем из weeklyReport
      */
     async loadPersonalizationTopics() {
         try {
-            const userId = this.state.getCurrentUserId();
+            let userId = this.state.getCurrentUserId();
+            
+            // Fallback to resolveUserId if state userId is not ready
+            if (!userId || userId === 'demo-user') {
+                if (this.api.resolveUserId) {
+                    userId = this.api.resolveUserId();
+                }
+            }
+            
             if (!userId || userId === 'demo-user') {
                 console.log('🎯 CatalogPage: No valid userId, using default tags');
                 return;
@@ -187,7 +255,9 @@ class CatalogPage {
             // Попытка получить weeklyReport через API
             if (this.api.getWeeklyReports) {
                 const response = await this.api.getWeeklyReports({ limit: 1 }, userId);
-                const weeklyReport = response?.data?.[0] || response?.[0] || response?.report;
+                // FIX: Correct path to reports array
+                const reports = response?.data?.reports || response?.reports || [];
+                const weeklyReport = reports[0];
                 
                 if (weeklyReport) {
                     let dominantThemes = [];
@@ -203,17 +273,18 @@ class CatalogPage {
                     }
                     
                     if (dominantThemes.length > 0) {
-                        // Clean and filter themes to canonical set
-                        const cleanedThemes = dominantThemes
-                            .map(theme => String(theme).trim())
-                            .filter(theme => theme.length > 1)
-                            .filter(theme => CATALOG_CATEGORIES.includes(theme) || theme === 'ДРУГОЕ') // Only keep canonical categories
-                            .slice(0, 5); // Maximum 5 themes
+                        // Normalize themes to canonical categories
+                        const normalizedThemes = dominantThemes
+                            .map(theme => this.normalizeTheme(theme))
+                            .filter(theme => theme !== null);
                         
-                        // If we have ДРУГОЕ and others, prefer others (first 5 excluding ДРУГОЕ)
-                        const finalThemes = cleanedThemes.length > 1 && cleanedThemes.includes('ДРУГОЕ')
-                            ? cleanedThemes.filter(theme => theme !== 'ДРУГОЕ').slice(0, 5)
-                            : cleanedThemes;
+                        // De-duplicate
+                        const uniqueThemes = [...new Set(normalizedThemes)];
+                        
+                        // Drop ДРУГОЕ if we have other topics
+                        const finalThemes = uniqueThemes.length > 1 && uniqueThemes.includes('ДРУГОЕ')
+                            ? uniqueThemes.filter(theme => theme !== 'ДРУГОЕ').slice(0, 5)
+                            : uniqueThemes.slice(0, 5);
                         
                         if (finalThemes.length > 0) {
                             this.userTags = finalThemes;
