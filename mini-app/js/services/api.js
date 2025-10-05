@@ -481,12 +481,13 @@ class ApiService {
 
     /**
      * 🖼️ Загрузить аватар пользователя
+     * FIX: mobile WebView header pattern + fallback без Authorization
      */
     async uploadAvatar(fileOrBlob, userId = 'demo-user') {
         try {
             console.log('🖼️ Загружаем аватар для пользователя:', userId);
 
-            // Demo user: return base64 locally without network call
+            // Demo user: возвращаем превью локально
             if (userId === 'demo-user') {
                 let base64Data;
                 if (fileOrBlob instanceof Blob || fileOrBlob instanceof File) {
@@ -496,50 +497,94 @@ class ApiService {
                 } else {
                     throw new Error('Unsupported file format');
                 }
-                console.log('✅ Demo-user: Avatar preview (local, no upload)');
-                return {
-                    success: true,
-                    avatarUrl: base64Data,
-                    message: 'Demo avatar (not uploaded)'
-                };
+                return { success: true, avatarUrl: base64Data, message: 'Demo avatar (not uploaded)' };
             }
 
-            // Real users: multipart upload
             if (!(fileOrBlob instanceof Blob || fileOrBlob instanceof File)) {
                 throw new Error('Expected File or Blob for upload');
             }
 
+            // RAW initData без encodeURIComponent, но с жёсткой санитизацией
+            const initDataRaw = this.resolveTelegramInitDataRaw?.() || null;
+            if (!initDataRaw) throw new Error('Telegram authentication required');
+
+            const safeInitData = this.sanitizeHeaderValue(initDataRaw);
+            const safeUserId = this.sanitizeHeaderValue(this.resolveUserId() || userId);
+
+            // Формируем FormData
             const formData = new FormData();
             formData.append('avatar', fileOrBlob);
 
-            const initData = this.resolveTelegramInitData();
-            if (!initData) {
-                throw new Error('Telegram authentication required');
-            }
+            const url = `${this.baseURL}/auth/upload-avatar`;
 
-            const response = await fetch(`${this.baseURL}/auth/upload-avatar`, {
+            const makeHeaders = (withAuth = true) => {
+                const h = {
+                    'X-Telegram-Init-Data': safeInitData,
+                    'X-User-Id': safeUserId,
+                    'Accept': 'application/json'
+                };
+                if (withAuth) {
+                    // Именно RAW (санитизированный), без encodeURIComponent — мобильный WebView падает на «pattern»
+                    h['Authorization'] = `tma ${safeInitData}`;
+                }
+                return h;
+            };
+
+            const makeOptions = (withAuth = true) => ({
                 method: 'POST',
-                headers: {
-                    'Authorization': `tma ${initData}`
-                },
-                body: formData
+                headers: makeHeaders(withAuth),
+                body: formData,
+                credentials: 'include'
             });
 
-            const result = await response.json();
-            
-            if (!response.ok || !result.success) {
-                throw new Error(result.error || `HTTP ${response.status}`);
+            // 1) Пытаемся с Authorization + X-headers
+            try {
+                const response = await fetch(url, makeOptions(true));
+                const result = await response.json().catch(() => ({}));
+
+                const bodyMsg = (result && (result.error || result.message || '') || '').toString().toLowerCase();
+
+                if (!response.ok && bodyMsg.includes('expected pattern')) {
+                    console.warn('⚠️ Upload: backend pattern error, retry without Authorization header...');
+                    // 2) Fallback: без Authorization; добавим initData в тело на всякий случай
+                    formData.append('initData', safeInitData);
+                    const resp2 = await fetch(url, makeOptions(false));
+                    const res2 = await resp2.json().catch(() => ({}));
+                    if (!resp2.ok || !res2.success) {
+                        throw new Error(res2.error || `HTTP ${resp2.status}`);
+                    }
+                    console.log('✅ Аватар загружен (fallback без Authorization):', res2);
+                    return res2;
+                }
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || `HTTP ${response.status}`);
+                }
+                console.log('✅ Аватар загружен успешно:', result);
+                return result;
+
+            } catch (e) {
+                // Если сам fetch/Headers упал ещё до запроса из‑за некорректного заголовка
+                const msg = (e && e.message || '').toLowerCase();
+                if (msg.includes('did not match the expected pattern') || msg.includes('header')) {
+                    console.warn('⚠️ Upload: header creation error in WebView, retrying without Authorization...');
+                    formData.append('initData', safeInitData);
+                    const resp2 = await fetch(url, makeOptions(false));
+                    const res2 = await resp2.json().catch(() => ({}));
+                    if (!resp2.ok || !res2.success) {
+                        throw new Error(res2.error || `HTTP ${resp2.status}`);
+                    }
+                    console.log('✅ Аватар загружен (fallback без Authorization):', res2);
+                    return res2;
+                }
+                throw e;
             }
-            
-            console.log('✅ Аватар загружен успешно:', result);
-            return result;
 
         } catch (error) {
             console.error('❌ Ошибка загрузки аватара:', error);
-            
-            if (error.status === 413 || error.message.includes('413')) {
+            if (error.status === 413 || (error.message || '').includes('413')) {
                 throw new Error('Файл слишком большой. Максимальный размер: 5MB');
-            } else if (error.status === 415 || error.message.includes('415')) {
+            } else if (error.status === 415 || (error.message || '').includes('415')) {
                 throw new Error('Неподдерживаемый формат файла. Используйте JPG, PNG или WebP');
             } else {
                 throw new Error(`Не удалось загрузить аватар: ${error.message}`);
