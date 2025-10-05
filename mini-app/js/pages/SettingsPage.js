@@ -480,7 +480,9 @@ class SettingsPage {
     async handleAvatarUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
-
+        console.log('file.size:', file.size, 'байт');
+        console.log('file.name:', file.name, 'type:', file.type);
+       
         // Validate file type
         const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
         if (!validTypes.includes(file.type)) {
