@@ -36,7 +36,7 @@ class SettingsPage {
         
         // 🎯 Feature flags for soft hiding sections
         this.settingsFeatureFlags = {
-            notifications: true,
+            notifications: false,
             personalization: false,
             privacy: false,
             dataExport: false,
