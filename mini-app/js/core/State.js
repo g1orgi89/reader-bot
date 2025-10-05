@@ -860,8 +860,10 @@ class AppState {
             if (!(key in current)) current[key] = {};
             return current[key];
         }, obj);
-        target[lastKey] = value;
-    }
+        if (target && typeof target === 'object') {
+            target[lastKey] = value;
+        } else {
+            console.warn('State.js: setNestedValue — попытка записать свойство у null/undefined для path:', path, value);
 
     /**
      * 🎯 Получить значение по умолчанию
