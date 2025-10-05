@@ -937,6 +937,56 @@ router.post('/auth/upload-avatar', communityLimiter, telegramAuth, avatarUpload.
       });
     }
 
+    // === CLEANUP OLD AVATAR: Delete previous avatar file before updating ===
+    try {
+      const userProfile = await UserProfile.findOne({ userId });
+      
+      if (userProfile && userProfile.avatarUrl) {
+        const oldAvatarUrl = userProfile.avatarUrl.trim();
+        
+        // Check if old avatar is not empty and not a default/external URL
+        if (oldAvatarUrl && oldAvatarUrl.startsWith('/uploads/avatars/')) {
+          // Extract filename from URL (e.g., "/uploads/avatars/123_456789.jpg" -> "123_456789.jpg")
+          const oldFilename = path.basename(oldAvatarUrl);
+          
+          // Validate filename pattern belongs to this user (userId_timestamp.ext)
+          // Escape userId to prevent regex injection
+          const escapedUserId = userId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const filenamePattern = new RegExp(`^${escapedUserId}_\\d+\\.(jpg|jpeg|png|gif|webp)$`, 'i');
+          
+          if (filenamePattern.test(oldFilename)) {
+            const oldFilePath = path.join(AVATARS_DIR, oldFilename);
+            const resolvedOldPath = path.resolve(oldFilePath);
+            const resolvedAvatarsDir = path.resolve(AVATARS_DIR);
+            
+            // Security: Ensure the file is within AVATARS_DIR
+            if (resolvedOldPath.startsWith(resolvedAvatarsDir)) {
+              // Check if old avatar file exists and delete it
+              try {
+                await fs.promises.access(resolvedOldPath, fs.constants.F_OK);
+                await fs.promises.unlink(resolvedOldPath);
+                console.log(`🗑️ Deleted old avatar: ${oldFilename}`);
+              } catch (deleteError) {
+                // File doesn't exist or couldn't be deleted - not critical, continue
+                if (deleteError.code === 'ENOENT') {
+                  console.log(`ℹ️ Old avatar file not found, skipping deletion: ${oldFilename}`);
+                } else {
+                  console.warn(`⚠️ Could not delete old avatar: ${deleteError.message}`);
+                }
+              }
+            } else {
+              console.warn(`⚠️ Old avatar path outside AVATARS_DIR, skipping deletion: ${oldFilename}`);
+            }
+          } else {
+            console.log(`ℹ️ Old avatar filename doesn't match user pattern, skipping deletion: ${oldFilename}`);
+          }
+        }
+      }
+    } catch (cleanupError) {
+      // Log error but don't fail the upload - cleanup is non-critical
+      console.error('❌ Error during old avatar cleanup:', cleanupError.message);
+    }
+
     // Обновляем профиль пользователя
     await updateUserAvatar(userId, avatarUrl);
 
