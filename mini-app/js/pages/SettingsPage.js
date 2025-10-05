@@ -137,6 +137,7 @@ class SettingsPage {
             <div class="content settings-page" id="settingsPageRoot">
                 ${this.renderHeader()}
                 ${this.renderProfileSection(profile, stats, telegramData)}
+                ${this.settingsFeatureFlags.notifications ? this.renderNotificationSettings() : ''}
                 ${this.settingsFeatureFlags.personalization ? this.renderPersonalizationSettings() : ''}
                 ${this.settingsFeatureFlags.privacy ? this.renderPrivacySettings() : ''}
                 ${this.renderDataSettings()}
