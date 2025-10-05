@@ -49,7 +49,7 @@ const AppConfig = {
         
         // AI анализ
         enableAiAnalysis: true,
-        aiAnalysisTimeout: 15000, // 15 секунд
+        aiAnalysisTimeout: 30000, // 30 секунд
         
         // Валидация
         validation: {
