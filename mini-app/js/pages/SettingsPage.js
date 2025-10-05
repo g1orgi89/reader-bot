@@ -23,7 +23,8 @@ class SettingsPage {
         this.loading = false;
         this.error = null;
         this.settings = {};
-        this.saving = false;
+        this.saving = false; // Network in-flight guard
+        this.uiSaving = false; // UI state for disabling inputs
         this.uploadingAvatar = false;
         
         // Подписки на изменения состояния
@@ -737,7 +738,7 @@ class SettingsPage {
      * 🔒 Set saving state for UI elements
      */
     setSavingState(saving) {
-        this.saving = saving;
+        this.uiSaving = saving;
         
         // Disable/enable all input elements
         const inputs = document.querySelectorAll('.settings-page input, .settings-page select');
@@ -752,9 +753,9 @@ class SettingsPage {
     async saveSettings() {
         if (this.saving) return;
         
+        this.saving = true;
+        
         try {
-            this.saving = true;
-            
             // Get userId with fallback methods
             let userId = null;
             if (this.state && typeof this.state.getCurrentUserId === 'function') {
