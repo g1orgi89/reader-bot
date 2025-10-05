@@ -348,7 +348,7 @@ class QuoteHandler {
           platform: 'telegram',
           userId: 'quote_analysis'
         }),
-        15000 // 15 секунд таймаут
+        60000 // 60 секунд таймаут
       );
       console.log('[DEBUG] Claude raw response:', response);
       
