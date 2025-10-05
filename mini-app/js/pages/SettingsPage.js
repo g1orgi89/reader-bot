@@ -499,57 +499,64 @@ class SettingsPage {
     
     /**
      * 🖼️ Обработчик загрузки аватара
-     * 🔧 PATCH: Increased limit to 5MB + client-side compression
+     * FIX: сравнение размеров после сжатия, не отправляем файл >5МБ
      */
     async handleAvatarUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
+
         // Validate file type
         const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
         if (!validTypes.includes(file.type)) {
             this.showError('Неподдерживаемый формат файла. Используйте JPG, PNG или WebP');
             return;
         }
-        
-        // 🔧 PATCH: Validate file size (max 5MB)
+
         const maxSize = 5 * 1024 * 1024;
-        if (file.size > maxSize) {
-            this.showError('Файл слишком большой. Максимальный размер: 5MB');
-            return;
-        }
-        
+
         try {
             this.uploadingAvatar = true;
             this.updateUploadButtonState(true);
-            
+
             // Haptic feedback
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('light');
             }
-            
+
             // Get userId
             const userId = this.getUserId();
-            
-            // 🔧 PATCH: Compress image if >1.5MB
+
+            // Сжимаем если >1.5MB
             let fileToUpload = file;
             const compressionThreshold = 1.5 * 1024 * 1024;
-            
+
             if (file.size > compressionThreshold) {
-                console.log(`🔄 Image size ${(file.size / 1024 / 1024).toFixed(2)}MB, compressing...`);
-                fileToUpload = await this.compressImage(file);
-                console.log(`✅ Image compressed to ${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
+                console.log(`🔄 Исходный размер: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+                const compressed = await this.compressImage(file);
+                console.log(`✅ После сжатия: ${(compressed.size / 1024 / 1024).toFixed(2)} MB`);
+                // Используем меньший файл
+                if (compressed.size < file.size) {
+                    fileToUpload = compressed;
+                } else {
+                    console.log('Сжатие не помогло — используем оригинал');
+                    fileToUpload = file;
+                }
             }
-            
+
+            // Проверяем итоговый размер
+            if (fileToUpload.size > maxSize) {
+                this.showError('Файл слишком большой для загрузки (макс. 5MB). Попробуйте выбрать другое фото или уменьшить разрешение.');
+                return;
+            }
+
             // Upload avatar
             const result = await this.api.uploadAvatar(fileToUpload, userId);
-            
-            // 🔧 PATCH: Prevent overwriting existing avatarUrl when server returns null
+
             if (result && result.avatarUrl) {
                 this.state.update('user.profile', { avatarUrl: result.avatarUrl });
-                
+
                 console.log('✅ Avatar uploaded successfully:', result.avatarUrl);
-                
+
                 // Haptic success feedback
                 if (this.telegram?.hapticFeedback) {
                     this.telegram.hapticFeedback('success');
@@ -558,11 +565,11 @@ class SettingsPage {
                 // Server returned success but no avatarUrl - don't overwrite existing
                 console.warn('⚠️ Server returned success without avatarUrl, keeping existing avatar');
             }
-            
+
         } catch (error) {
             console.error('❌ Error uploading avatar:', error);
             this.showError(error.message || 'Не удалось загрузить аватар');
-            
+
             // Haptic error feedback
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('error');
@@ -570,12 +577,12 @@ class SettingsPage {
         } finally {
             this.uploadingAvatar = false;
             this.updateUploadButtonState(false);
-            
+
             // Clear input
             event.target.value = '';
         }
     }
-
+    
     /**
      * 🗜️ PATCH: Compress image using canvas (resize to max 1024px, WebP quality ~0.82)
      */
