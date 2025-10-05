@@ -54,22 +54,27 @@ class ApiService {
     /**
      * 📚 Получить топ книг по кликам/продажам за период
      * ОБНОВЛЕНО: Точное соответствие требованиям API: GET /api/reader/top-books?period=7d
+     * Поддерживает как legacy period параметр, так и scope=week с weekNumber/year
      * @param {Object} [options]
-     * @param {string} [options.period] - напр. "7d"
+     * @param {string} [options.period] - напр. "7d" (legacy)
+     * @param {string} [options.scope] - напр. "week" для недельной агрегации
+     * @param {number} [options.weekNumber] - номер ISO недели
+     * @param {number} [options.year] - год
      * @param {number} [options.limit] - количество книг
      * @param {string} [options.scope] - напр. "week" для недельных топов
      * @returns {Promise<any>}
      */
     async getTopBooks(options = {}) {
-        const params = new URLSearchParams();
-        if (options.period) params.append('period', options.period);
-        if (options.limit) params.append('limit', options.limit);
-        if (options.scope) params.append('scope', options.scope);
+      const params = new URLSearchParams();
+      if (options.period) params.append('period', options.period);
+      if (options.limit) params.append('limit', options.limit);
+      if (options.scope) params.append('scope', options.scope);
+      if (options.weekNumber) params.append('weekNumber', options.weekNumber);
+      if (options.year) params.append('year', options.year);
 
-        const queryString = params.toString();
-        const endpoint = queryString ? `/top-books?${queryString}` : '/top-books';
-        
-        return this.request('GET', endpoint);
+      const queryString = params.toString();
+      const endpoint = queryString ? `/top-books?${queryString}` : '/top-books';
+      return this.request('GET', endpoint);
     }
    
     /**
@@ -213,29 +218,6 @@ class ApiService {
             console.warn('⚠️ ApiService: Ошибка получения RAW initData:', e);
             return null;
         }
-    }
-
-    getHeaders(endpoint = '') {
-        const headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        };
-        const userId = this.resolveUserId();
-        const initData = this.resolveTelegramInitData();
-
-        let finalUserId = userId;
-        if (endpoint) {
-            const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
-            const endpointUserId = urlParams.get('userId');
-            if (endpointUserId) finalUserId = endpointUserId;
-        }
-
-        if (finalUserId) headers['X-User-Id'] = finalUserId;
-        if (initData) {
-            headers['Authorization'] = `tma ${initData}`;
-            headers['X-Telegram-Init-Data'] = initData;
-        }
-        return headers;
     }
     
     /**
