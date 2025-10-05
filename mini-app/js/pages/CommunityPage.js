@@ -1460,8 +1460,8 @@ class CommunityPage {
 
         const interest = this.communityInsights.interest;
         const leader = interest.leader;
-        const growthText = interest.growthPct > 0 ? `+${interest.growthPct}%` : 
-                          interest.growthPct < 0 ? `${interest.growthPct}%` : '0%';
+        //const growthText = interest.growthPct > 0 ? `+${interest.growthPct}%` : 
+                          //interest.growthPct < 0 ? `${interest.growthPct}%` : '0%';
         
         return `
             <div class="stats-detail-section">
@@ -1502,52 +1502,57 @@ class CommunityPage {
     }
 
     /**
-     * 🏆 СЕКЦИЯ ДОСТИЖЕНИЙ СООБЩЕСТВА (ДИНАМИЧЕСКАЯ)
-     */
-    renderAchievementsSection() {
-        if (!this.communityInsights?.achievements || this.communityInsights.achievements.length === 0) {
-            return `
-                <div class="stats-detail-section">
-                    <div class="stats-detail-title">🏆 Достижения сообщества</div>
-                    <div class="stats-detail-item">📊 Данные загружаются...</div>
-                </div>
-            ;
-        }
-
-        const achievementItems = this.communityInsights.achievements.map(achievement => {
-            сonst users = achievement.users;
-            const plural = users % 10 === 1 && users % 100 !== 11 ? 'человек' : 
-                          //(users % 10 >= 2 && users % 10 <= 4 && (users % 100 < 10 || users % 100 >= 20)) ? 'человека' : 'человек';
-            let icon = '📖';
-            let title = 'Активные читатели';
-            
-            if (achievement.threshold === '20+') {
-                icon = '🔥';
-                title = 'Коллекционеры мудрости';
-            } else if (achievement.threshold === '10+') {
-                icon = '⭐';
-                title = 'Философы недели';
-            } else if (achievement.threshold === '7+') {
-                icon = '💎';
-                title = 'Мыслители';
-            } else if (achievement.threshold === '5+') {
-                icon = '📚';
-                title = 'Любители классики';
-            } else if (achievement.threshold === '3+') {
-                icon = '✨';
-                title = 'Вдохновители';
-            }
-            
-            return `<div class="stats-detail-item">${icon} "${title}" — ${users} ${plural}</div>`;
-        }).join('');
-
+ * 🏆 СЕКЦИЯ ДОСТИЖЕНИЙ СООБЩЕСТВА (ДИНАМИЧЕСКАЯ)
+ * Временно отключено для продакшена — ничего не рендерит!
+ */
+renderAchievementsSection() {
+    // Блок достижений сообщества временно скрыт. Вернуть — раскомментировать код ниже.
+    return '';
+    /*
+    if (!this.communityInsights?.achievements || this.communityInsights.achievements.length === 0) {
         return `
             <div class="stats-detail-section">
                 <div class="stats-detail-title">🏆 Достижения сообщества</div>
-                ${achievementItems}
+                <div class="stats-detail-item">📊 Данные загружаются...</div>
             </div>
         `;
     }
+
+    const achievementItems = this.communityInsights.achievements.map(achievement => {
+        const users = achievement.users;
+        const plural = users % 10 === 1 && users % 100 !== 11 ? 'человек' : 
+                      (users % 10 >= 2 && users % 10 <= 4 && (users % 100 < 10 || users % 100 >= 20)) ? 'человека' : 'человек';
+        let icon = '📖';
+        let title = 'Активные читатели';
+        
+        if (achievement.threshold === '20+') {
+            icon = '🔥';
+            title = 'Коллекционеры мудрости';
+        } else if (achievement.threshold === '10+') {
+            icon = '⭐';
+            title = 'Философы недели';
+        } else if (achievement.threshold === '7+') {
+            icon = '💎';
+            title = 'Мыслители';
+        } else if (achievement.threshold === '5+') {
+            icon = '📚';
+            title = 'Любители классики';
+        } else if (achievement.threshold === '3+') {
+            icon = '✨';
+            title = 'Вдохновители';
+        }
+        
+        return `<div class="stats-detail-item">${icon} "${title}" — ${users} ${plural}</div>`;
+    }).join('');
+
+    return `
+        <div class="stats-detail-section">
+            <div class="stats-detail-title">🏆 Достижения сообщества</div>
+            ${achievementItems}
+        </div>
+    `;
+    */
+}
 
     /**
      * 📊 СЕКЦИЯ РЕЙТИНГА ПОЛЬЗОВАТЕЛЯ (ДИНАМИЧЕСКАЯ)
