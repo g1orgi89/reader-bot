@@ -77,6 +77,7 @@ class WeeklyReportService {
       this.PromoCode = require('../models/PromoCode');
       this.UtmTemplate = require('../models/UtmTemplate');
       this.TargetAudience = require('../models/TargetAudience');
+      this.WeeklyReport = require('../models/weeklyReport');
       logger.info('📋 WeeklyReportService: MongoDB models initialized');
     } catch (error) {
       logger.error('📋 WeeklyReportService: Failed to initialize models:', error.message);
@@ -84,6 +85,7 @@ class WeeklyReportService {
       console.error(error);
       this.BookCatalog = null;
       this.PromoCode = null;
+      this.WeeklyReport = null;
     }
   }
 
@@ -113,9 +115,10 @@ class WeeklyReportService {
    * 🔧 FIX: Прямой AI-анализ без конфликтующих системных промптов
    * @param {Array<Quote>} quotes - Цитаты за неделю
    * @param {UserProfile} userProfile - Профиль пользователя
+   * @param {string} previousReport - Текст прошлого отчета для сравнения (по умолчанию пустая строка)
    * @returns {Promise<WeeklyAnalysis>} Анализ недели
    */
-  async analyzeWeeklyQuotes(quotes, userProfile) {
+  async analyzeWeeklyQuotes(quotes, userProfile, previousReport = '') {
     const quotesText = quotes.map(q => `"${q.text}" ${q.author ? `(${q.author})` : ''}`).join('\n\n');
     const analysisPrompt = `Ты — литературный психолог, пишешь еженедельный анализ для женщины 30–45 лет (часто мамы), которая ищет баланс, поддержку и развитие. Этот отчёт формируется в конце недели и должен отражать итоги последних семи дней — используй только цитаты, которые добавил пользователь за эту неделю (не придумывай события и выводы без опоры на данные).
 В отчете обязательно:
@@ -501,8 +504,42 @@ ${previousReport ? `ПРОШЛЫЙ ОТЧЁТ:\n${previousReport}` : ""}
         logger.info(`📖 Using previous week range: week ${weekRange.isoWeek}/${weekRange.isoYear}`);
       }
       
-      // Получаем AI-анализ цитат
-      const analysis = await this.analyzeWeeklyQuotes(quotes, userProfile);
+      // 🆕 Получаем предыдущий отчет пользователя для сравнения
+      let previousReportText = '';
+      try {
+        if (this.WeeklyReport) {
+          // Вычисляем предыдущую неделю
+          const { getPreviousCompleteISOWeek } = require('../utils/isoWeek');
+          let prevWeek = weekRange.isoWeek - 1;
+          let prevYear = weekRange.isoYear;
+          
+          // Обработка границы года
+          if (prevWeek < 1) {
+            prevYear = prevYear - 1;
+            // Получаем последнюю неделю предыдущего года
+            const lastWeekInfo = getPreviousCompleteISOWeek();
+            prevWeek = lastWeekInfo.isoWeek;
+          }
+          
+          const previousReport = await this.WeeklyReport.findByUserWeek(userId, prevWeek, prevYear);
+          
+          if (previousReport && previousReport.analysis) {
+            // Собираем текст прошлого анализа
+            const summary = previousReport.analysis.summary || '';
+            const insights = previousReport.analysis.insights || '';
+            previousReportText = `${summary}\n\n${insights}`.trim();
+            logger.info(`📖 Found previous report for user ${userId}, week ${prevWeek}/${prevYear}`);
+          } else {
+            logger.info(`📖 No previous report found for user ${userId}, week ${prevWeek}/${prevYear}`);
+          }
+        }
+      } catch (prevReportError) {
+        logger.warn(`📖 Error fetching previous report: ${prevReportError.message}`);
+        // Продолжаем с пустым предыдущим отчетом
+      }
+      
+      // Получаем AI-анализ цитат с предыдущим отчетом
+      const analysis = await this.analyzeWeeklyQuotes(quotes, userProfile, previousReportText);
       
       // 🆕 Извлекаем вторичные темы из цитат на основе targetThemes из BookCatalog
       const secondaryThemes = await this._extractSecondaryThemes(quotes);
