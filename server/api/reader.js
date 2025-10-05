@@ -950,7 +950,9 @@ router.post('/auth/upload-avatar', communityLimiter, telegramAuth, avatarUpload.
           const oldFilename = path.basename(oldAvatarUrl);
           
           // Validate filename pattern belongs to this user (userId_timestamp.ext)
-          const filenamePattern = new RegExp(`^${userId}_\\d+\\.(jpg|jpeg|png|gif|webp)$`, 'i');
+          // Escape userId to prevent regex injection
+          const escapedUserId = userId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const filenamePattern = new RegExp(`^${escapedUserId}_\\d+\\.(jpg|jpeg|png|gif|webp)$`, 'i');
           
           if (filenamePattern.test(oldFilename)) {
             const oldFilePath = path.join(AVATARS_DIR, oldFilename);
