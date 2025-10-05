@@ -1517,7 +1517,7 @@ class CommunityPage {
         //const achievementItems = this.communityInsights.achievements.map(achievement => {
             //const users = achievement.users;
             //const plural = users % 10 === 1 && users % 100 !== 11 ? 'человек' : 
-                          (users % 10 >= 2 && users % 10 <= 4 && (users % 100 < 10 || users % 100 >= 20)) ? 'человека' : 'человек';
+                          //(users % 10 >= 2 && users % 10 <= 4 && (users % 100 < 10 || users % 100 >= 20)) ? 'человека' : 'человек';
             //let icon = '📖';
             //let title = 'Активные читатели';
             
