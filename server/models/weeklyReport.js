@@ -59,12 +59,6 @@ function normalizeEmotionalTone(value) {
  * Схема анализа недели
  */
 const weeklyAnalysisSchema = new mongoose.Schema({
-  summary: {
-    type: String,
-    required: true,
-    maxlength: 500
-    // Краткий анализ недели одним предложением
-  },
   dominantThemes: [{
     type: String
     // Доминирующие темы
