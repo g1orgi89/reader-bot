@@ -2029,6 +2029,7 @@ renderAchievementsSection() {
                         }
                         
                         // Перепривязываем обработчики для обновленных узлов
+                        // Новая кнопка refreshBtn уже включена в newPopularWeekHTML с текстом '↻'
                         this.attachPopularWeekRefreshButton();
                         this.attachQuoteCardListeners();
                         this.attachCommunityCardListeners();
