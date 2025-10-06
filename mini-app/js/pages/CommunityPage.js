@@ -1310,7 +1310,7 @@ class CommunityPage {
     renderLeaderboardSection() {
         if (this.loadingStates.leaderboard) {
             return `
-                <div class="leaders-week-section">
+                <div id="leaderboardSection" class="leaders-week-section">
                     <div class="leaders-week-title">🏆 Лидеры недели</div>
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
@@ -1322,7 +1322,7 @@ class CommunityPage {
 
         if (this.errorStates.leaderboard) {
             return `
-                <div class="error-state">
+                <div id="leaderboardSection" class="error-state">
                     <div class="error-icon">❌</div>
                     <div class="error-title">Ошибка загрузки лидерборда</div>
                     <div class="error-description">${this.errorStates.leaderboard}</div>
@@ -1333,7 +1333,7 @@ class CommunityPage {
 
         if (!this.leaderboard || this.leaderboard.length === 0) {
             return `
-                <div class="empty-state">
+                <div id="leaderboardSection" class="empty-state">
                     <div class="empty-icon">🏆</div>
                     <div class="empty-title">Пока нет лидеров</div>
                     <div class="empty-description">Станьте первым в топе читателей!</div>
@@ -1363,14 +1363,12 @@ class CommunityPage {
         }).join('');
 
         return `
-            <div class="leaders-week-section">
+            <div id="leaderboardSection" class="leaders-week-section">
                 <div class="spotlight-header">
                     <div>
                         <div class="leaders-week-title">🏆 Лидеры недели</div>
                         <div class="leaders-week-subtitle">Самые активные читатели сообщества</div>
                     </div>
-                    <button class="spotlight-refresh-btn" id="leaderboardRefreshBtn" 
-                            aria-label="Обновить лидерборд">↻</button>
                 </div>
                 <div class="leaderboard-list">
                     ${leaderboardItems}
@@ -1385,7 +1383,7 @@ class CommunityPage {
     renderPopularQuotesWeekSection() {
         if (this.loadingStates.popularFavorites) {
             return `
-                <div class="popular-quotes-week-section">
+                <div id="popularWeekSection" class="popular-quotes-week-section">
                     <div class="popular-quotes-week-title">⭐ Популярные цитаты недели</div>
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
@@ -1397,7 +1395,7 @@ class CommunityPage {
 
         if (this.errorStates.popularFavorites) {
             return `
-                <div class="error-state">
+                <div id="popularWeekSection" class="error-state">
                     <div class="error-icon">❌</div>
                     <div class="error-title">Ошибка загрузки цитат</div>
                     <div class="error-description">${this.errorStates.popularFavorites}</div>
@@ -1411,7 +1409,7 @@ class CommunityPage {
         
         if (quotes.length === 0) {
             return `
-                <div class="empty-state">
+                <div id="popularWeekSection" class="empty-state">
                     <div class="empty-icon">⭐</div>
                     <div class="empty-title">Пока нет популярных цитат</div>
                     <div class="empty-description">Станьте первым, кто добавит цитату в избранное!</div>
@@ -1466,7 +1464,7 @@ class CommunityPage {
         }).join('');
 
         return `
-            <div class="popular-quotes-week-section">
+            <div id="popularWeekSection" class="popular-quotes-week-section">
                 <div class="spotlight-header">
                     <h3 class="popular-quotes-week-title">⭐ Популярные цитаты недели</h3>
                     <button class="spotlight-refresh-btn" id="popularWeekRefreshBtn" 
@@ -1852,8 +1850,8 @@ renderAchievementsSection() {
         this.attachRetryButtons(); // ✅ НОВОЕ PR-3
         this.attachQuoteCardListeners(); // ✅ НОВОЕ: Обработчики для карточек цитат
         this.attachSpotlightRefreshButton(); // ✅ НОВОЕ: Кнопка обновления spotlight
-        this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели
-        this.attachLeaderboardRefreshButton(); // ✅ НОВОЕ: Кнопка обновления лидерборда
+        this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели (теперь обновляет и лидерборд)
+        // attachLeaderboardRefreshButton() удален - кнопка лидерборда больше не существует
         this.setupQuoteChangeListeners();
     }
 
@@ -1982,7 +1980,7 @@ renderAchievementsSection() {
     }
 
     /**
-     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ПОПУЛЯРНЫХ ЦИТАТ НЕДЕЛИ
+     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ПОПУЛЯРНЫХ ЦИТАТ НЕДЕЛИ И ЛИДЕРБОРДА
      */
     attachPopularWeekRefreshButton() {
         const refreshBtn = document.getElementById('popularWeekRefreshBtn');
@@ -1993,24 +1991,49 @@ renderAchievementsSection() {
                     this.triggerHapticFeedback('medium');
                     
                     // Показываем loading состояние с анимацией
-                    refreshBtn.innerHTML = '⟳';
+                    refreshBtn.innerHTML = 'Обновляем…';
                     refreshBtn.disabled = true;
+                    refreshBtn.setAttribute('aria-disabled', 'true');
                     refreshBtn.style.animation = 'spin 1s linear infinite';
                     
-                    // Перезагружаем популярные избранные
-                    await this.loadPopularFavorites(10);
+                    // Параллельно загружаем оба раздела
+                    await Promise.allSettled([
+                        this.loadPopularFavorites(10),
+                        this.loadLeaderboard(10)
+                    ]);
                     
-                    // Обновляем интерфейс
-                    this.rerender();
+                    // Генерируем свежий HTML для обоих секций
+                    const newPopularWeekHTML = this.renderPopularQuotesWeekSection();
+                    const newLeaderboardHTML = this.renderLeaderboardSection();
+                    
+                    // Заменяем только эти два контейнера в DOM в одном requestAnimationFrame
+                    requestAnimationFrame(() => {
+                        const popularWeekSection = document.getElementById('popularWeekSection');
+                        const leaderboardSection = document.getElementById('leaderboardSection');
+                        
+                        if (popularWeekSection) {
+                            popularWeekSection.outerHTML = newPopularWeekHTML;
+                        }
+                        
+                        if (leaderboardSection) {
+                            leaderboardSection.outerHTML = newLeaderboardHTML;
+                        }
+                        
+                        // Перепривязываем обработчики для обновленных узлов
+                        this.attachPopularWeekRefreshButton();
+                        this.attachQuoteCardListeners();
+                        this.attachRetryButtons();
+                    });
                     
                 } catch (error) {
-                    console.error('❌ Ошибка обновления популярных цитат недели:', error);
+                    console.error('❌ Ошибка обновления недельных секций:', error);
                     this.showNotification('Ошибка обновления', 'error');
-                } finally {
-                    // Восстанавливаем кнопку
+                    
+                    // Восстанавливаем кнопку при ошибке
                     if (refreshBtn) {
                         refreshBtn.innerHTML = '↻';
                         refreshBtn.disabled = false;
+                        refreshBtn.removeAttribute('aria-disabled');
                         refreshBtn.style.animation = '';
                     }
                 }
@@ -2019,40 +2042,13 @@ renderAchievementsSection() {
     }
 
     /**
-     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ЛИДЕРБОРДА
+     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ЛИДЕРБОРДА (DEPRECATED - NO-OP)
+     * Кнопка обновления лидерборда удалена. Теперь обновление происходит через
+     * кнопку "Популярные цитаты недели", которая обновляет оба раздела сразу.
      */
     attachLeaderboardRefreshButton() {
-        const refreshBtn = document.getElementById('leaderboardRefreshBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', async () => {
-                try {
-                    // Haptic feedback
-                    this.triggerHapticFeedback('medium');
-                    
-                    // Показываем loading состояние с анимацией
-                    refreshBtn.innerHTML = '⟳';
-                    refreshBtn.disabled = true;
-                    refreshBtn.style.animation = 'spin 1s linear infinite';
-                    
-                    // Перезагружаем лидерборд
-                    await this.loadLeaderboard(10);
-                    
-                    // Обновляем интерфейс
-                    this.rerender();
-                    
-                } catch (error) {
-                    console.error('❌ Ошибка обновления лидерборда:', error);
-                    this.showNotification('Ошибка обновления', 'error');
-                } finally {
-                    // Восстанавливаем кнопку
-                    if (refreshBtn) {
-                        refreshBtn.innerHTML = '↻';
-                        refreshBtn.disabled = false;
-                        refreshBtn.style.animation = '';
-                    }
-                }
-            });
-        }
+        // No-op: кнопка лидерборда больше не существует
+        // Обновление лидерборда теперь происходит через attachPopularWeekRefreshButton()
     }
 
     /**
