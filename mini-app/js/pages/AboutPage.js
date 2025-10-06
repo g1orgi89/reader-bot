@@ -155,69 +155,30 @@ class AboutPage {
     /**
      * 🔗 Рендер социальных ссылок
      */
-    renderSocialLinks() {
-        return `
-            <div class="about-section">
-                <h3>🔗 Связаться с нами</h3>
-                <div class="social-links">
-                    <button class="social-link" data-link="website" id="websiteBtn">
-                        <span class="social-emoji">🌐</span>
-                        <span>Официальный сайт</span>
-                    </button>
-                    <button class="social-link" data-link="telegram" id="telegramBtn">
-                        <span class="social-emoji">📱</span>
-                        <span>Telegram канал</span>
-                    </button>
-                    <button class="social-link" data-link="instagram" id="instagramBtn">
-                        <span class="social-emoji">📸</span>
-                        <span>Instagram</span>
-                    </button>
-                    <button class="social-link" data-link="email" id="emailBtn">
-                        <span class="social-emoji">✉️</span>
-                        <span>Написать письмо</span>
-                    </button>
+    renderContacts() {
+    return `
+        <div class="about-section">
+            <h3>Контакты</h3>
+            <div class="contacts-list">
+                <div class="contact-item">
+                    <a href="https://annabusel.org/bookclub" target="_blank" rel="noopener" id="websiteBtn">
+                        Сайт Анны Бусел
+                    </a>
+                </div>
+                <div class="contact-item">
+                    <a href="https://t.me/anna_busel" target="_blank" rel="noopener" id="telegramBtn">
+                        Telegram: @anna_busel
+                    </a>
+                </div>
+                <div class="contact-item">
+                    <a href="mailto:bebusel@bk.ru" id="emailBtn">
+                        Email: bebusel@bk.ru
+                    </a>
                 </div>
             </div>
-        `;
-    }
-    
-    /**
-     * 📋 Рендер информации о версии
-     */
-    renderVersionInfo() {
-        return `
-            <div class="about-section">
-                <h3>📋 Версия и обновления</h3>
-                <div class="version-card">
-                    <div class="version-info">
-                        <div class="version-item">
-                            <span class="version-label">Версия:</span>
-                            <span class="version-value">${this.appInfo.version || '1.0.0'}</span>
-                        </div>
-                        <div class="version-item">
-                            <span class="version-label">Дата релиза:</span>
-                            <span class="version-value">${this.appInfo.releaseDate || '2024'}</span>
-                        </div>
-                        <div class="version-item">
-                            <span class="version-label">Платформа:</span>
-                            <span class="version-value">Telegram Mini App</span>
-                        </div>
-                    </div>
-                    
-                    <div class="changelog">
-                        <h4>🆕 Что нового в этой версии:</h4>
-                        <ul>
-                            <li>Улучшенная навигация с полноэкранными страницами</li>
-                            <li>Интеграция с кнопкой "Назад" Telegram</li>
-                            <li>Хаптическая обратная связь</li>
-                            <li>Оптимизация производительности</li>
-                            <li>Исправление ошибок и улучшение стабильности</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
+        </div>
+    `;
+}  
     
     /**
      * 📄 Рендер правовой информации
