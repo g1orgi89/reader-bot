@@ -65,8 +65,7 @@ class AboutPage {
                 ${this.renderHeader()}
                 ${this.renderAppInfo()}
                 ${this.renderAuthorInfo()}
-                ${this.renderSocialLinks()}
-                ${this.renderVersionInfo()}
+                ${this.renderContacts()}
                 ${this.renderLegalInfo()}
                 ${this.renderError()}
             </div>
