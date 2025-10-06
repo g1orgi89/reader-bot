@@ -161,19 +161,19 @@ class AboutPage {
                 <div class="contacts-list">
                     <div class="contact-item">
                         <span class="contact-emoji">🌐</span>
-                        <a href="https://annabusel.org/bookclub" target="_blank" rel="noopener" id="websiteBtn">
+                        <a href="https://annabusel.org/bookclub" target="_blank" rel="noopener" id="websiteBtn" class="contact-link">
                             Сайт Анны Бусел
                         </a>
                     </div>
                     <div class="contact-item">
                         <span class="contact-emoji">📱</span>
-                        <a href="https://t.me/anna_busel" target="_blank" rel="noopener" id="telegramBtn">
+                        <a href="https://t.me/anna_busel" target="_blank" rel="noopener" id="telegramBtn" class="contact-link">
                             Telegram: @anna_busel
                         </a>
                     </div>
                     <div class="contact-item">
                         <span class="contact-emoji">✉️</span>
-                        <a href="mailto:bebusel@bk.ru" id="emailBtn">
+                        <a href="mailto:bebusel@bk.ru" id="emailBtn" class="contact-link">
                             Email: bebusel@bk.ru
                         </a>
                     </div>
