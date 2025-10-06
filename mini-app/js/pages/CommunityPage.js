@@ -2022,6 +2022,7 @@ renderAchievementsSection() {
                         // Перепривязываем обработчики для обновленных узлов
                         this.attachPopularWeekRefreshButton();
                         this.attachQuoteCardListeners();
+                        this.attachCommunityCardListeners();
                         this.attachRetryButtons();
                     });
                     
