@@ -110,8 +110,8 @@ class AboutPage {
                             <span>Отслеживание прогресса чтения</span>
                         </div>
                         <div class="feature-item">
-                            <span class="feature-emoji">🏆</span>
-                            <span>Система достижений</span>
+                            <span class="feature-emoji">🗓️</span>
+                            <span>Еженедельные отчеты</span>
                         </div>
                         <div class="feature-item">
                             <span class="feature-emoji">📚</span>
