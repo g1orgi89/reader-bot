@@ -152,32 +152,35 @@ class AboutPage {
     }
     
     /**
-     * 🔗 Рендер социальных ссылок
+     * 🔗 Рендер блока контактов с эмодзи слева от каждой строки
      */
     renderContacts() {
-    return `
-        <div class="about-section">
-            <h3>Контакты</h3>
-            <div class="contacts-list">
-                <div class="contact-item">
-                    <a href="https://annabusel.org/bookclub" target="_blank" rel="noopener" id="websiteBtn">
-                        Сайт Анны Бусел
-                    </a>
-                </div>
-                <div class="contact-item">
-                    <a href="https://t.me/anna_busel" target="_blank" rel="noopener" id="telegramBtn">
-                        Telegram: @anna_busel
-                    </a>
-                </div>
-                <div class="contact-item">
-                    <a href="mailto:bebusel@bk.ru" id="emailBtn">
-                        Email: bebusel@bk.ru
-                    </a>
+        return `
+            <div class="about-section">
+                <h3>📬 Контакты</h3>
+                <div class="contacts-list">
+                    <div class="contact-item">
+                        <span class="contact-emoji">🌐</span>
+                        <a href="https://annabusel.org/bookclub" target="_blank" rel="noopener" id="websiteBtn">
+                            Сайт Анны Бусел
+                        </a>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-emoji">📱</span>
+                        <a href="https://t.me/anna_busel" target="_blank" rel="noopener" id="telegramBtn">
+                            Telegram: @anna_busel
+                        </a>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-emoji">✉️</span>
+                        <a href="mailto:bebusel@bk.ru" id="emailBtn">
+                            Email: bebusel@bk.ru
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-}  
+        `;
+    }
     
     /**
      * 📄 Рендер правовой информации
