@@ -63,9 +63,7 @@ class TopMenu {
 
     renderDrawerContent() {
         const userInfo = this.getUserInfo();
-        const menuItemsHTML = this.menuItems.map(item =>
-            item.isDivider ? '<div class="menu-divider"></div>' : this.renderMenuItem(item)
-        ).join('');
+        const menuItemsHTML = this.menuItems.map(item => this.renderMenuItem(item)).join('');
 
         return `
             <div class="drawer-header">
