@@ -710,14 +710,6 @@
     
     /* .recent-quote-item mobile padding now handled by unified styles */
     
-    .quote-text {
-        font-size: 13px;
-    }
-    
-    .quote-author {
-        font-size: 11px;
-    }
-    
     .empty-recent-quotes {
         padding: 20px;
         font-size: 13px;
@@ -845,8 +837,6 @@ body.dark-theme {
   .empty-books { font-size: var(--font-size-xs); }      /* 12 -> 13 */
 
   .stat-summary { font-size: var(--font-size-base); }
-  .quote-text { font-size: var(--font-size-sm); }
-  .quote-author { font-size: 12px; }
   .empty-recent-quotes { font-size: var(--font-size-sm); }
 
   .error-message { font-size: var(--font-size-xs); }    /* 12 -> 13 */
@@ -969,17 +959,17 @@ body.dark-theme {
 
 /* === Unify home recent quotes with Community blocks (Inter, italic, primary color, correct size) === */
 .recent-quotes-section .quote-card.recent .quote-text {
-  font-family: var(--font-family-primary);  /* Inter */
+  font-family: var(--font-family-primary);
   font-style: italic;
-  font-size: var(--font-size-lg);
-  line-height: var(--line-height-loose);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
   color: var(--text-primary);
 }
 
 .recent-quotes-section .quote-card.recent .quote-author {
-  font-family: var(--font-family-primary);  /* Inter */
+  font-family: var(--font-family-primary);
   font-style: italic;
   font-weight: var(--font-weight-normal);
   font-size: var(--font-size-sm);
-  color: var(--text-primary); /* убираем серый */
+  color: var(--text-primary);
 }
