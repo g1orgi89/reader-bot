@@ -210,3 +210,6 @@ coverage/
 .nyc_output/
 test-results/
 junit.xml
+
+# Test files
+test-*.js
