@@ -348,11 +348,11 @@ html.keyboard-open .bottom-nav {
 }
 
 .menu-icon {
-    width: 24px;
-    height: 24px;
-    color: var(--text-muted);
-    transition: color var(--duration-normal) var(--ease-out);
-    flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--text-muted);
+  transition: color var(--duration-normal) var(--ease-out);
+  flex-shrink: 0;
 }
 
 .menu-item:hover .menu-icon {
@@ -365,9 +365,7 @@ html.keyboard-open .bottom-nav {
 }
 
 .menu-divider {
-    height: 1px;
-    background: var(--bg-secondary);
-    margin: var(--spacing-md) var(--spacing-lg);
+    display: none;
 }
 
 /* Адаптация под темную тему */
