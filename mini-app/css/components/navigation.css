@@ -364,10 +364,6 @@ html.keyboard-open .bottom-nav {
     flex: 1;
 }
 
-.menu-divider {
-    display: none;
-}
-
 /* Адаптация под темную тему */
 @media (prefers-color-scheme: dark) {
     .drawer .drawer-header {
