@@ -760,7 +760,7 @@ async function startServer() {
         logger.info('✅ Simple Telegram Bot initialized');
         
         // Setup webhook endpoint
-        const webhookPath = process.env.TELEGRAM_WEBHOOK_PATH || '/api/telegram/webhook';
+        const webhookPath = '/api/reader/telegram/webhook';
         const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
         
         if (webhookUrl) {
@@ -771,7 +771,7 @@ async function startServer() {
           app.use(webhookPath, simpleBot.webhookCallback(webhookPath));
           
           // Set webhook URL in Telegram
-          await simpleBot.setWebhook(webhookUrl);
+          await simpleBot.setWebhook('https://app.unibotz.com/api/reader/telegram/webhook');
           
           // Log webhook info
           const webhookInfo = await simpleBot.getWebhookInfo();
