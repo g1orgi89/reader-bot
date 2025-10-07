@@ -221,17 +221,6 @@ class ReminderService {
     // Build message from template (no user name prefix)
     let message = template;
     
-    // Добавляем поощрение за стрик, если есть
-    if (user.statistics?.currentStreak > 0) {
-      const streakMessages = [
-        `🔥 Ваш стрик: ${user.statistics.currentStreak} дней! Продолжайте в том же духе!`,
-        `⚡ ${user.statistics.currentStreak} дней подряд - отличный результат!`,
-        `🎯 Стрик ${user.statistics.currentStreak} дней! Вы молодец!`
-      ];
-      const randomStreakMsg = streakMessages[Math.floor(Math.random() * streakMessages.length)];
-      message += `\n\n${randomStreakMsg}`;
-    }
-
     // Добавляем информацию о сегодняшних цитатах, если есть
     const { Quote } = require('../models');
     const today = new Date();
