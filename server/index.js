@@ -416,46 +416,6 @@ const server = http.createServer(app);
 let simpleBot = null;
 let reminderService = null;
 let reminderJobs = null;
-
-if (process.env.ENABLE_SIMPLE_BOT === 'true') {
-  try {
-    logger.info('🤖 Creating Simple Telegram Bot instance...');
-    const SimpleTelegramBot = require('../bot/simpleBot');
-    
-    simpleBot = new SimpleTelegramBot({
-      token: config.telegram.botToken,
-      environment: config.app.environment,
-      appWebAppUrl: process.env.APP_WEBAPP_URL || 'https://app.unibotz.com/mini-app/'
-    });
-    
-    logger.info('✅ Simple Telegram Bot instance created');
-    
-    // Register webhook endpoint BEFORE other middleware
-    const webhookPath = '/api/reader/telegram/webhook';
-    logger.info(`🔗 Registering webhook callback at ${webhookPath}`);
-    
-    // Note: Bot handlers will be initialized in startServer(), but webhook callback is registered now
-    // This is safe because Telegraf queues updates until handlers are ready
-    app.use(webhookPath, (req, res, next) => {
-      // We'll replace this with actual webhook callback after bot initialization
-      if (simpleBot && simpleBot.isInitialized) {
-        return simpleBot.webhookCallback(webhookPath)(req, res, next);
-      } else {
-        logger.warn('⚠️ Webhook request received but bot not yet initialized, queueing...');
-        // Return OK to Telegram to avoid retries
-        res.status(200).json({ ok: true, description: 'Bot initializing' });
-      }
-    });
-    
-    logger.info('✅ Webhook endpoint registered');
-    
-  } catch (error) {
-    logger.error('❌ Failed to create Simple Telegram Bot:', error);
-    simpleBot = null;
-  }
-} else {
-  logger.info('🤖 ENABLE_SIMPLE_BOT not set to "true", Simple Telegram Bot will not be created');
-}
           
 // Socket.IO настройка
 const io = socketIo(server, {
@@ -724,6 +684,42 @@ async function startServer() {
     logger.info(`Environment: ${config.app.environment}`);
     logger.info(`Version: ${config.app.version}`);
     
+    // 🤖 Initialize Simple Telegram Bot FIRST, before starting HTTP server
+    // This ensures webhook handler is ready when Telegram sends requests
+    if (process.env.ENABLE_SIMPLE_BOT === 'true') {
+      try {
+        logger.info('🤖 Creating and initializing Simple Telegram Bot...');
+        const SimpleTelegramBot = require('../bot/simpleBot');
+        
+        simpleBot = new SimpleTelegramBot({
+          token: config.telegram.botToken,
+          environment: config.app.environment,
+          appWebAppUrl: process.env.APP_WEBAPP_URL || 'https://app.unibotz.com/mini-app/'
+        });
+        
+        logger.info('✅ Simple Telegram Bot instance created');
+        
+        // Initialize bot handlers (commands, messages, etc.) BEFORE registering webhook
+        await simpleBot.initialize();
+        logger.info('✅ Simple Telegram Bot handlers initialized');
+        
+        // Register webhook endpoint FIRST, before any other middleware
+        const webhookPath = '/api/reader/telegram/webhook';
+        logger.info(`🔗 Registering Telegraf webhook callback at ${webhookPath}`);
+        
+        // Register actual Telegraf webhook callback (no placeholder!)
+        app.use(webhookPath, simpleBot.webhookCallback(webhookPath));
+        
+        logger.info('✅ Webhook endpoint registered with actual Telegraf handler');
+        
+      } catch (error) {
+        logger.error('❌ Failed to create/initialize Simple Telegram Bot:', error);
+        simpleBot = null;
+      }
+    } else {
+      logger.info('🤖 ENABLE_SIMPLE_BOT not set to "true", Simple Telegram Bot will not be created');
+    }
+    
     logger.info('📡 Connecting to MongoDB...');
     await dbService.connect();
     logger.info('✅ MongoDB connected successfully');
@@ -786,21 +782,14 @@ async function startServer() {
     const WeeklyReportService = require('./services/weeklyReportService');
     const weeklyReportService = new WeeklyReportService();
 
-    // 🤖 Initialize Simple Telegram Bot handlers and webhook
+    // 🤖 Setup webhook with Telegram and initialize reminder services
     if (simpleBot) {
       try {
-        logger.info('🤖 Initializing Simple Telegram Bot handlers...');
-        
         const { ReminderService } = require('./services/reminderService');
         const { initReminderCron, stopReminderCron } = require('./scheduler/reminderJobs');
         
-        // Initialize bot handlers (commands, messages, etc.)
-        await simpleBot.initialize();
-        logger.info('✅ Simple Telegram Bot handlers initialized');
-        
         // Setup webhook with Telegram
         const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
-        const webhookPath = '/api/reader/telegram/webhook';
         
         if (webhookUrl) {
           // Production mode: set webhook URL with Telegram
@@ -812,7 +801,9 @@ async function startServer() {
           logger.info('✅ Webhook configured:', {
             url: webhookInfo.url,
             has_custom_certificate: webhookInfo.has_custom_certificate,
-            pending_update_count: webhookInfo.pending_update_count
+            pending_update_count: webhookInfo.pending_update_count,
+            last_error_date: webhookInfo.last_error_date,
+            last_error_message: webhookInfo.last_error_message
           });
           
           logger.info('✅ Simple Telegram Bot started in WEBHOOK mode');
@@ -846,11 +837,10 @@ async function startServer() {
         global.simpleTelegramBot = simpleBot;
         
       } catch (error) {
-        logger.error('❌ Failed to initialize Simple Telegram Bot:', error);
-        simpleBot = null;
+        logger.error('❌ Failed to setup webhook or initialize services:', error);
       }
     } else {
-      logger.info('🤖 Simple Telegram Bot not created, skipping initialization');
+      logger.info('🤖 Simple Telegram Bot not created, skipping webhook setup and reminder services');
     }
    
     // 📖 Initialize and start CronService
