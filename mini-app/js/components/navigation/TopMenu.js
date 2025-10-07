@@ -363,36 +363,13 @@ class TopMenu {
         `;
     }
     getSettingsIcon() {
-      return `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.7 1.7 0 0 1 .3 1.8l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 1-1.8-.3 1.7 1.7 0 0 1-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 1-1-1.5 1.7 1.7 0 0 1-1.8.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 1 .3-1.8 1.7 1.7 0 0 1-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 1 1.5-1 1.7 1.7 0 0 1-.3-1.8l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 1 1.8.3 1.7 1.7 0 0 1 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 1 1 .4c.3.3.4.6.4 1a1.7 1.7 0 0 1 1.8.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 1-.3 1.8c.3.7.2 1.3-.3 1.8Z"/>
-        </svg>
-      `;
+      return `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#D2452C"/></svg>`;
     }
-    
     getHelpIcon() {
-      return `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/>
-          <circle cx="12" cy="17" r="1"/>
-        </svg>
-      `;
+      return `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#2C1810"/></svg>`;
     }
-    
     getAboutIcon() {
-      return `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 16v-4"/>
-          <path d="M12 8h.01"/>
-        </svg>
-      `;
+      return `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#E5674F"/></svg>`;
     }
     
     if (typeof module !== 'undefined' && module.exports) {
