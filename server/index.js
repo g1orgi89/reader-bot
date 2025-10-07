@@ -418,27 +418,32 @@ let reminderService = null;
 let reminderJobs = null;
 let botInitPromise = null;
 
-// 🤖 Register webhook FIRST, before any other middleware
-// The webhook handler is registered synchronously, bot initialization happens async
+// 🤖 Register webhook handler BEFORE any other middleware to prevent 404
+// The handler delegates to Telegraf once bot is initialized
 const webhookPath = '/api/reader/telegram/webhook';
+let webhookHandler = null;
 
 if (process.env.ENABLE_SIMPLE_BOT === 'true') {
-  // Register webhook endpoint IMMEDIATELY, BEFORE any other middleware
-  app.use(webhookPath, (req, res, next) => {
-    // Wait for bot to be ready, then delegate to actual webhook handler
-    if (simpleBot && simpleBot.isInitialized) {
-      return simpleBot.webhookCallback(webhookPath)(req, res, next);
+  // Register webhook route IMMEDIATELY, BEFORE all other middleware
+  // This ensures it's first in the routing chain and won't return 404
+  // Use app.post since Telegram webhooks are always POST requests
+  app.post(webhookPath, (req, res, next) => {
+    logger.info(`🔗 Webhook request received, handler exists: ${!!webhookHandler}`);
+    if (webhookHandler) {
+      // Bot is ready - delegate to cached Telegraf webhook handler
+      logger.info('🔗 Delegating to Telegraf webhook handler');
+      return webhookHandler(req, res, next);
     } else {
-      // Bot is still initializing - this should never happen in production
-      // as we wait for botInitPromise in startServer before listening
-      logger.warn('⚠️ Webhook request received but bot not yet initialized');
-      return res.status(200).json({ ok: true, description: 'Bot initializing' });
+      // Bot still initializing - return 200 OK so Telegram doesn't retry
+      // This state only exists briefly during startup before server.listen()
+      logger.warn('⚠️ Webhook request received during bot initialization');
+      return res.status(200).json({ ok: true, description: 'Bot initializing, please retry' });
     }
   });
   
-  logger.info(`🔗 Webhook route registered at ${webhookPath} (waiting for bot initialization)`);
+  logger.info(`🔗 Webhook route registered at ${webhookPath} (bot will initialize async)`);
   
-  // Initialize bot async (will complete before server starts listening)
+  // Initialize bot async (completes before server starts listening via botInitPromise await in startServer)
   botInitPromise = (async () => {
     try {
       logger.info('🤖 Creating and initializing Simple Telegram Bot...');
@@ -455,7 +460,10 @@ if (process.env.ENABLE_SIMPLE_BOT === 'true') {
       // Initialize bot handlers (commands, messages, etc.)
       await simpleBot.initialize();
       logger.info('✅ Simple Telegram Bot handlers initialized');
-      logger.info(`✅ Webhook at ${webhookPath} is now ready to handle requests`);
+      
+      // Create and cache the webhook handler
+      webhookHandler = simpleBot.webhookCallback(webhookPath);
+      logger.info(`✅ Webhook at ${webhookPath} now ready to handle Telegram updates`);
       
     } catch (error) {
       logger.error('❌ Failed to create/initialize Simple Telegram Bot:', error);
