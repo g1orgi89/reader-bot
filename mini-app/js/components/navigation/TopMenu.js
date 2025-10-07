@@ -367,16 +367,16 @@ class TopMenu {
     }
     getSettingsIcon() {
         return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09"/>
-                <path d="M4.6 9a1.65 1.65 0 0 1-.33-1.82l.06-.06a2 2 0 0 0 0-2.83 2 2 0 0 0-2.83 0l-.06.06A1.65 1.65 0 0 1 1 2.99V3a2 2 0 0 1 2-2h.09"/>
+                <path d="M12 1v6m0 6v10M1 12h6m6 0h10"/>
+                <path d="M4.22 4.22l4.24 4.24m7.08 0l4.24-4.24M4.22 19.78l4.24-4.24m7.08 0l4.24 4.24"/>
             </svg>
         `;
     }
     getHelpIcon() {
         return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                 <circle cx="12" cy="17" r="1"/>
@@ -385,10 +385,10 @@ class TopMenu {
     }
     getAboutIcon() {
         return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/>
-                <path d="M12 16v-4"/>
-                <path d="M12 8h.01"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12" y2="8"/>
             </svg>
         `;
     }
