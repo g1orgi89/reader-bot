@@ -428,10 +428,8 @@ if (process.env.ENABLE_SIMPLE_BOT === 'true') {
   // This ensures it's first in the routing chain and won't return 404
   // Use app.post since Telegram webhooks are always POST requests
   app.post(webhookPath, (req, res, next) => {
-    logger.info(`🔗 Webhook request received, handler exists: ${!!webhookHandler}`);
     if (webhookHandler) {
       // Bot is ready - delegate to cached Telegraf webhook handler
-      logger.info('🔗 Delegating to Telegraf webhook handler');
       return webhookHandler(req, res, next);
     } else {
       // Bot still initializing - return 200 OK so Telegram doesn't retry
