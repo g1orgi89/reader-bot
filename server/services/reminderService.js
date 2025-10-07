@@ -4,6 +4,7 @@
  */
 
 const logger = require('../utils/logger');
+const { notificationTemplates } = require('../config/notificationTemplates');
 
 /**
  * @typedef {Object} ReminderStats
@@ -19,30 +20,9 @@ const logger = require('../utils/logger');
 class ReminderService {
   constructor() {
     this.bot = null;
-    
-    // Шаблоны сообщений для разных слотов
-    this.messageTemplates = {
-      morning: [
-        "🌅 Доброе утро! Начните день с мудрой мысли - поделитесь цитатой, которая вас вдохновляет.",
-        "☀️ Утро - время для новых открытий. Какие слова тронули вашу душу недавно?",
-        "🌟 Утренняя доза мудрости! Добавьте цитату, которая задаст тон вашему дню.",
-        "📚 \"Хорошее утро начинается с хорошей мысли\". Поделитесь своей?"
-      ],
-      day: [
-        "🌤️ Как дела? Время подумать о том, что важного вы узнали сегодня.",
-        "💭 Середина дня - отличное время для рефлексии. Какая мудрость встретилась вам?",
-        "📖 Возможно, сегодня вы нашли цитату, которая изменила ваш взгляд на вещи?",
-        "⭐ Время для небольшой паузы. Поделитесь мыслью, которая вас заинтересовала."
-      ],
-      evening: [
-        "🌙 Добрый вечер! Какая мудрость озарила ваш день?",
-        "✨ Вечер - время подводить итоги. Какие важные слова запомнились сегодня?",
-        "🌆 День подходит к концу. Поделитесь цитатой, которая отразила ваши мысли.",
-        "📝 \"Каждый день - это история\". Какую мудрую строчку добавите в свою?"
-      ]
-    };
+    this.templates = notificationTemplates;
 
-    logger.info('🔔 ReminderService initialized with slot-based system');
+    logger.info('🔔 ReminderService initialized with weekday-based system');
   }
 
   /**
@@ -76,6 +56,10 @@ class ReminderService {
       const today = new Date();
       const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
+      // Compute current weekday in Moscow timezone
+      const dayName = this.getMoscowWeekday();
+      logger.info(`🔔 Current Moscow weekday: ${dayName}`);
+
       // Получаем пользователей для отправки напоминаний
       const eligibleUsers = await this.getEligibleUsers(slot, dayOfWeek);
       logger.info(`[DEBUG] eligibleUsers: ` + eligibleUsers.map(u => `${u.userId} (${u.name})`).join(', '));
@@ -83,11 +67,15 @@ class ReminderService {
 
       for (const user of eligibleUsers) {
         try {
-          await this.sendReminderToUser(user, slot);
-          stats.sent++;
+          const result = await this.sendReminderToUser(user, slot, dayName);
           
-          // Обновляем lastSentAt
-          await this.updateLastSentAt(user.userId);
+          if (result === 'sent') {
+            stats.sent++;
+            // Обновляем lastSentAt только если отправлено
+            await this.updateLastSentAt(user.userId);
+          } else if (result === 'skipped') {
+            stats.skipped++;
+          }
           
         } catch (error) {
           logger.error(`🔔 Failed to send reminder to user ${user.userId}:`, error);
@@ -107,6 +95,20 @@ class ReminderService {
       logger.error(`🔔 Error in sendSlotReminders(${slot}):`, error);
       return { sent: 0, skipped: 0, failed: 0, errors: [{ error: error.message, slot }] };
     }
+  }
+
+  /**
+   * Get current weekday name in Moscow timezone
+   * @returns {string} Weekday name in Russian (capitalized)
+   */
+  getMoscowWeekday() {
+    const formatter = new Intl.DateTimeFormat('ru-RU', {
+      weekday: 'long',
+      timeZone: 'Europe/Moscow'
+    });
+    const dayName = formatter.format(new Date());
+    // Capitalize first letter
+    return dayName.charAt(0).toUpperCase() + dayName.slice(1);
   }
 
   /**
@@ -203,14 +205,21 @@ class ReminderService {
    * Отправить напоминание конкретному пользователю
    * @param {Object} user - Пользователь
    * @param {string} slot - Слот времени
-   * @returns {Promise<void>}
+   * @param {string} dayName - Название дня недели
+   * @returns {Promise<string>} 'sent' or 'skipped'
    */
-  async sendReminderToUser(user, slot) {
-    const templates = this.messageTemplates[slot];
-    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+  async sendReminderToUser(user, slot, dayName) {
+    // Get template for this weekday and slot
+    const template = this.templates[dayName]?.[slot] || '';
     
-    // Персонализируем сообщение с именем пользователя
-    let message = `${user.name}, ${randomTemplate}`;
+    // If template is empty or whitespace-only, skip sending
+    if (!template || template.trim() === '') {
+      logger.info(`🔔 Skipped ${slot} reminder for user ${user.userId} (${user.name}) - empty template for ${dayName}`);
+      return 'skipped';
+    }
+
+    // Build message from template (no user name prefix)
+    let message = template;
     
     // Добавляем поощрение за стрик, если есть
     if (user.statistics?.currentStreak > 0) {
@@ -238,6 +247,7 @@ class ReminderService {
 
     await this.bot.telegram.sendMessage(user.userId, message);
     logger.info(`🔔 Sent ${slot} reminder to user ${user.userId} (${user.name})`);
+    return 'sent';
   }
 
   /**
