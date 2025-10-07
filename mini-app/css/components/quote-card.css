@@ -254,7 +254,7 @@
   .quote-item .quote-text,
   [data-quote-id] .quote-text,
   .my-quotes .quote-text {
-    font-size: var(--font-size-base);
+    font-size: var(--font-size-sm); /* Было base, стало sm — размер не увеличится на мобильных! */
   }
 }
 
