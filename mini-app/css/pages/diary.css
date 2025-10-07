@@ -793,12 +793,6 @@
     }
 }
 
-/* Align diary quotes font with Community blocks (use Inter instead of Merriweather) */
-.my-quotes .quote-text,
-.quote-card.my-quotes .quote-text {
-  font-family: var(--font-family-primary); /* Inter */
-}
-
 /* === Unify diary quotes with Community blocks (Inter, italic, primary color, correct size) === */
 .my-quotes .quote-text,
 .quote-card.my-quotes .quote-text,
