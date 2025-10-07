@@ -485,6 +485,7 @@ class ReaderApp {
         this.showApp();
         this.registerLifecycleHandlers();
         this.isInitialized = true;
+        this.initTopMenu();
         this.telegram?.ready?.();
         console.log('✅ Приложение полностью готово к работе');
     }
@@ -568,26 +569,43 @@ class ReaderApp {
         }
     }
 
-    showTopMenu() {
-        console.log('🔄 Показываем верхнее меню...');
-        if (!this.isHome()) {
-            console.warn('⚠️ TopMenu доступно только на главной странице');
+    initTopMenu() {
+        if (this.topMenu) {
+            console.log('✅ TopMenu уже инициализирован');
             return;
         }
-        if (!this.topMenu && typeof TopMenu !== 'undefined') {
+        if (typeof TopMenu === 'undefined') {
+            console.warn('⚠️ TopMenu class не найден');
+            return;
+        }
+        try {
             this.topMenu = new TopMenu({
                 app: this,
                 api: this.api,
                 state: this.state,
                 telegram: this.telegram
             });
-            console.log('✅ TopMenu инициализирован для HomePage');
+            console.log('✅ TopMenu инициализирован в App.init');
+        } catch (error) {
+            console.error('❌ Ошибка инициализации TopMenu:', error);
+            this.topMenu = null;
         }
+    }
+
+    showTopMenu() {
+        console.log('🔄 Показываем верхнее меню...');
+        if (!this.isHome()) {
+            console.warn('⚠️ TopMenu доступно только на главной странице');
+            return false;
+        }
+        this.initTopMenu();
         if (this.topMenu?.open) {
             this.topMenu.open();
             console.log('✅ Верхнее меню показано');
+            return true;
         } else {
             this.telegram?.showAlert?.('Меню пока не доступно');
+            return false;
         }
     }
 

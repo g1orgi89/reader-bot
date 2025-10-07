@@ -147,6 +147,64 @@ html.keyboard-open .bottom-nav {
 }
 
 /* ============================================================================
+   📋 ВЕРХНЕЕ МЕНЮ DRAWER - БАЗОВЫЕ СТИЛИ И ГЕОМЕТРИЯ
+   ============================================================================ */
+
+/* Base drawer panel geometry and transitions */
+.drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 320px;
+    max-width: 85vw;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-xl);
+    z-index: var(--z-index-modal, 10000);
+    display: flex;
+    flex-direction: column;
+    transition: transform var(--duration-normal) var(--ease-out);
+    overflow: hidden;
+}
+
+/* Drawer positioned on right side */
+.drawer.drawer-right {
+    right: 0;
+    transform: translateX(100%);
+}
+
+/* Drawer active (visible) state */
+.drawer.active {
+    transform: translateX(0);
+}
+
+/* Drawer backdrop overlay */
+.drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: calc(var(--z-index-modal, 10000) - 1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+/* Backdrop active (visible) state */
+.drawer-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Mobile: narrower drawer */
+@media (max-width: 480px) {
+    .drawer {
+        width: 280px;
+    }
+}
+
+/* ============================================================================
    📋 ВЕРХНЕЕ МЕНЮ DRAWER - ДОПОЛНИТЕЛЬНЫЕ СТИЛИ
    ============================================================================ */
 

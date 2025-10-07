@@ -136,6 +136,9 @@ class TopMenu {
         if (this.isOpen) return;
         this.isOpen = true;
         this.drawer.classList.add('active');
+        if (this.backdrop) {
+            this.backdrop.classList.add('active');
+        }
         if (this.telegram?.hapticFeedback) {
             try { this.telegram.hapticFeedback('light'); } catch {}
         }
@@ -147,6 +150,9 @@ class TopMenu {
         if (!this.isOpen) return;
         this.isOpen = false;
         this.drawer.classList.remove('active');
+        if (this.backdrop) {
+            this.backdrop.classList.remove('active');
+        }
         document.body.classList.remove('modal-open');
         console.log('✅ TopMenu: Меню закрыто');
     }
