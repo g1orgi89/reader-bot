@@ -229,7 +229,6 @@
 
 /* .quote-text styles inherited from base.css - only local overrides here */
 .quote-text {
-    font-size: 12px;
     margin-bottom: 8px;
 }
 
@@ -450,10 +449,6 @@
         margin-bottom: 10px;
     }
     
-    .quote-text {
-        font-size: 11px;
-    }
-    
     .filter-tabs {
         justify-content: center;
     }
@@ -637,7 +632,6 @@
 
   .filter-tab { font-size: 11px; }                /* 10 -> 11 */
 
-  .quote-text { font-size: var(--font-size-xs); } /* 12 -> 13 (mobile 11 -> 13) */
   .quote-meta { font-size: 11px; }                /* 10 -> 11 */
   .quote-date { font-size: 10px; }                /* 9 -> 10 */
   .quote-action { font-size: var(--font-size-sm); } /* 12 -> 15 */
@@ -809,19 +803,19 @@
 .my-quotes .quote-text,
 .quote-card.my-quotes .quote-text,
 .my-quotes [data-quote-id] .quote-text {
-  font-family: var(--font-family-primary);  /* Inter */
+  font-family: var(--font-family-primary);
   font-style: italic;
-  font-size: var(--font-size-lg);
-  line-height: var(--line-height-loose);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
   color: var(--text-primary);
 }
 
 .my-quotes .quote-author,
 .quote-card.my-quotes .quote-author,
 .my-quotes [data-quote-id] .quote-author {
-  font-family: var(--font-family-primary);  /* Inter */
+  font-family: var(--font-family-primary);
   font-style: italic;
   font-weight: var(--font-weight-normal);
   font-size: var(--font-size-sm);
-  color: var(--text-primary); /* убираем серый */
+  color: var(--text-primary);
 }
