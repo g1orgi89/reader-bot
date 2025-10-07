@@ -37,6 +37,7 @@ class SimpleTelegramBot {
     try {
       logger.info('🤖 Initializing SimpleTelegramBot...');
       
+      this._setupGlobalMiddleware();
       this._setupCommands();
       this._setupMessageHandlers();
       this._setupErrorHandling();
@@ -51,13 +52,71 @@ class SimpleTelegramBot {
   }
 
   /**
+   * Setup global middleware for logging incoming updates
+   * @private
+   */
+  _setupGlobalMiddleware() {
+    // 🔍 DIAGNOSTIC: Log every incoming update from Telegram
+    this.bot.use(async (ctx, next) => {
+      try {
+        const update = ctx.update;
+        const updateId = update.update_id;
+        
+        // Compute update type
+        let updateType = 'unknown';
+        let chatId = 'unknown';
+        let fromId = 'unknown';
+        let textOrData = '';
+        
+        if (update.message) {
+          updateType = 'message';
+          chatId = update.message.chat?.id || 'unknown';
+          fromId = update.message.from?.id || 'unknown';
+          textOrData = update.message.text ? update.message.text.substring(0, 100) : '(no text)';
+        } else if (update.callback_query) {
+          updateType = 'callback_query';
+          chatId = update.callback_query.message?.chat?.id || 'unknown';
+          fromId = update.callback_query.from?.id || 'unknown';
+          textOrData = update.callback_query.data || '(no data)';
+        } else if (update.edited_message) {
+          updateType = 'edited_message';
+          chatId = update.edited_message.chat?.id || 'unknown';
+          fromId = update.edited_message.from?.id || 'unknown';
+          textOrData = update.edited_message.text ? update.edited_message.text.substring(0, 100) : '(no text)';
+        } else if (update.inline_query) {
+          updateType = 'inline_query';
+          fromId = update.inline_query.from?.id || 'unknown';
+          textOrData = update.inline_query.query || '(no query)';
+        } else if (update.chosen_inline_result) {
+          updateType = 'chosen_inline_result';
+          fromId = update.chosen_inline_result.from?.id || 'unknown';
+        }
+        
+        logger.info(`[TG][IN] update_id=${updateId} type=${updateType} chat=${chatId} from=${fromId} text/data="${textOrData}"`);
+        
+        await next();
+      } catch (error) {
+        logger.error(`[TG][ERROR] Global middleware error: ${error.message}`);
+        await next();
+      }
+    });
+  }
+
+  /**
    * Setup bot commands
    * @private
    */
   _setupCommands() {
     // /start: после приветствия BotFather отправляем только «Как пользоваться...»
     this.bot.start(async (ctx) => {
-      console.log('🔥 Получена команда /start от пользователя:', ctx.from?.id, ctx.from?.username);
+      // 🔍 DIAGNOSTIC: Enhanced /start command logging
+      const updateId = ctx.update?.update_id || 'unknown';
+      const chatId = ctx.chat?.id || 'unknown';
+      const fromId = ctx.from?.id || 'unknown';
+      const username = ctx.from?.username || 'no_username';
+      
+      logger.info(`[TG][/start] update_id=${updateId} chat=${chatId} from=${fromId} username=${username}`);
+      
       try {
         const usageMessage = `📚 Как пользоваться приложением (ВАЖНО! ПРОЧТИТЕ ДОКОНЦА)
     
@@ -83,9 +142,9 @@ class SimpleTelegramBot {
     Пусть это приложение станет частью вашего читательского опыта и личной истории.`;
     
         await ctx.reply(usageMessage, { disable_web_page_preview: true });
-        logger.info(`🤖 /start command handled for user ${ctx.from.id}`);
+        logger.info(`[TG][/start] ✅ Reply sent successfully to user ${fromId}`);
       } catch (error) {
-        logger.error(`❌ Error in /start command: ${error.message}`);
+        logger.error(`[TG][/start] ❌ Error: ${error.message} | user=${fromId}`);
         await ctx.reply('🤖 Добро пожаловать! Откройте приложение через синюю кнопку внизу Telegram.');
       }
     });

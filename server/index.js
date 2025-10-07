@@ -424,22 +424,51 @@ const webhookPath = '/api/reader/telegram/webhook';
 let webhookHandler = null;
 
 if (process.env.ENABLE_SIMPLE_BOT === 'true') {
-  // Register webhook route IMMEDIATELY, BEFORE all other middleware
-  // This ensures it's first in the routing chain and won't return 404
-  // Use app.post since Telegram webhooks are always POST requests
-  app.post(webhookPath, (req, res, next) => {
-    if (webhookHandler) {
-      // Bot is ready - delegate to cached Telegraf webhook handler
-      return webhookHandler(req, res, next);
-    } else {
-      // Bot still initializing - return 200 OK so Telegram doesn't retry
-      // This state only exists briefly during startup before server.listen()
-      logger.warn('⚠️ Webhook request received during bot initialization');
-      return res.status(200).json({ ok: true, description: 'Bot initializing, please retry' });
-    }
+  // 🔍 DIAGNOSTIC: Multiple fallback webhook paths to guard against proxy/ingress path rewriting
+  const webhookPaths = [
+    '/api/reader/telegram/webhook',  // primary
+    '/reader/telegram/webhook',       // fallback 1
+    '/api/telegram/webhook',          // fallback 2
+    '/telegram/webhook'               // fallback 3
+  ];
+
+  // 🔍 DIAGNOSTIC: Add local body parser for webhook routes BEFORE handler
+  // This ensures req.body is parsed even if global parser comes later
+  const webhookBodyParser = express.json({ 
+    limit: '10mb',
+    type: 'application/json'
+  });
+
+  // Register webhook routes with diagnostic logging for ALL fallback paths
+  webhookPaths.forEach(path => {
+    app.post(path, webhookBodyParser, (req, res, next) => {
+      // 🔍 DIAGNOSTIC: Log every webhook hit with comprehensive info
+      const forwardedFor = req.headers['x-forwarded-for'] || 'none';
+      const realIp = req.headers['x-real-ip'] || 'none';
+      const userAgent = req.headers['user-agent'] || 'none';
+      const contentType = req.headers['content-type'] || 'none';
+      
+      // Trim body for logging (first 200 chars to avoid huge logs)
+      const bodySnapshot = req.body ? JSON.stringify(req.body).substring(0, 200) + '...' : 'empty';
+      
+      logger.info(`>>> [WEBHOOK_HIT] ${req.method} ${req.originalUrl} | Path: ${req.path} | X-Forwarded-For: ${forwardedFor} | X-Real-IP: ${realIp} | UA: ${userAgent.substring(0, 100)} | Content-Type: ${contentType} | Body: ${bodySnapshot}`);
+      
+      if (webhookHandler) {
+        // Bot is ready - delegate to cached Telegraf webhook handler
+        logger.info(`[WEBHOOK] Delegating to Telegraf handler for ${path}`);
+        return webhookHandler(req, res, next);
+      } else {
+        // Bot still initializing - return 200 OK so Telegram doesn't retry
+        // This state only exists briefly during startup before server.listen()
+        logger.warn(`⚠️ [WEBHOOK] Request received during bot initialization for ${path}`);
+        return res.status(200).json({ ok: true, description: 'Bot initializing, please retry' });
+      }
+    });
+    
+    logger.info(`🔗 Webhook route registered at ${path}`);
   });
   
-  logger.info(`🔗 Webhook route registered at ${webhookPath} (bot will initialize async)`);
+  logger.info(`🔗 Primary webhook path: ${webhookPath} (bot will initialize async)`);
   
   // Initialize bot async (completes before server starts listening via botInitPromise await in startServer)
   botInitPromise = (async () => {
@@ -461,7 +490,8 @@ if (process.env.ENABLE_SIMPLE_BOT === 'true') {
       
       // Create and cache the webhook handler
       webhookHandler = simpleBot.webhookCallback(webhookPath);
-      logger.info(`✅ Webhook at ${webhookPath} now ready to handle Telegram updates`);
+      logger.info(`✅ Webhook handler cached and ready`);
+      logger.info(`✅ Telegram updates will be processed at primary path: ${webhookPath}`);
       
     } catch (error) {
       logger.error('❌ Failed to create/initialize Simple Telegram Bot:', error);
@@ -705,6 +735,9 @@ app.get(`${config.app.apiPrefix}/health`, (req, res) => {
 
 // 404 handler для API - ВАЖНО: должен быть ПОСЛЕ всех API роутов
 app.use(`${config.app.apiPrefix}/*`, (req, res) => {
+  // 🔍 DIAGNOSTIC: Enhanced 404 logging to help diagnose missing routes
+  logger.warn(`❌ [API_404] ${req.method} ${req.originalUrl} | Path: ${req.path} | From: ${req.ip}`);
+  
   res.status(404).json({
     success: false,
     error: 'API endpoint not found',
