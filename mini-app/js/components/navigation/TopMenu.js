@@ -28,10 +28,9 @@ class TopMenu {
         this._navBusy = false; // защита от повторного быстрого клика
 
         this.menuItems = [
-            { id: 'settings',      label: 'Настройки',    icon: this.getSettingsIcon(),      action: 'settings' },
-            //{ id: 'achievements',  label: 'Достижения',   icon: this.getAchievementsIcon(),  action: 'achievements' },
-            { id: 'help',          label: 'Помощь',       icon: this.getHelpIcon(),          action: 'help' },
-            { id: 'about',         label: 'О приложении', icon: this.getAboutIcon(),         action: 'about' }
+            { id: 'settings', label: 'Настройки', icon: '<svg width="24" height="24"><circle cx="12" cy="12" r="10" fill="#D2452C"/></svg>', action: 'settings' },
+            { id: 'help', label: 'Помощь', icon: '<svg width="24" height="24"><circle cx="12" cy="12" r="10" fill="#2C1810"/></svg>', action: 'help' },
+            { id: 'about', label: 'О приложении', icon: '<svg width="24" height="24"><circle cx="12" cy="12" r="10" fill="#E5674F"/></svg>', action: 'about' }
         ];
 
         this.init();
