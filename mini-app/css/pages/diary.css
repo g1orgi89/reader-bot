@@ -798,3 +798,9 @@
         box-shadow: 0 4px 12px rgba(232, 90, 66, 0.4);
     }
 }
+
+/* Align diary quotes font with Community blocks (use Inter instead of Merriweather) */
+.my-quotes .quote-text,
+.quote-card.my-quotes .quote-text {
+  font-family: var(--font-family-primary); /* Inter */
+}
