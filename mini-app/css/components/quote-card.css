@@ -25,7 +25,7 @@
 .quote-item .quote-text,
 [data-quote-id] .quote-text,
 .my-quotes .quote-text {
-  font-family: var(--font-family-primary)
+  font-family: var(--font-family-primary);
   font-style: italic;
   line-height: var(--line-height-loose);
   font-size: var(--font-size-sm);
