@@ -47,6 +47,9 @@ class CommunityPage {
         // 🔒 FAVORITE LOCKS (защита от двойного тапа)
         this._favoriteLocks = new Set();
 
+        // 🔄 RERENDER SCHEDULER (batching sequential rerenders into single rAF)
+        this._rerenderScheduled = false;
+
         // Флаги "данные загружены"
         this.loaded = {
             latestQuotes: false,
@@ -1961,8 +1964,8 @@ renderAchievementsSection() {
                     // Пересобираем подборку
                     await this.getSpotlightItems();
                     
-                    // Обновляем интерфейс
-                    this.rerender();
+                    // Обновляем интерфейс через batched rerender
+                    this._scheduleRerender();
                     
                 } catch (error) {
                     console.error('❌ Ошибка обновления spotlight:', error);
@@ -1985,6 +1988,12 @@ renderAchievementsSection() {
     attachPopularWeekRefreshButton() {
         const refreshBtn = document.getElementById('popularWeekRefreshBtn');
         if (refreshBtn) {
+            // Избегаем дублирующихся слушателей при повторном вызове
+            if (refreshBtn._hasPopularWeekListener) {
+                return;
+            }
+            refreshBtn._hasPopularWeekListener = true;
+            
             refreshBtn.addEventListener('click', async () => {
                 try {
                     // Haptic feedback
@@ -2020,6 +2029,7 @@ renderAchievementsSection() {
                         }
                         
                         // Перепривязываем обработчики для обновленных узлов
+                        // Новая кнопка refreshBtn уже включена в newPopularWeekHTML с текстом '↻'
                         this.attachPopularWeekRefreshButton();
                         this.attachQuoteCardListeners();
                         this.attachCommunityCardListeners();
@@ -2805,6 +2815,22 @@ renderAchievementsSection() {
         if (this._quoteChangeHandler) {
             document.removeEventListener('quotes:changed', this._quoteChangeHandler);
         }
+    }
+
+    /**
+     * 🔄 BATCHED RERENDER - Schedules a rerender to happen in next rAF tick
+     * Multiple calls in the same tick will be batched into one rerender
+     */
+    _scheduleRerender() {
+        if (this._rerenderScheduled) {
+            return; // Already scheduled
+        }
+        
+        this._rerenderScheduled = true;
+        requestAnimationFrame(() => {
+            this._rerenderScheduled = false;
+            this.rerender();
+        });
     }
 
     rerender() {
