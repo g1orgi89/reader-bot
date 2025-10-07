@@ -411,6 +411,39 @@ try {
 const app = express();
 const server = http.createServer(app);
 
+ // 🤖 Initialize Simple Telegram Bot with webhook support
+    if (process.env.ENABLE_SIMPLE_BOT === 'true') {
+      try {
+        logger.info('🤖 Initializing Simple Telegram Bot with webhook...');
+
+        const SimpleTelegramBot = require('../bot/simpleBot');
+        const { ReminderService } = require('./services/reminderService');
+        const { initReminderCron, stopReminderCron } = require('./scheduler/reminderJobs');
+        
+        // Create and initialize bot
+        simpleBot = new SimpleTelegramBot({
+          token: config.telegram.botToken,
+          environment: config.app.environment,
+          appWebAppUrl: process.env.APP_WEBAPP_URL || 'https://app.unibotz.com/mini-app/'
+        });
+        
+        await simpleBot.initialize();
+        logger.info('✅ Simple Telegram Bot initialized');
+        
+        // Setup webhook endpoint
+        const webhookPath = '/api/reader/telegram/webhook';
+        const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
+        
+        if (webhookUrl) {
+          // Production mode: use webhook
+          logger.info(`🔗 Setting up webhook at ${webhookPath}`);
+
+          // Register webhook callback with Express
+          app.use(webhookPath, simpleBot.webhookCallback(webhookPath));
+          
+          // Set webhook URL in Telegram
+          await simpleBot.setWebhook('https://app.unibotz.com/api/reader/telegram/webhook');
+          
 // Socket.IO настройка
 const io = socketIo(server, {
   cors: {
@@ -740,38 +773,7 @@ async function startServer() {
     const WeeklyReportService = require('./services/weeklyReportService');
     const weeklyReportService = new WeeklyReportService();
 
-    // 🤖 Initialize Simple Telegram Bot with webhook support
-    if (process.env.ENABLE_SIMPLE_BOT === 'true') {
-      try {
-        logger.info('🤖 Initializing Simple Telegram Bot with webhook...');
-
-        const SimpleTelegramBot = require('../bot/simpleBot');
-        const { ReminderService } = require('./services/reminderService');
-        const { initReminderCron, stopReminderCron } = require('./scheduler/reminderJobs');
-        
-        // Create and initialize bot
-        simpleBot = new SimpleTelegramBot({
-          token: config.telegram.botToken,
-          environment: config.app.environment,
-          appWebAppUrl: process.env.APP_WEBAPP_URL || 'https://app.unibotz.com/mini-app/'
-        });
-        
-        await simpleBot.initialize();
-        logger.info('✅ Simple Telegram Bot initialized');
-        
-        // Setup webhook endpoint
-        const webhookPath = '/api/reader/telegram/webhook';
-        const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
-        
-        if (webhookUrl) {
-          // Production mode: use webhook
-          logger.info(`🔗 Setting up webhook at ${webhookPath}`);
-
-          // Register webhook callback with Express
-          app.use(webhookPath, simpleBot.webhookCallback(webhookPath));
-          
-          // Set webhook URL in Telegram
-          await simpleBot.setWebhook('https://app.unibotz.com/api/reader/telegram/webhook');
+   
           
           // Log webhook info
           const webhookInfo = await simpleBot.getWebhookInfo();
