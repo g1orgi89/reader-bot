@@ -961,3 +961,8 @@ body.dark-theme {
 .home-header-spacer {
     flex: 1;
 }
+
+/* Align home recent quotes font with Community blocks (use Inter instead of Merriweather) */
+.recent-quotes-section .quote-card.recent .quote-text {
+  font-family: var(--font-family-primary); /* Inter */
+}
