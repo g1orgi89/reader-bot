@@ -30,7 +30,6 @@ class TopMenu {
         this.menuItems = [
             { id: 'settings',      label: 'Настройки',    icon: this.getSettingsIcon(),      action: 'settings' },
             //{ id: 'achievements',  label: 'Достижения',   icon: this.getAchievementsIcon(),  action: 'achievements' },
-            { id: 'divider1',      isDivider: true },
             { id: 'help',          label: 'Помощь',       icon: this.getHelpIcon(),          action: 'help' },
             { id: 'about',         label: 'О приложении', icon: this.getAboutIcon(),         action: 'about' }
         ];
@@ -366,36 +365,40 @@ class TopMenu {
         `;
     }
     getSettingsIcon() {
-        return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 1v6m0 6v10M1 12h6m6 0h10"/>
-                <path d="M4.22 4.22l4.24 4.24m7.08 0l4.24-4.24M4.22 19.78l4.24-4.24m7.08 0l4.24 4.24"/>
-            </svg>
-        `;
+      return `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.7 1.7 0 0 1 .3 1.8l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 1-1.8-.3 1.7 1.7 0 0 1-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 1-1-1.5 1.7 1.7 0 0 1-1.8.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 1 .3-1.8 1.7 1.7 0 0 1-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 1 1.5-1 1.7 1.7 0 0 1-.3-1.8l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 1 1.8.3 1.7 1.7 0 0 1 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 1 1 .4c.3.3.4.6.4 1a1.7 1.7 0 0 1 1.8.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 1-.3 1.8c.3.7.2 1.3-.3 1.8Z"/>
+        </svg>
+      `;
     }
+    
     getHelpIcon() {
-        return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                <circle cx="12" cy="17" r="1"/>
-            </svg>
-        `;
+      return `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/>
+          <circle cx="12" cy="17" r="1"/>
+        </svg>
+      `;
     }
+    
     getAboutIcon() {
-        return `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="16" x2="12" y2="12"/>
-                <line x1="12" y1="8" x2="12" y2="8"/>
-            </svg>
-        `;
+      return `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4"/>
+          <path d="M12 8h.01"/>
+        </svg>
+      `;
     }
-}
-
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = TopMenu;
-} else {
-    window.TopMenu = TopMenu;
-}
+    
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = TopMenu;
+    } else {
+        window.TopMenu = TopMenu;
+    }
