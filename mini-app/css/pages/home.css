@@ -966,3 +966,20 @@ body.dark-theme {
 .recent-quotes-section .quote-card.recent .quote-text {
   font-family: var(--font-family-primary); /* Inter */
 }
+
+/* === Unify home recent quotes with Community blocks (Inter, italic, primary color, correct size) === */
+.recent-quotes-section .quote-card.recent .quote-text {
+  font-family: var(--font-family-primary);  /* Inter */
+  font-style: italic;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-loose);
+  color: var(--text-primary);
+}
+
+.recent-quotes-section .quote-card.recent .quote-author {
+  font-family: var(--font-family-primary);  /* Inter */
+  font-style: italic;
+  font-weight: var(--font-weight-normal);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary); /* убираем серый */
+}
