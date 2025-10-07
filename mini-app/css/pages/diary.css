@@ -804,3 +804,24 @@
 .quote-card.my-quotes .quote-text {
   font-family: var(--font-family-primary); /* Inter */
 }
+
+/* === Unify diary quotes with Community blocks (Inter, italic, primary color, correct size) === */
+.my-quotes .quote-text,
+.quote-card.my-quotes .quote-text,
+.my-quotes [data-quote-id] .quote-text {
+  font-family: var(--font-family-primary);  /* Inter */
+  font-style: italic;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-loose);
+  color: var(--text-primary);
+}
+
+.my-quotes .quote-author,
+.quote-card.my-quotes .quote-author,
+.my-quotes [data-quote-id] .quote-author {
+  font-family: var(--font-family-primary);  /* Inter */
+  font-style: italic;
+  font-weight: var(--font-weight-normal);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary); /* убираем серый */
+}
