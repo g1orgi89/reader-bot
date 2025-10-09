@@ -225,17 +225,17 @@ class ApiService {
      * ИСПРАВЛЕНО: Убраны все debug заглушки - только реальный API
      */
     async request(method, endpoint, data = null, options = {}) {
-        // Add cache-busting for quotes endpoints on GET requests
+        // Add cache-busting for quotes endpoints on GET requests OR if noCache is requested
         let finalUrl = `${this.baseURL}${endpoint}`;
-        if (method === 'GET' && endpoint.includes('/quotes')) {
+        if (method === 'GET' && (endpoint.includes('/quotes') || options.noCache)) {
             const separator = endpoint.includes('?') ? '&' : '?';
             finalUrl += `${separator}_t=${Date.now()}`;
         }
         
         const cacheKey = `${method}:${endpoint}:${JSON.stringify(data)}`;
 
-        // 💾 Skip cache for quotes endpoints to prevent stale data
-        if (method === 'GET' && !endpoint.includes('/quotes') && this.cache.has(cacheKey)) {
+        // 💾 Skip cache for quotes endpoints, noCache requests, or if cache is stale
+        if (method === 'GET' && !endpoint.includes('/quotes') && !options.noCache && this.cache.has(cacheKey)) {
             const cached = this.cache.get(cacheKey);
             if (Date.now() - cached.timestamp < this.cacheTimeout) {
                 console.log('📦 Возвращаем из кэша', { endpoint });
@@ -264,8 +264,8 @@ class ApiService {
                 delete requestOptions.headers;
                 requestOptions.headers = { ...customHeaders, ...authHeaders };
                 
-                // Add no-cache headers for quotes GET requests
-                if (method === 'GET' && endpoint.includes('/quotes')) {
+                // Add no-cache headers for quotes GET requests OR if noCache is requested
+                if (method === 'GET' && (endpoint.includes('/quotes') || options.noCache)) {
                     requestOptions.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
                     requestOptions.headers['Pragma'] = 'no-cache';
                     requestOptions.headers['Expires'] = '0';
@@ -292,8 +292,8 @@ class ApiService {
                 // ✅ Обрабатываем ответ
                 const result = await this.handleResponse(response, endpoint);
 
-                // 💾 Кэшируем только не-quotes GET запросы
-                if (method === 'GET' && !endpoint.includes('/quotes')) {
+                // 💾 Кэшируем только не-quotes GET запросы и не-noCache запросы
+                if (method === 'GET' && !endpoint.includes('/quotes') && !options.noCache) {
                     this.cache.set(cacheKey, {
                         data: result,
                         timestamp: Date.now()
@@ -1130,7 +1130,7 @@ class ApiService {
     /**
      * 🏆 Лидерборд за период
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
-     * @param {{limit?: number}} options
+     * @param {{limit?: number, noCache?: boolean}} options
      */
     async getLeaderboard(options = {}) {
         const params = new URLSearchParams();
@@ -1139,7 +1139,7 @@ class ApiService {
         if (options.limit) params.append('limit', options.limit);
         
         const queryString = params.toString();
-        return this.request('GET', `/community/leaderboard?${queryString}`);
+        return this.request('GET', `/community/leaderboard?${queryString}`, null, { noCache: options.noCache });
     }
 
     /**
@@ -1175,6 +1175,7 @@ class ApiService {
     /**
      * 📰 Получить последние цитаты сообщества
      * НОВЫЙ: Добавлен недостающий метод для CommunityPage (PR-3)
+     * @param {{limit?: number, noCache?: boolean}} options
      */
     async getCommunityLatestQuotes(options = {}) {
         const params = new URLSearchParams();
@@ -1183,13 +1184,13 @@ class ApiService {
         const queryString = params.toString();
         const endpoint = queryString ? `/community/quotes/latest?${queryString}` : '/community/quotes/latest';
         
-        return this.request('GET', endpoint);
+        return this.request('GET', endpoint, null, { noCache: options.noCache });
     }
 
     /**
      * 🔥 Получить популярные цитаты сообщества (обновленная версия)
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
-     * @param {{limit?: number}} options
+     * @param {{limit?: number, noCache?: boolean}} options
      */
     async getCommunityPopularQuotes(options = {}) {
         const params = new URLSearchParams();
@@ -1200,13 +1201,13 @@ class ApiService {
         const queryString = params.toString();
         const endpoint = `/community/popular?${queryString}`;
         
-        return this.request('GET', endpoint);
+        return this.request('GET', endpoint, null, { noCache: options.noCache });
     }
 
     /**
-     * 📚 Получить популярные книги сообщества (обновленная версия)
+     * 📚 Получить популярные избранные цитаты сообщества (обновленная версия)
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
-     * @param {{limit?: number}} options
+     * @param {{limit?: number, noCache?: boolean}} options
      */
     async getCommunityPopularFavorites(options = {}) {
         const params = new URLSearchParams();
@@ -1218,28 +1219,13 @@ class ApiService {
         params.append('scope', 'week');
         const queryString = params.toString();
         const endpoint = `/community/popular-favorites?${queryString}`;
-        return this.request('GET', endpoint);
-    }
-
-    /**
-     * ❤️ Получить популярные лайкнутые цитаты за период
-     * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
-     * @param {{limit?: number}} options
-     */
-    async getCommunityPopularFavorites(options = {}) {
-        const params = new URLSearchParams();
-        if (options.limit) params.append('limit', options.limit);
-        // Always use scope=week for weekly community blocks
-        params.append('scope', 'week');
-        
-        const queryString = params.toString();
-        const endpoint = `/community/popular-favorites?${queryString}`;
-        return this.request('GET', endpoint);
+        return this.request('GET', endpoint, null, { noCache: options.noCache });
     }
 
     /**
      * ✨ Получить недавние избранные цитаты сообщества
      * НОВЫЙ: Для spotlight секции - недавно добавленные в избранное цитаты
+     * @param {{hours?: number, limit?: number, noCache?: boolean}} options
      */
     async getCommunityRecentFavorites(options = {}) {
         const params = new URLSearchParams();
@@ -1248,7 +1234,7 @@ class ApiService {
         const qs = params.toString();
         
         const endpoint = qs ? `/community/favorites/recent?${qs}` : '/community/favorites/recent';
-        return this.request('GET', endpoint);
+        return this.request('GET', endpoint, null, { noCache: options.noCache });
     }
 
     /**

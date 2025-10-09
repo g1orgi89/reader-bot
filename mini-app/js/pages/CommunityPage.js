@@ -265,7 +265,7 @@ class CommunityPage {
      * ОБНОВЛЕНО: Добавлена нормализация owner для правильной атрибуции
      * @param {number} limit - number of quotes to load
      */
-    async loadPopularFavorites(limit = 10) {
+    async loadPopularFavorites(limit = 10, noCache = false) {
         if (this.loadingStates.popularFavorites) return;
         
         try {
@@ -274,7 +274,7 @@ class CommunityPage {
             console.log('❤️ CommunityPage: Загружаем популярные избранные цитаты за неделю...');
             
             // Загружаем избранные только за текущую неделю - без fallback
-            const response = await this.api.getCommunityPopularFavorites({ limit });
+            const response = await this.api.getCommunityPopularFavorites({ limit, noCache });
             if (response && response.success && response.data) {
                 // Normalize owner field for each quote and sort by likes descending
                 this.popularFavorites = response.data
@@ -443,14 +443,14 @@ class CommunityPage {
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      * @param {number} limit - number of users to load
      */
-    async loadLeaderboard(limit = 10) {
+    async loadLeaderboard(limit = 10, noCache = false) {
         if (this.loadingStates.leaderboard) return;
         try {
             this.loadingStates.leaderboard = true;
             this.errorStates.leaderboard = null;
             console.log('🏆 CommunityPage: Загружаем лидерборд за неделю');
             
-            const resp = await this.api.getLeaderboard({ limit });
+            const resp = await this.api.getLeaderboard({ limit, noCache });
             if (resp && resp.success) {
                 this.leaderboard = resp.data || [];
                 this.userProgress = resp.me || null;
@@ -673,8 +673,8 @@ class CommunityPage {
         
         // 2. Slots #2-3: Добавляем до 2 недавних избранных с round-robin ротацией
         try {
-            // Fetch recent favorites from last 48 hours
-            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 100 });
+            // Fetch recent favorites from last 48 hours with noCache for fresh data
+            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 100, noCache: true });
             let recentFavorites = [];
             
             if (recentResponse && recentResponse.success && recentResponse.data && recentResponse.data.length > 0) {
@@ -684,7 +684,7 @@ class CommunityPage {
             // Fallback to weekly popular favorites if not enough in 48h window
             if (recentFavorites.length < 2) {
                 console.log('⚠️ Spotlight: Недостаточно избранных за 48ч, используем fallback к weekly popular');
-                const weeklyResponse = await this.api.getCommunityPopularFavorites({ scope: 'week', limit: 100 });
+                const weeklyResponse = await this.api.getCommunityPopularFavorites({ scope: 'week', limit: 100, noCache: true });
                 if (weeklyResponse && weeklyResponse.success && weeklyResponse.data) {
                     const weeklyFavorites = weeklyResponse.data.map(f => this._normalizeOwner(f));
                     // Merge recent + weekly, prioritizing recent
@@ -2085,10 +2085,10 @@ renderAchievementsSection() {
                 refreshBtn.setAttribute('aria-disabled', 'true');
                 refreshBtn.style.animation = 'spin 1s linear infinite';
                 
-                // Параллельно загружаем оба раздела
+                // Параллельно загружаем оба раздела с noCache=true для свежих данных
                 await Promise.allSettled([
-                    this.loadPopularFavorites(10),
-                    this.loadLeaderboard(10)
+                    this.loadPopularFavorites(10, true),
+                    this.loadLeaderboard(10, true)
                 ]);
                 
                 // Генерируем свежий HTML для обоих секций
@@ -2269,9 +2269,13 @@ renderAchievementsSection() {
                 return;
             }
             
+            // Invalidate spotlight cache to fetch fresh data on next render
+            this._spotlightCache.ts = 0;
+            this._spotlightCache.items = [];
+            
             // Refresh top analyses when quotes change
             this.loadTopAnalyses().then(() => {
-                this.rerender();
+                this._scheduleRerender();
             });
         };
         
