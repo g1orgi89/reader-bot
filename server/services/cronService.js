@@ -48,40 +48,6 @@ class CronService {
    */
   start() {
     try {
-      // 🔔 NEW: Three slot-based reminder jobs with timezone Europe/Moscow
-      if (this.reminderService) {
-        // Morning reminders: 10:00 Moscow time
-        const morningRemindersJob = cron.schedule('0 10 * * *', async () => {
-          logger.info('🔔 Sending morning reminders...');
-          await this.reminderService.sendSlotReminders('morning');
-        }, {
-          timezone: "Europe/Moscow",
-          scheduled: false
-        });
-
-        // Day reminders: 16:00 Moscow time
-        const dayRemindersJob = cron.schedule('0 16 * * *', async () => {
-          logger.info('🔔 Sending day reminders...');
-          await this.reminderService.sendSlotReminders('day');
-        }, {
-          timezone: "Europe/Moscow",
-          scheduled: false
-        });
-
-        // Evening reminders: 22:00 Moscow time
-        const eveningRemindersJob = cron.schedule('0 22 * * *', async () => {
-          logger.info('🔔 Sending evening reminders...');
-          await this.reminderService.sendSlotReminders('evening');
-        }, {
-          timezone: "Europe/Moscow",
-          scheduled: false
-        });
-
-        this.jobs.set('morning_reminders', morningRemindersJob);
-        this.jobs.set('day_reminders', dayRemindersJob);
-        this.jobs.set('evening_reminders', eveningRemindersJob);
-      }
-
       // Месячные отчеты: 1 числа каждого месяца в 12:00 МСК
       const monthlyReportsJob = cron.schedule('0 12 1 * *', async () => {
         logger.info('📖 Starting monthly reports generation...');
