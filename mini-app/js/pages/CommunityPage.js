@@ -49,6 +49,10 @@ class CommunityPage {
 
         // 🔄 RERENDER SCHEDULER (batching sequential rerenders into single rAF)
         this._rerenderScheduled = false;
+        
+        // 🔄 DELEGATED EVENT HANDLERS FLAGS (to prevent duplicate listeners)
+        this._spotlightRefreshDelegated = false;
+        this._popularWeekRefreshDelegated = false;
 
         // Флаги "данные загружены"
         this.loaded = {
@@ -925,7 +929,7 @@ class CommunityPage {
         
         // ALWAYS render container (with refresh button) even if no items
         return `
-            <div class="community-spotlight">
+            <div id="spotlightSection" class="community-spotlight">
                 <div class="spotlight-header">
                     <h3 class="spotlight-title">✨ Сейчас в сообществе</h3>
                     <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
@@ -1965,48 +1969,85 @@ renderAchievementsSection() {
 
     /**
      * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ SPOTLIGHT
+     * Uses delegated event handling to survive DOM replacement
      */
     attachSpotlightRefreshButton() {
-        const refreshBtn = document.getElementById('spotlightRefreshBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', async () => {
-                try {
-                    // Haptic feedback
-                    this.triggerHapticFeedback('medium');
-                    
-                    // Показываем loading состояние с анимацией
-                    refreshBtn.innerHTML = '⟳';
-                    refreshBtn.disabled = true;
-                    refreshBtn.style.animation = 'spin 1s linear infinite';
-                    
-                    // Очищаем кэш
-                    this._spotlightCache = { ts: 0, items: [] };
-                    
-                    // Параллельно перезагружаем только необходимые данные для spotlight
-                    await Promise.all([
-                        this.loadLatestQuotes(5)
-                        // НЕ загружаем популярные избранные - spotlight использует только recent favorites
-                    ]);
-                    
-                    // Пересобираем подборку
-                    await this.getSpotlightItems();
-                    
-                    // Обновляем интерфейс через batched rerender
-                    this._scheduleRerender();
-                    
-                } catch (error) {
-                    console.error('❌ Ошибка обновления spotlight:', error);
-                    this.showNotification('Ошибка обновления', 'error');
-                } finally {
-                    // Восстанавливаем кнопку
-                    if (refreshBtn) {
-                        refreshBtn.innerHTML = '↻';
-                        refreshBtn.disabled = false;
-                        refreshBtn.style.animation = '';
-                    }
-                }
-            });
+        // Only attach the delegated listener once
+        if (this._spotlightRefreshDelegated) {
+            return;
         }
+        this._spotlightRefreshDelegated = true;
+        
+        // Delegated click handler on document
+        document.addEventListener('click', async (event) => {
+            const target = event.target;
+            
+            // Check if clicked element is the spotlight refresh button
+            if (target.id !== 'spotlightRefreshBtn' && !target.closest('#spotlightRefreshBtn')) {
+                return;
+            }
+            
+            const refreshBtn = document.getElementById('spotlightRefreshBtn');
+            if (!refreshBtn || refreshBtn.disabled) {
+                return;
+            }
+            
+            try {
+                // Haptic feedback
+                this.triggerHapticFeedback('medium');
+                
+                // Показываем loading состояние с анимацией
+                refreshBtn.innerHTML = '↻';
+                refreshBtn.disabled = true;
+                refreshBtn.setAttribute('aria-disabled', 'true');
+                refreshBtn.style.animation = 'spin 1s linear infinite';
+                
+                // Очищаем кэш
+                this._spotlightCache = { ts: 0, items: [] };
+                
+                // Параллельно перезагружаем только необходимые данные для spotlight
+                await Promise.allSettled([
+                    this.loadLatestQuotes(5)
+                    // НЕ загружаем популярные избранные - spotlight использует только recent favorites
+                ]);
+                
+                // Пересобираем подборку
+                await this.getSpotlightItems();
+                
+                // Генерируем свежий HTML для spotlight секции
+                const newSpotlightHTML = this.renderSpotlightSection();
+                
+                // Заменяем только spotlight контейнер в DOM в одном requestAnimationFrame
+                requestAnimationFrame(() => {
+                    const spotlightSection = document.getElementById('spotlightSection');
+                    
+                    if (spotlightSection) {
+                        spotlightSection.outerHTML = newSpotlightHTML;
+                    }
+                    
+                    // Перепривязываем обработчики для обновленных карточек
+                    // Delegated listener still works, only need to reattach other listeners
+                    this.attachQuoteCardListeners();
+                    this.attachCommunityCardListeners();
+                });
+                
+                // Haptic feedback на успех
+                this.triggerHapticFeedback('light');
+                
+            } catch (error) {
+                console.error('❌ Ошибка обновления spotlight:', error);
+                this.showNotification('Ошибка обновления', 'error');
+                
+                // Восстанавливаем кнопку при ошибке
+                const btn = document.getElementById('spotlightRefreshBtn');
+                if (btn) {
+                    btn.innerHTML = '↻';
+                    btn.disabled = false;
+                    btn.removeAttribute('aria-disabled');
+                    btn.style.animation = '';
+                }
+            }
+        });
     }
 
     /**
