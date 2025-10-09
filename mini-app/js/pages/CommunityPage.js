@@ -110,10 +110,13 @@ class CommunityPage {
     async prefetch() {
         if (this.isHydrated) return; // уже есть готовые данные
 
-        console.log('🔄 CommunityPage: Запуск prefetch - загружаем данные до рендера');
+        console.log('🔄 CommunityPage: Запуск prefetch - включаем fast-first-paint');
 
-        // Параллельная загрузка без ререндера
-        await Promise.allSettled([
+        // ✅ FAST-FIRST-PAINT: Set isHydrated immediately so UI shows right away
+        this.isHydrated = true;
+
+        // ✅ Run data loads in background without blocking first paint
+        Promise.allSettled([
             this._safe(async () => { const r = await this.api.getCommunityStats({ scope: 'week' }); if (r?.success) { this.communityData = { ...this.communityData, ...r.data }; this.loaded.stats = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityLatestQuotes({ limit: 3 }); if (r?.success) { this.latestQuotes = r.data || []; this.loaded.latestQuotes = true; } }),
             this._safe(async () => { const r = await this.api.getTopBooks({ scope: 'week', limit: 10 }); if (r?.success) { this.popularBooks = r.data || []; this.loaded.popularBooks = true; } }),
@@ -132,15 +135,16 @@ class CommunityPage {
             }),
             this._safe(async () => { const r = await this.api.getCommunityInsights?.({ scope: 'week' }); if (r?.success) { this.communityInsights = r.insights; this.loaded.insights = true; } }),
             this._safe(async () => { const r = await this.api.getCommunityFunFact?.({ scope: 'week' }); if (r?.success) { this.funFact = r.data; this.loaded.funFact = true; } })
-        ]);
-
-        // ✨ Инициализация spotlight кэша после загрузки основных данных
-        await this._safe(async () => {
-            await this.getSpotlightItems();
+        ]).then(() => {
+            // ✨ Инициализация spotlight кэша после загрузки основных данных
+            return this._safe(async () => {
+                await this.getSpotlightItems();
+            });
+        }).then(() => {
+            // ✅ After all data loads complete, schedule a single rerender
+            console.log('✅ CommunityPage: Prefetch завершен - обновляем UI');
+            this._scheduleRerender();
         });
-
-        this.isHydrated = true; // теперь можно первый раз рендерить
-        console.log('✅ CommunityPage: Prefetch завершен - данные готовы');
     }
 
     // Вспомогательный безопасный запуск
@@ -268,8 +272,14 @@ class CommunityPage {
             // Загружаем избранные только за текущую неделю - без fallback
             const response = await this.api.getCommunityPopularFavorites({ limit });
             if (response && response.success && response.data) {
-                // Normalize owner field for each quote
-                this.popularFavorites = response.data.map(q => this._normalizeOwner(q));
+                // Normalize owner field for each quote and sort by likes descending
+                this.popularFavorites = response.data
+                    .map(q => this._normalizeOwner(q))
+                    .sort((a, b) => {
+                        const aLikes = a.favorites || a.count || a.likes || 0;
+                        const bLikes = b.favorites || b.count || b.likes || 0;
+                        return bLikes - aLikes;
+                    });
                 console.log('✅ CommunityPage: Популярные избранные цитаты загружены:', this.popularFavorites.length);
             } else {
                 this.popularFavorites = [];
@@ -832,8 +842,8 @@ class CommunityPage {
             // Если кэш пуст, инициируем загрузку в фоне
             if (!this.isSpotlightFresh()) {
                 this.getSpotlightItems().then(() => {
-                    // Обновляем интерфейс после загрузки
-                    this.rerender?.();
+                    // Обновляем интерфейс после загрузки через batched rerender
+                    this._scheduleRerender();
                 }).catch(error => {
                     console.warn('Spotlight загрузка не удалась:', error);
                 });
