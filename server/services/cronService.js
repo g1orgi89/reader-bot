@@ -535,9 +535,6 @@ class CronService {
    */
   getSchedule() {
     return {
-      morning_reminders: '10:00 MSK daily (frequency-based filtering)',
-      day_reminders: '16:00 MSK daily (frequency-based filtering)',
-      evening_reminders: '22:00 MSK daily (frequency-based filtering)',
       monthly_reports: '1st day of month at 12:00 MSK',
       daily_cleanup: '3:00 MSK daily'
     };
