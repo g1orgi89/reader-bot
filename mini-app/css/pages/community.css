@@ -1921,6 +1921,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    pointer-events: auto;
     -webkit-tap-highlight-color: transparent;
 }
 

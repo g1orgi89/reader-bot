@@ -1384,10 +1384,19 @@ class CommunityPage {
      * ⭐ POPULAR QUOTES WEEK SECTION - SPOTLIGHT-STYLE DESIGN (SECTION 3)
      */
     renderPopularQuotesWeekSection() {
+        // Always render header with refresh button in ALL states
+        const header = `
+            <div class="spotlight-header">
+                <h3 class="popular-quotes-week-title">⭐ Популярные цитаты недели</h3>
+                <button class="spotlight-refresh-btn" id="popularWeekRefreshBtn" 
+                        aria-label="Обновить популярные цитаты">↻</button>
+            </div>
+        `;
+
         if (this.loadingStates.popularFavorites) {
             return `
                 <div id="popularWeekSection" class="popular-quotes-week-section">
-                    <div class="popular-quotes-week-title">⭐ Популярные цитаты недели</div>
+                    ${header}
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
                         <div class="loading-text">Загружаем топ цитат...</div>
@@ -1398,24 +1407,36 @@ class CommunityPage {
 
         if (this.errorStates.popularFavorites) {
             return `
-                <div id="popularWeekSection" class="error-state">
-                    <div class="error-icon">❌</div>
-                    <div class="error-title">Ошибка загрузки цитат</div>
-                    <div class="error-description">${this.errorStates.popularFavorites}</div>
-                    <button class="error-retry-btn" data-retry="popular-favorites" style="min-height: var(--touch-target-min);">Повторить</button>
+                <div id="popularWeekSection" class="popular-quotes-week-section">
+                    ${header}
+                    <div class="error-state">
+                        <div class="error-icon">❌</div>
+                        <div class="error-title">Ошибка загрузки цитат</div>
+                        <div class="error-description">${this.errorStates.popularFavorites}</div>
+                        <button class="error-retry-btn" data-retry="popular-favorites" style="min-height: var(--touch-target-min);">Повторить</button>
+                    </div>
                 </div>
             `;
         }
 
         // Используем только популярные избранные цитаты недели - без fallback
-        const quotes = this.popularFavorites || [];
+        // Sort by likes (favorites/count/likes) descending to ensure correct top-3
+        const quotes = (this.popularFavorites || [])
+            .map(q => ({
+                ...q,
+                sortKey: q.favorites || q.count || q.likes || 0
+            }))
+            .sort((a, b) => b.sortKey - a.sortKey);
         
         if (quotes.length === 0) {
             return `
-                <div id="popularWeekSection" class="empty-state">
-                    <div class="empty-icon">⭐</div>
-                    <div class="empty-title">Пока нет популярных цитат</div>
-                    <div class="empty-description">Станьте первым, кто добавит цитату в избранное!</div>
+                <div id="popularWeekSection" class="popular-quotes-week-section">
+                    ${header}
+                    <div class="empty-state">
+                        <div class="empty-icon">⭐</div>
+                        <div class="empty-title">Пока нет популярных цитат</div>
+                        <div class="empty-description">Станьте первым, кто добавит цитату в избранное!</div>
+                    </div>
                 </div>
             `;
         }
@@ -1468,11 +1489,7 @@ class CommunityPage {
 
         return `
             <div id="popularWeekSection" class="popular-quotes-week-section">
-                <div class="spotlight-header">
-                    <h3 class="popular-quotes-week-title">⭐ Популярные цитаты недели</h3>
-                    <button class="spotlight-refresh-btn" id="popularWeekRefreshBtn" 
-                            aria-label="Обновить популярные цитаты">↻</button>
-                </div>
+                ${header}
                 <div class="popular-quotes-grid">
                     ${quotesCards}
                 </div>
@@ -1984,72 +2001,82 @@ renderAchievementsSection() {
 
     /**
      * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ПОПУЛЯРНЫХ ЦИТАТ НЕДЕЛИ И ЛИДЕРБОРДА
+     * Uses delegated event handling to survive DOM replacement
      */
     attachPopularWeekRefreshButton() {
-        const refreshBtn = document.getElementById('popularWeekRefreshBtn');
-        if (refreshBtn) {
-            // Избегаем дублирующихся слушателей при повторном вызове
-            if (refreshBtn._hasPopularWeekListener) {
+        // Only attach the delegated listener once
+        if (this._popularWeekRefreshDelegated) {
+            return;
+        }
+        this._popularWeekRefreshDelegated = true;
+        
+        // Delegated click handler on document
+        document.addEventListener('click', async (event) => {
+            const target = event.target;
+            
+            // Check if clicked element is the refresh button
+            if (target.id !== 'popularWeekRefreshBtn' && !target.closest('#popularWeekRefreshBtn')) {
                 return;
             }
-            refreshBtn._hasPopularWeekListener = true;
             
-            refreshBtn.addEventListener('click', async () => {
-                try {
-                    // Haptic feedback
-                    this.triggerHapticFeedback('medium');
+            const refreshBtn = document.getElementById('popularWeekRefreshBtn');
+            if (!refreshBtn || refreshBtn.disabled) {
+                return;
+            }
+            
+            try {
+                // Haptic feedback
+                this.triggerHapticFeedback('medium');
+                
+                // Показываем loading состояние с анимацией
+                refreshBtn.innerHTML = '↻';
+                refreshBtn.disabled = true;
+                refreshBtn.setAttribute('aria-disabled', 'true');
+                refreshBtn.style.animation = 'spin 1s linear infinite';
+                
+                // Параллельно загружаем оба раздела
+                await Promise.allSettled([
+                    this.loadPopularFavorites(10),
+                    this.loadLeaderboard(10)
+                ]);
+                
+                // Генерируем свежий HTML для обоих секций
+                const newPopularWeekHTML = this.renderPopularQuotesWeekSection();
+                const newLeaderboardHTML = this.renderLeaderboardSection();
+                
+                // Заменяем только эти два контейнера в DOM в одном requestAnimationFrame
+                requestAnimationFrame(() => {
+                    const popularWeekSection = document.getElementById('popularWeekSection');
+                    const leaderboardSection = document.getElementById('leaderboardSection');
                     
-                    // Показываем loading состояние с анимацией
-                    refreshBtn.innerHTML = 'Обновляем…';
-                    refreshBtn.disabled = true;
-                    refreshBtn.setAttribute('aria-disabled', 'true');
-                    refreshBtn.style.animation = 'spin 1s linear infinite';
-                    
-                    // Параллельно загружаем оба раздела
-                    await Promise.allSettled([
-                        this.loadPopularFavorites(10),
-                        this.loadLeaderboard(10)
-                    ]);
-                    
-                    // Генерируем свежий HTML для обоих секций
-                    const newPopularWeekHTML = this.renderPopularQuotesWeekSection();
-                    const newLeaderboardHTML = this.renderLeaderboardSection();
-                    
-                    // Заменяем только эти два контейнера в DOM в одном requestAnimationFrame
-                    requestAnimationFrame(() => {
-                        const popularWeekSection = document.getElementById('popularWeekSection');
-                        const leaderboardSection = document.getElementById('leaderboardSection');
-                        
-                        if (popularWeekSection) {
-                            popularWeekSection.outerHTML = newPopularWeekHTML;
-                        }
-                        
-                        if (leaderboardSection) {
-                            leaderboardSection.outerHTML = newLeaderboardHTML;
-                        }
-                        
-                        // Перепривязываем обработчики для обновленных узлов
-                        // Новая кнопка refreshBtn уже включена в newPopularWeekHTML с текстом '↻'
-                        this.attachPopularWeekRefreshButton();
-                        this.attachQuoteCardListeners();
-                        this.attachCommunityCardListeners();
-                        this.attachRetryButtons();
-                    });
-                    
-                } catch (error) {
-                    console.error('❌ Ошибка обновления недельных секций:', error);
-                    this.showNotification('Ошибка обновления', 'error');
-                    
-                    // Восстанавливаем кнопку при ошибке
-                    if (refreshBtn) {
-                        refreshBtn.innerHTML = '↻';
-                        refreshBtn.disabled = false;
-                        refreshBtn.removeAttribute('aria-disabled');
-                        refreshBtn.style.animation = '';
+                    if (popularWeekSection) {
+                        popularWeekSection.outerHTML = newPopularWeekHTML;
                     }
+                    
+                    if (leaderboardSection) {
+                        leaderboardSection.outerHTML = newLeaderboardHTML;
+                    }
+                    
+                    // Перепривязываем обработчики для обновленных узлов
+                    // Delegated listener still works, only need to reattach other listeners
+                    this.attachQuoteCardListeners();
+                    this.attachRetryButtons();
+                });
+                
+            } catch (error) {
+                console.error('❌ Ошибка обновления недельных секций:', error);
+                this.showNotification('Ошибка обновления', 'error');
+                
+                // Восстанавливаем кнопку при ошибке
+                const btn = document.getElementById('popularWeekRefreshBtn');
+                if (btn) {
+                    btn.innerHTML = '↻';
+                    btn.disabled = false;
+                    btn.removeAttribute('aria-disabled');
+                    btn.style.animation = '';
                 }
-            });
-        }
+            }
+        });
     }
 
     /**
