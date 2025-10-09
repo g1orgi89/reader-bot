@@ -263,18 +263,20 @@ class CommunityPage {
      * ❤️ ЗАГРУЗКА ПОПУЛЯРНЫХ ЦИТАТ ПО ЛАЙКАМ (ТОЛЬКО ТЕКУЩАЯ НЕДЕЛЯ)
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      * ОБНОВЛЕНО: Добавлена нормализация owner для правильной атрибуции
+     * ОБНОВЛЕНО: Изменена сигнатура для поддержки options объекта с noCache
      * @param {number} limit - number of quotes to load
+     * @param {{noCache?: boolean}} opts - options object with noCache flag
      */
-    async loadPopularFavorites(limit = 10, noCache = false) {
+    async loadPopularFavorites(limit = 10, opts = {}) {
         if (this.loadingStates.popularFavorites) return;
         
         try {
             this.loadingStates.popularFavorites = true;
             this.errorStates.popularFavorites = null;
-            console.log('❤️ CommunityPage: Загружаем популярные избранные цитаты за неделю...');
+            console.debug('❤️ CommunityPage.loadPopularFavorites: Загружаем популярные избранные цитаты за неделю...', { limit, noCache: opts.noCache });
             
             // Загружаем избранные только за текущую неделю - без fallback
-            const response = await this.api.getCommunityPopularFavorites({ limit, noCache });
+            const response = await this.api.getCommunityPopularFavorites({ limit, noCache: opts.noCache });
             if (response && response.success && response.data) {
                 // Normalize owner field for each quote and sort by likes descending
                 this.popularFavorites = response.data
@@ -284,14 +286,14 @@ class CommunityPage {
                         const bLikes = b.favorites || b.count || b.likes || 0;
                         return bLikes - aLikes;
                     });
-                console.log('✅ CommunityPage: Популярные избранные цитаты загружены:', this.popularFavorites.length);
+                console.debug('✅ CommunityPage.loadPopularFavorites: Популярные избранные цитаты загружены:', this.popularFavorites.length);
             } else {
                 this.popularFavorites = [];
-                console.log('ℹ️ CommunityPage: Нет избранных цитат за текущую неделю');
+                console.debug('ℹ️ CommunityPage.loadPopularFavorites: Нет избранных цитат за текущую неделю');
             }
             
         } catch (error) {
-            console.error('❌ Ошибка загрузки популярных избранных цитат:', error);
+            console.error('❌ CommunityPage.loadPopularFavorites: Ошибка загрузки:', error);
             this.errorStates.popularFavorites = error.message || 'Ошибка загрузки избранных цитат';
             this.popularFavorites = [];
         } finally {
@@ -443,28 +445,28 @@ class CommunityPage {
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
      * @param {number} limit - number of users to load
      */
-    async loadLeaderboard(limit = 10, noCache = false) {
+    async loadLeaderboard(limit = 10, opts = {}) {
         if (this.loadingStates.leaderboard) return;
         try {
             this.loadingStates.leaderboard = true;
             this.errorStates.leaderboard = null;
-            console.log('🏆 CommunityPage: Загружаем лидерборд за неделю');
+            console.debug('🏆 CommunityPage.loadLeaderboard: Загружаем лидерборд за неделю', { limit, noCache: opts.noCache });
             
-            const resp = await this.api.getLeaderboard({ limit, noCache });
+            const resp = await this.api.getLeaderboard({ limit, noCache: opts.noCache });
             if (resp && resp.success) {
                 this.leaderboard = resp.data || [];
                 this.userProgress = resp.me || null;
-                console.log('✅ CommunityPage: Лидерборд загружен:', this.leaderboard.length, 'пользователей');
+                console.debug('✅ CommunityPage.loadLeaderboard: Лидерборд загружен:', this.leaderboard.length, 'пользователей');
             } else {
                 this.leaderboard = [];
                 this.userProgress = null;
-                console.warn('⚠️ CommunityPage: Некорректный ответ лидерборда');
+                console.warn('⚠️ CommunityPage.loadLeaderboard: Некорректный ответ лидерборда');
             }
         } catch (e) {
             this.errorStates.leaderboard = e.message || 'Ошибка загрузки лидеров';
             this.leaderboard = [];
             this.userProgress = null;
-            console.error('❌ CommunityPage: Ошибка загрузки лидерборда:', e);
+            console.error('❌ CommunityPage.loadLeaderboard: Ошибка загрузки лидерборда:', e);
         } finally {
             this.loadingStates.leaderboard = false;
         }
@@ -645,7 +647,9 @@ class CommunityPage {
     _normalizeOwner(quote) {
         if (!quote) return quote;
         const owner = quote.owner || quote.creator || quote.addedBy || quote.user;
-        return { ...quote, owner };
+        // Normalize likes field: favorites || count || likes
+        const favorites = quote.favorites || quote.count || quote.likes || 0;
+        return { ...quote, owner, favorites };
     }
 
     /**
@@ -673,8 +677,8 @@ class CommunityPage {
         
         // 2. Slots #2-3: Добавляем до 2 недавних избранных с round-robin ротацией
         try {
-            // Fetch recent favorites from last 48 hours with noCache for fresh data
-            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 100, noCache: true });
+            // Fetch recent favorites from last 48 hours with noCache for fresh data (limit: 50 max)
+            const recentResponse = await this.api.getCommunityRecentFavorites({ hours: 48, limit: 50, noCache: true });
             let recentFavorites = [];
             
             if (recentResponse && recentResponse.success && recentResponse.data && recentResponse.data.length > 0) {
@@ -684,7 +688,7 @@ class CommunityPage {
             // Fallback to weekly popular favorites if not enough in 48h window
             if (recentFavorites.length < 2) {
                 console.log('⚠️ Spotlight: Недостаточно избранных за 48ч, используем fallback к weekly popular');
-                const weeklyResponse = await this.api.getCommunityPopularFavorites({ scope: 'week', limit: 100, noCache: true });
+                const weeklyResponse = await this.api.getCommunityPopularFavorites({ limit: 50, noCache: true });
                 if (weeklyResponse && weeklyResponse.success && weeklyResponse.data) {
                     const weeklyFavorites = weeklyResponse.data.map(f => this._normalizeOwner(f));
                     // Merge recent + weekly, prioritizing recent
@@ -2076,6 +2080,8 @@ renderAchievementsSection() {
             }
             
             try {
+                console.debug('🔄 CommunityPage.attachPopularWeekRefreshButton: Refresh button clicked');
+                
                 // Haptic feedback
                 this.triggerHapticFeedback('medium');
                 
@@ -2086,9 +2092,10 @@ renderAchievementsSection() {
                 refreshBtn.style.animation = 'spin 1s linear infinite';
                 
                 // Параллельно загружаем оба раздела с noCache=true для свежих данных
+                console.debug('🔄 CommunityPage.attachPopularWeekRefreshButton: Fetching fresh data...');
                 await Promise.allSettled([
-                    this.loadPopularFavorites(10, true),
-                    this.loadLeaderboard(10, true)
+                    this.loadPopularFavorites(10, { noCache: true }),
+                    this.loadLeaderboard(10, { noCache: true })
                 ]);
                 
                 // Генерируем свежий HTML для обоих секций

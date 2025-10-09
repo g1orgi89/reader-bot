@@ -35,6 +35,34 @@ class ApiService {
     }
     
     /**
+     * 🔢 Clamp limit to prevent backend errors
+     * Ensures limit is always within valid range (1 to max)
+     * @param {number} limit - The requested limit
+     * @param {number} max - Maximum allowed limit (default: 50)
+     * @param {number} fallback - Fallback value if limit is invalid (default: 10)
+     * @returns {number} Clamped limit value
+     */
+    clampLimit(limit, max = 50, fallback = 10) {
+        // If limit is not a valid number, use fallback
+        if (typeof limit !== 'number' || isNaN(limit)) {
+            console.debug(`⚠️ ApiService.clampLimit: Invalid limit ${limit}, using fallback ${fallback}`);
+            return fallback;
+        }
+        
+        // Clamp to range [1, max]
+        if (limit < 1) {
+            console.debug(`⚠️ ApiService.clampLimit: Limit ${limit} < 1, using 1`);
+            return 1;
+        }
+        if (limit > max) {
+            console.debug(`⚠️ ApiService.clampLimit: Limit ${limit} > max ${max}, using ${max}`);
+            return max;
+        }
+        
+        return limit;
+    }
+    
+    /**
      * Отправить клик по книге из каталога
      * @param {Object} params
      * @param {string} [params.bookSlug]
@@ -1130,13 +1158,18 @@ class ApiService {
     /**
      * 🏆 Лидерборд за период
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * ОБНОВЛЕНО: Добавлена проверка limit через clampLimit для предотвращения backend ошибок
      * @param {{limit?: number, noCache?: boolean}} options
      */
     async getLeaderboard(options = {}) {
         const params = new URLSearchParams();
         // Always use scope=week for weekly community blocks
         params.append('scope', 'week');
-        if (options.limit) params.append('limit', options.limit);
+        if (options.limit !== undefined) {
+            const clampedLimit = this.clampLimit(options.limit, 50, 10);
+            params.append('limit', clampedLimit);
+            console.debug(`🏆 getLeaderboard: limit=${options.limit} -> clamped=${clampedLimit}`);
+        }
         
         const queryString = params.toString();
         return this.request('GET', `/community/leaderboard?${queryString}`, null, { noCache: options.noCache });
@@ -1175,11 +1208,16 @@ class ApiService {
     /**
      * 📰 Получить последние цитаты сообщества
      * НОВЫЙ: Добавлен недостающий метод для CommunityPage (PR-3)
+     * ОБНОВЛЕНО: Добавлена проверка limit через clampLimit для предотвращения backend ошибок
      * @param {{limit?: number, noCache?: boolean}} options
      */
     async getCommunityLatestQuotes(options = {}) {
         const params = new URLSearchParams();
-        if (options.limit) params.append('limit', options.limit);
+        if (options.limit !== undefined) {
+            const clampedLimit = this.clampLimit(options.limit, 50, 10);
+            params.append('limit', clampedLimit);
+            console.debug(`📰 getCommunityLatestQuotes: limit=${options.limit} -> clamped=${clampedLimit}`);
+        }
 
         const queryString = params.toString();
         const endpoint = queryString ? `/community/quotes/latest?${queryString}` : '/community/quotes/latest';
@@ -1190,11 +1228,16 @@ class ApiService {
     /**
      * 🔥 Получить популярные цитаты сообщества (обновленная версия)
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * ОБНОВЛЕНО: Добавлена проверка limit через clampLimit для предотвращения backend ошибок
      * @param {{limit?: number, noCache?: boolean}} options
      */
     async getCommunityPopularQuotes(options = {}) {
         const params = new URLSearchParams();
-        if (options.limit) params.append('limit', options.limit);
+        if (options.limit !== undefined) {
+            const clampedLimit = this.clampLimit(options.limit, 50, 10);
+            params.append('limit', clampedLimit);
+            console.debug(`🔥 getCommunityPopularQuotes: limit=${options.limit} -> clamped=${clampedLimit}`);
+        }
         // Always use scope=week for weekly community blocks
         params.append('scope', 'week');
 
@@ -1207,13 +1250,16 @@ class ApiService {
     /**
      * 📚 Получить популярные избранные цитаты сообщества (обновленная версия)
      * ОБНОВЛЕНО: Всегда использует scope=week для недельных блоков
+     * ОБНОВЛЕНО: Добавлена проверка limit через clampLimit для предотвращения backend ошибок
      * @param {{limit?: number, noCache?: boolean}} options
      */
     async getCommunityPopularFavorites(options = {}) {
         const params = new URLSearchParams();
-        // Добавляем limit только если это число и положительное
-        if (typeof options.limit === 'number' && options.limit > 0) {
-            params.append('limit', options.limit);
+        // Clamp limit to valid range [1, 50]
+        if (options.limit !== undefined) {
+            const clampedLimit = this.clampLimit(options.limit, 50, 10);
+            params.append('limit', clampedLimit);
+            console.debug(`📚 getCommunityPopularFavorites: limit=${options.limit} -> clamped=${clampedLimit}`);
         }
         // Всегда scope=week
         params.append('scope', 'week');
@@ -1225,12 +1271,17 @@ class ApiService {
     /**
      * ✨ Получить недавние избранные цитаты сообщества
      * НОВЫЙ: Для spotlight секции - недавно добавленные в избранное цитаты
+     * ОБНОВЛЕНО: Добавлена проверка limit через clampLimit для предотвращения backend ошибок
      * @param {{hours?: number, limit?: number, noCache?: boolean}} options
      */
     async getCommunityRecentFavorites(options = {}) {
         const params = new URLSearchParams();
-        if (options.hours) params.append('hours', options.hours);
-        if (options.limit) params.append('limit', options.limit);
+        if (options.hours !== undefined) params.append('hours', options.hours);
+        if (options.limit !== undefined) {
+            const clampedLimit = this.clampLimit(options.limit, 50, 10);
+            params.append('limit', clampedLimit);
+            console.debug(`✨ getCommunityRecentFavorites: limit=${options.limit} -> clamped=${clampedLimit}`);
+        }
         const qs = params.toString();
         
         const endpoint = qs ? `/community/favorites/recent?${qs}` : '/community/favorites/recent';
