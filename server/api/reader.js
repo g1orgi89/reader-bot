@@ -2915,7 +2915,17 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
 
   } catch (error) {
     console.error('❌ Get Popular Favorites Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    // UPDATED: Return 200 with empty data instead of 500 to prevent UI breakage
+    res.json({ 
+      success: true, 
+      data: [], 
+      pagination: {
+        period: req.query.period || '7d',
+        limit: parseInt(req.query.limit) || 10,
+        total: 0
+      },
+      error: 'Could not load popular favorites at this time'
+    });
   }
 });
 
@@ -3237,7 +3247,17 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
   } catch (error) {
     console.error('❌ Get Recent Favorites Error:', error);
     console.error('❌ Stack trace:', error.stack);
-    res.status(500).json({ success: false, error: error.message });
+    // UPDATED: Return 200 with empty data instead of 500 to prevent UI breakage
+    res.json({ 
+      success: true, 
+      data: [], 
+      pagination: {
+        hours: parseInt(req.query.hours) || 48,
+        limit: parseInt(req.query.limit) || 10,
+        total: 0
+      },
+      error: 'Could not load recent favorites at this time'
+    });
   }
 });
 
@@ -4501,6 +4521,10 @@ router.post('/favorites', telegramAuth, communityLimiter, async (req, res) => {
  * @description Remove a quote from favorites (unlike it)
  * @route DELETE /api/reader/favorites
  * @body { text: string, author?: string }
+ * @query { text: string, author?: string } (alternative for deployments that don't parse DELETE body)
+ * 
+ * UPDATED: Idempotent operation - returns success even if favorite doesn't exist
+ * UPDATED: Accepts parameters from either req.body or req.query for robustness
  */
 router.delete('/favorites', telegramAuth, communityLimiter, async (req, res) => {
   try {
@@ -4512,7 +4536,9 @@ router.delete('/favorites', telegramAuth, communityLimiter, async (req, res) => 
       });
     }
 
-    const { text, author } = req.body;
+    // Accept params from either body or query (for DELETE body parsing issues)
+    const text = req.body?.text || req.query?.text;
+    const author = req.body?.author || req.query?.author;
     
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({
@@ -4523,30 +4549,26 @@ router.delete('/favorites', telegramAuth, communityLimiter, async (req, res) => 
 
     const Favorite = require('../models/Favorite');
     
-    // Remove favorite
+    // Remove favorite (idempotent - no error if not found)
     const deleted = await Favorite.removeFavorite(
       userId,
       text.trim(),
       (author || '').trim()
     );
 
-    if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        error: 'Favorite not found'
-      });
-    }
-
+    // Always return success for idempotency, even if not found
     res.json({
-      success: true
+      success: true,
+      deleted: !!deleted
     });
 
   } catch (error) {
     console.error('❌ Remove Favorite Error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
+    // Don't throw 500, log and return success for robustness
+    res.json({
+      success: true,
+      deleted: false,
+      error: 'Operation completed with errors'
     });
   }
 });

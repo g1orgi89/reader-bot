@@ -8,7 +8,7 @@
  */
 
 const mongoose = require('mongoose');
-const { normalizeQuoteField } = require('../utils/quoteNormalizer');
+const { computeNormalizedKey } = require('../utils/quoteNormalizer');
 
 /**
  * Favorite schema
@@ -51,14 +51,13 @@ favoriteSchema.index({ normalizedKey: 1, createdAt: -1 });
 
 /**
  * Static method to compute normalized key from text and author
+ * Uses shared utility function for consistency
  * @param {string} text - Quote text
  * @param {string} author - Quote author (optional)
  * @returns {string} Normalized key in format "normalizedText|||normalizedAuthor"
  */
 favoriteSchema.statics.computeNormalizedKey = function(text, author = '') {
-  const normalizedText = normalizeQuoteField(text || '');
-  const normalizedAuthor = normalizeQuoteField(author || '');
-  return `${normalizedText}|||${normalizedAuthor}`;
+  return computeNormalizedKey(text, author);
 };
 
 /**

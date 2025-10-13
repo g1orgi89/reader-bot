@@ -1491,6 +1491,7 @@ class ApiService {
 
     /**
      * 💔 Unlike a quote (remove from favorites)
+     * UPDATED: Send params via query string to avoid DELETE body parsing issues
      * @param {Object} params
      * @param {string} params.text - Quote text
      * @param {string} [params.author] - Quote author
@@ -1501,10 +1502,14 @@ class ApiService {
             throw new Error('Quote text is required');
         }
         
-        return this.request('DELETE', '/favorites', {
-            text: text.trim(),
-            author: (author || '').trim()
-        });
+        // Send via query params to avoid DELETE body parsing issues in some deployments
+        const params = new URLSearchParams();
+        params.append('text', text.trim());
+        if (author) {
+            params.append('author', author.trim());
+        }
+        
+        return this.request('DELETE', `/favorites?${params.toString()}`);
     }
 }
 
