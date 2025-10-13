@@ -29,7 +29,10 @@ async function backfillFavorites() {
     console.log('');
 
     // Connect to MongoDB
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/reader-bot';
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI environment variable is required. Please set it before running this script.');
+    }
     await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB');
     console.log('');
@@ -50,6 +53,11 @@ async function backfillFavorites() {
     // Group by unique (userId, normalizedKey) pairs to avoid duplicates
     const favoritesToCreate = new Map();
     
+    // Verify Favorite model has required method
+    if (typeof Favorite.computeNormalizedKey !== 'function') {
+      throw new Error('Favorite.computeNormalizedKey method not found. The Favorite model may need to be updated.');
+    }
+
     favoriteQuotes.forEach(quote => {
       const normalizedKey = Favorite.computeNormalizedKey(quote.text, quote.author || '');
       const key = `${quote.userId}|||${normalizedKey}`;

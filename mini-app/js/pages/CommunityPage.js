@@ -2613,26 +2613,57 @@ renderAchievementsSection() {
             );
             
             if (existingQuote) {
-                // Цитата уже существует - обновляем isFavorite вместо создания дубликата
+                // Цитата уже существует в дневнике пользователя
+                // Обновляем isFavorite в дневнике И создаем Favorite в сообществе
+                
                 if (existingQuote.isFavorite) {
-                    this.showNotification('Эта цитата уже в избранном!', 'info');
-                    this.triggerHapticFeedback('light');
-                    // Обновляем UI для показа что цитата уже в избранном
-                    button.innerHTML = '❤';
-                    button.classList.add('favorited');
-                    return;
+                    // Уже помечена как избранная в дневнике, но всё равно добавляем лайк в сообщество
+                    try {
+                        await this.api.likeQuote({
+                            text: quoteText,
+                            author: quoteAuthor
+                        });
+                        
+                        this.showNotification('Добавлено в избранное!', 'info');
+                        this.triggerHapticFeedback('light');
+                        button.innerHTML = '❤';
+                        button.classList.add('favorited');
+                        
+                        // Update counters
+                        const favoritesCountElement = quoteCard.querySelector('.favorites-count');
+                        if (favoritesCountElement) {
+                            const currentCount = parseInt(favoritesCountElement.textContent, 10) || 0;
+                            favoritesCountElement.textContent = currentCount + 1;
+                        }
+                        return;
+                    } catch (err) {
+                        console.warn('Error liking quote:', err);
+                        // Quote already liked or network/API error
+                        // UI state is still consistent (already marked as favorited)
+                        button.innerHTML = '❤';
+                        button.classList.add('favorited');
+                        this.showNotification('Эта цитата уже в избранном!', 'info');
+                        return;
+                    }
                 }
                 
-                // Обновляем существующую цитату
+                // Обновляем существующую цитату в дневнике И добавляем лайк в сообщество
                 try {
-                    const response = await this.api.request('PUT', `/quotes/${existingQuote.id}`, {
+                    // Update diary quote
+                    const updateResponse = await this.api.request('PUT', `/quotes/${existingQuote.id}`, {
                         text: existingQuote.text,
                         author: existingQuote.author,
                         source: existingQuote.source,
                         isFavorite: true
                     });
                     
-                    if (response && response.success) {
+                    // Add community like
+                    await this.api.likeQuote({
+                        text: quoteText,
+                        author: quoteAuthor
+                    });
+                    
+                    if (updateResponse && updateResponse.success) {
                         // Обновляем в состоянии
                         const updatedQuotes = existingQuotes.map(q => 
                             q.id === existingQuote.id ? { ...q, isFavorite: true } : q
@@ -2643,7 +2674,7 @@ renderAchievementsSection() {
                         button.innerHTML = '❤';
                         button.classList.add('favorited');
                         
-                        // Обновляем счетчик лайков если есть
+                        // Обновляем счетчик лайков
                         const favoritesCountElement = quoteCard.querySelector('.favorites-count');
                         if (favoritesCountElement) {
                             const currentCount = parseInt(favoritesCountElement.textContent, 10) || 0;
@@ -2653,30 +2684,26 @@ renderAchievementsSection() {
                         this.triggerHapticFeedback('success');
                         this.showNotification('Добавлено в избранное!', 'success');
                         
-                        // Update spotlight cache item favorites so rerender does not revert
-                        // Find item in this._spotlightCache.items by text+author and ++favorites  
+                        // Update caches
                         if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
                             const spotlightItem = this._spotlightCache.items.find(item => 
                                 item.text === quoteText && item.author === quoteAuthor
                             );
                             if (spotlightItem) {
                                 spotlightItem.favorites = (spotlightItem.favorites || 0) + 1;
-                                console.log('🌟 Updated spotlight cache item favorites (existing quote):', spotlightItem.favorites);
                             }
                         }
                         
-                        // Also update popularFavorites array to keep counts in sync
                         if (this.popularFavorites && this.popularFavorites.length > 0) {
                             const popularItem = this.popularFavorites.find(item => 
                                 item.text === quoteText && item.author === quoteAuthor
                             );
                             if (popularItem) {
                                 popularItem.favorites = (popularItem.favorites || 0) + 1;
-                                console.log('⭐ Updated popular favorites item count (existing quote):', popularItem.favorites);
                             }
                         }
                         
-                        // Диспатчим событие для статистики с полным объектом цитаты
+                        // Dispatch event
                         const updatedQuote = updatedQuotes.find(q => q.id === existingQuote.id);
                         document.dispatchEvent(new CustomEvent('quotes:changed', { 
                             detail: { type: 'edited', quote: updatedQuote } 
@@ -2684,7 +2711,7 @@ renderAchievementsSection() {
                         
                         return;
                     } else {
-                        throw new Error(response?.message || 'Ошибка обновления цитаты');
+                        throw new Error(updateResponse?.message || 'Ошибка обновления цитаты');
                     }
                 } catch (updateError) {
                     console.error('❌ Ошибка обновления существующей цитаты:', updateError);
