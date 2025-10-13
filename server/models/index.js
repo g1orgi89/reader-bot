@@ -10,6 +10,7 @@ const Content = require('./content');
 const WeeklyReport = require('./weeklyReport');
 const MonthlyReport = require('./monthlyReport');
 const Prompt = require('./prompt');
+const Favorite = require('./Favorite');
 
 // Import analytics models
 const { UTMClick, PromoCodeUsage, UserAction } = require('./analytics');
@@ -36,6 +37,7 @@ async function initializeModels() {
       WeeklyReport.ensureIndexes(),
       MonthlyReport.ensureIndexes(),
       Prompt.ensureIndexes(),
+      Favorite.ensureIndexes(),
       
       // Analytics models
       UTMClick.ensureIndexes(),
@@ -203,6 +205,7 @@ module.exports = {
   WeeklyReport,
   MonthlyReport,
   Prompt,
+  Favorite,
   
   // Analytics models
   UTMClick,
