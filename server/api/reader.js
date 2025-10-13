@@ -2385,9 +2385,13 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
       }
     });
 
-    // Aggregate favorites by counting distinct userId where isFavorite=true for those pairs
-    // Use normalized fields with on-the-fly computation for legacy docs
-    const favoritesAgg = await Quote.aggregate([
+    // Get favorites count from Favorites collection (new system)
+    const Favorite = require('../models/Favorite');
+    const normalizedKeys = uniquePairs.map(pair => `${pair.normalizedText}|||${pair.normalizedAuthor}`);
+    const favoritesCounts = await Favorite.getCountsForKeys(normalizedKeys);
+    
+    // Backward compatibility: also get counts from legacy Quote.isFavorite=true
+    const legacyFavoritesAgg = await Quote.aggregate([
       {
         $match: { isFavorite: true }
       },
@@ -2406,7 +2410,7 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
           $expr: {
             $in: [
               { $concat: ['$computedNormalizedText', '|||', '$computedNormalizedAuthor'] },
-              uniquePairs.map(pair => `${pair.normalizedText}|||${pair.normalizedAuthor}`)
+              normalizedKeys
             ]
           }
         }
@@ -2417,32 +2421,33 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
             normalizedText: '$computedNormalizedText', 
             normalizedAuthor: '$computedNormalizedAuthor' 
           },
-          favorites: { $addToSet: '$userId' }
-        }
-      },
-      {
-        $project: {
-          _id: 1,
-          favoritesCount: { $size: '$favorites' }
+          userIds: { $addToSet: '$userId' }
         }
       }
     ]);
 
-    // Create favorites lookup map using original keys
+    // Merge favorites counts with backward-compat (union of userIds to avoid double counting)
     const favoritesMap = new Map();
-    favoritesAgg.forEach(fav => {
-      const normalizedKey = `${fav._id.normalizedText}|||${fav._id.normalizedAuthor}`;
-      const favCount = fav.favoritesCount;
+    quotes.forEach(q => {
+      const qNormText = normalizeQuoteField(q.text);
+      const qNormAuthor = normalizeQuoteField(q.author || '');
+      const normalizedKey = `${qNormText}|||${qNormAuthor}`;
+      const originalKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
       
-      // Map to all original keys that normalize to this
-      quotes.forEach(q => {
-        const qNormText = normalizeQuoteField(q.text);
-        const qNormAuthor = normalizeQuoteField(q.author || '');
-        if (qNormText === fav._id.normalizedText && qNormAuthor === fav._id.normalizedAuthor) {
-          const originalKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
-          favoritesMap.set(originalKey, favCount);
-        }
-      });
+      // Get count from new Favorites system
+      const newSystemCount = favoritesCounts.get(normalizedKey) || 0;
+      
+      // Get userIds from legacy system
+      const legacyData = legacyFavoritesAgg.find(item => 
+        item._id.normalizedText === qNormText && item._id.normalizedAuthor === qNormAuthor
+      );
+      const legacyUserIds = legacyData ? legacyData.userIds : [];
+      
+      // For backward compatibility, use max of the two counts
+      // (we can't perfectly dedupe without fetching all Favorite docs, so we use max as approximation)
+      const mergedCount = Math.max(newSystemCount, legacyUserIds.length);
+      
+      favoritesMap.set(originalKey, mergedCount);
     });
 
     // Enrich each quote with user info and favorites count
@@ -2645,14 +2650,67 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       });
     }
 
-    // Aggregate quotes by normalized text+author combination, count unique users who favorited
-    const popularFavorites = await Quote.aggregate([
+    // Build match criteria for Favorites collection based on time period
+    const Favorite = require('../models/Favorite');
+    let favoritesMatchCriteria = {};
+    
+    if (scope === 'week') {
+      const { getBusinessNow, getISOWeekInfo } = require('../utils/isoWeek');
+      const currentWeek = getISOWeekInfo(getBusinessNow());
+      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+      const targetYear = parseInt(year) || currentWeek.isoYear;
+      
+      // Calculate start/end dates for the ISO week
+      const { getISOWeekDateRange } = require('../utils/isoWeek');
+      const { startDate, endDate } = getISOWeekDateRange(targetYear, targetWeek);
+      
+      favoritesMatchCriteria = {
+        createdAt: { $gte: startDate, $lte: endDate }
+      };
+    } else {
+      const { startDate } = validatePeriod(periodParam);
+      favoritesMatchCriteria = {
+        createdAt: { $gte: startDate }
+      };
+    }
+
+    // Aggregate from Favorites collection
+    const favoritesAgg = await Favorite.aggregate([
+      {
+        $match: favoritesMatchCriteria
+      },
+      {
+        $group: {
+          _id: '$normalizedKey',
+          userIds: { $addToSet: '$userId' },
+          latestCreated: { $max: '$createdAt' },
+          sampleText: { $first: '$text' },
+          sampleAuthor: { $first: '$author' }
+        }
+      },
+      {
+        $addFields: {
+          favoritesCount: { $size: '$userIds' }
+        }
+      },
+      {
+        $sort: { 
+          favoritesCount: -1, 
+          latestCreated: -1 
+        }
+      },
+      {
+        $limit: limit * 2 // Get more for backward-compat merge
+      }
+    ]);
+
+    // Backward compatibility: also aggregate from legacy Quote.isFavorite=true
+    const legacyFavoritesAgg = await Quote.aggregate([
       {
         $match: matchCriteria
       },
       {
         $addFields: {
-          // Compute normalized fields on-the-fly if not present (for legacy docs)
           computedNormalizedText: {
             $ifNull: ['$normalizedText', '$text']
           },
@@ -2667,46 +2725,78 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
             normalizedText: '$computedNormalizedText',
             normalizedAuthor: '$computedNormalizedAuthor'
           },
-          favorites: { $addToSet: '$userId' }, // Unique user IDs who favorited
+          userIds: { $addToSet: '$userId' },
           latestEdit: { $max: '$editedAt' },
           latestCreated: { $max: '$createdAt' },
-          firstId: { $first: '$_id' }, // For deterministic sorting
-          // Keep sample original text/author for display
           sampleText: { $first: '$text' },
           sampleAuthor: { $first: '$author' },
           sampleCategory: { $first: '$category' },
-          sampleThemes: { $first: '$themes' },
-          firstUserId: { $first: '$userId' } // Get the first user who favorited for user info
-        }
-      },
-      {
-        $addFields: {
-          favoritesCount: { $size: '$favorites' }
-        }
-      },
-      {
-        $sort: { 
-          favoritesCount: -1, 
-          latestEdit: -1, 
-          latestCreated: -1, 
-          firstId: 1 
-        }
-      },
-      {
-        $limit: limit
-      },
-      {
-        $project: {
-          text: '$sampleText',
-          author: '$sampleAuthor',
-          favorites: '$favoritesCount',
-          sampleCategory: 1,
-          sampleThemes: 1,
-          firstUserId: 1, // Include for user lookup
-          _id: 0
+          sampleThemes: { $first: '$themes' }
         }
       }
     ]);
+
+    // Merge both sources by normalizedKey, taking union of userIds
+    const mergedMap = new Map();
+    
+    // Add from new Favorites system
+    favoritesAgg.forEach(item => {
+      mergedMap.set(item._id, {
+        normalizedKey: item._id,
+        userIds: new Set(item.userIds),
+        text: item.sampleText,
+        author: item.sampleAuthor,
+        latestCreated: item.latestCreated,
+        sampleCategory: null,
+        sampleThemes: []
+      });
+    });
+    
+    // Merge from legacy system
+    legacyFavoritesAgg.forEach(item => {
+      const normalizedKey = `${item._id.normalizedText}|||${item._id.normalizedAuthor}`;
+      const existing = mergedMap.get(normalizedKey);
+      
+      if (existing) {
+        // Merge userIds (set union)
+        item.userIds.forEach(uid => existing.userIds.add(uid));
+        // Update metadata if newer
+        if (!existing.latestCreated || item.latestCreated > existing.latestCreated) {
+          existing.latestCreated = item.latestCreated;
+        }
+        existing.sampleCategory = existing.sampleCategory || item.sampleCategory;
+        existing.sampleThemes = existing.sampleThemes.length > 0 ? existing.sampleThemes : item.sampleThemes;
+      } else {
+        mergedMap.set(normalizedKey, {
+          normalizedKey,
+          userIds: new Set(item.userIds),
+          text: item.sampleText,
+          author: item.sampleAuthor,
+          latestCreated: item.latestCreated,
+          sampleCategory: item.sampleCategory,
+          sampleThemes: item.sampleThemes
+        });
+      }
+    });
+
+    // Convert to array and sort by favorites count
+    const popularFavorites = Array.from(mergedMap.values())
+      .map(item => ({
+        text: item.text,
+        author: item.author,
+        favorites: item.userIds.size,
+        sampleCategory: item.sampleCategory,
+        sampleThemes: item.sampleThemes,
+        firstUserId: Array.from(item.userIds)[0] // Use first for user lookup
+      }))
+      .sort((a, b) => {
+        // Sort by favorites count desc, then by latestCreated desc
+        if (b.favorites !== a.favorites) {
+          return b.favorites - a.favorites;
+        }
+        return (b.latestCreated || 0) - (a.latestCreated || 0);
+      })
+      .slice(0, limit);
 
     // Get origin user IDs for each quote pair (earliest creator)
     const quotePairs = popularFavorites.map(pf => ({ text: pf.text, author: pf.author }));
@@ -2845,8 +2935,65 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       });
     }
 
-    // Aggregate recent favorites using normalized fields with sorted input for deterministic firstUserId
-    const recentFavorites = await Quote.aggregate([
+    // Build match criteria for Favorites collection based on time period
+    const Favorite = require('../models/Favorite');
+    let favoritesMatchCriteria = {};
+    
+    if (scope === 'week') {
+      const { getBusinessNow, getISOWeekInfo } = require('../utils/isoWeek');
+      const currentWeek = getISOWeekInfo(getBusinessNow());
+      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
+      const targetYear = parseInt(year) || currentWeek.isoYear;
+      
+      // Calculate start/end dates for the ISO week
+      const { getISOWeekDateRange } = require('../utils/isoWeek');
+      const { startDate, endDate } = getISOWeekDateRange(targetYear, targetWeek);
+      
+      favoritesMatchCriteria = {
+        createdAt: { $gte: startDate, $lte: endDate }
+      };
+    } else {
+      const startDate = new Date();
+      startDate.setHours(startDate.getHours() - hours);
+      favoritesMatchCriteria = {
+        createdAt: { $gte: startDate }
+      };
+    }
+
+    // Aggregate from Favorites collection
+    const favoritesAgg = await Favorite.aggregate([
+      {
+        $match: favoritesMatchCriteria
+      },
+      {
+        $sort: { createdAt: -1 }
+      },
+      {
+        $group: {
+          _id: '$normalizedKey',
+          userIds: { $addToSet: '$userId' },
+          latestCreated: { $max: '$createdAt' },
+          sampleText: { $first: '$text' },
+          sampleAuthor: { $first: '$author' }
+        }
+      },
+      {
+        $addFields: {
+          favoritesCount: { $size: '$userIds' }
+        }
+      },
+      {
+        $sort: { 
+          latestCreated: -1
+        }
+      },
+      {
+        $limit: limit * 2 // Get more for backward-compat merge
+      }
+    ]);
+
+    // Backward compatibility: also aggregate from legacy Quote.isFavorite=true
+    const legacyFavoritesAgg = await Quote.aggregate([
       {
         $match: matchCriteria
       },
@@ -2859,7 +3006,6 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       },
       {
         $addFields: {
-          // Compute normalized fields on-the-fly if not present (for legacy docs)
           computedNormalizedText: {
             $ifNull: ['$normalizedText', '$text']
           },
@@ -2874,43 +3020,67 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
             normalizedText: '$computedNormalizedText',
             normalizedAuthor: '$computedNormalizedAuthor'
           },
-          favorites: { $addToSet: '$userId' },
+          userIds: { $addToSet: '$userId' },
           latestEdit: { $max: '$editedAt' },
           latestCreated: { $max: '$createdAt' },
-          firstId: { $first: '$_id' },
-          // Keep sample original text/author for display
           sampleText: { $first: '$text' },
-          sampleAuthor: { $first: '$author' },
-          firstUserId: { $first: '$userId' } // Get the first user who favorited for user info
-        }
-      },
-      {
-        $addFields: {
-          favoritesCount: { $size: '$favorites' }
-        }
-      },
-      {
-        $sort: { 
-          latestEdit: -1, 
-          latestCreated: -1, 
-          firstId: 1 
-        }
-      },
-      {
-        $limit: limit
-      },
-      {
-        $project: {
-          text: '$sampleText',
-          author: '$sampleAuthor',
-          favorites: '$favoritesCount',
-          latestEdit: 1,
-          latestCreated: 1,
-          firstUserId: 1,
-          _id: 0
+          sampleAuthor: { $first: '$author' }
         }
       }
     ]);
+
+    // Merge both sources by normalizedKey, taking union of userIds
+    const mergedMap = new Map();
+    
+    // Add from new Favorites system
+    favoritesAgg.forEach(item => {
+      mergedMap.set(item._id, {
+        normalizedKey: item._id,
+        userIds: new Set(item.userIds),
+        text: item.sampleText,
+        author: item.sampleAuthor,
+        latestCreated: item.latestCreated
+      });
+    });
+    
+    // Merge from legacy system
+    legacyFavoritesAgg.forEach(item => {
+      const normalizedKey = `${item._id.normalizedText}|||${item._id.normalizedAuthor}`;
+      const existing = mergedMap.get(normalizedKey);
+      
+      if (existing) {
+        // Merge userIds (set union)
+        item.userIds.forEach(uid => existing.userIds.add(uid));
+        // Update metadata if newer
+        const itemLatest = item.latestEdit || item.latestCreated;
+        if (!existing.latestCreated || itemLatest > existing.latestCreated) {
+          existing.latestCreated = itemLatest;
+        }
+      } else {
+        mergedMap.set(normalizedKey, {
+          normalizedKey,
+          userIds: new Set(item.userIds),
+          text: item.sampleText,
+          author: item.sampleAuthor,
+          latestCreated: item.latestEdit || item.latestCreated
+        });
+      }
+    });
+
+    // Convert to array and sort by recency
+    const recentFavorites = Array.from(mergedMap.values())
+      .map(item => ({
+        text: item.text,
+        author: item.author,
+        favorites: item.userIds.size,
+        latestCreated: item.latestCreated,
+        firstUserId: Array.from(item.userIds)[0]
+      }))
+      .sort((a, b) => {
+        // Sort by latestCreated desc (most recent first)
+        return (b.latestCreated || 0) - (a.latestCreated || 0);
+      })
+      .slice(0, limit);
 
     // Handle empty results gracefully
     if (!recentFavorites || recentFavorites.length === 0) {
@@ -4187,6 +4357,131 @@ router.get('/settings/reminders/diag', (req, res) => {
 });
 
 // ===========================================
+// ❤️ FAVORITES API (Community Likes System)
+// ===========================================
+
+/**
+ * @description Add a quote to favorites (like it)
+ * @route POST /api/reader/favorites
+ * @body { text: string, author?: string }
+ */
+router.post('/favorites', telegramAuth, communityLimiter, async (req, res) => {
+  try {
+    const userId = safeExtractUserId(req);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+    }
+
+    const { text, author } = req.body;
+    
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Text is required'
+      });
+    }
+
+    const Favorite = require('../models/Favorite');
+    
+    // Add favorite (upsert)
+    const favorite = await Favorite.addFavorite(
+      userId,
+      text.trim(),
+      (author || '').trim()
+    );
+
+    // Get total count for this quote pair
+    const normalizedKey = Favorite.computeNormalizedKey(text, author);
+    const countsMap = await Favorite.getCountsForKeys([normalizedKey]);
+    const totalFavoritesForPair = countsMap.get(normalizedKey) || 1;
+
+    res.json({
+      success: true,
+      favorite: {
+        text: favorite.text,
+        author: favorite.author
+      },
+      counts: {
+        totalFavoritesForPair
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Add Favorite Error:', error);
+    
+    // Handle duplicate key error gracefully
+    if (error.code === 11000) {
+      return res.json({
+        success: true,
+        message: 'Already in favorites'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @description Remove a quote from favorites (unlike it)
+ * @route DELETE /api/reader/favorites
+ * @body { text: string, author?: string }
+ */
+router.delete('/favorites', telegramAuth, communityLimiter, async (req, res) => {
+  try {
+    const userId = safeExtractUserId(req);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+    }
+
+    const { text, author } = req.body;
+    
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Text is required'
+      });
+    }
+
+    const Favorite = require('../models/Favorite');
+    
+    // Remove favorite
+    const deleted = await Favorite.removeFavorite(
+      userId,
+      text.trim(),
+      (author || '').trim()
+    );
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Favorite not found'
+      });
+    }
+
+    res.json({
+      success: true
+    });
+
+  } catch (error) {
+    console.error('❌ Remove Favorite Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
 // 📂 CATEGORIES API
 // ===========================================
 

@@ -2707,37 +2707,15 @@ renderAchievementsSection() {
                 favoritesCountElement.textContent = newCount;
             }
             
-            // Добавляем цитату в избранное через API
-            const response = await this.api.addQuote({
+            // Like the quote using the new Favorites API (no quote creation)
+            const response = await this.api.likeQuote({
                 text: quoteText,
-                author: quoteAuthor,
-                source: 'community',
-                isFavorite: true
+                author: quoteAuthor
             });
             
             if (response && response.success) {
-                try {
-                    const raw = response.data?.quote || response.data || response.quote || response;
-                    if (raw && raw.text) {
-                        const favoriteQuote = {
-                            ...raw,
-                            id: raw.id || raw._id,
-                            text: raw.text,
-                            author: raw.author || '',
-                            isFavorite: true,
-                            source: raw.source || 'community',
-                            createdAt: raw.createdAt || new Date().toISOString()
-                        };
-                        const currentQuotes = this.state.get('quotes.items') || [];
-                        this.state.set('quotes.items', [favoriteQuote, ...currentQuotes]);
-                        if (window.QuoteUtils) {
-                            window.QuoteUtils.addQuoteToDuplicateIndex(favoriteQuote);
-                        }
-                        document.dispatchEvent(new CustomEvent('quotes:changed', { detail: { type: 'added', quote: favoriteQuote } }));
-                    }
-                } catch (e) {
-                    console.warn('Favorite dup sync failed:', e);
-                }
+                // SUCCESS: Quote liked without creating a new Quote document
+                // The like is now tracked in the Favorites collection
                 
                 // Успех
                 this.triggerHapticFeedback('success');
@@ -2767,8 +2745,8 @@ renderAchievementsSection() {
                 }
                 
                 // Если API вернул актуальное количество лайков, используем его
-                if (response.data && typeof response.data.favorites === 'number') {
-                    const apiCount = response.data.favorites;
+                if (response.counts && typeof response.counts.totalFavoritesForPair === 'number') {
+                    const apiCount = response.counts.totalFavoritesForPair;
                     button.dataset.favorites = apiCount;
                     
                     // Обновляем счетчик в .favorites-count спанах

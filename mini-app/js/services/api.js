@@ -1466,6 +1466,46 @@ class ApiService {
     async updateSettings(settings) {
         return this.request('PATCH', '/settings', { settings });
     }
+
+    // ===========================================
+    // ❤️ FAVORITES (Community Likes System)
+    // ===========================================
+
+    /**
+     * ❤️ Like a quote (add to favorites)
+     * @param {Object} params
+     * @param {string} params.text - Quote text
+     * @param {string} [params.author] - Quote author
+     * @returns {Promise<Object>}
+     */
+    async likeQuote({ text, author }) {
+        if (!text || typeof text !== 'string') {
+            throw new Error('Quote text is required');
+        }
+        
+        return this.request('POST', '/favorites', {
+            text: text.trim(),
+            author: (author || '').trim()
+        });
+    }
+
+    /**
+     * 💔 Unlike a quote (remove from favorites)
+     * @param {Object} params
+     * @param {string} params.text - Quote text
+     * @param {string} [params.author] - Quote author
+     * @returns {Promise<Object>}
+     */
+    async unlikeQuote({ text, author }) {
+        if (!text || typeof text !== 'string') {
+            throw new Error('Quote text is required');
+        }
+        
+        return this.request('DELETE', '/favorites', {
+            text: text.trim(),
+            author: (author || '').trim()
+        });
+    }
 }
 
 // 🌍 Глобальный экспорт (только если window доступен)
