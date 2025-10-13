@@ -302,7 +302,10 @@ function validateLimit(limit, defaultLimit = 10, maxLimit = 50) {
 
 /**
  * Get origin user info for multiple quote pairs efficiently using normalized fields
- * Implements two-pass resolution: exact match first, then normalized match with on-the-fly Mongo normalization
+ * Implements three-pass resolution for robust origin attribution:
+ * - Pass 1: Exact text+author match (fastest, for consistent data)
+ * - Pass 2a: Pre-normalized field match (for docs with normalizedText/normalizedAuthor)
+ * - Pass 2b: JS normalization fallback (for legacy docs without pre-normalized fields)
  * @param {Array} quotePairs - Array of {text, author} pairs (original, not normalized)
  * @returns {Promise<Map>} Map from 'text|||author' key (original) to origin userId
  */
@@ -418,6 +421,10 @@ async function getOriginUserIds(quotePairs) {
 
     if (stillUnresolvedAfterNormFields.length > 0) {
       // Fetch a broader set of quotes that might match (all quotes without pre-normalized fields)
+      // Limit to 10k to avoid memory issues. This is reasonable because:
+      // - Most quotes should have pre-normalized fields (handled in Pass 2a)
+      // - Community endpoints typically query small sets (10-50 items)
+      // - If a match isn't found in 10k legacy docs, origin likely doesn't exist
       const candidateQuotes = await Quote.find(
         {
           $or: [
@@ -429,7 +436,7 @@ async function getOriginUserIds(quotePairs) {
       )
       .sort({ createdAt: 1, _id: 1 })
       .lean()
-      .limit(10000); // Reasonable limit to avoid memory issues
+      .limit(10000);
 
       // Build a map of normalized key -> earliest quote for candidates
       const candidateMap = new Map();
