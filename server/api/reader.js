@@ -301,26 +301,6 @@ function validateLimit(limit, defaultLimit = 10, maxLimit = 50) {
 }
 
 /**
- * Find the origin user (earliest creator) for a specific quote text+author pair
- * @param {string} text - Quote text
- * @param {string} author - Quote author
- * @returns {Promise<string|null>} Origin userId or null if not found
- */
-async function findOriginUserId(text, author) {
-  try {
-    const originQuote = await Quote.findOne({
-      text: text,
-      author: author
-    }).sort({ createdAt: 1, _id: 1 }).select('userId').lean();
-    
-    return originQuote ? originQuote.userId : null;
-  } catch (error) {
-    console.error('Error finding origin userId:', error);
-    return null;
-  }
-}
-
-/**
  * Get origin user info for multiple quote pairs efficiently using normalized fields
  * Implements two-pass resolution: exact match first, then normalized match with on-the-fly Mongo normalization
  * @param {Array} quotePairs - Array of {text, author} pairs (original, not normalized)
@@ -383,128 +363,24 @@ async function getOriginUserIds(quotePairs) {
       return originMap;
     }
 
-    // PASS 2: Normalized match with on-the-fly Mongo normalization for legacy docs
-    // Build target normalized keys
+    // PASS 2: Normalized match using pre-normalized fields or fallback to JS normalization
+    // First, try using the normalizedText/normalizedAuthor fields if they exist
     const targetNormalizedKeys = unresolvedPairs.map(pair => 
       toNormalizedKey(pair.text, pair.author || '')
     );
 
-    const normalizedMatches = await Quote.aggregate([
+    // Check if documents have pre-normalized fields
+    const normalizedFieldMatches = await Quote.aggregate([
       {
-        $addFields: {
-          // On-the-fly normalization in Mongo to handle quotes, dashes, whitespace, case
-          normalizedTextComputed: {
-            $trim: {
-              input: {
-                $toLower: {
-                  $replaceAll: {
-                    input: {
-                      $replaceAll: {
-                        input: {
-                          $replaceAll: {
-                            input: {
-                              $replaceAll: {
-                                input: {
-                                  $replaceAll: {
-                                    input: {
-                                      $replaceAll: {
-                                        input: {
-                                          $replaceAll: {
-                                            input: {
-                                              $replaceAll: {
-                                                input: '$text',
-                                                find: '«',
-                                                replacement: ''
-                                              }
-                                            },
-                                            find: '»',
-                                            replacement: ''
-                                          }
-                                        },
-                                        find: '"',
-                                        replacement: ''
-                                      }
-                                    },
-                                    find: '"',
-                                    replacement: ''
-                                  }
-                                },
-                                find: '—',
-                                replacement: '-'
-                              }
-                            },
-                            find: '–',
-                            replacement: '-'
-                          }
-                        },
-                        find: '…',
-                        replacement: ''
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          normalizedAuthorComputed: {
-            $trim: {
-              input: {
-                $toLower: {
-                  $replaceAll: {
-                    input: {
-                      $replaceAll: {
-                        input: {
-                          $replaceAll: {
-                            input: {
-                              $replaceAll: {
-                                input: {
-                                  $replaceAll: {
-                                    input: {
-                                      $replaceAll: {
-                                        input: {
-                                          $replaceAll: {
-                                            input: {
-                                              $replaceAll: {
-                                                input: { $ifNull: ['$author', ''] },
-                                                find: '«',
-                                                replacement: ''
-                                              }
-                                            },
-                                            find: '»',
-                                            replacement: ''
-                                          }
-                                        },
-                                        find: '"',
-                                        replacement: ''
-                                      }
-                                    },
-                                    find: '"',
-                                    replacement: ''
-                                  }
-                                },
-                                find: '—',
-                                replacement: '-'
-                              }
-                            },
-                            find: '–',
-                            replacement: '-'
-                          }
-                        },
-                        find: '…',
-                        replacement: ''
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+        $match: {
+          normalizedText: { $exists: true, $ne: null },
+          normalizedAuthor: { $exists: true }
         }
       },
       {
         $addFields: {
           computedNormalizedKey: {
-            $concat: ['$normalizedTextComputed', '|||', '$normalizedAuthorComputed']
+            $concat: ['$normalizedText', '|||', '$normalizedAuthor']
           }
         }
       },
@@ -525,8 +401,8 @@ async function getOriginUserIds(quotePairs) {
       }
     ]);
 
-    // Map normalized matches back to original keys
-    normalizedMatches.forEach(result => {
+    // Map normalized field matches back to original keys
+    normalizedFieldMatches.forEach(result => {
       const normalizedKey = result._id;
       const originalKey = normalizedToOriginalMap.get(normalizedKey);
       if (originalKey && !originMap.has(originalKey)) {
@@ -534,50 +410,52 @@ async function getOriginUserIds(quotePairs) {
       }
     });
 
-    // PASS 3: Final soft fallback - case-insensitive exact match for remaining pairs
-    const stillUnresolvedPairs = quotePairs.filter(pair => {
+    // For remaining unresolved pairs, fetch all quotes and normalize in JS
+    const stillUnresolvedAfterNormFields = unresolvedPairs.filter(pair => {
       const originalKey = `${pair.text}|||${pair.author || ''}`;
       return !originMap.has(originalKey);
     });
 
-    if (stillUnresolvedPairs.length > 0) {
-      const softFallbackMatches = await Quote.aggregate([
+    if (stillUnresolvedAfterNormFields.length > 0) {
+      // Fetch a broader set of quotes that might match (all quotes without pre-normalized fields)
+      const candidateQuotes = await Quote.find(
         {
-          $match: {
-            $or: stillUnresolvedPairs.map(pair => ({
-              text: { $regex: `^${pair.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
-              author: { $regex: `^${(pair.author || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }
-            }))
-          }
+          $or: [
+            { normalizedText: { $exists: false } },
+            { normalizedText: null }
+          ]
         },
-        {
-          $sort: { createdAt: 1, _id: 1 }
-        },
-        {
-          $group: {
-            _id: { text: '$text', author: '$author' },
-            originUserId: { $first: '$userId' },
-            earliestCreated: { $first: '$createdAt' }
-          }
-        }
-      ]);
+        { text: 1, author: 1, userId: 1, createdAt: 1, _id: 1 }
+      )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean()
+      .limit(10000); // Reasonable limit to avoid memory issues
 
-      // Map soft fallback matches
-      softFallbackMatches.forEach(result => {
-        // Find the original pair that matches (case-insensitive)
-        const matchingPair = stillUnresolvedPairs.find(pair => 
-          pair.text.toLowerCase() === result._id.text.toLowerCase() &&
-          (pair.author || '').toLowerCase() === (result._id.author || '').toLowerCase()
-        );
+      // Build a map of normalized key -> earliest quote for candidates
+      const candidateMap = new Map();
+      candidateQuotes.forEach(quote => {
+        const normalizedKey = toNormalizedKey(quote.text, quote.author || '');
+        if (!candidateMap.has(normalizedKey)) {
+          candidateMap.set(normalizedKey, quote);
+        }
+      });
+
+      // Match unresolved pairs against candidates
+      stillUnresolvedAfterNormFields.forEach(pair => {
+        const originalKey = `${pair.text}|||${pair.author || ''}`;
+        const normalizedKey = toNormalizedKey(pair.text, pair.author || '');
+        const match = candidateMap.get(normalizedKey);
         
-        if (matchingPair) {
-          const originalKey = `${matchingPair.text}|||${matchingPair.author || ''}`;
-          if (!originMap.has(originalKey)) {
-            originMap.set(originalKey, result.originUserId);
-          }
+        if (match && !originMap.has(originalKey)) {
+          originMap.set(originalKey, match.userId);
         }
       });
     }
+
+    // The three-pass resolution is now complete:
+    // Pass 1: Exact match (fastest)
+    // Pass 2a: Pre-normalized field match (for docs with normalizedText/normalizedAuthor)
+    // Pass 2b: JS normalization match (for legacy docs without normalized fields)
 
     return originMap;
   } catch (error) {
