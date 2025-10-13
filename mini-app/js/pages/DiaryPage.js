@@ -337,6 +337,54 @@ class DiaryPage {
     }
     
     /**
+     * 🔒 Escape HTML to prevent injection
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped HTML
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
+     * 📝 Format AI text into paragraphs
+     * @param {string} text - AI text to format
+     * @param {number} groupSize - Number of sentences/lines per paragraph (default 3)
+     * @returns {string} Formatted HTML with paragraphs separated by <br><br>
+     */
+    formatAIText(text, groupSize = 3) {
+        if (!text) return '';
+        
+        // 1) Normalize newlines and trim
+        const normalized = text.replace(/\r\n/g, '\n').trim();
+        
+        // 2) Try to split into sentences using regex boundary
+        // Match sentence boundaries: period/exclamation/question mark/ellipsis followed by space and uppercase letter
+        const sentenceRegex = /(?<=[.!?…])\s+(?=[А-ЯA-ZЁ])/g;
+        let sentences = normalized.split(sentenceRegex);
+        
+        // 3) Fallback: if we have 0 or 1 sentence, split by newlines instead
+        if (sentences.length <= 1) {
+            sentences = normalized.split(/\n+/g).filter(s => s.trim());
+        }
+        
+        // 4) Escape each sentence/line to prevent HTML injection
+        const escapedSentences = sentences.map(s => this.escapeHtml(s.trim())).filter(s => s);
+        
+        // 5) Group into paragraphs of groupSize
+        const paragraphs = [];
+        for (let i = 0; i < escapedSentences.length; i += groupSize) {
+            const group = escapedSentences.slice(i, i + groupSize);
+            paragraphs.push(group.join(' '));
+        }
+        
+        // 6) Join paragraphs with double line break
+        return paragraphs.join('<br><br>');
+    }
+
+    /**
      * ✨ AI АНАЛИЗ ОТ АННЫ (ТОЧНО ИЗ КОНЦЕПТА!) - 🔧 ИСПРАВЛЕНО: НЕТ ДУБЛИРОВАНИЯ
      */
     renderAIInsight() {
@@ -361,14 +409,19 @@ class DiaryPage {
             const insights = lastQuote?.insights || lastQuote?.aiAnalysis?.insights || '';
 
             if (lastQuote && (summary || insights)) {
+                // Escape HTML for summary but keep it as-is
+                const escapedSummary = this.escapeHtml(summary);
+                // Format and escape insights with paragraph formatting
+                const formattedInsights = insights ? this.formatAIText(insights, 3) : '';
+                
                 return `
                     <div class="ai-insight">
                         <div class="ai-title">
                             <span>✨</span>
                             <span>Анализ от Анны</span>
                         </div>
-                        ${summary ? `<div class="ai-text"><b>Ответ Анны:</b> ${summary}</div>` : ''}
-                        ${insights ? `<div class="ai-text"><b>Инсайт:</b> ${insights}</div>` : ''}
+                        ${summary ? `<div class="ai-text"><b>Ответ Анны:</b> ${escapedSummary}</div>` : ''}
+                        ${insights ? `<div class="ai-text"><b>Инсайт:</b> ${formattedInsights}</div>` : ''}
                     </div>
                 `;
             }
@@ -1161,9 +1214,9 @@ class DiaryPage {
             this.clearForm();
             this.rerender();
 
-            if (insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
-                window.showNotification(insights, 'success', 5000);
-            } else if (typeof window !== 'undefined' && typeof window.showNotification === 'function') {
+            // Only show generic success toast when there is NO insight
+            // When there is an insight, rely on the inline analysis block instead
+            if (!insights && typeof window !== 'undefined' && typeof window.showNotification === 'function') {
                 window.showNotification('✨ Цитата сохранена в ваш дневник!', 'success');
             }
 
