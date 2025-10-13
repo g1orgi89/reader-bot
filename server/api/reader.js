@@ -162,12 +162,6 @@ const localNormalizeQuoteField = _normalizer.normalizeQuoteField || (s => {
   return String(s).trim().toLowerCase();
 });
 
-const computeNormalizedKey = _normalizer.computeNormalizedKey || ((text, author = '') => {
-  const normText = normalizeQuoteField(text || '');
-  const normAuthor = normalizeQuoteField(author || '');
-  return `${normText}|||${normAuthor}`;
-});
-
 // Импорт middleware
 const { communityLimiter } = require('../middleware/rateLimiting');
 
