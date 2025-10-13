@@ -10,6 +10,39 @@ const mongoose = require('mongoose');
  */
 
 /**
+ * Normalize text for grouping quotes with slight formatting variations
+ * Removes various quote characters, unifies dashes, collapses whitespace,
+ * strips trailing dots/ellipsis, trims and lowercases
+ * @param {string} text - Text to normalize
+ * @returns {string} Normalized text
+ */
+function normalizeQuoteField(text) {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  
+  let normalized = text;
+  
+  // Remove various quote characters (guillemets, smart quotes, straight quotes)
+  normalized = normalized.replace(/[«»""„"']/g, '');
+  
+  // Unify dashes (em dash, en dash, minus) to hyphen
+  normalized = normalized.replace(/[—–−]/g, '-');
+  
+  // Collapse whitespace to single spaces
+  normalized = normalized.replace(/\s+/g, ' ');
+  
+  // Strip trailing dots and ellipsis with adjacent whitespace
+  normalized = normalized.replace(/[\s.…]*\.{2,}[\s.…]*$/g, '');
+  normalized = normalized.replace(/[\s.]*\.[\s.]*$/g, '');
+  
+  // Trim and lowercase
+  normalized = normalized.trim().toLowerCase();
+  
+  return normalized;
+}
+
+/**
  * Основная схема цитаты
  */
 const quoteSchema = new mongoose.Schema({
@@ -92,6 +125,16 @@ const quoteSchema = new mongoose.Schema({
     type: Boolean,
     default: false
     // Добавлена ли цитата в избранное
+  },
+  normalizedText: {
+    type: String,
+    index: true
+    // Normalized text for grouping (computed from text)
+  },
+  normalizedAuthor: {
+    type: String,
+    index: true
+    // Normalized author for grouping (computed from author)
   }
 }, {
   timestamps: true,
@@ -108,6 +151,9 @@ quoteSchema.index({ author: 1, createdAt: -1 });
 quoteSchema.index({ sentiment: 1 });
 // Index for community endpoints - latest quotes across all users
 quoteSchema.index({ createdAt: -1 });
+// Indexes for normalized fields used in community grouping
+quoteSchema.index({ normalizedText: 1, normalizedAuthor: 1 });
+quoteSchema.index({ normalizedText: 1, normalizedAuthor: 1, createdAt: 1 });
 
 // Виртуальные поля
 quoteSchema.virtual('displayAuthor').get(function() {
@@ -376,6 +422,14 @@ quoteSchema.pre('save', function(next) {
     this.monthNumber = businessNow.getMonth() + 1;
   }
   
+  // Always compute normalized fields (on create or update)
+  if (this.isModified('text') || !this.normalizedText) {
+    this.normalizedText = normalizeQuoteField(this.text);
+  }
+  if (this.isModified('author') || !this.normalizedAuthor) {
+    this.normalizedAuthor = normalizeQuoteField(this.author || '');
+  }
+  
   next();
 });
 
@@ -403,4 +457,6 @@ function getWeekNumber(date) {
 
 const Quote = mongoose.model('Quote', quoteSchema);
 
+// Export both the model and the normalization helper
 module.exports = Quote;
+module.exports.normalizeQuoteField = normalizeQuoteField;
