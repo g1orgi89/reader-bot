@@ -2655,14 +2655,13 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
     let favoritesMatchCriteria = {};
     
     if (scope === 'week') {
-      const { getBusinessNow, getISOWeekInfo } = require('../utils/isoWeek');
+      const { getBusinessNow, getISOWeekInfo, getISOWeekRange } = require('../utils/isoWeek');
       const currentWeek = getISOWeekInfo(getBusinessNow());
       const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
       const targetYear = parseInt(year) || currentWeek.isoYear;
       
       // Calculate start/end dates for the ISO week
-      const { getISOWeekDateRange } = require('../utils/isoWeek');
-      const { startDate, endDate } = getISOWeekDateRange(targetYear, targetWeek);
+      const { start: startDate, end: endDate } = getISOWeekRange(targetWeek, targetYear);
       
       favoritesMatchCriteria = {
         createdAt: { $gte: startDate, $lte: endDate }
@@ -2940,14 +2939,13 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     let favoritesMatchCriteria = {};
     
     if (scope === 'week') {
-      const { getBusinessNow, getISOWeekInfo } = require('../utils/isoWeek');
+      const { getBusinessNow, getISOWeekInfo, getISOWeekRange } = require('../utils/isoWeek');
       const currentWeek = getISOWeekInfo(getBusinessNow());
       const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
       const targetYear = parseInt(year) || currentWeek.isoYear;
       
       // Calculate start/end dates for the ISO week
-      const { getISOWeekDateRange } = require('../utils/isoWeek');
-      const { startDate, endDate } = getISOWeekDateRange(targetYear, targetWeek);
+      const { start: startDate, end: endDate } = getISOWeekRange(targetWeek, targetYear);
       
       favoritesMatchCriteria = {
         createdAt: { $gte: startDate, $lte: endDate }
