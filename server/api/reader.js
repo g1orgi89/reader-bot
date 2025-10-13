@@ -301,27 +301,11 @@ function validateLimit(limit, defaultLimit = 10, maxLimit = 50) {
 }
 
 /**
- * Find the origin user (earliest creator) for a specific quote text+author pair
- * @param {string} text - Quote text
- * @param {string} author - Quote author
- * @returns {Promise<string|null>} Origin userId or null if not found
- */
-async function findOriginUserId(text, author) {
-  try {
-    const originQuote = await Quote.findOne({
-      text: text,
-      author: author
-    }).sort({ createdAt: 1, _id: 1 }).select('userId').lean();
-    
-    return originQuote ? originQuote.userId : null;
-  } catch (error) {
-    console.error('Error finding origin userId:', error);
-    return null;
-  }
-}
-
-/**
  * Get origin user info for multiple quote pairs efficiently using normalized fields
+ * Implements three-pass resolution for robust origin attribution:
+ * - Pass 1: Exact text+author match (fastest, for consistent data)
+ * - Pass 2a: Pre-normalized field match (for docs with normalizedText/normalizedAuthor)
+ * - Pass 2b: JS normalization fallback (for legacy docs without pre-normalized fields)
  * @param {Array} quotePairs - Array of {text, author} pairs (original, not normalized)
  * @returns {Promise<Map>} Map from 'text|||author' key (original) to origin userId
  */
@@ -331,41 +315,27 @@ async function getOriginUserIds(quotePairs) {
       return new Map();
     }
 
-    // Pre-normalize incoming pairs and build a map from normalized -> original
-    const normalizedPairs = [];
+    // Build a map from original key -> normalized key for later mapping
+    const originalToNormalizedMap = new Map();
     const normalizedToOriginalMap = new Map();
     
     quotePairs.forEach(pair => {
-      const normalizedText = safeNormalize(pair.text);
-      const normalizedAuthor = safeNormalize(pair.author || '');
+      const originalKey = `${pair.text}|||${pair.author || ''}`;
       const normalizedKey = toNormalizedKey(pair.text, pair.author || '');
-      const originalKey = `${pair.text}|||${pair.author}`;
-      
-      normalizedPairs.push({ normalizedText, normalizedAuthor });
+      originalToNormalizedMap.set(originalKey, normalizedKey);
       normalizedToOriginalMap.set(normalizedKey, originalKey);
     });
 
-    // Build aggregation pipeline using normalized fields with on-the-fly computation for legacy docs
-    const pipeline = [
-      {
-        $addFields: {
-          // Compute normalized fields on-the-fly if not present (for legacy docs)
-          computedNormalizedText: {
-            $ifNull: ['$normalizedText', '$text']
-          },
-          computedNormalizedAuthor: {
-            $ifNull: ['$normalizedAuthor', { $ifNull: ['$author', ''] }]
-          }
-        }
-      },
+    const originMap = new Map();
+
+    // PASS 1: Try exact text+author match (fastest, handles new docs with consistent data)
+    const exactMatches = await Quote.aggregate([
       {
         $match: {
-          $expr: {
-            $in: [
-              { $concat: ['$computedNormalizedText', '|||', '$computedNormalizedAuthor'] },
-              normalizedPairs.map(pair => `${pair.normalizedText}|||${pair.normalizedAuthor}`)
-            ]
-          }
+          $or: quotePairs.map(pair => ({
+            text: pair.text,
+            author: pair.author || ''
+          }))
         }
       },
       {
@@ -373,27 +343,126 @@ async function getOriginUserIds(quotePairs) {
       },
       {
         $group: {
-          _id: { 
-            normalizedText: '$computedNormalizedText', 
-            normalizedAuthor: '$computedNormalizedAuthor' 
-          },
+          _id: { text: '$text', author: '$author' },
           originUserId: { $first: '$userId' },
           earliestCreated: { $first: '$createdAt' }
         }
       }
-    ];
+    ]);
 
-    const results = await Quote.aggregate(pipeline);
-    const originMap = new Map();
+    // Map exact matches back to original keys
+    exactMatches.forEach(result => {
+      const originalKey = `${result._id.text}|||${result._id.author || ''}`;
+      originMap.set(originalKey, result.originUserId);
+    });
 
-    // Map results back to original keys
-    results.forEach(result => {
-      const normalizedKey = `${result._id.normalizedText}|||${result._id.normalizedAuthor}`;
+    // Collect pairs that still need resolution
+    const unresolvedPairs = quotePairs.filter(pair => {
+      const originalKey = `${pair.text}|||${pair.author || ''}`;
+      return !originMap.has(originalKey);
+    });
+
+    if (unresolvedPairs.length === 0) {
+      return originMap;
+    }
+
+    // PASS 2: Normalized match using pre-normalized fields or fallback to JS normalization
+    // First, try using the normalizedText/normalizedAuthor fields if they exist
+    const targetNormalizedKeys = unresolvedPairs.map(pair => 
+      toNormalizedKey(pair.text, pair.author || '')
+    );
+
+    // Check if documents have pre-normalized fields
+    const normalizedFieldMatches = await Quote.aggregate([
+      {
+        $match: {
+          normalizedText: { $exists: true, $ne: null },
+          normalizedAuthor: { $exists: true }
+        }
+      },
+      {
+        $addFields: {
+          computedNormalizedKey: {
+            $concat: ['$normalizedText', '|||', '$normalizedAuthor']
+          }
+        }
+      },
+      {
+        $match: {
+          computedNormalizedKey: { $in: targetNormalizedKeys }
+        }
+      },
+      {
+        $sort: { createdAt: 1, _id: 1 }
+      },
+      {
+        $group: {
+          _id: '$computedNormalizedKey',
+          originUserId: { $first: '$userId' },
+          earliestCreated: { $first: '$createdAt' }
+        }
+      }
+    ]);
+
+    // Map normalized field matches back to original keys
+    normalizedFieldMatches.forEach(result => {
+      const normalizedKey = result._id;
       const originalKey = normalizedToOriginalMap.get(normalizedKey);
-      if (originalKey) {
+      if (originalKey && !originMap.has(originalKey)) {
         originMap.set(originalKey, result.originUserId);
       }
     });
+
+    // For remaining unresolved pairs, fetch all quotes and normalize in JS
+    const stillUnresolvedAfterNormFields = unresolvedPairs.filter(pair => {
+      const originalKey = `${pair.text}|||${pair.author || ''}`;
+      return !originMap.has(originalKey);
+    });
+
+    if (stillUnresolvedAfterNormFields.length > 0) {
+      // Fetch a broader set of quotes that might match (all quotes without pre-normalized fields)
+      // Limit to 10k to avoid memory issues. This is reasonable because:
+      // - Most quotes should have pre-normalized fields (handled in Pass 2a)
+      // - Community endpoints typically query small sets (10-50 items)
+      // - If a match isn't found in 10k legacy docs, origin likely doesn't exist
+      const candidateQuotes = await Quote.find(
+        {
+          $or: [
+            { normalizedText: { $exists: false } },
+            { normalizedText: null }
+          ]
+        },
+        { text: 1, author: 1, userId: 1, createdAt: 1, _id: 1 }
+      )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean()
+      .limit(10000);
+
+      // Build a map of normalized key -> earliest quote for candidates
+      const candidateMap = new Map();
+      candidateQuotes.forEach(quote => {
+        const normalizedKey = toNormalizedKey(quote.text, quote.author || '');
+        if (!candidateMap.has(normalizedKey)) {
+          candidateMap.set(normalizedKey, quote);
+        }
+      });
+
+      // Match unresolved pairs against candidates
+      stillUnresolvedAfterNormFields.forEach(pair => {
+        const originalKey = `${pair.text}|||${pair.author || ''}`;
+        const normalizedKey = toNormalizedKey(pair.text, pair.author || '');
+        const match = candidateMap.get(normalizedKey);
+        
+        if (match && !originMap.has(originalKey)) {
+          originMap.set(originalKey, match.userId);
+        }
+      });
+    }
+
+    // The three-pass resolution is now complete:
+    // Pass 1: Exact match (fastest)
+    // Pass 2a: Pre-normalized field match (for docs with normalizedText/normalizedAuthor)
+    // Pass 2b: JS normalization match (for legacy docs without normalized fields)
 
     return originMap;
   } catch (error) {
@@ -2847,10 +2916,10 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       }
     });
 
-    // Get user profiles for all needed users
+    // Get user profiles for all needed users (include telegramUsername for fallback)
     const users = await UserProfile.find(
       { userId: { $in: [...allUserIds] } },
-      { userId: 1, name: 1, avatarUrl: 1 }
+      { userId: 1, name: 1, avatarUrl: 1, telegramUsername: 1 }
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
@@ -2892,9 +2961,14 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       };
       
       if (user) {
+        // Build display name with fallback: name || @telegramUsername || 'Пользователь'
+        const displayName = user.name || 
+                           (user.telegramUsername ? `@${user.telegramUsername}` : null) || 
+                           'Пользователь';
+        
         result.user = {
           userId: user.userId,
-          name: user.name,
+          name: displayName,
           avatarUrl: user.avatarUrl
         };
       } else {
@@ -3171,10 +3245,10 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       }
     });
 
-    // Get user profiles for all needed users
+    // Get user profiles for all needed users (include telegramUsername for fallback)
     const users = await UserProfile.find(
       { userId: { $in: [...allUserIds] } },
-      { userId: 1, name: 1, avatarUrl: 1 }
+      { userId: 1, name: 1, avatarUrl: 1, telegramUsername: 1 }
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
@@ -3216,9 +3290,14 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       };
       
       if (user) {
+        // Build display name with fallback: name || @telegramUsername || 'Пользователь'
+        const displayName = user.name || 
+                           (user.telegramUsername ? `@${user.telegramUsername}` : null) || 
+                           'Пользователь';
+        
         result.user = {
           userId: user.userId,
-          name: user.name,
+          name: displayName,
           avatarUrl: user.avatarUrl
         };
       } else {
