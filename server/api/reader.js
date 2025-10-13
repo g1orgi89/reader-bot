@@ -2450,11 +2450,31 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
       favoritesMap.set(originalKey, mergedCount);
     });
 
-    // Enrich each quote with user info and favorites count
+    // Get likedByMe status for current user
+    const currentUserId = req.user?.userId;
+    let likedByMeSet = new Set();
+    
+    if (currentUserId) {
+      const likedFavorites = await Favorite.find(
+        { 
+          userId: currentUserId,
+          normalizedKey: { $in: normalizedKeys }
+        },
+        { normalizedKey: 1 }
+      ).lean();
+      
+      likedByMeSet = new Set(likedFavorites.map(f => f.normalizedKey));
+    }
+
+    // Enrich each quote with user info, favorites count, and likedByMe
     const enrichedQuotes = quotes.map(q => {
       const user = userMap.get(String(q.userId));
       const favoritesKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
       const favoritesCount = favoritesMap.get(favoritesKey) || 0;
+      
+      const qNormText = normalizeQuoteField(q.text);
+      const qNormAuthor = normalizeQuoteField(q.author || '');
+      const normalizedKey = `${qNormText}|||${qNormAuthor}`;
       
       return {
         ...q,
@@ -2464,7 +2484,8 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
           name: user.name,
           avatarUrl: user.avatarUrl
         } : null,
-        favorites: favoritesCount
+        favorites: favoritesCount,
+        likedByMe: likedByMeSet.has(normalizedKey)
       };
     });
 
@@ -2797,19 +2818,17 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       })
       .slice(0, limit);
 
-    // Get origin user IDs for each quote pair (earliest creator)
+    // Get origin user IDs for each quote pair (earliest creator) - STRICT ATTRIBUTION ONLY
     const quotePairs = popularFavorites.map(pf => ({ text: pf.text, author: pf.author }));
     const originUserMap = await getOriginUserIds(quotePairs);
 
-    // Collect all user IDs we need (origin users + fallback to firstUserId)
+    // Collect only origin user IDs (no fallback to firstUserId)
     const allUserIds = new Set();
     popularFavorites.forEach(pf => {
       const key = `${pf.text}|||${pf.author}`;
       const originUserId = originUserMap.get(key);
       if (originUserId) {
         allUserIds.add(String(originUserId));
-      } else if (pf.firstUserId) {
-        allUserIds.add(String(pf.firstUserId));
       }
     });
 
@@ -2820,21 +2839,48 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Add user info to each popular favorite (prefer origin user)
+    // Get likedByMe status for current user
+    const currentUserId = req.user?.userId;
+    let likedByMeSet = new Set();
+    
+    if (currentUserId) {
+      const { normalizeQuoteField } = require('../models/quote');
+      const normalizedKeys = popularFavorites.map(pf => {
+        const normText = normalizeQuoteField(pf.text);
+        const normAuthor = normalizeQuoteField(pf.author || '');
+        return `${normText}|||${normAuthor}`;
+      });
+      
+      const likedFavorites = await Favorite.find(
+        { 
+          userId: currentUserId,
+          normalizedKey: { $in: normalizedKeys }
+        },
+        { normalizedKey: 1 }
+      ).lean();
+      
+      likedByMeSet = new Set(likedFavorites.map(f => f.normalizedKey));
+    }
+
+    // Add user info to each popular favorite (STRICT ORIGIN ONLY)
     const enrichedPopularFavorites = popularFavorites.map(pf => {
       const key = `${pf.text}|||${pf.author}`;
       const originUserId = originUserMap.get(key);
       
-      // Use origin user if found, otherwise fall back to firstUserId
-      const targetUserId = originUserId || pf.firstUserId;
-      const user = userMap.get(String(targetUserId));
+      // Use ONLY origin user (no fallback to firstUserId)
+      const user = originUserId ? userMap.get(String(originUserId)) : null;
+      
+      const normText = normalizeQuoteField(pf.text);
+      const normAuthor = normalizeQuoteField(pf.author || '');
+      const normalizedKey = `${normText}|||${normAuthor}`;
       
       const result = {
         text: pf.text,
         author: pf.author,
         favorites: pf.favorites,
         sampleCategory: pf.sampleCategory,
-        sampleThemes: pf.sampleThemes
+        sampleThemes: pf.sampleThemes,
+        likedByMe: likedByMeSet.has(normalizedKey)
       };
       
       if (user) {
@@ -2844,9 +2890,9 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
           avatarUrl: user.avatarUrl
         };
       } else {
-        // Fallback for missing user data
+        // Only if no origin user found - should be rare
         result.user = {
-          userId: targetUserId || 'unknown',
+          userId: 'unknown',
           name: 'Пользователь',
           avatarUrl: null
         };
@@ -3093,19 +3139,17 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       });
     }
 
-    // Get origin user IDs for each quote pair (earliest creator)
+    // Get origin user IDs for each quote pair (earliest creator) - STRICT ATTRIBUTION ONLY
     const quotePairs = recentFavorites.map(rf => ({ text: rf.text || '', author: rf.author || '' }));
     const originUserMap = await getOriginUserIds(quotePairs);
 
-    // Collect all user IDs we need (origin users + fallback to firstUserId)
+    // Collect only origin user IDs (no fallback to firstUserId)
     const allUserIds = new Set();
     recentFavorites.forEach(rf => {
       const key = `${rf.text}|||${rf.author}`;
       const originUserId = originUserMap.get(key);
       if (originUserId) {
         allUserIds.add(String(originUserId));
-      } else if (rf.firstUserId) {
-        allUserIds.add(String(rf.firstUserId));
       }
     });
 
@@ -3116,21 +3160,48 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Enrich each recent favorite with user info (prefer origin user)
+    // Get likedByMe status for current user
+    const currentUserId = req.user?.userId;
+    let likedByMeSet = new Set();
+    
+    if (currentUserId) {
+      const { normalizeQuoteField } = require('../models/quote');
+      const normalizedKeys = recentFavorites.map(rf => {
+        const normText = normalizeQuoteField(rf.text);
+        const normAuthor = normalizeQuoteField(rf.author || '');
+        return `${normText}|||${normAuthor}`;
+      });
+      
+      const likedFavorites = await Favorite.find(
+        { 
+          userId: currentUserId,
+          normalizedKey: { $in: normalizedKeys }
+        },
+        { normalizedKey: 1 }
+      ).lean();
+      
+      likedByMeSet = new Set(likedFavorites.map(f => f.normalizedKey));
+    }
+
+    // Enrich each recent favorite with user info (STRICT ORIGIN ONLY)
     const enrichedRecentFavorites = recentFavorites.map(rf => {
       const key = `${rf.text}|||${rf.author}`;
       const originUserId = originUserMap.get(key);
       
-      // Use origin user if found, otherwise fall back to firstUserId
-      const targetUserId = originUserId || rf.firstUserId;
-      const user = userMap.get(String(targetUserId));
+      // Use ONLY origin user (no fallback to firstUserId)
+      const user = originUserId ? userMap.get(String(originUserId)) : null;
+      
+      const normText = normalizeQuoteField(rf.text);
+      const normAuthor = normalizeQuoteField(rf.author || '');
+      const normalizedKey = `${normText}|||${normAuthor}`;
       
       const result = {
         text: rf.text,
         author: rf.author,
         favorites: rf.favorites,
         latestEdit: rf.latestEdit,
-        latestCreated: rf.latestCreated
+        latestCreated: rf.latestCreated,
+        likedByMe: likedByMeSet.has(normalizedKey)
       };
       
       if (user) {
@@ -3140,9 +3211,9 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
           avatarUrl: user.avatarUrl
         };
       } else {
-        // Fallback for missing user data
+        // Only if no origin user found - should be rare
         result.user = {
-          userId: targetUserId || 'unknown',
+          userId: 'unknown',
           name: 'Пользователь',
           avatarUrl: null
         };

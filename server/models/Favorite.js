@@ -8,7 +8,7 @@
  */
 
 const mongoose = require('mongoose');
-const { normalizeQuoteField } = require('./quote');
+const { normalizeQuoteField } = require('../utils/quoteNormalizer');
 
 /**
  * Favorite schema
