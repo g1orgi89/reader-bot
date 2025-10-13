@@ -2839,12 +2839,14 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
+    // Import normalizeQuoteField for likedByMe computation and enrichment
+    const { normalizeQuoteField } = require('../models/quote');
+
     // Get likedByMe status for current user
     const currentUserId = req.user?.userId;
     let likedByMeSet = new Set();
     
     if (currentUserId) {
-      const { normalizeQuoteField } = require('../models/quote');
       const normalizedKeys = popularFavorites.map(pf => {
         const normText = normalizeQuoteField(pf.text);
         const normAuthor = normalizeQuoteField(pf.author || '');
@@ -3170,12 +3172,14 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
+    // Import normalizeQuoteField for likedByMe computation and enrichment
+    const { normalizeQuoteField } = require('../models/quote');
+
     // Get likedByMe status for current user
     const currentUserId = req.user?.userId;
     let likedByMeSet = new Set();
     
     if (currentUserId) {
-      const { normalizeQuoteField } = require('../models/quote');
       const normalizedKeys = recentFavorites.map(rf => {
         const normText = normalizeQuoteField(rf.text);
         const normAuthor = normalizeQuoteField(rf.author || '');
