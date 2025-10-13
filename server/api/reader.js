@@ -322,6 +322,7 @@ async function findOriginUserId(text, author) {
 
 /**
  * Get origin user info for multiple quote pairs efficiently using normalized fields
+ * Implements two-pass resolution: exact match first, then normalized match with on-the-fly Mongo normalization
  * @param {Array} quotePairs - Array of {text, author} pairs (original, not normalized)
  * @returns {Promise<Map>} Map from 'text|||author' key (original) to origin userId
  */
@@ -331,41 +332,27 @@ async function getOriginUserIds(quotePairs) {
       return new Map();
     }
 
-    // Pre-normalize incoming pairs and build a map from normalized -> original
-    const normalizedPairs = [];
+    // Build a map from original key -> normalized key for later mapping
+    const originalToNormalizedMap = new Map();
     const normalizedToOriginalMap = new Map();
     
     quotePairs.forEach(pair => {
-      const normalizedText = safeNormalize(pair.text);
-      const normalizedAuthor = safeNormalize(pair.author || '');
+      const originalKey = `${pair.text}|||${pair.author || ''}`;
       const normalizedKey = toNormalizedKey(pair.text, pair.author || '');
-      const originalKey = `${pair.text}|||${pair.author}`;
-      
-      normalizedPairs.push({ normalizedText, normalizedAuthor });
+      originalToNormalizedMap.set(originalKey, normalizedKey);
       normalizedToOriginalMap.set(normalizedKey, originalKey);
     });
 
-    // Build aggregation pipeline using normalized fields with on-the-fly computation for legacy docs
-    const pipeline = [
-      {
-        $addFields: {
-          // Compute normalized fields on-the-fly if not present (for legacy docs)
-          computedNormalizedText: {
-            $ifNull: ['$normalizedText', '$text']
-          },
-          computedNormalizedAuthor: {
-            $ifNull: ['$normalizedAuthor', { $ifNull: ['$author', ''] }]
-          }
-        }
-      },
+    const originMap = new Map();
+
+    // PASS 1: Try exact text+author match (fastest, handles new docs with consistent data)
+    const exactMatches = await Quote.aggregate([
       {
         $match: {
-          $expr: {
-            $in: [
-              { $concat: ['$computedNormalizedText', '|||', '$computedNormalizedAuthor'] },
-              normalizedPairs.map(pair => `${pair.normalizedText}|||${pair.normalizedAuthor}`)
-            ]
-          }
+          $or: quotePairs.map(pair => ({
+            text: pair.text,
+            author: pair.author || ''
+          }))
         }
       },
       {
@@ -373,27 +360,224 @@ async function getOriginUserIds(quotePairs) {
       },
       {
         $group: {
-          _id: { 
-            normalizedText: '$computedNormalizedText', 
-            normalizedAuthor: '$computedNormalizedAuthor' 
-          },
+          _id: { text: '$text', author: '$author' },
           originUserId: { $first: '$userId' },
           earliestCreated: { $first: '$createdAt' }
         }
       }
-    ];
+    ]);
 
-    const results = await Quote.aggregate(pipeline);
-    const originMap = new Map();
+    // Map exact matches back to original keys
+    exactMatches.forEach(result => {
+      const originalKey = `${result._id.text}|||${result._id.author || ''}`;
+      originMap.set(originalKey, result.originUserId);
+    });
 
-    // Map results back to original keys
-    results.forEach(result => {
-      const normalizedKey = `${result._id.normalizedText}|||${result._id.normalizedAuthor}`;
+    // Collect pairs that still need resolution
+    const unresolvedPairs = quotePairs.filter(pair => {
+      const originalKey = `${pair.text}|||${pair.author || ''}`;
+      return !originMap.has(originalKey);
+    });
+
+    if (unresolvedPairs.length === 0) {
+      return originMap;
+    }
+
+    // PASS 2: Normalized match with on-the-fly Mongo normalization for legacy docs
+    // Build target normalized keys
+    const targetNormalizedKeys = unresolvedPairs.map(pair => 
+      toNormalizedKey(pair.text, pair.author || '')
+    );
+
+    const normalizedMatches = await Quote.aggregate([
+      {
+        $addFields: {
+          // On-the-fly normalization in Mongo to handle quotes, dashes, whitespace, case
+          normalizedTextComputed: {
+            $trim: {
+              input: {
+                $toLower: {
+                  $replaceAll: {
+                    input: {
+                      $replaceAll: {
+                        input: {
+                          $replaceAll: {
+                            input: {
+                              $replaceAll: {
+                                input: {
+                                  $replaceAll: {
+                                    input: {
+                                      $replaceAll: {
+                                        input: {
+                                          $replaceAll: {
+                                            input: {
+                                              $replaceAll: {
+                                                input: '$text',
+                                                find: '«',
+                                                replacement: ''
+                                              }
+                                            },
+                                            find: '»',
+                                            replacement: ''
+                                          }
+                                        },
+                                        find: '"',
+                                        replacement: ''
+                                      }
+                                    },
+                                    find: '"',
+                                    replacement: ''
+                                  }
+                                },
+                                find: '—',
+                                replacement: '-'
+                              }
+                            },
+                            find: '–',
+                            replacement: '-'
+                          }
+                        },
+                        find: '…',
+                        replacement: ''
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          normalizedAuthorComputed: {
+            $trim: {
+              input: {
+                $toLower: {
+                  $replaceAll: {
+                    input: {
+                      $replaceAll: {
+                        input: {
+                          $replaceAll: {
+                            input: {
+                              $replaceAll: {
+                                input: {
+                                  $replaceAll: {
+                                    input: {
+                                      $replaceAll: {
+                                        input: {
+                                          $replaceAll: {
+                                            input: {
+                                              $replaceAll: {
+                                                input: { $ifNull: ['$author', ''] },
+                                                find: '«',
+                                                replacement: ''
+                                              }
+                                            },
+                                            find: '»',
+                                            replacement: ''
+                                          }
+                                        },
+                                        find: '"',
+                                        replacement: ''
+                                      }
+                                    },
+                                    find: '"',
+                                    replacement: ''
+                                  }
+                                },
+                                find: '—',
+                                replacement: '-'
+                              }
+                            },
+                            find: '–',
+                            replacement: '-'
+                          }
+                        },
+                        find: '…',
+                        replacement: ''
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          computedNormalizedKey: {
+            $concat: ['$normalizedTextComputed', '|||', '$normalizedAuthorComputed']
+          }
+        }
+      },
+      {
+        $match: {
+          computedNormalizedKey: { $in: targetNormalizedKeys }
+        }
+      },
+      {
+        $sort: { createdAt: 1, _id: 1 }
+      },
+      {
+        $group: {
+          _id: '$computedNormalizedKey',
+          originUserId: { $first: '$userId' },
+          earliestCreated: { $first: '$createdAt' }
+        }
+      }
+    ]);
+
+    // Map normalized matches back to original keys
+    normalizedMatches.forEach(result => {
+      const normalizedKey = result._id;
       const originalKey = normalizedToOriginalMap.get(normalizedKey);
-      if (originalKey) {
+      if (originalKey && !originMap.has(originalKey)) {
         originMap.set(originalKey, result.originUserId);
       }
     });
+
+    // PASS 3: Final soft fallback - case-insensitive exact match for remaining pairs
+    const stillUnresolvedPairs = quotePairs.filter(pair => {
+      const originalKey = `${pair.text}|||${pair.author || ''}`;
+      return !originMap.has(originalKey);
+    });
+
+    if (stillUnresolvedPairs.length > 0) {
+      const softFallbackMatches = await Quote.aggregate([
+        {
+          $match: {
+            $or: stillUnresolvedPairs.map(pair => ({
+              text: { $regex: `^${pair.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+              author: { $regex: `^${(pair.author || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }
+            }))
+          }
+        },
+        {
+          $sort: { createdAt: 1, _id: 1 }
+        },
+        {
+          $group: {
+            _id: { text: '$text', author: '$author' },
+            originUserId: { $first: '$userId' },
+            earliestCreated: { $first: '$createdAt' }
+          }
+        }
+      ]);
+
+      // Map soft fallback matches
+      softFallbackMatches.forEach(result => {
+        // Find the original pair that matches (case-insensitive)
+        const matchingPair = stillUnresolvedPairs.find(pair => 
+          pair.text.toLowerCase() === result._id.text.toLowerCase() &&
+          (pair.author || '').toLowerCase() === (result._id.author || '').toLowerCase()
+        );
+        
+        if (matchingPair) {
+          const originalKey = `${matchingPair.text}|||${matchingPair.author || ''}`;
+          if (!originMap.has(originalKey)) {
+            originMap.set(originalKey, result.originUserId);
+          }
+        }
+      });
+    }
 
     return originMap;
   } catch (error) {
@@ -2847,10 +3031,10 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       }
     });
 
-    // Get user profiles for all needed users
+    // Get user profiles for all needed users (include telegramUsername for fallback)
     const users = await UserProfile.find(
       { userId: { $in: [...allUserIds] } },
-      { userId: 1, name: 1, avatarUrl: 1 }
+      { userId: 1, name: 1, avatarUrl: 1, telegramUsername: 1 }
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
@@ -2892,9 +3076,14 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       };
       
       if (user) {
+        // Build display name with fallback: name || @telegramUsername || 'Пользователь'
+        const displayName = user.name || 
+                           (user.telegramUsername ? `@${user.telegramUsername}` : null) || 
+                           'Пользователь';
+        
         result.user = {
           userId: user.userId,
-          name: user.name,
+          name: displayName,
           avatarUrl: user.avatarUrl
         };
       } else {
@@ -3171,10 +3360,10 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       }
     });
 
-    // Get user profiles for all needed users
+    // Get user profiles for all needed users (include telegramUsername for fallback)
     const users = await UserProfile.find(
       { userId: { $in: [...allUserIds] } },
-      { userId: 1, name: 1, avatarUrl: 1 }
+      { userId: 1, name: 1, avatarUrl: 1, telegramUsername: 1 }
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
@@ -3216,9 +3405,14 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       };
       
       if (user) {
+        // Build display name with fallback: name || @telegramUsername || 'Пользователь'
+        const displayName = user.name || 
+                           (user.telegramUsername ? `@${user.telegramUsername}` : null) || 
+                           'Пользователь';
+        
         result.user = {
           userId: user.userId,
-          name: user.name,
+          name: displayName,
           avatarUrl: user.avatarUrl
         };
       } else {
