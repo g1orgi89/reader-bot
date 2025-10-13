@@ -2724,8 +2724,9 @@ renderAchievementsSection() {
                 favoritesCountElement.textContent = currentFavorites;
             }
             
-            // Показываем ошибку
-            this.showNotification('Ошибка при изменении лайка', 'error');
+            // Показываем ошибку с конкретным действием
+            const errorMsg = wasFavorited ? 'Ошибка при снятии лайка' : 'Ошибка при добавлении лайка';
+            this.showNotification(errorMsg, 'error');
             this.triggerHapticFeedback('error');
         } finally {
             // Всегда снимаем блокировку через небольшую задержку
