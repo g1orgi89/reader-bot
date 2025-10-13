@@ -6,6 +6,10 @@ global.computeNormalizedKey = global.computeNormalizedKey || function (t, a = ''
   return global.normalizeQuoteField(t) + '|||' + global.normalizeQuoteField(a);
 };
 
+// ВСЕ ВЫЗОВЫ ДОЛЖНЫ БЫТЬ ВИДИМЫ:
+const normalizeQuoteField = global.normalizeQuoteField;
+const computeNormalizedKey = global.computeNormalizedKey;
+
 /**
  * Safely extract userId from request with enhanced error handling
  * ОБНОВЛЕНО: Добавлен fallback на X-User-Id если initData parsing fails
