@@ -134,18 +134,38 @@ const QuoteHandler = require('../services/quoteHandler');
 // Импорт утилит
 const { fetchTelegramAvatar, hasAvatar, updateUserAvatar } = require('../utils/telegramAvatarFetcher');
 const { getAllCategories } = require('../utils/normalizeCategory');
-const { normalizeQuoteField, computeNormalizedKey } = require('../utils/quoteNormalizer');
+
+// Defensive module-level import with fallback to prevent ReferenceError
+const _normalizer = (() => {
+  try {
+    return require('../utils/quoteNormalizer');
+  } catch (err) {
+    console.error('⚠️ Failed to load quoteNormalizer, using fallback:', err);
+    return {};
+  }
+})();
+
+const normalizeQuoteField = _normalizer.normalizeQuoteField || (s => {
+  if (!s || typeof s !== 'string') return '';
+  return String(s).trim().toLowerCase();
+});
+
+const computeNormalizedKey = _normalizer.computeNormalizedKey || ((text, author = '') => {
+  const normText = normalizeQuoteField(text || '');
+  const normAuthor = normalizeQuoteField(author || '');
+  return `${normText}|||${normAuthor}`;
+});
 
 // Импорт middleware
 const { communityLimiter } = require('../middleware/rateLimiting');
 
-// Helper functions for safe normalization
+// Helper functions for safe normalization with additional error handling
 function safeNormalize(s) {
   try {
     return normalizeQuoteField(s || '');
   } catch (error) {
     console.error('Error normalizing field:', error);
-    return '';
+    return String(s || '').trim().toLowerCase();
   }
 }
 
