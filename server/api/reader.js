@@ -134,6 +134,7 @@ const QuoteHandler = require('../services/quoteHandler');
 // Импорт утилит
 const { fetchTelegramAvatar, hasAvatar, updateUserAvatar } = require('../utils/telegramAvatarFetcher');
 const { getAllCategories } = require('../utils/normalizeCategory');
+const { normalizeQuoteField } = require('../models/quote');
 
 // Импорт middleware
 const { communityLimiter } = require('../middleware/rateLimiting');
@@ -2839,10 +2840,7 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Import normalizeQuoteField for likedByMe computation and enrichment
-    const { normalizeQuoteField } = require('../models/quote');
-
-    // Get likedByMe status for current user
+    // Get likedByMe status for current user (uses normalizeQuoteField from top-level imports)
     const currentUserId = req.user?.userId;
     let likedByMeSet = new Set();
     
@@ -3172,10 +3170,7 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Import normalizeQuoteField for likedByMe computation and enrichment
-    const { normalizeQuoteField } = require('../models/quote');
-
-    // Get likedByMe status for current user
+    // Get likedByMe status for current user (uses normalizeQuoteField from top-level imports)
     const currentUserId = req.user?.userId;
     let likedByMeSet = new Set();
     
