@@ -1030,6 +1030,54 @@ class ReportsPage {
     }
     
     /**
+     * 🔒 Escape HTML to prevent injection
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped HTML
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
+     * 📝 Format AI text into paragraphs
+     * @param {string} text - AI text to format
+     * @param {number} groupSize - Number of sentences/lines per paragraph (default 3)
+     * @returns {string} Formatted HTML with paragraphs separated by <br><br>
+     */
+    formatAIText(text, groupSize = 3) {
+        if (!text) return '';
+        
+        // 1) Normalize newlines and trim
+        const normalized = text.replace(/\r\n/g, '\n').trim();
+        
+        // 2) Try to split into sentences using regex boundary
+        // Match sentence boundaries: period/exclamation/question mark/ellipsis followed by space and uppercase letter
+        const sentenceRegex = /(?<=[.!?…])\s+(?=[А-ЯA-ZЁ])/g;
+        let sentences = normalized.split(sentenceRegex);
+        
+        // 3) Fallback: if we have 0 or 1 sentence, split by newlines instead
+        if (sentences.length <= 1) {
+            sentences = normalized.split(/\n+/g).filter(s => s.trim());
+        }
+        
+        // 4) Escape each sentence/line to prevent HTML injection
+        const escapedSentences = sentences.map(s => this.escapeHtml(s.trim())).filter(s => s);
+        
+        // 5) Group into paragraphs of groupSize
+        const paragraphs = [];
+        for (let i = 0; i < escapedSentences.length; i += groupSize) {
+            const group = escapedSentences.slice(i, i + groupSize);
+            paragraphs.push(group.join(' '));
+        }
+        
+        // 6) Join paragraphs with double line break
+        return paragraphs.join('<br><br>');
+    }
+
+    /**
      * 💡 AI АНАЛИЗ ОТ АННЫ - ПЕРЕИМЕНОВАННЫЙ ЗАГОЛОВОК
      */
     renderAIAnalysis() {
@@ -1063,17 +1111,18 @@ class ReportsPage {
             `;
         }
         
-        // ✅ Безопасное экранирование HTML
-        const safeAnalysisText = window.escapeHtml ? window.escapeHtml(analysisText) : analysisText;
+        // ✅ Format AI text into paragraphs (every 3 sentences)
+        const formattedAnalysisText = this.formatAIText(analysisText, 3);
         
         // ✅ Получаем эмоциональный тон из еженедельного отчета
         const emotionalTone = this.weeklyReport?.analysis?.emotionalTone;
         const toneEmoji = emotionalTone ? this.emotionalToneEmojis[emotionalTone] : null;
         
         // ✅ Формируем chip с эмоциональным тоном
+        // Use our own escapeHtml for tone text
         const toneChip = emotionalTone ? `
             <div class="ai-tone-chip">
-                ${toneEmoji ? `${toneEmoji} ` : ''}${window.escapeHtml ? window.escapeHtml(emotionalTone) : emotionalTone}
+                ${toneEmoji ? `${toneEmoji} ` : ''}${this.escapeHtml(emotionalTone)}
             </div>
         ` : '';
         
@@ -1083,7 +1132,7 @@ class ReportsPage {
                     <div class="ai-title">✨ Еженедельный отчет от Анны</div>
                     ${toneChip}
                 </div>
-                <div class="ai-text">${safeAnalysisText}</div>
+                <div class="ai-text">${formattedAnalysisText}</div>
             </div>
         `;
     }
