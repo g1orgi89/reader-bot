@@ -134,10 +134,29 @@ const QuoteHandler = require('../services/quoteHandler');
 // Импорт утилит
 const { fetchTelegramAvatar, hasAvatar, updateUserAvatar } = require('../utils/telegramAvatarFetcher');
 const { getAllCategories } = require('../utils/normalizeCategory');
-const { normalizeQuoteField } = require('../models/quote');
+const { normalizeQuoteField, computeNormalizedKey } = require('../utils/quoteNormalizer');
 
 // Импорт middleware
 const { communityLimiter } = require('../middleware/rateLimiting');
+
+// Helper functions for safe normalization
+function safeNormalize(s) {
+  try {
+    return normalizeQuoteField(s || '');
+  } catch (error) {
+    console.error('Error normalizing field:', error);
+    return '';
+  }
+}
+
+function toNormalizedKey(text, author) {
+  try {
+    return computeNormalizedKey(text || '', author || '');
+  } catch (error) {
+    console.error('Error computing normalized key:', error);
+    return `${safeNormalize(text)}|||${safeNormalize(author)}`;
+  }
+}
 
 // Инициализация обработчика цитат
 const quoteHandler = new QuoteHandler();
@@ -312,16 +331,14 @@ async function getOriginUserIds(quotePairs) {
       return new Map();
     }
 
-    const { normalizeQuoteField } = require('../models/quote');
-    
     // Pre-normalize incoming pairs and build a map from normalized -> original
     const normalizedPairs = [];
     const normalizedToOriginalMap = new Map();
     
     quotePairs.forEach(pair => {
-      const normalizedText = normalizeQuoteField(pair.text);
-      const normalizedAuthor = normalizeQuoteField(pair.author || '');
-      const normalizedKey = `${normalizedText}|||${normalizedAuthor}`;
+      const normalizedText = safeNormalize(pair.text);
+      const normalizedAuthor = safeNormalize(pair.author || '');
+      const normalizedKey = toNormalizedKey(pair.text, pair.author || '');
       const originalKey = `${pair.text}|||${pair.author}`;
       
       normalizedPairs.push({ normalizedText, normalizedAuthor });
@@ -2365,15 +2382,14 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
     // Collect unique (text, author) pairs for favorites aggregation using normalized fields
-    const { normalizeQuoteField } = require('../models/quote');
     const uniquePairs = [];
     const pairMap = new Map();
     const normalizedToOriginalMap = new Map();
     
     quotes.forEach(q => {
-      const normalizedText = normalizeQuoteField(q.text);
-      const normalizedAuthor = normalizeQuoteField(q.author || '');
-      const normalizedKey = `${normalizedText}|||${normalizedAuthor}`;
+      const normalizedText = safeNormalize(q.text);
+      const normalizedAuthor = safeNormalize(q.author || '');
+      const normalizedKey = toNormalizedKey(q.text, q.author || '');
       const originalKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
       
       if (!pairMap.has(normalizedKey)) {
@@ -2430,9 +2446,9 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
     // Merge favorites counts with backward-compat (union of userIds to avoid double counting)
     const favoritesMap = new Map();
     quotes.forEach(q => {
-      const qNormText = normalizeQuoteField(q.text);
-      const qNormAuthor = normalizeQuoteField(q.author || '');
-      const normalizedKey = `${qNormText}|||${qNormAuthor}`;
+      const qNormText = safeNormalize(q.text);
+      const qNormAuthor = safeNormalize(q.author || '');
+      const normalizedKey = toNormalizedKey(q.text, q.author || '');
       const originalKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
       
       // Get count from new Favorites system
@@ -2473,9 +2489,7 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
       const favoritesKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
       const favoritesCount = favoritesMap.get(favoritesKey) || 0;
       
-      const qNormText = normalizeQuoteField(q.text);
-      const qNormAuthor = normalizeQuoteField(q.author || '');
-      const normalizedKey = `${qNormText}|||${qNormAuthor}`;
+      const normalizedKey = toNormalizedKey(q.text, q.author || '');
       
       return {
         ...q,
@@ -2840,16 +2854,12 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Get likedByMe status for current user (uses normalizeQuoteField from top-level imports)
+    // Get likedByMe status for current user
     const currentUserId = req.user?.userId;
     let likedByMeSet = new Set();
     
     if (currentUserId) {
-      const normalizedKeys = popularFavorites.map(pf => {
-        const normText = normalizeQuoteField(pf.text);
-        const normAuthor = normalizeQuoteField(pf.author || '');
-        return `${normText}|||${normAuthor}`;
-      });
+      const normalizedKeys = popularFavorites.map(pf => toNormalizedKey(pf.text, pf.author || ''));
       
       const likedFavorites = await Favorite.find(
         { 
@@ -2870,9 +2880,7 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       // Use ONLY origin user (no fallback to firstUserId)
       const user = originUserId ? userMap.get(String(originUserId)) : null;
       
-      const normText = normalizeQuoteField(pf.text);
-      const normAuthor = normalizeQuoteField(pf.author || '');
-      const normalizedKey = `${normText}|||${normAuthor}`;
+      const normalizedKey = toNormalizedKey(pf.text, pf.author || '');
       
       const result = {
         text: pf.text,
@@ -3170,16 +3178,12 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Get likedByMe status for current user (uses normalizeQuoteField from top-level imports)
+    // Get likedByMe status for current user
     const currentUserId = req.user?.userId;
     let likedByMeSet = new Set();
     
     if (currentUserId) {
-      const normalizedKeys = recentFavorites.map(rf => {
-        const normText = normalizeQuoteField(rf.text);
-        const normAuthor = normalizeQuoteField(rf.author || '');
-        return `${normText}|||${normAuthor}`;
-      });
+      const normalizedKeys = recentFavorites.map(rf => toNormalizedKey(rf.text, rf.author || ''));
       
       const likedFavorites = await Favorite.find(
         { 
@@ -3200,9 +3204,7 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       // Use ONLY origin user (no fallback to firstUserId)
       const user = originUserId ? userMap.get(String(originUserId)) : null;
       
-      const normText = normalizeQuoteField(rf.text);
-      const normAuthor = normalizeQuoteField(rf.author || '');
-      const normalizedKey = `${normText}|||${normAuthor}`;
+      const normalizedKey = toNormalizedKey(rf.text, rf.author || '');
       
       const result = {
         text: rf.text,
