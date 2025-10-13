@@ -2858,7 +2858,7 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
     
     // Merge from legacy system
     legacyFavoritesAgg.forEach(item => {
-      const normalizedKey = `${item._id.normalizedText}|||${item._id.normalizedAuthor}`;
+      const normalizedKey = toNormalizedKey(item.sampleText, item.sampleAuthor);
       const existing = mergedMap.get(normalizedKey);
       
       if (existing) {
@@ -3181,7 +3181,7 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     
     // Merge from legacy system
     legacyFavoritesAgg.forEach(item => {
-      const normalizedKey = `${item._id.normalizedText}|||${item._id.normalizedAuthor}`;
+      const normalizedKey = toNormalizedKey(item.sampleText, item.sampleAuthor);
       const existing = mergedMap.get(normalizedKey);
       
       if (existing) {
@@ -4636,10 +4636,18 @@ router.delete('/favorites', telegramAuth, communityLimiter, async (req, res) => 
       (author || '').trim()
     );
 
+    // Compute normalizedKey and get current count
+    const normalizedKey = toNormalizedKey(text.trim(), (author || '').trim());
+    const countsMap = await Favorite.getCountsForKeys([normalizedKey]);
+    const totalFavoritesForPair = countsMap.get(normalizedKey) || 0;
+
     // Always return success for idempotency, even if not found
     res.json({
       success: true,
-      deleted: !!deleted
+      deleted: !!deleted,
+      counts: {
+        totalFavoritesForPair
+      }
     });
 
   } catch (error) {

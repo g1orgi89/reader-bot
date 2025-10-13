@@ -48,8 +48,11 @@ class CommunityPage {
             items: []
         };
 
-        // 🔒 FAVORITE LOCKS (защита от двойного тапа)
+        // 🔒 FAVORITE LOCKS (защита от двойного тапа) - using normalizedKey
         this._favoriteLocks = new Set();
+        
+        // 💚 LIKE STATE (track like status per quote using normalizedKey)
+        this._likeState = new Map();
 
         // 🔄 RERENDER SCHEDULER (batching sequential rerenders into single rAF)
         this._rerenderScheduled = false;
@@ -2578,17 +2581,19 @@ renderAchievementsSection() {
         const quoteText = button.dataset.quoteText || quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
         const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
         
-        // Создаем уникальный ключ для защиты от двойного тапа
-        const lockKey = `${quoteText.trim()}_${(quoteAuthor || '').trim()}`;
+        // Создаем нормализованный ключ для защиты от двойного тапа (uses QuoteNormalizer from utils)
+        const normalizedKey = window.QuoteNormalizer ? 
+            window.QuoteNormalizer.computeNormalizedKey(quoteText, quoteAuthor) :
+            `${quoteText.trim()}_${(quoteAuthor || '').trim()}`; // fallback
         
         // Проверяем защиту от двойного тапа
-        if (this._favoriteLocks.has(lockKey)) {
-            console.log('🔒 Duplicate tap prevented for:', lockKey);
+        if (this._favoriteLocks.has(normalizedKey)) {
+            console.log('🔒 Duplicate tap prevented for:', normalizedKey);
             return;
         }
         
         // Устанавливаем блокировку
-        this._favoriteLocks.add(lockKey);
+        this._favoriteLocks.add(normalizedKey);
         
         // Determine current state (liked or not)
         const wasFavorited = button.classList.contains('favorited');
@@ -2627,13 +2632,26 @@ renderAchievementsSection() {
                     this.triggerHapticFeedback('light');
                     this.showNotification('Лайк снят.', 'info');
                     
+                    // Use server-returned count if available for reconciliation
+                    const serverCount = response.counts?.totalFavoritesForPair;
+                    if (typeof serverCount === 'number') {
+                        newCount = serverCount;
+                        button.dataset.favorites = newCount;
+                        if (favoritesCountElement) {
+                            favoritesCountElement.textContent = newCount;
+                        }
+                    }
+                    
+                    // Update like state
+                    this._likeState.set(normalizedKey, false);
+                    
                     // Update caches
                     if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
                         const spotlightItem = this._spotlightCache.items.find(item => 
                             item.text === quoteText && item.author === quoteAuthor
                         );
                         if (spotlightItem) {
-                            spotlightItem.favorites = Math.max(0, (spotlightItem.favorites || 0) - 1);
+                            spotlightItem.favorites = typeof serverCount === 'number' ? serverCount : Math.max(0, (spotlightItem.favorites || 0) - 1);
                             spotlightItem.likedByMe = false;
                         }
                     }
@@ -2643,7 +2661,7 @@ renderAchievementsSection() {
                             item.text === quoteText && item.author === quoteAuthor
                         );
                         if (popularItem) {
-                            popularItem.favorites = Math.max(0, (popularItem.favorites || 0) - 1);
+                            popularItem.favorites = typeof serverCount === 'number' ? serverCount : Math.max(0, (popularItem.favorites || 0) - 1);
                             popularItem.likedByMe = false;
                         }
                     }
@@ -2671,6 +2689,19 @@ renderAchievementsSection() {
                     this.triggerHapticFeedback('success');
                     this.showNotification('Вы поставили лайк цитате!', 'success');
                     
+                    // Update like state
+                    this._likeState.set(normalizedKey, true);
+                    
+                    // Если API вернул актуальное количество лайков, используем его
+                    if (response.counts && typeof response.counts.totalFavoritesForPair === 'number') {
+                        const apiCount = response.counts.totalFavoritesForPair;
+                        button.dataset.favorites = apiCount;
+                        
+                        if (favoritesCountElement) {
+                            favoritesCountElement.textContent = apiCount;
+                        }
+                    }
+                    
                     // Update caches
                     if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
                         const spotlightItem = this._spotlightCache.items.find(item => 
@@ -2689,16 +2720,6 @@ renderAchievementsSection() {
                         if (popularItem) {
                             popularItem.favorites = (popularItem.favorites || 0) + 1;
                             popularItem.likedByMe = true;
-                        }
-                    }
-                    
-                    // Если API вернул актуальное количество лайков, используем его
-                    if (response.counts && typeof response.counts.totalFavoritesForPair === 'number') {
-                        const apiCount = response.counts.totalFavoritesForPair;
-                        button.dataset.favorites = apiCount;
-                        
-                        if (favoritesCountElement) {
-                            favoritesCountElement.textContent = apiCount;
                         }
                     }
                 } else {
@@ -2731,7 +2752,7 @@ renderAchievementsSection() {
         } finally {
             // Всегда снимаем блокировку через небольшую задержку
             setTimeout(() => {
-                this._favoriteLocks.delete(lockKey);
+                this._favoriteLocks.delete(normalizedKey);
             }, 1000);
         }
     }
