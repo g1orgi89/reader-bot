@@ -14,6 +14,10 @@
 // 🎛️ FEATURE FLAG: Show/hide + (add-to-diary) button in community sections
 const COMMUNITY_SHOW_ADD_BUTTON = false;
 
+// ⏱️ SPOTLIGHT ROTATION CONSTANTS
+const SPOTLIGHT_TTL_MS = 10 * 60 * 1000; // 10 minutes (reduced from 1 hour for more variety)
+const SPOTLIGHT_NO_REPEAT_HOURS = 4; // 4 hours (reduced from 24 hours for more variety)
+
 class CommunityPage {
     constructor(app) {
         this.app = app;
@@ -537,7 +541,7 @@ class CommunityPage {
     /**
      * Проверка свежести кэша spotlight (TTL система)
      */
-    isSpotlightFresh(ttlMs = 3600000) { // 1 час по умолчанию
+    isSpotlightFresh(ttlMs = SPOTLIGHT_TTL_MS) { // Use constant default (10 minutes)
         const now = Date.now();
         return (now - this._spotlightCache.ts) < ttlMs;
     }
@@ -603,9 +607,9 @@ class CommunityPage {
     }
 
     /**
-     * Check if quote was shown recently (within 24 hours)
+     * Check if quote was shown recently (within SPOTLIGHT_NO_REPEAT_HOURS)
      * @param {string} quoteId - quote ID or text+author key
-     * @returns {boolean} true if shown within last 24h
+     * @returns {boolean} true if shown within last SPOTLIGHT_NO_REPEAT_HOURS
      */
     _wasShownRecently(quoteId) {
         const store = this._getExposureStore();
@@ -614,7 +618,7 @@ class CommunityPage {
         
         const now = Date.now();
         const hoursSinceShown = (now - exposure.lastShownAt) / (1000 * 60 * 60);
-        return hoursSinceShown < 24;
+        return hoursSinceShown < SPOTLIGHT_NO_REPEAT_HOURS;
     }
 
     /**

@@ -301,9 +301,9 @@ async function findOriginUserId(text, author) {
 }
 
 /**
- * Get origin user info for multiple quote pairs efficiently
- * @param {Array} quotePairs - Array of {text, author} pairs
- * @returns {Promise<Map>} Map from 'text|||author' key to origin userId
+ * Get origin user info for multiple quote pairs efficiently using normalized fields
+ * @param {Array} quotePairs - Array of {text, author} pairs (original, not normalized)
+ * @returns {Promise<Map>} Map from 'text|||author' key (original) to origin userId
  */
 async function getOriginUserIds(quotePairs) {
   try {
@@ -311,14 +311,43 @@ async function getOriginUserIds(quotePairs) {
       return new Map();
     }
 
-    // Build aggregation pipeline to find earliest quote for each pair
+    const { normalizeQuoteField } = require('../models/quote');
+    
+    // Pre-normalize incoming pairs and build a map from normalized -> original
+    const normalizedPairs = [];
+    const normalizedToOriginalMap = new Map();
+    
+    quotePairs.forEach(pair => {
+      const normalizedText = normalizeQuoteField(pair.text);
+      const normalizedAuthor = normalizeQuoteField(pair.author || '');
+      const normalizedKey = `${normalizedText}|||${normalizedAuthor}`;
+      const originalKey = `${pair.text}|||${pair.author}`;
+      
+      normalizedPairs.push({ normalizedText, normalizedAuthor });
+      normalizedToOriginalMap.set(normalizedKey, originalKey);
+    });
+
+    // Build aggregation pipeline using normalized fields with on-the-fly computation for legacy docs
     const pipeline = [
       {
+        $addFields: {
+          // Compute normalized fields on-the-fly if not present (for legacy docs)
+          computedNormalizedText: {
+            $ifNull: ['$normalizedText', '$text']
+          },
+          computedNormalizedAuthor: {
+            $ifNull: ['$normalizedAuthor', { $ifNull: ['$author', ''] }]
+          }
+        }
+      },
+      {
         $match: {
-          $or: quotePairs.map(pair => ({
-            text: pair.text,
-            author: pair.author
-          }))
+          $expr: {
+            $in: [
+              { $concat: ['$computedNormalizedText', '|||', '$computedNormalizedAuthor'] },
+              normalizedPairs.map(pair => `${pair.normalizedText}|||${pair.normalizedAuthor}`)
+            ]
+          }
         }
       },
       {
@@ -326,7 +355,10 @@ async function getOriginUserIds(quotePairs) {
       },
       {
         $group: {
-          _id: { text: '$text', author: '$author' },
+          _id: { 
+            normalizedText: '$computedNormalizedText', 
+            normalizedAuthor: '$computedNormalizedAuthor' 
+          },
           originUserId: { $first: '$userId' },
           earliestCreated: { $first: '$createdAt' }
         }
@@ -336,9 +368,13 @@ async function getOriginUserIds(quotePairs) {
     const results = await Quote.aggregate(pipeline);
     const originMap = new Map();
 
+    // Map results back to original keys
     results.forEach(result => {
-      const key = `${result._id.text}|||${result._id.author}`;
-      originMap.set(key, result.originUserId);
+      const normalizedKey = `${result._id.normalizedText}|||${result._id.normalizedAuthor}`;
+      const originalKey = normalizedToOriginalMap.get(normalizedKey);
+      if (originalKey) {
+        originMap.set(originalKey, result.originUserId);
+      }
     });
 
     return originMap;
@@ -2327,32 +2363,60 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
     ).lean();
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
-    // Collect unique (text, author) pairs for favorites aggregation
+    // Collect unique (text, author) pairs for favorites aggregation using normalized fields
+    const { normalizeQuoteField } = require('../models/quote');
     const uniquePairs = [];
     const pairMap = new Map();
+    const normalizedToOriginalMap = new Map();
     
     quotes.forEach(q => {
-      const key = `${q.text.trim()}|||${(q.author || '').trim()}`;
-      if (!pairMap.has(key)) {
-        pairMap.set(key, { text: q.text, author: q.author });
-        uniquePairs.push({ text: q.text, author: q.author });
+      const normalizedText = normalizeQuoteField(q.text);
+      const normalizedAuthor = normalizeQuoteField(q.author || '');
+      const normalizedKey = `${normalizedText}|||${normalizedAuthor}`;
+      const originalKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
+      
+      if (!pairMap.has(normalizedKey)) {
+        pairMap.set(normalizedKey, { text: q.text, author: q.author });
+        uniquePairs.push({ normalizedText, normalizedAuthor });
+        normalizedToOriginalMap.set(normalizedKey, originalKey);
+      } else {
+        // Multiple original keys may map to same normalized key
+        normalizedToOriginalMap.set(normalizedKey, originalKey);
       }
     });
 
     // Aggregate favorites by counting distinct userId where isFavorite=true for those pairs
+    // Use normalized fields with on-the-fly computation for legacy docs
     const favoritesAgg = await Quote.aggregate([
       {
+        $match: { isFavorite: true }
+      },
+      {
+        $addFields: {
+          computedNormalizedText: {
+            $ifNull: ['$normalizedText', '$text']
+          },
+          computedNormalizedAuthor: {
+            $ifNull: ['$normalizedAuthor', { $ifNull: ['$author', ''] }]
+          }
+        }
+      },
+      {
         $match: {
-          $or: uniquePairs.map(pair => ({
-            text: pair.text,
-            author: pair.author,
-            isFavorite: true
-          }))
+          $expr: {
+            $in: [
+              { $concat: ['$computedNormalizedText', '|||', '$computedNormalizedAuthor'] },
+              uniquePairs.map(pair => `${pair.normalizedText}|||${pair.normalizedAuthor}`)
+            ]
+          }
         }
       },
       {
         $group: {
-          _id: { text: '$text', author: '$author' },
+          _id: { 
+            normalizedText: '$computedNormalizedText', 
+            normalizedAuthor: '$computedNormalizedAuthor' 
+          },
           favorites: { $addToSet: '$userId' }
         }
       },
@@ -2364,11 +2428,21 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
       }
     ]);
 
-    // Create favorites lookup map
+    // Create favorites lookup map using original keys
     const favoritesMap = new Map();
     favoritesAgg.forEach(fav => {
-      const key = `${fav._id.text.trim()}|||${(fav._id.author || '').trim()}`;
-      favoritesMap.set(key, fav.favoritesCount);
+      const normalizedKey = `${fav._id.normalizedText}|||${fav._id.normalizedAuthor}`;
+      const favCount = fav.favoritesCount;
+      
+      // Map to all original keys that normalize to this
+      quotes.forEach(q => {
+        const qNormText = normalizeQuoteField(q.text);
+        const qNormAuthor = normalizeQuoteField(q.author || '');
+        if (qNormText === fav._id.normalizedText && qNormAuthor === fav._id.normalizedAuthor) {
+          const originalKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
+          favoritesMap.set(originalKey, favCount);
+        }
+      });
     });
 
     // Enrich each quote with user info and favorites count
@@ -2415,14 +2489,31 @@ router.get('/community/popular', telegramAuth, communityLimiter, async (req, res
     // Фильтруем по weekNumber и yearNumber
     const matchCriteria = { weekNumber, yearNumber };
 
-    // Агрегация: выбираем топ-3 цитаты за ISO неделю
+    // Агрегация: выбираем топ-3 цитаты за ISO неделю using normalized fields
     const pipeline = [
       { $match: matchCriteria },
+      {
+        $addFields: {
+          // Compute normalized fields on-the-fly if not present (for legacy docs)
+          computedNormalizedText: {
+            $ifNull: ['$normalizedText', '$text']
+          },
+          computedNormalizedAuthor: {
+            $ifNull: ['$normalizedAuthor', { $ifNull: ['$author', ''] }]
+          }
+        }
+      },
       { $group: {
-          _id: { text: '$text', author: '$author' },
+          _id: { 
+            normalizedText: '$computedNormalizedText', 
+            normalizedAuthor: '$computedNormalizedAuthor' 
+          },
           count: { $sum: 1 },
           latestCreated: { $max: '$createdAt' },
           firstId: { $first: '$_id' },
+          // Keep sample original text/author for display
+          sampleText: { $first: '$text' },
+          sampleAuthor: { $first: '$author' },
           category: { $first: '$category' },
           sentiment: { $first: '$sentiment' },
           themes: { $first: '$themes' }
@@ -2430,8 +2521,8 @@ router.get('/community/popular', telegramAuth, communityLimiter, async (req, res
       { $sort: { count: -1, latestCreated: -1, firstId: 1 } },
       { $limit: 3 },
       { $project: {
-          text: '$_id.text',
-          author: '$_id.author',
+          text: '$sampleText',
+          author: '$sampleAuthor',
           count: 1,
           category: 1,
           sentiment: 1,
@@ -2554,21 +2645,35 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       });
     }
 
-    // Aggregate quotes by text+author combination, count unique users who favorited
+    // Aggregate quotes by normalized text+author combination, count unique users who favorited
     const popularFavorites = await Quote.aggregate([
       {
         $match: matchCriteria
       },
       {
+        $addFields: {
+          // Compute normalized fields on-the-fly if not present (for legacy docs)
+          computedNormalizedText: {
+            $ifNull: ['$normalizedText', '$text']
+          },
+          computedNormalizedAuthor: {
+            $ifNull: ['$normalizedAuthor', { $ifNull: ['$author', ''] }]
+          }
+        }
+      },
+      {
         $group: {
           _id: {
-            text: '$text',
-            author: '$author'
+            normalizedText: '$computedNormalizedText',
+            normalizedAuthor: '$computedNormalizedAuthor'
           },
           favorites: { $addToSet: '$userId' }, // Unique user IDs who favorited
           latestEdit: { $max: '$editedAt' },
           latestCreated: { $max: '$createdAt' },
           firstId: { $first: '$_id' }, // For deterministic sorting
+          // Keep sample original text/author for display
+          sampleText: { $first: '$text' },
+          sampleAuthor: { $first: '$author' },
           sampleCategory: { $first: '$category' },
           sampleThemes: { $first: '$themes' },
           firstUserId: { $first: '$userId' } // Get the first user who favorited for user info
@@ -2592,8 +2697,8 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
       },
       {
         $project: {
-          text: '$_id.text',
-          author: '$_id.author',
+          text: '$sampleText',
+          author: '$sampleAuthor',
           favorites: '$favoritesCount',
           sampleCategory: 1,
           sampleThemes: 1,
@@ -2740,7 +2845,7 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       });
     }
 
-    // Aggregate recent favorites with sorted input for deterministic firstUserId
+    // Aggregate recent favorites using normalized fields with sorted input for deterministic firstUserId
     const recentFavorites = await Quote.aggregate([
       {
         $match: matchCriteria
@@ -2753,15 +2858,29 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
         }
       },
       {
+        $addFields: {
+          // Compute normalized fields on-the-fly if not present (for legacy docs)
+          computedNormalizedText: {
+            $ifNull: ['$normalizedText', '$text']
+          },
+          computedNormalizedAuthor: {
+            $ifNull: ['$normalizedAuthor', { $ifNull: ['$author', ''] }]
+          }
+        }
+      },
+      {
         $group: {
           _id: {
-            text: '$text',
-            author: '$author'
+            normalizedText: '$computedNormalizedText',
+            normalizedAuthor: '$computedNormalizedAuthor'
           },
           favorites: { $addToSet: '$userId' },
           latestEdit: { $max: '$editedAt' },
           latestCreated: { $max: '$createdAt' },
           firstId: { $first: '$_id' },
+          // Keep sample original text/author for display
+          sampleText: { $first: '$text' },
+          sampleAuthor: { $first: '$author' },
           firstUserId: { $first: '$userId' } // Get the first user who favorited for user info
         }
       },
@@ -2782,8 +2901,8 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       },
       {
         $project: {
-          text: '$_id.text',
-          author: '$_id.author',
+          text: '$sampleText',
+          author: '$sampleAuthor',
           favorites: '$favoritesCount',
           latestEdit: 1,
           latestCreated: 1,
