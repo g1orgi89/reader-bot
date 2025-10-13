@@ -1,4 +1,12 @@
-  /**
+// ВСТАВЬ СЮДА ↓↓↓ (самый верх!)
+global.normalizeQuoteField = global.normalizeQuoteField || function (s) {
+  return String(s || '').trim().toLowerCase();
+};
+global.computeNormalizedKey = global.computeNormalizedKey || function (t, a = '') {
+  return global.normalizeQuoteField(t) + '|||' + global.normalizeQuoteField(a);
+};
+
+/**
  * Safely extract userId from request with enhanced error handling
  * ОБНОВЛЕНО: Добавлен fallback на X-User-Id если initData parsing fails
  * @param {Object} req - Express request object
