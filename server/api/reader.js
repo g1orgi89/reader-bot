@@ -153,7 +153,7 @@ const _normalizer = (() => {
   }
 })();
 
-const normalizeQuoteField = _normalizer.normalizeQuoteField || (s => {
+const localNormalizeQuoteField = _normalizer.normalizeQuoteField || (s => {
   if (!s || typeof s !== 'string') return '';
   return String(s).trim().toLowerCase();
 });
