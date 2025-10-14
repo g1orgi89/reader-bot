@@ -21,15 +21,15 @@
 }
 
 .about-logo {
-    width: 80px;
-    height: 80px;
+    width: calc(var(--font-size-3xl) * 3);
+    height: calc(var(--font-size-3xl) * 3);
     margin: 0 auto var(--spacing-md);
-    background: var(--accent-primary);
+    background: var(--primary-color);
     border-radius: var(--border-radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--font-size-xl);
+    font-size: calc(var(--font-size-3xl) * 1.5);
     color: white;
 }
 
@@ -79,6 +79,10 @@
     padding: var(--spacing-md);
 }
 
+.about-section-content > * + * {
+    margin-top: var(--spacing-md);
+}
+
 .about-description {
     font-size: var(--font-size-sm);
     line-height: 1.6;
@@ -95,10 +99,10 @@
    ============================================================================ */
 
 .features-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
+    display: grid;
+    grid-template-columns: 1fr;
+    row-gap: var(--spacing-sm);
+    margin-top: 0;
 }
 
 .feature-item {
@@ -113,6 +117,8 @@
 }
 
 .feature-emoji {
+    width: 24px;
+    text-align: center;
     font-size: var(--font-size-lg);
     flex-shrink: 0;
 }
@@ -123,21 +129,21 @@
 
 .author-card {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
     gap: var(--spacing-md);
 }
 
 .author-avatar {
-    width: 80px;
-    height: 80px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background: var(--accent-primary);
+    background: var(--primary-color);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: #fff;
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     flex-shrink: 0;
@@ -145,6 +151,7 @@
 
 .author-info {
     flex: 1;
+    text-align: left;
 }
 
 .author-info h4 {
@@ -246,7 +253,7 @@
     height: 60px;
     border-radius: 50%;
     margin: 0 auto var(--spacing-sm);
-    background: var(--accent-primary);
+    background: var(--primary-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -293,9 +300,9 @@
 }
 
 .social-link:hover {
-    background: var(--accent-primary);
+    background: var(--primary-color);
     color: white;
-    border-color: var(--accent-primary);
+    border-color: var(--primary-color);
     transform: translateY(-2px);
 }
 
@@ -322,7 +329,7 @@
 .stat-number {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
-    color: var(--accent-primary);
+    color: var(--primary-color);
     margin-bottom: var(--spacing-xs);
 }
 
@@ -344,20 +351,20 @@
 }
 
 .legal-link {
-    color: var(--accent-primary);
+    color: var(--primary-color);
     text-decoration: none;
     font-size: var(--font-size-sm);
     padding: var(--spacing-xs) var(--spacing-sm);
     border-radius: var(--border-radius-sm);
     transition: background-color 0.2s ease;
     cursor: pointer;
-    min-height: 36px; /* Touch target */
+    min-height: 44px; /* Touch target */
     display: flex;
     align-items: center;
 }
 
 .legal-link:hover {
-    background: var(--bg-hover);
+    background: var(--bg-secondary);
 }
 
 /* ============================================================================
@@ -370,9 +377,9 @@
     }
     
     .about-logo {
-        width: 60px;
-        height: 60px;
-        font-size: var(--font-size-lg);
+        width: calc(var(--font-size-2xl) * 2.5);
+        height: calc(var(--font-size-2xl) * 2.5);
+        font-size: calc(var(--font-size-2xl) * 1.25);
     }
     
     .team-grid {
@@ -446,7 +453,7 @@
 .changelog-version {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
-    color: var(--accent-primary);
+    color: var(--primary-color);
     margin-bottom: var(--spacing-xs);
 }
 
@@ -520,7 +527,7 @@
 }
 
 .legal-modal-close:hover {
-    background: var(--bg-hover);
+    background: var(--bg-secondary);
 }
 
 .legal-modal-text {
@@ -541,11 +548,11 @@
 
 .social-link:focus,
 .legal-link:focus {
-    outline: 2px solid var(--accent-primary);
+    outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
 
 .legal-modal-close:focus {
-    outline: 2px solid var(--accent-primary);
+    outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
