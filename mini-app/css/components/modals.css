@@ -751,7 +751,7 @@ body.modal-open {
     margin-bottom: var(--spacing-lg);
 }
 
-..profile-avatar {
+.profile-avatar {
     width: 120px;
     height: 120px;
     border-radius: 50%;

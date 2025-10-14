@@ -782,7 +782,7 @@ class SettingsModal {
                     
                     <div class="help-contact">
                         <h4>📞 Связаться с нами</h4>
-                        <p>• Telegram: @annabusel_support<br>
+                        <p>• Telegram: @manager_bookclub<br>
                         • Email: help@annabusel.org<br>
                         • Время ответа: до 24 часов</p>
                     </div>
@@ -806,11 +806,11 @@ class SettingsModal {
             title: 'Связаться с нами',
             content: `
                 <div class="contact-content">
-                    <div class="contact-option" onclick="window.open('https://t.me/annabusel_support')">
+                    <div class="contact-option" onclick="window.open('https://t.me/manager_bookclub')">
                         <span class="contact-icon">💬</span>
                         <div class="contact-info">
                             <div class="contact-title">Telegram</div>
-                            <div class="contact-description">@annabusel_support</div>
+                            <div class="contact-description">@manager_bookclub</div>
                         </div>
                     </div>
                     
