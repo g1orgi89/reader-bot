@@ -357,7 +357,9 @@ class AppRouter {
 
             // Создаем временный экземпляр компонента для prefetch
             const tempComponent = new route.component(appObject);
-            
+            if (route.path === '/community') {
+              window.communityPage = tempComponent;
+            }
             // 1) Если у страницы есть prefetch() — вызываем и ждём
             if (tempComponent && typeof tempComponent.prefetch === 'function') {
                 try {
