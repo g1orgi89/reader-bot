@@ -383,6 +383,10 @@ class AppRouter {
             
             // 2) Теперь монтируем страницу (первый рендер уже с данными)
             this.currentComponent = tempComponent;
+            if (route.path === '/community') {
+              window.communityPage = this.currentComponent;
+              console.log('[DEBUG]: window.communityPage set', window.communityPage);
+            }
             
             // Инициализируем компонент
             if (this.currentComponent && typeof this.currentComponent.init === 'function') {
