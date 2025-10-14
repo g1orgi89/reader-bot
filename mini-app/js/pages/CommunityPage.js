@@ -28,7 +28,7 @@ class CommunityPage {
         this.state = app.state;
         this.telegram = app.telegram;
         this.statisticsService = app.statistics || window.statisticsService;
-        
+        window.communityPage = this;
         // Стейт
         this.activeTab = 'feed';
         this.isHydrated = false; // ← первый показ только после префетча
