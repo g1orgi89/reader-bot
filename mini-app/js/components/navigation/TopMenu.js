@@ -370,8 +370,8 @@ class TopMenu {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M12 1v6m0 6v10"/>
-                <path d="M6 12l-5 0"/>
-                <path d="M18 12l5 0"/>
+                <path d="M1 12h5"/>
+                <path d="M18 12h5"/>
                 <path d="M19.07 4.93l-2.12 2.12"/>
                 <path d="M7.05 16.95l-2.12 2.12"/>
                 <path d="M4.93 4.93l2.12 2.12"/>
