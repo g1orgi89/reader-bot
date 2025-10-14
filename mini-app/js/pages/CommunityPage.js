@@ -18,6 +18,9 @@ const COMMUNITY_SHOW_ADD_BUTTON = false;
 const SPOTLIGHT_TTL_MS = 10 * 60 * 1000; // 10 minutes (reduced from 1 hour for more variety)
 const SPOTLIGHT_NO_REPEAT_HOURS = 4; // 4 hours (reduced from 24 hours for more variety)
 
+// 💾 LIKE STORE PERSISTENCE
+const COMMUNITY_LIKE_STORE_KEY = 'community_like_store_v1';
+
 class CommunityPage {
     constructor(app) {
         this.app = app;
@@ -57,6 +60,7 @@ class CommunityPage {
         // 🏪 LIKE STORE (single source of truth for like state across all sections)
         // Map<string, {liked: boolean, count: number, pending: number, lastServerCount?: number}>
         this._likeStore = new Map();
+        this._likeStoreLoaded = false; // Flag to track if like store was loaded from localStorage
 
         // 🔄 RERENDER SCHEDULER (batching sequential rerenders into single rAF)
         this._rerenderScheduled = false;
@@ -127,6 +131,9 @@ class CommunityPage {
 
         console.log('🔄 CommunityPage: Запуск prefetch - включаем fast-first-paint');
 
+        // 💾 Load like store from localStorage before any data loads
+        this._loadLikeStoreFromStorage();
+
         // ✅ FAST-FIRST-PAINT: Set isHydrated immediately so UI shows right away
         this.isHydrated = true;
 
@@ -156,6 +163,19 @@ class CommunityPage {
                 await this.getSpotlightItems();
             });
         }).then(() => {
+            // 🔄 Reconcile all like data after loads complete
+            this._reconcileAllLikeData();
+            
+            // 🔄 Apply like state to latestQuotes if present
+            if (this.latestQuotes?.length) {
+                this._applyLikeStateToArray(this.latestQuotes);
+            }
+            
+            // 🔄 Update all like buttons in DOM
+            requestAnimationFrame(() => {
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+            });
+            
             // ✅ After all data loads complete, schedule a single rerender
             console.log('✅ CommunityPage: Prefetch завершен - обновляем UI');
             this._scheduleRerender();
@@ -228,6 +248,9 @@ class CommunityPage {
                 
                 // Initialize likeStore from server data
                 this._initializeLikeStoreFromItems(this.latestQuotes);
+                
+                // Apply stored like state to override server data
+                this._applyLikeStateToArray(this.latestQuotes);
                 
                 console.log('✅ CommunityPage: Последние цитаты загружены:', this.latestQuotes.length);
             } else {
@@ -597,6 +620,62 @@ class CommunityPage {
     }
 
     /**
+     * 💾 LIKE STORE PERSISTENCE HELPERS
+     */
+
+    /**
+     * Load like store from localStorage
+     * Initializes _likeStore from persisted data with pending=0
+     */
+    _loadLikeStoreFromStorage() {
+        if (this._likeStoreLoaded) return; // Already loaded
+        
+        try {
+            const stored = localStorage.getItem(COMMUNITY_LIKE_STORE_KEY);
+            if (stored) {
+                const entries = JSON.parse(stored);
+                if (Array.isArray(entries)) {
+                    entries.forEach(([key, value]) => {
+                        // Initialize with pending=0 (no pending actions on load)
+                        this._likeStore.set(key, {
+                            liked: value.liked,
+                            count: value.count,
+                            pending: 0,
+                            lastServerCount: value.lastServerCount || value.count
+                        });
+                    });
+                    console.log(`💾 Loaded ${entries.length} like entries from localStorage`);
+                }
+            }
+            this._likeStoreLoaded = true;
+        } catch (e) {
+            console.warn('Failed to load like store from localStorage:', e);
+            this._likeStoreLoaded = true; // Mark as loaded even on error to avoid retries
+        }
+    }
+
+    /**
+     * Persist like store to localStorage
+     * Saves current state of _likeStore (excluding pending field)
+     */
+    _persistLikeStore() {
+        try {
+            // Convert Map to array of [key, value] pairs, excluding pending field
+            const entries = Array.from(this._likeStore.entries()).map(([key, value]) => [
+                key,
+                {
+                    liked: value.liked,
+                    count: value.count,
+                    lastServerCount: value.lastServerCount
+                }
+            ]);
+            localStorage.setItem(COMMUNITY_LIKE_STORE_KEY, JSON.stringify(entries));
+        } catch (e) {
+            console.warn('Failed to persist like store to localStorage:', e);
+        }
+    }
+
+    /**
      * Mark a quote as shown in the exposure store
      * @param {string} quoteId - quote ID or text+author key
      * @param {string} ownerId - owner ID
@@ -729,7 +808,7 @@ class CommunityPage {
 
     /**
      * 🔄 Reconcile all like data - runs after data loads to apply stored state
-     * Applies to spotlight cache, popularFavorites, and popularQuotes
+     * Applies to spotlight cache, popularFavorites, popularQuotes, and latestQuotes
      */
     _reconcileAllLikeData() {
         // Apply to spotlight cache
@@ -745,6 +824,11 @@ class CommunityPage {
         // Apply to popular quotes
         if (this.popularQuotes && this.popularQuotes.length > 0) {
             this._applyLikeStateToArray(this.popularQuotes);
+        }
+        
+        // Apply to latest quotes
+        if (this.latestQuotes && this.latestQuotes.length > 0) {
+            this._applyLikeStateToArray(this.latestQuotes);
         }
     }
 
@@ -786,16 +870,13 @@ class CommunityPage {
 
     /**
      * 🔄 Sync collections (cached arrays) for a specific key
-     * Updates spotlight cache, popularFavorites, popularQuotes
+     * Updates spotlight cache, popularFavorites, popularQuotes, and latestQuotes
      * @param {string} key - Normalized key
      * @param {Function} updater - Function to update the item (item, storeEntry) => void
      */
     _syncCollectionsForKey(key, updater) {
         const storeEntry = this._likeStore.get(key);
         if (!storeEntry) return;
-        
-        // Extract text and author from key
-        const [text, author] = key.split('|||');
         
         // Update spotlight cache
         if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
@@ -824,6 +905,16 @@ class CommunityPage {
             );
             if (popularItem) {
                 updater(popularItem, storeEntry);
+            }
+        }
+        
+        // Update latest quotes
+        if (this.latestQuotes && this.latestQuotes.length > 0) {
+            const latestItem = this.latestQuotes.find(item => 
+                this._computeLikeKey(item.text, item.author) === key
+            );
+            if (latestItem) {
+                updater(latestItem, storeEntry);
             }
         }
     }
@@ -1342,21 +1433,31 @@ class CommunityPage {
         }
 
         const quotesCards = this.latestQuotes.slice(0, 3).map((quote, index) => {
+            const quoteText = quote.text || quote.content || '';
+            const quoteAuthor = quote.author || 'Неизвестный автор';
+            const normalizedKey = this._computeLikeKey(quoteText, quoteAuthor);
+            const favoritesCount = quote.favorites || quote.count || 0;
+            const isLiked = !!quote.likedByMe;
+            const heartIcon = isLiked ? '❤' : '♡';
+            const favoritedClass = isLiked ? ' favorited' : '';
+            
             return `
                 <div class="quote-card" data-quote-id="${quote.id || index}">
                     <div class="quote-card__content">
-                        <div class="quote-card__text">"${quote.text || quote.content || ''}"</div>
-                        <div class="quote-card__author">— ${quote.author || 'Неизвестный автор'}</div>
+                        <div class="quote-card__text">"${quoteText}"</div>
+                        <div class="quote-card__author">— ${quoteAuthor}</div>
                         <div class="quote-card__meta">
                             <span class="quote-card__date">${this.formatDate(quote.createdAt || quote.date)}</span>
                             <div class="quote-card__actions">
-                                <button class="quote-card__fav-btn" data-quote-id="${quote.id || index}"
-                                        data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
-                                        data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
-                                        style="min-height: var(--touch-target-min);" aria-label="Добавить в избранное">♡</button>
+                                <button class="quote-card__fav-btn${favoritedClass}" data-quote-id="${quote.id || index}"
+                                        data-quote-text="${quoteText.replace(/"/g, '&quot;')}"
+                                        data-quote-author="${quoteAuthor.replace(/"/g, '&quot;')}"
+                                        data-normalized-key="${normalizedKey}"
+                                        data-favorites="${favoritesCount}"
+                                        style="min-height: var(--touch-target-min);" aria-label="Добавить в избранное">${heartIcon}</button>
                                 <button class="quote-card__add-btn" data-quote-id="${quote.id || index}"
-                                        data-quote-text="${(quote.text || quote.content || '').replace(/"/g, '&quot;')}"
-                                        data-quote-author="${(quote.author || 'Неизвестный автор').replace(/"/g, '&quot;')}"
+                                        data-quote-text="${quoteText.replace(/"/g, '&quot;')}"
+                                        data-quote-author="${quoteAuthor.replace(/"/g, '&quot;')}"
                                         style="min-height: var(--touch-target-min);" aria-label="Добавить цитату в дневник">
                                   <span class="add-icon">+</span>
                                 </button>
@@ -2246,6 +2347,10 @@ renderAchievementsSection() {
                         spotlightSection.outerHTML = newSpotlightHTML;
                     }
                     
+                    // 🔄 Reconcile like data and update all buttons after DOM replacement
+                    this._reconcileAllLikeData();
+                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                    
                     // Перепривязываем обработчики для обновленных карточек
                     // Delegated listener still works, only need to reattach other listeners
                     this.attachQuoteCardListeners();
@@ -2331,6 +2436,10 @@ renderAchievementsSection() {
                     if (leaderboardSection) {
                         leaderboardSection.outerHTML = newLeaderboardHTML;
                     }
+                    
+                    // 🔄 Reconcile like data and update all buttons after DOM replacement
+                    this._reconcileAllLikeData();
+                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
                     
                     // Перепривязываем обработчики для обновленных узлов
                     // Delegated listener still works, only need to reattach other listeners
@@ -2833,10 +2942,13 @@ renderAchievementsSection() {
             storeEntry.liked = willLike;
             storeEntry.count = willLike ? oldCount + 1 : Math.max(0, oldCount - 1);
             
+            // 💾 Persist optimistic state immediately
+            this._persistLikeStore();
+            
             // Update ALL buttons instantly across all sections
             this._updateAllLikeButtonsForKey(key);
             
-            // Sync all collections (spotlight cache, popularFavorites, popularQuotes)
+            // Sync all collections (spotlight cache, popularFavorites, popularQuotes, latestQuotes)
             this._syncCollectionsForKey(key, (item, entry) => {
                 item.likedByMe = entry.liked;
                 item.favorites = entry.count;
@@ -2869,6 +2981,9 @@ renderAchievementsSection() {
                 if (typeof serverCount === 'number') {
                     storeEntry.count = serverCount;
                     storeEntry.lastServerCount = serverCount;
+                    
+                    // 💾 Persist reconciled state
+                    this._persistLikeStore();
                     
                     // Update all buttons with server count
                     this._updateAllLikeButtonsForKey(key);
@@ -2910,6 +3025,10 @@ renderAchievementsSection() {
         } finally {
             // Release lock and pending flag
             storeEntry.pending = 0;
+            
+            // 💾 Persist final state
+            this._persistLikeStore();
+            
             setTimeout(() => {
                 this._favoriteLocks.delete(key);
             }, 500);
@@ -3087,6 +3206,27 @@ renderAchievementsSection() {
             this.errorStates[key] = null;
         });
     }
+}
+
+// 🐛 DEBUG HELPER (disabled by default, call window.__DUMP_LIKES() in console to inspect like store)
+if (typeof window !== 'undefined') {
+    window.__DUMP_LIKES = function() {
+        const page = window.App?.currentPage;
+        if (page && page._likeStore) {
+            const entries = Array.from(page._likeStore.entries()).map(([key, value]) => ({
+                key: key,
+                liked: value.liked,
+                count: value.count,
+                pending: value.pending,
+                lastServerCount: value.lastServerCount
+            }));
+            console.table(entries);
+            return entries;
+        } else {
+            console.warn('CommunityPage or _likeStore not found. Make sure you are on the Community page.');
+            return [];
+        }
+    };
 }
 
 // 📤 Экспорт класса
