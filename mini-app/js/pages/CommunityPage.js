@@ -53,6 +53,10 @@ class CommunityPage {
         
         // 💚 LIKE STATE (track like status per quote using normalizedKey)
         this._likeState = new Map();
+        
+        // 🏪 LIKE STORE (single source of truth for like state across all sections)
+        // Map<string, {liked: boolean, count: number, pending: number, lastServerCount?: number}>
+        this._likeStore = new Map();
 
         // 🔄 RERENDER SCHEDULER (batching sequential rerenders into single rAF)
         this._rerenderScheduled = false;
@@ -293,6 +297,10 @@ class CommunityPage {
                         const bLikes = b.favorites || b.count || b.likes || 0;
                         return bLikes - aLikes;
                     });
+                
+                // Apply stored like state to override server data
+                this._applyLikeStateToArray(this.popularFavorites);
+                
                 console.debug('✅ CommunityPage.loadPopularFavorites: Популярные избранные цитаты загружены:', this.popularFavorites.length);
             } else {
                 this.popularFavorites = [];
@@ -675,6 +683,145 @@ class CommunityPage {
     }
 
     /**
+     * 🔑 Compute like key (wrapper around _computeNormalizedKey)
+     * @param {string} text - Quote text
+     * @param {string} author - Quote author
+     * @returns {string} Normalized key for like store
+     */
+    _computeLikeKey(text, author) {
+        return this._computeNormalizedKey(text, author);
+    }
+
+    /**
+     * 🔄 Apply stored like state to a single item
+     * Mutates the item to reflect the current state in likeStore
+     * @param {Object} item - Quote item with text and author
+     */
+    _applyLikeStateToItem(item) {
+        if (!item || !item.text) return;
+        const key = this._computeLikeKey(item.text, item.author);
+        const storeEntry = this._likeStore.get(key);
+        
+        if (storeEntry) {
+            // Override with stored state
+            item.likedByMe = storeEntry.liked;
+            item.favorites = storeEntry.count;
+        }
+    }
+
+    /**
+     * 🔄 Apply stored like state to an array of items
+     * @param {Array} items - Array of quote items
+     * @returns {Array} Same array (mutated in place)
+     */
+    _applyLikeStateToArray(items) {
+        if (!Array.isArray(items)) return items;
+        items.forEach(item => this._applyLikeStateToItem(item));
+        return items;
+    }
+
+    /**
+     * 🔄 Reconcile all like data - runs after data loads to apply stored state
+     * Applies to spotlight cache, popularFavorites, and popularQuotes
+     */
+    _reconcileAllLikeData() {
+        // Apply to spotlight cache
+        if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
+            this._applyLikeStateToArray(this._spotlightCache.items);
+        }
+        
+        // Apply to popular favorites
+        if (this.popularFavorites && this.popularFavorites.length > 0) {
+            this._applyLikeStateToArray(this.popularFavorites);
+        }
+        
+        // Apply to popular quotes
+        if (this.popularQuotes && this.popularQuotes.length > 0) {
+            this._applyLikeStateToArray(this.popularQuotes);
+        }
+    }
+
+    /**
+     * 🔄 Update all like buttons in DOM for a specific quote key
+     * Syncs visual state across all sections (Spotlight + Weekly Top)
+     * @param {string} key - Normalized key
+     */
+    _updateAllLikeButtonsForKey(key) {
+        const storeEntry = this._likeStore.get(key);
+        if (!storeEntry) return;
+        
+        // Find all buttons with this normalized key
+        const buttons = document.querySelectorAll(`[data-normalized-key="${CSS.escape(key)}"]`);
+        
+        buttons.forEach(button => {
+            const quoteCard = button.closest('.quote-card');
+            if (!quoteCard) return;
+            
+            // Update button visual state
+            if (storeEntry.liked) {
+                button.innerHTML = '❤';
+                button.classList.add('favorited');
+            } else {
+                button.innerHTML = '♡';
+                button.classList.remove('favorited');
+            }
+            
+            // Update count in button data attribute
+            button.dataset.favorites = storeEntry.count;
+            
+            // Update count in UI
+            const favoritesCountElement = quoteCard.querySelector('.favorites-count');
+            if (favoritesCountElement) {
+                favoritesCountElement.textContent = storeEntry.count;
+            }
+        });
+    }
+
+    /**
+     * 🔄 Sync collections (cached arrays) for a specific key
+     * Updates spotlight cache, popularFavorites, popularQuotes
+     * @param {string} key - Normalized key
+     * @param {Function} updater - Function to update the item (item, storeEntry) => void
+     */
+    _syncCollectionsForKey(key, updater) {
+        const storeEntry = this._likeStore.get(key);
+        if (!storeEntry) return;
+        
+        // Extract text and author from key
+        const [text, author] = key.split('|||');
+        
+        // Update spotlight cache
+        if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
+            const spotlightItem = this._spotlightCache.items.find(item => 
+                this._computeLikeKey(item.text, item.author) === key
+            );
+            if (spotlightItem) {
+                updater(spotlightItem, storeEntry);
+            }
+        }
+        
+        // Update popular favorites
+        if (this.popularFavorites && this.popularFavorites.length > 0) {
+            const popularItem = this.popularFavorites.find(item => 
+                this._computeLikeKey(item.text, item.author) === key
+            );
+            if (popularItem) {
+                updater(popularItem, storeEntry);
+            }
+        }
+        
+        // Update popular quotes
+        if (this.popularQuotes && this.popularQuotes.length > 0) {
+            const popularItem = this.popularQuotes.find(item => 
+                this._computeLikeKey(item.text, item.author) === key
+            );
+            if (popularItem) {
+                updater(popularItem, storeEntry);
+            }
+        }
+    }
+
+    /**
      * Построение микса spotlight: 1 свежая + 2 недавние избранные с round-robin ротацией
      * ОБНОВЛЕНО: Реализована логика ротации, anti-repeat и fairness constraint
      */
@@ -851,12 +998,17 @@ class CommunityPage {
      */
     async getSpotlightItems() {
         if (this.isSpotlightFresh()) {
+            // Apply stored like state even to cached items
+            this._applyLikeStateToArray(this._spotlightCache.items);
             return this._spotlightCache.items;
         }
         
         // Обновляем кэш
         this._spotlightCache.items = await this.buildSpotlightMix();
         this._spotlightCache.ts = Date.now();
+        
+        // Apply stored like state to new items
+        this._applyLikeStateToArray(this._spotlightCache.items);
         
         return this._spotlightCache.items;
     }
@@ -947,6 +1099,7 @@ class CommunityPage {
                                         data-quote-text="${this.escapeHtml(item.text)}"
                                         data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
                                         data-favorites="${likesCount}"
+                                        data-normalized-key="${this._computeLikeKey(item.text, item.author)}"
                                         aria-label="Добавить в избранное">${item.likedByMe ? '❤' : '♡'}</button>
                             </div>
                         </div>
@@ -1522,6 +1675,7 @@ class CommunityPage {
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
                                     data-favorites="${favorites}"
+                                    data-normalized-key="${this._computeLikeKey(quote.text || '', quote.author || '')}"
                                     aria-label="Добавить в избранное">${quote.likedByMe ? '❤' : '♡'}</button>
                         </div>
                     </div>
@@ -2583,6 +2737,7 @@ renderAchievementsSection() {
 
     /**
      * ❤️ TOGGLE LIKE/UNLIKE (БЕЗ СОЗДАНИЯ ЦИТАТ В ДНЕВНИКЕ)
+     * REFACTORED: Uses centralized likeStore for single source of truth
      */
     async addQuoteToFavorites(event) {
         event.preventDefault();
@@ -2598,177 +2753,127 @@ renderAchievementsSection() {
         const quoteText = button.dataset.quoteText || quoteCard.querySelector('.quote-card__text')?.textContent?.replace(/"/g, '') || '';
         const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
         
-        // Создаем нормализованный ключ для защиты от двойного тапа (uses QuoteNormalizer from utils)
-        const normalizedKey = this._computeNormalizedKey(quoteText, quoteAuthor);
+        // Создаем нормализованный ключ
+        const key = this._computeLikeKey(quoteText, quoteAuthor);
         
-        // Проверяем защиту от двойного тапа
-        if (this._favoriteLocks.has(normalizedKey)) {
-            console.log('🔒 Duplicate tap prevented for:', normalizedKey);
+        // Get or initialize store entry
+        let storeEntry = this._likeStore.get(key);
+        if (!storeEntry) {
+            // Initialize from button state
+            const currentCount = parseInt(button.dataset.favorites, 10) || 0;
+            const currentLiked = button.classList.contains('favorited');
+            storeEntry = {
+                liked: currentLiked,
+                count: currentCount,
+                pending: 0,
+                lastServerCount: currentCount
+            };
+            this._likeStore.set(key, storeEntry);
+        }
+        
+        // Check if action is already pending or locked
+        if (storeEntry.pending > 0 || this._favoriteLocks.has(key)) {
+            console.log('🔒 Action already pending for:', key);
             return;
         }
         
-        // Устанавливаем блокировку
-        this._favoriteLocks.add(normalizedKey);
+        // Set lock and pending flag
+        this._favoriteLocks.add(key);
+        storeEntry.pending = 1;
         
-        // Determine current state (liked or not)
-        const wasFavorited = button.classList.contains('favorited');
-        
-        // Declare variables outside try block to avoid scope issues
-        let currentFavorites = 0;
-        let newCount = 0;
+        // Determine action (toggle)
+        const willLike = !storeEntry.liked;
+        const oldLiked = storeEntry.liked;
+        const oldCount = storeEntry.count;
         
         try {
             // Haptic feedback
             this.triggerHapticFeedback('medium');
             
-            // Получаем текущий счетчик лайков
-            currentFavorites = parseInt(button.dataset.favorites, 10) || 0;
-            const favoritesCountElement = quoteCard.querySelector('.favorites-count');
+            // Optimistically update store
+            storeEntry.liked = willLike;
+            storeEntry.count = willLike ? oldCount + 1 : Math.max(0, oldCount - 1);
             
-            // Оптимистичное обновление UI
-            if (wasFavorited) {
-                // UNLIKE: убираем лайк
-                button.innerHTML = '♡';
-                button.classList.remove('favorited');
-                newCount = Math.max(0, currentFavorites - 1);
-                button.dataset.favorites = newCount;
-                
-                if (favoritesCountElement) {
-                    favoritesCountElement.textContent = newCount;
-                }
-                
-                // API call: unlike
-                const response = await this.api.unlikeQuote({
+            // Update ALL buttons instantly across all sections
+            this._updateAllLikeButtonsForKey(key);
+            
+            // Sync all collections (spotlight cache, popularFavorites, popularQuotes)
+            this._syncCollectionsForKey(key, (item, entry) => {
+                item.likedByMe = entry.liked;
+                item.favorites = entry.count;
+            });
+            
+            // Call API
+            let response;
+            if (willLike) {
+                response = await this.api.likeQuote({
                     text: quoteText,
                     author: quoteAuthor
                 });
-                
-                if (response && response.success) {
-                    this.triggerHapticFeedback('light');
-                    this.showNotification('Лайк снят.', 'info');
-                    
-                    // Use server-returned count if available for reconciliation
-                    const serverCount = response.counts?.totalFavoritesForPair;
-                    if (typeof serverCount === 'number') {
-                        newCount = serverCount;
-                        button.dataset.favorites = newCount;
-                        if (favoritesCountElement) {
-                            favoritesCountElement.textContent = newCount;
-                        }
-                    }
-                    
-                    // Update like state
-                    this._likeState.set(normalizedKey, false);
-                    
-                    // Update caches
-                    if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
-                        const spotlightItem = this._spotlightCache.items.find(item => 
-                            item.text === quoteText && item.author === quoteAuthor
-                        );
-                        if (spotlightItem) {
-                            spotlightItem.favorites = typeof serverCount === 'number' ? serverCount : Math.max(0, (spotlightItem.favorites || 0) - 1);
-                            spotlightItem.likedByMe = false;
-                        }
-                    }
-                    
-                    if (this.popularFavorites && this.popularFavorites.length > 0) {
-                        const popularItem = this.popularFavorites.find(item => 
-                            item.text === quoteText && item.author === quoteAuthor
-                        );
-                        if (popularItem) {
-                            popularItem.favorites = typeof serverCount === 'number' ? serverCount : Math.max(0, (popularItem.favorites || 0) - 1);
-                            popularItem.likedByMe = false;
-                        }
-                    }
-                } else {
-                    throw new Error(response?.message || 'Ошибка снятия лайка');
-                }
             } else {
-                // LIKE: ставим лайк
-                button.innerHTML = '❤';
-                button.classList.add('favorited');
-                newCount = currentFavorites + 1;
-                button.dataset.favorites = newCount;
-                
-                if (favoritesCountElement) {
-                    favoritesCountElement.textContent = newCount;
-                }
-                
-                // API call: like (БЕЗ создания цитаты в дневнике)
-                const response = await this.api.likeQuote({
+                response = await this.api.unlikeQuote({
                     text: quoteText,
                     author: quoteAuthor
                 });
+            }
+            
+            if (response && response.success) {
+                // Success feedback
+                this.triggerHapticFeedback(willLike ? 'success' : 'light');
+                this.showNotification(
+                    willLike ? 'Вы поставили лайк цитате!' : 'Лайк снят.',
+                    willLike ? 'success' : 'info'
+                );
                 
-                if (response && response.success) {
-                    this.triggerHapticFeedback('success');
-                    this.showNotification('Вы поставили лайк цитате!', 'success');
+                // Reconcile with server count if available
+                const serverCount = response.counts?.totalFavoritesForPair;
+                if (typeof serverCount === 'number') {
+                    storeEntry.count = serverCount;
+                    storeEntry.lastServerCount = serverCount;
                     
-                    // Update like state
-                    this._likeState.set(normalizedKey, true);
+                    // Update all buttons with server count
+                    this._updateAllLikeButtonsForKey(key);
                     
-                    // Если API вернул актуальное количество лайков, используем его
-                    if (response.counts && typeof response.counts.totalFavoritesForPair === 'number') {
-                        const apiCount = response.counts.totalFavoritesForPair;
-                        button.dataset.favorites = apiCount;
-                        
-                        if (favoritesCountElement) {
-                            favoritesCountElement.textContent = apiCount;
-                        }
-                    }
-                    
-                    // Update caches
-                    if (this._spotlightCache.items && this._spotlightCache.items.length > 0) {
-                        const spotlightItem = this._spotlightCache.items.find(item => 
-                            item.text === quoteText && item.author === quoteAuthor
-                        );
-                        if (spotlightItem) {
-                            spotlightItem.favorites = (spotlightItem.favorites || 0) + 1;
-                            spotlightItem.likedByMe = true;
-                        }
-                    }
-                    
-                    if (this.popularFavorites && this.popularFavorites.length > 0) {
-                        const popularItem = this.popularFavorites.find(item => 
-                            item.text === quoteText && item.author === quoteAuthor
-                        );
-                        if (popularItem) {
-                            popularItem.favorites = (popularItem.favorites || 0) + 1;
-                            popularItem.likedByMe = true;
-                        }
-                    }
-                } else {
-                    throw new Error(response?.message || 'Ошибка добавления лайка');
+                    // Sync collections with server count
+                    this._syncCollectionsForKey(key, (item, entry) => {
+                        item.favorites = entry.count;
+                    });
                 }
+                
+                // Update legacy likeState for backward compatibility
+                this._likeState.set(key, storeEntry.liked);
+                
+            } else {
+                throw new Error(response?.message || (willLike ? 'Ошибка добавления лайка' : 'Ошибка снятия лайка'));
             }
             
         } catch (error) {
             console.error('❌ Ошибка toggle лайка:', error);
             
-            // Откатываем изменения UI при ошибке
-            if (wasFavorited) {
-                button.innerHTML = '❤';
-                button.classList.add('favorited');
-            } else {
-                button.innerHTML = '♡';
-                button.classList.remove('favorited');
-            }
-            button.dataset.favorites = currentFavorites;
+            // Rollback optimistic update
+            storeEntry.liked = oldLiked;
+            storeEntry.count = oldCount;
             
-            const favoritesCountElement = quoteCard.querySelector('.favorites-count');
-            if (favoritesCountElement) {
-                favoritesCountElement.textContent = currentFavorites;
-            }
+            // Update all buttons to rolled-back state
+            this._updateAllLikeButtonsForKey(key);
             
-            // Показываем ошибку с конкретным действием
-            const errorMsg = wasFavorited ? 'Ошибка при снятии лайка' : 'Ошибка при добавлении лайка';
+            // Sync collections with rolled-back state
+            this._syncCollectionsForKey(key, (item, entry) => {
+                item.likedByMe = entry.liked;
+                item.favorites = entry.count;
+            });
+            
+            // Show error
+            const errorMsg = willLike ? 'Ошибка при добавлении лайка' : 'Ошибка при снятии лайка';
             this.showNotification(errorMsg, 'error');
             this.triggerHapticFeedback('error');
+            
         } finally {
-            // Всегда снимаем блокировку через небольшую задержку
+            // Release lock and pending flag
+            storeEntry.pending = 0;
             setTimeout(() => {
-                this._favoriteLocks.delete(normalizedKey);
-            }, 1000);
+                this._favoriteLocks.delete(key);
+            }, 500);
         }
     }
 
