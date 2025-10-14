@@ -128,29 +128,31 @@
    ============================================================================ */
 
 .author-card {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 48px 1fr; /* фиксированная колонка под аватар и текст рядом */
+    gap: var(--spacing-sm);
     align-items: flex-start;
     text-align: left;
-    gap: var(--spacing-md);
 }
 
 .author-avatar {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: var(--primary-color);
+    color: #fff;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-lg);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
+    grid-column: 1;
     flex-shrink: 0;
 }
 
 .author-info {
-    flex: 1;
+    grid-column: 2;
+    min-width: 0;
     text-align: left;
 }
 
@@ -159,6 +161,7 @@
     font-weight: var(--font-weight-bold);
     color: var(--text-primary);
     margin-bottom: var(--spacing-xs);
+    text-align: left;
 }
 
 .author-info p {
@@ -166,12 +169,12 @@
     color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: var(--spacing-sm);
+    text-align: left;
 }
 
 .author-info p:last-child {
     margin-bottom: 0;
 }
-
 /* ============================================================================
    📬 CONTACTS LIST
    ============================================================================ */
