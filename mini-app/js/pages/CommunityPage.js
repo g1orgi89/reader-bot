@@ -225,6 +225,10 @@ class CommunityPage {
             if (response && response.success) {
                 // Нормализация: читаем из resp.data, если нет - из resp.quotes/resp.data.quotes/resp
                 this.latestQuotes = response.data || response.quotes || response.data?.quotes || [];
+                
+                // Initialize likeStore from server data
+                this._initializeLikeStoreFromItems(this.latestQuotes);
+                
                 console.log('✅ CommunityPage: Последние цитаты загружены:', this.latestQuotes.length);
             } else {
                 this.latestQuotes = [];
@@ -298,7 +302,10 @@ class CommunityPage {
                         return bLikes - aLikes;
                     });
                 
-                // Apply stored like state to override server data
+                // Initialize likeStore from server data
+                this._initializeLikeStoreFromItems(this.popularFavorites);
+                
+                // Apply stored like state to override server data (for pending actions)
                 this._applyLikeStateToArray(this.popularFavorites);
                 
                 console.debug('✅ CommunityPage.loadPopularFavorites: Популярные избранные цитаты загружены:', this.popularFavorites.length);
@@ -822,6 +829,35 @@ class CommunityPage {
     }
 
     /**
+     * 🔄 Initialize/update likeStore from server data
+     * Populates store only if entry doesn't exist or isn't pending
+     * @param {Array} items - Array of quote items with likedByMe and favorites fields
+     */
+    _initializeLikeStoreFromItems(items) {
+        if (!Array.isArray(items)) return;
+        
+        items.forEach(item => {
+            if (!item || !item.text) return;
+            
+            const key = this._computeLikeKey(item.text, item.author);
+            const existingEntry = this._likeStore.get(key);
+            
+            // Only initialize if entry doesn't exist or is not pending
+            if (!existingEntry || existingEntry.pending === 0) {
+                const liked = !!item.likedByMe;
+                const count = item.favorites || item.count || item.likes || 0;
+                
+                this._likeStore.set(key, {
+                    liked,
+                    count,
+                    pending: 0,
+                    lastServerCount: count
+                });
+            }
+        });
+    }
+
+    /**
      * Построение микса spotlight: 1 свежая + 2 недавние избранные с round-robin ротацией
      * ОБНОВЛЕНО: Реализована логика ротации, anti-repeat и fairness constraint
      */
@@ -1007,7 +1043,10 @@ class CommunityPage {
         this._spotlightCache.items = await this.buildSpotlightMix();
         this._spotlightCache.ts = Date.now();
         
-        // Apply stored like state to new items
+        // Initialize likeStore from server data in spotlight items
+        this._initializeLikeStoreFromItems(this._spotlightCache.items);
+        
+        // Apply stored like state to new items (for pending actions)
         this._applyLikeStateToArray(this._spotlightCache.items);
         
         return this._spotlightCache.items;
