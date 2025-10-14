@@ -21,15 +21,15 @@
 }
 
 .about-logo {
-    width: 80px;
-    height: 80px;
+    width: calc(var(--font-size-3xl) * 3);
+    height: calc(var(--font-size-3xl) * 3);
     margin: 0 auto var(--spacing-md);
-    background: var(--accent-primary);
-    border-radius: var(--border-radius-md);
+    background: var(--primary-color);
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--font-size-xl);
+    font-size: calc(var(--font-size-3xl) * 1.5);
     color: white;
 }
 
@@ -49,7 +49,7 @@
     display: inline-block;
     padding: var(--spacing-xs) var(--spacing-sm);
     background: var(--bg-secondary);
-    border-radius: var(--border-radius-full);
+    border-radius: var(--radius-round);
     font-size: var(--font-size-xs);
     color: var(--text-secondary);
 }
@@ -60,7 +60,7 @@
 
 .about-section {
     background: var(--bg-card);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--radius-md);
     margin-bottom: var(--spacing-md);
     border: 1px solid var(--border-light);
     overflow: hidden;
@@ -79,6 +79,10 @@
     padding: var(--spacing-md);
 }
 
+.about-section-content > * + * {
+    margin-top: var(--spacing-md);
+}
+
 .about-description {
     font-size: var(--font-size-sm);
     line-height: 1.6;
@@ -95,10 +99,10 @@
    ============================================================================ */
 
 .features-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
+    display: grid;
+    grid-template-columns: 1fr;
+    row-gap: var(--spacing-sm);
+    margin-top: 0;
 }
 
 .feature-item {
@@ -107,12 +111,14 @@
     gap: var(--spacing-sm);
     padding: var(--spacing-sm);
     background: var(--bg-secondary);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
     color: var(--text-primary);
 }
 
 .feature-emoji {
+    width: 24px;
+    text-align: center;
     font-size: var(--font-size-lg);
     flex-shrink: 0;
 }
@@ -123,21 +129,21 @@
 
 .author-card {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
     gap: var(--spacing-md);
 }
 
 .author-avatar {
-    width: 80px;
-    height: 80px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background: var(--accent-primary);
+    background: var(--primary-color);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: #fff;
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     flex-shrink: 0;
@@ -145,6 +151,7 @@
 
 .author-info {
     flex: 1;
+    text-align: left;
 }
 
 .author-info h4 {
@@ -181,7 +188,7 @@
     gap: var(--spacing-sm);
     padding: var(--spacing-md);
     background: var(--bg-secondary);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     min-height: 44px;
 }
 
@@ -200,7 +207,7 @@
 }
 
 .contact-link:hover {
-    color: var(--accent-primary);
+    color: var(--primary-color);
 }
 
 .contact-link:active {
@@ -238,7 +245,7 @@
     text-align: center;
     padding: var(--spacing-md);
     background: var(--bg-secondary);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--radius-md);
 }
 
 .team-avatar {
@@ -246,7 +253,7 @@
     height: 60px;
     border-radius: 50%;
     margin: 0 auto var(--spacing-sm);
-    background: var(--accent-primary);
+    background: var(--primary-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -293,9 +300,9 @@
 }
 
 .social-link:hover {
-    background: var(--accent-primary);
+    background: var(--primary-color);
     color: white;
-    border-color: var(--accent-primary);
+    border-color: var(--primary-color);
     transform: translateY(-2px);
 }
 
@@ -322,7 +329,7 @@
 .stat-number {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
-    color: var(--accent-primary);
+    color: var(--primary-color);
     margin-bottom: var(--spacing-xs);
 }
 
@@ -344,20 +351,20 @@
 }
 
 .legal-link {
-    color: var(--accent-primary);
+    color: var(--primary-color);
     text-decoration: none;
     font-size: var(--font-size-sm);
     padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     transition: background-color 0.2s ease;
     cursor: pointer;
-    min-height: 36px; /* Touch target */
+    min-height: 44px; /* Touch target */
     display: flex;
     align-items: center;
 }
 
 .legal-link:hover {
-    background: var(--bg-hover);
+    background: var(--bg-secondary);
 }
 
 /* ============================================================================
@@ -370,9 +377,9 @@
     }
     
     .about-logo {
-        width: 60px;
-        height: 60px;
-        font-size: var(--font-size-lg);
+        width: calc(var(--font-size-2xl) * 2.5);
+        height: calc(var(--font-size-2xl) * 2.5);
+        font-size: calc(var(--font-size-2xl) * 1.25);
     }
     
     .team-grid {
@@ -446,7 +453,7 @@
 .changelog-version {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
-    color: var(--accent-primary);
+    color: var(--primary-color);
     margin-bottom: var(--spacing-xs);
 }
 
@@ -482,7 +489,7 @@
 
 .legal-modal-content {
     background: var(--bg-card);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--radius-md);
     padding: var(--spacing-md);
     max-width: 600px;
     max-height: 80vh;
@@ -520,7 +527,7 @@
 }
 
 .legal-modal-close:hover {
-    background: var(--bg-hover);
+    background: var(--bg-secondary);
 }
 
 .legal-modal-text {
@@ -541,11 +548,11 @@
 
 .social-link:focus,
 .legal-link:focus {
-    outline: 2px solid var(--accent-primary);
+    outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
 
 .legal-modal-close:focus {
-    outline: 2px solid var(--accent-primary);
+    outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
