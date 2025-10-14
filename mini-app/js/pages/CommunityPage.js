@@ -3229,5 +3229,63 @@ if (typeof window !== 'undefined') {
     };
 }
 
+(function initLikeDebug(){
+  if (window.__LIKE_DEBUG_INSTALLED) return;
+  window.__LIKE_DEBUG_INSTALLED = true;
+
+  // Лог клика по сердцу
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.quote-card__heart-btn, .quote-card__fav-btn');
+    if (!b) return;
+    const card = b.closest('.quote-card');
+    const dt = b.dataset.quoteText;
+    const da = b.dataset.quoteAuthor;
+    const nk = b.dataset.normalizedKey || b.dataset.normalizedkey;
+    const domAuthor = card?.querySelector('.quote-card__author')?.textContent?.replace(/^—\s*/,'');
+    const ownerName = card?.querySelector('.quote-card__user-name')?.textContent;
+    console.log('%c[HEART CLICK]', 'color:#D2452C;font-weight:bold', {
+      datasetText: dt,
+      datasetAuthor: da,
+      datasetKey: nk,
+      domAuthor,
+      ownerName,
+      classFavorited: b.classList.contains('favorited')
+    });
+  }, true);
+
+  // Перехват API like/unlike
+  const api = window.app?.api || window.App?.api;
+  if (!api) { console.warn('API not ready for debug'); return; }
+
+  const wrap = (fnName) => {
+    if (!api[fnName] || api[fnName].__wrapped) return;
+    const orig = api[fnName].bind(api);
+    api[fnName] = async (p) => {
+      console.log('%c['+fnName.toUpperCase()+'_OUT]', 'color:#0a84ff', p);
+      try {
+        const res = await orig(p);
+        console.log('%c['+fnName.toUpperCase()+'_IN ]', 'color:#0a84ff', res);
+        return res;
+      } catch(e) {
+        console.log('%c['+fnName.toUpperCase()+'_ERR]', 'color:#ff3b30', e);
+        throw e;
+      }
+    };
+    api[fnName].__wrapped = true;
+  };
+  wrap('likeQuote');
+  wrap('unlikeQuote');
+
+  // Dump store
+  window.dumpLikes = () => {
+    const cp = window.communityPage || window.CommunityPageInstance;
+    if (!cp || !cp._likeStore) { console.log('No _likeStore'); return; }
+    console.table(
+      Array.from(cp._likeStore.entries())
+        .map(([k,v])=>({key:k, liked:v.liked, count:v.count, pending:v.pending}))
+    );
+  };
+})();
+
 // 📤 Экспорт класса
 window.CommunityPage = CommunityPage;
