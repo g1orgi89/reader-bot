@@ -369,13 +369,14 @@ class TopMenu {
         return `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"/>
-                <path d="M12 1v6m0 6v10"/>
-                <path d="M1 12h5"/>
-                <path d="M18 12h5"/>
-                <path d="M19.07 4.93l-2.12 2.12"/>
-                <path d="M7.05 16.95l-2.12 2.12"/>
-                <path d="M4.93 4.93l2.12 2.12"/>
-                <path d="M16.95 16.95l2.12 2.12"/>
+                <path d="M12 1v6"/>
+                <path d="M12 17v6"/>
+                <path d="M4.22 4.22l4.24 4.24"/>
+                <path d="M15.54 15.54l4.24 4.24"/>
+                <path d="M1 12h6"/>
+                <path d="M17 12h6"/>
+                <path d="M4.22 19.78l4.24-4.24"/>
+                <path d="M15.54 8.46l4.24-4.24"/>
             </svg>
         `;
     }
