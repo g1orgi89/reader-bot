@@ -20,17 +20,26 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Текст цитаты — вторичный шрифт Merriweather */
+/* Текст цитаты — компактный стиль Inter по умолчанию */
 .quote-card .quote-text,
 .quote-item .quote-text,
 [data-quote-id] .quote-text,
 .my-quotes .quote-text {
-  font-family: var(--font-family-secondary);
+  font-family: var(--font-family-primary);
   font-style: italic;
-  line-height: var(--line-height-loose);
-  font-size: var(--font-size-lg);
+  line-height: var(--line-height-normal);
+  font-size: var(--font-size-base);
   margin-bottom: var(--spacing-sm);
   padding-right: calc(var(--touch-target-min) + var(--spacing-sm)); /* Prevent kebab overlap */
+}
+
+/* Модификатор для опциональной большой serif-стилизации */
+.quote-card--serif .quote-text,
+.quote-item--serif .quote-text,
+[data-quote-id].quote-card--serif .quote-text {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-loose);
 }
 
 /* Убираем декоративные оранжевые кавычки */
@@ -52,14 +61,16 @@
   display: none !important;
 }
 
-/* Автор цитаты */
+/* Автор цитаты — компактный стиль 11px Inter */
 .quote-card .quote-author,
 .quote-item .quote-author,
 [data-quote-id] .quote-author,
 .my-quotes .quote-author {
-  font-size: var(--font-size-sm);
+  font-family: var(--font-family-primary);
+  font-size: 11px;
   color: var(--text-secondary);
   font-style: italic;
+  font-weight: var(--font-weight-normal);
   margin-top: var(--spacing-xs);
   padding-right: calc(var(--touch-target-min) + var(--spacing-sm)); /* Prevent kebab overlap */
 }
@@ -253,7 +264,7 @@
   .quote-item .quote-text,
   [data-quote-id] .quote-text,
   .my-quotes .quote-text {
-    font-size: var(--font-size-base);
+    font-size: var(--font-size-xs);
   }
 }
 

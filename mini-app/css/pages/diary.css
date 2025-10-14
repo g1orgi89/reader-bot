@@ -798,19 +798,13 @@
     }
 }
 
-/* Align diary quotes font with Community blocks (use Inter instead of Merriweather) */
-.my-quotes .quote-text,
-.quote-card.my-quotes .quote-text {
-  font-family: var(--font-family-primary); /* Inter */
-}
-
-/* === Unify diary quotes with Community blocks (Inter, italic, primary color, correct size) === */
+/* === Unify diary quotes with compact Inter styling === */
 .my-quotes .quote-text,
 .quote-card.my-quotes .quote-text,
 .my-quotes [data-quote-id] .quote-text {
   font-family: var(--font-family-primary);
   font-style: italic;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
   color: var(--text-primary);
 }
@@ -821,6 +815,6 @@
   font-family: var(--font-family-primary);
   font-style: italic;
   font-weight: var(--font-weight-normal);
-  font-size: var(--font-size-sm);
-  color: var(--text-primary);
+  font-size: 11px;
+  color: var(--text-secondary);
 }
