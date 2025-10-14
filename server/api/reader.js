@@ -2563,7 +2563,7 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
     });
 
     // Get likedByMe status for current user
-    const currentUserId = req.user?.userId;
+    const currentUserId = req.userId;
     let likedByMeSet = new Set();
     
     if (currentUserId) {
@@ -2950,7 +2950,7 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
     // Get likedByMe status for current user
-    const currentUserId = req.user?.userId;
+    const currentUserId = req.userId;
     let likedByMeSet = new Set();
     
     if (currentUserId) {
@@ -3279,7 +3279,7 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     const userMap = new Map(users.map(u => [String(u.userId), u]));
 
     // Get likedByMe status for current user
-    const currentUserId = req.user?.userId;
+    const currentUserId = req.userId;
     let likedByMeSet = new Set();
     
     if (currentUserId) {
