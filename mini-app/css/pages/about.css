@@ -91,6 +91,140 @@
 }
 
 /* ============================================================================
+   📋 FEATURES LIST
+   ============================================================================ */
+
+.features-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+}
+
+.feature-emoji {
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+/* ============================================================================
+   👤 AUTHOR CARD
+   ============================================================================ */
+
+.author-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--spacing-md);
+}
+
+.author-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    flex-shrink: 0;
+}
+
+.author-info {
+    flex: 1;
+}
+
+.author-info h4 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.author-info p {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-sm);
+}
+
+.author-info p:last-child {
+    margin-bottom: 0;
+}
+
+/* ============================================================================
+   📬 CONTACTS LIST
+   ============================================================================ */
+
+.contacts-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    min-height: 44px;
+}
+
+.contact-emoji {
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+.contact-link {
+    flex: 1;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: color var(--duration-normal) ease;
+}
+
+.contact-link:hover {
+    color: var(--accent-primary);
+}
+
+.contact-link:active {
+    color: var(--primary-dark);
+}
+
+/* ============================================================================
+   📄 COPYRIGHT
+   ============================================================================ */
+
+.copyright {
+    margin-top: var(--spacing-lg);
+    text-align: center;
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-light);
+}
+
+.copyright p {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    margin: var(--spacing-xs) 0;
+}
+
+/* ============================================================================
    👥 КОМАНДА РАЗРАБОТКИ
    ============================================================================ */
 

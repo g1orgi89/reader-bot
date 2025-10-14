@@ -369,7 +369,7 @@ const ANNA_INFO = {
     photo: 'А', // Инициал для аватара
     quote: ANNA_PHRASES.personalQuote,
     contacts: {
-        telegram: '@annabusel_support',
+        telegram: '@manager_bookclub',
         email: 'help@annabusel.org',
         instagram: 'annabusel',
         website: 'annabusel.org'

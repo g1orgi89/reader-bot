@@ -334,9 +334,7 @@ html.keyboard-open .bottom-nav {
     min-height: 48px;
 }
 
-.menu-item + .menu-item {
-    margin-top: var(--spacing-md);
-}
+/* Removed extra spacing between menu items for compact layout */
 
 .menu-item:hover {
     background: var(--bg-secondary);
@@ -367,7 +365,7 @@ html.keyboard-open .bottom-nav {
 .menu-divider {
     height: 1px;
     background: var(--bg-secondary);
-    margin: var(--spacing-md) var(--spacing-lg);
+    margin: var(--spacing-sm) var(--spacing-lg);
 }
 
 /* Адаптация под темную тему */

@@ -461,7 +461,7 @@ class MenuHandler {
             <div class="contact-info">
                 <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">📞 Связаться с нами</div>
                 <div style="font-size: 11px; color: var(--text-secondary);">
-                    • Telegram: ${contacts.telegram || '@annabusel_support'}<br>
+                    • Telegram: ${contacts.telegram || '@manager_bookclub'}<br>
                     • Email: ${contacts.email || 'help@annabusel.org'}<br>
                     • Время ответа: до 24 часов
                 </div>
@@ -668,7 +668,7 @@ class MenuHandler {
     contactSupport() {
         const annaInfo = window.ANNA_INFO || {};
         const contacts = annaInfo.contacts || {};
-        const telegramContact = contacts.telegram || '@annabusel_support';
+        const telegramContact = contacts.telegram || '@manager_bookclub';
         
         // Открываем Telegram чат с поддержкой
         if (window.Telegram?.WebApp) {
@@ -709,7 +709,7 @@ class MenuHandler {
         const contacts = annaInfo.contacts || {};
         const links = {
             instagram: `https://instagram.com/${contacts.instagram || 'annabusel'}`,
-            telegram: `https://t.me/${(contacts.telegram || '@annabusel_support').replace('@', '')}`,
+            telegram: `https://t.me/${(contacts.telegram || '@manager_bookclub').replace('@', '')}`,
             website: `https://${contacts.website || 'annabusel.org'}`
         };
         
