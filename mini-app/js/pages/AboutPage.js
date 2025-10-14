@@ -125,11 +125,6 @@ class AboutPage {
                         </div>
                     </div>
                 </div>
-                <div class="about-section-footer">
-                    <div class="about-footer-text">
-                        <span>Разработано для психолога Анны Бусел и ее читателей • <span style="color:var(--primary-color);">Reader Bot Telegram Mini App</span></span>
-                    </div>
-                </div>
             </div>
         `;
     }
