@@ -128,10 +128,13 @@
    ============================================================================ */
 
 .author-card {
-    display: grid;
-    grid-template-columns: 48px 1fr; /* фиксированная колонка под аватар и текст рядом */
+    display: block;
+}
+
+.author-header {
+    display: flex;
+    align-items: center;
     gap: var(--spacing-sm);
-    align-items: flex-start;
     text-align: left;
 }
 
@@ -146,35 +149,40 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    grid-column: 1;
     flex-shrink: 0;
 }
 
-.author-info {
-    grid-column: 2;
+.author-meta {
     min-width: 0;
     text-align: left;
 }
 
-.author-info h4 {
+.author-name {
+    margin: 0;
+    font-weight: var(--font-weight-medium);
     font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
     color: var(--text-primary);
-    margin-bottom: var(--spacing-xs);
-    text-align: left;
 }
 
-.author-info p {
+.author-role {
+    margin: var(--spacing-2xs, 4px) 0 0;
+    color: var(--text-secondary);
     font-size: var(--font-size-sm);
+}
+
+.author-bio {
+    margin-top: var(--spacing-sm);
+    text-align: left;
+    padding-left: 0;
+}
+
+.author-bio p {
+    margin: 0 0 var(--spacing-sm);
     color: var(--text-secondary);
     line-height: 1.6;
-    margin-bottom: var(--spacing-sm);
-    text-align: left;
+    font-size: var(--font-size-sm);
 }
 
-.author-info p:last-child {
-    margin-bottom: 0;
-}
 /* ============================================================================
    📬 CONTACTS LIST
    ============================================================================ */
