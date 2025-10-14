@@ -3287,5 +3287,63 @@ if (typeof window !== 'undefined') {
   };
 })();
 
+// ==== EXTENDED DEBUG FOR COMMUNITY LIKE SYNC ====
+if (typeof window !== 'undefined') {
+  /**
+   * Расширенный дамп состояния лайков
+   * Показывает всю структуру _likeStore
+   */
+  window.__DUMP_LIKES_EXT = function() {
+    const cp = window.communityPage || window.CommunityPageInstance || window.App?.currentPage;
+    if (!cp || !cp._likeStore) { console.log('No _likeStore'); return []; }
+    const entries = Array.from(cp._likeStore.entries()).map(([key, value]) => ({
+      key,
+      liked: value.liked,
+      count: value.count,
+      pending: value.pending,
+      lastServerCount: value.lastServerCount
+    }));
+    console.group('%c[EXTENDED _likeStore]', 'color:#0a84ff;font-weight:bold;');
+    console.table(entries);
+    console.groupEnd();
+    return entries;
+  };
+
+  /**
+   * Дамп всех коллекций цитат для сравнения
+   */
+  window.__DUMP_COLLECTIONS = function() {
+    const cp = window.communityPage || window.CommunityPageInstance || window.App?.currentPage;
+    if (!cp) { console.log('No CommunityPage'); return; }
+    console.group('%c[COLLECTIONS]', 'color:#D2452C;font-weight:bold;');
+    console.log('[latestQuotes]', cp.latestQuotes);
+    console.log('[popularFavorites]', cp.popularFavorites);
+    console.log('[spotlightCache]', cp._spotlightCache?.items);
+    console.groupEnd();
+  };
+
+  /**
+   * Быстрый дамп всего состояния — для поиска рассинхронов
+   */
+  window.__DUMP_ALL = function() {
+    window.__DUMP_LIKES_EXT();
+    window.__DUMP_COLLECTIONS();
+  };
+
+  /**
+   * (Опционально) Лог применения _applyLikeStateToArray (если хочешь видеть каждый вызов)
+   * Можно раскомментировать, если нужно видеть подробную трассировку!
+   */
+  const origApply = window.CommunityPage?.prototype?._applyLikeStateToArray;
+  if (origApply && !origApply.__wrapped) {
+    window.CommunityPage.prototype._applyLikeStateToArray = function(items) {
+      const result = origApply.call(this, items);
+      console.log('%c[APPLY LIKE STATE]', 'color:#0a84ff', items);
+      return result;
+    };
+    window.CommunityPage.prototype._applyLikeStateToArray.__wrapped = true;
+  }
+}
+
 // 📤 Экспорт класса
 window.CommunityPage = CommunityPage;
