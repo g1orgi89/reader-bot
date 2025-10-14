@@ -88,7 +88,7 @@
     line-height: 1.6;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-md);
-    padding-left: var(--spacing-xs); /* ⬅️ Добавлено для выравнивания по левому краю */
+    padding-left: 0; /* <-- убираем! */
 }
 
 .about-description:last-child {
