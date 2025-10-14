@@ -207,7 +207,7 @@
 }
 
 .contact-link:hover {
-    color: var(--accent-primary);
+    color: var(--primary-color);
 }
 
 .contact-link:active {
