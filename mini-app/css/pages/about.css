@@ -25,7 +25,7 @@
     height: calc(var(--font-size-3xl) * 3);
     margin: 0 auto var(--spacing-md);
     background: var(--primary-color);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -49,7 +49,7 @@
     display: inline-block;
     padding: var(--spacing-xs) var(--spacing-sm);
     background: var(--bg-secondary);
-    border-radius: var(--border-radius-full);
+    border-radius: var(--radius-round);
     font-size: var(--font-size-xs);
     color: var(--text-secondary);
 }
@@ -60,7 +60,7 @@
 
 .about-section {
     background: var(--bg-card);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--radius-md);
     margin-bottom: var(--spacing-md);
     border: 1px solid var(--border-light);
     overflow: hidden;
@@ -111,7 +111,7 @@
     gap: var(--spacing-sm);
     padding: var(--spacing-sm);
     background: var(--bg-secondary);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
     color: var(--text-primary);
 }
@@ -188,7 +188,7 @@
     gap: var(--spacing-sm);
     padding: var(--spacing-md);
     background: var(--bg-secondary);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     min-height: 44px;
 }
 
@@ -245,7 +245,7 @@
     text-align: center;
     padding: var(--spacing-md);
     background: var(--bg-secondary);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--radius-md);
 }
 
 .team-avatar {
@@ -355,7 +355,7 @@
     text-decoration: none;
     font-size: var(--font-size-sm);
     padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     transition: background-color 0.2s ease;
     cursor: pointer;
     min-height: 44px; /* Touch target */
@@ -489,7 +489,7 @@
 
 .legal-modal-content {
     background: var(--bg-card);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--radius-md);
     padding: var(--spacing-md);
     max-width: 600px;
     max-height: 80vh;
