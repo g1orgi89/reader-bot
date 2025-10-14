@@ -1055,8 +1055,8 @@ class ReportsPage {
         
         // 2) Try to split into sentences using regex boundary
         // Match sentence boundaries: period/exclamation/question mark/ellipsis followed by space and uppercase letter
-        const sentenceRegex = /(?<=[.!?…])\s+(?=[А-ЯA-ZЁ])/g;
-        let sentences = normalized.split(sentenceRegex);
+        const marked = normalized.replace(/([.!?…]+)\s+(?=[А-ЯA-ZЁ])/g, '$1|');
+        let sentences = marked.split('|').map(s => s.trim()).filter(Boolean);
         
         // 3) Fallback: if we have 0 or 1 sentence, split by newlines instead
         if (sentences.length <= 1) {
