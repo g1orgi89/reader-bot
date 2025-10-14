@@ -3287,14 +3287,23 @@ if (typeof window !== 'undefined') {
   };
 })();
 
-// ==== EXTENDED DEBUG FOR COMMUNITY LIKE SYNC ====
+// ==== COMMUNITY DEBUG TOOLS (UNIFIED) ====
 if (typeof window !== 'undefined') {
-  /**
-   * Расширенный дамп состояния лайков
-   * Показывает всю структуру _likeStore
-   */
+  window.dumpLikes = function() {
+    const cp = window.communityPage;
+    if (!cp || !cp._likeStore) { console.log('No _likeStore'); return []; }
+    const entries = Array.from(cp._likeStore.entries()).map(([key, value]) => ({
+      key,
+      liked: value.liked,
+      count: value.count,
+      pending: value.pending,
+      lastServerCount: value.lastServerCount
+    }));
+    console.table(entries);
+    return entries;
+  };
   window.__DUMP_LIKES_EXT = function() {
-    const cp = window.communityPage || window.CommunityPageInstance || window.App?.currentPage;
+    const cp = window.communityPage;
     if (!cp || !cp._likeStore) { console.log('No _likeStore'); return []; }
     const entries = Array.from(cp._likeStore.entries()).map(([key, value]) => ({
       key,
@@ -3308,12 +3317,8 @@ if (typeof window !== 'undefined') {
     console.groupEnd();
     return entries;
   };
-
-  /**
-   * Дамп всех коллекций цитат для сравнения
-   */
   window.__DUMP_COLLECTIONS = function() {
-    const cp = window.communityPage || window.CommunityPageInstance || window.App?.currentPage;
+    const cp = window.communityPage;
     if (!cp) { console.log('No CommunityPage'); return; }
     console.group('%c[COLLECTIONS]', 'color:#D2452C;font-weight:bold;');
     console.log('[latestQuotes]', cp.latestQuotes);
@@ -3321,19 +3326,10 @@ if (typeof window !== 'undefined') {
     console.log('[spotlightCache]', cp._spotlightCache?.items);
     console.groupEnd();
   };
-
-  /**
-   * Быстрый дамп всего состояния — для поиска рассинхронов
-   */
   window.__DUMP_ALL = function() {
     window.__DUMP_LIKES_EXT();
     window.__DUMP_COLLECTIONS();
   };
-
-  /**
-   * (Опционально) Лог применения _applyLikeStateToArray (если хочешь видеть каждый вызов)
-   * Можно раскомментировать, если нужно видеть подробную трассировку!
-   */
   const origApply = window.CommunityPage?.prototype?._applyLikeStateToArray;
   if (origApply && !origApply.__wrapped) {
     window.CommunityPage.prototype._applyLikeStateToArray = function(items) {
