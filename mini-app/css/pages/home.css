@@ -952,16 +952,11 @@ body.dark-theme {
     flex: 1;
 }
 
-/* Align home recent quotes font with Community blocks (use Inter instead of Merriweather) */
-.recent-quotes-section .quote-card.recent .quote-text {
-  font-family: var(--font-family-primary); /* Inter */
-}
-
-/* === Unify home recent quotes with Community blocks (Inter, italic, primary color, correct size) === */
+/* === Unify home recent quotes with compact Inter styling === */
 .recent-quotes-section .quote-card.recent .quote-text {
   font-family: var(--font-family-primary);
   font-style: italic;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
   color: var(--text-primary);
 }
@@ -970,6 +965,6 @@ body.dark-theme {
   font-family: var(--font-family-primary);
   font-style: italic;
   font-weight: var(--font-weight-normal);
-  font-size: var(--font-size-sm);
-  color: var(--text-primary);
+  font-size: 11px;
+  color: var(--text-secondary);
 }
