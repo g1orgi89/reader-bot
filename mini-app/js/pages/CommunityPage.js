@@ -660,6 +660,21 @@ class CommunityPage {
     }
 
     /**
+     * Compute normalized key for a quote (text + author)
+     * Uses QuoteNormalizer if available, otherwise falls back to server format
+     * @param {string} text - Quote text
+     * @param {string} author - Quote author
+     * @returns {string} Normalized key in format "normalizedText|||normalizedAuthor"
+     */
+    _computeNormalizedKey(text, author) {
+        return (
+            window.QuoteNormalizer?.computeNormalizedKey?.(text, author)
+        ) ?? (
+            String(text || '').trim().toLowerCase() + '|||' + String(author || '').trim().toLowerCase()
+        );
+    }
+
+    /**
      * Построение микса spotlight: 1 свежая + 2 недавние избранные с round-robin ротацией
      * ОБНОВЛЕНО: Реализована логика ротации, anti-repeat и fairness constraint
      */
@@ -719,13 +734,9 @@ class CommunityPage {
                 }
                 
                 // Filter out duplicates with fresh quote and recently shown quotes
-                const freshQuoteKey = items[0] ? (
-                    window.QuoteNormalizer?.computeNormalizedKey?.(items[0].text, items[0].author)
-                    ?? (String(items[0].text || '').trim().toLowerCase() + '|||' + String(items[0].author || '').trim().toLowerCase())
-                ) : null;
+                const freshQuoteKey = items[0] ? this._computeNormalizedKey(items[0].text, items[0].author) : null;
                 const candidatePool = recentFavorites.filter(fav => {
-                    const quoteKey = window.QuoteNormalizer?.computeNormalizedKey?.(fav.text, fav.author)
-                        ?? (String(fav.text || '').trim().toLowerCase() + '|||' + String(fav.author || '').trim().toLowerCase());
+                    const quoteKey = this._computeNormalizedKey(fav.text, fav.author);
                     // Exclude duplicate with fresh quote
                     if (freshQuoteKey && quoteKey === freshQuoteKey) return false;
                     // Exclude if shown in last 24h
@@ -737,8 +748,7 @@ class CommunityPage {
                     console.log('⚠️ Spotlight: Все кандидаты были показаны недавно, используем весь пул');
                     // Relaxed constraint: use all except fresh duplicate
                     candidatePool.push(...recentFavorites.filter(fav => {
-                        const quoteKey = window.QuoteNormalizer?.computeNormalizedKey?.(fav.text, fav.author)
-                            ?? (String(fav.text || '').trim().toLowerCase() + '|||' + String(fav.author || '').trim().toLowerCase());
+                        const quoteKey = this._computeNormalizedKey(fav.text, fav.author);
                         return freshQuoteKey !== quoteKey;
                     }));
                 }
@@ -823,8 +833,7 @@ class CommunityPage {
                 
                 // Mark selected items as shown
                 for (const item of items) {
-                    const quoteKey = window.QuoteNormalizer?.computeNormalizedKey?.(item.text, item.author)
-                        ?? (String(item.text || '').trim().toLowerCase() + '|||' + String(item.author || '').trim().toLowerCase());
+                    const quoteKey = this._computeNormalizedKey(item.text, item.author);
                     const ownerId = this._getOwnerId(item);
                     this._markShown(quoteKey, ownerId);
                 }
@@ -2590,11 +2599,7 @@ renderAchievementsSection() {
         const quoteAuthor = button.dataset.quoteAuthor || quoteCard.querySelector('.quote-card__author')?.textContent?.replace('— ', '') || '';
         
         // Создаем нормализованный ключ для защиты от двойного тапа (uses QuoteNormalizer from utils)
-        const normalizedKey = (
-            window.QuoteNormalizer?.computeNormalizedKey?.(quoteText, quoteAuthor)
-        ) ?? (
-            String(quoteText || '').trim().toLowerCase() + '|||' + String(quoteAuthor || '').trim().toLowerCase()
-        );
+        const normalizedKey = this._computeNormalizedKey(quoteText, quoteAuthor);
         
         // Проверяем защиту от двойного тапа
         if (this._favoriteLocks.has(normalizedKey)) {
