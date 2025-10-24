@@ -8,32 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive README.md with portfolio-ready documentation
-  - Quick Start guide with local testing instructions
-  - Mock Telegram WebApp SDK snippet for development
-  - API reference with curl examples
-  - QA & Testing section for interviewers
-  - Design system documentation
-  - Known issues and roadmap
-- PROJECT_KNOWLEDGE.md with current development status
-  - Feature inventory (Backend 100%, Frontend ~90%, CSS/UI ~60%)
-  - Short-term roadmap and priorities
-  - Known issues catalog
-  - Release checklist for v1.0
-  - Questions for maintainer
-- CHANGELOG.md (this file)
-- LICENSE file (MIT)
-- docs/screenshots/ directory for visual assets
-  - .gitkeep placeholder for future screenshots
-- .env.example with comprehensive variable documentation
-  - Clear placeholders for all environment variables
-  - Comments explaining each configuration option
-- GitHub issue templates
-  - Bug report template (.github/ISSUE_TEMPLATE/bug_report.md)
-  - Pull request template (.github/PULL_REQUEST_TEMPLATE.md)
+- Comprehensive documentation overhaul for QA/portfolio review (October 24, 2024)
+  - Live app links added to README (app.unibotz.com and Telegram entry)
+  - Tech Stack section with Frontend/Backend/Infrastructure details
+  - Implemented vs Planned feature split based on current status
+  - VPS deployment section with Contabo + PM2 + Docker MongoDB setup
+  - Refined Known Issues and Roadmap sections with precise priorities
+  - Updated PROJECT_KNOWLEDGE.md with hosting details and accurate status
+  - Enhanced .env.example with API_URL and deployment-specific comments
+  - docs/screenshots/ structure maintained with .gitkeep
+  - GitHub templates (bug report, PR template) verified in place
+  - MIT LICENSE verified
 
 ### Changed
-- None (documentation-only release)
+- None (documentation-only update)
 
 ### Fixed
 - None (documentation-only release)

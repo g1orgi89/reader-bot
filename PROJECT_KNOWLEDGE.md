@@ -1,7 +1,34 @@
 # PROJECT KNOWLEDGE: Reader Bot Telegram Mini App
 
-**Last Updated:** October 2024  
+**Last Updated:** October 24, 2024  
 **Status:** Development (Pre-Production)
+
+---
+
+## 🌐 Hosting & Production Details
+
+### Live Environment
+- **Domain:** [app.unibotz.com](https://app.unibotz.com)
+- **Telegram Entry:** [https://t.me/reader_app_bot/Reader](https://t.me/reader_app_bot/Reader)
+- **Hosting Provider:** Contabo VPS
+- **Process Manager:** PM2 (`pm2 start server/index.js --name reader-bot`)
+- **Database:** MongoDB via Docker on VPS
+- **Deployment:** SSH-based manual deployment
+
+### Infrastructure Commands
+```bash
+# Start application
+pm2 start server/index.js --name reader-bot
+
+# Check status
+pm2 status
+
+# View logs
+pm2 logs reader-bot
+
+# Stop application
+pm2 stop reader-bot
+```
 
 ---
 
@@ -15,7 +42,6 @@
 | **Frontend (Mini App)** | ~90%  | Core features working, polish needed          |
 | **CSS/UI**          | ~60%      | Mobile responsive, modal/scroll issues remain  |
 | **Mobile UX**       | ~70%      | iOS safe area & navigation partially fixed     |
-| **Testing/QA**      | ~40%      | Manual testing done, automated tests missing   |
 | **Production Ready** | 0%       | Debug logs, Lighthouse audit, optimization needed |
 
 ### Feature Inventory
@@ -33,58 +59,64 @@
 - Daily limit enforcement (10 quotes/day)
 - Quote editing & deletion
 - Search/filter by book or date
-- AI-powered quote analysis (Claude API)
+- AI-powered quote analysis — "Analysis from Anna" (GPT integration active)
 - Duplicate detection & normalization
 
 **Reports & Analytics:**
 - Weekly reports (AI-generated, Sunday 11:00 delivery)
 - Monthly deep-dive reports
 - User statistics dashboard (quotes count, reading streaks)
-- Achievements system (badges for milestones)
+- Personal stats tracking
 
 **Book Catalog:**
 - Curated psychology/self-help books from Anna Busel
 - Personalized recommendations based on user test results
-- UTM click tracking for conversions
+- UTM click tracking for conversions (working and active)
 - "Top Books" section
+- Curated breakdowns and recommendations
 
 **Community Features:**
 - Latest quotes feed from all users
 - Popular quotes (most favorited)
-- Favorite/unfavorite quotes
+- Favorite/like quotes functionality
+- "Top of the Week" section
 - Community statistics
 
 **Backend Services:**
 - Telegram Bot (webhook mode)
-- Smart reminder system (3 time slots: morning/afternoon/evening)
+- Smart reminder system via Telegram bot (implemented and active)
 - Cron jobs for report generation & reminders
 - MongoDB integration with indexing
 - Rate limiting & security middleware
+- GPT integration (implemented); Anthropic (Claude) optional
 
-#### 🔄 Partially Implemented
+**User Interface:**
+- Profile & Settings pages
+- Responsive design optimized for Telegram WebView
+- Dark/Light theme support
 
-**UI/UX Refinements:**
-- iOS navigation fixes (scroll jump on modal open/close)
-- Modal height overflow on tall screens (iPad, iPhone 15 Pro Max)
-- Safe area insets (partially applied, needs testing on more devices)
-- Touch target sizes (some buttons <44px, needs audit)
+#### 🔄 Partially Implemented / Planned
+
+**Achievements & Gamification:**
+- UI and design exist
+- Badge system for milestones planned
+- Integration with API pending
 
 **Admin Panel:**
-- User management dashboard exists but not fully adapted to Reader Bot
-- Analytics/UTM tracking visible but limited filtering
-- Content moderation tools planned but not implemented
+- Pages and CSS exist from previous codebase
+- Needs integration with existing Reader Bot API endpoints
+- User management and analytics views present but not fully adapted
 
-**Localization:**
-- Currently Russian-only (`lang="ru"` in HTML)
-- No i18n framework (all strings hardcoded)
+**UI/UX Refinements:**
+- Modal height overflow on tall screens (iPad, iPhone 15 Pro Max) — needs fixing
+- iOS safe-area bottom padding — needs refinement and device testing
+- Red analysis card readability — line-height and contrast improvements needed
+- Touch target sizes — some buttons <44px, audit required
+- Debug logs removal — console.log statements need cleanup
 
-#### ❌ Not Started
+#### ❌ Not Implemented
 
-- **Offline Mode:** IndexedDB caching for quotes
-- **Push Notifications:** Proactive report delivery reminders
-- **Social Sharing:** Share quotes to Telegram channels/groups
-- **Content Moderation:** Flag inappropriate community quotes
-- **A/B Testing:** Experiment framework for UI variants
+- **Offline Mode:** IndexedDB caching for quotes (not implemented)
 
 ---
 
@@ -170,124 +202,64 @@ The brand colors are **hardcoded and locked** in `mini-app/index.html`:
 
 ---
 
-## 🛠 Short-Term Roadmap (Pre-Production)
-
-### Priority 1: Critical Fixes
-
-**1. Modal Height Overflow**
-- **Issue:** On iPad and tall iPhones, modals exceed viewport height
-- **Fix:** Apply `max-height: calc(100vh - var(--safe-area-bottom) - 32px)` and `overflow-y: auto` to `.modal-content`
-- **Files:** `mini-app/css/components/modals.css`
-- **Effort:** 2 hours
-
-**2. iOS Safe Area Refinement**
-- **Issue:** Bottom navigation overlaps home indicator on iPhone 15 Pro Max
-- **Fix:** Test on physical devices, adjust `padding-bottom: env(safe-area-inset-bottom)`
-- **Files:** `mini-app/css/ios-navigation-fix.css`, `mini-app/css/components/navigation.css`
-- **Effort:** 4 hours (requires device testing)
-
-**3. Remove Debug Logs**
-- **Issue:** 100+ `console.log()` statements in production code
-- **Fix:** Wrap debug logs in `if (process.env.NODE_ENV === 'development')` or remove entirely
-- **Files:** All `mini-app/js/**/*.js` files
-- **Effort:** 3 hours
-- **Tool:** `grep -r "console.log" mini-app/js | wc -l` → 127 occurrences
-
-### Priority 2: Accessibility & UX
-
-**4. Touch Target Audit**
-- **Issue:** Some buttons/links are <44px (iOS guideline)
-- **Fix:** Audit all interactive elements, increase padding or `min-height/width: 44px`
-- **Tool:** Browser DevTools → Measure mode
-- **Effort:** 4 hours
-
-**5. Readability & Contrast**
-- **Issue:** Light text on light backgrounds in some modals
-- **Fix:** Run Lighthouse accessibility audit, fix contrast issues
-- **Target:** WCAG AA (4.5:1 ratio)
-- **Effort:** 2 hours
-
-**6. ARIA Labels**
-- **Issue:** Screen reader support incomplete (missing labels on icons)
-- **Fix:** Add `aria-label` to SVG icons, `role` attributes to custom components
-- **Effort:** 3 hours
-
-### Priority 3: Performance
-
-**7. Lighthouse Optimization**
-- **Current Score:** Unknown (needs baseline)
-- **Targets:**
-  - Performance: >90
-  - Accessibility: >90
-  - Best Practices: >95
-  - SEO: >90
-- **Actions:**
-  - Lazy-load images (`loading="lazy"`)
-  - Minify CSS/JS (currently unminified)
-  - Optimize variable fonts (subset if possible)
-  - Remove unused CSS rules
-- **Effort:** 8 hours
-
-**8. Service Worker Enhancements**
-- **Issue:** Current SW caches all assets but doesn't handle offline quote creation
-- **Fix:** Implement IndexedDB queue for offline quote submission
-- **Effort:** 12 hours (complex)
-
----
-
 ## 🐛 Known Issues
 
 ### High Priority
 
-1. **Modal Scroll Jump (iOS)**
-   - **Symptom:** Opening a modal causes page content to jump/scroll
-   - **Cause:** `position: fixed` on modal backdrop changes document height
-   - **Workaround:** Applied `overscroll-behavior: none` in CSS
-   - **Status:** Partially fixed; still occurs on older iOS versions (14.x)
+1. **Modal Overflow on Tall Screens**  
+   - Modals may exceed viewport height on iPad and notched iPhones
+   - Needs `max-height` with internal scroll (`max-height: calc(100vh - var(--safe-area-bottom))` + `overflow-y: auto`)
+   - Priority: Medium
 
-2. **Double-Tap Zoom on Quotes**
-   - **Symptom:** Double-tapping a quote card zooms in
-   - **Cause:** iOS Safari default behavior
-   - **Workaround:** `touchend` event handler with 300ms delay detection
-   - **Status:** Fixed in `mini-app/index.html` but may conflict with link clicks
+2. **iOS Safe Area Bottom Padding**  
+   - Bottom navigation may overlap home indicator on newer iPhones
+   - Requires testing on iPhone 15 Pro Max and refinement of `env(safe-area-inset-bottom)`
+   - Priority: Medium
 
-3. **Avatar Upload 404 on First Attempt**
-   - **Symptom:** First avatar upload fails with 404, second attempt succeeds
-   - **Cause:** Race condition in directory creation (`mkdir -p`)
-   - **Fix:** Already patched in `server/api/reader.js` (sync `mkdirSync`)
-   - **Status:** Resolved
+3. **Red Analysis Card Readability**  
+   - Text contrast and line-height issues on "Analysis from Anna" cards
+   - Needs improved line-height and contrast ratio adjustments
+   - Priority: Low
 
-### Medium Priority
+4. **Touch Target Sizes**  
+   - Some interactive elements are <44px (iOS guideline)
+   - Full audit required to ensure all buttons/links meet ≥44px minimum
+   - Priority: High
 
-4. **Telegram Theme Not Applied on Launch**
-   - **Symptom:** App loads with light theme even if user has dark mode in Telegram
-   - **Cause:** Theme params applied async after WebApp.ready()
-   - **Fix:** Move theme detection to synchronous init block
-   - **Status:** To Do
+5. **Debug Logs in Production**  
+   - Console logs not removed from some files
+   - Need to strip all `console.log()` statements before release
+   - Priority: High
 
-5. **Navigation Drawer Flicker**
-   - **Symptom:** Bottom nav icons flash when switching pages
-   - **Cause:** `.active` class removed/added with slight delay
-   - **Fix:** Use CSS transitions with `will-change: transform`
-   - **Status:** To Do
+---
 
-6. **Quote Search Lag on Large Datasets**
-   - **Symptom:** Search input lags when user has 500+ quotes
-   - **Cause:** Client-side filtering without debouncing
-   - **Fix:** Add 300ms debounce to search handler
-   - **Status:** To Do
+## 🛠 Short-Term Roadmap
 
-### Low Priority
+- [ ] **Integrate Admin Panel** — Connect existing admin UI with Reader Bot API endpoints
+- [ ] **Implement Achievements** — Complete gamification system with badge unlocking
+- [ ] **Fix Modal/Safe-Area Issues** — Address modal overflow and iOS safe-area padding
+- [ ] **Accessibility Fixes** — Ensure touch targets ≥44px, improve readability, add ARIA labels
+- [ ] **Remove Debug Logs** — Strip all console logging for production
+- [ ] **Add Smoke/E2E Tests** — Set up Playwright or similar for automated testing
+- [ ] **Simple CI Setup** — Basic GitHub Actions for linting and tests
+- [ ] **Validate Theme Handling** — Test Telegram dark/light mode theme switching
 
-7. **Font Loading Flash** (FOUT)
-   - **Symptom:** System font briefly shown before variable fonts load
-   - **Fix:** Use `font-display: swap` (already applied) and inline critical CSS
-   - **Status:** Minor cosmetic issue
+---
 
-8. **Empty State Illustrations**
-   - **Symptom:** Placeholder emojis instead of custom illustrations
-   - **Fix:** Design + implement SVG illustrations for empty diary, no reports, etc.
-   - **Status:** Design asset needed
+## 📋 Deployment Notes
+
+### Production Deployment Process
+1. SSH into Contabo VPS
+2. Navigate to app directory
+3. Pull latest changes from repository
+4. Install dependencies: `npm install`
+5. Restart PM2 process: `pm2 restart reader-bot`
+6. Monitor logs: `pm2 logs reader-bot`
+
+### MongoDB Management
+- MongoDB runs via Docker on the VPS
+- Connection string configured in `.env` file
+- Database backups should be configured separately
 
 ---
 
