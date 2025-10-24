@@ -12,6 +12,8 @@ yarn.lock
 .env.development.local
 .env.test.local
 .env.production.local
+env/*.env*
+env/.env*
 
 # Logs
 logs/
@@ -210,6 +212,3 @@ coverage/
 .nyc_output/
 test-results/
 junit.xml
-
-# Test files
-test-*.js
