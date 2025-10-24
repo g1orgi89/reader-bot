@@ -25,7 +25,7 @@ This repository includes:
 - **Telegram WebApp SDK mock** — For local development and testing outside Telegram
 - **VPS deployment notes** — Contabo hosting setup with PM2 process management and MongoDB via Docker
 
-> 📄 For deeper project status, implementation details, and known issues, see [PROJECT_KNOWLEDGE.md](PROJECT_KNOWLEDGE.md).
+> 📄 For deeper project status, implementation details, and known issues, see [PROJECT_KNOWLEDGE.md](docs/PROJECT_KNOWLEDGE.md).
 
 ---
 
