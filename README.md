@@ -8,7 +8,7 @@
 
 **📱 Open in Telegram:** [https://t.me/reader_app_bot/Reader](https://t.me/reader_app_bot/Reader)
 
-> ⚠️ **Note:** This app runs inside Telegram WebApp. Opening the VPS domain directly will not load the UI. For local development use the Mock Telegram WebApp SDK (see Quick start).
+> ⚠️ **Note:** This app runs inside Telegram WebApp. Opening the VPS domain directly will not load the UI. For local development use the Mock Telegram WebApp SDK (see Local Testing).
 
 ### How to open in Telegram
 1. Click the link above or search for `@reader_app_bot` in Telegram
@@ -24,6 +24,8 @@ This repository includes:
 - **Documentation** — README, PROJECT_KNOWLEDGE, CHANGELOG, .env.example
 - **Telegram WebApp SDK mock** — For local development and testing outside Telegram
 - **VPS deployment notes** — Contabo hosting setup with PM2 process management and MongoDB via Docker
+
+> 📄 For deeper project status, implementation details, and known issues, see [PROJECT_KNOWLEDGE.md](PROJECT_KNOWLEDGE.md).
 
 ---
 
@@ -123,9 +125,7 @@ _Visuals coming soon! Please add screenshots/GIFs to `docs/screenshots/` to show
 
 ## Access & Evaluation
 
-This repository contains proprietary code and is not openly licensed for reuse. All rights are reserved by the project owner.
-
-If you'd like to evaluate the project or request access to the source, please contact: g.akhmeteli89@gmail.com
+All rights reserved. This repository is public for evaluation by reviewers. Cloning for interview/review is allowed; redistribution and commercial use are prohibited. For permissions: g.akhmeteli89@gmail.com
 
 > Note: The Reader Mini App UI runs inside Telegram WebApp. For demonstrations we provide screenshots and a demo video in docs/screenshots/; the source code is available on request.
 
@@ -220,7 +220,7 @@ Defined in [`mini-app/css/variables.css`](mini-app/css/variables.css):
 - **Typography:** +1px font scale on mobile (17px base instead of 16px)
 - **Safe areas:** iOS notch/home indicator respected via `env(safe-area-inset-*)`
 
-**Important:** Rely only on variables from `mini-app/css/variables.css`. Do NOT modify existing CSS variables or add new ones without reviewing the complete design system.
+**Important:** Use only variables from `mini-app/css/variables.css`. Do NOT add or rename tokens.
 
 ---
 
@@ -459,21 +459,7 @@ This project has the following constraints:
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes (ensure they pass `npm run lint`)
-4. Commit with clear messages (`git commit -m 'Add amazing feature'`)
-5. Push to your fork (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
-
-**Contribution Guidelines:**
-- Follow existing code style (JSDoc comments, no TypeScript)
-- Test on iOS Safari (primary target)
-- Do NOT modify `mini-app/css/variables.css` colors (brand locked)
-- Add tests for new API endpoints
-- Update this README if adding features
+This project is proprietary. Contributions are handled by maintainers. To propose changes or request access, contact: g.akhmeteli89@gmail.com
 
 ---
 
