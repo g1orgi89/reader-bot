@@ -8,12 +8,15 @@
 ## 🌐 Hosting & Production Details
 
 ### Live Environment
-- **Domain:** [app.unibotz.com](https://app.unibotz.com)
+- **API Host:** [app.unibotz.com](https://app.unibotz.com) (backend API only, no public web UI)
 - **Telegram Entry:** [https://t.me/reader_app_bot/Reader](https://t.me/reader_app_bot/Reader)
 - **Hosting Provider:** Contabo VPS
+- **Web Server:** Nginx reverse proxy
 - **Process Manager:** PM2 (`pm2 start server/index.js --name reader-bot`)
 - **Database:** MongoDB via Docker on VPS
 - **Deployment:** SSH-based manual deployment
+
+> **Important:** This is a **Telegram-only Mini App**. The domain app.unibotz.com serves as the API host behind Nginx/PM2. The user interface is only accessible via the Telegram Mini App, not by visiting the domain directly.
 
 ### Infrastructure Commands
 ```bash

@@ -7,8 +7,14 @@
 > **A personal quote diary Telegram Mini App for psychologist Anna Busel**  
 > Helps readers capture meaningful book quotes, receive AI-powered weekly insights, and discover personalized book recommendations.
 
-**🔗 Live App:** [https://app.unibotz.com](https://app.unibotz.com)  
-**📱 Telegram Entry:** [https://t.me/reader_app_bot/Reader](https://t.me/reader_app_bot/Reader)
+**📱 Open in Telegram:** [https://t.me/reader_app_bot/Reader](https://t.me/reader_app_bot/Reader)
+
+> ⚠️ **Note:** This app runs inside Telegram WebApp. Opening the VPS domain directly will not load the UI. For local development use the Mock Telegram WebApp SDK (see Quick start).
+
+### How to open in Telegram
+1. Click the link above or search for `@reader_app_bot` in Telegram
+2. Start a chat with the bot
+3. Tap the "Reader" menu button or send `/start` to launch the Mini App
 
 ---
 
@@ -75,6 +81,17 @@ _Visuals coming soon! Please add screenshots/GIFs to `docs/screenshots/` to show
 - **Achievements & Gamification** — Badge system for milestones (UI designed, integration pending)
 - **Admin Panel** — Pages and CSS exist; needs integration with existing API endpoints
 - **Offline Mode** — IndexedDB caching for quotes (not yet implemented)
+
+### 💡 Proposed improvements (short)
+
+- **Monthly report screen** — Full monthly summary
+- **Public user profile card + subscribe** — Social features for following readers
+- **Admin dashboard** — Analytics and content metrics
+- **Top of the month** — Featured content in feed/catalog
+- **Challenges + badges** — MVP gamification set
+- **Subscriptions feed** — Following tab for subscribed users
+- **Comments** — Basic commenting system
+- **Share quote as image** — Export quotes as shareable graphics
 
 ---
 
@@ -288,10 +305,14 @@ curl http://localhost:3002/api/reader/recommendations \
 The app is deployed on a **Contabo VPS** with the following setup:
 
 ### Infrastructure
-- **Hosting:** Contabo VPS (app.unibotz.com)
+- **Hosting:** Contabo VPS
+- **API Host:** app.unibotz.com (backend API only, no public web UI)
+- **Web Server:** Nginx reverse proxy
 - **Process Manager:** PM2 for Node.js process management
 - **Database:** MongoDB running via Docker on VPS
 - **Deployment Method:** SSH-based manual deployment
+
+> **Note:** The domain app.unibotz.com serves as the API host behind Nginx/PM2. The user interface is only accessible via the Telegram Mini App.
 
 ### PM2 Process Management
 
@@ -472,6 +493,7 @@ We welcome contributions! Here's how to get started:
 
 **Maintainer:** [@g1orgi89](https://github.com/g1orgi89) (Project Lead)  
 **Project Lead:** Anna Busel ([annabusel.org](https://annabusel.org))  
+**Email:** g.akhmeteli89@gmail.com  
 **Issues:** [GitHub Issues](https://github.com/g1orgi89/reader-bot/issues)
 
 For urgent support, contact the development team via Telegram.
