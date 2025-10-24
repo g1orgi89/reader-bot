@@ -1,0 +1,45 @@
+# Screenshots Directory
+
+This folder is designated for visual assets showcasing the Reader Bot Telegram Mini App.
+
+## What to Add
+
+Please add the following types of visual content here:
+
+1. **Screenshots:**
+   - Onboarding flow (personality test)
+   - Quote diary interface
+   - Weekly AI-powered reports
+   - Book catalog and recommendations
+   - Community quotes feed
+   - Achievements dashboard
+   - Settings and help pages
+
+2. **GIFs/Videos:**
+   - User interaction demos
+   - Feature walkthroughs
+   - Mobile responsiveness showcase
+
+3. **UI/UX Examples:**
+   - Dark mode theme
+   - Light mode theme
+   - Different device sizes (iPhone, Android, iPad)
+
+## Naming Convention
+
+Use descriptive filenames:
+- `onboarding-step-1.png`
+- `quote-diary-mobile.png`
+- `weekly-report-example.png`
+- `dark-mode-demo.gif`
+
+## Usage
+
+These assets are referenced in the main README.md. Update the README when adding new screenshots.
+
+## Maintainer Instructions
+
+1. Take screenshots on actual devices (iPhone/Android preferred)
+2. Optimize images before committing (use tools like ImageOptim, TinyPNG)
+3. Recommended size: max 1920px width
+4. Supported formats: PNG, JPEG, GIF, WebP
