@@ -21,7 +21,7 @@
 
 This repository includes:
 - **End-to-end manual testing assets** — Device matrix, smoke test cases, bug report template
-- **Documentation** — README, PROJECT_KNOWLEDGE, CHANGELOG, .env.example
+- **Documentation** — README, PROJECT_KNOWLEDGE, .env.example
 - **Telegram WebApp SDK mock** — For local development and testing outside Telegram
 - **VPS deployment notes** — Contabo hosting setup with PM2 process management and MongoDB via Docker
 
