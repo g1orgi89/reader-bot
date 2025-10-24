@@ -126,7 +126,7 @@ pm2 stop reader-bot
 ## 🎯 Project Overview
 
 **Product Name:** Reader Bot  
-**Client:** Anna Busel — Psychologist & Book Club Founder  
+**Project owner / Client:** Anna Busel — Psychologist & Book Club Founder  
 **Purpose:** Personal quote diary that drives book purchase conversions through:
 - Weekly AI-powered psychological insights
 - Personalized book recommendations

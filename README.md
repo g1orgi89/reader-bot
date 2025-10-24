@@ -18,6 +18,34 @@
 
 ---
 
+## 📦 What's covered in this repo
+
+This repository includes:
+- **End-to-end manual testing assets** — Device matrix, smoke test cases, bug report template
+- **Documentation** — README, PROJECT_KNOWLEDGE, CHANGELOG, .env.example
+- **Telegram WebApp SDK mock** — For local development and testing outside Telegram
+- **VPS deployment notes** — Contabo hosting setup with PM2 process management and MongoDB via Docker
+
+---
+
+## ⚡ How to evaluate in 2 minutes
+
+Quick walkthrough of main Telegram flow:
+
+1. **Open bot → Open Reader → allow web app**  
+   _Expected:_ Onboarding flow (7-question personality test) or main app if already registered
+
+2. **Add a quote (Diary) → see "Analysis from Anna"**  
+   _Expected:_ Quote saved successfully; AI-powered analysis appears on the quote card
+
+3. **Open Community feed → like a quote**  
+   _Expected:_ Latest quotes from other readers displayed; like button toggles quote favoriting
+
+4. **Open Catalog → view items**  
+   _Expected:_ Curated psychology/self-help books load with breakdowns and recommendations
+
+---
+
 ## 🛠 Tech Stack
 
 ### Frontend
@@ -80,7 +108,6 @@ _Visuals coming soon! Please add screenshots/GIFs to `docs/screenshots/` to show
 
 - **Achievements & Gamification** — Badge system for milestones (UI designed, integration pending)
 - **Admin Panel** — Pages and CSS exist; needs integration with existing API endpoints
-- **Offline Mode** — IndexedDB caching for quotes (not yet implemented)
 
 ### 💡 Proposed improvements (short)
 
@@ -241,7 +268,7 @@ Defined in [`mini-app/css/variables.css`](mini-app/css/variables.css):
 - **Typography:** +1px font scale on mobile (17px base instead of 16px)
 - **Safe areas:** iOS notch/home indicator respected via `env(safe-area-inset-*)`
 
-**Important:** Do NOT modify existing CSS variables or add new ones. Reference `variables.css` for all available tokens.
+**Important:** Rely only on variables from `mini-app/css/variables.css`. Do NOT modify existing CSS variables or add new ones without reviewing the complete design system.
 
 ---
 
@@ -415,7 +442,6 @@ Instead shows...
 - [ ] No console errors on clean user flow
 - [ ] Touch targets ≥ 44px on all interactive elements
 - [ ] Proper error messages for API failures
-- [ ] Graceful offline degradation (cached data shown)
 
 ### Performance & Accessibility
 - **Lighthouse Score Target:** >90 (Performance, Accessibility)
@@ -469,6 +495,16 @@ Instead shows...
 
 ---
 
+## ⚠️ Limitations
+
+This project has the following constraints:
+
+- **Telegram-only UI** — The VPS domain (app.unibotz.com) serves the API behind Nginx/PM2. There is no public web UI; the user interface is accessible only via the Telegram Mini App.
+- **Pilot testing cohort** — Currently in testing phase with a limited user group.
+- **API examples are illustrative** — Code samples in this README may differ from the current production implementation.
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions! Here's how to get started:
@@ -491,8 +527,8 @@ We welcome contributions! Here's how to get started:
 
 ## 📞 Contact & Support
 
-**Maintainer:** [@g1orgi89](https://github.com/g1orgi89) (Project Lead)  
-**Project Lead:** Anna Busel ([annabusel.org](https://annabusel.org))  
+**Maintainer:** [@g1orgi89](https://github.com/g1orgi89)  
+**Project owner / Client:** Anna Busel ([annabusel.org](https://annabusel.org))  
 **Email:** g.akhmeteli89@gmail.com  
 **Issues:** [GitHub Issues](https://github.com/g1orgi89/reader-bot/issues)
 
