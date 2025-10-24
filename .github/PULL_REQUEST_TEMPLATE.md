@@ -72,7 +72,7 @@ Relates to #
 ### Documentation
 - [ ] I have updated the README.md if needed
 - [ ] I have updated JSDoc comments for new/modified functions
-- [ ] I have updated PROJECT_KNOWLEDGE.md if architecture changed
+- [ ] I have updated docs/PROJECT_KNOWLEDGE.md if architecture changed
 - [ ] I have added an entry to CHANGELOG.md under "Unreleased"
 
 ### Security & Performance
