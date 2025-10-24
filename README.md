@@ -68,15 +68,43 @@ Quick walkthrough of main Telegram flow:
 
 ## 📸 Screenshots
 
-_Visuals coming soon! Please add screenshots/GIFs to `docs/screenshots/` to showcase:_
-- Onboarding flow (personality test)
-- Quote diary with cards
-- Weekly AI-powered reports
-- Book catalog with recommendations
-- Community quotes feed
-- Achievements & gamification
+### Onboarding Flow
+![Onboarding - 7-question personality test](docs/screenshots/onboarding.jpg)
 
-**Instructions for maintainers:** Place PNG/JPEG screenshots or GIF demos in `docs/screenshots/` and reference them here.
+### Quote Creation
+![Add Quote - Diary interface](docs/screenshots/quotes_page.add_quote.jpg)
+
+### Community Feed
+![Community Quotes Feed](docs/screenshots/commynity_page_quotes_feed.jpg)
+
+### Book Catalog
+![Catalog - Psychology & Self-Help Books](docs/screenshots/catalog_page.jpg)
+
+### Weekly AI Analysis
+![Weekly Report & Analysis from Anna](docs/screenshots/quotes_page_week_analyze.jpg)
+
+<details>
+<summary><strong>View More Screenshots</strong></summary>
+
+### Main Page
+![Main Dashboard](docs/screenshots/main_page.jpg)
+
+### Quote Diary
+![Quote Diary with Cards](docs/screenshots/quotes_page_diary.jpg)
+
+### Top of the Week
+![Community - Top of the Week](docs/screenshots/community_page_top_of_week.jpg)
+
+### Community Statistics
+![Community Statistics](docs/screenshots/community_page_statistics.jpg)
+
+### Settings
+![Settings & Preferences](docs/screenshots/settings.jpg)
+
+### Dark Theme
+![Dark Theme Mode](docs/screenshots/dark_theme.jpg)
+
+</details>
 
 ---
 
