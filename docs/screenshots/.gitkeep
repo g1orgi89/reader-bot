@@ -41,5 +41,6 @@ These assets are referenced in the main README.md. Update the README when adding
 
 1. Take screenshots on actual devices (iPhone/Android preferred)
 2. Optimize images before committing (use tools like ImageOptim, TinyPNG)
-3. Recommended size: max 1920px width
-4. Supported formats: PNG, JPEG, GIF, WebP
+3. Recommended dimensions: max 1920px width
+4. File size limit: Keep under 2MB per file for web performance
+5. Supported formats: PNG, JPEG, GIF, WebP

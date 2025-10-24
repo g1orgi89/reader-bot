@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE: Reader Bot Telegram Mini App
 
-**Last Updated:** 2024-10-24  
+**Last Updated:** October 2024  
 **Status:** Development (Pre-Production)
 
 ---

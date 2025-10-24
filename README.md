@@ -392,7 +392,7 @@ We welcome contributions! Here's how to get started:
 
 ## 📞 Contact & Support
 
-**Maintainer:** [@g1orgi89](https://github.com/g1orgi89)  
+**Maintainer:** [@g1orgi89](https://github.com/g1orgi89) (Project Lead)  
 **Project Lead:** Anna Busel ([annabusel.org](https://annabusel.org))  
 **Issues:** [GitHub Issues](https://github.com/g1orgi89/reader-bot/issues)
 
