@@ -1,6 +1,5 @@
 # 📖 Reader Bot — Telegram Mini App
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen.svg)](https://nodejs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7.0%2B-green.svg)](https://www.mongodb.com/)
 
@@ -122,60 +121,13 @@ _Visuals coming soon! Please add screenshots/GIFs to `docs/screenshots/` to show
 
 ---
 
-## 🚀 Quick Start
+## Access & Evaluation
 
-### Prerequisites
-- **Node.js** 18+ and npm 8+
-- **MongoDB** 7.0+ (local or remote)
-- **Telegram Bot Token** — Get one from [@BotFather](https://t.me/botfather)
-- **Anthropic API Key** — For Claude AI (or OpenAI API key)
+This repository contains proprietary code and is not openly licensed for reuse. All rights are reserved by the project owner.
 
-### 1. Clone & Install
+If you'd like to evaluate the project or request access to the source, please contact: g.akhmeteli89@gmail.com
 
-```bash
-git clone https://github.com/g1orgi89/reader-bot.git
-cd reader-bot
-npm install
-```
-
-### 2. Environment Setup
-
-```bash
-cp .env.example .env
-# Edit .env with your credentials (see .env.example for guidance)
-```
-
-**Key variables:**
-- `PORT=3002`
-- `MONGODB_URI=mongodb://localhost:27017/reader_bot`
-- `TELEGRAM_BOT_TOKEN=your_bot_token_here`
-- `ANTHROPIC_API_KEY=your_anthropic_key` (or `OPENAI_API_KEY`)
-- `ADMIN_USERNAME` / `ADMIN_PASSWORD` for admin panel
-
-See [`.env.example`](.env.example) for complete reference.
-
-### 3. Database Setup
-
-```bash
-npm run db:setup
-```
-
-This creates the `reader_bot` MongoDB database with required collections.
-
-### 4. Start the Server
-
-```bash
-# Development mode (with auto-reload)
-npm run dev
-
-# Production mode
-npm start
-```
-
-Access:
-- **Main App:** http://localhost:3002
-- **Admin Panel:** http://localhost:3002/reader-admin
-- **API Health:** http://localhost:3002/api/reader/health
+> Note: The Reader Mini App UI runs inside Telegram WebApp. For demonstrations we provide screenshots and a demo video in docs/screenshots/; the source code is available on request.
 
 ---
 
@@ -533,12 +485,6 @@ We welcome contributions! Here's how to get started:
 **Issues:** [GitHub Issues](https://github.com/g1orgi89/reader-bot/issues)
 
 For urgent support, contact the development team via Telegram.
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
 ---
 
