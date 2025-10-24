@@ -1,4 +1,4 @@
-# 📖 Reader Bot — Telegram Mini App
+# 📖 Reader — Telegram Mini App
 
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen.svg)](https://nodejs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7.0%2B-green.svg)](https://www.mongodb.com/)
