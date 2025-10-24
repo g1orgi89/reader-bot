@@ -151,11 +151,11 @@ Quick walkthrough of main Telegram flow:
 
 ---
 
-## Access & Evaluation
+##  🔐 License & Access
 
 All rights reserved. This repository is public for evaluation by reviewers. Cloning for interview/review is allowed; redistribution and commercial use are prohibited. For permissions: g.akhmeteli89@gmail.com
 
-> Note: The Reader Mini App UI runs inside Telegram WebApp. For demonstrations we provide screenshots and a demo video in docs/screenshots/; the source code is available on request.
+> Note: The Reader Mini App UI runs inside Telegram WebApp. For demonstrations we provide screenshots and a demo video in docs/screenshots/; full developer setup is available on request.
 
 ---
 
