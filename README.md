@@ -66,7 +66,12 @@ Quick walkthrough of main Telegram flow:
 
 ---
 
-## 📸 Screenshots
+## 📸 Screenshots and demo videos
+
+### Demo Videos
+
+- Primary demo — ~2 minutes: https://youtube.com/shorts/HT82HXNhoSk?si=kE2RfHF9ddvIWS9o
+- Second demo - ~30 seconds: https://youtube.com/shorts/pTavLT7PZRs?si=T5HaOaHocbmfN2bi
 
 ### Onboarding Flow
 ![Onboarding - 7-question personality test](docs/screenshots/onboarding.jpg)
