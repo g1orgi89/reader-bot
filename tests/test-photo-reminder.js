@@ -18,9 +18,9 @@ const RECIPIENTS = [
   { id: '1798451247', name: 'Giorgi' }
 ];
 
-// Пути к картинкам
-const PHOTO_VERTICAL = path.join(__dirname, 'images', 'photo_2025-11-09_09-22-53.jpg');
-const PHOTO_HORIZONTAL = path.join(__dirname, 'images', 'photo_2025-11-09_09-22-51.jpg');
+// Пути к картинкам (исправлено - они в server/tests/images/)
+const PHOTO_VERTICAL = path.join(__dirname, '..', 'server', 'tests', 'images', 'photo_2025-11-09_09-22-53.jpg');
+const PHOTO_HORIZONTAL = path.join(__dirname, '..', 'server', 'tests', 'images', 'photo_2025-11-09_09-22-51.jpg');
 
 async function sendTestReminder() {
   console.log('🚀 Начинаем тестовую отправку напоминаний с картинками...\n');
