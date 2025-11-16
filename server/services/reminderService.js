@@ -1,10 +1,13 @@
 /**
  * @fileoverview Production-ready Telegram notification system for Reader Bot
+ * Supports text-only, image-only, and text+image notifications
  * @author g1orgi89
  */
 
 const logger = require('../utils/logger');
 const { notificationTemplates } = require('../config/notificationTemplates');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * @typedef {Object} ReminderStats
@@ -15,14 +18,16 @@ const { notificationTemplates } = require('../config/notificationTemplates');
  */
 
 /**
- * Production-ready сервис напоминаний с тремя фиксированными слотами
+ * Production-ready сервис напоминаний с поддержкой изображений
  */
 class ReminderService {
   constructor() {
     this.bot = null;
     this.templates = notificationTemplates;
+    this.assetsPath = path.join(__dirname, '../assets/notifications');
 
-    logger.info('🔔 ReminderService initialized with weekday-based system');
+    logger.info('🔔 ReminderService initialized with date-based notification system');
+    logger.info(`📂 Assets path: ${this.assetsPath}`);
   }
 
   /**
@@ -36,8 +41,39 @@ class ReminderService {
   }
 
   /**
+   * Получить шаблон уведомления для конкретной даты и слота
+   * @param {string} dateKey - Ключ даты в формате YYYY-MM-DD
+   * @param {string} slot - Слот времени: 'report', 'morning', 'day', 'evening'
+   * @returns {Object|null} Объект шаблона или null
+   */
+  getNotificationTemplate(dateKey, slot) {
+    const dayTemplates = this.templates[dateKey];
+    
+    if (!dayTemplates) {
+      return null;
+    }
+
+    return dayTemplates[slot] || null;
+  }
+
+  /**
+   * Проверить существование файла изображения
+   * @param {string} imagePath - Путь к изображению
+   * @returns {boolean}
+   */
+  imageExists(imagePath) {
+    try {
+      const fullPath = path.join(this.assetsPath, path.basename(imagePath));
+      return fs.existsSync(fullPath);
+    } catch (error) {
+      logger.error(`🖼️ Error checking image existence: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
    * Отправка напоминаний для определенного слота
-   * @param {string} slot - Слот времени: 'morning', 'day', 'evening'
+   * @param {string} slot - Слот времени: 'morning', 'day', 'evening', 'report'
    * @returns {Promise<ReminderStats>}
    */
   async sendSlotReminders(slot) {
@@ -46,28 +82,34 @@ class ReminderService {
       return { sent: 0, skipped: 0, failed: 0, errors: [] };
     }
 
-    if (!['morning', 'day', 'evening'].includes(slot)) {
+    if (!['report', 'morning', 'day', 'evening'].includes(slot)) {
       logger.error(`🔔 Invalid slot: ${slot}`);
       return { sent: 0, skipped: 0, failed: 0, errors: [] };
     }
 
     try {
       const stats = { sent: 0, skipped: 0, failed: 0, errors: [] };
-      const today = new Date();
-      const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      
+      // Получаем текущую дату в формате YYYY-MM-DD для Moscow timezone
+      const dateKey = this.getCurrentMoscowDateKey();
+      logger.info(`🔔 Processing ${slot} reminders for date: ${dateKey}`);
 
-      // Compute current weekday in Moscow timezone
-      const dayName = this.getMoscowWeekday();
-      logger.info(`🔔 Current Moscow weekday: ${dayName}`);
+      // Получаем шаблон для этой даты и слота
+      const template = this.getNotificationTemplate(dateKey, slot);
+      
+      if (!template) {
+        logger.info(`🔔 No template found for date ${dateKey}, slot ${slot} - skipping`);
+        return stats;
+      }
 
       // Получаем пользователей для отправки напоминаний
-      const eligibleUsers = await this.getEligibleUsers(slot, dayOfWeek);
+      const eligibleUsers = await this.getEligibleUsers(slot);
       logger.info(`[DEBUG] eligibleUsers: ` + eligibleUsers.map(u => `${u.userId} (${u.name})`).join(', '));
       logger.info(`🔔 Processing ${slot} reminders for ${eligibleUsers.length} users`);
 
       for (const user of eligibleUsers) {
         try {
-          const result = await this.sendReminderToUser(user, slot, dayName);
+          const result = await this.sendReminderToUser(user, template, slot, dateKey);
           
           if (result === 'sent') {
             stats.sent++;
@@ -98,32 +140,32 @@ class ReminderService {
   }
 
   /**
-   * Get current weekday name in Moscow timezone
-   * @returns {string} Weekday name in Russian (capitalized)
+   * Get current date key in Moscow timezone (YYYY-MM-DD)
+   * @returns {string} Date key
    */
-  getMoscowWeekday() {
-    const formatter = new Intl.DateTimeFormat('ru-RU', {
-      weekday: 'long',
-      timeZone: 'Europe/Moscow'
+  getCurrentMoscowDateKey() {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Moscow',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
     });
-    const dayName = formatter.format(new Date());
-    // Capitalize first letter
-    return dayName.charAt(0).toUpperCase() + dayName.slice(1);
+    
+    return formatter.format(new Date());
   }
 
   /**
    * Получить пользователей, которым нужно отправить напоминания
    * @param {string} slot - Слот времени
-   * @param {number} dayOfWeek - День недели (0-6)
    * @returns {Promise<Array>}
    */
-  async getEligibleUsers(slot, dayOfWeek) {
+  async getEligibleUsers(slot) {
     try {
       const { UserProfile, Quote } = require('../models');
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-      // Optimized MongoDB query with filtering
+      // Базовый запрос для активных пользователей
       const baseQuery = {
         isActive: true,
         isBlocked: { $ne: true },
@@ -143,12 +185,19 @@ class ReminderService {
       for (const user of allUsers) {
         const settings = user.getNormalizedSettings();
         
-        // Проверяем включены ли напоминания (double-check after DB query)
+        // Проверяем включены ли напоминания
         if (!settings.reminders.enabled) {
           continue;
         }
 
-        // Проверяем частоту и применяем логику слотов
+        // Для слота 'report' отправляем всем активным пользователям
+        if (slot === 'report') {
+          eligibleUsers.push(user);
+          continue;
+        }
+
+        // Для остальных слотов проверяем частоту
+        const dayOfWeek = today.getDay();
         if (!this.shouldSendForFrequency(settings.reminders.frequency, slot, dayOfWeek)) {
           continue;
         }
@@ -203,40 +252,124 @@ class ReminderService {
 
   /**
    * Отправить напоминание конкретному пользователю
+   * Поддерживает 3 типа уведомлений:
+   * 1. Только текст (text)
+   * 2. Только изображение (image)
+   * 3. Текст + изображение (text + image)
+   * 
    * @param {Object} user - Пользователь
+   * @param {Object} template - Шаблон уведомления
    * @param {string} slot - Слот времени
-   * @param {string} dayName - Название дня недели
+   * @param {string} dateKey - Ключ даты
    * @returns {Promise<string>} 'sent' or 'skipped'
    */
-  async sendReminderToUser(user, slot, dayName) {
-    // Get template for this weekday and slot
-    const template = this.templates[dayName]?.[slot] || '';
-    
-    // If template is empty or whitespace-only, skip sending
-    if (!template || template.trim() === '') {
-      logger.info(`🔔 Skipped ${slot} reminder for user ${user.userId} (${user.name}) - empty template for ${dayName}`);
+  async sendReminderToUser(user, template, slot, dateKey) {
+    const hasText = template.text && template.text.trim() !== '';
+    const hasImage = template.image && template.image.trim() !== '';
+
+    // Если нет ни текста, ни изображения - пропускаем
+    if (!hasText && !hasImage) {
+      logger.info(`🔔 Skipped ${slot} reminder for user ${user.userId} (${user.name}) - empty template for ${dateKey}`);
       return 'skipped';
     }
 
-    // Build message from template (no user name prefix)
-    let message = template;
-    
-    // Добавляем информацию о сегодняшних цитатах, если есть
-    const { Quote } = require('../models');
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayCount = await Quote.countDocuments({
-      userId: user.userId,
-      createdAt: { $gte: startOfDay }
-    });
+    try {
+      // СЛУЧАЙ 1: Только изображение (без текста)
+      if (hasImage && !hasText) {
+        const imagePath = path.join(this.assetsPath, path.basename(template.image));
+        
+        if (!fs.existsSync(imagePath)) {
+          logger.warn(`🖼️ Image not found: ${imagePath} - skipping for user ${user.userId}`);
+          return 'skipped';
+        }
 
-    if (todayCount > 0) {
-      message += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+        await this.bot.telegram.sendPhoto(
+          user.userId,
+          { source: fs.createReadStream(imagePath) }
+        );
+
+        logger.info(`🖼️ Sent image-only ${slot} reminder to user ${user.userId} (${user.name})`);
+        return 'sent';
+      }
+
+      // СЛУЧАЙ 2: Только текст (без изображения)
+      if (hasText && !hasImage) {
+        let message = template.text;
+        
+        // Добавляем информацию о сегодняшних цитатах, если есть
+        const todayCount = await this.getTodayQuotesCount(user.userId);
+        if (todayCount > 0) {
+          message += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+        }
+
+        await this.bot.telegram.sendMessage(user.userId, message);
+        logger.info(`📝 Sent text-only ${slot} reminder to user ${user.userId} (${user.name})`);
+        return 'sent';
+      }
+
+      // СЛУЧАЙ 3: Текст + Изображение
+      if (hasText && hasImage) {
+        const imagePath = path.join(this.assetsPath, path.basename(template.image));
+        
+        // Если изображение не найдено - отправляем только текст
+        if (!fs.existsSync(imagePath)) {
+          logger.warn(`🖼️ Image not found: ${imagePath} - sending text only for user ${user.userId}`);
+          
+          let message = template.text;
+          const todayCount = await this.getTodayQuotesCount(user.userId);
+          if (todayCount > 0) {
+            message += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+          }
+
+          await this.bot.telegram.sendMessage(user.userId, message);
+          logger.info(`📝 Sent text-only ${slot} reminder (image missing) to user ${user.userId} (${user.name})`);
+          return 'sent';
+        }
+
+        // Отправляем изображение с текстом в caption
+        let caption = template.text;
+        const todayCount = await this.getTodayQuotesCount(user.userId);
+        if (todayCount > 0) {
+          caption += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+        }
+
+        await this.bot.telegram.sendPhoto(
+          user.userId,
+          { source: fs.createReadStream(imagePath) },
+          { caption: caption }
+        );
+
+        logger.info(`📸 Sent text+image ${slot} reminder to user ${user.userId} (${user.name})`);
+        return 'sent';
+      }
+
+      return 'skipped';
+
+    } catch (error) {
+      logger.error(`🔔 Error sending reminder to user ${user.userId}:`, error);
+      throw error;
     }
+  }
 
-    await this.bot.telegram.sendMessage(user.userId, message);
-    logger.info(`🔔 Sent ${slot} reminder to user ${user.userId} (${user.name})`);
-    return 'sent';
+  /**
+   * Получить количество цитат пользователя за сегодня
+   * @param {string} userId - ID пользователя
+   * @returns {Promise<number>}
+   */
+  async getTodayQuotesCount(userId) {
+    try {
+      const { Quote } = require('../models');
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      
+      return await Quote.countDocuments({
+        userId: userId,
+        createdAt: { $gte: startOfDay }
+      });
+    } catch (error) {
+      logger.error(`🔔 Error getting today quotes count for user ${userId}:`, error);
+      return 0;
+    }
   }
 
   /**
@@ -266,8 +399,10 @@ class ReminderService {
     return {
       initialized: !!this.bot,
       status: this.bot ? 'ready' : 'bot_not_initialized',
-      slots: ['morning', 'day', 'evening'],
-      frequencies: ['off', 'rare', 'standard', 'often']
+      slots: ['report', 'morning', 'day', 'evening'],
+      frequencies: ['off', 'rare', 'standard', 'often'],
+      assetsPath: this.assetsPath,
+      templateDates: Object.keys(this.templates).length
     };
   }
 
