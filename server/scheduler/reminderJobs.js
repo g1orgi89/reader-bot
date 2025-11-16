@@ -1,5 +1,5 @@
 /**
- * @fileoverview Cron scheduler for reminder slots (morning/day/evening)
+ * @fileoverview Cron scheduler for reminder slots (morning/day/evening/report)
  * @author g1orgi89
  */
 
@@ -26,7 +26,7 @@ function initReminderCron({ reminderService }) {
 
   const jobs = {};
 
-  // Morning reminders: 09:05 Moscow time (ТЕСТОВО: каждую минуту)
+  // Morning reminders: 09:05 Moscow time
   jobs.morning = cron.schedule('5 9 * * *', async () => {
     const startTime = new Date();
     logger.info('🌅 Starting morning reminders...');
@@ -93,10 +93,34 @@ function initReminderCron({ reminderService }) {
     scheduled: true
   });
 
+  // Weekly report notifications: 11:05 Moscow time, Mondays only
+  jobs.report = cron.schedule('5 11 * * 1', async () => {
+    const startTime = new Date();
+    logger.info('📊 Starting weekly report notifications...');
+    
+    try {
+      const stats = await reminderService.sendSlotReminders('report');
+      const endTime = new Date();
+      const duration = endTime - startTime;
+      
+      logger.info(`📊 Report notifications completed in ${duration}ms: sent=${stats.sent}, skipped=${stats.skipped}, failed=${stats.failed}`);
+      
+      if (stats.failed > 0) {
+        logger.warn(`📊 Report notifications had ${stats.failed} failures:`, stats.errors);
+      }
+    } catch (error) {
+      logger.error('📊 Error in report notifications cron:', error);
+    }
+  }, {
+    timezone: 'Europe/Moscow',
+    scheduled: true
+  });
+
   logger.info('✅ Reminder cron jobs registered:');
   logger.info('  🌅 Morning: 09:05 MSK');
   logger.info('  🌤️ Day: 15:05 MSK');
   logger.info('  🌙 Evening: 21:05 MSK');
+  logger.info('  📊 Report: 11:05 MSK (Mondays)');
 
   return jobs;
 }
@@ -113,6 +137,7 @@ function stopReminderCron(jobs) {
   if (jobs.morning) jobs.morning.stop();
   if (jobs.day) jobs.day.stop();
   if (jobs.evening) jobs.evening.stop();
+  if (jobs.report) jobs.report.stop();
   
   logger.info('✅ Reminder cron jobs stopped');
 }
