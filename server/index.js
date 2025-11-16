@@ -634,6 +634,28 @@ app.use('/server/uploads', express.static(path.join(__dirname, '../uploads'), {
   fallthrough: false
 }));
 
+// 📸 Статические файлы для уведомлений (изображения)
+logger.info('📸 Setting up notification assets...');
+app.use('/assets', express.static(path.join(__dirname, 'assets'), {
+  setHeaders: (res, filePath) => {
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 hours
+    
+    if (filePath.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeTypes = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp'
+      };
+      res.setHeader('Content-Type', mimeTypes[ext] || 'image/jpeg');
+    }
+  },
+  fallthrough: false
+}));
+logger.info('✅ Notification assets configured at /assets');
+
 // 📱 ИСПРАВЛЕНИЕ: Статические файлы для Mini App
 logger.info('📱 Setting up Mini App static files...');
 app.use('/mini-app', express.static(path.join(__dirname, '../mini-app'), {
