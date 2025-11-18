@@ -427,6 +427,7 @@ if (process.env.ENABLE_SIMPLE_BOT === 'true') {
   // 🔍 DIAGNOSTIC: Multiple fallback webhook paths to guard against proxy/ingress path rewriting
   const webhookPaths = [
     '/api/reader/telegram/webhook',  // primary
+    '/api/reader/telegram/webhook-dev',  // dev bot
     '/reader/telegram/webhook',       // fallback 1
     '/api/telegram/webhook',          // fallback 2
     '/telegram/webhook'               // fallback 3
