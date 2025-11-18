@@ -420,7 +420,7 @@ let botInitPromise = null;
 
 // 🤖 Register webhook handler BEFORE any other middleware to prevent 404
 // The handler delegates to Telegraf once bot is initialized
-const webhookPath = '/api/reader/telegram/webhook';
+const webhookPath = process.env.TELEGRAM_WEBHOOK_PATH || '/api/reader/telegram/webhook';
 let webhookHandler = null;
 
 if (process.env.ENABLE_SIMPLE_BOT === 'true') {
