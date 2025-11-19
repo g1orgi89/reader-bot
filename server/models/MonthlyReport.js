@@ -1,5 +1,6 @@
 /**
  * @fileoverview MongoDB model для месячных отчетов проекта "Читатель"
+ * 📋 UPDATED: Добавлена поддержка агрегации еженедельных отчётов (оптимизация AI токенов)
  */
 
 const mongoose = require('mongoose');
@@ -19,6 +20,25 @@ const mongoose = require('mongoose');
  * @property {string} personalGrowth - Анализ личностного роста
  * @property {string} recommendations - Рекомендации от Анны
  * @property {string[]} bookSuggestions - Рекомендуемые книги
+ */
+
+/**
+ * 📋 NEW: Эволюция пользователя через месяц
+ * @typedef {Object} MonthlyEvolution
+ * @property {string} weeklyChanges - Как менялось от недели к неделе
+ * @property {string} deepPatterns - Глубинные паттерны месяца
+ * @property {string} psychologicalInsight - Главный психологический инсайт
+ */
+
+/**
+ * 📋 NEW: Агрегированные метрики месяца
+ * @typedef {Object} MonthlyMetrics
+ * @property {number} totalQuotes - Всего цитат за месяц
+ * @property {number} uniqueAuthors - Уникальных авторов
+ * @property {number} activeDays - Активных дней
+ * @property {number} weeksActive - Недель с активностью
+ * @property {string[]} topThemes - Топ тем месяца
+ * @property {string} emotionalTrend - Эмоциональный тренд
  */
 
 /**
@@ -52,6 +72,70 @@ const monthlyReportSchema = new mongoose.Schema({
     required: true,
     min: 2024
   },
+  
+  // 📋 NEW: Ссылки на еженедельные отчёты (для агрегации)
+  weeklyReports: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WeeklyReport'
+  }],
+  
+  // 📋 NEW: Метод генерации отчёта
+  generationMethod: {
+    type: String,
+    enum: ['weekly_reports', 'top_quotes', 'mixed'],
+    default: 'weekly_reports',
+    required: true
+  },
+  
+  // 📋 NEW: Агрегированные метрики месяца
+  monthlyMetrics: {
+    totalQuotes: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    uniqueAuthors: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    activeDays: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    weeksActive: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 5
+    },
+    topThemes: [{
+      type: String
+    }],
+    emotionalTrend: {
+      type: String,
+      enum: ['растущая', 'стабильная', 'меняющаяся', 'смешанная'],
+      default: 'смешанная'
+    }
+  },
+  
+  // 📋 NEW: Эволюция через месяц (мета-анализ)
+  evolution: {
+    weeklyChanges: {
+      type: String,
+      maxlength: 1000
+    },
+    deepPatterns: {
+      type: String,
+      maxlength: 1000
+    },
+    psychologicalInsight: {
+      type: String,
+      maxlength: 1000
+    }
+  },
+  
   additionalSurvey: {
     mood: {
       type: String,
@@ -132,6 +216,9 @@ monthlyReportSchema.index({ sentAt: 1 });
 // Индекс для аналитики обратной связи
 monthlyReportSchema.index({ 'feedback.rating': 1, sentAt: 1 });
 
+// 📋 NEW: Индекс для поиска по методу генерации
+monthlyReportSchema.index({ generationMethod: 1 });
+
 /**
  * Виртуальное поле для получения названия месяца
  */
@@ -148,6 +235,20 @@ monthlyReportSchema.virtual('monthName').get(function() {
  */
 monthlyReportSchema.virtual('periodName').get(function() {
   return `${this.monthName} ${this.year}`;
+});
+
+/**
+ * 📋 NEW: Количество недель в отчёте
+ */
+monthlyReportSchema.virtual('weeksCount').get(function() {
+  return this.weeklyReports ? this.weeklyReports.length : 0;
+});
+
+/**
+ * 📋 NEW: Проверка - был ли отчёт создан из еженедельных
+ */
+monthlyReportSchema.virtual('isFromWeeklyReports').get(function() {
+  return this.generationMethod === 'weekly_reports' && this.weeksCount >= 3;
 });
 
 /**
@@ -174,6 +275,24 @@ monthlyReportSchema.methods.markAsRead = function() {
   this.isRead = true;
   this.readAt = new Date();
   return this.save();
+};
+
+/**
+ * 📋 NEW: Получить краткую сводку для отображения
+ */
+monthlyReportSchema.methods.getSummary = function() {
+  return {
+    id: this._id,
+    userId: this.userId,
+    period: this.periodName,
+    metrics: this.monthlyMetrics,
+    generationMethod: this.generationMethod,
+    weeksCount: this.weeksCount,
+    isRead: this.isRead,
+    hasFeedback: !!(this.feedback && this.feedback.rating),
+    rating: this.feedback?.rating,
+    sentAt: this.sentAt
+  };
 };
 
 /**
@@ -219,6 +338,18 @@ monthlyReportSchema.statics.getUserReports = async function(userId, limit = 12) 
 };
 
 /**
+ * 📋 NEW: Получить отчёт со связанными еженедельными отчётами
+ */
+monthlyReportSchema.statics.getWithWeeklyReports = async function(userId, month, year) {
+  return this.findOne({ userId, month, year })
+    .populate({
+      path: 'weeklyReports',
+      select: 'weekNumber analysis metrics sentAt'
+    })
+    .exec();
+};
+
+/**
  * Хук pre-save для валидации данных
  */
 monthlyReportSchema.pre('save', function(next) {
@@ -240,7 +371,9 @@ monthlyReportSchema.pre('save', function(next) {
  * Хук post-save для логирования
  */
 monthlyReportSchema.post('save', function(doc) {
-  console.log(`📈 Monthly report saved: ${doc.userId} for ${doc.monthName} ${doc.year}`);
+  const method = doc.generationMethod === 'weekly_reports' ? 
+    `${doc.weeksCount} weeks` : doc.generationMethod;
+  console.log(`📈 Monthly report saved: ${doc.userId} for ${doc.monthName} ${doc.year} (${method})`);
 });
 
 const MonthlyReport = mongoose.model('MonthlyReport', monthlyReportSchema);
