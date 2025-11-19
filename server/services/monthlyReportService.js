@@ -1,11 +1,13 @@
 /**
  * @fileoverview Monthly Report Service для проекта "Читатель"
+ * 📋 FIXED: Убран весь бред с опросами - генерация сразу из еженедельных отчётов
  * 📋 OPTIMIZED: Генерация на основе еженедельных отчётов (экономия AI токенов в 15-20 раз)
  * Fallback: Если недель мало - используем топ-20 цитат
  */
 
 const { MonthlyReport, UserProfile, Quote, WeeklyReport } = require('../models');
 const claudeService = require('./claude');
+const logger = require('../utils/logger');
 
 /**
  * @typedef {Object} MonthlyMetrics
@@ -28,15 +30,6 @@ const claudeService = require('./claude');
 
 class MonthlyReportService {
   constructor() {
-    this.monthlyThemes = [
-      { id: 'confidence', text: '🔍 Поиск уверенности', key: 'поиск уверенности' },
-      { id: 'femininity', text: '🌸 Женственность и нежность', key: 'женственность' },
-      { id: 'balance', text: '⚖️ Баланс между «дать» и «взять»', key: 'баланс' },
-      { id: 'love', text: '💕 Любовь и отношения', key: 'любовь и отношения' },
-      { id: 'growth', text: '✨ Вдохновение и рост', key: 'вдохновение и рост' },
-      { id: 'family', text: '👶 Материнство и семья', key: 'материнство и семья' }
-    ];
-
     this.MIN_WEEKS_FOR_REPORT = 3; // Минимум недель для качественного отчёта
     this.bot = null;
   }
@@ -47,13 +40,13 @@ class MonthlyReportService {
    */
   initialize(bot) {
     this.bot = bot;
-    console.log('📈 MonthlyReportService initialized (optimized)');
+    logger.info('📈 MonthlyReportService initialized (NO SURVEYS - direct generation)');
   }
 
   /**
-   * 📋 MAIN: Генерирует месячный отчет для пользователя
+   * 📋 FIXED: Генерирует месячный отчет для пользователя БЕЗ ОПРОСОВ
    * @param {string} userId - ID пользователя в Telegram
-   * @param {number} [month] - Месяц (если не указан - текущий)
+   * @param {number} [month] - Месяц (если не указан - прошлый месяц)
    * @param {number} [year] - Год (если не указан - текущий)
    * @returns {Promise<MonthlyReportData|null>}
    */
@@ -63,9 +56,10 @@ class MonthlyReportService {
       throw new Error(`User not found: ${userId}`);
     }
 
-    // Используем указанный месяц или текущий
-    const targetMonth = month || new Date().getMonth() + 1;
-    const targetYear = year || new Date().getFullYear();
+    // По умолчанию генерируем отчёт за ПРОШЛЫЙ месяц
+    const now = new Date();
+    const targetMonth = month || (now.getMonth() === 0 ? 12 : now.getMonth());
+    const targetYear = year || (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear());
 
     // Проверяем существующий отчет
     const existingReport = await MonthlyReport.findOne({ 
@@ -75,7 +69,7 @@ class MonthlyReportService {
     });
     
     if (existingReport) {
-      console.log(`📈 Monthly report already exists for user ${userId} for ${targetMonth}/${targetYear}`);
+      logger.info(`📈 Monthly report already exists for user ${userId} for ${targetMonth}/${targetYear}`);
       return existingReport;
     }
 
@@ -84,41 +78,21 @@ class MonthlyReportService {
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
     
     if (user.registeredAt > oneMonthAgo) {
-      console.log(`📅 User ${userId} registered less than a month ago, skipping monthly report`);
+      logger.info(`📅 User ${userId} registered less than a month ago, skipping monthly report`);
       return null;
     }
-
-    // Отправляем дополнительный опрос
-    await this.sendAdditionalSurvey(userId, user, targetMonth, targetYear);
-    return null; // Отчет будет создан после ответа на опрос
-  }
-
-  /**
-   * 📋 NEW: Обрабатывает ответ на опрос и генерирует отчёт (ОПТИМИЗИРОВАННАЯ ВЕРСИЯ)
-   * @param {string} userId - ID пользователя
-   * @param {string} selectedThemeId - Выбранная тема
-   * @param {number} [month] - Месяц
-   * @param {number} [year] - Год
-   */
-  async processSurveyResponse(userId, selectedThemeId, month = null, year = null) {
-    const user = await UserProfile.findOne({ userId });
-    if (!user) {
-      throw new Error(`User not found: ${userId}`);
-    }
-
-    const selectedTheme = this.monthlyThemes.find(t => t.id === selectedThemeId);
-    if (!selectedTheme) {
-      throw new Error(`Unknown theme: ${selectedThemeId}`);
-    }
-
-    const targetMonth = month || new Date().getMonth() + 1;
-    const targetYear = year || new Date().getFullYear();
 
     try {
       // 📋 STEP 1: Получаем еженедельные отчёты за месяц
       const weeklyReports = await this.getMonthlyWeeklyReports(userId, targetMonth, targetYear);
       
-      console.log(`📊 Found ${weeklyReports.length} weekly reports for ${userId} in ${targetMonth}/${targetYear}`);
+      logger.info(`📊 Found ${weeklyReports.length} weekly reports for ${userId} in ${targetMonth}/${targetYear}`);
+
+      // Если нет недельных отчётов - пропускаем
+      if (weeklyReports.length === 0) {
+        logger.info(`📅 No weekly reports found for user ${userId} in ${targetMonth}/${targetYear}`);
+        return null;
+      }
 
       let report;
       
@@ -128,32 +102,24 @@ class MonthlyReportService {
         report = await this.generateFromWeeklyReports(
           user,
           weeklyReports,
-          selectedTheme.key,
           targetMonth,
           targetYear
         );
       } else {
         // ⚠️ ВАРИАНТ B: Fallback на топ цитаты
-        console.log(`⚠️ Only ${weeklyReports.length} weeks, using fallback to top quotes`);
+        logger.info(`⚠️ Only ${weeklyReports.length} weeks, using fallback to top quotes`);
         report = await this.generateFromTopQuotes(
           user,
-          selectedTheme.key,
           targetMonth,
           targetYear
         );
       }
 
-      // 📋 STEP 3: Отправляем отчёт пользователю
-      await this.sendMonthlyReport(userId, report);
-      
-      // Очищаем состояние пользователя
-      await this.clearUserState(userId);
-
-      console.log(`📈 Monthly report generated and sent to user ${userId} (method: ${report.generationMethod})`);
+      logger.info(`📈 Monthly report generated for user ${userId} (method: ${report.generationMethod})`);
       return report;
 
     } catch (error) {
-      console.error(`❌ Failed to process monthly survey for user ${userId}:`, error);
+      logger.error(`❌ Failed to generate monthly report for user ${userId}:`, error);
       throw error;
     }
   }
@@ -180,21 +146,20 @@ class MonthlyReportService {
   }
 
   /**
-   * 📋 NEW: ВАРИАНТ A - Генерация из еженедельных отчётов (ОПТИМИЗИРОВАНО)
+   * 📋 FIXED: ВАРИАНТ A - Генерация из еженедельных отчётов (БЕЗ selectedTheme)
    * Экономия токенов: в 15-20 раз!
    */
-  async generateFromWeeklyReports(user, weeklyReports, selectedTheme, month, year) {
-    console.log(`✅ Generating monthly report from ${weeklyReports.length} weekly reports (OPTIMIZED)`);
+  async generateFromWeeklyReports(user, weeklyReports, month, year) {
+    logger.info(`✅ Generating monthly report from ${weeklyReports.length} weekly reports (OPTIMIZED)`);
 
     // Агрегируем метрики
     const monthlyMetrics = this.aggregateWeeklyMetrics(weeklyReports);
 
-    // Формируем СЖАТЫЙ промпт
+    // Формируем СЖАТЫЙ промпт БЕЗ selectedTheme
     const prompt = this.buildWeeklyReportsPrompt({
       user,
       weeklyReports,
-      monthlyMetrics,
-      selectedTheme
+      monthlyMetrics
     });
 
     // Генерируем анализ через Claude
@@ -213,11 +178,6 @@ class MonthlyReportService {
         deepPatterns: analysis.deepPatterns || '',
         psychologicalInsight: analysis.psychologicalInsight || ''
       },
-      additionalSurvey: {
-        mainTheme: selectedTheme,
-        mood: selectedTheme,
-        respondedAt: new Date()
-      },
       analysis: {
         psychologicalProfile: analysis.psychologicalInsight || analysis.deepPatterns || '',
         personalGrowth: analysis.monthlyEvolution || '',
@@ -232,14 +192,15 @@ class MonthlyReportService {
     });
 
     await report.save();
+    logger.info(`📈 Monthly report saved for user ${user.userId} (${month}/${year})`);
     return report;
   }
 
   /**
-   * 📋 NEW: ВАРИАНТ B - Fallback на топ цитаты
+   * 📋 FIXED: ВАРИАНТ B - Fallback на топ цитаты (БЕЗ selectedTheme)
    */
-  async generateFromTopQuotes(user, selectedTheme, month, year) {
-    console.log(`⚠️ Generating monthly report from top quotes (FALLBACK)`);
+  async generateFromTopQuotes(user, month, year) {
+    logger.info(`⚠️ Generating monthly report from top quotes (FALLBACK)`);
 
     // Получаем топ-20 цитат месяца
     const topQuotes = await Quote.find({
@@ -258,8 +219,7 @@ class MonthlyReportService {
     // Формируем промпт
     const prompt = this.buildTopQuotesPrompt({
       user,
-      topQuotes,
-      selectedTheme
+      topQuotes
     });
 
     // Генерируем анализ
@@ -291,11 +251,6 @@ class MonthlyReportService {
       weeklyReports: [],
       generationMethod: 'top_quotes',
       monthlyMetrics,
-      additionalSurvey: {
-        mainTheme: selectedTheme,
-        mood: selectedTheme,
-        respondedAt: new Date()
-      },
       analysis: {
         psychologicalProfile: analysis.psychologicalInsight || analysis.deepPatterns || '',
         personalGrowth: analysis.monthlyEvolution || '',
@@ -318,16 +273,10 @@ class MonthlyReportService {
    */
   aggregateWeeklyMetrics(weeklyReports) {
     const totalQuotes = weeklyReports.reduce((sum, r) => sum + (r.metrics?.quotes || 0), 0);
-    const authors = new Set();
     const themes = {};
     const emotionalTones = [];
 
     weeklyReports.forEach(report => {
-      // Уникальные авторы
-      if (report.metrics?.uniqueAuthors) {
-        // Нет списка авторов, используем счётчик
-      }
-
       // Темы
       if (report.analysis?.dominantThemes) {
         report.analysis.dominantThemes.forEach(theme => {
@@ -383,10 +332,10 @@ class MonthlyReportService {
   }
 
   /**
-   * 📋 NEW: ПРОМПТ для генерации из еженедельных отчётов (СЖАТЫЙ)
+   * 📋 FIXED: ПРОМПТ для генерации из еженедельных отчётов (БЕЗ selectedTheme)
    * Экономия: ~400-500 токенов вместо 6000-10000!
    */
-  buildWeeklyReportsPrompt({ user, weeklyReports, monthlyMetrics, selectedTheme }) {
+  buildWeeklyReportsPrompt({ user, weeklyReports, monthlyMetrics }) {
     const weeklyInsights = weeklyReports.map((report, i) => `
 **Неделя ${i + 1} (неделя ${report.weekNumber}):**
 - Темы: ${report.analysis?.dominantThemes?.join(', ') || 'нет данных'}
@@ -399,7 +348,6 @@ class MonthlyReportService {
 
 **Пользователь:** ${user.name}
 **Период:** ${this.getMonthName(monthlyMetrics.month || new Date().getMonth() + 1)}
-**Выбранная тема месяца (по ощущениям пользователя):** ${selectedTheme}
 
 **Еженедельные инсайты:**
 ${weeklyInsights}
@@ -437,9 +385,9 @@ ${weeklyInsights}
   }
 
   /**
-   * 📋 NEW: ПРОМПТ для генерации из топ цитат (FALLBACK)
+   * 📋 FIXED: ПРОМПТ для генерации из топ цитат (БЕЗ selectedTheme)
    */
-  buildTopQuotesPrompt({ user, topQuotes, selectedTheme }) {
+  buildTopQuotesPrompt({ user, topQuotes }) {
     const quotesText = topQuotes.map((q, i) => 
       `${i + 1}. "${q.text}" ${q.author ? `(${q.author})` : ''}`
     ).join('\n');
@@ -447,7 +395,6 @@ ${weeklyInsights}
     return `Ты психолог Анна Бусел. Создай месячный психологический анализ на основе цитат пользователя.
 
 **Пользователь:** ${user.name}
-**Выбранная тема месяца:** ${selectedTheme}
 **Ключевые цитаты месяца:**
 ${quotesText}
 
@@ -481,11 +428,11 @@ ${quotesText}
         .trim();
 
       const analysis = JSON.parse(cleanedResponse);
-      console.log(`🧠 Generated monthly analysis via Claude`);
+      logger.info(`🧠 Generated monthly analysis via Claude`);
       return analysis;
 
     } catch (error) {
-      console.error('❌ Failed to generate analysis:', error);
+      logger.error('❌ Failed to generate analysis:', error);
       
       // Fallback анализ
       return {
@@ -499,114 +446,8 @@ ${quotesText}
   }
 
   /**
-   * Отправляет дополнительный опрос пользователю
-   */
-  async sendAdditionalSurvey(userId, user, month, year) {
-    if (!this.bot) {
-      throw new Error('Bot instance not available for sending surveys');
-    }
-
-    const surveyMessage = `
-📝 *Дополнительный опрос для точности разбора*
-
-Здравствуйте, ${user.name}! Вы с ботом уже месяц. Время подвести итоги и создать персональный психологический анализ.
-
-Сначала небольшой вопрос для точности:
-
-*Как вы ощущали этот месяц? Выберите главную тему:*
-    `;
-
-    const keyboard = this.monthlyThemes.map(theme => [{
-      text: theme.text,
-      callback_data: `monthly_survey_${theme.id}_${month}_${year}`
-    }]);
-
-    try {
-      await this.bot.telegram.sendMessage(userId, surveyMessage, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: keyboard
-        }
-      });
-
-      await this.setUserState(userId, 'awaiting_monthly_survey');
-      console.log(`📝 Monthly survey sent to user ${userId}`);
-    } catch (error) {
-      console.error(`❌ Failed to send monthly survey to user ${userId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Отправляет месячный отчет пользователю
-   */
-  async sendMonthlyReport(userId, report) {
-    if (!this.bot) {
-      throw new Error('Bot instance not available for sending reports');
-    }
-
-    const methodText = report.generationMethod === 'weekly_reports' ?
-      `основе ${report.weeklyReports.length} недельных отчётов` :
-      'основе ваших цитат';
-
-    const reportMessage = `
-📈 *Ваш персональный разбор месяца*
-
-🎉 Поздравляю! Прошёл месяц работы с «Читателем»!
-
-📊 *Статистика:*
-└ Цитат сохранено: ${report.monthlyMetrics.totalQuotes}
-└ Уникальных авторов: ${report.monthlyMetrics.uniqueAuthors}
-└ Активных дней: ${report.monthlyMetrics.activeDays}
-${report.monthlyMetrics.weeksActive > 0 ? `└ Недель активности: ${report.monthlyMetrics.weeksActive}\n` : ''}
-${report.monthlyMetrics.topThemes.length > 0 ? `└ Главные темы: ${report.monthlyMetrics.topThemes.slice(0, 3).join(', ')}\n` : ''}
-
-🧠 *Психологический анализ:*
-${report.analysis.psychologicalProfile}
-
-📈 *Ваш личностный рост:*
-${report.analysis.personalGrowth}
-
-💡 *Персональные рекомендации:*
-${report.analysis.recommendations}
-
-📚 *Специально для вас* (скидка ${report.specialOffer.discount}% до ${report.specialOffer.validUntil.toLocaleDateString()}):
-${report.analysis.bookSuggestions.map((book, i) => `${i + 1}. ${book}`).join('\n')}
-
-Продолжайте собирать моменты вдохновения! 📖
-
-_Отчёт создан на ${methodText}_
-    `;
-
-    const ratingKeyboard = [
-      [{ text: "⭐⭐⭐⭐⭐", callback_data: `monthly_rating_5_${report._id}` }],
-      [{ text: "⭐⭐⭐⭐", callback_data: `monthly_rating_4_${report._id}` }],
-      [{ text: "⭐⭐⭐", callback_data: `monthly_rating_3_${report._id}` }],
-      [{ text: "⭐⭐", callback_data: `monthly_rating_2_${report._id}` }],
-      [{ text: "⭐", callback_data: `monthly_rating_1_${report._id}` }]
-    ];
-
-    try {
-      await this.bot.telegram.sendMessage(userId, reportMessage, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: ratingKeyboard
-        }
-      });
-
-      report.sentAt = new Date();
-      await report.save();
-
-      console.log(`📈 Monthly report sent to user ${userId} (method: ${report.generationMethod})`);
-
-    } catch (error) {
-      console.error(`❌ Failed to send monthly report to user ${userId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Генерирует месячные отчеты для всех подходящих пользователей
+   * 📋 FIXED: Генерирует месячные отчеты для всех подходящих пользователей
+   * БЕЗ отправки в Telegram - только сохранение в БД
    */
   async generateMonthlyReportsForAllUsers() {
     const stats = {
@@ -626,7 +467,7 @@ _Отчёт создан на ${methodText}_
       });
 
       stats.total = eligibleUsers.length;
-      console.log(`📈 Found ${stats.total} eligible users for monthly reports`);
+      logger.info(`📈 Found ${stats.total} eligible users for monthly reports`);
 
       for (const user of eligibleUsers) {
         try {
@@ -640,15 +481,15 @@ _Отчёт создан на ${methodText}_
             userId: user.userId,
             error: error.message
           });
-          console.error(`❌ Failed to generate monthly report for user ${user.userId}: ${error.message}`);
+          logger.error(`❌ Failed to generate monthly report for user ${user.userId}: ${error.message}`);
         }
       }
 
-      console.log(`📈 Monthly reports generation completed: ${stats.generated} generated, ${stats.failed} failed`);
+      logger.info(`📈 Monthly reports generation completed: ${stats.generated} generated, ${stats.failed} failed`);
       return stats;
 
     } catch (error) {
-      console.error(`❌ Error in generateMonthlyReportsForAllUsers: ${error.message}`, error);
+      logger.error(`❌ Error in generateMonthlyReportsForAllUsers: ${error.message}`, error);
       throw error;
     }
   }
@@ -689,38 +530,6 @@ _Отчёт создан на ${methodText}_
   }
 
   /**
-   * Устанавливает состояние пользователя
-   */
-  async setUserState(userId, state) {
-    try {
-      await UserProfile.findOneAndUpdate(
-        { userId },
-        { 'botState.current': state, 'botState.updatedAt': new Date() },
-        { upsert: true }
-      );
-    } catch (error) {
-      console.error(`❌ Failed to set user state for ${userId}:`, error);
-    }
-  }
-
-  /**
-   * Очищает состояние пользователя
-   */
-  async clearUserState(userId) {
-    try {
-      await UserProfile.findOneAndUpdate(
-        { userId },
-        { 
-          'botState.current': 'active',
-          'botState.updatedAt': new Date() 
-        }
-      );
-    } catch (error) {
-      console.error(`❌ Failed to clear user state for ${userId}:`, error);
-    }
-  }
-
-  /**
    * Получает статистику месячных отчетов
    */
   async getMonthlyReportStats(days = 30) {
@@ -728,27 +537,18 @@ _Отчёт создан на ${methodText}_
       const since = new Date();
       since.setDate(since.getDate() - days);
 
-      const [total, withFeedback, avgRating, byMethod] = await Promise.all([
-        MonthlyReport.countDocuments({ sentAt: { $gte: since } }),
+      const [total, byMethod] = await Promise.all([
         MonthlyReport.countDocuments({ 
-          sentAt: { $gte: since },
-          'feedback.rating': { $exists: true }
+          createdAt: { $gte: since } 
         }),
         MonthlyReport.aggregate([
-          { $match: { sentAt: { $gte: since }, 'feedback.rating': { $exists: true } } },
-          { $group: { _id: null, avgRating: { $avg: '$feedback.rating' } } }
-        ]),
-        MonthlyReport.aggregate([
-          { $match: { sentAt: { $gte: since } } },
+          { $match: { createdAt: { $gte: since } } },
           { $group: { _id: '$generationMethod', count: { $sum: 1 } } }
         ])
       ]);
 
       return {
         total,
-        withFeedback,
-        responseRate: total > 0 ? Math.round((withFeedback / total) * 100) : 0,
-        averageRating: avgRating.length > 0 ? Math.round(avgRating[0].avgRating * 10) / 10 : null,
         byMethod: byMethod.reduce((acc, item) => {
           acc[item._id] = item.count;
           return acc;
@@ -757,8 +557,8 @@ _Отчёт создан на ${methodText}_
       };
 
     } catch (error) {
-      console.error(`❌ Error getting monthly report stats: ${error.message}`);
-      return { total: 0, withFeedback: 0, responseRate: 0, averageRating: null, byMethod: {} };
+      logger.error(`❌ Error getting monthly report stats: ${error.message}`);
+      return { total: 0, byMethod: {} };
     }
   }
 
@@ -767,12 +567,11 @@ _Отчёт создан на ${methodText}_
    */
   getDiagnostics() {
     return {
-      initialized: !!this.bot,
-      themesAvailable: this.monthlyThemes.length,
-      themes: this.monthlyThemes.map(t => t.key),
+      initialized: true,
       minWeeksRequired: this.MIN_WEEKS_FOR_REPORT,
       optimizationEnabled: true,
-      status: this.isReady() ? 'ready' : 'not_initialized'
+      surveysEnabled: false, // ✅ ОТКЛЮЧЕНЫ
+      status: 'ready'
     };
   }
 
@@ -780,7 +579,7 @@ _Отчёт создан на ${methodText}_
    * Проверяет готовность сервиса
    */
   isReady() {
-    return !!this.bot;
+    return true;
   }
 }
 
