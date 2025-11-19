@@ -866,6 +866,8 @@ async function startServer() {
     // Импортируйте сервис
     const WeeklyReportService = require('./services/weeklyReportService');
     const weeklyReportService = new WeeklyReportService();
+    const MonthlyReportService = require('./services/monthlyReportService');
+    const monthlyReportService = new MonthlyReportService();
 
     // 🤖 Setup webhook with Telegram and initialize reminder services
     if (simpleBot) {
@@ -938,7 +940,7 @@ async function startServer() {
           bot: simpleBot ? simpleBot.bot : null, // Pass bot instance if available
           weeklyReportHandler: null, // TelegramReportService removed
           weeklyReportService: weeklyReportService,
-          monthlyReportService: null,
+          monthlyReportService: monthlyReportService: monthlyReportService,
           reminderService: reminderService, // Pass reminderService if available
           announcementService: null
         });
