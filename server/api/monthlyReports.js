@@ -1,6 +1,7 @@
 /**
  * @fileoverview API endpoints for monthly reports and feedback for Reader project
  * @author g1orgi89
+ * @updated 2025-01-19 - Added view endpoint, renamed trigger to generate, improved service integration
  */
 
 const express = require('express');
@@ -13,7 +14,6 @@ const { MonthlyReport, WeeklyReport, UserProfile, Quote } = require('../models')
 
 // Initialize services
 const monthlyReportService = new MonthlyReportService();
-// Note: FeedbackHandler removed with Telegram bot cleanup
 
 /**
  * @route GET /api/monthly-reports
@@ -155,7 +155,7 @@ router.get('/stats', async (req, res) => {
 /**
  * @route GET /api/monthly-reports/:id
  * @description Get specific monthly report
- * @access Admin
+ * @access User/Admin
  */
 router.get('/:id', async (req, res) => {
   try {
@@ -196,17 +196,72 @@ router.get('/:id', async (req, res) => {
 });
 
 /**
- * @route POST /api/monthly-reports/trigger
- * @description Manually trigger monthly reports generation
+ * @route POST /api/monthly-reports/:reportId/view
+ * @description Mark monthly report as viewed
+ * @access User
+ */
+router.post('/:reportId/view', async (req, res) => {
+  try {
+    const { reportId } = req.params;
+    
+    const report = await MonthlyReport.findById(reportId);
+    
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        error: 'Monthly report not found'
+      });
+    }
+    
+    // Update viewedAt timestamp and mark as read
+    report.viewedAt = new Date();
+    report.isRead = true;
+    await report.save();
+    
+    logger.info(`Monthly report ${reportId} marked as viewed`);
+    
+    res.json({
+      success: true,
+      message: 'Report marked as viewed',
+      data: {
+        reportId,
+        viewedAt: report.viewedAt,
+        isRead: report.isRead
+      }
+    });
+    
+  } catch (error) {
+    logger.error(`Error marking monthly report as viewed: ${error.message}`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to mark report as viewed'
+    });
+  }
+});
+
+/**
+ * @route POST /api/monthly-reports/generate
+ * @description Generate monthly report on-demand
  * @access Admin
  */
-router.post('/trigger', async (req, res) => {
+router.post('/generate', async (req, res) => {
   try {
     const { userId, month, year } = req.body;
 
     if (userId) {
       // Generate for specific user
-      const report = await monthlyReportService.generateMonthlyReport(userId);
+      // Use updated MonthlyReportService.generateReport method with parameters
+      let report;
+      if (month && year) {
+        // If month and year provided, use them
+        report = await monthlyReportService.generateReport(userId, month, year);
+      } else {
+        // Otherwise generate for previous month
+        const now = new Date();
+        const lastMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+        const lastYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        report = await monthlyReportService.generateReport(userId, lastMonth, lastYear);
+      }
       
       res.json({
         success: true,
@@ -225,10 +280,11 @@ router.post('/trigger', async (req, res) => {
     }
 
   } catch (error) {
-    logger.error(`Error triggering monthly reports: ${error.message}`, error);
+    logger.error(`Error generating monthly reports: ${error.message}`, error);
     res.status(500).json({
       success: false,
-      error: 'Failed to trigger monthly reports'
+      error: 'Failed to generate monthly reports',
+      details: error.message
     });
   }
 });
@@ -236,7 +292,7 @@ router.post('/trigger', async (req, res) => {
 /**
  * @route GET /api/monthly-reports/user/:userId
  * @description Get monthly reports for specific user
- * @access Admin
+ * @access User/Admin
  */
 router.get('/user/:userId', async (req, res) => {
   try {
