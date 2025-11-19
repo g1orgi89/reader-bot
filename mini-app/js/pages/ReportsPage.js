@@ -14,6 +14,12 @@
  * - Обновление только раз в неделю
  * - Новый заголовок "Еженедельный отчет от Анны"
  * - Дата в формате "Месяц, неделя X"
+ * 
+ * ✅ НОВОЕ: ТАБЫ ДЛЯ МЕСЯЧНЫХ ОТЧЁТОВ:
+ * - Добавлены табы "📅 Еженедельные" и "📊 Месячные"
+ * - Переключение между еженедельными и месячными отчётами
+ * - State management для activeTab
+ * - Haptic feedback при переключении
  */
 
 class ReportsPage {
@@ -22,6 +28,9 @@ class ReportsPage {
         this.api = app.api;
         this.state = app.state;
         this.telegram = app.telegram;
+        
+        // ✅ НОВОЕ: Активный таб ('weekly' | 'monthly')
+        this.activeTab = 'weekly';
         
         // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
         this.reportsLoaded = false;
@@ -778,8 +787,51 @@ class ReportsPage {
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
      * ✅ ИСПРАВЛЕНО: Отчет показывается сразу если есть, лоадер только при отсутствии отчета
      * ✅ ИСПРАВЛЕНО: Обертка в .reports-page вместо .content
+     * ✅ НОВОЕ: Добавлены табы для переключения между еженедельными и месячными отчётами
      */
     render() {
+        return `
+            <div class="reports-page">
+                ${this.renderTabs()}
+                ${this.renderTabContent()}
+            </div>
+        `;
+    }
+    
+    /**
+     * 📑 ТАБЫ (ПО ПАТТЕРНУ COMMUNITYPAGE!)
+     */
+    renderTabs() {
+        return `
+            <div class="tabs">
+                <button class="tab ${this.activeTab === 'weekly' ? 'active' : ''}" data-tab="weekly">
+                    📅 Еженедельные
+                </button>
+                <button class="tab ${this.activeTab === 'monthly' ? 'active' : ''}" data-tab="monthly">
+                    📊 Месячные
+                </button>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🔄 РЕНДЕР КОНТЕНТА АКТИВНОГО ТАБА
+     */
+    renderTabContent() {
+        switch (this.activeTab) {
+            case 'weekly':
+                return this.renderWeeklyTabContent();
+            case 'monthly':
+                return this.renderMonthlyTabContent();
+            default:
+                return this.renderWeeklyTabContent();
+        }
+    }
+    
+    /**
+     * 📅 КОНТЕНТ ТАБА ЕЖЕНЕДЕЛЬНЫХ ОТЧЁТОВ
+     */
+    renderWeeklyTabContent() {
         let contentHtml = '';
         
         // 1. Если идет загрузка — показываем лоадер
@@ -811,9 +863,22 @@ class ReportsPage {
             contentHtml = '';
         }
         
-        // 🔧 FIX: Remove .content class to avoid nested scroll containers
-        // Only .reports-page wrapper, no .content duplication
-        return `<div class="reports-page">${contentHtml}</div>`;
+        return contentHtml;
+    }
+    
+    /**
+     * 📊 КОНТЕНТ ТАБА МЕСЯЧНЫХ ОТЧЁТОВ (PLACEHOLDER - READY FOR BACKEND)
+     */
+    renderMonthlyTabContent() {
+        return `
+            <div class="monthly-reports-placeholder">
+                <div class="placeholder-icon">📊</div>
+                <div class="placeholder-title">Месячные отчёты в разработке</div>
+                <div class="placeholder-text">
+                    Скоро здесь появятся детальные месячные отчёты с углублённым анализом вашего прогресса
+                </div>
+            </div>
+        `;
     }
 
     /**
@@ -1218,13 +1283,44 @@ class ReportsPage {
      * 🎯 ОБРАБОТЧИКИ СОБЫТИЙ
      */
     attachEventListeners() {
-        const getRecommendationsBtn = document.getElementById('getRecommendationsBtn');
+        // Обработчики табов
+        this.attachTabListeners();
         
+        // Обработчики кнопок
+        const getRecommendationsBtn = document.getElementById('getRecommendationsBtn');
         if (getRecommendationsBtn) {
             getRecommendationsBtn.addEventListener('click', () => {
                 this.handleGetRecommendations();
             });
         }
+    }
+    
+    /**
+     * 📑 ОБРАБОТЧИКИ ТАБОВ
+     */
+    attachTabListeners() {
+        const tabs = document.querySelectorAll('.tab[data-tab]');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                this.switchTab(tabName);
+            });
+        });
+    }
+    
+    /**
+     * 🔄 ПЕРЕКЛЮЧЕНИЕ ТАБОВ
+     */
+    switchTab(tabName) {
+        this.activeTab = tabName;
+        this.telegram.hapticFeedback('light');
+        
+        // TODO: Загрузка месячных отчётов при переключении на monthly
+        if (tabName === 'monthly') {
+            // this.loadMonthlyReports();
+        }
+        
+        this.rerender();
     }
     
     /**
