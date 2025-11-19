@@ -54,7 +54,7 @@ class CronService {
         await this.generateMonthlyReportsForActiveUsers();
       }, {
         timezone: "Europe/Moscow",
-        scheduled: false
+        scheduled: true
       });
 
       this.jobs.set('monthly_reports', monthlyReportsJob);
