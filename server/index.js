@@ -33,6 +33,7 @@ const ticketRoutes = require('./api/tickets');
 const adminRoutes = require('./api/admin');
 const promptRoutes = require('./api/prompts');
 const reportRoutes = require('./api/reports'); // 📖 Маршруты отчетов
+const monthlyReportsRoutes = require('./api/monthlyReports');
 const analyticsRoutes = require('./api/analytics'); // 📊 Маршруты аналитики
 const readerRoutes = require('./api/reader'); // 📱 НОВОЕ: Reader Mini App API
 
@@ -724,6 +725,7 @@ app.use(`${config.app.apiPrefix}/admin`, adminRoutes);
 app.use(`${config.app.apiPrefix}/knowledge`, knowledgeRoutes);
 app.use(`${config.app.apiPrefix}/prompts`, promptRoutes);
 app.use(`${config.app.apiPrefix}/reports`, reportRoutes);
+app.use(`${config.app.apiPrefix}/monthly-reports`, monthlyReportsRoutes);
 app.use(`${config.app.apiPrefix}/analytics`, analyticsRoutes);
 app.use(`${config.app.apiPrefix}/users`, usersRoutes);
 // app.use(`${config.app.apiPrefix}/quotes`, quotesRoutes);
