@@ -940,7 +940,7 @@ async function startServer() {
           bot: simpleBot ? simpleBot.bot : null, // Pass bot instance if available
           weeklyReportHandler: null, // TelegramReportService removed
           weeklyReportService: weeklyReportService,
-          monthlyReportService: monthlyReportService: monthlyReportService,
+          monthlyReportService: monthlyReportService,
           reminderService: reminderService, // Pass reminderService if available
           announcementService: null
         });
