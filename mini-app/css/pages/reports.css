@@ -4,6 +4,7 @@
  * ✅ ИСПРАВЛЕНО: Убрана фиксированная высота, добавлен правильный скроллинг
  * ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации, оставлены только контролируемые
  * ✅ ИСПРАВЛЕНО: Удалены глобальные .content переопределения
+ * ✅ НОВОЕ: Добавлены стили для месячных отчётов
  */
 
 /* ============================================================================
@@ -247,203 +248,6 @@
     transform: translateY(-1px);
 }
 
-/* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
-   ============================================================================ */
-
-@media (max-width: 480px) {
-    .reports-page {
-        padding: 12px;
-        /* 🔧 FIX: Removed duplicate padding-bottom - global #page-content handles bottom nav spacing */
-    }
-    
-    .weekly-report {
-        margin-bottom: 12px;
-        padding: 12px;
-    }
-    
-    .report-title {
-        font-size: 13px;
-    }
-    
-    .report-date {
-        font-size: 10px;
-    }
-    
-    .stat-value {
-        font-size: 14px;
-    }
-    
-    .stat-name {
-        font-size: 8px;
-    }
-    
-    .report-themes {
-        font-size: 9px;
-    }
-    
-    .ai-insight {
-        margin: 12px 0;
-        padding: 12px;
-    }
-    
-    .ai-title {
-        font-size: 11px;
-    }
-    
-    .ai-tone-chip {
-        font-size: 8px;
-        padding: 3px 6px;
-    }
-    
-    .ai-text {
-        font-size: 10px;
-    }
-    
-    .promo-section {
-        margin: 12px 0;
-        padding: 12px;
-    }
-    
-    .promo-title {
-        font-size: 11px;
-    }
-    
-    .promo-text {
-        font-size: 9px;
-    }
-    
-    .promo-btn {
-        font-size: 9px;
-        padding: 6px 12px;
-    }
-}
-
-/* ============================================================================
-   ✨ КОНТРОЛИРУЕМЫЕ АНИМАЦИИ (✅ ИСПРАВЛЕНО!)
-   ============================================================================ */
-
-/* ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации */
-/* Анимации теперь запускаются только через Router при переходах */
-
-/* Контролируемые анимации для Router */
-.animate-content .weekly-report {
-    animation: reportSlideIn 0.5s ease;
-}
-
-.animate-content .ai-insight {
-    animation: aiSlideIn 0.6s ease;
-}
-
-.animate-content .promo-section {
-    animation: promoSlideIn 0.7s ease;
-}
-
-/* Отключение анимаций при флаге no-animations */
-.no-animations .weekly-report,
-.no-animations .ai-insight,
-.no-animations .promo-section {
-    animation: none !important;
-}
-
-@keyframes reportSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes aiSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes promoSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Hover эффекты для десктопа */
-@media (hover: hover) {
-    .weekly-report:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
-    }
-    
-    .promo-btn:hover {
-        box-shadow: 0 4px 12px rgba(210, 69, 44, 0.3);
-    }
-}
-
-/* ============================================================================
-   🌙 ТЕМНАЯ ТЕМА
-   ============================================================================ */
-
-@media (prefers-color-scheme: dark) {
-    .weekly-report {
-        background: var(--surface, #2A2A2A);
-        border-color: var(--border, #404040);
-        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
-    }
-    
-    .ai-insight {
-        box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
-    }
-    
-    .promo-section {
-        box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
-    }
-}
-
-/* ===== Mobile readable bump (+1px for micro sizes, variables for common sizes) ===== */
-@media (hover: none) and (pointer: coarse) {
-  .report-title { font-size: var(--font-size-sm); }   /* 13 -> 15 */
-  .stat-value { font-size: var(--font-size-base); }   /* 16 -> 17 */
-  .stat-name { font-size: 10px; }                     /* 9 -> 10 */
-  .report-themes { font-size: 11px; }                 /* 10 -> 11 */
-
-  .ai-title { font-size: var(--font-size-xs); }       /* 12 -> 13 */
-  .ai-tone-chip { font-size: 9px; }                   /* 9 -> 9 */
-  .ai-text { font-size: 12px; }                       /* 11 -> 12 */
-
-  /* FIX: stable promo fonts - removed overrides to prevent device inconsistencies */
-  /* .promo-title { font-size: var(--font-size-xs); }    12 -> 13 */
-  /* .promo-text { font-size: 11px; }                    10 -> 11 */
-  /* .promo-btn { font-size: 11px; }                     10 -> 11 */
-}
-
-/* Fallback by width */
-@media (max-width: 480px) {
-  .report-title { font-size: var(--font-size-sm); }
-  .report-date { font-size: 10px; }
-  .stat-value { font-size: var(--font-size-base); }
-  .stat-name { font-size: 10px; }
-  .report-themes { font-size: 11px; }
-  .ai-title { font-size: var(--font-size-xs); }
-  .ai-tone-chip { font-size: 9px; }
-  .ai-text { font-size: 12px; }
-  /* FIX: stable promo fonts - removed overrides to prevent device inconsistencies */
-  /* .promo-title { font-size: var(--font-size-xs); } */
-  /* .promo-text { font-size: 11px; } */
-  /* .promo-btn { font-size: 11px; } */
-}
-
 /* === Блок рекомендаций специально для вас === */
 .promo-list {
     display: flex;
@@ -466,6 +270,13 @@
     font-size: 12px;
     margin-bottom: 5px;
     color: #fff;
+}
+
+.promo-book-author {
+    font-size: 10px;
+    margin-bottom: 5px;
+    color: #ffe3a3;
+    opacity: 0.9;
 }
 
 .promo-book-desc {
@@ -623,10 +434,271 @@
 }
 
 /* ============================================================================
-   📱 МОБИЛЬНАЯ АДАПТАЦИЯ ДЛЯ НОВЫХ СТИЛЕЙ
+   📊 МЕСЯЧНЫЕ ОТЧЁТЫ - СПИСОК
+   ============================================================================ */
+
+.monthly-reports-list {
+    padding: 20px;
+}
+
+.list-header {
+    margin-bottom: 24px;
+}
+
+.list-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+}
+
+.list-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+}
+
+.monthly-report-card {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.monthly-report-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.monthly-report-card:active {
+    transform: scale(0.98);
+}
+
+.card-header {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-month {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-year {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.card-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-item .stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.stat-item .stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.card-action {
+    font-size: 14px;
+    color: var(--primary-color);
+    text-align: center;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* ============================================================================
+   📊 МЕСЯЧНЫЙ ОТЧЁТ - ДЕТАЛЬНЫЙ ПРОСМОТР
+   ============================================================================ */
+
+.back-button {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 20px;
+    margin: 20px;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-button:hover {
+    background: var(--bg-tertiary);
+}
+
+.back-button:active {
+    transform: scale(0.98);
+}
+
+.monthly-report {
+    background: var(--surface, #FFFFFF);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border, #E6E0D6);
+    transition: all var(--transition-normal, 0.3s ease);
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+}
+
+.monthly-insights {
+    padding: 20px;
+    background: var(--bg-primary);
+}
+
+.monthly-insights h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 16px 0;
+}
+
+.insight-card {
+    background: var(--bg-secondary);
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    border-left: 4px solid var(--primary-color);
+}
+
+/* ============================================================================
+   📊 PLACEHOLDER ДЛЯ МЕСЯЧНЫХ ОТЧЁТОВ
+   ============================================================================ */
+
+.monthly-reports-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    padding: 40px 20px;
+}
+
+.monthly-reports-placeholder .placeholder-content {
+    max-width: 400px;
+    text-align: center;
+}
+
+.monthly-reports-placeholder .placeholder-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.monthly-reports-placeholder .placeholder-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.monthly-reports-placeholder .placeholder-text {
+    font-size: 16px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.monthly-reports-placeholder .placeholder-hint {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    line-height: 1.5;
+}
+
+/* ============================================================================
+   📱 МОБИЛЬНАЯ АДАПТАЦИЯ
    ============================================================================ */
 
 @media (max-width: 480px) {
+    .reports-page {
+        padding: 12px;
+        /* 🔧 FIX: Removed duplicate padding-bottom - global #page-content handles bottom nav spacing */
+    }
+    
+    .weekly-report {
+        margin-bottom: 12px;
+        padding: 12px;
+    }
+    
+    .report-title {
+        font-size: 13px;
+    }
+    
+    .report-date {
+        font-size: 10px;
+    }
+    
+    .stat-value {
+        font-size: 14px;
+    }
+    
+    .stat-name {
+        font-size: 8px;
+    }
+    
+    .report-themes {
+        font-size: 9px;
+    }
+    
+    .ai-insight {
+        margin: 12px 0;
+        padding: 12px;
+    }
+    
+    .ai-title {
+        font-size: 11px;
+    }
+    
+    .ai-tone-chip {
+        font-size: 8px;
+        padding: 3px 6px;
+    }
+    
+    .ai-text {
+        font-size: 10px;
+    }
+    
+    .promo-section {
+        margin: 12px 0;
+        padding: 12px;
+    }
+    
+    .promo-title {
+        font-size: 11px;
+    }
+    
+    .promo-text {
+        font-size: 9px;
+    }
+    
+    .promo-btn {
+        font-size: 9px;
+        padding: 6px 12px;
+    }
+    
     .reports-loading {
         min-height: 150px;
         padding: var(--mobile-padding);
@@ -655,13 +727,139 @@
     .placeholder-hint {
         font-size: var(--font-size-xs);
     }
+    
+    /* Месячные отчёты на мобильных */
+    .monthly-reports-list {
+        padding: 12px;
+    }
+    
+    .list-header h2 {
+        font-size: 20px;
+    }
+    
+    .list-subtitle {
+        font-size: 12px;
+    }
+    
+    .reports-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+    }
+    
+    .monthly-report-card {
+        padding: 12px;
+    }
+    
+    .card-month {
+        font-size: 16px;
+    }
+    
+    .back-button {
+        margin: 12px;
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .monthly-insights {
+        padding: 12px;
+    }
+    
+    .monthly-insights h3 {
+        font-size: 16px;
+    }
 }
 
 /* ============================================================================
-   🌙 ТЕМНАЯ ТЕМА ДЛЯ НОВЫХ ЭЛЕМЕНТОВ
+   ✨ КОНТРОЛИРУЕМЫЕ АНИМАЦИИ (✅ ИСПРАВЛЕНО!)
+   ============================================================================ */
+
+/* ✅ ИСПРАВЛЕНО: Убраны автозапускающиеся анимации */
+/* Анимации теперь запускаются только через Router при переходах */
+
+/* Контролируемые анимации для Router */
+.animate-content .weekly-report {
+    animation: reportSlideIn 0.5s ease;
+}
+
+.animate-content .ai-insight {
+    animation: aiSlideIn 0.6s ease;
+}
+
+.animate-content .promo-section {
+    animation: promoSlideIn 0.7s ease;
+}
+
+/* Отключение анимаций при флаге no-animations */
+.no-animations .weekly-report,
+.no-animations .ai-insight,
+.no-animations .promo-section {
+    animation: none !important;
+}
+
+@keyframes reportSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes aiSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes promoSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hover эффекты для десктопа */
+@media (hover: hover) {
+    .weekly-report:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+    }
+    
+    .promo-btn:hover {
+        box-shadow: 0 4px 12px rgba(210, 69, 44, 0.3);
+    }
+}
+
+/* ============================================================================
+   🌙 ТЕМНАЯ ТЕМА
    ============================================================================ */
 
 @media (prefers-color-scheme: dark) {
+    .weekly-report {
+        background: var(--surface, #2A2A2A);
+        border-color: var(--border, #404040);
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
+    }
+    
+    .ai-insight {
+        box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
+    }
+    
+    .promo-section {
+        box-shadow: 0 4px 16px rgba(232, 90, 66, 0.20);
+    }
+    
     .new-user-placeholder {
         background: var(--surface, #2A2A2A);
         border-color: var(--border, #404040);
@@ -680,4 +878,52 @@
     .weekly-details-list {
         color: var(--text-secondary, #B8B8B8);
     }
+    
+    .monthly-report {
+        background: var(--surface, #2A2A2A);
+        border-color: var(--border, #404040);
+        box-shadow: 0 2px 8px rgba(232, 90, 66, 0.12);
+    }
+    
+    .monthly-report-card {
+        background: var(--surface, #2A2A2A);
+    }
+    
+    .back-button {
+        background: var(--surface, #2A2A2A);
+        border-color: var(--border, #404040);
+    }
+}
+
+/* ===== Mobile readable bump (+1px for micro sizes, variables for common sizes) ===== */
+@media (hover: none) and (pointer: coarse) {
+  .report-title { font-size: var(--font-size-sm); }   /* 13 -> 15 */
+  .stat-value { font-size: var(--font-size-base); }   /* 16 -> 17 */
+  .stat-name { font-size: 10px; }                     /* 9 -> 10 */
+  .report-themes { font-size: 11px; }                 /* 10 -> 11 */
+
+  .ai-title { font-size: var(--font-size-xs); }       /* 12 -> 13 */
+  .ai-tone-chip { font-size: 9px; }                   /* 9 -> 9 */
+  .ai-text { font-size: 12px; }                       /* 11 -> 12 */
+
+  /* FIX: stable promo fonts - removed overrides to prevent device inconsistencies */
+  /* .promo-title { font-size: var(--font-size-xs); }    12 -> 13 */
+  /* .promo-text { font-size: 11px; }                    10 -> 11 */
+  /* .promo-btn { font-size: 11px; }                     10 -> 11 */
+}
+
+/* Fallback by width */
+@media (max-width: 480px) {
+  .report-title { font-size: var(--font-size-sm); }
+  .report-date { font-size: 10px; }
+  .stat-value { font-size: var(--font-size-base); }
+  .stat-name { font-size: 10px; }
+  .report-themes { font-size: 11px; }
+  .ai-title { font-size: var(--font-size-xs); }
+  .ai-tone-chip { font-size: 9px; }
+  .ai-text { font-size: 12px; }
+  /* FIX: stable promo fonts - removed overrides to prevent device inconsistencies */
+  /* .promo-title { font-size: var(--font-size-xs); } */
+  /* .promo-text { font-size: 11px; } */
+  /* .promo-btn { font-size: 11px; } */
 }
