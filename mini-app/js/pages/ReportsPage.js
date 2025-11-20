@@ -788,6 +788,57 @@ class ReportsPage {
             this.rerender();
         }
     }
+
+    /**
+     * 📊 Загрузка месячных отчётов
+     */
+    async loadMonthlyReports() {
+        if (this.monthlyReportsLoading) {
+            console.log('🔄 ReportsPage: Месячные отчёты уже загружаются');
+            return;
+        }
+        
+        try {
+            this.monthlyReportsLoading = true;
+            this.rerender(); // Показываем лоадер
+            
+            console.log('📊 ReportsPage: Загружаем месячные отчёты...');
+            
+            // Ждем валидный userId
+            const userId = await this.waitForValidUserId();
+            
+            if (userId === 'demo-user') {
+                console.warn('⚠️ ReportsPage: Demo-user, месячные отчёты недоступны');
+                this.monthlyReports = [];
+                this.monthlyReportsLoaded = true;
+                this.monthlyReportsLoading = false;
+                this.rerender();
+                return;
+            }
+            
+            // Загружаем отчёты через API
+            const response = await this.api.getMonthlyReports({ limit: 12 }, userId);
+            
+            if (response && response.success) {
+                const reports = response.reports || response.data?.reports || [];
+                this.monthlyReports = reports;
+                console.log(`✅ ReportsPage: Загружено ${reports.length} месячных отчётов`);
+            } else {
+                console.warn('⚠️ ReportsPage: Не удалось загрузить месячные отчёты');
+                this.monthlyReports = [];
+            }
+            
+            this.monthlyReportsLoaded = true;
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки месячных отчётов:', error);
+            this.monthlyReports = [];
+            this.monthlyReportsLoaded = true;
+        } finally {
+            this.monthlyReportsLoading = false;
+            this.rerender();
+        }
+    }
     
     /**
      * 🎨 РЕНДЕР СТРАНИЦЫ (ТОЧНО ПО КОНЦЕПТУ!) - БЕЗ ШАПКИ!
