@@ -322,46 +322,58 @@ async function createMonthlyReport(userId) {
 }
 
 // ✅ Главная функция
-async function seedMonthlyReportData(userId) {
+async function seedMonthlyReportData(userIdInput) {
     try {
         console.log('🚀 Начинаем создание тестовых данных для месячного отчёта');
-        console.log(`👤 User ID: ${userId}`);
+        console.log(`👤 User ID: ${userIdInput}`);
         
         // Подключаемся к MongoDB
         await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/reader_bot_dev');
         console.log('✅ Подключено к MongoDB');
         
-        // Проверяем существование пользователя
-        const user = await UserProfile.findOne({ telegramId: parseInt(userId) });
+        // ✅ ИСПРАВЛЕНО: Ищем пользователя по userId (строка) или telegramId (число)
+        let user = await UserProfile.findOne({ userId: userIdInput.toString() });
+        
         if (!user) {
-            console.error(`❌ Пользователь с telegramId ${userId} не найден`);
+            // Fallback: пробуем найти по telegramId как число
+            user = await UserProfile.findOne({ telegramId: parseInt(userIdInput) });
+        }
+        
+        if (!user) {
+            console.error(`❌ Пользователь с userId/telegramId ${userIdInput} не найден`);
+            console.log('💡 Доступные пользователи:');
+            const users = await UserProfile.find({}, { userId: 1, telegramId: 1, name: 1, _id: 0 }).limit(5);
+            console.log(users);
             process.exit(1);
         }
         
-        console.log(`✅ Найден пользователь: ${user.firstName} ${user.lastName || ''}`);
+        console.log(`✅ Найден пользователь: ${user.name || user.firstName || 'Unknown'}`);
+        
+        // ✅ ИСПРАВЛЕНО: Используем _id пользователя для связи с цитатами и отчетами
+        const mongoUserId = user._id;
         
         // 1. Создаём цитаты за последние 4 недели
         console.log('\n📝 ЭТАП 1: Создание цитат');
         for (let week = 3; week >= 0; week--) {
-            await createQuotesForWeek(user._id, week, 8 + Math.floor(Math.random() * 5)); // 8-12 цитат
+            await createQuotesForWeek(mongoUserId, week, 8 + Math.floor(Math.random() * 5)); // 8-12 цитат
         }
         
         // 2. Создаём еженедельные отчёты
         console.log('\n📊 ЭТАП 2: Создание еженедельных отчётов');
         for (let week = 3; week >= 0; week--) {
-            await createWeeklyReport(user._id, week);
+            await createWeeklyReport(mongoUserId, week);
         }
         
         // 3. Создаём месячный отчёт
         console.log('\n📊 ЭТАП 3: Создание месячного отчёта');
-        await createMonthlyReport(user._id);
+        await createMonthlyReport(mongoUserId);
         
         console.log('\n✅ ВСЕ ДАННЫЕ УСПЕШНО СОЗДАНЫ!');
         console.log('\n📊 Итоговая статистика:');
         
-        const totalQuotes = await Quote.countDocuments({ userId: user._id });
-        const totalWeeklyReports = await WeeklyReport.countDocuments({ userId: user._id });
-        const totalMonthlyReports = await MonthlyReport.countDocuments({ userId: user._id });
+        const totalQuotes = await Quote.countDocuments({ userId: mongoUserId });
+        const totalWeeklyReports = await WeeklyReport.countDocuments({ userId: mongoUserId });
+        const totalMonthlyReports = await MonthlyReport.countDocuments({ userId: mongoUserId });
         
         console.log(`  - Всего цитат: ${totalQuotes}`);
         console.log(`  - Еженедельных отчётов: ${totalWeeklyReports}`);
