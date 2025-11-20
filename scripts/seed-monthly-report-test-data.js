@@ -179,16 +179,22 @@ async function createWeeklyReport(userId, weeksAgo) {
     // Вычисляем ISO неделю
     const { isoWeek, isoYear } = getISOWeekInfo(weekStart);
     
+    // ✅ ИСПРАВЛЕНО: Используем массив ObjectId вместо объектов
+    const quoteIds = quotes.map(q => q._id);
+    
+    // ✅ ИСПРАВЛЕНО: Добавляем обязательный promoCode
+    const promoCode = {
+        code: `READER${Math.floor(Math.random() * 1000)}`,
+        discount: 20,
+        validUntil: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 дня
+    };
+    
     // Создаём отчёт
     const report = new WeeklyReport({
-        userId,
+        userId: userId.toString(), // ✅ ИСПРАВЛЕНО: Конвертируем в строку
         weekNumber: isoWeek,
         year: isoYear,
-        quotes: quotes.map(q => ({
-            text: q.text,
-            author: q.author,
-            createdAt: q.createdAt
-        })),
+        quotes: quoteIds, // ✅ ИСПРАВЛЕНО: Массив ObjectId
         metrics: {
             quotes: quotes.length,
             uniqueAuthors: uniqueAuthors.length,
@@ -196,15 +202,15 @@ async function createWeeklyReport(userId, weeksAgo) {
             progressQuotesPct: Math.min(Math.round((quotes.length / 30) * 100), 100),
             progressDaysPct: Math.min(Math.round((activeDays / 7) * 100), 100)
         },
-        analysis: {
-            summary: `Отличная неделя! Вы сохранили ${quotes.length} цитат за ${activeDays} дней. Ваш фокус на самопознании и саморазвитии очень заметен.`,
-            insights: `Ваши цитаты показывают активный поиск внутренней гармонии. Темы недели: ${uniqueAuthors.slice(0, 3).join(', ')}.`,
-            emotionalTone: weeksAgo === 3 ? 'вдохновляющий' : weeksAgo === 2 ? 'задумчивый' : weeksAgo === 1 ? 'позитивный' : 'энергичный',
+        analysis: { // ✅ ИСПРАВЛЕНО: Правильная структура
             dominantThemes: ['саморазвитие', 'самопознание', 'философия'],
-            secondaryThemes: ['любовь', 'счастье', 'смысл жизни']
+            secondaryThemes: ['любовь', 'счастье', 'смысл жизни'],
+            emotionalTone: weeksAgo === 3 ? 'вдохновляющий' : weeksAgo === 2 ? 'задумчивый' : weeksAgo === 1 ? 'позитивный' : 'энергичный',
+            insights: `Отличная неделя! Вы сохранили ${quotes.length} цитат за ${activeDays} дней. Ваш фокус на самопознании и саморазвитии очень заметен. Темы недели: ${uniqueAuthors.slice(0, 3).join(', ')}.`
         },
+        promoCode, // ✅ ИСПРАВЛЕНО: Добавлен промокод
         sentAt: weekEnd,
-        status: 'sent'
+        recommendations: [] // Пустой массив для совместимости
     });
     
     await report.save();
@@ -252,15 +258,6 @@ async function createMonthlyReport(userId) {
         new Date(q.createdAt).toISOString().split('T')[0]
     ))].length;
     
-    // Получаем еженедельные отчёты
-    const weeklyReports = await WeeklyReport.find({
-        userId,
-        sentAt: {
-            $gte: fourWeeksAgo,
-            $lt: now
-        }
-    }).sort({ sentAt: 1 });
-    
     // Определяем месяц и год
     const reportDate = new Date();
     const month = reportDate.getMonth() + 1; // 1-12
@@ -268,7 +265,7 @@ async function createMonthlyReport(userId) {
     
     // Создаём месячный отчёт
     const report = new MonthlyReport({
-        userId,
+        userId: userId.toString(), // ✅ ИСПРАВЛЕНО: Конвертируем в строку
         reportType: 'monthly',
         period: {
             month,
@@ -372,8 +369,8 @@ async function seedMonthlyReportData(userIdInput) {
         console.log('\n📊 Итоговая статистика:');
         
         const totalQuotes = await Quote.countDocuments({ userId: mongoUserId });
-        const totalWeeklyReports = await WeeklyReport.countDocuments({ userId: mongoUserId });
-        const totalMonthlyReports = await MonthlyReport.countDocuments({ userId: mongoUserId });
+        const totalWeeklyReports = await WeeklyReport.countDocuments({ userId: mongoUserId.toString() });
+        const totalMonthlyReports = await MonthlyReport.countDocuments({ userId: mongoUserId.toString() });
         
         console.log(`  - Всего цитат: ${totalQuotes}`);
         console.log(`  - Еженедельных отчётов: ${totalWeeklyReports}`);
