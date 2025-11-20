@@ -14,10 +14,10 @@
  */
 
 const mongoose = require('mongoose');
-const Quote = require('../server/models/Quote');
-const User = require('../server/models/User');
-const WeeklyReport = require('../server/models/WeeklyReport');
-const MonthlyReport = require('../server/models/MonthlyReport');
+const Quote = require('../server/models/quote');
+const UserProfile = require('../server/models/userProfile');
+const WeeklyReport = require('../server/models/weeklyReport');
+const MonthlyReport = require('../server/models/monthlyReport');
 
 // ✅ Пул тестовых цитат для реалистичности
 const TEST_QUOTES = [
@@ -332,7 +332,7 @@ async function seedMonthlyReportData(userId) {
         console.log('✅ Подключено к MongoDB');
         
         // Проверяем существование пользователя
-        const user = await User.findOne({ telegramId: parseInt(userId) });
+        const user = await UserProfile.findOne({ telegramId: parseInt(userId) });
         if (!user) {
             console.error(`❌ Пользователь с telegramId ${userId} не найден`);
             process.exit(1);
