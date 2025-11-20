@@ -9,7 +9,7 @@ const router = express.Router();
 const logger = require('../utils/logger');
 
 // Import services and models
-const { MonthlyReportService } = require('../services/monthlyReportService');
+const MonthlyReportService = require('../services/monthlyReportService');
 const { MonthlyReport, WeeklyReport, UserProfile, Quote } = require('../models');
 
 // Initialize services
