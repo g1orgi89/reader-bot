@@ -31,6 +31,12 @@ class ReportsPage {
         
         // ✅ НОВОЕ: Активный таб ('weekly' | 'monthly')
         this.activeTab = 'weekly';
+
+        // ✅ НОВОЕ: State для месячных отчётов
+        this.monthlyReports = [];
+        this.monthlyReportsLoading = false;
+        this.monthlyReportsLoaded = false;
+        this.selectedMonthlyReport = null; // Для детального просмотра
         
         // ✅ НОВОЕ: Флаги для предотвращения дублирующихся загрузок
         this.reportsLoaded = false;
@@ -867,20 +873,200 @@ class ReportsPage {
     }
     
     /**
-     * 📊 КОНТЕНТ ТАБА МЕСЯЧНЫХ ОТЧЁТОВ (PLACEHOLDER - READY FOR BACKEND)
-     */
-    renderMonthlyTabContent() {
+ * 📊 КОНТЕНТ ТАБА МЕСЯЧНЫХ ОТЧЁТОВ
+ */
+renderMonthlyTabContent() {
+    // 1. Если выбран конкретный отчёт - показываем его
+    if (this.selectedMonthlyReport) {
+        return this.renderMonthlyReportView(this.selectedMonthlyReport);
+    }
+    
+    // 2. Если идет загрузка - показываем лоадер
+    if (this.monthlyReportsLoading) {
         return `
-            <div class="monthly-reports-placeholder">
-                <div class="placeholder-icon">📊</div>
-                <div class="placeholder-title">Месячные отчёты в разработке</div>
-                <div class="placeholder-text">
-                    Скоро здесь появятся детальные месячные отчёты с углублённым анализом вашего прогресса
+            <div class="monthly-report">
+                <div class="report-header">
+                    <div class="report-title">📊 Месячные отчёты</div>
+                </div>
+                <div class="loading-content">
+                    <div class="loading-text">🔄 Загружаем отчёты...</div>
                 </div>
             </div>
         `;
     }
+    
+    // 3. Если есть отчёты - показываем список
+    if (this.monthlyReports && this.monthlyReports.length > 0) {
+        return this.renderMonthlyReportsList();
+    }
+    
+    // 4. Если загрузка завершена и отчётов нет - показываем placeholder
+    if (this.monthlyReportsLoaded && this.monthlyReports.length === 0) {
+        return this.renderMonthlyReportsPlaceholder();
+    }
+    
+    // 5. Дефолтный placeholder
+    return this.renderMonthlyReportsPlaceholder();
+}
 
+    /**
+ * 📋 Список месячных отчётов
+ */
+renderMonthlyReportsList() {
+    return `
+        <div class="monthly-reports-list">
+            <div class="list-header">
+                <h2>📊 Ваши месячные отчёты</h2>
+                <p class="list-subtitle">Детальный анализ вашего прогресса за каждый месяц</p>
+            </div>
+            <div class="reports-grid">
+                ${this.monthlyReports.map(report => {
+                    const monthName = this.getMonthName(report.period.month);
+                    const year = report.period.year;
+                    const quotesCount = report.content?.statistics?.totalQuotes || 0;
+                    const booksCount = report.content?.statistics?.booksRead || 0;
+                    
+                    return `
+                        <div class="monthly-report-card" 
+                             onclick="window.reportsPage.openMonthlyReport('${report._id}')">
+                            <div class="card-header">
+                                <div class="card-month">${monthName}</div>
+                                <div class="card-year">${year}</div>
+                            </div>
+                            <div class="card-stats">
+                                <div class="stat-item">
+                                    <span class="stat-value">${quotesCount}</span>
+                                    <span class="stat-label">цитат</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value">${booksCount}</span>
+                                    <span class="stat-label">книг</span>
+                                </div>
+                            </div>
+                            <div class="card-action">Открыть отчёт →</div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 📊 Детальный просмотр месячного отчёта
+ */
+renderMonthlyReportView(report) {
+    if (!report) {
+        return this.renderMonthlyReportsPlaceholder();
+    }
+    
+    const monthName = this.getMonthName(report.period.month);
+    const year = report.period.year;
+    const stats = report.content?.statistics || {};
+    
+    // Кнопка назад
+    const backButton = `
+        <button class="back-button" onclick="window.reportsPage.closeMonthlyReport()">
+            ← Назад к списку
+        </button>
+    `;
+    
+    // Заголовок отчёта
+    const reportHeader = `
+        <div class="monthly-report">
+            <div class="report-header">
+                <div class="report-title">📊 Месячный отчёт: ${monthName} ${year}</div>
+            </div>
+            <div class="report-stats-grid">
+                <div class="report-stat">
+                    <div class="stat-value">${stats.totalQuotes || 0}</div>
+                    <div class="stat-name">Цитат</div>
+                </div>
+                <div class="report-stat">
+                    <div class="stat-value">${stats.booksRead || 0}</div>
+                    <div class="stat-name">Книг</div>
+                </div>
+                <div class="report-stat">
+                    <div class="stat-value">${stats.activeDays || 0}</div>
+                    <div class="stat-name">Активных дней</div>
+                </div>
+                <div class="report-stat">
+                    <div class="stat-value">${stats.favoriteAuthors?.length || 0}</div>
+                    <div class="stat-name">Авторов</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // AI анализ от Анны
+    const aiAnalysis = report.content?.summary ? `
+        <div class="ai-insight">
+            <div class="ai-header">
+                <div class="ai-title">✨ Месячный отчёт от Анны</div>
+            </div>
+            <div class="ai-text">${this.formatAIText(report.content.summary)}</div>
+        </div>
+    ` : '';
+    
+    // Инсайты (если есть)
+    const insights = report.content?.insights && report.content.insights.length > 0 ? `
+        <div class="monthly-insights">
+            <h3>💎 Ключевые инсайты месяца</h3>
+            ${report.content.insights.map(insight => `
+                <div class="insight-card">
+                    <p>${this.escapeHtml(insight)}</p>
+                </div>
+            `).join('')}
+        </div>
+    ` : '';
+    
+    // Рекомендации книг
+    const recommendations = report.content?.recommendations && report.content.recommendations.length > 0 ? `
+        <div class="promo-section">
+            <div class="promo-title">🎯 Рекомендации на следующий месяц</div>
+            <div class="promo-list">
+                ${report.content.recommendations.map(rec => `
+                    <div class="promo-book">
+                        <div class="promo-book-title">${this.escapeHtml(rec.title)}</div>
+                        ${rec.author ? `<div class="promo-book-author">${this.escapeHtml(rec.author)}</div>` : ''}
+                        <div class="promo-book-desc">${this.escapeHtml(rec.description || rec.reason)}</div>
+                        ${rec.priceByn ? `<div class="promo-book-price">Цена: <b>${rec.priceByn} BYN</b></div>` : ''}
+                        <a class="promo-book-link" href="#/catalog?highlight=${rec.bookSlug}">Подробнее</a>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    ` : '';
+    
+    return `
+        ${backButton}
+        ${reportHeader}
+        ${aiAnalysis}
+        ${insights}
+        ${recommendations}
+    `;
+}
+
+/**
+ * 📊 Placeholder для месячных отчётов
+ */
+renderMonthlyReportsPlaceholder() {
+    return `
+        <div class="monthly-reports-placeholder">
+            <div class="placeholder-content">
+                <div class="placeholder-icon">📊</div>
+                <div class="placeholder-title">Первый месячный отчёт</div>
+                <div class="placeholder-text">
+                    Отчёт сформируется автоматически после окончания первого полного месяца использования
+                </div>
+                <div class="placeholder-hint">
+                    Продолжайте добавлять цитаты каждый день, и Анна подготовит для вас детальный анализ вашего прогресса за месяц
+                </div>
+            </div>
+        </div>
+    `;
+}
+    
     /**
      * 🆕 ПЛЕЙСХОЛДЕР ДЛЯ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ БЕЗ ОТЧЕТОВ
      * NEW: Uses week context to show appropriate waiting message
@@ -931,6 +1117,57 @@ class ReportsPage {
         `;
     }
 
+    /**
+     * 📅 Получить название месяца по номеру
+     */
+    getMonthName(monthNumber) {
+        const months = [
+            'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+        ];
+        return months[monthNumber - 1] || 'Неизвестно';
+    }
+    
+    /**
+     * 📖 Открыть месячный отчёт
+     */
+    async openMonthlyReport(reportId) {
+        this.telegram.hapticFeedback('medium');
+        
+        // Находим отчёт в списке
+        const report = this.monthlyReports.find(r => r._id === reportId);
+        
+        if (report) {
+            this.selectedMonthlyReport = report;
+            
+            // Отмечаем отчёт как просмотренный
+            try {
+                await this.api.request('POST', `/reports/monthly/${reportId}/view`);
+            } catch (error) {
+                console.warn('⚠️ Не удалось отметить отчёт как просмотренный:', error);
+            }
+            
+            this.rerender();
+            
+            // Скроллим наверх
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            console.error('❌ Отчёт не найден:', reportId);
+        }
+    }
+    
+    /**
+     * 🔙 Закрыть месячный отчёт (вернуться к списку)
+     */
+    closeMonthlyReport() {
+        this.telegram.hapticFeedback('light');
+        this.selectedMonthlyReport = null;
+        this.rerender();
+        
+        // Скроллим наверх
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
     /**
      * 📅 ВЫЧИСЛЕНИЕ ДАТЫ СЛЕДУЮЩЕГО ВОСКРЕСЕНЬЯ
      */
@@ -1309,29 +1546,24 @@ class ReportsPage {
     }
     
     /**
-     * 🔄 ПЕРЕКЛЮЧЕНИЕ ТАБОВ
-     */
-    switchTab(tabName) {
-        this.activeTab = tabName;
-        this.telegram.hapticFeedback('light');
-        
-        // TODO: Загрузка месячных отчётов при переключении на monthly
-        if (tabName === 'monthly') {
-            // this.loadMonthlyReports();
-        }
-        
-        this.rerender();
+ * 🔄 ПЕРЕКЛЮЧЕНИЕ ТАБОВ
+ */
+async switchTab(tabName) {
+    this.activeTab = tabName;
+    this.telegram.hapticFeedback('light');
+    
+    // Загружаем месячные отчёты при первом переходе на таб
+    if (tabName === 'monthly' && !this.monthlyReportsLoaded && !this.monthlyReportsLoading) {
+        await this.loadMonthlyReports();
     }
     
-    /**
-     * 📚 ПЕРЕХОД К РЕКОМЕНДАЦИЯМ
-     */
-    handleGetRecommendations() {
-        this.telegram.hapticFeedback('medium');
-        
-        // Переходим на страницу каталога с персональными рекомендациями
-        this.app.router.navigate('/catalog?recommendations=true');
+    // Сбрасываем выбранный отчёт при возврате к списку
+    if (tabName === 'monthly' && this.selectedMonthlyReport) {
+        this.selectedMonthlyReport = null;
     }
+    
+    this.rerender();
+}
     
     /**
      * 📱 LIFECYCLE МЕТОДЫ - ИСПРАВЛЕНО: БЕЗ ШАПКИ!
@@ -1339,6 +1571,9 @@ class ReportsPage {
      */
    async onShow() {
        console.log('📊 ReportsPage: onShow - Starting with prefetch and ISO week logic');
+
+       // ✅ НОВОЕ: Регистрируем глобальную ссылку для onclick handlers
+       window.reportsPage = this;
        
        try {
            // 🔧 FIX: Do NOT inject classes into #page-content
