@@ -166,6 +166,11 @@ class MonthlyReportService {
     // Генерируем анализ через Claude
     const analysis = await this.generateAnalysisWithClaude(prompt);
 
+    // 📋 NEW: Агрегируем рекомендации из недельных отчётов
+    const bookRecommendations = this.aggregateBookRecommendations(weeklyReports);
+    
+    logger.info(`📚 Aggregated ${bookRecommendations.length} book recommendations from ${weeklyReports.length} weekly reports`);
+
     // Создаем отчёт
     const report = new MonthlyReport({
       userId: user.userId,
@@ -192,12 +197,12 @@ class MonthlyReportService {
         psychologicalProfile: analysis.psychologicalInsight || analysis.deepPatterns || '',
         personalGrowth: analysis.monthlyEvolution || '',
         recommendations: analysis.recommendations || '',
-        bookSuggestions: analysis.bookSuggestions || []
+        bookSuggestions: bookRecommendations  // 📋 NEW: Реальные книги из недельных отчётов
       },
       specialOffer: {
         discount: 25,
         validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        books: analysis.bookSuggestions?.slice(0, 3) || []
+        books: bookRecommendations.slice(0, 3).map(b => b.title)  // Для совместимости
       }
     });
 
@@ -236,6 +241,35 @@ class MonthlyReportService {
     // Генерируем анализ
     const analysis = await this.generateAnalysisWithClaude(prompt);
 
+    // 📋 NEW: Получаем рекомендации из каталога по темам (fallback)
+    let bookRecommendations = [];
+    try {
+      const BookCatalog = require('../models/BookCatalog');
+      const themes = analysis.bookSuggestions || ['ПОИСК СЕБЯ'];
+      let recommendations = await BookCatalog.getRecommendationsByThemes(themes, 3);
+      
+      if (!recommendations || recommendations.length === 0) {
+        recommendations = await BookCatalog.getUniversalRecommendations(3);
+      }
+      
+      if (recommendations && recommendations.length > 0) {
+        bookRecommendations = recommendations.map(book => ({
+          title: book.title,
+          author: book.author || null,
+          description: book.description,
+          price: book.price,
+          priceByn: book.priceByn || null,
+          bookSlug: book.bookSlug,
+          link: book.utmLink || `https://anna-busel.com/books?utm_source=telegram_bot&utm_medium=monthly_report&utm_content=${book.bookSlug}`,
+          reasoning: book.reasoning || 'Рекомендация на основе анализа ваших цитат за месяц'
+        }));
+      }
+      
+      logger.info(`📚 Got ${bookRecommendations.length} book recommendations from catalog (fallback)`);
+    } catch (error) {
+      logger.error(`📚 Error getting book recommendations: ${error.message}`);
+    }
+    
     // Базовые метрики
     const allQuotes = await Quote.find({
       userId: user.userId,
@@ -276,12 +310,12 @@ class MonthlyReportService {
         psychologicalProfile: analysis.psychologicalInsight || analysis.deepPatterns || '',
         personalGrowth: analysis.monthlyEvolution || '',
         recommendations: analysis.recommendations || '',
-        bookSuggestions: analysis.bookSuggestions || []
+        bookSuggestions: bookRecommendations || []
       },
       specialOffer: {
         discount: 25,
         validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        books: analysis.bookSuggestions?.slice(0, 3) || []
+        books: bookRecommendations.slice(0, 3).map(b => b.title)
       }
     });
 
@@ -331,6 +365,51 @@ class MonthlyReportService {
     };
   }
 
+  /**
+   * 📋 NEW: Агрегирует рекомендации книг из еженедельных отчётов
+   * Берёт уникальные книги, сортирует по частоте рекомендаций
+   * @param {Array} weeklyReports - Массив еженедельных отчётов
+   * @returns {Array} Топ-3 книги с полными данными для каталога
+   */
+  aggregateBookRecommendations(weeklyReports) {
+    const booksMap = new Map();
+    
+    weeklyReports.forEach(report => {
+      if (report.recommendations && Array.isArray(report.recommendations)) {
+        report.recommendations.forEach(rec => {
+          // Используем bookSlug как уникальный ключ
+          const key = rec.bookSlug || rec.title;
+          
+          if (!booksMap.has(key)) {
+            // Первое вхождение - сохраняем полные данные
+            booksMap.set(key, {
+              title: rec.title,
+              author: rec.author || null,
+              description: rec.description,
+              price: rec.price,
+              priceByn: rec.priceByn || null,
+              bookSlug: rec.bookSlug,
+              link: rec.link,
+              reasoning: rec.reasoning || 'Рекомендация на основе анализа ваших цитат за месяц',
+              count: 1
+            });
+          } else {
+            // Увеличиваем счётчик для сортировки по популярности
+            booksMap.get(key).count++;
+          }
+        });
+      }
+    });
+    
+    // Сортируем по частоте рекомендаций и берём топ-3
+    const sortedBooks = Array.from(booksMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    
+    // Убираем служебное поле count перед возвратом
+    return sortedBooks.map(({ count, ...book }) => book);
+  }
+  
   /**
    * 📋 NEW: Определяет эмоциональный тренд месяца
    */
