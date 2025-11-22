@@ -148,6 +148,7 @@ class MonthlyReportService {
   /**
    * 📋 FIXED: ВАРИАНТ A - Генерация из еженедельных отчётов (БЕЗ selectedTheme)
    * Экономия токенов: в 15-20 раз!
+   * ✅ FIX: Добавлена синхронизация monthStats
    */
   async generateFromWeeklyReports(user, weeklyReports, month, year) {
     logger.info(`✅ Generating monthly report from ${weeklyReports.length} weekly reports (OPTIMIZED)`);
@@ -173,6 +174,15 @@ class MonthlyReportService {
       weeklyReports: weeklyReports.map(r => r._id),
       generationMethod: 'weekly_reports',
       monthlyMetrics,
+      // ✅ FIX: Синхронизируем monthStats для совместимости с фронтендом
+      monthStats: {
+        totalQuotes: monthlyMetrics.totalQuotes,
+        authorsCount: monthlyMetrics.uniqueAuthors,
+        averageQuotesPerWeek: monthlyMetrics.weeksActive > 0 
+          ? Math.round(monthlyMetrics.totalQuotes / monthlyMetrics.weeksActive) 
+          : 0,
+        longestStreak: monthlyMetrics.activeDays
+      },
       evolution: {
         weeklyChanges: analysis.monthlyEvolution || '',
         deepPatterns: analysis.deepPatterns || '',
@@ -192,12 +202,13 @@ class MonthlyReportService {
     });
 
     await report.save();
-    logger.info(`📈 Monthly report saved for user ${user.userId} (${month}/${year})`);
+    logger.info(`📈 Monthly report saved for user ${user.userId} (${month}/${year}) - ${monthlyMetrics.totalQuotes} quotes, ${monthlyMetrics.uniqueAuthors} authors`);
     return report;
   }
 
-  /**
+   /**
    * 📋 FIXED: ВАРИАНТ B - Fallback на топ цитаты (БЕЗ selectedTheme)
+   * ✅ FIX: Добавлена синхронизация monthStats
    */
   async generateFromTopQuotes(user, month, year) {
     logger.info(`⚠️ Generating monthly report from top quotes (FALLBACK)`);
@@ -232,12 +243,15 @@ class MonthlyReportService {
       yearNumber: year
     }).lean();
 
+    const uniqueAuthors = [...new Set(allQuotes.map(q => q.author).filter(Boolean))].length;
+    const activeDays = [...new Set(allQuotes.map(q => 
+      new Date(q.createdAt).toDateString()
+    ))].length;
+
     const monthlyMetrics = {
       totalQuotes: allQuotes.length,
-      uniqueAuthors: [...new Set(allQuotes.map(q => q.author).filter(Boolean))].length,
-      activeDays: [...new Set(allQuotes.map(q => 
-        new Date(q.createdAt).toDateString()
-      ))].length,
+      uniqueAuthors,
+      activeDays,
       weeksActive: 0,
       topThemes: [],
       emotionalTrend: 'смешанная'
@@ -251,6 +265,13 @@ class MonthlyReportService {
       weeklyReports: [],
       generationMethod: 'top_quotes',
       monthlyMetrics,
+      // ✅ FIX: Синхронизируем monthStats для совместимости с фронтендом
+      monthStats: {
+        totalQuotes: monthlyMetrics.totalQuotes,
+        authorsCount: monthlyMetrics.uniqueAuthors,
+        averageQuotesPerWeek: 0,
+        longestStreak: monthlyMetrics.activeDays
+      },
       analysis: {
         psychologicalProfile: analysis.psychologicalInsight || analysis.deepPatterns || '',
         personalGrowth: analysis.monthlyEvolution || '',
@@ -265,9 +286,10 @@ class MonthlyReportService {
     });
 
     await report.save();
+    logger.info(`📈 Monthly report (fallback) saved for user ${user.userId} (${month}/${year}) - ${monthlyMetrics.totalQuotes} quotes, ${monthlyMetrics.uniqueAuthors} authors`);
     return report;
   }
-
+  
   /**
    * 📋 NEW: Агрегирует метрики из еженедельных отчётов
    */
