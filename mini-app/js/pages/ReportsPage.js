@@ -1109,15 +1109,29 @@ class ReportsPage {
                 <div class="promo-section">
                     <div class="promo-title">🎯 Рекомендуемые книги</div>
                     <div class="promo-list">
-                        ${bookSuggestions.map(bookString => {
-                            // Парсим строку "Название (Автор)" или просто "Название"
-                            let title = bookString;
+                        ${bookSuggestions.map(bookItem => {
+                            // ✅ FIX: Поддержка обоих форматов - строка и объект
+                            let title = '';
                             let author = '';
                             
-                            const match = bookString.match(/^['"]?(.+?)['"]?\s*\(([^)]+)\)$/);
-                            if (match) {
-                                title = match[1].trim();
-                                author = match[2].trim();
+                            if (typeof bookItem === 'string') {
+                                // Старый формат: строка "Название (Автор)"
+                                title = bookItem;
+                                const match = bookItem.match(/^['\"]?(.+?)['\"]?\s*\(([^)]+)\)$/);
+                                if (match) {
+                                    title = match[1].trim();
+                                    author = match[2].trim();
+                                }
+                            } else if (typeof bookItem === 'object' && bookItem !== null) {
+                                // Новый формат: объект { title, author, ... }
+                                title = bookItem.title || bookItem.name || '';
+                                author = bookItem.author || '';
+                            }
+                            
+                            // Если не удалось извлечь title - пропускаем
+                            if (!title) {
+                                console.warn('⚠️ Не удалось извлечь название книги:', bookItem);
+                                return '';
                             }
                             
                             // Ищем книгу в каталоге для получения slug
@@ -1149,30 +1163,30 @@ class ReportsPage {
                 </div>
             `;
         }
-    
-    // Специальное предложение
-    const offer = report.specialOffer;
-    const offerSection = offer && offer.discount ? `
-        <div class="promo-section">
-            <div class="promo-title">🎁 Специальное предложение</div>
-            <div class="promo-text">
-                Скидка ${offer.discount}% на разборы книг!
-                ${offer.promoCode ? `<br>Промокод: <strong>${offer.promoCode}</strong>` : ''}
-                ${offer.validUntil ? `<br>Действует до: ${new Date(offer.validUntil).toLocaleDateString('ru-RU')}` : ''}
-            </div>
-        </div>
-    ` : '';
-    
-    return `
-        ${backButton}
-        ${reportHeader}
-        ${aiAnalysis}
-        ${personalGrowth}
-        ${recommendations}
-        ${booksSection}
-        ${offerSection}
-    `;
-}
+            
+            // Специальное предложение
+            const offer = report.specialOffer;
+            const offerSection = offer && offer.discount ? `
+                <div class="promo-section">
+                    <div class="promo-title">🎁 Специальное предложение</div>
+                    <div class="promo-text">
+                        Скидка ${offer.discount}% на разборы книг!
+                        ${offer.promoCode ? `<br>Промокод: <strong>${offer.promoCode}</strong>` : ''}
+                        ${offer.validUntil ? `<br>Действует до: ${new Date(offer.validUntil).toLocaleDateString('ru-RU')}` : ''}
+                    </div>
+                </div>
+            ` : '';
+            
+            return `
+                ${backButton}
+                ${reportHeader}
+                ${aiAnalysis}
+                ${personalGrowth}
+                ${recommendations}
+                ${booksSection}
+                ${offerSection}
+            `;
+        }
 
     /**
      * 📊 Placeholder для месячных отчётов
