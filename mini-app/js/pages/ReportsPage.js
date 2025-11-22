@@ -1009,9 +1009,10 @@ class ReportsPage {
         `;
     }
 
-    /**
+   /**
      * 📊 Детальный просмотр месячного отчёта
      * ✅ FIX: Исправлено обращение к полям
+     * ✅ FIX: Рекомендации книг теперь отображаются как в еженедельных отчётах
      */
     renderMonthlyReportView(report) {
         if (!report) {
@@ -1069,6 +1070,17 @@ class ReportsPage {
             </div>
         ` : '';
         
+        // Личностный рост (из analysis.personalGrowth) - если отличается от psychologicalProfile
+        const personalGrowthText = report.analysis?.personalGrowth || '';
+        const personalGrowth = (personalGrowthText && personalGrowthText !== analysisText) ? `
+            <div class="ai-insight">
+                <div class="ai-header">
+                    <div class="ai-title">📈 Ваш личностный рост</div>
+                </div>
+                <div class="ai-text">${this.formatAIText(personalGrowthText)}</div>
+            </div>
+        ` : '';
+        
         // Рекомендации (из analysis.recommendations)
         const recommendationsText = report.analysis?.recommendations || '';
         const recommendations = recommendationsText ? `
@@ -1080,43 +1092,87 @@ class ReportsPage {
             </div>
         ` : '';
         
-        // Рекомендуемые книги (из analysis.bookSuggestions)
+        // ✅ FIX: Рекомендуемые книги - теперь как в еженедельных отчётах с возможностью перехода
         const bookSuggestions = report.analysis?.bookSuggestions || [];
-        const booksSection = bookSuggestions.length > 0 ? `
-            <div class="promo-section">
-                <div class="promo-title">🎯 Рекомендуемые книги</div>
-                <div class="promo-list">
-                    ${bookSuggestions.map(book => `
-                        <div class="promo-book">
-                            <div class="promo-book-title">${this.escapeHtml(book)}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        ` : '';
+        let booksSection = '';
         
-        // Специальное предложение
-        const offer = report.specialOffer;
-        const offerSection = offer && offer.discount ? `
-            <div class="promo-section">
-                <div class="promo-title">🎁 Специальное предложение</div>
-                <div class="promo-text">
-                    Скидка ${offer.discount}% на разборы книг!
-                    ${offer.promoCode ? `<br>Промокод: <strong>${offer.promoCode}</strong>` : ''}
-                    ${offer.validUntil ? `<br>Действует до: ${new Date(offer.validUntil).toLocaleDateString('ru-RU')}` : ''}
+        if (bookSuggestions.length > 0) {
+            // Получаем каталог книг для поиска slug
+            let catalogBooks = [];
+            if (this.app?.state?.get && typeof this.app.state.get === 'function') {
+                catalogBooks = this.app.state.get('books') || [];
+            } else if (this.app?.state?.books) {
+                catalogBooks = this.app.state.books;
+            }
+            
+            booksSection = `
+                <div class="promo-section">
+                    <div class="promo-title">🎯 Рекомендуемые книги</div>
+                    <div class="promo-list">
+                        ${bookSuggestions.map(bookString => {
+                            // Парсим строку "Название (Автор)" или просто "Название"
+                            let title = bookString;
+                            let author = '';
+                            
+                            const match = bookString.match(/^['"]?(.+?)['"]?\s*\(([^)]+)\)$/);
+                            if (match) {
+                                title = match[1].trim();
+                                author = match[2].trim();
+                            }
+                            
+                            // Ищем книгу в каталоге для получения slug
+                            let bookSlug = '';
+                            if (catalogBooks.length > 0) {
+                                const found = catalogBooks.find(book => 
+                                    book.title && title && 
+                                    book.title.toLowerCase().includes(title.toLowerCase().substring(0, 20))
+                                );
+                                if (found && found.bookSlug) {
+                                    bookSlug = found.bookSlug;
+                                }
+                            }
+                            
+                            // Если не нашли - генерируем fallback slug
+                            if (!bookSlug) {
+                                bookSlug = this.generateFallbackSlug(title);
+                            }
+                            
+                            return `
+                                <div class="promo-book">
+                                    <div class="promo-book-title">${this.escapeHtml(title)}</div>
+                                    ${author ? `<div class="promo-book-author">${this.escapeHtml(author)}</div>` : ''}
+                                    <a class="promo-book-link" href="#/catalog?highlight=${bookSlug}">Подробнее в каталоге</a>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
                 </div>
+            `;
+        }
+    
+    // Специальное предложение
+    const offer = report.specialOffer;
+    const offerSection = offer && offer.discount ? `
+        <div class="promo-section">
+            <div class="promo-title">🎁 Специальное предложение</div>
+            <div class="promo-text">
+                Скидка ${offer.discount}% на разборы книг!
+                ${offer.promoCode ? `<br>Промокод: <strong>${offer.promoCode}</strong>` : ''}
+                ${offer.validUntil ? `<br>Действует до: ${new Date(offer.validUntil).toLocaleDateString('ru-RU')}` : ''}
             </div>
-        ` : '';
-        
-        return `
-            ${backButton}
-            ${reportHeader}
-            ${aiAnalysis}
-            ${recommendations}
-            ${booksSection}
-            ${offerSection}
-        `;
-    }
+        </div>
+    ` : '';
+    
+    return `
+        ${backButton}
+        ${reportHeader}
+        ${aiAnalysis}
+        ${personalGrowth}
+        ${recommendations}
+        ${booksSection}
+        ${offerSection}
+    `;
+}
 
     /**
      * 📊 Placeholder для месячных отчётов
@@ -1202,6 +1258,7 @@ class ReportsPage {
     /**
      * 📖 Открыть месячный отчёт
      * ✅ FIX: Исправлен поиск по id и _id
+     * ✅ FIX: Убрана задержка - сначала рендерим, потом отправляем запрос
      */
     async openMonthlyReport(reportId) {
         this.telegram.hapticFeedback('medium');
@@ -1215,34 +1272,31 @@ class ReportsPage {
         if (report) {
             this.selectedMonthlyReport = report;
             
-            // Отмечаем отчёт как просмотренный
-            try {
-                await this.api.request('POST', `/reports/monthly/${reportId}/view`);
-            } catch (error) {
-                console.warn('⚠️ Не удалось отметить отчёт как просмотренный:', error);
-            }
-            
+            // ✅ FIX: Сначала рендерим (мгновенно), потом отправляем запрос в фоне
             this.rerender();
-        
-            // Скроллим наверх
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Отмечаем отчёт как просмотренный (в фоне, без ожидания)
+            this.api.request('POST', `/reports/monthly/${reportId}/view`).catch(error => {
+                console.warn('⚠️ Не удалось отметить отчёт как просмотренный:', error);
+            });
         } else {
             console.error('❌ Отчёт не найден:', reportId);
             console.log('📋 Доступные ID:', this.monthlyReports.map(r => ({ _id: r._id, id: r.id })));
         }
     }
-    
-    /**
-     * 🔙 Закрыть месячный отчёт (вернуться к списку)
-     */
-    closeMonthlyReport() {
-        this.telegram.hapticFeedback('light');
-        this.selectedMonthlyReport = null;
-        this.rerender();
         
-        // Скроллим наверх
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+        /**
+         * 🔙 Закрыть месячный отчёт (вернуться к списку)
+         */
+        closeMonthlyReport() {
+            this.telegram.hapticFeedback('light');
+            this.selectedMonthlyReport = null;
+            this.rerender();
+            
+            // Скроллим наверх
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     
     /**
      * 📅 ВЫЧИСЛЕНИЕ ДАТЫ СЛЕДУЮЩЕГО ВОСКРЕСЕНЬЯ
