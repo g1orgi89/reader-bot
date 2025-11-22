@@ -111,6 +111,7 @@ const monthlyAnalysisSchema = new mongoose.Schema({
       maxlength: 300
     }
   }]
+}, { _id: false });
 
 /**
  * Схема специального предложения
