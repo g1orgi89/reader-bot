@@ -164,7 +164,7 @@ class MonthlyReportService {
     });
 
     // Генерируем анализ через Claude
-    const analysis = await this.generateAnalysisWithClaude(prompt);
+    const analysis = await this.generateAnalysisWithClaude(prompt, user.name);
 
     // 📋 NEW: Агрегируем рекомендации из недельных отчётов
     const bookRecommendations = this.aggregateBookRecommendations(weeklyReports);
@@ -239,7 +239,7 @@ class MonthlyReportService {
     });
 
     // Генерируем анализ
-    const analysis = await this.generateAnalysisWithClaude(prompt);
+    cconst analysis = await this.generateAnalysisWithClaude(prompt, user.name);
 
     // 📋 NEW: Получаем рекомендации из каталога по темам (fallback)
     let bookRecommendations = [];
@@ -539,7 +539,7 @@ ${quotesText}
   /**
    * 📋 NEW: Генерирует анализ через Claude с обработкой JSON
    */
-  async generateAnalysisWithClaude(prompt) {
+  async generateAnalysisWithClaude(prompt, userName = 'читательница') {
     try {
       const response = await claudeService.generateResponse(prompt, {
         platform: 'telegram',
@@ -562,7 +562,7 @@ ${quotesText}
       
       // Fallback анализ (один блок insights)
       return {
-        insights: `Дорогая ${user?.name || 'читательница'},
+        insights: `Дорогая ${userName},
 
 Этот месяц показал ваш глубокий интерес к познанию себя и мира вокруг. В ваших цитатах прослеживается стремление найти опору и смысл в повседневности.
 
