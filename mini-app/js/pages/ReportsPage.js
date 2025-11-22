@@ -974,35 +974,36 @@ class ReportsPage {
                     <p class="list-subtitle">Детальный анализ вашего прогресса за каждый месяц</p>
                 </div>
                 <div class="reports-grid">
-                    ${this.monthlyReports.map(report => {
-                        // ✅ FIX: Используем report.month вместо report.period.month
-                        const monthName = this.getMonthName(report.month);
-                        const year = report.year;
-                        // ✅ FIX: Используем monthlyMetrics или monthStats
-                        const quotesCount = report.monthlyMetrics?.totalQuotes || report.monthStats?.totalQuotes || 0;
-                        const authorsCount = report.monthlyMetrics?.uniqueAuthors || report.monthStats?.authorsCount || 0;
-                        
-                        return `
-                            <div class="monthly-report-card" 
-                                 onclick="window.reportsPage.openMonthlyReport('${report._id}')">
-                                <div class="card-header">
-                                    <div class="card-month">${monthName}</div>
-                                    <div class="card-year">${year}</div>
-                                </div>
-                                <div class="card-stats">
-                                    <div class="stat-item">
-                                        <span class="stat-value">${quotesCount}</span>
-                                        <span class="stat-label">цитат</span>
+                    ${this.monthlyReports
+                        .filter(report => report && report.month && report.year)
+                        .map(report => {
+                            const monthName = this.getMonthName(report.month);
+                            const year = report.year;
+                            const quotesCount = report.monthlyMetrics?.totalQuotes || report.monthStats?.totalQuotes || 0;
+                            const authorsCount = report.monthlyMetrics?.uniqueAuthors || report.monthStats?.authorsCount || 0;
+                            const reportId = report.id || report._id;
+                            
+                            return `
+                                <div class="monthly-report-card" 
+                                     onclick="window.reportsPage.openMonthlyReport('${reportId}')">
+                                    <div class="card-header">
+                                        <div class="card-month">${monthName}</div>
+                                        <div class="card-year">${year}</div>
                                     </div>
-                                    <div class="stat-item">
-                                        <span class="stat-value">${authorsCount}</span>
-                                        <span class="stat-label">авторов</span>
+                                    <div class="card-stats">
+                                        <div class="stat-item">
+                                            <span class="stat-value">${quotesCount}</span>
+                                            <span class="stat-label">цитат</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-value">${authorsCount}</span>
+                                            <span class="stat-label">авторов</span>
+                                        </div>
                                     </div>
+                                    <div class="card-action">Открыть отчёт →</div>
                                 </div>
-                                <div class="card-action">Открыть отчёт →</div>
-                            </div>
-                        `;
-                    }).join('')}
+                            `;
+                        }).join('')}
                 </div>
             </div>
         `;
