@@ -1,16 +1,13 @@
 /**
  * @fileoverview Модель месячных отчетов для бота "Читатель"
+ * 📋 MERGED: Объединены старая и новая модели
+ * - Сохранены все поля старой модели (additionalSurvey, analysis, specialOffer, feedback, monthStats)
+ * - Добавлены новые поля (weeklyReports, generationMethod, monthlyMetrics, evolution, isRead)
+ * - Добавлены новые методы и виртуальные поля
  * @author g1orgi89
  */
 
 const mongoose = require('mongoose');
-
-/**
- * @typedef {import('../types/reader').MonthlyReport} MonthlyReport
- * @typedef {import('../types/reader').AdditionalSurvey} AdditionalSurvey
- * @typedef {import('../types/reader').MonthlyAnalysis} MonthlyAnalysis
- * @typedef {import('../types/reader').SpecialOffer} SpecialOffer
- */
 
 /**
  * Схема дополнительного опроса
@@ -24,27 +21,29 @@ const additionalSurveySchema = new mongoose.Schema({
       'Баланс между «дать» и «взять»',
       'Любовь и отношения',
       'Вдохновение и рост',
-      'Материнство и семья'
+      'Материнство и семья',
+      // Lowercase versions for compatibility
+      'поиск уверенности',
+      'женственность',
+      'баланс',
+      'любовь и отношения',
+      'вдохновение и рост',
+      'материнство и семья'
     ]
-    // Как ощущали этот месяц - главная тема
   },
   mainTheme: {
     type: String
-    // Главная тема месяца по ощущениям пользователя
   },
   satisfaction: {
     type: Number,
     min: 1,
     max: 5
-    // Удовлетворенность месяцем 1-5
   },
   responses: [{
     type: String
-    // Дополнительные ответы на вопросы
   }],
   respondedAt: {
     type: Date
-    // Дата ответа на опрос
   }
 }, { _id: false });
 
@@ -56,23 +55,19 @@ const monthlyAnalysisSchema = new mongoose.Schema({
     type: String,
     required: true,
     maxlength: 3000
-    // Детальный анализ личности на основе всех данных
   },
   personalGrowth: {
     type: String,
     required: true,
     maxlength: 2000
-    // Анализ роста и изменений за месяц
   },
   recommendations: {
     type: String,
     required: true,
     maxlength: 2000
-    // Персональные рекомендации от психолога
   },
   bookSuggestions: [{
     type: String
-    // Рекомендации конкретных книг
   }]
 }, { _id: false });
 
@@ -83,25 +78,74 @@ const specialOfferSchema = new mongoose.Schema({
   discount: {
     type: Number,
     required: true,
-    min: 20,
-    max: 50,
+    min: 0,
+    max: 100,
     default: 25
-    // Размер скидки в процентах
   },
   validUntil: {
     type: Date,
     required: true
-    // Действует до
   },
   books: [{
     type: String
-    // Список книг для специального предложения
   }],
   promoCode: {
     type: String,
     uppercase: true,
     match: /^[A-Z0-9]{6,12}$/
-    // Специальный промокод
+  }
+}, { _id: false });
+
+/**
+ * 📋 NEW: Схема эволюции пользователя через месяц
+ */
+const evolutionSchema = new mongoose.Schema({
+  weeklyChanges: {
+    type: String,
+    maxlength: 1000
+  },
+  deepPatterns: {
+    type: String,
+    maxlength: 1000
+  },
+  psychologicalInsight: {
+    type: String,
+    maxlength: 1000
+  }
+}, { _id: false });
+
+/**
+ * 📋 NEW: Схема агрегированных метрик месяца
+ */
+const monthlyMetricsSchema = new mongoose.Schema({
+  totalQuotes: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  uniqueAuthors: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  activeDays: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  weeksActive: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  topThemes: [{
+    type: String
+  }],
+  emotionalTrend: {
+    type: String,
+    enum: ['растущая', 'стабильная', 'меняющаяся', 'смешанная'],
+    default: 'смешанная'
   }
 }, { _id: false });
 
@@ -113,86 +157,110 @@ const monthlyReportSchema = new mongoose.Schema({
     type: String,
     required: true,
     index: true
-    // ID пользователя Telegram
   },
   month: {
     type: Number,
     required: true,
     min: 1,
     max: 12
-    // Номер месяца
   },
   year: {
     type: Number,
-    required: true
-    // Год
+    required: true,
+    min: 2024
   },
-  additionalSurvey: {
-    type: additionalSurveySchema
-    // Дополнительный опрос для точности
+  
+  // 📋 NEW: Ссылки на еженедельные отчёты (для агрегации)
+  weeklyReports: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WeeklyReport'
+  }],
+  
+  // 📋 NEW: Метод генерации отчёта
+  generationMethod: {
+    type: String,
+    enum: ['weekly_reports', 'top_quotes', 'mixed', 'claude', 'openai', 'manual'],
+    default: 'weekly_reports'
   },
+  
+  // 📋 NEW: Агрегированные метрики месяца
+  monthlyMetrics: monthlyMetricsSchema,
+  
+  // 📋 NEW: Эволюция через месяц (мета-анализ)
+  evolution: evolutionSchema,
+  
+  // Дополнительный опрос
+  additionalSurvey: additionalSurveySchema,
+  
+  // Анализ от Анны
   analysis: {
     type: monthlyAnalysisSchema,
     required: true
-    // Глубокий психологический анализ
   },
+  
+  // Специальное предложение
   specialOffer: {
     type: specialOfferSchema,
     required: true
-    // Специальное предложение со скидкой
   },
+  
+  // Дата отправки
   sentAt: {
     type: Date,
     default: Date.now
-    // Дата отправки отчета
   },
   
-  // Обратная связь на месячный отчет
+  // 📋 NEW: Статус прочтения
+  isRead: {
+    type: Boolean,
+    default: false
+  },
+  readAt: {
+    type: Date
+  },
+  
+  // Обратная связь
   feedback: {
     rating: {
       type: Number,
       min: 1,
       max: 5
-      // Оценка работы бота за месяц (1-5 звезд)
     },
     whatLikes: {
       type: String,
       maxlength: 1000
-      // Что нравится больше всего
     },
     whatImprove: {
       type: String,
       maxlength: 1000
-      // Что хотели бы улучшить
     },
     newFeatures: {
       type: String,
       maxlength: 1000
-      // Какие функции добавить
+    },
+    comment: {
+      type: String,
+      maxlength: 1000
     },
     respondedAt: {
       type: Date
-      // Дата ответа
     }
   },
   
   // Техническая информация
   telegramMessageId: {
     type: String
-    // ID сообщения в Telegram
   },
   generatedBy: {
     type: String,
     default: 'claude',
     enum: ['claude', 'openai', 'manual']
-    // Кем сгенерирован анализ
   },
   generationTime: {
     type: Number
-    // Время генерации в миллисекундах
   },
   
-  // Статистика за месяц
+  // OLD: Статистика за месяц (legacy, сохранено для совместимости)
   monthStats: {
     totalQuotes: { type: Number, default: 0 },
     categoriesDistribution: { type: Map, of: Number },
@@ -206,17 +274,33 @@ const monthlyReportSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Составные индексы
+// ============ ИНДЕКСЫ ============
+
 monthlyReportSchema.index({ userId: 1, month: 1, year: 1 }, { unique: true });
 monthlyReportSchema.index({ userId: 1, sentAt: -1 });
 monthlyReportSchema.index({ month: 1, year: 1 });
 monthlyReportSchema.index({ sentAt: -1 });
 monthlyReportSchema.index({ 'feedback.rating': 1 });
+monthlyReportSchema.index({ generationMethod: 1 });
+monthlyReportSchema.index({ isRead: 1 });
 
-// Виртуальные поля
+// ============ ВИРТУАЛЬНЫЕ ПОЛЯ ============
+
 monthlyReportSchema.virtual('monthIdentifier').get(function() {
   const monthStr = this.month.toString().padStart(2, '0');
   return `${this.year}-${monthStr}`;
+});
+
+monthlyReportSchema.virtual('monthName').get(function() {
+  const months = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+  ];
+  return months[this.month - 1];
+});
+
+monthlyReportSchema.virtual('periodName').get(function() {
+  return `${this.monthName} ${this.year}`;
 });
 
 monthlyReportSchema.virtual('hasSurveyResponse').get(function() {
@@ -233,13 +317,19 @@ monthlyReportSchema.virtual('isRecent').get(function() {
   return this.sentAt > oneMonthAgo;
 });
 
-// Методы экземпляра
+monthlyReportSchema.virtual('weeksCount').get(function() {
+  return this.weeklyReports ? this.weeklyReports.length : 0;
+});
+
+monthlyReportSchema.virtual('isFromWeeklyReports').get(function() {
+  return this.generationMethod === 'weekly_reports' && this.weeksCount >= 3;
+});
+
+// ============ МЕТОДЫ ЭКЗЕМПЛЯРА ============
+
 monthlyReportSchema.methods = {
   /**
    * Добавить ответ на дополнительный опрос
-   * @param {string} mood - Выбранная тема месяца
-   * @param {number} [satisfaction] - Удовлетворенность
-   * @returns {Promise<MonthlyReport>}
    */
   async addSurveyResponse(mood, satisfaction = null) {
     this.additionalSurvey = {
@@ -252,13 +342,7 @@ monthlyReportSchema.methods = {
   },
 
   /**
-   * Добавить обратную связь по месячному отчету
-   * @param {number} rating - Оценка 1-5 звезд
-   * @param {Object} feedback - Детальная обратная связь
-   * @param {string} [feedback.whatLikes] - Что нравится
-   * @param {string} [feedback.whatImprove] - Что улучшить
-   * @param {string} [feedback.newFeatures] - Новые функции
-   * @returns {Promise<MonthlyReport>}
+   * Добавить обратную связь
    */
   async addFeedback(rating, feedback = {}) {
     this.feedback = {
@@ -266,15 +350,14 @@ monthlyReportSchema.methods = {
       whatLikes: feedback.whatLikes,
       whatImprove: feedback.whatImprove,
       newFeatures: feedback.newFeatures,
+      comment: feedback.comment,
       respondedAt: new Date()
     };
     return this.save();
   },
 
   /**
-   * Обновить статистику месяца
-   * @param {Object} stats - Статистика
-   * @returns {Promise<MonthlyReport>}
+   * Обновить статистику месяца (legacy)
    */
   async updateMonthStats(stats) {
     this.monthStats = {
@@ -288,13 +371,62 @@ monthlyReportSchema.methods = {
   },
 
   /**
+   * 📋 NEW: Отметить отчет как прочитанный
+   */
+  markAsRead() {
+    this.isRead = true;
+    this.readAt = new Date();
+    return this.save();
+  },
+
+  /**
+   * 📋 NEW: Проверить истекло ли предложение
+   */
+  isOfferExpired() {
+    return this.specialOffer.validUntil < new Date();
+  },
+
+  /**
+   * 📋 NEW: Дней до истечения предложения
+   */
+  getDaysUntilOfferExpires() {
+    const now = new Date();
+    const validUntil = this.specialOffer.validUntil;
+    const diffTime = validUntil - now;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  },
+
+  /**
+   * 📋 NEW: Получить краткую сводку для отображения
+   */
+  getSummary() {
+    return {
+      id: this._id,
+      oderId: this.userId,
+      month: this.month,
+      year: this.year,
+      period: this.periodName,
+      monthlyMetrics: this.monthlyMetrics,
+      monthStats: this.monthStats,
+      generationMethod: this.generationMethod,
+      weeksCount: this.weeksCount,
+      isRead: this.isRead,
+      hasFeedback: this.hasFeedback,
+      rating: this.feedback?.rating,
+      sentAt: this.sentAt
+    };
+  },
+
+  /**
    * Получить форматированный текст для Telegram
-   * @returns {string}
    */
   toTelegramFormat() {
-    const statsText = `\n📊 *Статистика:*\n└ Цитат сохранено: ${this.monthStats.totalQuotes}\n└ Доминирующая тема: ${this.additionalSurvey?.mood || 'не указана'}\n└ Эмоциональная динамика: развитие через размышления\n`;
+    const totalQuotes = this.monthlyMetrics?.totalQuotes || this.monthStats?.totalQuotes || 0;
+    const mood = this.additionalSurvey?.mood || 'не указана';
+    
+    const statsText = `\n📊 *Статистика:*\n└ Цитат сохранено: ${totalQuotes}\n└ Доминирующая тема: ${mood}\n└ Эмоциональная динамика: развитие через размышления\n`;
 
-    const booksText = this.analysis.bookSuggestions.map((book, i) => 
+    const booksText = (this.analysis.bookSuggestions || []).map((book, i) => 
       `${i + 1}. ${book}`
     ).join('\n');
 
@@ -302,33 +434,18 @@ monthlyReportSchema.methods = {
   },
 
   /**
-   * Получить краткую информацию
-   * @returns {Object}
+   * Получить краткую информацию (legacy)
    */
   toSummary() {
-    return {
-      id: this._id,
-      userId: this.userId,
-      monthIdentifier: this.monthIdentifier,
-      totalQuotes: this.monthStats.totalQuotes,
-      mainTheme: this.additionalSurvey?.mood,
-      sentAt: this.sentAt,
-      hasSurveyResponse: this.hasSurveyResponse,
-      hasFeedback: this.hasFeedback,
-      rating: this.feedback?.rating,
-      specialDiscount: this.specialOffer.discount
-    };
+    return this.getSummary();
   }
 };
 
-// Статические методы
+// ============ СТАТИЧЕСКИЕ МЕТОДЫ ============
+
 monthlyReportSchema.statics = {
   /**
    * Найти отчет для конкретного месяца пользователя
-   * @param {string} userId - ID пользователя
-   * @param {number} month - Номер месяца
-   * @param {number} year - Год
-   * @returns {Promise<MonthlyReport|null>}
    */
   async findByUserMonth(userId, month, year) {
     return this.findOne({ userId, month, year });
@@ -336,9 +453,6 @@ monthlyReportSchema.statics = {
 
   /**
    * Получить последние отчеты пользователя
-   * @param {string} userId - ID пользователя
-   * @param {number} [limit=3] - Количество отчетов
-   * @returns {Promise<MonthlyReport[]>}
    */
   async getUserRecentReports(userId, limit = 3) {
     return this.find({ userId })
@@ -347,11 +461,17 @@ monthlyReportSchema.statics = {
   },
 
   /**
+   * Получить отчеты пользователя (alias)
+   */
+  async getUserReports(userId, limit = 12) {
+    return this.find({ userId })
+      .sort({ year: -1, month: -1 })
+      .limit(limit)
+      .lean();
+  },
+
+  /**
    * Проверить есть ли отчет для месяца
-   * @param {string} userId - ID пользователя
-   * @param {number} month - Номер месяца
-   * @param {number} year - Год
-   * @returns {Promise<boolean>}
    */
   async hasReportForMonth(userId, month, year) {
     const count = await this.countDocuments({ userId, month, year });
@@ -359,10 +479,19 @@ monthlyReportSchema.statics = {
   },
 
   /**
+   * 📋 NEW: Получить отчёт со связанными еженедельными отчётами
+   */
+  async getWithWeeklyReports(userId, month, year) {
+    return this.findOne({ userId, month, year })
+      .populate({
+        path: 'weeklyReports',
+        select: 'weekNumber analysis metrics sentAt'
+      })
+      .exec();
+  },
+
+  /**
    * Получить пользователей для генерации месячных отчетов
-   * @param {number} month - Номер месяца (прошлого)
-   * @param {number} year - Год
-   * @returns {Promise<Array>}
    */
   async getUsersNeedingMonthlyReports(month, year) {
     const oneMonthAgo = new Date();
@@ -370,7 +499,6 @@ monthlyReportSchema.statics = {
     
     const UserProfile = mongoose.model('UserProfile');
     
-    // Получаем активных пользователей, зарегистрированных минимум месяц назад
     const eligibleUsers = await UserProfile.find({
       registeredAt: { $lte: oneMonthAgo },
       isActive: true,
@@ -378,7 +506,6 @@ monthlyReportSchema.statics = {
       isOnboardingComplete: true
     });
     
-    // Фильтруем тех, у кого уже есть отчет за этот месяц
     const usersWithReports = await this.distinct('userId', { month, year });
     
     return eligibleUsers.filter(user => 
@@ -388,8 +515,6 @@ monthlyReportSchema.statics = {
 
   /**
    * Получить статистику месячных отчетов
-   * @param {Date} [startDate] - Начальная дата
-   * @returns {Promise<Object>}
    */
   async getMonthlyReportsStats(startDate = null) {
     const match = {};
@@ -420,9 +545,39 @@ monthlyReportSchema.statics = {
   },
 
   /**
+   * Получить статистику по периоду
+   */
+  async getMonthlyStats(startDate, endDate) {
+    return this.aggregate([
+      {
+        $match: {
+          sentAt: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: '$year',
+            month: '$month'
+          },
+          totalReports: { $sum: 1 },
+          avgRating: { $avg: '$feedback.rating' },
+          readCount: {
+            $sum: { $cond: ['$isRead', 1, 0] }
+          },
+          feedbackCount: {
+            $sum: { $cond: [{ $exists: ['$feedback.rating', true] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $sort: { '_id.year': -1, '_id.month': -1 }
+      }
+    ]);
+  },
+
+  /**
    * Получить распределение тем месяца
-   * @param {Date} [startDate] - Начальная дата
-   * @returns {Promise<Array>}
    */
   async getMonthlyThemesDistribution(startDate = null) {
     const match = {
@@ -446,8 +601,7 @@ monthlyReportSchema.statics = {
   },
 
   /**
-   * Получить самые частые предложения улучшений
-   * @returns {Promise<Array>}
+   * Получить предложения по улучшению
    */
   async getImprovementSuggestions() {
     return this.aggregate([
@@ -469,9 +623,10 @@ monthlyReportSchema.statics = {
   }
 };
 
-// Middleware
+// ============ MIDDLEWARE ============
+
 monthlyReportSchema.pre('save', function(next) {
-  // Автоматически заполняем validUntil для специального предложения (7 дней)
+  // Автоматически заполняем validUntil (7 дней)
   if (this.isNew && this.specialOffer && !this.specialOffer.validUntil) {
     this.specialOffer.validUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   }
@@ -481,7 +636,19 @@ monthlyReportSchema.pre('save', function(next) {
     this.specialOffer.promoCode = `MONTH${this.specialOffer.discount}`;
   }
   
+  // Синхронизируем monthlyMetrics и monthStats
+  if (this.monthlyMetrics && this.monthlyMetrics.totalQuotes) {
+    if (!this.monthStats) this.monthStats = {};
+    this.monthStats.totalQuotes = this.monthlyMetrics.totalQuotes;
+    this.monthStats.authorsCount = this.monthlyMetrics.uniqueAuthors;
+  }
+  
   next();
+});
+
+monthlyReportSchema.post('save', function(doc) {
+  const method = doc.generationMethod || 'unknown';
+  console.log(`📈 Monthly report saved: ${doc.userId} for ${doc.monthName} ${doc.year} (${method})`);
 });
 
 const MonthlyReport = mongoose.model('MonthlyReport', monthlyReportSchema);
