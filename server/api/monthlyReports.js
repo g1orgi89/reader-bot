@@ -2,6 +2,7 @@
  * @fileoverview API endpoints for monthly reports and feedback for Reader project
  * @author g1orgi89
  * @updated 2025-01-19 - Added view endpoint, renamed trigger to generate, improved service integration
+ * @updated 2025-11-22 - Fixed method name: generateReport -> generateMonthlyReport
  */
 
 const express = require('express');
@@ -250,17 +251,17 @@ router.post('/generate', async (req, res) => {
 
     if (userId) {
       // Generate for specific user
-      // Use updated MonthlyReportService.generateReport method with parameters
+      // 🔧 FIX: Use correct method name generateMonthlyReport (not generateReport)
       let report;
       if (month && year) {
         // If month and year provided, use them
-        report = await monthlyReportService.generateReport(userId, month, year);
+        report = await monthlyReportService.generateMonthlyReport(userId, month, year);
       } else {
         // Otherwise generate for previous month
         const now = new Date();
         const lastMonth = now.getMonth() === 0 ? 12 : now.getMonth();
         const lastYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-        report = await monthlyReportService.generateReport(userId, lastMonth, lastYear);
+        report = await monthlyReportService.generateMonthlyReport(userId, lastMonth, lastYear);
       }
       
       res.json({
