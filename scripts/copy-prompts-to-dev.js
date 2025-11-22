@@ -93,18 +93,18 @@ async function copyPromptsToDev() {
     
     const stats = {};
     
-    // 1. Копируем universalprompts (промпты для AI)
+    // 1. Копируем prompts (промпты для AI)
     stats.prompts = await copyCollection(
       prodDb, devDb,
-      'universalprompts',
+      'prompts',
       'type',
       'type'
     );
     
-    // 2. Копируем bookcatalogs (книги для рекомендаций)
+    // 2. Копируем book_catalog (книги для рекомендаций)
     stats.books = await copyCollection(
       prodDb, devDb,
-      'bookcatalogs',
+      'book_catalog',
       'slug',
       'title'
     );
@@ -117,34 +117,42 @@ async function copyPromptsToDev() {
       'name'
     );
     
-    // 4. Копируем promocodes (промокоды)
+    // 4. Копируем promo_codes (промокоды)
     stats.promocodes = await copyCollection(
       prodDb, devDb,
-      'promocodes',
+      'promo_codes',
       'code',
       'code'
     );
     
-    // 5. Копируем announcementcatalogs (анонсы)
+    // 5. Копируем announcement_catalog (анонсы)
     stats.announcements = await copyCollection(
       prodDb, devDb,
-      'announcementcatalogs',
+      'announcement_catalog',
       'slug',
       'title'
     );
     
-    // 6. Копируем targetaudiences (целевые аудитории)
+    // 6. Копируем target_audiences (целевые аудитории)
     stats.audiences = await copyCollection(
       prodDb, devDb,
-      'targetaudiences',
+      'target_audiences',
       'code',
       'name'
     );
     
-    // 7. Копируем utmtemplates (UTM шаблоны)
+    // 7. Копируем utm_templates (UTM шаблоны)
     stats.utm = await copyCollection(
       prodDb, devDb,
-      'utmtemplates',
+      'utm_templates',
+      'name',
+      'name'
+    );
+    
+    // 8. Копируем anna_persona (персона Анны)
+    stats.anna = await copyCollection(
+      prodDb, devDb,
+      'anna_persona',
       'name',
       'name'
     );
