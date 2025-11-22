@@ -63,8 +63,8 @@ const monthlyAnalysisSchema = new mongoose.Schema({
     default: ''
   },
   recommendations: {
-    type: false,
-    required: true,
+    type: String,
+    required: false,
     maxlength: 2000,
     default: ''
   },
