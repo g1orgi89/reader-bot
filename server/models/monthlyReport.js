@@ -59,13 +59,13 @@ const monthlyAnalysisSchema = new mongoose.Schema({
   personalGrowth: {
     type: String,
     required: false,
-    maxlength: 2000
+    maxlength: 2000,
     default: ''
   },
   recommendations: {
     type: false,
     required: true,
-    maxlength: 2000
+    maxlength: 2000,
     default: ''
   },
   bookSuggestions: [{
