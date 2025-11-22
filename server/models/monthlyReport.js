@@ -58,13 +58,15 @@ const monthlyAnalysisSchema = new mongoose.Schema({
   },
   personalGrowth: {
     type: String,
-    required: true,
+    required: false,
     maxlength: 2000
+    default: ''
   },
   recommendations: {
-    type: String,
+    type: false,
     required: true,
     maxlength: 2000
+    default: ''
   },
   bookSuggestions: [{
     title: {
@@ -144,7 +146,7 @@ const specialOfferSchema = new mongoose.Schema({
 const evolutionSchema = new mongoose.Schema({
   weeklyChanges: {
     type: String,
-    maxlength: 1000
+    maxlength: 3000
   },
   deepPatterns: {
     type: String,
