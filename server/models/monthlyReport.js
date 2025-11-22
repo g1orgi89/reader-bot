@@ -67,9 +67,50 @@ const monthlyAnalysisSchema = new mongoose.Schema({
     maxlength: 2000
   },
   bookSuggestions: [{
-    type: String
+    title: {
+      type: String,
+      required: true,
+      maxlength: 200
+    },
+    author: {
+      type: String,
+      required: false,
+      maxlength: 100,
+      default: null
+    },
+    description: {
+      type: String,
+      required: true,
+      maxlength: 500
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    priceByn: {
+      type: Number,
+      required: false,
+      min: 0,
+      default: null
+    },
+    bookSlug: {
+      type: String,
+      required: true,
+      lowercase: true,
+      match: /^[a-z0-9_-]+$/
+    },
+    link: {
+      type: String,
+      required: true
+    },
+    reasoning: {
+      type: String,
+      required: false,
+      default: 'Рекомендация на основе анализа ваших цитат за месяц',
+      maxlength: 300
+    }
   }]
-}, { _id: false });
 
 /**
  * Схема специального предложения
