@@ -6,75 +6,90 @@
 
 const { MongoClient } = require('mongodb');
 
-// Конфигурация
-const MONGO_USER = process.env.MONGO_USER || 'reader_admin';
-const MONGO_PASS = process.env.MONGO_PASS || 'reader_secure_2025';
-const MONGO_HOST = process.env.MONGO_HOST || 'localhost:27017';
+// Конфигурация - ПРАВИЛЬНЫЕ КРЕДЫ ДЛЯ СЕРВЕРА
+const MONGO_USER = 'reader_bot_admin';
+const MONGO_PASS = '54321Server105425';
+const MONGO_HOST = '127.0.0.1:27017';
 
-const PROD_DB = process.env.PROD_DB || 'reader_bot';
-const DEV_DB = process.env.DEV_DB || 'reader_bot_dev';
+const PROD_DB = 'reader_bot';
+const DEV_DB = 'reader_bot_dev';
 
-const MONGO_URI = `mongodb://${MONGO_USER}:${MONGO_PASS}@${MONGO_HOST}/?authSource=admin`;
+// Разные authSource для разных БД
+const PROD_URI = `mongodb://${MONGO_USER}:${MONGO_PASS}@${MONGO_HOST}/${PROD_DB}?authSource=${PROD_DB}`;
+const DEV_URI = `mongodb://${MONGO_USER}:${MONGO_PASS}@${MONGO_HOST}/${DEV_DB}?authSource=${DEV_DB}`;
 
 /**
  * Копирует коллекцию из production в dev
- * @param {Db} prodDb - Production database
- * @param {Db} devDb - Development database
- * @param {string} collectionName - Название коллекции
- * @param {string} uniqueField - Уникальное поле для upsert
- * @param {string} displayField - Поле для отображения в логах
  */
 async function copyCollection(prodDb, devDb, collectionName, uniqueField, displayField) {
   console.log(`\n📋 Копируем ${collectionName}...`);
   
-  const items = await prodDb.collection(collectionName).find({}).toArray();
-  console.log(`   Найдено: ${items.length} записей`);
-  
-  let copied = 0;
-  let errors = 0;
-  
-  for (const item of items) {
-    try {
-      const originalId = item._id;
-      delete item._id;
-      
-      const filter = {};
-      filter[uniqueField] = item[uniqueField];
-      
-      await devDb.collection(collectionName).updateOne(
-        filter,
-        { $set: item },
-        { upsert: true }
-      );
-      
-      const displayName = item[displayField] || item[uniqueField] || originalId;
-      console.log(`   ✅ ${displayName}`);
-      copied++;
-    } catch (error) {
-      console.log(`   ❌ Ошибка: ${error.message}`);
-      errors++;
+  try {
+    const items = await prodDb.collection(collectionName).find({}).toArray();
+    console.log(`   Найдено: ${items.length} записей`);
+    
+    if (items.length === 0) {
+      console.log(`   ⚠️ Коллекция пустая, пропускаем`);
+      return { total: 0, copied: 0, errors: 0 };
     }
+    
+    let copied = 0;
+    let errors = 0;
+    
+    for (const item of items) {
+      try {
+        const originalId = item._id;
+        delete item._id;
+        
+        const filter = {};
+        filter[uniqueField] = item[uniqueField];
+        
+        await devDb.collection(collectionName).updateOne(
+          filter,
+          { $set: item },
+          { upsert: true }
+        );
+        
+        const displayName = item[displayField] || item[uniqueField] || originalId;
+        console.log(`   ✅ ${displayName}`);
+        copied++;
+      } catch (error) {
+        console.log(`   ❌ Ошибка: ${error.message}`);
+        errors++;
+      }
+    }
+    
+    return { total: items.length, copied, errors };
+  } catch (error) {
+    console.log(`   ❌ Ошибка чтения коллекции: ${error.message}`);
+    return { total: 0, copied: 0, errors: 1 };
   }
-  
-  return { total: items.length, copied, errors };
 }
 
 /**
  * Основная функция копирования данных
  */
 async function copyPromptsToDev() {
-  const client = new MongoClient(MONGO_URI);
+  let prodClient = null;
+  let devClient = null;
   
   try {
-    console.log('🔌 Подключаемся к MongoDB...');
-    console.log(`   Production DB: ${PROD_DB}`);
-    console.log(`   Development DB: ${DEV_DB}`);
+    console.log('🔌 Подключаемся к Production БД...');
+    console.log(`   URI: mongodb://${MONGO_USER}:***@${MONGO_HOST}/${PROD_DB}`);
     
-    await client.connect();
-    console.log('✅ Подключение успешно!\n');
+    prodClient = new MongoClient(PROD_URI);
+    await prodClient.connect();
+    console.log('✅ Production подключение успешно!');
     
-    const prodDb = client.db(PROD_DB);
-    const devDb = client.db(DEV_DB);
+    console.log('\n🔌 Подключаемся к Dev БД...');
+    console.log(`   URI: mongodb://${MONGO_USER}:***@${MONGO_HOST}/${DEV_DB}`);
+    
+    devClient = new MongoClient(DEV_URI);
+    await devClient.connect();
+    console.log('✅ Dev подключение успешно!');
+    
+    const prodDb = prodClient.db(PROD_DB);
+    const devDb = devClient.db(DEV_DB);
     
     const stats = {};
     
@@ -164,8 +179,14 @@ async function copyPromptsToDev() {
     console.error(error.stack);
     process.exit(1);
   } finally {
-    await client.close();
-    console.log('🔌 Отключились от MongoDB');
+    if (prodClient) {
+      await prodClient.close();
+      console.log('🔌 Отключились от Production');
+    }
+    if (devClient) {
+      await devClient.close();
+      console.log('🔌 Отключились от Dev');
+    }
   }
 }
 
