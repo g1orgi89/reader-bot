@@ -239,7 +239,7 @@ class MonthlyReportService {
     });
 
     // Генерируем анализ
-    cconst analysis = await this.generateAnalysisWithClaude(prompt, user.name);
+    const analysis = await this.generateAnalysisWithClaude(prompt, user.name);
 
     // 📋 NEW: Получаем рекомендации из каталога по темам (fallback)
     let bookRecommendations = [];
