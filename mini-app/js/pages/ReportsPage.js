@@ -1201,12 +1201,16 @@ class ReportsPage {
     
     /**
      * 📖 Открыть месячный отчёт
+     * ✅ FIX: Исправлен поиск по id и _id
      */
     async openMonthlyReport(reportId) {
         this.telegram.hapticFeedback('medium');
         
-        // Находим отчёт в списке
-        const report = this.monthlyReports.find(r => r._id === reportId);
+        // ✅ FIX: Ищем по _id ИЛИ id (поддержка обоих форматов)
+        const report = this.monthlyReports.find(r => {
+            const rId = String(r._id || r.id || '');
+            return rId === String(reportId);
+        });
         
         if (report) {
             this.selectedMonthlyReport = report;
@@ -1219,11 +1223,12 @@ class ReportsPage {
             }
             
             this.rerender();
-            
+        
             // Скроллим наверх
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
             console.error('❌ Отчёт не найден:', reportId);
+            console.log('📋 Доступные ID:', this.monthlyReports.map(r => ({ _id: r._id, id: r.id })));
         }
     }
     
