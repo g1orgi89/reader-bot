@@ -1,0 +1,365 @@
+/**
+ * @fileoverview Follow/Subscription styles for Community page
+ * @description Стили для системы подписок: кнопки, табы, empty states
+ */
+
+/* =============================================
+   FEED FILTER TABS
+   ============================================= */
+
+.feed-filter {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.08));
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.feed-filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  background: var(--bg-secondary, #f5f5f5);
+  color: var(--text-secondary, #666);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 36px;
+}
+
+.feed-filter-btn:active {
+  transform: scale(0.96);
+}
+
+.feed-filter-btn.active {
+  background: var(--primary-color, #D2452C);
+  color: white;
+}
+
+.feed-filter-btn .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.feed-filter-btn:not(.active) .count {
+  background: rgba(0,0,0,0.08);
+}
+
+/* =============================================
+   FOLLOW BUTTON
+   ============================================= */
+
+.follow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-secondary, #f5f5f5);
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.follow-btn:active {
+  transform: scale(0.9);
+}
+
+.follow-btn.following {
+  background: var(--primary-color, #D2452C);
+  color: white;
+}
+
+.follow-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.follow-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Larger follow button variant (for profile pages) */
+.follow-btn--large {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+}
+
+.follow-btn--large svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Text variant of follow button */
+.follow-btn--text {
+  width: auto;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 18px;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.follow-btn--text.following {
+  background: var(--bg-secondary, #f5f5f5);
+  color: var(--text-primary, #333);
+  border: 1px solid var(--border-color, rgba(0,0,0,0.12));
+}
+
+/* =============================================
+   QUOTE CARD WITH FOLLOW BUTTON
+   ============================================= */
+
+.quote-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.quote-card-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.quote-card-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-secondary, #f5f5f5);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.quote-card-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quote-card-user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quote-card-user-time {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+/* =============================================
+   EMPTY STATE FOR FOLLOWING FEED
+   ============================================= */
+
+.empty-following {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  text-align: center;
+}
+
+.empty-following-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-following h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  margin: 0 0 8px 0;
+}
+
+.empty-following p {
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.empty-following-cta {
+  margin-top: 24px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 24px;
+  background: var(--primary-color, #D2452C);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-following-cta:active {
+  transform: scale(0.96);
+}
+
+/* =============================================
+   FOLLOWING/FOLLOWERS LIST
+   ============================================= */
+
+.follow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border-color, rgba(0,0,0,0.08));
+}
+
+.follow-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary, #fff);
+}
+
+.follow-list-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.follow-list-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-secondary, #f5f5f5);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.follow-list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.follow-list-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.follow-list-stats {
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+}
+
+/* =============================================
+   LOADING STATE
+   ============================================= */
+
+.follow-btn.loading {
+  pointer-events: none;
+}
+
+.follow-btn.loading::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: follow-spin 0.6s linear infinite;
+}
+
+@keyframes follow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =============================================
+   DARK THEME SUPPORT
+   ============================================= */
+
+[data-theme="dark"] .feed-filter-btn:not(.active) {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+}
+
+[data-theme="dark"] .follow-btn:not(.following) {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.8);
+}
+
+[data-theme="dark"] .follow-btn--text.following {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.9);
+  border-color: rgba(255,255,255,0.12);
+}
+
+[data-theme="dark"] .empty-following-icon {
+  opacity: 0.5;
+}
+
+/* =============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================= */
+
+@media (max-width: 360px) {
+  .feed-filter {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+  
+  .feed-filter-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .follow-btn {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .follow-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+}
