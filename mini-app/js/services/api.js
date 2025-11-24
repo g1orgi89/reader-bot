@@ -1513,6 +1513,85 @@ class ApiService {
     }
 }
 
+// ===========================================
+    // 👥 ПОДПИСКИ (FOLLOW SYSTEM)
+    // ===========================================
+
+    /**
+     * ➕ Подписаться на пользователя
+     * @param {string} userId - ID пользователя для подписки
+     */
+    async followUser(userId) {
+        return this.request('POST', `/follow/${userId}`);
+    }
+
+    /**
+     * ➖ Отписаться от пользователя
+     * @param {string} userId - ID пользователя
+     */
+    async unfollowUser(userId) {
+        return this.request('DELETE', `/follow/${userId}`);
+    }
+
+    /**
+     * 🔍 Проверить статус подписки на пользователя
+     * @param {string} userId - ID пользователя
+     */
+    async getFollowStatus(userId) {
+        return this.request('GET', `/follow/status/${userId}`);
+    }
+
+    /**
+     * 🔍 Batch проверка статусов подписки
+     * @param {string[]} userIds - Массив ID пользователей (макс 100)
+     */
+    async getFollowStatusBatch(userIds) {
+        return this.request('POST', `/follow/status/batch`, { userIds });
+    }
+
+    /**
+     * 📋 Получить список подписок (на кого подписан)
+     * @param {Object} options - { limit, skip }
+     */
+    async getFollowing(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+        if (options.skip) params.append('skip', options.skip);
+        const qs = params.toString();
+        return this.request('GET', qs ? `/following?${qs}` : '/following');
+    }
+
+    /**
+     * 📋 Получить список подписчиков
+     * @param {Object} options - { limit, skip }
+     */
+    async getFollowers(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+        if (options.skip) params.append('skip', options.skip);
+        const qs = params.toString();
+        return this.request('GET', qs ? `/followers?${qs}` : '/followers');
+    }
+
+    /**
+     * 📊 Получить счётчики подписок/подписчиков
+     */
+    async getFollowCounts() {
+        return this.request('GET', `/follow/counts`);
+    }
+
+    /**
+     * 📰 Получить ленту цитат от подписок
+     * @param {Object} options - { limit, skip }
+     */
+    async getFollowingFeed(options = {}) {
+        const params = new URLSearchParams();
+        if (options.limit) params.append('limit', options.limit);
+        if (options.skip) params.append('skip', options.skip);
+        const qs = params.toString();
+        return this.request('GET', qs ? `/community/feed/following?${qs}` : '/community/feed/following');
+    }
+
 // 🌍 Глобальный экспорт (только если window доступен)
 if (typeof window !== 'undefined') {
     window.ApiService = ApiService;
