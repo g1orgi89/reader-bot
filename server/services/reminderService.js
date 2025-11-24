@@ -1,6 +1,11 @@
 /**
  * @fileoverview Production-ready Telegram notification system for Reader Bot
  * Supports text-only, image-only, and text+image notifications
+ * 
+ * UPDATED: Added support for:
+ * - button field in templates for inline keyboard
+ * - monthlyReport slot for 1st of each month
+ * 
  * @author g1orgi89
  */
 
@@ -18,13 +23,14 @@ const path = require('path');
  */
 
 /**
- * Production-ready сервис напоминаний с поддержкой изображений
+ * Production-ready сервис напоминаний с поддержкой изображений и кнопок
  */
 class ReminderService {
   constructor() {
     this.bot = null;
     this.templates = notificationTemplates;
     this.assetsPath = path.join(__dirname, '../assets/notifications');
+    this.botUsername = process.env.BOT_USERNAME || 'reader_app_bot';
 
     logger.info('🔔 ReminderService initialized with date-based notification system');
     logger.info(`📂 Assets path: ${this.assetsPath}`);
@@ -43,7 +49,7 @@ class ReminderService {
   /**
    * Получить шаблон уведомления для конкретной даты и слота
    * @param {string} dateKey - Ключ даты в формате YYYY-MM-DD
-   * @param {string} slot - Слот времени: 'report', 'morning', 'day', 'evening'
+   * @param {string} slot - Слот времени: 'report', 'monthlyReport', 'morning', 'day', 'evening'
    * @returns {Object|null} Объект шаблона или null
    */
   getNotificationTemplate(dateKey, slot) {
@@ -72,8 +78,28 @@ class ReminderService {
   }
 
   /**
+   * Создать inline keyboard из button шаблона
+   * @param {Object} buttonTemplate - Шаблон кнопки { text, url }
+   * @returns {Object|undefined} Telegram reply_markup или undefined
+   */
+  createInlineKeyboard(buttonTemplate) {
+    if (!buttonTemplate || !buttonTemplate.text || !buttonTemplate.url) {
+      return undefined;
+    }
+
+    const deeplink = `https://t.me/${this.botUsername}/Reader?startapp=${buttonTemplate.url}`;
+    
+    return {
+      inline_keyboard: [[{
+        text: buttonTemplate.text,
+        url: deeplink
+      }]]
+    };
+  }
+
+  /**
    * Отправка напоминаний для определенного слота
-   * @param {string} slot - Слот времени: 'morning', 'day', 'evening', 'report'
+   * @param {string} slot - Слот времени: 'morning', 'day', 'evening', 'report', 'monthlyReport'
    * @returns {Promise<ReminderStats>}
    */
   async sendSlotReminders(slot) {
@@ -82,7 +108,7 @@ class ReminderService {
       return { sent: 0, skipped: 0, failed: 0, errors: [] };
     }
 
-    if (!['report', 'morning', 'day', 'evening'].includes(slot)) {
+    if (!['report', 'monthlyReport', 'morning', 'day', 'evening'].includes(slot)) {
       logger.error(`🔔 Invalid slot: ${slot}`);
       return { sent: 0, skipped: 0, failed: 0, errors: [] };
     }
@@ -190,8 +216,8 @@ class ReminderService {
           continue;
         }
 
-        // Для слота 'report' отправляем всем активным пользователям
-        if (slot === 'report') {
+        // Для слотов 'report' и 'monthlyReport' отправляем всем активным пользователям
+        if (slot === 'report' || slot === 'monthlyReport') {
           eligibleUsers.push(user);
           continue;
         }
@@ -257,6 +283,8 @@ class ReminderService {
    * 2. Только изображение (image)
    * 3. Текст + изображение (text + image)
    * 
+   * Все типы могут содержать inline кнопку (button)
+   * 
    * @param {Object} user - Пользователь
    * @param {Object} template - Шаблон уведомления
    * @param {string} slot - Слот времени
@@ -266,6 +294,7 @@ class ReminderService {
   async sendReminderToUser(user, template, slot, dateKey) {
     const hasText = template.text && template.text.trim() !== '';
     const hasImage = template.image && template.image.trim() !== '';
+    const replyMarkup = this.createInlineKeyboard(template.button);
 
     // Если нет ни текста, ни изображения - пропускаем
     if (!hasText && !hasImage) {
@@ -285,10 +314,11 @@ class ReminderService {
 
         await this.bot.telegram.sendPhoto(
           user.userId,
-          { source: fs.createReadStream(imagePath) }
+          { source: fs.createReadStream(imagePath) },
+          { reply_markup: replyMarkup }
         );
 
-        logger.info(`🖼️ Sent image-only ${slot} reminder to user ${user.userId} (${user.name})`);
+        logger.info(`🖼️ Sent image-only ${slot} reminder to user ${user.userId} (${user.name})${replyMarkup ? ' with button' : ''}`);
         return 'sent';
       }
 
@@ -296,14 +326,21 @@ class ReminderService {
       if (hasText && !hasImage) {
         let message = template.text;
         
-        // Добавляем информацию о сегодняшних цитатах, если есть
-        const todayCount = await this.getTodayQuotesCount(user.userId);
-        if (todayCount > 0) {
-          message += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+        // Добавляем информацию о сегодняшних цитатах, если есть (только для обычных напоминаний)
+        if (!['report', 'monthlyReport'].includes(slot)) {
+          const todayCount = await this.getTodayQuotesCount(user.userId);
+          if (todayCount > 0) {
+            message += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+          }
         }
 
-        await this.bot.telegram.sendMessage(user.userId, message);
-        logger.info(`📝 Sent text-only ${slot} reminder to user ${user.userId} (${user.name})`);
+        await this.bot.telegram.sendMessage(
+          user.userId, 
+          message,
+          { reply_markup: replyMarkup }
+        );
+        
+        logger.info(`📝 Sent text-only ${slot} reminder to user ${user.userId} (${user.name})${replyMarkup ? ' with button' : ''}`);
         return 'sent';
       }
 
@@ -316,30 +353,42 @@ class ReminderService {
           logger.warn(`🖼️ Image not found: ${imagePath} - sending text only for user ${user.userId}`);
           
           let message = template.text;
-          const todayCount = await this.getTodayQuotesCount(user.userId);
-          if (todayCount > 0) {
-            message += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+          if (!['report', 'monthlyReport'].includes(slot)) {
+            const todayCount = await this.getTodayQuotesCount(user.userId);
+            if (todayCount > 0) {
+              message += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+            }
           }
 
-          await this.bot.telegram.sendMessage(user.userId, message);
-          logger.info(`📝 Sent text-only ${slot} reminder (image missing) to user ${user.userId} (${user.name})`);
+          await this.bot.telegram.sendMessage(
+            user.userId, 
+            message,
+            { reply_markup: replyMarkup }
+          );
+          
+          logger.info(`📝 Sent text-only ${slot} reminder (image missing) to user ${user.userId} (${user.name})${replyMarkup ? ' with button' : ''}`);
           return 'sent';
         }
 
         // Отправляем изображение с текстом в caption
         let caption = template.text;
-        const todayCount = await this.getTodayQuotesCount(user.userId);
-        if (todayCount > 0) {
-          caption += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+        if (!['report', 'monthlyReport'].includes(slot)) {
+          const todayCount = await this.getTodayQuotesCount(user.userId);
+          if (todayCount > 0) {
+            caption += `\n\n📊 Сегодня уже добавлено: ${todayCount} цитат`;
+          }
         }
 
         await this.bot.telegram.sendPhoto(
           user.userId,
           { source: fs.createReadStream(imagePath) },
-          { caption: caption }
+          { 
+            caption: caption,
+            reply_markup: replyMarkup
+          }
         );
 
-        logger.info(`📸 Sent text+image ${slot} reminder to user ${user.userId} (${user.name})`);
+        logger.info(`📸 Sent text+image ${slot} reminder to user ${user.userId} (${user.name})${replyMarkup ? ' with button' : ''}`);
         return 'sent';
       }
 
@@ -399,10 +448,11 @@ class ReminderService {
     return {
       initialized: !!this.bot,
       status: this.bot ? 'ready' : 'bot_not_initialized',
-      slots: ['report', 'morning', 'day', 'evening'],
+      slots: ['report', 'monthlyReport', 'morning', 'day', 'evening'],
       frequencies: ['off', 'rare', 'standard', 'often'],
       assetsPath: this.assetsPath,
-      templateDates: Object.keys(this.templates).length
+      templateDates: Object.keys(this.templates).length,
+      botUsername: this.botUsername
     };
   }
 
