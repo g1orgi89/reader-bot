@@ -257,7 +257,7 @@ class MonthlyReportService {
           title: book.title,
           author: book.author || null,
           description: book.description,
-          price: book.price,
+          price: this.sanitizePrice(book.price),
           priceByn: book.priceByn || null,
           bookSlug: book.bookSlug,
           link: book.utmLink || `https://anna-busel.com/books?utm_source=telegram_bot&utm_medium=monthly_report&utm_content=${book.bookSlug}`,
@@ -366,8 +366,27 @@ class MonthlyReportService {
   }
 
   /**
+   * 📋 NEW: Sanitizes price value to ensure it's a valid number
+   * @param {any} price - Price value (can be string like "$33" or number)
+   * @returns {number} Sanitized price as number
+   */
+  sanitizePrice(price) {
+    if (typeof price === 'number') {
+      return price;
+    }
+    if (typeof price === 'string') {
+      // Remove currency symbols and parse
+      const cleaned = price.replace(/[^0-9.]/g, '');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  }
+
+  /**
    * 📋 NEW: Агрегирует рекомендации книг из еженедельных отчётов
    * Берёт уникальные книги, сортирует по частоте рекомендаций
+   * ✅ FIX: Added price sanitization to handle string prices like "$33"
    * @param {Array} weeklyReports - Массив еженедельных отчётов
    * @returns {Array} Топ-3 книги с полными данными для каталога
    */
@@ -386,7 +405,7 @@ class MonthlyReportService {
               title: rec.title,
               author: rec.author || null,
               description: rec.description,
-              price: rec.price,
+              price: this.sanitizePrice(rec.price),
               priceByn: rec.priceByn || null,
               bookSlug: rec.bookSlug,
               link: rec.link,
