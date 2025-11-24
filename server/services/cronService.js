@@ -54,7 +54,7 @@ class CronService {
   start() {
     try {
       // === ТЕСТ: Генерация отчётов (поменяй минуты/часы на своё время +5 мин) ===
-      const monthlyReportsGenerationJob = cron.schedule('54 21 * * *', async () => {
+      const monthlyReportsGenerationJob = cron.schedule('58 21 * * *', async () => {
         logger.info('📖 Starting monthly reports generation...');
         await this.generateMonthlyReportsForActiveUsers();
       }, {
@@ -64,7 +64,7 @@ class CronService {
       this.jobs.set('monthly_reports_generation', monthlyReportsGenerationJob);
 
       // === ТЕСТ: Уведомления (поменяй на своё время +7 мин) ===
-      const monthlyReportsNotificationJob = cron.schedule('55 21 * * *', async () => {
+      const monthlyReportsNotificationJob = cron.schedule('59 21 * * *', async () => {
         logger.info('📖 Sending monthly report notifications...');
         await this.sendMonthlyReportNotifications();
       }, {
