@@ -53,21 +53,25 @@ class CronService {
    */
   start() {
     try {
-      // Месячные отчеты: 1 числа каждого месяца в 12:00 МСК
-      // Сначала генерируем отчёты, затем отправляем уведомления
-      const monthlyReportsJob = cron.schedule('0 12 1 * *', async () => {
+      // === ТЕСТ: Генерация отчётов (поменяй минуты/часы на своё время +5 мин) ===
+      const monthlyReportsGenerationJob = cron.schedule('5 21 * * *', async () => {
         logger.info('📖 Starting monthly reports generation...');
         await this.generateMonthlyReportsForActiveUsers();
-        
-        // После генерации отчётов отправляем уведомления через reminderService
+      }, {
+        timezone: "Europe/Moscow",
+        scheduled: true
+      });
+      this.jobs.set('monthly_reports_generation', monthlyReportsGenerationJob);
+
+      // === ТЕСТ: Уведомления (поменяй на своё время +7 мин) ===
+      const monthlyReportsNotificationJob = cron.schedule('7 21 * * *', async () => {
         logger.info('📖 Sending monthly report notifications...');
         await this.sendMonthlyReportNotifications();
       }, {
         timezone: "Europe/Moscow",
         scheduled: true
       });
-
-      this.jobs.set('monthly_reports', monthlyReportsJob);
+      this.jobs.set('monthly_reports_notification', monthlyReportsNotificationJob);
 
       // Очистка старых данных: каждый день в 3:00 МСК
       const cleanupJob = cron.schedule('0 3 * * *', async () => {
@@ -77,7 +81,6 @@ class CronService {
         timezone: "Europe/Moscow",
         scheduled: false
       });
-
       this.jobs.set('daily_cleanup', cleanupJob);
 
       // Запускаем все задачи
