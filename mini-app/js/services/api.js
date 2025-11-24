@@ -1511,9 +1511,8 @@ class ApiService {
         
         return this.request('DELETE', `/favorites?${params.toString()}`);
     }
-}
 
-// ===========================================
+    // ===========================================
     // 👥 ПОДПИСКИ (FOLLOW SYSTEM)
     // ===========================================
 
@@ -1591,6 +1590,7 @@ class ApiService {
         const qs = params.toString();
         return this.request('GET', qs ? `/community/feed/following?${qs}` : '/community/feed/following');
     }
+}
 
 // 🌍 Глобальный экспорт (только если window доступен)
 if (typeof window !== 'undefined') {
