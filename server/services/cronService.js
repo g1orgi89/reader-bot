@@ -1,5 +1,10 @@
 /**
  * @fileoverview Cron сервис для автоматических задач бота "Читатель"
+ * 
+ * UPDATED: Added monthlyReport notification slot support
+ * - Monthly reports generated at 12:00 MSK on 1st of each month
+ * - Monthly report NOTIFICATIONS sent via reminderService after generation
+ * 
  * @author g1orgi89
  */
 
@@ -49,9 +54,14 @@ class CronService {
   start() {
     try {
       // Месячные отчеты: 1 числа каждого месяца в 12:00 МСК
+      // Сначала генерируем отчёты, затем отправляем уведомления
       const monthlyReportsJob = cron.schedule('0 12 1 * *', async () => {
         logger.info('📖 Starting monthly reports generation...');
         await this.generateMonthlyReportsForActiveUsers();
+        
+        // После генерации отчётов отправляем уведомления через reminderService
+        logger.info('📖 Sending monthly report notifications...');
+        await this.sendMonthlyReportNotifications();
       }, {
         timezone: "Europe/Moscow",
         scheduled: true
@@ -286,7 +296,7 @@ class CronService {
 
       // Отправляем статистику администратору
       if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
-        const adminMessage = `📈 *Месячные отчеты отправлены*\\n\\n✅ Успешно: ${stats.generated}\\n❌ Ошибки: ${stats.failed}\\n📊 Всего пользователей: ${stats.total}\\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\\n\\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 3).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
+        const adminMessage = `📈 *Месячные отчеты сгенерированы*\\n\\n✅ Успешно: ${stats.generated}\\n❌ Ошибки: ${stats.failed}\\n📊 Всего пользователей: ${stats.total}\\n⏱ Время выполнения: ${Math.round(duration / 1000)}с\\n\\n${stats.errors.length > 0 ? `\\n*Ошибки:*\\n${stats.errors.slice(0, 3).map(e => `• ${e.userId}: ${e.error}`).join('\\n')}` : ''}`;
 
         try {
           await this.bot.telegram.sendMessage(
@@ -299,8 +309,49 @@ class CronService {
         }
       }
 
+      return stats;
+
     } catch (error) {
       logger.error(`📖 Error in generateMonthlyReportsForActiveUsers: ${error.message}`, error);
+    }
+  }
+
+  /**
+   * 📖 NEW: Отправка уведомлений о месячных отчётах через reminderService
+   * Использует шаблон monthlyReport из notificationTemplates
+   * @returns {Promise<Object>} Статистика отправки
+   */
+  async sendMonthlyReportNotifications() {
+    try {
+      if (!this.reminderService) {
+        logger.warn('📖 ReminderService not initialized, skipping monthly report notifications');
+        return { sent: 0, skipped: 0, failed: 0, errors: [] };
+      }
+
+      const stats = await this.reminderService.sendSlotReminders('monthlyReport');
+      
+      logger.info(`📖 Monthly report notifications: sent=${stats.sent}, skipped=${stats.skipped}, failed=${stats.failed}`);
+
+      // Отправляем статистику администратору
+      if (process.env.ADMIN_TELEGRAM_ID && this.bot && stats.sent > 0) {
+        const adminMessage = `📬 *Уведомления о месячных отчётах отправлены*\\n\\n✅ Отправлено: ${stats.sent}\\n⏭ Пропущено: ${stats.skipped}\\n❌ Ошибки: ${stats.failed}`;
+
+        try {
+          await this.bot.telegram.sendMessage(
+            process.env.ADMIN_TELEGRAM_ID,
+            adminMessage,
+            { parse_mode: 'Markdown' }
+          );
+        } catch (error) {
+          logger.error(`📖 Failed to send admin notification: ${error.message}`);
+        }
+      }
+
+      return stats;
+
+    } catch (error) {
+      logger.error(`📖 Error in sendMonthlyReportNotifications: ${error.message}`, error);
+      return { sent: 0, skipped: 0, failed: 0, errors: [{ error: error.message }] };
     }
   }
 
@@ -408,6 +459,7 @@ class CronService {
 
   /**
    * 📖 ОБНОВЛЕНО: Ручной запуск месячных отчетов (для тестирования)
+   * Включает генерацию + отправку уведомлений
    * @returns {Promise<Object>} Статистика отправки
    */
   async triggerMonthlyReports() {
@@ -418,12 +470,26 @@ class CronService {
       return { message: 'MonthlyReportService not available' };
     }
 
-    const stats = await this.monthlyReportService.generateMonthlyReportsForAllUsers();
+    // 1. Generate reports
+    const generationStats = await this.monthlyReportService.generateMonthlyReportsForAllUsers();
+    
+    // 2. Send notifications
+    const notificationStats = await this.sendMonthlyReportNotifications();
     
     return {
-      message: 'Monthly reports triggered',
-      ...stats
+      message: 'Monthly reports triggered (generation + notifications)',
+      generation: generationStats,
+      notifications: notificationStats
     };
+  }
+
+  /**
+   * 📖 NEW: Ручной запуск только уведомлений о месячных отчётах
+   * @returns {Promise<Object>} Статистика отправки
+   */
+  async triggerMonthlyReportNotifications() {
+    logger.info('📖 Manual trigger of monthly report notifications only');
+    return await this.sendMonthlyReportNotifications();
   }
 
   /**
@@ -535,7 +601,7 @@ class CronService {
    */
   getSchedule() {
     return {
-      monthly_reports: '1st day of month at 12:00 MSK',
+      monthly_reports: '1st day of month at 12:00 MSK (generation + notifications)',
       daily_cleanup: '3:00 MSK daily'
     };
   }
