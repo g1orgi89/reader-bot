@@ -30,7 +30,7 @@ const logger = require('../utils/logger');
 
 class MonthlyReportService {
   constructor() {
-    this.MIN_WEEKS_FOR_REPORT = 3; // Минимум недель для качественного отчёта
+    this.MIN_WEEKS_FOR_REPORT = 2; // Минимум недель для качественного отчёта
     this.bot = null;
   }
 
