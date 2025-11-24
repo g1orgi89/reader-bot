@@ -1,11 +1,16 @@
 /**
  * 🚀 ГЛАВНЫЙ КЛАСС ПРИЛОЖЕНИЯ READER BOT
  * (оптимизирован: устранение двойной навигации / flicker при старте)
- * @version 1.0.8
+ * 
+ * UPDATED: Added deeplink support for startapp parameter
+ * - handleDeeplink() method for processing Telegram startapp parameter
+ * - Supports: reports, reports/weekly, reports/monthly, catalog, diary, etc.
+ * 
+ * @version 1.0.9
  */
 class ReaderApp {
     constructor() {
-        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.8');
+        console.log('🚀 Reader App: Инициализация начата - VERSION 1.0.9');
         this.router = null;
         this.state = null;
         this.telegram = null;
@@ -14,6 +19,10 @@ class ReaderApp {
         this.appContainer = document.getElementById('app');
         this.loadingScreen = document.getElementById('loading-screen');
         this.topMenu = null;
+        
+        // === DEEPLINK SUPPORT ===
+        // Store startapp parameter for deferred navigation after init
+        this._pendingDeeplink = null;
         
         // === ONBOARDING STABILITY START ===
         // Флаг для предотвращения множественных navigate('/onboarding')
@@ -74,10 +83,90 @@ class ReaderApp {
         }
     }    
     
+    /**
+     * 🔗 NEW: Extract and store deeplink parameter from Telegram
+     * Called early in init to capture startapp before any navigation
+     */
+    extractDeeplink() {
+        try {
+            const tg = window.Telegram?.WebApp;
+            const startParam = tg?.initDataUnsafe?.start_param;
+            
+            if (startParam) {
+                console.log('🔗 Deeplink detected:', startParam);
+                this._pendingDeeplink = startParam;
+                return startParam;
+            }
+        } catch (e) {
+            console.warn('⚠️ Error extracting deeplink:', e);
+        }
+        return null;
+    }
+
+    /**
+     * 🔗 NEW: Convert deeplink parameter to route
+     * Maps startapp values to internal routes
+     * @param {string} deeplink - The startapp parameter value
+     * @returns {string|null} - Route to navigate to, or null if invalid
+     */
+    deeplinkToRoute(deeplink) {
+        if (!deeplink) return null;
+        
+        // Map of supported deeplinks to routes
+        const deeplinkMap = {
+            'reports': '/reports',
+            'reports/weekly': '/reports',      // Reports page with weekly tab
+            'reports/monthly': '/reports',     // Reports page with monthly tab
+            'diary': '/diary',
+            'catalog': '/catalog',
+            'community': '/community',
+            'achievements': '/achievements',
+            'settings': '/settings',
+            'help': '/help',
+            'about': '/about',
+            'home': '/home'
+        };
+        
+        // Check for exact match
+        if (deeplinkMap[deeplink]) {
+            console.log(`🔗 Deeplink "${deeplink}" → route "${deeplinkMap[deeplink]}"`);
+            return deeplinkMap[deeplink];
+        }
+        
+        // Check for prefix match (e.g., "report_123" → /reports)
+        if (deeplink.startsWith('report')) {
+            return '/reports';
+        }
+        
+        console.warn(`⚠️ Unknown deeplink: ${deeplink}`);
+        return null;
+    }
+
+    /**
+     * 🔗 NEW: Handle pending deeplink after initialization
+     * Called after router is ready and onboarding is complete
+     */
+    handlePendingDeeplink() {
+        if (!this._pendingDeeplink) return;
+        
+        const route = this.deeplinkToRoute(this._pendingDeeplink);
+        if (route && this.router?.navigate) {
+            console.log(`🔗 Navigating to deeplink route: ${route}`);
+            // Small delay to ensure UI is ready
+            setTimeout(() => {
+                this.router.navigate(route);
+            }, 100);
+        }
+        
+        // Clear pending deeplink
+        this._pendingDeeplink = null;
+    }
+    
     async init() {
         try {
             console.log('🔄 Reader App: Начало инициализации');
             this.persistTelegramAuth();
+            this.extractDeeplink(); // NEW: Extract deeplink early
             this.applyFontSizePreference();
             this.showLoadingScreen();
             await this.initializeServices();
@@ -411,6 +500,8 @@ class ReaderApp {
                 if (!onboardingStatus.isOnboardingComplete) {
                     initialRoute = '/onboarding';
                     this._onboardingGateApplied = true;
+                    // Clear deeplink if onboarding not complete - user must complete onboarding first
+                    this._pendingDeeplink = null;
                     console.log('🎯 STABILITY: API показал онбординг не завершен, стартуем с /onboarding');
                 } else {
                     if (onboardingStatus.user) {
@@ -420,12 +511,25 @@ class ReaderApp {
                         });
                     }
                     console.log('🏠 STABILITY: API показал онбординг завершен, можно /home');
+                    
+                    // === DEEPLINK ROUTING ===
+                    // If we have a pending deeplink and onboarding is complete, use it as initial route
+                    if (this._pendingDeeplink) {
+                        const deeplinkRoute = this.deeplinkToRoute(this._pendingDeeplink);
+                        if (deeplinkRoute) {
+                            initialRoute = deeplinkRoute;
+                            console.log(`🔗 Using deeplink as initial route: ${initialRoute}`);
+                        }
+                        // Clear pending deeplink since we're using it as initial route
+                        this._pendingDeeplink = null;
+                    }
                 }
             } else {
                 const isDebugMode = this.state.get('debugMode');
                 if (!isDebugMode && !profile?.isOnboardingComplete) {
                     initialRoute = '/onboarding';
                     this._onboardingGateApplied = true;
+                    this._pendingDeeplink = null; // Clear deeplink
                     console.log('🎯 STABILITY: Fallback - онбординг локально не завершен, стартуем с /onboarding');
                 }
             }
@@ -436,6 +540,7 @@ class ReaderApp {
             if (!isDebugMode && !profile?.isOnboardingComplete) {
                 initialRoute = '/onboarding';
                 this._onboardingGateApplied = true;
+                this._pendingDeeplink = null; // Clear deeplink
                 console.log('🎯 STABILITY: Ошибка API - fallback к /onboarding');
             }
         }
