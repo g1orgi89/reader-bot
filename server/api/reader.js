@@ -139,6 +139,7 @@ const MonthlyReport = require('../models/monthlyReport');
 const BookCatalog = require('../models/BookCatalog');
 const UTMClick = require('../models/analytics').UTMClick;
 const PromoCodeUsage = require('../models/analytics').PromoCodeUsage;
+const Follow = require('../models/Follow');
 
 // Импорт сервисов
 const QuoteHandler = require('../services/quoteHandler');
@@ -4710,6 +4711,281 @@ router.get('/categories', async (req, res) => {
       error: 'Internal server error',
       details: error.message
     });
+  }
+});
+
+// =============================================
+// FOLLOW/SUBSCRIPTION ENDPOINTS
+// =============================================
+
+/**
+ * @description Подписаться на пользователя
+ * @route POST /api/reader/follow/:userId
+ */
+router.post('/follow/:userId', telegramAuth, async (req, res) => {
+  try {
+    const followerId = req.userId;
+    const followingId = req.params.userId;
+    
+    console.log(`👤 Follow request: ${followerId} -> ${followingId}`);
+    
+    // Нельзя подписаться на себя
+    if (followerId === followingId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'CANNOT_FOLLOW_SELF',
+        message: 'Нельзя подписаться на себя'
+      });
+    }
+    
+    // Проверяем существование целевого пользователя
+    const targetUser = await UserProfile.findOne({ userId: followingId });
+    if (!targetUser) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'USER_NOT_FOUND',
+        message: 'Пользователь не найден'
+      });
+    }
+    
+    await Follow.follow(followerId, followingId);
+    
+    console.log(`✅ Follow success: ${followerId} -> ${followingId}`);
+    res.json({ success: true, isFollowing: true });
+  } catch (error) {
+    console.error('❌ Follow error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Отписаться от пользователя
+ * @route DELETE /api/reader/follow/:userId
+ */
+router.delete('/follow/:userId', telegramAuth, async (req, res) => {
+  try {
+    const followerId = req.userId;
+    const followingId = req.params.userId;
+    
+    console.log(`👤 Unfollow request: ${followerId} -> ${followingId}`);
+    
+    await Follow.unfollow(followerId, followingId);
+    
+    console.log(`✅ Unfollow success: ${followerId} -> ${followingId}`);
+    res.json({ success: true, isFollowing: false });
+  } catch (error) {
+    console.error('❌ Unfollow error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Получить статус подписки на конкретного пользователя
+ * @route GET /api/reader/follow/status/:userId
+ */
+router.get('/follow/status/:userId', telegramAuth, async (req, res) => {
+  try {
+    const followerId = req.userId;
+    const followingId = req.params.userId;
+    
+    const isFollowing = await Follow.isFollowing(followerId, followingId);
+    
+    res.json({ success: true, isFollowing });
+  } catch (error) {
+    console.error('❌ Follow status error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Получить статусы подписки для нескольких пользователей (batch)
+ * @route POST /api/reader/follow/status/batch
+ */
+router.post('/follow/status/batch', telegramAuth, async (req, res) => {
+  try {
+    const followerId = req.userId;
+    const { userIds } = req.body;
+    
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'INVALID_USER_IDS',
+        message: 'userIds должен быть непустым массивом'
+      });
+    }
+    
+    // Ограничиваем количество запросов
+    const limitedUserIds = userIds.slice(0, 100);
+    
+    const statusMap = await Follow.getFollowStatuses(followerId, limitedUserIds);
+    
+    // Конвертируем Map в объект для JSON
+    const statuses = {};
+    statusMap.forEach((isFollowing, userId) => {
+      statuses[userId] = isFollowing;
+    });
+    
+    res.json({ success: true, statuses });
+  } catch (error) {
+    console.error('❌ Batch follow status error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Получить список моих подписок
+ * @route GET /api/reader/following
+ */
+router.get('/following', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const skip = parseInt(req.query.skip) || 0;
+    
+    const follows = await Follow.getFollowing(userId, limit, skip);
+    const userIds = follows.map(f => f.followingId);
+    
+    // Получаем информацию о пользователях
+    const users = await UserProfile.find(
+      { userId: { $in: userIds } },
+      { userId: 1, name: 1, avatarUrl: 1, 'statistics.totalQuotes': 1 }
+    ).lean();
+    
+    const usersMap = new Map(users.map(u => [u.userId, u]));
+    
+    const data = follows.map(f => ({
+      id: f._id,
+      userId: f.followingId,
+      followedAt: f.createdAt,
+      user: usersMap.get(f.followingId) || { userId: f.followingId, name: 'Читатель' }
+    }));
+    
+    // Получаем общее количество подписок
+    const total = await Follow.countFollowing(userId);
+    
+    res.json({ success: true, data, total, limit, skip });
+  } catch (error) {
+    console.error('❌ Get following error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Получить список моих подписчиков
+ * @route GET /api/reader/followers
+ */
+router.get('/followers', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const skip = parseInt(req.query.skip) || 0;
+    
+    const followers = await Follow.getFollowers(userId, limit, skip);
+    const userIds = followers.map(f => f.followerId);
+    
+    // Получаем информацию о пользователях
+    const users = await UserProfile.find(
+      { userId: { $in: userIds } },
+      { userId: 1, name: 1, avatarUrl: 1, 'statistics.totalQuotes': 1 }
+    ).lean();
+    
+    const usersMap = new Map(users.map(u => [u.userId, u]));
+    
+    const data = followers.map(f => ({
+      id: f._id,
+      userId: f.followerId,
+      followedAt: f.createdAt,
+      user: usersMap.get(f.followerId) || { userId: f.followerId, name: 'Читатель' }
+    }));
+    
+    // Получаем общее количество подписчиков
+    const total = await Follow.countFollowers(userId);
+    
+    res.json({ success: true, data, total, limit, skip });
+  } catch (error) {
+    console.error('❌ Get followers error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Получить счётчики подписок/подписчиков
+ * @route GET /api/reader/follow/counts
+ */
+router.get('/follow/counts', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    const counts = await Follow.getCounts(userId);
+    
+    res.json({ success: true, ...counts });
+  } catch (error) {
+    console.error('❌ Get follow counts error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Лента цитат от подписок
+ * @route GET /api/reader/community/feed/following
+ */
+router.get('/community/feed/following', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const skip = parseInt(req.query.skip) || 0;
+    
+    // Получаем список ID подписок
+    const followingIds = await Follow.getFollowingIds(userId);
+    
+    if (followingIds.length === 0) {
+      return res.json({ 
+        success: true, 
+        data: [], 
+        total: 0,
+        message: 'NO_SUBSCRIPTIONS',
+        hint: 'Подпишитесь на интересных авторов, чтобы видеть их цитаты здесь'
+      });
+    }
+    
+    // Получаем цитаты от подписок
+    const quotes = await Quote.find({ userId: { $in: followingIds } })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    
+    // Добавляем информацию о пользователях
+    const userIds = [...new Set(quotes.map(q => q.userId))];
+    const users = await UserProfile.find(
+      { userId: { $in: userIds } },
+      { userId: 1, name: 1, avatarUrl: 1 }
+    ).lean();
+    
+    const usersMap = new Map(users.map(u => [u.userId, u]));
+    
+    // Обогащаем цитаты информацией о пользователях
+    const enrichedQuotes = quotes.map(q => ({
+      ...q,
+      id: q._id,
+      owner: usersMap.get(q.userId) || { userId: q.userId, name: 'Читатель' },
+      isFollowing: true // Всегда true, т.к. это лента подписок
+    }));
+    
+    // Получаем общее количество цитат от подписок
+    const total = await Quote.countDocuments({ userId: { $in: followingIds } });
+    
+    res.json({ 
+      success: true, 
+      data: enrichedQuotes, 
+      total,
+      limit,
+      skip,
+      followingCount: followingIds.length
+    });
+  } catch (error) {
+    console.error('❌ Following feed error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
