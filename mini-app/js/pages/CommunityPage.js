@@ -44,6 +44,12 @@ class CommunityPage {
         this.communityTrend = null;
         this.communityInsights = null;
         this.funFact = null;
+        
+        // 👥 ПОДПИСКИ (FOLLOW SYSTEM)
+        this.feedFilter = 'all'; // 'all' | 'following'
+        this.followingQuotes = [];
+        this.followingCount = 0;
+        this.followStatusCache = new Map(); // userId -> boolean
 
         // 🌟 SPOTLIGHT CACHE (TTL система для предотвращения мигания)
         this._spotlightCache = {
@@ -575,6 +581,83 @@ class CommunityPage {
         }
     }
 
+    /**
+     * 👥 ЗАГРУЗКА ЛЕНТЫ ОТ ПОДПИСОК
+     */
+    async loadFollowingFeed(limit = 10) {
+        try {
+            console.log('👥 CommunityPage: Загружаем ленту от подписок...');
+            const response = await this.api.getFollowingFeed({ limit });
+            if (response && response.success) {
+                this.followingFeed = response.data?.quotes || [];
+                console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
+            } else {
+                this.followingFeed = [];
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки ленты от подписок:', error);
+            this.followingFeed = [];
+        }
+    }
+
+    /**
+     * 🔄 Переключение фильтра ленты
+     */
+    async switchFeedFilter(filter) {
+        if (this.feedFilter === filter) return;
+        
+        this.feedFilter = filter;
+        this.triggerHapticFeedback('light');
+        
+        if (filter === 'following' && this.followingFeed.length === 0) {
+            await this.loadFollowingFeed();
+        }
+        
+        this.rerender();
+    }
+
+    /**
+     * ➕ Подписаться на пользователя
+     */
+    async followUser(userId) {
+        try {
+            this.triggerHapticFeedback('medium');
+            const response = await this.api.followUser(userId);
+            if (response && response.success) {
+                this.followStatusCache.set(userId, true);
+                this.triggerHapticFeedback('success');
+                this.showNotification('Вы подписались!', 'success');
+                return true;
+            }
+        } catch (error) {
+            console.error('❌ Ошибка подписки:', error);
+            this.triggerHapticFeedback('error');
+            this.showNotification('Ошибка подписки', 'error');
+        }
+        return false;
+    }
+
+    /**
+     * ➖ Отписаться от пользователя
+     */
+    async unfollowUser(userId) {
+        try {
+            this.triggerHapticFeedback('medium');
+            const response = await this.api.unfollowUser(userId);
+            if (response && response.success) {
+                this.followStatusCache.set(userId, false);
+                this.triggerHapticFeedback('light');
+                this.showNotification('Вы отписались', 'info');
+                return true;
+            }
+        } catch (error) {
+            console.error('❌ Ошибка отписки:', error);
+            this.triggerHapticFeedback('error');
+            this.showNotification('Ошибка отписки', 'error');
+        }
+        return false;
+    }
+    
     /**
      * ✨ SPOTLIGHT CACHE METHODS
      */
@@ -1385,7 +1468,25 @@ class CommunityPage {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
-        // ✨ НОВОЕ: Spotlight секция (1 свежая + 2 недавние избранные) - заменяет "Последние цитаты"
+        // 👥 ФИЛЬТР ЛЕНТЫ (Все / От подписок)
+        const feedFilterHtml = `
+            <div class="feed-filter">
+                <button class="feed-filter__btn ${this.feedFilter === 'all' ? 'active' : ''}" 
+                        data-filter="all">Все</button>
+                <button class="feed-filter__btn ${this.feedFilter === 'following' ? 'active' : ''}" 
+                        data-filter="following">От подписок</button>
+            </div>
+        `;
+
+        // Если выбрана лента "От подписок"
+        if (this.feedFilter === 'following') {
+            return `
+                ${feedFilterHtml}
+                ${this.renderFollowingFeed()}
+            `;
+        }
+
+        // ✨ НОВОЕ: Spotlight секция (для ленты "Все")
         const spotlightSection = this.renderSpotlightSection();
         
         // "Сейчас изучают" секция с последними кликами по каталогу
@@ -1412,6 +1513,63 @@ class CommunityPage {
         `;
     }
 
+    /**
+     * 👥 РЕНДЕР ЛЕНТЫ ОТ ПОДПИСОК
+     */
+    renderFollowingFeed() {
+        if (this.followingFeed.length === 0) {
+            return `
+                <div class="empty-following">
+                    <div class="empty-following__icon">👥</div>
+                    <div class="empty-following__title">Лента пуста</div>
+                    <div class="empty-following__text">
+                        Подпишитесь на интересных читателей, чтобы видеть их цитаты здесь
+                    </div>
+                    <button class="empty-following__btn" onclick="window.communityPage.switchFeedFilter('all')">
+                        Посмотреть все цитаты
+                    </button>
+                </div>
+            `;
+        }
+
+        const quotesHtml = this.followingFeed.map(quote => {
+            const owner = quote.owner || quote.user;
+            const userAvatarHtml = this.getUserAvatarHtml(owner);
+            const userName = owner?.name || 'Пользователь';
+            
+            return `
+                <div class="quote-card" data-quote-id="${quote.id || ''}">
+                    <div class="quote-card__header">
+                        ${userAvatarHtml}
+                        <div class="quote-card__user">
+                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                        </div>
+                    </div>
+                    <div class="quote-card__text">"${this.escapeHtml(quote.text)}"</div>
+                    <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
+                    <div class="quote-card__footer">
+                        <div class="quote-card__likes">❤ ${quote.favorites || 0}</div>
+                        <div class="quote-card__actions">
+                            <button class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}"
+                                    data-quote-text="${this.escapeHtml(quote.text)}"
+                                    data-quote-author="${this.escapeHtml(quote.author || '')}"
+                                    data-normalized-key="${this._computeLikeKey(quote.text, quote.author)}"
+                                    aria-label="Лайк">${quote.likedByMe ? '❤' : '♡'}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="following-feed">
+                <div class="following-feed__list">
+                    ${quotesHtml}
+                </div>
+            </div>
+        `;
+    }
+    
     /**
      * 📰 СЕКЦИЯ ПОСЛЕДНИХ ЦИТАТ СООБЩЕСТВА (ОБНОВЛЕНО ДЛЯ PR-3)
      */
@@ -2200,6 +2358,7 @@ renderAchievementsSection() {
      */
     attachEventListeners() {
         this.attachTabListeners();
+        this.attachFeedFilterListeners();
         this.attachExploreButton();
         this.attachCurrentlyStudyingListeners();
         this.attachCommunityCardListeners(); // ✅ НОВОЕ: Haptic feedback для карточек
@@ -2271,6 +2430,16 @@ renderAchievementsSection() {
         });
     }
 
+    attachFeedFilterListeners() {
+        const filterBtns = document.querySelectorAll('.feed-filter__btn');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filter = btn.dataset.filter;
+                this.switchFeedFilter(filter);
+            });
+        });
+    }
+    
     attachExploreButton() {
         const exploreBtn = document.getElementById('exploreBtn');
         if (exploreBtn) {
