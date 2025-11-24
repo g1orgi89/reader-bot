@@ -11,6 +11,7 @@ const WeeklyReport = require('./weeklyReport');
 const MonthlyReport = require('./monthlyReport');
 const Prompt = require('./prompt');
 const Favorite = require('./Favorite');
+const Follow = require('./Follow');
 
 // Import analytics models
 const { UTMClick, PromoCodeUsage, UserAction } = require('./analytics');
@@ -38,6 +39,7 @@ async function initializeModels() {
       MonthlyReport.ensureIndexes(),
       Prompt.ensureIndexes(),
       Favorite.ensureIndexes(),
+      Follow.ensureIndexes(),
       
       // Analytics models
       UTMClick.ensureIndexes(),
@@ -97,6 +99,7 @@ async function getDatabaseStats() {
       WeeklyReport.countDocuments(),
       MonthlyReport.countDocuments(),
       Prompt.countDocuments(),
+      Follow.countDocuments(),
       
       // Analytics models
       UTMClick.countDocuments(),
@@ -119,18 +122,19 @@ async function getDatabaseStats() {
       weeklyReports: stats[3],
       monthlyReports: stats[4],
       prompts: stats[5],
+      follows: stats[6],
       
       // Analytics
-      utmClicks: stats[6],
-      promoCodeUsage: stats[7],
-      userActions: stats[8],
+      utmClicks: stats[7],
+      promoCodeUsage: stats[8],
+      userActions: stats[9],
       
       // Legacy models
-      messages: stats[9],
-      conversations: stats[10],
-      tickets: stats[11],
-      knowledgeDocuments: stats[12],
-      farmingRates: stats[13],
+      messages: stats[10],
+      conversations: stats[11],
+      tickets: stats[12],
+      knowledgeDocuments: stats[13],
+      farmingRates: stats[14],
       
       total: stats.reduce((a, b) => a + b, 0)
     };
@@ -143,6 +147,7 @@ async function getDatabaseStats() {
       weeklyReports: 0,
       monthlyReports: 0,
       prompts: 0,
+      follows: 0,
       utmClicks: 0,
       promoCodeUsage: 0,
       userActions: 0,
@@ -163,7 +168,7 @@ async function getDatabaseStats() {
  */
 async function getReaderStats() {
   try {
-    const [totalUsers, activeUsers, totalQuotes, weeklyReports, monthlyReports] = await Promise.all([
+    const [totalUsers, activeUsers, totalQuotes, weeklyReports, monthlyReports, totalFollows] = await Promise.all([
       UserProfile.countDocuments({ isOnboardingComplete: true }),
       UserProfile.countDocuments({ 
         isOnboardingComplete: true,
@@ -171,7 +176,8 @@ async function getReaderStats() {
       }),
       Quote.countDocuments(),
       WeeklyReport.countDocuments(),
-      MonthlyReport.countDocuments()
+      MonthlyReport.countDocuments(),
+      Follow.countDocuments()
     ]);
 
     return {
@@ -180,6 +186,7 @@ async function getReaderStats() {
       totalQuotes,
       weeklyReports,
       monthlyReports,
+      totalFollows,
       averageQuotesPerUser: totalUsers > 0 ? Math.round(totalQuotes / totalUsers * 10) / 10 : 0
     };
   } catch (error) {
@@ -190,6 +197,7 @@ async function getReaderStats() {
       totalQuotes: 0,
       weeklyReports: 0,
       monthlyReports: 0,
+      totalFollows: 0,
       averageQuotesPerUser: 0,
       error: error.message
     };
@@ -206,6 +214,7 @@ module.exports = {
   MonthlyReport,
   Prompt,
   Favorite,
+  Follow,
   
   // Analytics models
   UTMClick,
