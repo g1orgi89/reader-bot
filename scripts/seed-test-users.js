@@ -18,9 +18,12 @@ const { UserProfile, Quote } = require('../server/models');
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // 👥 Тестовые пользователи
+В массиве TEST_USERS не хватает полей. Замени полностью массив (строки ~19-67) на это:
+javascriptconst TEST_USERS = [
 const TEST_USERS = [
   {
-    userId: 111111111,
+    telegramId: 111111111,
+    userId: '111111111',
     firstName: 'Алиса',
     lastName: 'Иванова',
     username: 'alice_reader',
@@ -35,12 +38,13 @@ const TEST_USERS = [
     }
   },
   {
-    userId: 222222222,
+    telegramId: 222222222,
+    userId: '222222222',
     firstName: 'Борис',
     lastName: 'Петров',
     username: 'boris_books',
     name: 'Борис Петров',
-    email: 'petrov@test.com',
+    email: 'boris@test.com',
     source: 'Telegram',
     isOnboardingComplete: true,
     testResults: {
@@ -50,11 +54,12 @@ const TEST_USERS = [
     }
   },
   {
-    userId: 333333333,
+    telegramId: 333333333,
+    userId: '333333333',
     firstName: 'Виктория',
     lastName: 'Смирнова',
     username: 'vika_wisdom',
-    name: 'Вика Смирнова',
+    name: 'Виктория Смирнова',
     email: 'vika@test.com',
     source: 'Telegram',
     isOnboardingComplete: true,
@@ -65,12 +70,13 @@ const TEST_USERS = [
     }
   },
   {
-    userId: 444444444,
+    telegramId: 444444444,
+    userId: '444444444',
     firstName: 'Георгий',
     lastName: 'Козлов',
     username: 'george_quotes',
     name: 'Георгий Козлов',
-    email: 'kozlov@test.com',
+    email: 'george@test.com',
     source: 'Telegram',
     isOnboardingComplete: true,
     testResults: {
@@ -80,12 +86,13 @@ const TEST_USERS = [
     }
   },
   {
-    userId: 555555555,
+    telegramId: 555555555,
+    userId: '555555555',
     firstName: 'Дарья',
     lastName: 'Новикова',
     username: 'dasha_reads',
-    name: 'Даша Новикова',
-    email: 'novikova@test.com',
+    name: 'Дарья Новикова',
+    email: 'dasha@test.com',
     source: 'Telegram',
     isOnboardingComplete: true,
     testResults: {
