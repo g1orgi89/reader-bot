@@ -24,6 +24,9 @@ const TEST_USERS = [
     firstName: 'Алиса',
     lastName: 'Иванова',
     username: 'alice_reader',
+    name: 'Алиса Иванова',
+    email: 'alice@test.com',
+    source: 'telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Мама в декрете',
@@ -36,6 +39,9 @@ const TEST_USERS = [
     firstName: 'Борис',
     lastName: 'Петров',
     username: 'boris_books',
+    name: 'Борис Петров',
+    email: 'petrov@test.com',
+    source: 'telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Работаю и учусь',
@@ -48,6 +54,9 @@ const TEST_USERS = [
     firstName: 'Виктория',
     lastName: 'Смирнова',
     username: 'vika_wisdom',
+    name: 'Вика Смирнова',
+    email: 'vika@test.com',
+    source: 'telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'В поиске себя',
@@ -60,6 +69,9 @@ const TEST_USERS = [
     firstName: 'Георгий',
     lastName: 'Козлов',
     username: 'george_quotes',
+    name: 'Георгий Козлов',
+    email: 'kozlov@test.com',
+    source: 'telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Предприниматель',
@@ -72,6 +84,9 @@ const TEST_USERS = [
     firstName: 'Дарья',
     lastName: 'Новикова',
     username: 'dasha_reads',
+    name: 'Даша Новикова',
+    email: 'novikova@test.com',
+    source: 'telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Студентка',
