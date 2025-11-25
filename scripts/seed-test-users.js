@@ -20,7 +20,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 // 👥 Тестовые пользователи
 const TEST_USERS = [
   {
-    useridId: 111111111,
+    userId: 111111111,
     firstName: 'Алиса',
     lastName: 'Иванова',
     username: 'alice_reader',
@@ -35,7 +35,7 @@ const TEST_USERS = [
     }
   },
   {
-    useridId: 222222222,
+    userId: 222222222,
     firstName: 'Борис',
     lastName: 'Петров',
     username: 'boris_books',
@@ -50,7 +50,7 @@ const TEST_USERS = [
     }
   },
   {
-    useridId: 333333333,
+    userId: 333333333,
     firstName: 'Виктория',
     lastName: 'Смирнова',
     username: 'vika_wisdom',
@@ -65,7 +65,7 @@ const TEST_USERS = [
     }
   },
   {
-    useridId: 444444444,
+    userId: 444444444,
     firstName: 'Георгий',
     lastName: 'Козлов',
     username: 'george_quotes',
@@ -80,7 +80,7 @@ const TEST_USERS = [
     }
   },
   {
-    usertId: 555555555,
+    userId: 555555555,
     firstName: 'Дарья',
     lastName: 'Новикова',
     username: 'dasha_reads',
