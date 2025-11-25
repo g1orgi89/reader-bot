@@ -20,13 +20,13 @@ const MONGODB_URI = process.env.MONGODB_URI;
 // 👥 Тестовые пользователи
 const TEST_USERS = [
   {
-    telegramId: 111111111,
+    useridId: 111111111,
     firstName: 'Алиса',
     lastName: 'Иванова',
     username: 'alice_reader',
     name: 'Алиса Иванова',
     email: 'alice@test.com',
-    source: 'telegram',
+    source: 'Telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Мама в декрете',
@@ -35,13 +35,13 @@ const TEST_USERS = [
     }
   },
   {
-    telegramId: 222222222,
+    useridId: 222222222,
     firstName: 'Борис',
     lastName: 'Петров',
     username: 'boris_books',
     name: 'Борис Петров',
     email: 'petrov@test.com',
-    source: 'telegram',
+    source: 'Telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Работаю и учусь',
@@ -50,13 +50,13 @@ const TEST_USERS = [
     }
   },
   {
-    telegramId: 333333333,
+    useridId: 333333333,
     firstName: 'Виктория',
     lastName: 'Смирнова',
     username: 'vika_wisdom',
     name: 'Вика Смирнова',
     email: 'vika@test.com',
-    source: 'telegram',
+    source: 'Telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'В поиске себя',
@@ -65,13 +65,13 @@ const TEST_USERS = [
     }
   },
   {
-    telegramId: 444444444,
+    useridId: 444444444,
     firstName: 'Георгий',
     lastName: 'Козлов',
     username: 'george_quotes',
     name: 'Георгий Козлов',
     email: 'kozlov@test.com',
-    source: 'telegram',
+    source: 'Telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Предприниматель',
@@ -80,13 +80,13 @@ const TEST_USERS = [
     }
   },
   {
-    telegramId: 555555555,
+    usertId: 555555555,
     firstName: 'Дарья',
     lastName: 'Новикова',
     username: 'dasha_reads',
     name: 'Даша Новикова',
     email: 'novikova@test.com',
-    source: 'telegram',
+    source: 'Telegram',
     isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Студентка',
