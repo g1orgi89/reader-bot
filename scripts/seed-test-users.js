@@ -15,7 +15,7 @@ const mongoose = require('mongoose');
 const { UserProfile, Quote } = require('../server/models');
 
 // 📊 Конфигурация
-const MONGODB_URI = process.env.MONGODB_URI_DEV || 'mongodb://reader_admin:reader_secure_2025@localhost:27017/reader_bot_dev?authSource=admin';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 // 👥 Тестовые пользователи
 const TEST_USERS = [
