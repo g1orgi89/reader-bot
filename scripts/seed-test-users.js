@@ -20,84 +20,269 @@ const MONGODB_URI = process.env.MONGODB_URI;
 // 👥 Тестовые пользователи
 const TEST_USERS = [
   {
-    telegramId: 111111111,
     userId: '111111111',
-    firstName: 'Алиса',
-    lastName: 'Иванова',
-    username: 'alice_reader',
-    name: 'Алиса Иванова',
+    telegramUsername: 'alice_reader',
+    name: 'Алиса',
     email: 'alice@test.com',
-    source: 'Telegram',
-    isOnboardingComplete: true,
+    avatarUrl: null,
     testResults: {
-      lifeStage: 'Мама в декрете',
-      readingTime: '30-60 минут в день',
-      goals: ['Саморазвитие', 'Психология']
-    }
+      question1_name: 'Алиса',
+      question2_lifestyle: '👶 Я мама (дети - главная забота)',
+      question3_time: '🌅 Рано утром, пока все спят',
+      question4_priorities: '🧘‍♀️ Найти внутренний баланс',
+      question5_reading_feeling: '🔍 Нахожу ответы на свои вопросы',
+      question6_phrase: '✨ Хорошая жизнь строится',
+      question7_reading_time: '⏱️ 30-60 минут в день',
+      completedAt: new Date()
+    },
+    source: 'Telegram',
+    registeredAt: new Date(),
+    isOnboardingComplete: true,
+    telegramData: {
+      firstName: 'Алиса',
+      lastName: 'Иванова',
+      languageCode: 'ru',
+      chatId: '111111111'
+    },
+    botState: {
+      currentState: 'start',
+      stateUpdatedAt: new Date()
+    },
+    isActive: true,
+    isBlocked: false,
+    updatedAt: new Date(),
+    preferences: { mainThemes: [] },
+    statistics: {
+      totalQuotes: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      favoriteAuthors: [],
+      monthlyQuotes: []
+    },
+    achievements: [],
+    settings: {
+      reminders: { enabled: true, frequency: 'often', lastSentAt: null },
+      achievements: { enabled: true },
+      weeklyReports: { enabled: true },
+      announcements: { enabled: true },
+      reminderEnabled: true,
+      reminderTimes: [],
+      language: 'ru'
+    },
+    lastActiveAt: new Date(),
+    createdAt: new Date()
   },
   {
-    telegramId: 222222222,
     userId: '222222222',
-    firstName: 'Борис',
-    lastName: 'Петров',
-    username: 'boris_books',
-    name: 'Борис Петров',
+    telegramUsername: 'boris_books',
+    name: 'Борис',
     email: 'boris@test.com',
-    source: 'Telegram',
-    isOnboardingComplete: true,
+    avatarUrl: null,
     testResults: {
-      lifeStage: 'Работаю и учусь',
-      readingTime: '15-30 минут в день',
-      goals: ['Бизнес', 'Продуктивность']
-    }
+      question1_name: 'Борис',
+      question2_lifestyle: '💼 Работаю и учусь',
+      question3_time: '☕ В обеденный перерыв',
+      question4_priorities: '💰 Построить карьеру',
+      question5_reading_feeling: '💡 Получаю идеи для бизнеса',
+      question6_phrase: '🚀 Знание — сила',
+      question7_reading_time: '⏱️ 15-30 минут в день',
+      completedAt: new Date()
+    },
+    source: 'Telegram',
+    registeredAt: new Date(),
+    isOnboardingComplete: true,
+    telegramData: {
+      firstName: 'Борис',
+      lastName: 'Петров',
+      languageCode: 'ru',
+      chatId: '222222222'
+    },
+    botState: {
+      currentState: 'start',
+      stateUpdatedAt: new Date()
+    },
+    isActive: true,
+    isBlocked: false,
+    updatedAt: new Date(),
+    preferences: { mainThemes: [] },
+    statistics: {
+      totalQuotes: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      favoriteAuthors: [],
+      monthlyQuotes: []
+    },
+    achievements: [],
+    settings: {
+      reminders: { enabled: true, frequency: 'often', lastSentAt: null },
+      achievements: { enabled: true },
+      weeklyReports: { enabled: true },
+      announcements: { enabled: true },
+      reminderEnabled: true,
+      reminderTimes: [],
+      language: 'ru'
+    },
+    lastActiveAt: new Date(),
+    createdAt: new Date()
   },
   {
-    telegramId: 333333333,
     userId: '333333333',
-    firstName: 'Виктория',
-    lastName: 'Смирнова',
-    username: 'vika_wisdom',
-    name: 'Виктория Смирнова',
+    telegramUsername: 'vika_wisdom',
+    name: 'Виктория',
     email: 'vika@test.com',
-    source: 'Telegram',
-    isOnboardingComplete: true,
+    avatarUrl: null,
     testResults: {
-      lifeStage: 'В поиске себя',
-      readingTime: '1-2 часа в день',
-      goals: ['Философия', 'Литература']
-    }
+      question1_name: 'Виктория',
+      question2_lifestyle: '🔍 В поиске себя',
+      question3_time: '🌙 Поздним вечером',
+      question4_priorities: '🧘‍♀️ Найти внутренний баланс',
+      question5_reading_feeling: '✨ Нахожу вдохновение',
+      question6_phrase: '📖 Счастье внутри нас',
+      question7_reading_time: '📚 1-2 часа в день',
+      completedAt: new Date()
+    },
+    source: 'Telegram',
+    registeredAt: new Date(),
+    isOnboardingComplete: true,
+    telegramData: {
+      firstName: 'Виктория',
+      lastName: 'Смирнова',
+      languageCode: 'ru',
+      chatId: '333333333'
+    },
+    botState: {
+      currentState: 'start',
+      stateUpdatedAt: new Date()
+    },
+    isActive: true,
+    isBlocked: false,
+    updatedAt: new Date(),
+    preferences: { mainThemes: [] },
+    statistics: {
+      totalQuotes: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      favoriteAuthors: [],
+      monthlyQuotes: []
+    },
+    achievements: [],
+    settings: {
+      reminders: { enabled: true, frequency: 'often', lastSentAt: null },
+      achievements: { enabled: true },
+      weeklyReports: { enabled: true },
+      announcements: { enabled: true },
+      reminderEnabled: true,
+      reminderTimes: [],
+      language: 'ru'
+    },
+    lastActiveAt: new Date(),
+    createdAt: new Date()
   },
   {
-    telegramId: 444444444,
     userId: '444444444',
-    firstName: 'Георгий',
-    lastName: 'Козлов',
-    username: 'george_quotes',
-    name: 'Георгий Козлов',
+    telegramUsername: 'george_quotes',
+    name: 'Георгий',
     email: 'george@test.com',
-    source: 'Telegram',
-    isOnboardingComplete: true,
+    avatarUrl: null,
     testResults: {
-      lifeStage: 'Предприниматель',
-      readingTime: '30-60 минут в день',
-      goals: ['Лидерство', 'Инновации']
-    }
+      question1_name: 'Георгий',
+      question2_lifestyle: '💼 Предприниматель',
+      question3_time: '🌅 Рано утром, пока все спят',
+      question4_priorities: '🚀 Реализовать мечту',
+      question5_reading_feeling: '💡 Получаю идеи для бизнеса',
+      question6_phrase: '🔥 Будущее за смелыми',
+      question7_reading_time: '⏱️ 30-60 минут в день',
+      completedAt: new Date()
+    },
+    source: 'Telegram',
+    registeredAt: new Date(),
+    isOnboardingComplete: true,
+    telegramData: {
+      firstName: 'Георгий',
+      lastName: 'Козлов',
+      languageCode: 'ru',
+      chatId: '444444444'
+    },
+    botState: {
+      currentState: 'start',
+      stateUpdatedAt: new Date()
+    },
+    isActive: true,
+    isBlocked: false,
+    updatedAt: new Date(),
+    preferences: { mainThemes: [] },
+    statistics: {
+      totalQuotes: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      favoriteAuthors: [],
+      monthlyQuotes: []
+    },
+    achievements: [],
+    settings: {
+      reminders: { enabled: true, frequency: 'often', lastSentAt: null },
+      achievements: { enabled: true },
+      weeklyReports: { enabled: true },
+      announcements: { enabled: true },
+      reminderEnabled: true,
+      reminderTimes: [],
+      language: 'ru'
+    },
+    lastActiveAt: new Date(),
+    createdAt: new Date()
   },
   {
-    telegramId: 555555555,
     userId: '555555555',
-    firstName: 'Дарья',
-    lastName: 'Новикова',
-    username: 'dasha_reads',
-    name: 'Дарья Новикова',
+    telegramUsername: 'dasha_reads',
+    name: 'Дарья',
     email: 'dasha@test.com',
-    source: 'Telegram',
-    isOnboardingComplete: true,
+    avatarUrl: null,
     testResults: {
-      lifeStage: 'Студентка',
-      readingTime: '1-2 часа в день',
-      goals: ['Творчество', 'Саморазвитие']
-    }
+      question1_name: 'Дарья',
+      question2_lifestyle: '🎓 Студентка',
+      question3_time: '☕ В обеденный перерыв',
+      question4_priorities: '🎨 Раскрыть творческий потенциал',
+      question5_reading_feeling: '✨ Нахожу вдохновение',
+      question6_phrase: '💫 Творчество требует мужества',
+      question7_reading_time: '📚 1-2 часа в день',
+      completedAt: new Date()
+    },
+    source: 'Telegram',
+    registeredAt: new Date(),
+    isOnboardingComplete: true,
+    telegramData: {
+      firstName: 'Дарья',
+      lastName: 'Новикова',
+      languageCode: 'ru',
+      chatId: '555555555'
+    },
+    botState: {
+      currentState: 'start',
+      stateUpdatedAt: new Date()
+    },
+    isActive: true,
+    isBlocked: false,
+    updatedAt: new Date(),
+    preferences: { mainThemes: [] },
+    statistics: {
+      totalQuotes: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      favoriteAuthors: [],
+      monthlyQuotes: []
+    },
+    achievements: [],
+    settings: {
+      reminders: { enabled: true, frequency: 'often', lastSentAt: null },
+      achievements: { enabled: true },
+      weeklyReports: { enabled: true },
+      announcements: { enabled: true },
+      reminderEnabled: true,
+      reminderTimes: [],
+      language: 'ru'
+    },
+    lastActiveAt: new Date(),
+    createdAt: new Date()
   }
 ];
 
