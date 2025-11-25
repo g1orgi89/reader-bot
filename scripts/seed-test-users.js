@@ -12,8 +12,7 @@
 
 require('dotenv').config();
 const mongoose = require('mongoose');
-const User = require('../server/models/User');
-const Quote = require('../server/models/Quote');
+const { UserProfile, Quote } = require('../server/models');
 
 // 📊 Конфигурация
 const MONGODB_URI = process.env.MONGODB_URI_DEV || 'mongodb://reader_admin:reader_secure_2025@localhost:27017/reader_bot_dev?authSource=admin';
@@ -25,7 +24,7 @@ const TEST_USERS = [
     firstName: 'Алиса',
     lastName: 'Иванова',
     username: 'alice_reader',
-    onboardingComplete: true,
+    isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Мама в декрете',
       readingTime: '30-60 минут в день',
@@ -37,7 +36,7 @@ const TEST_USERS = [
     firstName: 'Борис',
     lastName: 'Петров',
     username: 'boris_books',
-    onboardingComplete: true,
+    isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Работаю и учусь',
       readingTime: '15-30 минут в день',
@@ -49,7 +48,7 @@ const TEST_USERS = [
     firstName: 'Виктория',
     lastName: 'Смирнова',
     username: 'vika_wisdom',
-    onboardingComplete: true,
+    isOnboardingComplete: true,
     testResults: {
       lifeStage: 'В поиске себя',
       readingTime: '1-2 часа в день',
@@ -61,7 +60,7 @@ const TEST_USERS = [
     firstName: 'Георгий',
     lastName: 'Козлов',
     username: 'george_quotes',
-    onboardingComplete: true,
+    isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Предприниматель',
       readingTime: '30-60 минут в день',
@@ -73,7 +72,7 @@ const TEST_USERS = [
     firstName: 'Дарья',
     lastName: 'Новикова',
     username: 'dasha_reads',
-    onboardingComplete: true,
+    isOnboardingComplete: true,
     testResults: {
       lifeStage: 'Студентка',
       readingTime: '1-2 часа в день',
@@ -163,17 +162,17 @@ async function seedTestUsers() {
     
     // Удаляем цитаты тестовых пользователей
     const deletedQuotes = await Quote.deleteMany({
-      userId: { $in: await User.find({ telegramId: { $in: testTelegramIds } }).distinct('_id') }
+      userId: { $in: await UserProfile.find({ telegramId: { $in: testTelegramIds } }).distinct('_id') }
     });
     console.log(`   Удалено ${deletedQuotes.deletedCount} старых цитат`);
     
     // Удаляем тестовых пользователей
-    const deletedUsers = await User.deleteMany({ telegramId: { $in: testTelegramIds } });
+    const deletedUsers = await UserProfile.deleteMany({ telegramId: { $in: testTelegramIds } });
     console.log(`   Удалено ${deletedUsers.deletedCount} старых пользователей\n`);
 
     // 3️⃣ Создаём тестовых пользователей
     console.log('👥 Создание тестовых пользователей...');
-    const createdUsers = await User.insertMany(TEST_USERS);
+    const createdUsers = await UserProfile.insertMany(TEST_USERS);
     console.log(`✅ Создано ${createdUsers.length} пользователей:\n`);
     createdUsers.forEach(u => {
       console.log(`   📱 @${u.username} (${u.firstName} ${u.lastName})`);
