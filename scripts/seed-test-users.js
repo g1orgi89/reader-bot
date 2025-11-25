@@ -18,8 +18,6 @@ const { UserProfile, Quote } = require('../server/models');
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // 👥 Тестовые пользователи
-В массиве TEST_USERS не хватает полей. Замени полностью массив (строки ~19-67) на это:
-javascriptconst TEST_USERS = [
 const TEST_USERS = [
   {
     telegramId: 111111111,
