@@ -413,7 +413,7 @@ async function seedTestUsers() {
         quotesToInsert.push({
           text: quote.text,
           author: quote.author,
-          userId: user._id,
+          userId: user.userId,
           source: 'mini_app',
           createdAt: getRandomDate(30), // Цитаты за последние 30 дней
           aiAnalysis: {
