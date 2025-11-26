@@ -357,7 +357,41 @@
     width: 28px;
     height: 28px;
   }
-  
+
+  .quote-card__actions .follow-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary, #666);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quote-card__actions .follow-btn:hover,
+.quote-card__actions .follow-btn:active {
+    color: var(--primary-color, #D2452C);
+    background: rgba(210, 69, 44, 0.1);
+}
+
+.quote-card__actions .follow-btn.following {
+    color: var(--primary-color, #D2452C);
+}
+
+.quote-card__actions .follow-btn.following svg line {
+    display: none; /* Скрываем + когда подписан */
+}
+
+.quote-card__actions .follow-btn svg {
+    width: 18px;
+    height: 18px;
+} 
+   
   .follow-btn svg {
     width: 16px;
     height: 16px;
