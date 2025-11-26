@@ -1483,9 +1483,9 @@ class CommunityPage {
         // 👥 ФИЛЬТР ЛЕНТЫ (Все / От подписок)
         const feedFilterHtml = `
             <div class="feed-filter">
-                <button class="feed-filter__btn ${this.feedFilter === 'all' ? 'active' : ''}" 
+                <button class="feed-filter-btn ${this.feedFilter === 'all' ? 'active' : ''}"
                         data-filter="all">Все</button>
-                <button class="feed-filter__btn ${this.feedFilter === 'following' ? 'active' : ''}" 
+                <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
                         data-filter="following">От подписок</button>
             </div>
         `;
@@ -2485,7 +2485,7 @@ renderAchievementsSection() {
     }
 
     attachFeedFilterListeners() {
-        const filterBtns = document.querySelectorAll('.feed-filter__btn');
+        const filterBtns = document.querySelectorAll('.feed-filter-btn');
         filterBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const filter = btn.dataset.filter;
