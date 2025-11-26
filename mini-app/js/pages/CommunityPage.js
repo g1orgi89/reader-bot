@@ -1290,13 +1290,6 @@ class CommunityPage {
                             <div class="quote-card__user">
                                 <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
                             </div>
-                            ${owner?.userId ? `
-                                <button class="follow-btn ${this.followStatusCache.get(owner.userId) ? 'following' : ''}"
-                                        data-user-id="${owner.userId}"
-                                        aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
-                                    ${this.followStatusCache.get(owner.userId) ? '✓' : '+'}
-                                </button>
-                            ` : ''}
                         </div>
                         
                         <!-- Основной контент -->
@@ -1309,6 +1302,18 @@ class CommunityPage {
                                 ❤ <span class="favorites-count">${likesCount}</span>
                             </div>
                             <div class="quote-card__actions">
+                                ${owner?.userId ? `
+                                    <button class="follow-btn ${this.followStatusCache.get(owner.userId) ? 'following' : ''}"
+                                            data-user-id="${owner.userId}"
+                                            aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="9" cy="7" r="4"/>
+                                            <line x1="19" y1="8" x2="19" y2="14"/>
+                                            <line x1="16" y1="11" x2="22" y2="11"/>
+                                        </svg>
+                                    </button>
+                                ` : ''}
                                 ${COMMUNITY_SHOW_ADD_BUTTON ? `<button class="quote-card__add-btn" 
                                         data-quote-id="${item.id || ''}"
                                         data-quote-text="${this.escapeHtml(item.text)}"
@@ -1960,13 +1965,6 @@ class CommunityPage {
                         <div class="quote-card__user">
                             <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
                         </div>
-                        ${owner?.userId ? `
-                            <button class="follow-btn ${this.followStatusCache.get(owner.userId) ? 'following' : ''}"
-                                    data-user-id="${owner.userId}"
-                                    aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
-                                ${this.followStatusCache.get(owner.userId) ? '✓' : '+'}
-                            </button>
-                        ` : ''}
                     </div>
                     
                     <!-- Основной контент -->
@@ -1979,6 +1977,18 @@ class CommunityPage {
                             ❤ <span class="favorites-count">${favorites}</span>
                         </div>
                         <div class="quote-card__actions">
+                            ${owner?.userId ? `
+                                <button class="follow-btn ${this.followStatusCache.get(owner.userId) ? 'following' : ''}"
+                                        data-user-id="${owner.userId}"
+                                        aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <line x1="19" y1="8" x2="19" y2="14"/>
+                                        <line x1="16" y1="11" x2="22" y2="11"/>
+                                    </svg>
+                                </button>
+                            ` : ''}
                             ${COMMUNITY_SHOW_ADD_BUTTON ? `<button class="quote-card__add-btn" 
                                     data-quote-id="${quote.id || ''}"
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
