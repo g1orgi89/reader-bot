@@ -1290,6 +1290,13 @@ class CommunityPage {
                             <div class="quote-card__user">
                                 <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
                             </div>
+                            ${owner?.userId ? `
+                                <button class="follow-btn ${this.followStatusCache.get(owner.userId) ? 'following' : ''}"
+                                        data-user-id="${owner.userId}"
+                                        aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
+                                    ${this.followStatusCache.get(owner.userId) ? '✓' : '+'}
+                                </button>
+                            ` : ''}
                         </div>
                         
                         <!-- Основной контент -->
@@ -1499,6 +1506,8 @@ class CommunityPage {
         const trendSection = this.renderTrendSection();
         
         return `
+            ${feedFilterHtml}
+            
             <div class="stats-summary">
                 📊 Сегодня: ${this.communityData.activeReaders} активных читателей • ${this.communityData.newQuotes} новых цитат
             </div>
@@ -1511,7 +1520,6 @@ class CommunityPage {
             
             ${trendSection}
         `;
-    }
 
     /**
      * 👥 РЕНДЕР ЛЕНТЫ ОТ ПОДПИСОК
@@ -1951,6 +1959,13 @@ class CommunityPage {
                         <div class="quote-card__user">
                             <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
                         </div>
+                        ${owner?.userId ? `
+                            <button class="follow-btn ${this.followStatusCache.get(owner.userId) ? 'following' : ''}"
+                                    data-user-id="${owner.userId}"
+                                    aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
+                                ${this.followStatusCache.get(owner.userId) ? '✓' : '+'}
+                            </button>
+                        ` : ''}
                     </div>
                     
                     <!-- Основной контент -->
@@ -2390,7 +2405,36 @@ renderAchievementsSection() {
             });
         });
     }
-    
+
+    // Обработчики для кнопок подписки
+    const followButtons = document.querySelectorAll('.follow-btn');
+    followButtons.forEach(button => {
+        button.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const userId = button.dataset.userId;
+            if (!userId) return;
+            
+            const isFollowing = button.classList.contains('following');
+            
+            let success;
+            if (isFollowing) {
+                success = await this.unfollowUser(userId);
+            } else {
+                success = await this.followUser(userId);
+            }
+            
+            if (success) {
+                // Обновляем UI кнопки
+                button.classList.toggle('following');
+                button.textContent = button.classList.contains('following') ? '✓' : '+';
+                button.setAttribute('aria-label', 
+                    button.classList.contains('following') ? 'Отписаться' : 'Подписаться');
+            }
+        });
+    });
+        
     /**
      * 📳 ЕДИНЫЙ МЕТОД ДЛЯ HAPTIC FEEDBACK
      * @param {string} type - Тип обратной связи: 'light', 'medium', 'heavy', 'success', 'error'
