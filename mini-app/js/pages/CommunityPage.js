@@ -1520,7 +1520,8 @@ class CommunityPage {
             
             ${trendSection}
         `;
-
+    }
+    
     /**
      * 👥 РЕНДЕР ЛЕНТЫ ОТ ПОДПИСОК
      */
@@ -2404,37 +2405,36 @@ renderAchievementsSection() {
                 this.addQuoteToFavorites(event);
             });
         });
-    }
 
-    // Обработчики для кнопок подписки
-    const followButtons = document.querySelectorAll('.follow-btn');
-    followButtons.forEach(button => {
-        button.addEventListener('click', async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            
-            const userId = button.dataset.userId;
-            if (!userId) return;
-            
-            const isFollowing = button.classList.contains('following');
-            
-            let success;
-            if (isFollowing) {
-                success = await this.unfollowUser(userId);
-            } else {
-                success = await this.followUser(userId);
-            }
-            
-            if (success) {
-                // Обновляем UI кнопки
-                button.classList.toggle('following');
-                button.textContent = button.classList.contains('following') ? '✓' : '+';
-                button.setAttribute('aria-label', 
-                    button.classList.contains('following') ? 'Отписаться' : 'Подписаться');
-            }
+        // Обработчики для кнопок подписки
+        const followButtons = document.querySelectorAll('.follow-btn');
+        followButtons.forEach(button => {
+            button.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                const userId = button.dataset.userId;
+                if (!userId) return;
+                
+                const isFollowing = button.classList.contains('following');
+                
+                let success;
+                if (isFollowing) {
+                    success = await this.unfollowUser(userId);
+                } else {
+                    success = await this.followUser(userId);
+                }
+                
+                if (success) {
+                    // Обновляем UI кнопки
+                    button.classList.toggle('following');
+                    button.textContent = button.classList.contains('following') ? '✓' : '+';
+                    button.setAttribute('aria-label', 
+                        button.classList.contains('following') ? 'Отписаться' : 'Подписаться');
+                }
+            });
         });
-    });
-        
+    }        
     /**
      * 📳 ЕДИНЫЙ МЕТОД ДЛЯ HAPTIC FEEDBACK
      * @param {string} type - Тип обратной связи: 'light', 'medium', 'heavy', 'success', 'error'
