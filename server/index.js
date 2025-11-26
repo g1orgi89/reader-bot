@@ -871,19 +871,15 @@ async function startServer() {
 
     // 🤖 Setup webhook with Telegram and initialize reminder services
     if (simpleBot) {
+      const { ReminderService } = require('./services/reminderService');
+      const { initReminderCron, stopReminderCron } = require('./scheduler/reminderJobs');
+      
+      // 1. Setup webhook with Telegram (отдельный try-catch)
       try {
-        const { ReminderService } = require('./services/reminderService');
-        const { initReminderCron, stopReminderCron } = require('./scheduler/reminderJobs');
-        
-        // Setup webhook with Telegram
         const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
-        
         if (webhookUrl) {
-          // Production mode: set webhook URL with Telegram
           logger.info(`🔗 Setting webhook URL with Telegram: ${webhookUrl}`);
           await simpleBot.setWebhook(webhookUrl);
-          
-          // Log webhook info
           const webhookInfo = await simpleBot.getWebhookInfo();
           logger.info('✅ Webhook configured:', {
             url: webhookInfo.url,
@@ -892,14 +888,17 @@ async function startServer() {
             last_error_date: webhookInfo.last_error_date,
             last_error_message: webhookInfo.last_error_message
           });
-          
           logger.info('✅ Simple Telegram Bot started in WEBHOOK mode');
         } else {
           logger.warn('⚠️ TELEGRAM_WEBHOOK_URL not set, bot will not start (webhook mode required)');
-          logger.warn('⚠️ Set TELEGRAM_WEBHOOK_URL in .env to enable the bot');
         }
-        
-        // Initialize ReminderService
+      } catch (error) {
+        logger.error('❌ Failed to setup webhook (will retry on next request):', error.message);
+        // Продолжаем - reminder важнее webhook при старте
+      }
+      
+      // 2. Initialize ReminderService (отдельный try-catch - КРИТИЧНО!)
+      try {
         logger.info('🔔 Initializing ReminderService...');
         reminderService = new ReminderService();
         reminderService.initialize({ bot: simpleBot.bot });
@@ -911,7 +910,6 @@ async function startServer() {
         if (enableCron) {
           logger.info('🔔 Initializing reminder cron jobs...');
           reminderJobs = initReminderCron({ reminderService });
-          
           if (reminderJobs) {
             logger.info('✅ Reminder cron jobs started successfully');
           } else {
@@ -920,12 +918,11 @@ async function startServer() {
         } else {
           logger.info('⏸️ Reminder cron jobs disabled (ENABLE_REMINDER_CRON=false)');
         }
-        
-        global.simpleTelegramBot = simpleBot;
-        
       } catch (error) {
-        logger.error('❌ Failed to setup webhook or initialize services:', error);
+        logger.error('❌ Failed to initialize ReminderService:', error);
       }
+      
+      global.simpleTelegramBot = simpleBot;
     } else {
       logger.info('🤖 Simple Telegram Bot not created, skipping webhook setup and reminder services');
     }
