@@ -339,26 +339,10 @@
 }
 
 /* =============================================
-   RESPONSIVE ADJUSTMENTS
+   FOLLOW BUTTON IN QUOTE CARD FOOTER
    ============================================= */
 
-@media (max-width: 360px) {
-  .feed-filter {
-    padding: 10px 12px;
-    gap: 6px;
-  }
-  
-  .feed-filter-btn {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-  
-  .follow-btn {
-    width: 28px;
-    height: 28px;
-  }
-
-  .quote-card__actions .follow-btn {
+.quote-card__actions .follow-btn {
     width: 32px;
     height: 32px;
     padding: 0;
@@ -384,14 +368,34 @@
 }
 
 .quote-card__actions .follow-btn.following svg line {
-    display: none; /* Скрываем + когда подписан */
+    display: none;
 }
 
 .quote-card__actions .follow-btn svg {
     width: 18px;
     height: 18px;
-} 
-   
+}
+
+/* =============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================= */
+
+@media (max-width: 360px) {
+  .feed-filter {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+  
+  .feed-filter-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .follow-btn {
+    width: 28px;
+    height: 28px;
+  }
+
   .follow-btn svg {
     width: 16px;
     height: 16px;
