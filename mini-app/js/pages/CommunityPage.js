@@ -601,21 +601,118 @@ class CommunityPage {
     }
 
     /**
-     * 🔄 Переключение фильтра ленты
+     * 🔄 Переключение фильтра ленты (Все / От подписок)
+     * ОБНОВЛЕНО: Перерисовывает только spotlight секцию, не всю страницу
+     * @param {string} filter - 'all' или 'following'
      */
     async switchFeedFilter(filter) {
         if (this.feedFilter === filter) return;
         
+        console.log(`🔄 Переключение фильтра ленты: ${this.feedFilter} → ${filter}`);
+        
         this.feedFilter = filter;
         this.triggerHapticFeedback('light');
         
-        if (filter === 'following' && this.followingFeed.length === 0) {
+        // Обновляем активную кнопку фильтра
+        const filterButtons = document.querySelectorAll('.feed-filter-btn');
+        filterButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.filter === filter);
+        });
+        
+        // Загружаем данные подписок если нужно и ещё не загружены
+        if (filter === 'following' && (!this.followingFeed || this.followingFeed.length === 0)) {
+            // Показываем индикатор загрузки
+            const spotlightSection = document.getElementById('spotlightSection');
+            if (spotlightSection) {
+                spotlightSection.innerHTML = `
+                    <div class="spotlight-header">
+                        <h3 class="spotlight-title">✨ От ваших подписок</h3>
+                    </div>
+                    <div class="loading-indicator" style="text-align: center; padding: 40px;">
+                        <div class="spinner"></div>
+                        <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
+                    </div>
+                `;
+            }
+            
             await this.loadFollowingFeed();
         }
         
-        this.rerender();
+        // Перерисовываем ТОЛЬКО spotlight секцию
+        const spotlightContainer = document.getElementById('spotlightSection');
+        if (spotlightContainer) {
+            const newSpotlightHTML = filter === 'following' 
+                ? this.renderSpotlightFollowing()
+                : this.renderSpotlightSection();
+            
+            // Заменяем содержимое
+            spotlightContainer.outerHTML = newSpotlightHTML;
+            
+            // Перепривязываем обработчики для новых карточек
+            this.attachSpotlightListeners();
+        }
+        
+        console.log(`✅ Фильтр переключен на: ${filter}`);
+    }
+    
+    /**
+     * 🔗 Привязка обработчиков для spotlight секции
+     * @private
+     */
+    attachSpotlightListeners() {
+        // Кнопка обновления
+        const refreshBtn = document.getElementById('spotlightRefreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.refreshSpotlight());
+        }
+        
+        // Лайки в spotlight карточках
+        const spotlightSection = document.getElementById('spotlightSection');
+        if (spotlightSection) {
+            spotlightSection.querySelectorAll('.quote-card__heart-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => this.handleLikeClick(e));
+            });
+        }
     }
 
+/**
+ * 🔄 Обновить spotlight секцию
+ */
+async refreshSpotlight() {
+    console.log('🔄 Обновление spotlight секции...');
+    this.triggerHapticFeedback('light');
+    
+    const refreshBtn = document.getElementById('spotlightRefreshBtn');
+    if (refreshBtn) {
+        refreshBtn.classList.add('spinning');
+    }
+    
+    try {
+        if (this.feedFilter === 'following') {
+            await this.loadFollowingFeed();
+        } else {
+            // Перезагружаем данные для обычного spotlight
+            await this.loadCommunityData();
+        }
+        
+        // Перерисовываем spotlight
+        const spotlightContainer = document.getElementById('spotlightSection');
+        if (spotlightContainer) {
+            const newHTML = this.feedFilter === 'following'
+                ? this.renderSpotlightFollowing()
+                : this.renderSpotlightSection();
+            spotlightContainer.outerHTML = newHTML;
+            this.attachSpotlightListeners();
+        }
+    } finally {
+        const newRefreshBtn = document.getElementById('spotlightRefreshBtn');
+        if (newRefreshBtn) {
+            newRefreshBtn.classList.remove('spinning');
+        }
+    }
+    
+    console.log('✅ Spotlight обновлён');
+}
     /**
      * ➕ Подписаться на пользователя
      */
@@ -1349,6 +1446,88 @@ class CommunityPage {
     }
 
     /**
+     * ✨ Рендер секции "Сейчас в сообществе" для ленты ПОДПИСОК
+     * @returns {string} HTML секции spotlight с цитатами от подписок
+     */
+    renderSpotlightFollowing() {
+        // Empty state если нет подписок или данных
+        if (!this.followingFeed || this.followingFeed.length === 0) {
+            return `
+                <section id="spotlightSection" class="community-spotlight">
+                    <div class="spotlight-header">
+                        <h3 class="spotlight-title">✨ От ваших подписок</h3>
+                    </div>
+                    <div class="empty-state" style="text-align: center; padding: 40px 20px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">👥</div>
+                        <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Пока пусто</div>
+                        <div style="color: var(--text-secondary); font-size: 14px;">
+                            Подпишитесь на читателей в лидерборде,<br>чтобы видеть их цитаты здесь
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+    
+        // Берём до 3 цитат от подписок
+        const cards = this.followingFeed.slice(0, 3).map((quote, index) => {
+            const owner = quote.owner || quote.user || {};
+            const userName = owner.name || owner.firstName || 'Читатель';
+            const visibleName = this._formatLeaderName(userName, '');
+            const avatarUrl = owner.avatarUrl || null;
+            const likesCount = quote.favorites || quote.likesCount || 0;
+            const quoteId = quote.id || quote._id || '';
+            const quoteText = quote.text || '';
+            const quoteAuthor = quote.author || 'Неизвестный автор';
+    
+            // Аватар
+            const avatarHtml = avatarUrl
+                ? `<img src="${avatarUrl}" alt="${this.escapeHtml(visibleName)}" class="quote-card__avatar">`
+                : `<div class="quote-card__avatar quote-card__avatar--placeholder">${visibleName.charAt(0).toUpperCase()}</div>`;
+    
+            return `
+                <div class="quote-card spotlight-card" data-quote-id="${quoteId}">
+                    <div class="spotlight-badge spotlight-badge--following">От подписки</div>
+                    <div class="quote-card__header">
+                        ${avatarHtml}
+                        <div class="quote-card__user">
+                            <span class="quote-card__user-name">${this.escapeHtml(visibleName)}</span>
+                        </div>
+                    </div>
+                    <div class="quote-card__text">"${this.escapeHtml(quoteText)}"</div>
+                    <div class="quote-card__author">— ${this.escapeHtml(quoteAuthor)}</div>
+                    <div class="quote-card__footer">
+                        <div class="quote-card__likes">
+                            <span class="likes-icon">❤</span>
+                            <span class="favorites-count">${likesCount}</span>
+                        </div>
+                        <div class="quote-card__actions">
+                            <button class="quote-card__heart-btn${quote.isLikedByMe ? ' favorited' : ''}"
+                                    data-quote-text="${this.escapeHtml(quoteText)}"
+                                    data-quote-author="${this.escapeHtml(quoteAuthor)}"
+                                    data-normalized-key="${this._computeLikeKey(quoteText, quoteAuthor)}"
+                                    aria-label="Лайк">
+                                ${quote.isLikedByMe ? '❤' : '♡'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    
+        return `
+            <section id="spotlightSection" class="community-spotlight">
+                <div class="spotlight-header">
+                    <h3 class="spotlight-title">✨ От ваших подписок</h3>
+                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" aria-label="Обновить">↻</button>
+                </div>
+                <div class="spotlight-grid">
+                    ${cards}
+                </div>
+            </section>
+        `;
+    }
+    
+    /**
      * Форматирование даты для spotlight (сегодня/вчера/ч назад)
      */
     formatSpotlightDate(date) {
@@ -1490,17 +1669,11 @@ class CommunityPage {
             </div>
         `;
 
-        // Если выбрана лента "От подписок"
-        if (this.feedFilter === 'following') {
-            return `
-                ${feedFilterHtml}
-                ${this.renderFollowingFeed()}
-            `;
-        }
-
-        // ✨ НОВОЕ: Spotlight секция (для ленты "Все")
-        const spotlightSection = this.renderSpotlightSection();
-        
+        // Spotlight секция меняется в зависимости от фильтра
+        const spotlightSection = this.feedFilter === 'following' 
+            ? this.renderSpotlightFollowing()
+            : this.renderSpotlightSection();
+                
         // "Сейчас изучают" секция с последними кликами по каталогу
         const currentlyStudyingSection = this.renderCurrentlyStudyingSection();
         
