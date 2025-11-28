@@ -1519,7 +1519,7 @@ async refreshSpotlight() {
         const cards = this.followingFeed.slice(0, 3).map((quote, index) => {
             const owner = quote.owner || quote.user || {};
             const userName = owner.name || owner.firstName || 'Читатель';
-            const visibleName = this._formatLeaderName(userName, '');
+            const visibleName = userName.length > 20 ? userName.substring(0, 17) + '...' : userName;
             const avatarUrl = owner.avatarUrl || null;
             const likesCount = quote.favorites || quote.likesCount || 0;
             const quoteId = quote.id || quote._id || '';
