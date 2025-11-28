@@ -691,7 +691,7 @@ class CommunityPage {
         const spotlightSection = document.getElementById('spotlightSection');
         if (spotlightSection) {
             spotlightSection.querySelectorAll('.quote-card__heart-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => this.handleLikeClick(e));
+                btn.addEventListener('click', (e) => this.addQuoteToFavorites(e));
             });
         }
     }
