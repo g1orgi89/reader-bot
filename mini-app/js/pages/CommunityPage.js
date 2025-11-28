@@ -589,7 +589,8 @@ class CommunityPage {
             console.log('👥 CommunityPage: Загружаем ленту от подписок...');
             const response = await this.api.getFollowingFeed({ limit });
             if (response && response.success) {
-                this.followingFeed = response.data?.quotes || [];
+                // ✅ ИСПРАВЛЕНО: response.data - это уже массив цитат
+                this.followingFeed = response.data || [];
                 console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
             } else {
                 this.followingFeed = [];
