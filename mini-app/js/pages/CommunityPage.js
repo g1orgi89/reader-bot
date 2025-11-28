@@ -250,7 +250,10 @@ class CommunityPage {
             const response = await this.api.getCommunityLatestQuotes({ limit });
             if (response && response.success) {
                 // Нормализация: читаем из resp.data, если нет - из resp.quotes/resp.data.quotes/resp
-                this.latestQuotes = response.data || response.quotes || response.data?.quotes || [];
+                const rawQuotes = response.data || response.quotes || response.data?.quotes || [];
+                
+                // ✅ ДЕДУПЛИКАЦИЯ: убираем дубликаты по normalized key (текст + автор)
+                this.latestQuotes = this._deduplicateQuotes(rawQuotes);
                 
                 // Initialize likeStore from server data
                 this._initializeLikeStoreFromItems(this.latestQuotes);
@@ -289,7 +292,11 @@ class CommunityPage {
             if (response && response.success) {
                 // Normalize owner field for each quote
                 const rawQuotes = response.data || response.quotes || [];
-                this.popularQuotes = rawQuotes.map(q => this._normalizeOwner(q));
+                const normalizedQuotes = rawQuotes.map(q => this._normalizeOwner(q));
+                
+                // ✅ ДЕДУПЛИКАЦИЯ: убираем дубликаты по normalized key (текст + автор)
+                this.popularQuotes = this._deduplicateQuotes(normalizedQuotes);
+                
                 console.log('✅ CommunityPage: Популярные цитаты загружены:', this.popularQuotes.length);
             } else {
                 this.popularQuotes = [];
@@ -322,14 +329,19 @@ class CommunityPage {
             // Загружаем избранные только за текущую неделю - без fallback
             const response = await this.api.getCommunityPopularFavorites({ scope: 'week', limit, noCache: opts.noCache });
             if (response && response.success && response.data) {
-                // Normalize owner field for each quote and sort by likes descending
-                this.popularFavorites = response.data
-                    .map(q => this._normalizeOwner(q))
-                    .sort((a, b) => {
-                        const aLikes = a.favorites || a.count || a.likes || 0;
-                        const bLikes = b.favorites || b.count || b.likes || 0;
-                        return bLikes - aLikes;
-                    });
+                // Normalize owner field for each quote
+                const normalizedQuotes = response.data.map(q => this._normalizeOwner(q));
+                
+                // ✅ ДЕДУПЛИКАЦИЯ: убираем дубликаты по normalized key (текст + автор)
+                // Дедупликация ПЕРЕД сортировкой, чтобы оставить первую (оригинальную) версию
+                const uniqueQuotes = this._deduplicateQuotes(normalizedQuotes);
+                
+                // Sort by likes descending
+                this.popularFavorites = uniqueQuotes.sort((a, b) => {
+                    const aLikes = a.favorites || a.count || a.likes || 0;
+                    const bLikes = b.favorites || b.count || b.likes || 0;
+                    return bLikes - aLikes;
+                });
                 
                 // Initialize likeStore from server data
                 this._initializeLikeStoreFromItems(this.popularFavorites);
@@ -590,7 +602,8 @@ class CommunityPage {
             const response = await this.api.getFollowingFeed({ limit });
             if (response && response.success) {
                 // ✅ ИСПРАВЛЕНО: response.data - это уже массив цитат
-                this.followingFeed = response.data || [];
+                // ✅ ДЕДУПЛИКАЦИЯ: убираем дубликаты по normalized key (текст + автор)
+                this.followingFeed = this._deduplicateQuotes(response.data || []);
                 console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
             } else {
                 this.followingFeed = [];
@@ -1005,6 +1018,27 @@ async refreshSpotlight() {
         return this._computeNormalizedKey(text, author);
     }
 
+    /**
+     * 🔄 Дедупликация цитат по normalized key (текст + автор)
+     * Оставляет только первую встречу каждой цитаты (самую раннюю по порядку в массиве)
+     * @param {Array} quotes - массив цитат
+     * @returns {Array} массив без дубликатов
+     */
+    _deduplicateQuotes(quotes) {
+        if (!Array.isArray(quotes)) return quotes;
+        const seen = new Set();
+        return quotes.filter(quote => {
+            if (!quote || !quote.text) return true; // Keep invalid items as-is
+            const key = this._computeLikeKey(quote.text, quote.author);
+            if (seen.has(key)) {
+                console.debug('🔄 _deduplicateQuotes: Пропускаем дубликат:', key);
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+    }
+    
     /**
      * 🔄 Apply stored like state to a single item
      * Mutates the item to reflect the current state in likeStore
