@@ -2579,37 +2579,52 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
       likedByMeSet = new Set(likedFavorites.map(f => f.normalizedKey));
     }
 
+    // Get origin user IDs (first creator) for consistent attribution across endpoints
+    const quotePairs = quotes.map(q => ({ text: q.text, author: q.author || '' }));
+    const originUserMap = await getOriginUserIds(quotePairs);
+    
+    // Collect all needed user IDs (both current and origin users)
+    const originUserIds = [...originUserMap.values()].filter(Boolean).map(String);
+    const allUserIds = [...new Set([...userIds, ...originUserIds])];
+    
+    // Fetch all users (including origin users not in original userMap)
+    const allUsers = await UserProfile.find(
+      { userId: { $in: allUserIds } },
+      { userId: 1, name: 1, avatarUrl: 1, telegramUsername: 1 }
+    ).lean();
+    const fullUserMap = new Map(allUsers.map(u => [String(u.userId), u]));
+
     // Enrich each quote with user info, favorites count, and likedByMe
     const enrichedQuotes = quotes.map(q => {
-      const user = userMap.get(String(q.userId));
+      // Use origin user (first creator) for consistent attribution
+      const originKey = `${q.text}|||${q.author || ''}`;
+      const originUserId = originUserMap.get(originKey);
+      const user = originUserId 
+        ? fullUserMap.get(String(originUserId)) 
+        : fullUserMap.get(String(q.userId));
+      
       const favoritesKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
       const favoritesCount = favoritesMap.get(favoritesKey) || 0;
       
       const normalizedKey = toNormalizedKey(q.text, q.author || '');
+      
+      // Build display name with fallback chain
+      const displayName = user?.name || 
+                         (user?.telegramUsername ? `@${user.telegramUsername}` : null) || 
+                         'Пользователь';
       
       return {
         ...q,
         // Keep userId (do NOT delete as per spec)
         user: user ? {
           userId: user.userId,
-          name: user.name,
+          name: displayName,
           avatarUrl: user.avatarUrl
         } : null,
         favorites: favoritesCount,
         likedByMe: likedByMeSet.has(normalizedKey)
       };
     });
-
-    res.json({
-      success: true,
-      data: enrichedQuotes
-    });
-
-  } catch (error) {
-    console.error('❌ Get Latest Community Quotes Error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 
 /**
  * @description Популярные цитаты сообщества с поддержкой ISO недель
