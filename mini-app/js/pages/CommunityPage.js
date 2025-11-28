@@ -49,7 +49,7 @@ class CommunityPage {
         this.feedFilter = 'all'; // 'all' | 'following'
         this.followingQuotes = [];
         this.followingCount = 0;
-        this.followStatusCache = new Map(); // userId -> boolean
+        this.followStatusCache = this._loadFollowStatusFromStorage(); // userId -> boolean
 
         // 🌟 SPOTLIGHT CACHE (TTL система для предотвращения мигания)
         this._spotlightCache = {
@@ -722,6 +722,11 @@ async refreshSpotlight() {
             const response = await this.api.followUser(userId);
             if (response && response.success) {
                 this.followStatusCache.set(userId, true);
+                this._saveFollowStatusToStorage(); // ✅ Сохраняем в localStorage
+                
+                // ✅ Сбрасываем локальный кэш ленты подписок
+                this.followingFeed = null;
+                
                 this.triggerHapticFeedback('success');
                 this.showNotification('Вы подписались!', 'success');
                 return true;
@@ -743,6 +748,11 @@ async refreshSpotlight() {
             const response = await this.api.unfollowUser(userId);
             if (response && response.success) {
                 this.followStatusCache.set(userId, false);
+                this._saveFollowStatusToStorage(); // ✅ Сохраняем в localStorage
+                
+                // ✅ Сбрасываем локальный кэш ленты подписок
+                this.followingFeed = null;
+                
                 this.triggerHapticFeedback('light');
                 this.showNotification('Вы отписались', 'info');
                 return true;
@@ -834,6 +844,42 @@ async refreshSpotlight() {
         }
     }
 
+    /**
+     * 💾 FOLLOW STATUS PERSISTENCE HELPERS
+     */
+    
+    /**
+     * Load follow status from localStorage
+     * @returns {Map} Map of userId -> isFollowing
+     */
+    _loadFollowStatusFromStorage() {
+        try {
+            const stored = localStorage.getItem('reader-follow-status-cache');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (typeof parsed === 'object' && parsed !== null) {
+                    console.log(`💾 Loaded ${Object.keys(parsed).length} follow statuses from localStorage`);
+                    return new Map(Object.entries(parsed));
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load follow status from localStorage:', e);
+        }
+        return new Map();
+    }
+
+    /**
+     * Save follow status to localStorage
+     */
+    _saveFollowStatusToStorage() {
+        try {
+            const obj = Object.fromEntries(this.followStatusCache);
+            localStorage.setItem('reader-follow-status-cache', JSON.stringify(obj));
+        } catch (e) {
+            console.warn('Failed to save follow status to localStorage:', e);
+        }
+    }
+    
     /**
      * Persist like store to localStorage
      * Saves current state of _likeStore (excluding pending field)
@@ -1399,9 +1445,9 @@ async refreshSpotlight() {
                                 ❤ <span class="favorites-count">${likesCount}</span>
                             </div>
                             <div class="quote-card__actions">
-                                ${owner?.userId ? `
-                                    <button class="follow-btn ${this.followStatusCache.get(owner.userId) ? 'following' : ''}"
-                                            data-user-id="${owner.userId}"
+                                ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
+                                <button class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
+                                        data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
                                             aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -2150,9 +2196,9 @@ async refreshSpotlight() {
                             ❤ <span class="favorites-count">${favorites}</span>
                         </div>
                         <div class="quote-card__actions">
-                            ${owner?.userId ? `
-                                <button class="follow-btn ${this.followStatusCache.get(owner.userId) ? 'following' : ''}"
-                                        data-user-id="${owner.userId}"
+                            ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
+                                <button class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
+                                        data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
                                         aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
