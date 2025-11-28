@@ -1521,7 +1521,14 @@ class ApiService {
      * @param {string} userId - ID пользователя для подписки
      */
     async followUser(userId) {
-        return this.request('POST', `/follow/${userId}`);
+        const result = await this.request('POST', `/follow/${userId}`);
+        
+        // ✅ Инвалидация кэша ленты подписок после успешной подписки
+        if (result && result.success) {
+            this._invalidateFollowingFeedCache();
+        }
+        
+        return result;
     }
 
     /**
@@ -1529,9 +1536,29 @@ class ApiService {
      * @param {string} userId - ID пользователя
      */
     async unfollowUser(userId) {
-        return this.request('DELETE', `/follow/${userId}`);
+        const result = await this.request('DELETE', `/follow/${userId}`);
+        
+        // ✅ Инвалидация кэша ленты подписок после успешной отписки
+        if (result && result.success) {
+            this._invalidateFollowingFeedCache();
+        }
+        
+        return result;
     }
 
+    /**
+     * 🗑️ Инвалидация кэша ленты подписок
+     * @private
+     */
+    _invalidateFollowingFeedCache() {
+        for (const key of this.cache.keys()) {
+            if (key.includes('/community/feed/following') || key.includes('/following')) {
+                this.cache.delete(key);
+                console.log('🗑️ Кэш ленты подписок очищен:', key);
+            }
+        }
+    }
+    
     /**
      * 🔍 Проверить статус подписки на пользователя
      * @param {string} userId - ID пользователя
