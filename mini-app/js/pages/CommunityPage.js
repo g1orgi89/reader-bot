@@ -604,6 +604,13 @@ class CommunityPage {
                 // ✅ ИСПРАВЛЕНО: response.data - это уже массив цитат
                 // ✅ ДЕДУПЛИКАЦИЯ: убираем дубликаты по normalized key (текст + автор)
                 this.followingFeed = this._deduplicateQuotes(response.data || []);
+                
+                // ✅ ДОБАВИТЬ: Инициализация likeStore из данных ленты подписок
+                this._initializeLikeStoreFromItems(this.followingFeed);
+
+                // ✅ ДОБАВИТЬ: Применение сохранённого состояния лайков
+                this._applyLikeStateToArray(this.followingFeed);
+                
                 console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
             } else {
                 this.followingFeed = [];
@@ -1559,7 +1566,10 @@ async refreshSpotlight() {
             const quoteId = quote.id || quote._id || '';
             const quoteText = quote.text || '';
             const quoteAuthor = quote.author || 'Неизвестный автор';
-    
+
+            // ✅ ИСПРАВЛЕНО: Используем likedByMe (не isLikedByMe) для консистентности
+            const isLiked = !!quote.likedByMe;  
+            
             // Аватар
             const avatarHtml = avatarUrl
                 ? `<img src="${avatarUrl}" alt="${this.escapeHtml(visibleName)}" class="quote-card__avatar">`
@@ -1582,12 +1592,13 @@ async refreshSpotlight() {
                             <span class="favorites-count">${likesCount}</span>
                         </div>
                         <div class="quote-card__actions">
-                            <button class="quote-card__heart-btn${quote.isLikedByMe ? ' favorited' : ''}"
+                            <button class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}"
                                     data-quote-text="${this.escapeHtml(quoteText)}"
                                     data-quote-author="${this.escapeHtml(quoteAuthor)}"
+                                    data-favorites="${likesCount}"
                                     data-normalized-key="${this._computeLikeKey(quoteText, quoteAuthor)}"
                                     aria-label="Лайк">
-                                ${quote.isLikedByMe ? '❤' : '♡'}
+                                ${quote.likedByMe ? '❤' : '♡'}
                             </button>
                         </div>
                     </div>
