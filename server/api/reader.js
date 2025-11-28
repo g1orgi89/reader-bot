@@ -2626,6 +2626,18 @@ router.get('/community/quotes/latest', telegramAuth, communityLimiter, async (re
       };
     });
 
+    // ✅ ВОТ ЭТО НУЖНО ДОБАВИТЬ:
+    res.json({
+      success: true,
+      data: enrichedQuotes
+    });
+
+  } catch (error) {
+    console.error('❌ Get Latest Community Quotes Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 /**
  * @description Популярные цитаты сообщества с поддержкой ISO недель
  * @route GET /api/reader/community/popular
