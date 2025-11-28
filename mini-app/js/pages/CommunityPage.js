@@ -1569,12 +1569,10 @@ async refreshSpotlight() {
 
             // ✅ ИСПРАВЛЕНО: Используем likedByMe (не isLikedByMe) для консистентности
             const isLiked = !!quote.likedByMe;  
+
+            // Аватар - используем общий метод как в renderSpotlightSection
+            const avatarHtml = this.getUserAvatarHtml(owner);
             
-            // Аватар
-            const avatarHtml = avatarUrl
-                ? `<img src="${avatarUrl}" alt="${this.escapeHtml(visibleName)}" class="quote-card__avatar">`
-                : `<div class="quote-card__avatar quote-card__avatar--placeholder">${visibleName.charAt(0).toUpperCase()}</div>`;
-    
             return `
                 <div class="quote-card spotlight-card" data-quote-id="${quoteId}">
                     <div class="spotlight-badge spotlight-badge--following">От подписки</div>
