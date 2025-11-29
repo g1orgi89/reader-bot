@@ -604,31 +604,24 @@ class CommunityPage {
             console.log('👥 CommunityPage: Загружаем ленту от подписок...');
             const response = await this.api.getFollowingFeed({ limit });
             if (response && response.success) {
-                // ✅ ИСПРАВЛЕНО: response.data - это уже массив цитат
-                // ✅ ДЕДУПЛИКАЦИЯ: убираем дубликаты по normalized key (текст + автор)
                 this.followingFeed = this._deduplicateQuotes(response.data || []);
                 
-                // ✅ ДОБАВИТЬ: Инициализация likeStore из данных ленты подписок
                 this._initializeLikeStoreFromItems(this.followingFeed);
-
-                // ✅ ДОБАВИТЬ: Применение сохранённого состояния лайков
                 this._applyLikeStateToArray(this.followingFeed);
                 
-                // Рендерим ленту подписок
-                this.renderSpotlightFollowing(this.followingFeed);
-
-                // ✅ КРИТИЧНО: Отложенная привязка listeners + повторная синхронизация после рендера UI
+                // ✅ НОВЫЙ КОД:
+                const html = this.renderSpotlightFollowing();
+                const spotlightSection = document.getElementById('spotlightSection');
+                if (spotlightSection) {
+                    spotlightSection.outerHTML = html;
+                }
+                
                 setTimeout(() => {
                     this.attachQuoteCardListeners();
                     this._reconcileAllLikeData();
-
-                // ✅ НОВОЕ: Применяем likeStore к followingFeed ПОСЛЕ рендера
                     this._applyLikeStateToArray(this.followingFeed);
-    
-                // ✅ НОВОЕ: Обновляем все кнопки для синхронизации UI
                     this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
                 }, 100);
-                
                 
                 console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
             } else {
@@ -639,7 +632,7 @@ class CommunityPage {
             this.followingFeed = [];
         }
     }
-
+    
     /**
      * 🔄 Переключение фильтра ленты (Все / От подписок)
      * ОБНОВЛЕНО: Перерисовывает только spotlight секцию, не всю страницу
