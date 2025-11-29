@@ -606,7 +606,6 @@ class CommunityPage {
             if (response && response.success) {
                 this.followingFeed = this._deduplicateQuotes(response.data || []);
                 
-                this._initializeLikeStoreFromItems(this.followingFeed);
                 this._applyLikeStateToArray(this.followingFeed);
                 
                 // ✅ НОВЫЙ КОД:
