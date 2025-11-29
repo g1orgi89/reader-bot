@@ -1,7 +1,11 @@
 // ВСТАВЬ СЮДА ↓↓↓ (самый верх!)
 global.normalizeQuoteField = global.normalizeQuoteField || function (s) {
-  return String(s || '').trim().toLowerCase();
+  return String(s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[—–]/g, '-');  // ← ДОБАВИТЬ! em dash (—) и en dash (–) → hyphen (-)
 };
+
 global.computeNormalizedKey = global.computeNormalizedKey || function (t, a = '') {
   return global.normalizeQuoteField(t) + '|||' + global.normalizeQuoteField(a);
 };
