@@ -4898,7 +4898,7 @@ router.get('/community/feed/following', telegramAuth, async (req, res) => {
       .limit(limit)
       .lean();
     
-    // Добавляем информацию о пользователях
+    // ✅ ДОБАВЛЯЕМ: Получаем информацию о пользователях
     const userIds = [...new Set(quotes.map(q => q.userId))];
     const users = await UserProfile.find(
       { userId: { $in: userIds } },
@@ -4907,15 +4907,110 @@ router.get('/community/feed/following', telegramAuth, async (req, res) => {
     
     const usersMap = new Map(users.map(u => [u.userId, u]));
     
-    // Обогащаем цитаты информацией о пользователях
-    const enrichedQuotes = quotes.map(q => ({
-      ...q,
-      id: q._id,
-      owner: usersMap.get(q.userId) || { userId: q.userId, name: 'Читатель' },
-      isFollowing: true // Всегда true, т.к. это лента подписок
-    }));
+    // ✅ ДОБАВЛЯЕМ: Собираем уникальные пары (text, author) для favorites
+    const quotePairs = quotes.map(q => ({ text: q.text, author: q.author || '' }));
+    const uniquePairs = [];
+    const pairMap = new Map();
+    const normalizedToOriginalMap = new Map();
     
-    // Получаем общее количество цитат от подписок
+    quotes.forEach(q => {
+      const normalizedKey = toNormalizedKey(q.text, q.author || '');
+      const originalKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
+      
+      if (!pairMap.has(normalizedKey)) {
+        pairMap.set(normalizedKey, { text: q.text, author: q.author });
+        uniquePairs.push({ 
+          normalizedText: safeNormalize(q.text), 
+          normalizedAuthor: safeNormalize(q.author || '') 
+        });
+      }
+      normalizedToOriginalMap.set(normalizedKey, originalKey);
+    });
+    
+    // ✅ ДОБАВЛЯЕМ: Получаем счётчики favorites
+    const Favorite = require('../models/Favorite');
+    const normalizedKeys = uniquePairs.map(pair => `${pair.normalizedText}|||${pair.normalizedAuthor}`);
+    const favoritesCounts = await Favorite.getCountsForKeys(normalizedKeys);
+    
+    // ✅ ДОБАВЛЯЕМ: Backward compatibility с legacy Quote.isFavorite=true
+    const legacyFavoritesAgg = await Quote.aggregate([
+      { $match: { isFavorite: true } },
+      {
+        $addFields: {
+          computedNormalizedText: { $ifNull: ['$normalizedText', '$text'] },
+          computedNormalizedAuthor: { $ifNull: ['$normalizedAuthor', { $ifNull: ['$author', ''] }] }
+        }
+      },
+      {
+        $match: {
+          $expr: {
+            $in: [
+              { $concat: ['$computedNormalizedText', '|||', '$computedNormalizedAuthor'] },
+              normalizedKeys
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { 
+            normalizedText: '$computedNormalizedText', 
+            normalizedAuthor: '$computedNormalizedAuthor' 
+          },
+          userIds: { $addToSet: '$userId' }
+        }
+      }
+    ]);
+    
+    // ✅ ДОБАВЛЯЕМ: Merge favorites counts
+    const favoritesMap = new Map();
+    quotes.forEach(q => {
+      const normalizedKey = toNormalizedKey(q.text, q.author || '');
+      const originalKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
+      
+      const newSystemCount = favoritesCounts.get(normalizedKey) || 0;
+      
+      const qNormText = safeNormalize(q.text);
+      const qNormAuthor = safeNormalize(q.author || '');
+      const legacyData = legacyFavoritesAgg.find(item => 
+        item._id.normalizedText === qNormText && item._id.normalizedAuthor === qNormAuthor
+      );
+      const legacyUserIds = legacyData ? legacyData.userIds : [];
+      
+      const mergedCount = Math.max(newSystemCount, legacyUserIds.length);
+      favoritesMap.set(originalKey, mergedCount);
+    });
+    
+    // ✅ ДОБАВЛЯЕМ: Получаем likedByMe для текущего юзера
+    let likedByMeSet = new Set();
+    if (userId) {
+      const likedFavorites = await Favorite.find(
+        { 
+          userId: userId,
+          normalizedKey: { $in: normalizedKeys }
+        },
+        { normalizedKey: 1 }
+      ).lean();
+      
+      likedByMeSet = new Set(likedFavorites.map(f => f.normalizedKey));
+    }
+    
+    // ✅ ОБНОВЛЯЕМ: Обогащаем цитаты с favorites и likedByMe
+    const enrichedQuotes = quotes.map(q => {
+      const normalizedKey = toNormalizedKey(q.text, q.author || '');
+      const favoritesKey = `${q.text.trim()}|||${(q.author || '').trim()}`;
+      const favoritesCount = favoritesMap.get(favoritesKey) || 0;
+      
+      return {
+        ...q,
+        id: q._id,
+        user: usersMap.get(q.userId) || { userId: q.userId, name: 'Читатель' },
+        isFollowing: true,
+        favorites: favoritesCount,        // ← ДОБАВЛЕНО
+        likedByMe: likedByMeSet.has(normalizedKey)  // ← ДОБАВЛЕНО
+      };
+    });
+    
     const total = await Quote.countDocuments({ userId: { $in: followingIds } });
     
     res.json({ 
