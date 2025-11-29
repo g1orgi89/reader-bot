@@ -678,14 +678,6 @@ class CommunityPage {
                 await this.loadFollowingFeed();
             }
 
-            // ✅ ДОБАВИТЬ ЭТОТ КОД:
-            const refreshBtn = document.getElementById('spotlightRefreshBtn');
-            if (refreshBtn) {
-                refreshBtn.innerHTML = '↻';
-                refreshBtn.disabled = false;
-                refreshBtn.removeAttribute('aria-disabled');
-                refreshBtn.style.animation = '';
-}
             // ✅ НОВОЕ: Если followingFeed уже загружен, применяем saved state
             if (filter === 'following' && this.followingFeed && this.followingFeed.length > 0) {
                 console.log('🔄 Применяем сохранённое состояние лайков к followingFeed');
@@ -969,7 +961,6 @@ async refreshSpotlight() {
      * Initializes _likeStore from persisted data with pending=0
      */
     _loadLikeStoreFromStorage() {
-        if (this._likeStoreLoaded) return; // Already loaded
         
         try {
             const stored = localStorage.getItem(COMMUNITY_LIKE_STORE_KEY);
@@ -3297,6 +3288,10 @@ renderAchievementsSection() {
     // onShow больше НЕ делает первоначальных загрузок/лоадеров — только фоновые обновления при необходимости
     async onShow() {
         console.log('👥 CommunityPage: onShow - реализация SWR для фоновых обновлений');
+        
+        // ✅ КРИТИЧНО: Синхронизируем likeStore с UI при каждом показе страницы
+        this._reconcileAllLikeData();
+        this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
         
         // ✅ НОВОЕ: Вызов warmupInitialStats при входе на экран
         if (this.statisticsService && typeof this.statisticsService.warmupInitialStats === 'function') {
