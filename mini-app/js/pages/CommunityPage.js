@@ -621,6 +621,12 @@ class CommunityPage {
                     this._applyLikeStateToArray(this.followingFeed);
                     this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
                 }, 100);
+
+                // ✅ ДОБАВИТЬ ЭТИ 3 СТРОКИ ПОСЛЕ setTimeout:
+                setTimeout(() => {
+                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                }, 300);
+                
                 
                 console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
             } else {
