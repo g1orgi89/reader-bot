@@ -619,6 +619,14 @@ class CommunityPage {
                     this.attachQuoteCardListeners();
                     this._reconcileAllLikeData();
                 }, 100);
+
+                // ✅ НОВОЕ: Применяем likeStore к followingFeed ПОСЛЕ рендера
+                    this._applyLikeStateToArray(this.followingFeed);
+    
+                // ✅ НОВОЕ: Обновляем все кнопки для синхронизации UI
+                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                }, 100);
+                
                 
                 console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
             } else {
