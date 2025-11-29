@@ -618,7 +618,6 @@ class CommunityPage {
                 setTimeout(() => {
                     this.attachQuoteCardListeners();
                     this._reconcileAllLikeData();
-                }, 100);
 
                 // ✅ НОВОЕ: Применяем likeStore к followingFeed ПОСЛЕ рендера
                     this._applyLikeStateToArray(this.followingFeed);
