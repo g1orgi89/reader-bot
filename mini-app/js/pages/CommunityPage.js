@@ -611,6 +611,14 @@ class CommunityPage {
                 // ✅ ДОБАВИТЬ: Применение сохранённого состояния лайков
                 this._applyLikeStateToArray(this.followingFeed);
                 
+                // Рендерим ленту подписок
+                this.renderSpotlightFollowing(this.followingFeed);
+
+                // ✅ КРИТИЧНО: Повторная синхронизация после рендера UI
+                setTimeout(() => {
+                     this._reconcileAllLikeData();
+                }, 100);
+                
                 console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
             } else {
                 this.followingFeed = [];
@@ -675,7 +683,16 @@ class CommunityPage {
         
         console.log(`✅ Фильтр переключен на: ${filter}`);
     }
-    
+
+    // ✅ КРИТИЧНО: Синхронизация после смены фильтра
+        setTimeout(() => {
+          this._reconcileAllLikeData();
+        }, 200);
+      } catch (error) {
+        console.error('❌ Error switching feed filter:', error);
+      }
+    }
+
     /**
      * 🔗 Привязка обработчиков для spotlight секции
      * @private
@@ -697,42 +714,53 @@ class CommunityPage {
     }
 
 /**
- * 🔄 Обновить spotlight секцию
+ * Refresh spotlight section with latest data
  */
 async refreshSpotlight() {
-    console.log('🔄 Обновление spotlight секции...');
-    this.triggerHapticFeedback('light');
-    
-    const refreshBtn = document.getElementById('spotlightRefreshBtn');
-    if (refreshBtn) {
-        refreshBtn.classList.add('spinning');
+  try {
+    // Show loading state
+    const spotlightContainer = document.getElementById('spotlight-container');
+    if (spotlightContainer) {
+      spotlightContainer.innerHTML = '<div class="loading-spinner">Загрузка...</div>';
     }
+
+    // Fetch fresh spotlight data
+    const spotlightData = await this.buildSpotlightMix();
     
-    try {
-        if (this.feedFilter === 'following') {
-            await this.loadFollowingFeed();
-        } else {
-            // Перезагружаем данные для обычного spotlight
-            await this.loadCommunityData();
-        }
-        
-        // Перерисовываем spotlight
-        const spotlightContainer = document.getElementById('spotlightSection');
-        if (spotlightContainer) {
-            const newHTML = this.feedFilter === 'following'
-                ? this.renderSpotlightFollowing()
-                : this.renderSpotlightSection();
-            spotlightContainer.outerHTML = newHTML;
-            this.attachSpotlightListeners();
-        }
-    } finally {
-        const newRefreshBtn = document.getElementById('spotlightRefreshBtn');
-        if (newRefreshBtn) {
-            newRefreshBtn.classList.remove('spinning');
-        }
+    // Render spotlight with fresh data
+    this.renderSpotlight(spotlightData);
+    
+    // ✅ КРИТИЧНО: Восстановить активный фильтр после обновления
+    const activeFilter = this._activeFilter || 'all';
+    const filterBtns = document.querySelectorAll('.feed-filter-btn');
+    filterBtns.forEach(btn => {
+      if (btn.dataset.filter === activeFilter) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    
+    // ✅ КРИТИЧНО: Синхронизировать _likeStore с UI после рендера
+    this._reconcileAllLikeData();
+    
+    console.log('✅ Spotlight refreshed successfully');
+  } catch (error) {
+    console.error('❌ Error refreshing spotlight:', error);
+    
+    // Show error state
+    const spotlightContainer = document.getElementById('spotlight-container');
+    if (spotlightContainer) {
+      spotlightContainer.innerHTML = `
+        <div class="error-message">
+          <p>Не удалось обновить ленту</p>
+          <button class="btn-retry" onclick="window.communityPage.refreshSpotlight()">
+            Повторить
+          </button>
+        </div>
+      `;
     }
-    
-    console.log('✅ Spotlight обновлён');
+  }
 }
     /**
      * ➕ Подписаться на пользователя
