@@ -961,31 +961,28 @@ async refreshSpotlight() {
      * Initializes _likeStore from persisted data with pending=0
      */
     _loadLikeStoreFromStorage() {
-        
-        try {
-            const stored = localStorage.getItem(COMMUNITY_LIKE_STORE_KEY);
-            if (stored) {
-                const entries = JSON.parse(stored);
-                if (Array.isArray(entries)) {
-                    entries.forEach(([key, value]) => {
-                        // Initialize with pending=0 (no pending actions on load)
-                        this._likeStore.set(key, {
-                            liked: value.liked,
-                            count: value.count,
-                            pending: 0,
-                            lastServerCount: value.lastServerCount || value.count
-                        });
+    try {
+        const stored = localStorage.getItem(COMMUNITY_LIKE_STORE_KEY);
+        if (stored) {
+            this._likeStore.clear(); // ✅ ДОБАВИТЬ ЭТУ СТРОКУ
+            const entries = JSON.parse(stored);
+            if (Array.isArray(entries)) {
+                entries.forEach(([key, value]) => {
+                    this._likeStore.set(key, {
+                        liked: value.liked,
+                        count: value.count,
+                        pending: 0,
+                        lastServerCount: value.lastServerCount || value.count
                     });
-                    console.log(`💾 Loaded ${entries.length} like entries from localStorage`);
-                }
+                });
+                console.log(`💾 Loaded ${entries.length} like entries from localStorage`);
             }
-            this._likeStoreLoaded = true;
-        } catch (e) {
-            console.warn('Failed to load like store from localStorage:', e);
-            this._likeStoreLoaded = true; // Mark as loaded even on error to avoid retries
         }
+    } catch (e) {
+        console.warn('Failed to load like store from localStorage:', e);
     }
-
+}
+    
     /**
      * 💾 FOLLOW STATUS PERSISTENCE HELPERS
      */
