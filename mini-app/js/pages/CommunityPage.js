@@ -614,9 +614,10 @@ class CommunityPage {
                 // Рендерим ленту подписок
                 this.renderSpotlightFollowing(this.followingFeed);
 
-                // ✅ КРИТИЧНО: Повторная синхронизация после рендера UI
+                // ✅ КРИТИЧНО: Отложенная привязка listeners + повторная синхронизация после рендера UI
                 setTimeout(() => {
-                     this._reconcileAllLikeData();
+                    this.attachQuoteCardListeners();
+                    this._reconcileAllLikeData();
                 }, 100);
                 
                 console.log('✅ CommunityPage: Лента от подписок загружена:', this.followingFeed.length);
@@ -637,60 +638,61 @@ class CommunityPage {
     async switchFeedFilter(filter) {
         if (this.feedFilter === filter) return;
         
-        console.log(`🔄 Переключение фильтра ленты: ${this.feedFilter} → ${filter}`);
-        
-        this.feedFilter = filter;
-        this.triggerHapticFeedback('light');
-        
-        // Обновляем активную кнопку фильтра
-        const filterButtons = document.querySelectorAll('.feed-filter-btn');
-        filterButtons.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.filter === filter);
-        });
-        
-        // Загружаем данные подписок если нужно и ещё не загружены
-        if (filter === 'following' && (!this.followingFeed || this.followingFeed.length === 0)) {
-            // Показываем индикатор загрузки
-            const spotlightSection = document.getElementById('spotlightSection');
-            if (spotlightSection) {
-                spotlightSection.innerHTML = `
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ От ваших подписок</h3>
-                    </div>
-                    <div class="loading-indicator" style="text-align: center; padding: 40px;">
-                        <div class="spinner"></div>
-                        <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
-                    </div>
-                `;
+        try {
+            console.log(`🔄 Переключение фильтра ленты: ${this.feedFilter} → ${filter}`);
+            
+            this.feedFilter = filter;
+            this.triggerHapticFeedback('light');
+            
+            // Обновляем активную кнопку фильтра
+            const filterButtons = document.querySelectorAll('.feed-filter-btn');
+            filterButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            
+            // Загружаем данные подписок если нужно и ещё не загружены
+            if (filter === 'following' && (!this.followingFeed || this.followingFeed.length === 0)) {
+                // Показываем индикатор загрузки
+                const spotlightSection = document.getElementById('spotlightSection');
+                if (spotlightSection) {
+                    spotlightSection.innerHTML = `
+                        <div class="spotlight-header">
+                            <h3 class="spotlight-title">✨ От ваших подписок</h3>
+                        </div>
+                        <div class="loading-indicator" style="text-align: center; padding: 40px;">
+                            <div class="spinner"></div>
+                            <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
+                        </div>
+                    `;
+                }
+                
+                await this.loadFollowingFeed();
             }
             
-            await this.loadFollowingFeed();
-        }
-        
-        // Перерисовываем ТОЛЬКО spotlight секцию
-        const spotlightContainer = document.getElementById('spotlightSection');
-        if (spotlightContainer) {
-            const newSpotlightHTML = filter === 'following' 
-                ? this.renderSpotlightFollowing()
-                : this.renderSpotlightSection();
+            // Перерисовываем ТОЛЬКО spotlight секцию
+            const spotlightContainer = document.getElementById('spotlightSection');
+            if (spotlightContainer) {
+                const newSpotlightHTML = filter === 'following' 
+                    ? this.renderSpotlightFollowing()
+                    : this.renderSpotlightSection();
+                
+                // Заменяем содержимое
+                spotlightContainer.outerHTML = newSpotlightHTML;
+                
+                // Перепривязываем обработчики для новых карточек
+                this.attachSpotlightListeners();
+            }
             
-            // Заменяем содержимое
-            spotlightContainer.outerHTML = newSpotlightHTML;
+            // ✅ КРИТИЧНО: Синхронизация после смены фильтра
+            setTimeout(() => {
+                this._reconcileAllLikeData();
+            }, 200);
             
-            // Перепривязываем обработчики для новых карточек
-            this.attachSpotlightListeners();
+            console.log(`✅ Фильтр переключен на: ${filter}`);
+            
+        } catch (error) {
+            console.error('❌ Error switching feed filter:', error);
         }
-        
-        console.log(`✅ Фильтр переключен на: ${filter}`);
-    }
-
-    // ✅ КРИТИЧНО: Синхронизация после смены фильтра
-        setTimeout(() => {
-          this._reconcileAllLikeData();
-        }, 200);
-      } catch (error) {
-        console.error('❌ Error switching feed filter:', error);
-      }
     }
 
     /**
