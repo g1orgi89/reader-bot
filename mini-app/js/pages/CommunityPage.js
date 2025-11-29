@@ -68,6 +68,9 @@ class CommunityPage {
         this._likeStore = new Map();
         this._likeStoreLoaded = false; // Flag to track if like store was loaded from localStorage
 
+        // ✅ ДОБАВИТЬ ЭТУ СТРОКУ:
+        this._loadLikeStoreFromStorage();
+     
         // 🔄 RERENDER SCHEDULER (batching sequential rerenders into single rAF)
         this._rerenderScheduled = false;
         
@@ -674,7 +677,15 @@ class CommunityPage {
                 
                 await this.loadFollowingFeed();
             }
-            
+
+            // ✅ ДОБАВИТЬ ЭТОТ КОД:
+            const refreshBtn = document.getElementById('spotlightRefreshBtn');
+            if (refreshBtn) {
+                refreshBtn.innerHTML = '↻';
+                refreshBtn.disabled = false;
+                refreshBtn.removeAttribute('aria-disabled');
+                refreshBtn.style.animation = '';
+}
             // ✅ НОВОЕ: Если followingFeed уже загружен, применяем saved state
             if (filter === 'following' && this.followingFeed && this.followingFeed.length > 0) {
                 console.log('🔄 Применяем сохранённое состояние лайков к followingFeed');
@@ -770,6 +781,17 @@ async refreshSpotlight() {
             
             // Перезагружаем ленту подписок
             await this.loadFollowingFeed();
+
+            // ✅ КРИТИЧНО: Восстанавливаем кнопку обновления после загрузки
+            setTimeout(() => {
+                const refreshBtn = document.getElementById('spotlightRefreshBtn');
+                if (refreshBtn) {
+                    refreshBtn.innerHTML = '↻';
+                    refreshBtn.disabled = false;
+                    refreshBtn.removeAttribute('aria-disabled');
+                    refreshBtn.style.animation = '';
+                }
+            }, 100);
             
         } else {
             // Обновляем общую ленту (spotlight)
