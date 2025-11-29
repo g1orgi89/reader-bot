@@ -652,7 +652,6 @@ class CommunityPage {
             
             // Загружаем данные подписок если нужно и ещё не загружены
             if (filter === 'following' && (!this.followingFeed || this.followingFeed.length === 0)) {
-                // Показываем индикатор загрузки
                 const spotlightSection = document.getElementById('spotlightSection');
                 if (spotlightSection) {
                     spotlightSection.innerHTML = `
@@ -669,6 +668,12 @@ class CommunityPage {
                 await this.loadFollowingFeed();
             }
             
+            // ✅ НОВОЕ: Если followingFeed уже загружен, применяем saved state
+            if (filter === 'following' && this.followingFeed && this.followingFeed.length > 0) {
+                console.log('🔄 Применяем сохранённое состояние лайков к followingFeed');
+                this._applyLikeStateToArray(this.followingFeed);
+            }
+            
             // Перерисовываем ТОЛЬКО spotlight секцию
             const spotlightContainer = document.getElementById('spotlightSection');
             if (spotlightContainer) {
@@ -676,16 +681,16 @@ class CommunityPage {
                     ? this.renderSpotlightFollowing()
                     : this.renderSpotlightSection();
                 
-                // Заменяем содержимое
                 spotlightContainer.outerHTML = newSpotlightHTML;
-                
-                // Перепривязываем обработчики для новых карточек
                 this.attachSpotlightListeners();
             }
             
             // ✅ КРИТИЧНО: Синхронизация после смены фильтра
             setTimeout(() => {
                 this._reconcileAllLikeData();
+                
+                // ✅ НОВОЕ: Обновляем все кнопки лайков
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
             }, 200);
             
             console.log(`✅ Фильтр переключен на: ${filter}`);
@@ -694,7 +699,7 @@ class CommunityPage {
             console.error('❌ Error switching feed filter:', error);
         }
     }
-
+    
     /**
      * 🔗 Привязка обработчиков для spotlight секции
      * @private
@@ -716,53 +721,119 @@ class CommunityPage {
     }
 
 /**
- * Refresh spotlight section with latest data
+ * 🔄 Обновить spotlight с учетом текущего фильтра
+ * ОБНОВЛЕНО: Проверяет feedFilter и обновляет соответствующую ленту
  */
 async refreshSpotlight() {
-  try {
-    // Show loading state
-    const spotlightContainer = document.getElementById('spotlight-container');
-    if (spotlightContainer) {
-      spotlightContainer.innerHTML = '<div class="loading-spinner">Загрузка...</div>';
+    try {
+        // Haptic feedback
+        this.triggerHapticFeedback('medium');
+        
+        const refreshBtn = document.getElementById('spotlightRefreshBtn');
+        if (refreshBtn) {
+            refreshBtn.innerHTML = '↻';
+            refreshBtn.disabled = true;
+            refreshBtn.setAttribute('aria-disabled', 'true');
+            refreshBtn.style.animation = 'spin 1s linear infinite';
+        }
+        
+        // ✅ КРИТИЧНО: Проверяем текущий фильтр
+        if (this.feedFilter === 'following') {
+            // Обновляем ленту подписок
+            console.log('🔄 Обновление ленты подписок...');
+            
+            // Показываем loading
+            const spotlightSection = document.getElementById('spotlightSection');
+            if (spotlightSection) {
+                spotlightSection.innerHTML = `
+                    <div class="spotlight-header">
+                        <h3 class="spotlight-title">✨ От ваших подписок</h3>
+                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                                disabled aria-label="Обновить">↻</button>
+                    </div>
+                    <div class="loading-indicator" style="text-align: center; padding: 40px;">
+                        <div class="spinner"></div>
+                        <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
+                    </div>
+                `;
+            }
+            
+            // Сбрасываем кэш ленты подписок
+            this.followingFeed = null;
+            
+            // Перезагружаем ленту подписок
+            await this.loadFollowingFeed();
+            
+        } else {
+            // Обновляем общую ленту (spotlight)
+            console.log('🔄 Обновление общей ленты...');
+            
+            // Показываем loading
+            const spotlightContainer = document.getElementById('spotlight-container');
+            if (spotlightContainer) {
+                spotlightContainer.innerHTML = '<div class="loading-spinner">Загрузка...</div>';
+            }
+            
+            // Очищаем кэш spotlight
+            this._spotlightCache = { ts: 0, items: [] };
+            
+            // Параллельно перезагружаем данные
+            await Promise.allSettled([
+                this.loadLatestQuotes(5)
+            ]);
+            
+            // Пересобираем подборку
+            await this.getSpotlightItems();
+            
+            // Генерируем свежий HTML
+            const newSpotlightHTML = this.renderSpotlightSection();
+            
+            // Заменяем spotlight контейнер
+            requestAnimationFrame(() => {
+                const spotlightSection = document.getElementById('spotlightSection');
+                if (spotlightSection) {
+                    spotlightSection.outerHTML = newSpotlightHTML;
+                }
+                
+                // Синхронизируем лайки
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                
+                // Перепривязываем обработчики
+                this.attachQuoteCardListeners();
+                this.attachCommunityCardListeners();
+            });
+        }
+        
+        // ✅ КРИТИЧНО: Восстанавливаем активный фильтр
+        setTimeout(() => {
+            const filterBtns = document.querySelectorAll('.feed-filter-btn');
+            filterBtns.forEach(btn => {
+                if (btn.dataset.filter === this.feedFilter) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }, 100);
+        
+        // Haptic feedback на успех
+        this.triggerHapticFeedback('light');
+        console.log('✅ Spotlight refreshed successfully');
+        
+    } catch (error) {
+        console.error('❌ Error refreshing spotlight:', error);
+        this.showNotification('Ошибка обновления', 'error');
+        
+        // Восстанавливаем кнопку при ошибке
+        const btn = document.getElementById('spotlightRefreshBtn');
+        if (btn) {
+            btn.innerHTML = '↻';
+            btn.disabled = false;
+            btn.removeAttribute('aria-disabled');
+            btn.style.animation = '';
+        }
     }
-
-    // Fetch fresh spotlight data
-    const spotlightData = await this.buildSpotlightMix();
-    
-    // Render spotlight with fresh data
-    this.renderSpotlight(spotlightData);
-    
-    // ✅ КРИТИЧНО: Восстановить активный фильтр после обновления
-    const activeFilter = this._activeFilter || 'all';
-    const filterBtns = document.querySelectorAll('.feed-filter-btn');
-    filterBtns.forEach(btn => {
-      if (btn.dataset.filter === activeFilter) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
-    
-    // ✅ КРИТИЧНО: Синхронизировать _likeStore с UI после рендера
-    this._reconcileAllLikeData();
-    
-    console.log('✅ Spotlight refreshed successfully');
-  } catch (error) {
-    console.error('❌ Error refreshing spotlight:', error);
-    
-    // Show error state
-    const spotlightContainer = document.getElementById('spotlight-container');
-    if (spotlightContainer) {
-      spotlightContainer.innerHTML = `
-        <div class="error-message">
-          <p>Не удалось обновить ленту</p>
-          <button class="btn-retry" onclick="window.communityPage.refreshSpotlight()">
-            Повторить
-          </button>
-        </div>
-      `;
-    }
-  }
 }
     /**
      * ➕ Подписаться на пользователя
