@@ -3066,7 +3066,7 @@ router.get('/community/popular-favorites', telegramAuth, communityLimiter, async
 });
 
 /**
- * @description Недавние избранные цитаты сообщества с поддержкой ISO недель
+ * @description Недавние избранные цитаты сообщества (ТОЛЬКО из дневников пользователей)
  * @route GET /api/reader/community/favorites/recent
  */
 router.get('/community/favorites/recent', telegramAuth, communityLimiter, async (req, res) => {
@@ -3126,64 +3126,8 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
       });
     }
 
-    // Build match criteria for Favorites collection based on time period
-    const Favorite = require('../models/Favorite');
-    let favoritesMatchCriteria = {};
-    
-    if (scope === 'week') {
-      const { getBusinessNow, getISOWeekInfo, getISOWeekRange } = require('../utils/isoWeek');
-      const currentWeek = getISOWeekInfo(getBusinessNow());
-      const targetWeek = parseInt(weekNumber) || currentWeek.isoWeek;
-      const targetYear = parseInt(year) || currentWeek.isoYear;
-      
-      // Calculate start/end dates for the ISO week
-      const { start: startDate, end: endDate } = getISOWeekRange(targetWeek, targetYear);
-      
-      favoritesMatchCriteria = {
-        createdAt: { $gte: startDate, $lte: endDate }
-      };
-    } else {
-      const startDate = new Date();
-      startDate.setHours(startDate.getHours() - hours);
-      favoritesMatchCriteria = {
-        createdAt: { $gte: startDate }
-      };
-    }
-
-    // Aggregate from Favorites collection
-    const favoritesAgg = await Favorite.aggregate([
-      {
-        $match: favoritesMatchCriteria
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $group: {
-          _id: '$normalizedKey',
-          userIds: { $addToSet: '$userId' },
-          latestCreated: { $max: '$createdAt' },
-          sampleText: { $first: '$text' },
-          sampleAuthor: { $first: '$author' }
-        }
-      },
-      {
-        $addFields: {
-          favoritesCount: { $size: '$userIds' }
-        }
-      },
-      {
-        $sort: { 
-          latestCreated: -1
-        }
-      },
-      {
-        $limit: limit * 2 // Get more for backward-compat merge
-      }
-    ]);
-
-    // Backward compatibility: also aggregate from legacy Quote.isFavorite=true
-    const legacyFavoritesAgg = await Quote.aggregate([
+    // ✅ НОВАЯ ЛОГИКА: Возвращаем ТОЛЬКО Quote.isFavorite=true (из дневников)
+    const recentFavorites = await Quote.aggregate([
       {
         $match: matchCriteria
       },
@@ -3216,61 +3160,33 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
           sampleText: { $first: '$text' },
           sampleAuthor: { $first: '$author' }
         }
+      },
+      {
+        $addFields: {
+          latestTimestamp: {
+            $max: ['$latestEdit', '$latestCreated']
+          }
+        }
+      },
+      {
+        $sort: { 
+          latestTimestamp: -1 
+        }
+      },
+      {
+        $limit: limit
+      },
+      {
+        $project: {
+          text: '$sampleText',
+          author: '$sampleAuthor',
+          favorites: { $size: '$userIds' },
+          latestCreated: '$latestTimestamp',
+          firstUserId: { $arrayElemAt: ['$userIds', 0] },
+          _id: 0
+        }
       }
     ]);
-
-    // Merge both sources by normalizedKey, taking union of userIds
-    const mergedMap = new Map();
-    
-    // Add from new Favorites system
-    favoritesAgg.forEach(item => {
-      mergedMap.set(item._id, {
-        normalizedKey: item._id,
-        userIds: new Set(item.userIds),
-        text: item.sampleText,
-        author: item.sampleAuthor,
-        latestCreated: item.latestCreated
-      });
-    });
-    
-    // Merge from legacy system
-    legacyFavoritesAgg.forEach(item => {
-      const normalizedKey = toNormalizedKey(item.sampleText, item.sampleAuthor);
-      const existing = mergedMap.get(normalizedKey);
-      
-      if (existing) {
-        // Merge userIds (set union)
-        item.userIds.forEach(uid => existing.userIds.add(uid));
-        // Update metadata if newer
-        const itemLatest = item.latestEdit || item.latestCreated;
-        if (!existing.latestCreated || itemLatest > existing.latestCreated) {
-          existing.latestCreated = itemLatest;
-        }
-      } else {
-        mergedMap.set(normalizedKey, {
-          normalizedKey,
-          userIds: new Set(item.userIds),
-          text: item.sampleText,
-          author: item.sampleAuthor,
-          latestCreated: item.latestEdit || item.latestCreated
-        });
-      }
-    });
-
-    // Convert to array and sort by recency
-    const recentFavorites = Array.from(mergedMap.values())
-      .map(item => ({
-        text: item.text,
-        author: item.author,
-        favorites: item.userIds.size,
-        latestCreated: item.latestCreated,
-        firstUserId: Array.from(item.userIds)[0]
-      }))
-      .sort((a, b) => {
-        // Sort by latestCreated desc (most recent first)
-        return (b.latestCreated || 0) - (a.latestCreated || 0);
-      })
-      .slice(0, limit);
 
     // Handle empty results gracefully
     if (!recentFavorites || recentFavorites.length === 0) {
@@ -3311,6 +3227,7 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
     let likedByMeSet = new Set();
     
     if (currentUserId) {
+      const Favorite = require('../models/Favorite');
       const normalizedKeys = recentFavorites.map(rf => toNormalizedKey(rf.text, rf.author || ''));
       
       const likedFavorites = await Favorite.find(
@@ -3338,7 +3255,6 @@ router.get('/community/favorites/recent', telegramAuth, communityLimiter, async 
         text: rf.text,
         author: rf.author,
         favorites: rf.favorites,
-        latestEdit: rf.latestEdit,
         latestCreated: rf.latestCreated,
         likedByMe: likedByMeSet.has(normalizedKey)
       };
