@@ -2000,7 +2000,6 @@ css.quote-card__add-btn,
     padding: 0;
     border-radius: var(--radius-md);
     font-size: 18px;
-    position: relative;
     font-weight: 600;
     border: none;
     cursor: pointer;
@@ -2019,19 +2018,6 @@ css.quote-card__add-btn,
 .quote-card__add-btn:active,
 .quote-card__heart-btn:active {
     transform: scale(0.9);
-}
-
-.quote-card__heart-btn::before {
-    content: '♡';
-    font-size: 20px;
-    line-height: 1;
-    display: block;              /* ← ДОБАВИТЬ! */
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: var(--text-secondary);
-    transition: var(--transition-normal);
 }
 
 .quote-card__heart-btn.favorited {
@@ -2353,14 +2339,3 @@ css.quote-card__add-btn,
     box-shadow: none;
 }
 
-/* 🔥 КРИТИЧЕСКИЙ ФИХ: Принудительное выравнивание кнопки лайка */
-.quote-card__heart-btn {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    vertical-align: middle !important;
-}
-
-.quote-card__heart-btn::before {
-    display: block !important;
-}
