@@ -685,6 +685,8 @@ class CommunityPage {
             }, 200);
             
             console.log(`✅ Фильтр переключен на: ${filter}`);
+
+            this.attachQuoteCardListeners();
             
         } catch (error) {
             console.error('❌ Error switching feed filter:', error);
