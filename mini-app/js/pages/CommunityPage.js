@@ -2753,11 +2753,10 @@ renderAchievementsSection() {
                 }
                 
                 if (success) {
-                    const wasFollowing = button.classList.contains('following');
-                    button.classList.toggle('following');
-                    const isFollowing = !wasFollowing;
+                    // ✅ ИСПРАВЛЕНИЕ: Сначала меняем innerHTML
+                    const willBeFollowing = !isFollowing;
                     
-                    button.innerHTML = isFollowing ? `
+                    button.innerHTML = willBeFollowing ? `
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
@@ -2770,16 +2769,24 @@ renderAchievementsSection() {
                         </svg>
                     `;
                     
-                    void button.offsetWidth;  // ✅ НОВОЕ: Принудительный reflow
+                    // ✅ ПОТОМ добавляем/удаляем класс (не toggle!)
+                    if (willBeFollowing) {
+                        button.classList.add('following');
+                    } else {
+                        button.classList.remove('following');
+                    }
+                    
+                    // Принудительный reflow для применения стилей
+                    void button.offsetWidth;
                     
                     button.setAttribute('aria-label', 
-                        isFollowing ? 'Отписаться' : 'Подписаться');
+                        willBeFollowing ? 'Отписаться' : 'Подписаться');
                     
-                    setTimeout(() => button.blur(), 100);  // ✅ НОВОЕ: Снимаем :active
+                    setTimeout(() => button.blur(), 100);
                 }
             });
         });
-    }        
+        
     /**
      * 📳 ЕДИНЫЙ МЕТОД ДЛЯ HAPTIC FEEDBACK
      * @param {string} type - Тип обратной связи: 'light', 'medium', 'heavy', 'success', 'error'
