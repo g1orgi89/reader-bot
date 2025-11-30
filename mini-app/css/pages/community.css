@@ -1988,7 +1988,7 @@
     gap: var(--spacing-md);
 }
 
-quote-card__add-btn,
+.quote-card__add-btn,
 .quote-card__heart-btn {
     width: 44px;
     min-width: 44px;
