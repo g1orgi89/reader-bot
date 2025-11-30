@@ -2750,9 +2750,25 @@ renderAchievementsSection() {
                 if (success) {
                     // Обновляем UI кнопки
                     button.classList.toggle('following');
-                    button.textContent = button.classList.contains('following') ? '✓' : '+';
+                    
+                    const isFollowing = button.classList.contains('following');
+                    
+                    // Меняем SVG иконку
+                    button.innerHTML = isFollowing ? `
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    ` : `
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <line x1="19" y1="8" x2="19" y2="14"/>
+                            <line x1="16" y1="11" x2="22" y2="11"/>
+                        </svg>
+                    `;
+                    
                     button.setAttribute('aria-label', 
-                        button.classList.contains('following') ? 'Отписаться' : 'Подписаться');
+                        isFollowing ? 'Отписаться' : 'Подписаться');
                 }
             });
         });
