@@ -2158,10 +2158,6 @@
     color: var(--text-secondary);
 }
 
-.quote-card__actions {
-    display: flex;
-    gap: var(--spacing-sm);
-}
 
 /* Update existing actions to ensure proper touch targets */
 .quote-card__add-btn,
@@ -2219,6 +2215,40 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: var(--radius-md);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+/* Кнопка подписки активная - терракотовая */
+.follow-btn.following {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    border-color: var(--primary-color, #D2452C);
+}
+
+/* Hover эффекты */
+.follow-btn:hover {
+    transform: scale(1.05);
+}
+
+.follow-btn:active {
+    transform: scale(0.95);
+}
+
+/* SVG иконка внутри */
+.follow-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.follow-btn.following svg {
+    stroke: white;
 }
 
 .quote-card__actions {
