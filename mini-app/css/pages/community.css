@@ -2352,3 +2352,15 @@ css.quote-card__add-btn,
     transform: none;
     box-shadow: none;
 }
+
+/* 🔥 КРИТИЧЕСКИЙ ФИХ: Принудительное выравнивание кнопки лайка */
+.quote-card__heart-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle !important;
+}
+
+.quote-card__heart-btn::before {
+    display: block !important;
+}
