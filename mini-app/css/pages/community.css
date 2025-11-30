@@ -2331,8 +2331,6 @@ css.quote-card__add-btn,
     
     .quote-card__add-btn,
     .quote-card__heart-btn {
-        min-width: 40px;
-        min-height: 40px;
         font-size: var(--font-size-xs);
     }
 }
