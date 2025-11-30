@@ -1170,10 +1170,8 @@ async refreshSpotlight() {
             
             // Update button visual state
             if (storeEntry.liked) {
-                button.innerHTML = '❤';
                 button.classList.add('favorited');
             } else {
-                button.innerHTML = '♡';
                 button.classList.remove('favorited');
             }
             
