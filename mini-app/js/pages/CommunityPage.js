@@ -1638,6 +1638,7 @@ async refreshSpotlight() {
                     <div class="quote-card__author">— ${this.escapeHtml(quoteAuthor)}</div>
                     <div class="quote-card__footer">
                         <div class="quote-card__likes">
+                            <span class="likes-icon">❤</span>
                             <span class="favorites-count">${likesCount}</span>
                         </div>
                         <div class="quote-card__actions">
