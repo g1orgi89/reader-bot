@@ -1986,8 +1986,6 @@
     align-items: center;          /* ← ДОБАВИТЬ ЭТУ СТРОКУ! */
     justify-content: flex-end;
     gap: var(--spacing-md);
-    padding: var(--spacing-sm);
-    margin: calc(-1 * var(--spacing-sm));
 }
 
 css.quote-card__add-btn,
