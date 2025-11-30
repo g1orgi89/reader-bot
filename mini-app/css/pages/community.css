@@ -2030,12 +2030,12 @@
 .quote-card__add-btn:hover,
 .quote-card__heart-btn:hover {
     background: var(--primary-dark, #B33A29);
-    transform: scale(1.1);
+    transform: translateY(8px) scale(1.1);
 }
 
 .quote-card__add-btn:active,
 .quote-card__heart-btn:active {
-    transform: scale(0.9);
+    transform: translateY(8px) scale(0.9);
 }
 
 .quote-card__heart-btn.favorited {
