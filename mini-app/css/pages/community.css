@@ -2021,7 +2021,7 @@ css.quote-card__add-btn,
 }
 
 .quote-card__heart-btn {
-    font-size: 0;
+    font-size: 18px;
     position: relative;
 }
 
