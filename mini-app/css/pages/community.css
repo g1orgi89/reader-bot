@@ -1990,7 +1990,7 @@
     margin: calc(-1 * var(--spacing-sm));
 }
 
-.quote-card__add-btn,
+css.quote-card__add-btn,
 .quote-card__heart-btn {
     width: 44px;
     min-width: 44px;
@@ -2022,8 +2022,30 @@
     transform: scale(0.9);
 }
 
+.quote-card__heart-btn {
+    font-size: 0;
+    position: relative;
+}
+
+.quote-card__heart-btn::before {
+    content: '♡';
+    font-size: 20px;
+    line-height: 1;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-secondary);
+    transition: var(--transition-normal);
+}
+
 .quote-card__heart-btn.favorited {
     background: var(--error-color, #F44336);
+    color: white;
+}
+
+.quote-card__heart-btn.favorited::before {
+    content: '❤';
     color: white;
 }
 
@@ -2053,7 +2075,6 @@
 .spotlight-card--fav .spotlight-badge {
     background: var(--accent-color, #E91E63);
 }
-
 /* Spin animation for refresh button */
 @keyframes spin {
     from { transform: rotate(0deg); }
