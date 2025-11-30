@@ -2312,3 +2312,10 @@
     box-shadow: none;
 }
 
+/* =============================================
+   FIX: Высота actions для spotlight карточек
+   ============================================= */
+
+.spotlight-card .quote-card__actions {
+    min-height: 76px;
+}
