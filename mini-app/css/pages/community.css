@@ -1984,7 +1984,7 @@
     font-weight: 600;
     border: none;
     cursor: pointer;
-    transition: var(--transition-normal);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2019,13 +2019,13 @@
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .quote-card__heart-btn.favorited {
     background: var(--error-color, #F44336);
     color: white;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .quote-card__heart-btn.favorited::before {
@@ -2173,7 +2173,7 @@
     font-size: 18px;;
     font-weight: 600;
     cursor: pointer;
-    transition: var(--transition-normal);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2184,12 +2184,6 @@
 .quote-card__add-btn {
     background: var(--success-color);
     color: var(--text-inverse);
-}
-
-.quote-card__heart-btn {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
 }
 
 .quote-card__heart-btn.favorited {
