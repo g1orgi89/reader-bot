@@ -1984,28 +1984,27 @@
     font-weight: 600;
     border: none;
     cursor: pointer;
-    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    transition: background-color 0.2s ease;  /* ← ТОЛЬКО background-color! */
     display: flex;
     align-items: center;
     justify-content: center;
-    transform: translateY(8px);
+    transform: translateY(8px);  /* ← Статичное смещение */
 }
 
-/* Hover только для desktop (мышка) */
+/* ✅ Hover БЕЗ scale - только цвет */
 @media (hover: hover) and (pointer: fine) {
     .quote-card__add-btn:hover,
     .quote-card__heart-btn:hover {
-        transform: translateY(8px) scale(1.05);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        background-color: var(--primary-dark, #B33A29);
     }
 }
 
-/* Active для всех (мобилка + desktop) */
+/* ✅ Active БЕЗ scale - только цвет */
 .quote-card__add-btn:active,
 .quote-card__heart-btn:active {
-    transform: translateY(8px) scale(0.95) !important;
-
+    background-color: var(--primary-dark, #B33A29);
 }
+
 .quote-card__heart-btn::before {
     content: '';
     width: 20px;
@@ -2021,19 +2020,15 @@
     background-position: center;
 }
 
+/* ✅ ИСПРАВЛЕНО: Правильный цвет + НЕТ transition override */
 .quote-card__heart-btn.favorited {
-    background: var(--error-color, #F44336);
+    background: var(--primary-color, #D2452C);  /* ← ТЕРРАКОТОВЫЙ! */
     color: white;
-    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .quote-card__heart-btn.favorited::before {
     content: '';
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF' stroke='%23FFFFFF' stroke-width='2'%3E%3Cpath d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'/%3E%3C/svg%3E");
-}
-
-.quote-card__add-btn.added {
-    background: var(--success-color, #28a745);
 }
 
 /* Spotlight badge styles */
