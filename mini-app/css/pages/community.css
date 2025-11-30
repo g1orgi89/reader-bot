@@ -2022,6 +2022,9 @@ css.quote-card__add-btn,
     transform: translate(-50%, -50%);
     color: var(--text-secondary);
     transition: all 0.15s ease;
+
+    -webkit-text-stroke: 0 !important;
+    text-stroke: 0 !important;
 }
 
 .quote-card__add-btn:hover,
@@ -2192,8 +2195,7 @@ css.quote-card__add-btn,
     align-items: center;
     justify-content: center;
     transform: translateY(8px);
-    background: transparent !important;        /* ← ДОБАВИТЬ! */
-    border: 1px solid var(--border) !important; /* ← КАК У .follow-btn! */
+    border: none
 }
 
 .quote-card__add-btn {
