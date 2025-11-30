@@ -2190,6 +2190,7 @@ css.quote-card__add-btn,
     display: flex;
     align-items: center;
     justify-content: center;
+    transform: translateY(2px);
 }
 
 .quote-card__add-btn {
