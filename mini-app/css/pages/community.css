@@ -2023,8 +2023,6 @@ css.quote-card__add-btn,
     color: var(--text-secondary);
     transition: all 0.15s ease;
 
-    -webkit-text-stroke: 0 !important;
-    text-stroke: 0 !important;
 }
 
 .quote-card__add-btn:hover,
