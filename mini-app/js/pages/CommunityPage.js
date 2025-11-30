@@ -2749,9 +2749,11 @@ renderAchievementsSection() {
                 
                 if (success) {
                     // Обновляем UI кнопки
+                    const wasFollowing = button.classList.contains('following');
+    
                     button.classList.toggle('following');
-                    
-                    const isFollowing = button.classList.contains('following');
+    
+                    const isFollowing = !wasFollowing;
                     
                     // Меняем SVG иконку
                     button.innerHTML = isFollowing ? `
