@@ -1562,7 +1562,7 @@ async refreshSpotlight() {
                                         data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
                                         data-favorites="${likesCount}"
                                         data-normalized-key="${this._computeLikeKey(item.text, item.author)}"
-                                        aria-label="Добавить в избранное">${item.likedByMe ? '❤' : '♡'}</button>
+                                        aria-label="Добавить в избранное"></button>
                             </div>
                         </div>
                     </div>
@@ -1648,7 +1648,6 @@ async refreshSpotlight() {
                                     data-favorites="${likesCount}"
                                     data-normalized-key="${this._computeLikeKey(quoteText, quoteAuthor)}"
                                     aria-label="Лайк">
-                                ${quote.likedByMe ? '❤' : '♡'}
                             </button>
                         </div>
                     </div>
@@ -1883,7 +1882,7 @@ async refreshSpotlight() {
                                     data-quote-text="${this.escapeHtml(quote.text)}"
                                     data-quote-author="${this.escapeHtml(quote.author || '')}"
                                     data-normalized-key="${this._computeLikeKey(quote.text, quote.author)}"
-                                    aria-label="Лайк">${quote.likedByMe ? '❤' : '♡'}</button>
+                                    aria-label="Лайк"></button>
                         </div>
                     </div>
                 </div>
@@ -2315,7 +2314,7 @@ async refreshSpotlight() {
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
                                     data-favorites="${favorites}"
                                     data-normalized-key="${this._computeLikeKey(quote.text || '', quote.author || '')}"
-                                    aria-label="Добавить в избранное">${quote.likedByMe ? '❤' : '♡'}</button>
+                                    aria-label="Добавить в избранное"></button>
                         </div>
                     </div>
                 </div>
