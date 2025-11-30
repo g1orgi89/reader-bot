@@ -368,14 +368,14 @@
 /* Hover только для desktop */
 @media (hover: hover) and (pointer: fine) {
     .quote-card__actions .follow-btn:hover {
-        transform: translateY(8px) scale(1.05);
+        transform: scale(1.05);
         background: rgba(210, 69, 44, 0.1);
     }
 }
 
 /* Active для всех */
 .quote-card__actions .follow-btn:active {
-    transform: translateY(8px) scale(0.95) !important;
+    transform: scale(0.95) !important;
 }
 
 .quote-card__actions .follow-btn:hover,
