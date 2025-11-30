@@ -1019,6 +1019,16 @@ async refreshSpotlight() {
     }
 
     /**
+     * 🔑 Получение унифицированного userId из owner объекта
+     * @param {Object} owner - объект владельца
+     * @returns {string|null} userId
+     */
+    _getUserId(owner) {
+        if (!owner) return null;
+        return owner.userId || owner.id || owner._id || owner.telegramId || null;
+    }
+    
+    /**
      * Get owner impressions count
      * @param {string} ownerId - owner ID
      * @returns {number} number of impressions
