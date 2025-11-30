@@ -2008,7 +2008,7 @@ css.quote-card__add-btn,
     display: flex;
     align-items: center;
     justify-content: center;
-    transform: translateY(10px);
+    transform: translateY(8px);
 }
 
 .quote-card__heart-btn::before {
@@ -2191,6 +2191,7 @@ css.quote-card__add-btn,
     display: flex;
     align-items: center;
     justify-content: center;
+    transform: translateY(8px);
 }
 
 .quote-card__add-btn {
