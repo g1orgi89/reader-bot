@@ -2203,7 +2203,7 @@
     font-size: 18px;
     font-weight: 600;
     cursor: pointer;
-    transition: var(--transition-normal);
+    transition: none !important;  /* ← БЕЗ TRANSITION! */
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-secondary);
@@ -2211,9 +2211,10 @@
 
 /* Кнопка подписки активная - терракотовая */
 .follow-btn.following {
-    background: var(--primary-color, #D2452C);
-    color: white;
-    border-color: var(--primary-color, #D2452C);
+    background: var(--primary-color, #D2452C) !important;
+    color: white !important;
+    border-color: var(--primary-color, #D2452C) !important;
+    transition: none !important;
 }
 
 /* Hover эффекты */
