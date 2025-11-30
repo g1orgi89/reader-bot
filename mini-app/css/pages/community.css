@@ -2312,3 +2312,14 @@
     box-shadow: none;
 }
 
+Открой на GitHub: mini-app/css/pages/community.css
+Прокрути В САМЫЙ КОНЕЦ файла
+Добавь:
+
+/* =============================================
+   FIX: Выравнивание кнопки лайка когда она одна
+   ============================================= */
+
+.quote-card__actions .quote-card__heart-btn:only-child {
+    margin-top: 0 !important;
+}
