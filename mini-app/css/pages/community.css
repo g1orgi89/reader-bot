@@ -1983,9 +1983,9 @@
 
 .quote-card__actions {
     display: flex;
+    align-items: center;          /* ← ДОБАВИТЬ ЭТУ СТРОКУ! */
     justify-content: flex-end;
     gap: var(--spacing-md);
-    /* Обеспечиваем достаточное пространство для touch targets */
     padding: var(--spacing-sm);
     margin: calc(-1 * var(--spacing-sm));
 }
