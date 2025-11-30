@@ -2000,6 +2000,7 @@ css.quote-card__add-btn,
     padding: 0;
     border-radius: var(--radius-md);
     font-size: 18px;
+    position: relative;
     font-weight: 600;
     border: none;
     cursor: pointer;
@@ -2007,6 +2008,19 @@ css.quote-card__add-btn,
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.quote-card__heart-btn::before {
+    content: '♡';
+    font-size: 20px;
+    line-height: 1;
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-secondary);
+    transition: var(--transition-normal);
 }
 
 .quote-card__add-btn:hover,
