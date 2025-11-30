@@ -2727,6 +2727,13 @@ renderAchievementsSection() {
                 this.addQuoteToFavorites(event);
             });
         });
+                
+                // ✅ НОВОЕ: Снимаем :active после клика
+                setTimeout(() => {
+                    event.target.closest('.quote-card__heart-btn, .quote-card__fav-btn')?.blur();
+                }, 100);
+            });
+        });
 
         // Обработчики для кнопок подписки
         const followButtons = document.querySelectorAll('.follow-btn');
@@ -2748,14 +2755,10 @@ renderAchievementsSection() {
                 }
                 
                 if (success) {
-                    // Обновляем UI кнопки
                     const wasFollowing = button.classList.contains('following');
-    
                     button.classList.toggle('following');
-    
                     const isFollowing = !wasFollowing;
                     
-                    // Меняем SVG иконку
                     button.innerHTML = isFollowing ? `
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"></polyline>
@@ -2768,11 +2771,13 @@ renderAchievementsSection() {
                             <line x1="16" y1="11" x2="22" y2="11"/>
                         </svg>
                     `;
-
-                    button.offsetHeight;
+                    
+                    void button.offsetWidth;  // ✅ НОВОЕ: Принудительный reflow
                     
                     button.setAttribute('aria-label', 
                         isFollowing ? 'Отписаться' : 'Подписаться');
+                    
+                    setTimeout(() => button.blur(), 100);  // ✅ НОВОЕ: Снимаем :active
                 }
             });
         });
