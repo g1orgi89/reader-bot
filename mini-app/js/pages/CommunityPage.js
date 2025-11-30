@@ -2768,6 +2768,8 @@ renderAchievementsSection() {
                             <line x1="16" y1="11" x2="22" y2="11"/>
                         </svg>
                     `;
+
+                    button.offsetHeight;
                     
                     button.setAttribute('aria-label', 
                         isFollowing ? 'Отписаться' : 'Подписаться');
