@@ -2725,9 +2725,7 @@ renderAchievementsSection() {
         heartButtons.forEach(button => {
             button.addEventListener('click', (event) => {
                 this.addQuoteToFavorites(event);
-            });
-        });
-                
+           
                 // ✅ НОВОЕ: Снимаем :active после клика
                 setTimeout(() => {
                     event.target.closest('.quote-card__heart-btn, .quote-card__fav-btn')?.blur();
