@@ -1606,16 +1606,6 @@
     box-shadow: var(--shadow-sm);
 }
 
-.quote-card__add-btn:hover {
-    background: var(--primary-dark, #B8381E);
-    transform: scale(1.05);
-    box-shadow: var(--shadow-md);
-}
-
-.quote-card__add-btn:active {
-    transform: scale(0.95);
-}
-
 .quote-card__add-btn.added {
     background: var(--success-color, #28a745);
 }
@@ -1799,16 +1789,6 @@
 .spotlight-actions .quote-card__heart-btn {
     background: var(--primary-color, #D2452C);
     color: white;
-}
-
-.spotlight-actions .quote-card__heart-btn:hover {
-    background: #b8382a;
-    transform: scale(1.05);
-}
-
-.spotlight-actions .quote-card__heart-btn:active,
-.spotlight-actions .quote-card__add-btn:active {
-    transform: scale(0.95);
 }
 
 /* ============================================================================
@@ -2027,11 +2007,6 @@
     transition: all 0.15s ease;
 }
 
-.quote-card__add-btn:active,
-.quote-card__heart-btn:active {
-    transform: translateY(8px) scale(0.9);
-}
-
 .quote-card__heart-btn.favorited {
     background: var(--error-color, #F44336);
     color: white;
@@ -2206,11 +2181,6 @@
     background: var(--error-color);
     color: var(--text-inverse);
     border-color: var(--error-color);
-}
-
-.quote-card__add-btn:active,
-.quote-card__heart-btn:active {
-    transform: scale(0.95);
 }
 
 /* Кнопка подписки тоже фиксированная */
