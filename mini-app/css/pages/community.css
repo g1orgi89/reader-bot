@@ -1963,9 +1963,10 @@
 
 .quote-card__actions {
     display: flex;
-    align-items: center;          /* ← ДОБАВИТЬ ЭТУ СТРОКУ! */
+    align-items: center;
     justify-content: flex-end;
     gap: var(--spacing-md);
+    margin-top: 8px;  /* ← ДОБАВИТЬ ЭТУ СТРОКУ! */
 }
 
 .quote-card__add-btn,
@@ -1988,7 +1989,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transform: translateY(8px);  /* ← Статичное смещение */
 }
 
 /* ✅ Hover БЕЗ scale - только цвет */
@@ -2171,7 +2171,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transform: translateY(8px);
     border: none;
 }
 
