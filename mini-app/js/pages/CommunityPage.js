@@ -2786,7 +2786,8 @@ renderAchievementsSection() {
                 }
             });
         });
-        
+    }   
+    
     /**
      * 📳 ЕДИНЫЙ МЕТОД ДЛЯ HAPTIC FEEDBACK
      * @param {string} type - Тип обратной связи: 'light', 'medium', 'heavy', 'success', 'error'
