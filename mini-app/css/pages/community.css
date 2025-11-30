@@ -1991,6 +1991,21 @@
     transform: translateY(8px);
 }
 
+/* Hover только для desktop (мышка) */
+@media (hover: hover) and (pointer: fine) {
+    .quote-card__add-btn:hover,
+    .quote-card__heart-btn:hover {
+        transform: translateY(8px) scale(1.05);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+}
+
+/* Active для всех (мобилка + desktop) */
+.quote-card__add-btn:active,
+.quote-card__heart-btn:active {
+    transform: translateY(8px) scale(0.95) !important;
+
+}
 .quote-card__heart-btn::before {
     content: '';
     width: 20px;
