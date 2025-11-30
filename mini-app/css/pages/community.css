@@ -2236,13 +2236,6 @@
     stroke: white;
 }
 
-.quote-card__actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: center;
-    justify-content: flex-end;
-}
-
 /* Progress section text color fix */
 .progress-header {
     color: var(--text-inverse) !important; /* Force white text for contrast */
