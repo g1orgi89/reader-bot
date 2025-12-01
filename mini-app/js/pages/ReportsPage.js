@@ -1184,7 +1184,7 @@ class ReportsPage {
                 ${personalGrowth}
                 ${recommendations}
                 ${booksSection}
-                ${offerSection}
+                // ${offerSection}
             `;
         }
 
