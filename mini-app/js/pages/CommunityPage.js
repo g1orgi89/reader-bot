@@ -261,9 +261,6 @@ class CommunityPage {
                 // Initialize likeStore from server data
                 this._initializeLikeStoreFromItems(this.latestQuotes);
                 
-                // Apply stored like state to override server data
-                this._applyLikeStateToArray(this.latestQuotes);
-                
                 console.log('✅ CommunityPage: Последние цитаты загружены:', this.latestQuotes.length);
             } else {
                 this.latestQuotes = [];
