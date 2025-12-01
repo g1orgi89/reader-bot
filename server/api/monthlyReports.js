@@ -259,7 +259,7 @@ router.post('/generate', async (req, res) => {
       } else {
         // Otherwise generate for previous month
         const now = new Date();
-        const lastMonth = now.getMonth() === 0 ? 12 : now.getMonth() +1;
+        const lastMonth = now.getMonth() === 0 ? 12 : now.getMonth() ;
         const lastYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
         report = await monthlyReportService.generateMonthlyReport(userId, lastMonth, lastYear);
       }
