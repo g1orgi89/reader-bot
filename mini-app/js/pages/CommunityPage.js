@@ -2741,11 +2741,7 @@ renderAchievementsSection() {
         const heartButtons = document.querySelectorAll('.quote-card__heart-btn, .quote-card__fav-btn');
         heartButtons.forEach(button => {
             button.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const quoteId = button.dataset.quoteId; // ✅
-                if (!quoteId) return;
-                this.addQuoteToFavorites(quoteId); // ✅
+                this.addQuoteToFavorites(event);
                    
                         // ✅ НОВОЕ: Снимаем :active после клика
                         setTimeout(() => {
