@@ -190,6 +190,9 @@ class CommunityPage {
             // ✅ After all data loads complete, schedule a single rerender
             console.log('✅ CommunityPage: Prefetch завершен - обновляем UI');
             this._scheduleRerender();
+
+            this._persistLikeStore();
+            console.log('💾 CommunityPage: Сохранены данные лайков в localStorage')       
         });
     }
 
