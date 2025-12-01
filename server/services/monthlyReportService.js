@@ -58,7 +58,7 @@ class MonthlyReportService {
 
     // По умолчанию генерируем отчёт за ПРОШЛЫЙ месяц
     const now = new Date();
-    const targetMonth = month || (now.getMonth() === 0 ? 12 : now.getMonth());
+    const targetMonth = month || (now.getMonth() === 0 ? 12 : now.getMonth() + 1);
     const targetYear = year || (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear());
 
     // Проверяем существующий отчет
