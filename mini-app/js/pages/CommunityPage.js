@@ -1129,6 +1129,10 @@ async refreshSpotlight() {
             // Override with stored state
             item.likedByMe = storeEntry.liked;
             item.favorites = storeEntry.count;
+
+            // ✅ ДОБАВИТЬ: Дублируем в стандартные поля для совместимости
+            item.isLiked = storeEntry.liked;
+            item.likeCount = storeEntry.count;
         }
     }
 
