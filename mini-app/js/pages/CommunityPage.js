@@ -1121,20 +1121,33 @@ async refreshSpotlight() {
      * @param {Object} item - Quote item with text and author
      */
     _applyLikeStateToItem(item) {
-        if (!item || !item.text) return;
-        const key = this._computeLikeKey(item.text, item.author);
-        const storeEntry = this._likeStore.get(key);
+    if (!item || !item.text) return;
+    const key = this._computeLikeKey(item.text, item.author);
+    const storeEntry = this._likeStore.get(key);
+    
+    // ✅ КРИТИЧНО: Приоритет данным с API если они есть
+    const apiHasData = item.likedByMe !== undefined;
+    
+    if (apiHasData) {
+        // Если API вернул данные - используем их
+        item.isLiked = item.likedByMe;
+        item.likeCount = item.favorites ?? 0;
         
-        if (storeEntry) {
-            // Override with stored state
-            item.likedByMe = storeEntry.liked;
-            item.favorites = storeEntry.count;
-
-            // ✅ ДОБАВИТЬ: Дублируем в стандартные поля для совместимости
-            item.isLiked = storeEntry.liked;
-            item.likeCount = storeEntry.count;
-        }
+        // И обновляем _likeStore с актуальными данными
+        this._likeStore.set(key, {
+            liked: item.likedByMe,
+            count: item.favorites ?? 0,
+            pending: 0,
+            lastServerCount: item.favorites ?? 0
+        });
+    } else if (storeEntry) {
+        // Нет данных с API - используем localStorage
+        item.likedByMe = storeEntry.liked;
+        item.favorites = storeEntry.count;
+        item.isLiked = storeEntry.liked;
+        item.likeCount = storeEntry.count;
     }
+}
 
     /**
      * 🔄 Apply stored like state to an array of items
