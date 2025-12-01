@@ -20,6 +20,8 @@ const SPOTLIGHT_NO_REPEAT_HOURS = 4; // 4 hours (reduced from 24 hours for more 
 
 // 💾 LIKE STORE PERSISTENCE
 const COMMUNITY_LIKE_STORE_KEY = 'community_like_store_v1';
+const COMMUNITY_LIKE_VERSION_KEY = 'community_like_version';
+const CURRENT_LIKE_VERSION = '2.0.0';
 
 class CommunityPage {
     constructor(app) {
@@ -888,6 +890,16 @@ async refreshSpotlight() {
      */
     _loadLikeStoreFromStorage() {
     try {
+         // VERSION CHECK: Clear old cache if version changed
+        const storedVersion = localStorage.getItem(COMMUNITY_LIKE_VERSION_KEY);
+        if (storedVersion !== CURRENT_LIKE_VERSION) {
+            console.log('🔄 Clearing old like cache, version:', storedVersion, '→', CURRENT_LIKE_VERSION);
+            localStorage.removeItem(COMMUNITY_LIKE_STORE_KEY);
+            localStorage.setItem(COMMUNITY_LIKE_VERSION_KEY, CURRENT_LIKE_VERSION);
+            this._likeStore.clear();
+            return;
+        }
+
         const stored = localStorage.getItem(COMMUNITY_LIKE_STORE_KEY);
         if (stored) {
             this._likeStore.clear(); // ✅ ДОБАВИТЬ ЭТУ СТРОКУ
