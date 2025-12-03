@@ -8,16 +8,20 @@ class StatisticsService {
         this.state = state;
         this.cache = new Map();
         this.inFlight = new Map();
-        this.TTL_SHORT = 15000; // 15s
-        this.TTL_DEFAULT = 30000; // 30s
-        
-        // Initialize baseline + deltas model for totalQuotes
+        this.TTL_SHORT = 15000;
+        this.TTL_DEFAULT = 30000;
+    
         this._initializeBaselineDeltas();
-        
-        // Add event listeners for quote changes (with guard against duplicate binding)
+    
         if (typeof document !== 'undefined' && !window.__statsQuoteEventsBound) {
             document.addEventListener('quotes:changed', (e) => {
                 const detail = e.detail || {};
+    
+                // ЛАЙК/АНЛАЙК: игнорируем, не инвалидируем кэш и не дергаем API
+                if (detail.origin === 'favoriteToggle') {
+                    return;
+                }
+    
                 if (detail.type === 'added') this.onQuoteAdded(detail);
                 if (detail.type === 'deleted') this.onQuoteDeleted(detail);
                 if (detail.type === 'edited') this.onQuoteEdited?.(detail);
@@ -571,22 +575,24 @@ class StatisticsService {
         }
     }
 
-    async onQuoteEdited(_detail) {
+    async onQuoteEdited(detail) {
         try {
-            this._requireUserId(); // Ensure userId is available
+            // ЛАЙК/АНЛАЙК: не трогаем статы и кэш
+            if (detail?.origin === 'favoriteToggle') {
+                return;
+            }
+    
+            this._requireUserId();
             console.log('📊 StatisticsService: Quote edited, no totalQuotes change needed');
-            
-            // Quote editing doesn't affect totalQuotes, only other stats like favoriteAuthor
-            // No delta changes needed, just refresh from API
-            
-            // Invalidate cache for fresh API data
+    
+            // Invalidate cache для свежих данных
             this.invalidateAll();
-            
-            // Silent sync with API (no loading flags) 
+    
+            // Тихий рефреш без лоадеров
             await this.refreshMainStatsSilent();
             await this.refreshDiaryStatsSilent();
-            
-            // Refresh activity percent from API
+    
+            // Обновить activity percent
             await this.refreshActivityPercent();
         } catch (e) {
             console.debug('onQuoteEdited error:', e);
