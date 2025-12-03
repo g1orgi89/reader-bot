@@ -473,6 +473,39 @@ class AppState {
     }
 
     /**
+     * Safe merge/update a single quote into quotes.items by id/_id/normalizedKey/text.
+     * If item not found — inserts at the top.
+     * @param {Object} quoteObj
+     * @returns {boolean}
+     */
+    updateQuoteById(quoteObj = {}) {
+        try {
+            const ids = [quoteObj.id, quoteObj._id, quoteObj.normalizedKey, quoteObj.text]
+                .filter(Boolean).map(String);
+            if (!ids.length) return false;
+
+            const items = this.get('quotes.items') || [];
+            let found = false;
+            const out = items.map(q => {
+                const qids = [q.id, q._id, q.normalizedKey, q.text].filter(Boolean).map(String);
+                if (qids.some(x => ids.includes(x))) {
+                    found = true;
+                    return { ...q, ...quoteObj };
+                }
+                return q;
+            });
+
+            if (!found) out.unshift(quoteObj);
+            this.set('quotes.items', out);
+            this.update('quotes', { lastUpdate: Date.now() });
+            return true;
+        } catch (e) {
+            console.warn('updateQuoteById failed', e);
+            return false;
+        }
+    }
+    
+    /**
      * 🗑️ Удалить цитату
      */
     removeQuote(quoteId) {
