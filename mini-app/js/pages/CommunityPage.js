@@ -1889,11 +1889,12 @@ async refreshSpotlight() {
                 </div>
             `;
         }
-
+    
         const quotesHtml = this.followingFeed.map(quote => {
             const owner = quote.owner || quote.user;
             const userAvatarHtml = this.getUserAvatarHtml(owner);
             const userName = owner?.name || 'Пользователь';
+            const favoritesCount = quote.favorites || 0;
             
             return `
                 <div class="quote-card" data-quote-id="${quote.id || ''}">
@@ -1906,11 +1907,12 @@ async refreshSpotlight() {
                     <div class="quote-card__text">"${this.escapeHtml(quote.text)}"</div>
                     <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
                     <div class="quote-card__footer">
-                        <div class="quote-card__likes">❤ ${quote.favorites || 0}</div>
+                        <div class="quote-card__likes">❤ ${favoritesCount}</div>
                         <div class="quote-card__actions">
-                            <button class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}"
+                            <button type="button" class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}"
                                     data-quote-text="${this.escapeHtml(quote.text)}"
                                     data-quote-author="${this.escapeHtml(quote.author || '')}"
+                                    data-favorites="${favoritesCount}"
                                     data-normalized-key="${this._computeLikeKey(quote.text, quote.author)}"
                                     aria-label="Лайк"></button>
                         </div>
@@ -1918,7 +1920,7 @@ async refreshSpotlight() {
                 </div>
             `;
         }).join('');
-
+    
         return `
             <div class="following-feed">
                 <div class="following-feed__list">
@@ -2243,7 +2245,7 @@ async refreshSpotlight() {
                         aria-label="Обновить популярные цитаты">↻</button>
             </div>
         `;
-
+    
         if (this.loadingStates.popularFavorites) {
             return `
                 <div id="popularWeekSection" class="popular-quotes-week-section">
@@ -2255,7 +2257,7 @@ async refreshSpotlight() {
                 </div>
             `;
         }
-
+    
         if (this.errorStates.popularFavorites) {
             return `
                 <div id="popularWeekSection" class="popular-quotes-week-section">
@@ -2269,7 +2271,7 @@ async refreshSpotlight() {
                 </div>
             `;
         }
-
+    
         // Используем только популярные избранные цитаты недели - без fallback
         // Sort by likes (favorites/count/likes) descending to ensure correct top-3
         const quotes = (this.popularFavorites || [])
@@ -2291,7 +2293,7 @@ async refreshSpotlight() {
                 </div>
             `;
         }
-
+    
         // TOP 3 quotes with Spotlight-style design and working buttons
         const quotesCards = quotes.slice(0, 3).map((quote, _index) => {
             const favorites = quote.favorites || quote.count || 0;
@@ -2322,7 +2324,7 @@ async refreshSpotlight() {
                         </div>
                         <div class="quote-card__actions">
                             ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
-                                <button class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
+                                <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
                                         data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
                                         aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2333,12 +2335,12 @@ async refreshSpotlight() {
                                     </svg>
                                 </button>
                             ` : ''}
-                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button class="quote-card__add-btn" 
+                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button type="button" class="quote-card__add-btn" 
                                     data-quote-id="${quote.id || ''}"
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
                                     aria-label="Добавить цитату в дневник">+</button>` : ''}
-                            <button class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}" 
+                            <button type="button" class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}" 
                                     data-quote-id="${quote.id || ''}"
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
@@ -2350,7 +2352,7 @@ async refreshSpotlight() {
                 </div>
             `;
         }).join('');
-
+    
         return `
             <div id="popularWeekSection" class="popular-quotes-week-section">
                 ${header}
@@ -3179,32 +3181,33 @@ renderAchievementsSection() {
      */
     setupQuoteChangeListeners() {
         if (typeof document === 'undefined') return;
-
+    
         // Снимаем старый обработчик, если был
         if (this._quoteChangeHandler) {
             document.removeEventListener('quotes:changed', this._quoteChangeHandler);
             this._quoteChangeHandler = null;
         }
-
+    
         // Создаём новый обработчик с проверкой активности страницы
         this._quoteChangeHandler = (event) => {
             console.log('👥 CommunityPage: Получено событие quotes:changed:', event.detail);
-
+            const d = event?.detail || {}; // ОБЯЗАТЕЛЬНО: объявляем d
+    
             // ЛАЙК: точечная синхронизация и ВЫХОД без общего rerender
             if (d.origin === 'favoriteToggle' && typeof d.normalizedKey === 'string') {
                 try {
-                  // Обновить все кнопки сердечка по ключу (Spotlight + Weekly Top)
-                  this._updateAllLikeButtonsForKey(d.normalizedKey);
-                  // Синхронизировать локальные коллекции карточек
-                  this._syncCollectionsForKey(d.normalizedKey, (item, entry) => {
-                    item.likedByMe = entry.liked;
-                    item.favorites = entry.count;
-                  });
+                    // Обновить все кнопки сердечка по ключу (Spotlight + Weekly Top)
+                    this._updateAllLikeButtonsForKey(d.normalizedKey);
+                    // Синхронизировать локальные коллекции карточек
+                    this._syncCollectionsForKey(d.normalizedKey, (item, entry) => {
+                        item.likedByMe = entry.liked;
+                        item.favorites = entry.count;
+                    });
                 } catch (e) {
-                  console.warn('CommunityPage: favoriteToggle sync failed', e);
+                    console.warn('CommunityPage: favoriteToggle sync failed', e);
                 }
                 return; // Важно: НЕ инвалидировать spotlight и НЕ вызывать _scheduleRerender()
-              }
+            }
             
             // Проверяем, активна ли страница Сообщества
             const isActive = this.app?.router?.currentRoute === '/community' || 
