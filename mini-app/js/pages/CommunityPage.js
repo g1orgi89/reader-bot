@@ -1656,7 +1656,7 @@ async refreshSpotlight() {
                             ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
                             <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
                                     data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
-                                    aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
+                                    aria-label="${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'Отписаться' : 'Подписаться'}">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
                                         <circle cx="9" cy="7" r="4"/>
@@ -2408,7 +2408,7 @@ async refreshSpotlight() {
                             ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
                                 <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
                                         data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
-                                        aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
+                                        aria-label="${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'Отписаться' : 'Подписаться'}">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
                                         <circle cx="9" cy="7" r="4"/>
