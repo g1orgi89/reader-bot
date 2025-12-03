@@ -3579,6 +3579,30 @@ renderAchievementsSection() {
                     willLike ? 'Вы поставили лайк цитате!' : 'Лайк снят.',
                     willLike ? 'success' : 'info'
                 );
+
+                // >>> ВСТАВИТЬ ЗДЕСЬ БЛОК MERGE В appState <<<
+                try {
+                    const favorite = response.favorite || response.result?.favorite || null;
+                    if (favorite && window.appState) {
+                        if (typeof window.appState.updateQuoteById === 'function') {
+                            window.appState.updateQuoteById(favorite);
+                        } else if (typeof window.appState.set === 'function') {
+                            const cur = window.appState.get('quotes.items') || [];
+                            const merged = [favorite, ...cur.filter(q =>
+                                ((q.id||q._id||q.text) !== (favorite.id||favorite._id||favorite.text))
+                            )];
+                            window.appState.set('quotes.items', merged);
+                        }
+                        // уведомление подписчиков
+                        if (typeof document !== 'undefined') {
+                            document.dispatchEvent(new CustomEvent('quotes:changed', {
+                                detail: { type: 'edited', quote: favorite }
+                            }));
+                        }
+                    }
+                } catch (mergeErr) {
+                    console.warn('CommunityPage: failed to merge favorite into appState', mergeErr);
+                }
                 
                 // Reconcile with server count if available
                 const serverCount = response.counts?.totalFavoritesForPair;
