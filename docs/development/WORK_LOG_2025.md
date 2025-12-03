@@ -265,4 +265,63 @@ const monthlyReportsNotificationJob = cron.schedule('0 12 1 * *', async () => {
 
 ---
 
+## 2025-12-03 - Fix: Persistent likes & Spotlight flicker reduction
+
+**Задача:** Fix favorites (heart buttons) reverting after reload and reduce Spotlight section flicker
+
+**Проблема:**
+1. Heart buttons (favorites) revert to unfavorited after page reload even though local `_likeStore` has `liked=true` for the same `normalizedKey`
+2. Spotlight section ("Сейчас в сообществе") flickers 2-3 times on entry due to multiple consecutive rebuilds and DOM replacements
+3. Loader in Spotlight visibly blinks during initial background refresh
+
+**Диагностика:**
+- `_likeStore` contains 90+ entries; after reload, some Spotlight cards have `fav=false` while `_likeStore.get(key).liked===true`
+- Multiple calls to `/community/favorites/recent` and repeated `buildSpotlightMix` lead to repeated `renderSpotlightSection` and `outerHTML` replacements
+- Initial application of state on reload uses API fields (`likedByMe`/`favorites`) over local store, resetting UI
+
+**Исправления:**
+
+### A) Persistent likes - `_likeStore` как источник истины
+1. **`_loadLikeStoreFromStorage`**: Set `_likeStoreLoaded=true` after successful load from localStorage (even if empty). Handle parse errors gracefully.
+2. **`_initializeLikeStoreFromItems`**: Skip initialization when `_likeStoreLoaded=true` AND entry exists - local store has priority over API data.
+3. **`_applyLikeStateToItem`**: Already prioritizes local store, no changes needed.
+
+### B) Unified heart button data-attributes
+Updated all render methods to use `_likeStore` for consistent state:
+- `renderSpotlightSection` / `_renderSpotlightCards`
+- `renderSpotlightFollowing`  
+- `renderPopularQuotesWeekSection`
+- `renderLatestQuotesSection`
+- `renderFollowingFeed`
+
+All heart buttons now have unified attributes:
+- `data-quote-text`
+- `data-quote-author`
+- `data-normalized-key`
+- `data-favorites`
+- `favorited` class based on resolved state from `_likeStore`
+
+### C) Spotlight flicker mitigation
+1. Added guard flags: `_spotlightBuildInFlight` and `_lastSpotlightBuildTs`
+2. Added constant: `SPOTLIGHT_BUILD_COOLDOWN_MS = 400`
+3. `renderSpotlightSection` now checks guard before triggering background load
+4. DOM updates batched in single `requestAnimationFrame`
+5. Inner content updated via `gridElement.innerHTML` instead of full `outerHTML` replacement where possible
+
+**Файлы изменены:**
+- `mini-app/js/pages/CommunityPage.js`
+- `docs/development/WORK_LOG_2025.md`
+
+**Тестирование:**
+1. Persistent likes: Like all 3 Spotlight cards → Reload → All hearts remain favorited
+2. Cross-section sync: Like/unlike in Popular Week → Hearts update in Spotlight too
+3. Flicker: Navigate to /community → Only single Spotlight render, no double/triple flicker
+
+**План отката:**
+- Revert `_applyLikeStateToItem` to previous API-priority logic
+- Remove guard/cooldown and revert single-pass DOM update
+- Revert `_initializeLikeStoreFromItems` to skip existing entries regardless of `_likeStoreLoaded`
+
+---
+
 <!-- Следующие записи добавляются ниже -->

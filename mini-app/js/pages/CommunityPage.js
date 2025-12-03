@@ -26,6 +26,9 @@ const CURRENT_LIKE_VERSION = '2.0.0';
 // ⏱️ FLICKER MITIGATION: Delay before warmupInitialStats to avoid UI flipping at first paint
 const WARMUP_STATS_DELAY_MS = 2000;
 
+// ✅ FIX C: Spotlight build cooldown to prevent double/triple rebuilds on initial page entry
+const SPOTLIGHT_BUILD_COOLDOWN_MS = 400;
+
 class CommunityPage {
     constructor(app) {
         this.app = app;
@@ -82,6 +85,10 @@ class CommunityPage {
         // 🔄 DELEGATED EVENT HANDLERS FLAGS (to prevent duplicate listeners)
         this._spotlightRefreshDelegated = false;
         this._popularWeekRefreshDelegated = false;
+
+        // ✅ FIX C: SPOTLIGHT BUILD GUARD (prevent double build/render within cooldown)
+        this._spotlightBuildInFlight = false;
+        this._lastSpotlightBuildTs = 0;
 
         // Флаги "данные загружены"
         this.loaded = {
@@ -900,12 +907,14 @@ async refreshSpotlight() {
             localStorage.removeItem(COMMUNITY_LIKE_STORE_KEY);
             localStorage.setItem(COMMUNITY_LIKE_VERSION_KEY, CURRENT_LIKE_VERSION);
             this._likeStore.clear();
+            // ✅ FIX A/B: Set _likeStoreLoaded=true even when clearing - store is now "loaded" (empty)
+            this._likeStoreLoaded = true;
             return;
         }
 
         const stored = localStorage.getItem(COMMUNITY_LIKE_STORE_KEY);
         if (stored) {
-            this._likeStore.clear(); // ✅ ДОБАВИТЬ ЭТУ СТРОКУ
+            this._likeStore.clear();
             const entries = JSON.parse(stored);
             if (Array.isArray(entries)) {
                 entries.forEach(([key, value]) => {
@@ -919,8 +928,12 @@ async refreshSpotlight() {
                 console.log(`💾 Loaded ${entries.length} like entries from localStorage`);
             }
         }
+        // ✅ FIX A/B: Set _likeStoreLoaded=true upon successful load (even if empty)
+        this._likeStoreLoaded = true;
     } catch (e) {
         console.warn('Failed to load like store from localStorage:', e);
+        // ✅ FIX A/B: Set _likeStoreLoaded=true even on error to prevent re-initialization loops
+        this._likeStoreLoaded = true;
     }
 }
     
@@ -1278,6 +1291,7 @@ async refreshSpotlight() {
     /**
      * 🔄 Initialize/update likeStore from server data
      * Populates store only if entry doesn't exist or isn't pending
+     * ✅ FIX A: When _likeStoreLoaded=true, do NOT overwrite existing entries from API data
      * @param {Array} items - Array of quote items with likedByMe and favorites fields
      */
     _initializeLikeStoreFromItems(items) {
@@ -1288,6 +1302,12 @@ async refreshSpotlight() {
             
             const key = this._computeLikeKey(item.text, item.author);
             const existingEntry = this._likeStore.get(key);
+            
+            // ✅ FIX A: If _likeStoreLoaded=true and entry exists, skip - local store is source of truth
+            if (this._likeStoreLoaded && existingEntry) {
+                // Do NOT overwrite local entry with API data - local is source of truth
+                return;
+            }
             
             // Only initialize if entry doesn't exist or is not pending
             if (!existingEntry || existingEntry.pending === 0) {
@@ -1501,6 +1521,7 @@ async refreshSpotlight() {
 
     /**
      * ✨ Рендер секции "Сейчас в сообществе"
+     * ✅ FIX C: Added guard to prevent multiple builds/renders within cooldown
      */
     renderSpotlightSection() {
         // Для рендера используем кэшированные данные если есть, иначе показываем скелетон
@@ -1509,12 +1530,40 @@ async refreshSpotlight() {
         let cards = '';
         
         if (!items || items.length === 0) {
-            // Если кэш пуст, инициируем загрузку в фоне
-            if (!this.isSpotlightFresh()) {
+            // ✅ FIX C: Check build guard before triggering background load
+            const now = Date.now();
+            const withinCooldown = (now - this._lastSpotlightBuildTs) < SPOTLIGHT_BUILD_COOLDOWN_MS;
+            
+            // Если кэш пуст, инициируем загрузку в фоне (but only if not within cooldown)
+            if (!this.isSpotlightFresh() && !this._spotlightBuildInFlight && !withinCooldown) {
+                this._spotlightBuildInFlight = true;
+                this._lastSpotlightBuildTs = now;
+                
                 this.getSpotlightItems().then(() => {
-                    // Обновляем интерфейс после загрузки через batched rerender
-                    this._scheduleRerender();
+                    this._spotlightBuildInFlight = false;
+                    // ✅ FIX C: Use single batched rAF update instead of _scheduleRerender
+                    // to avoid multiple DOM replacements
+                    requestAnimationFrame(() => {
+                        const spotlightSection = document.getElementById('spotlightSection');
+                        if (spotlightSection) {
+                            const newHTML = this._renderSpotlightCards();
+                            const gridElement = spotlightSection.querySelector('.spotlight-grid');
+                            if (gridElement) {
+                                // Update inner content only, not the whole container
+                                gridElement.innerHTML = newHTML;
+                            } else {
+                                // Fallback: replace entire section
+                                spotlightSection.outerHTML = this.renderSpotlightSection();
+                            }
+                            // Reconcile like data after DOM update
+                            this._reconcileAllLikeData();
+                            this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                            this.attachQuoteCardListeners();
+                            this.attachCommunityCardListeners();
+                        }
+                    });
                 }).catch(error => {
+                    this._spotlightBuildInFlight = false;
                     console.warn('Spotlight загрузка не удалась:', error);
                 });
             }
@@ -1541,69 +1590,7 @@ async refreshSpotlight() {
             `;
         } else {
             // Отображаем настоящие карточки
-            cards = items.map(item => {
-                const badge = item.kind === 'fresh' ? 'Новое' : 'Избранное';
-                const badgeClass = item.kind === 'fresh' ? 'spotlight-card--fresh' : 'spotlight-card--fav';
-                
-                // Получаем ВЛАДЕЛЬЦА (original uploader) - используем owner, не user
-                const owner = item.owner || item.user;
-                const userAvatarHtml = this.getUserAvatarHtml(owner);
-                const userName = owner?.name || 'Пользователь';
-                
-                // Лайки для футера
-                const likesCount = item.favorites || 0;
-                
-                return `
-                    <div class="quote-card ${badgeClass}" data-quote-id="${item.id || ''}">
-                        <div class="spotlight-badge">${badge}</div>
-                        
-                        <!-- Header с аватаром и именем пользователя -->
-                        <div class="quote-card__header">
-                            ${userAvatarHtml}
-                            <div class="quote-card__user">
-                                <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Основной контент -->
-                        <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
-                        <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
-                        
-                        <!-- Footer с лайками слева и действиями справа -->
-                        <div class="quote-card__footer">
-                            <div class="quote-card__likes">
-                                ❤ <span class="favorites-count">${likesCount}</span>
-                            </div>
-                            <div class="quote-card__actions">
-                                ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
-                                <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
-                                        data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
-                                        aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                                            <circle cx="9" cy="7" r="4"/>
-                                            <line x1="19" y1="8" x2="19" y2="14"/>
-                                            <line x1="16" y1="11" x2="22" y2="11"/>
-                                        </svg>
-                                    </button>
-                                ` : ''}
-                                ${COMMUNITY_SHOW_ADD_BUTTON ? `<button type="button" class="quote-card__add-btn" 
-                                        data-quote-id="${item.id || ''}"
-                                        data-quote-text="${this.escapeHtml(item.text)}"
-                                        data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                        aria-label="Добавить цитату в дневник">+</button>` : ''}
-                                <button type="button" class="quote-card__heart-btn${item.likedByMe ? ' favorited' : ''}" 
-                                        data-quote-id="${item.id || ''}"
-                                        data-quote-text="${this.escapeHtml(item.text)}"
-                                        data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                        data-favorites="${likesCount}"
-                                        data-normalized-key="${this._computeLikeKey(item.text, item.author)}"
-                                        aria-label="Добавить в избранное"></button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            cards = this._renderSpotlightCards();
         }
         
         // ALWAYS render container (with refresh button) even if no items
@@ -1620,6 +1607,83 @@ async refreshSpotlight() {
             </div>
         `;
     }
+
+    /**
+     * ✅ FIX C: Helper method to render spotlight cards HTML (extracted for inner updates)
+     * @returns {string} HTML string of spotlight cards
+     * @private
+     */
+    _renderSpotlightCards() {
+        const items = this._spotlightCache.items || [];
+        
+        return items.map(item => {
+            const badge = item.kind === 'fresh' ? 'Новое' : 'Избранное';
+            const badgeClass = item.kind === 'fresh' ? 'spotlight-card--fresh' : 'spotlight-card--fav';
+            
+            // Получаем ВЛАДЕЛЬЦА (original uploader) - используем owner, не user
+            const owner = item.owner || item.user;
+            const userAvatarHtml = this.getUserAvatarHtml(owner);
+            const userName = owner?.name || 'Пользователь';
+            
+            // ✅ FIX A: Apply like state from _likeStore first
+            const normalizedKey = this._computeLikeKey(item.text, item.author);
+            const storeEntry = this._likeStore.get(normalizedKey);
+            const isLiked = storeEntry ? storeEntry.liked : !!item.likedByMe;
+            const likesCount = storeEntry ? storeEntry.count : (item.favorites || 0);
+            
+            return `
+                <div class="quote-card ${badgeClass}" data-quote-id="${item.id || ''}">
+                    <div class="spotlight-badge">${badge}</div>
+                    
+                    <!-- Header с аватаром и именем пользователя -->
+                    <div class="quote-card__header">
+                        ${userAvatarHtml}
+                        <div class="quote-card__user">
+                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Основной контент -->
+                    <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
+                    <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
+                    
+                    <!-- Footer с лайками слева и действиями справа -->
+                    <div class="quote-card__footer">
+                        <div class="quote-card__likes">
+                            ❤ <span class="favorites-count">${likesCount}</span>
+                        </div>
+                        <div class="quote-card__actions">
+                            ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
+                            <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
+                                    data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
+                                    aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <line x1="19" y1="8" x2="19" y2="14"/>
+                                        <line x1="16" y1="11" x2="22" y2="11"/>
+                                    </svg>
+                                </button>
+                            ` : ''}
+                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button type="button" class="quote-card__add-btn" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                    aria-label="Добавить цитату в дневник">+</button>` : ''}
+                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                    data-favorites="${likesCount}"
+                                    data-normalized-key="${normalizedKey}"
+                                    aria-label="Добавить в избранное"></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
     /**
      * ✨ Рендер секции "Сейчас в сообществе" для ленты ПОДПИСОК
      * @returns {string} HTML секции spotlight с цитатами от подписок
@@ -1644,17 +1708,19 @@ async refreshSpotlight() {
         }
     
         // Берём до 3 цитат от подписок
-        const cards = this.followingFeed.slice(0, 3).map((quote, index) => {
+        const cards = this.followingFeed.slice(0, 3).map((quote, _index) => {
             const owner = quote.owner || quote.user || {};
             const userName = owner.name || owner.firstName || 'Читатель';
             const visibleName = userName.length > 20 ? userName.substring(0, 17) + '...' : userName;
-            const likesCount = quote.favorites || quote.likesCount || 0;
             const quoteId = quote.id || quote._id || '';
             const quoteText = quote.text || '';
             const quoteAuthor = quote.author || 'Неизвестный автор';
     
-            // Используем likedByMe для консистентности
-            const isLiked = !!quote.likedByMe;
+            // ✅ FIX A: Apply like state from _likeStore first (unified data-attributes)
+            const normalizedKey = this._computeLikeKey(quoteText, quoteAuthor);
+            const storeEntry = this._likeStore.get(normalizedKey);
+            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
+            const likesCount = storeEntry ? storeEntry.count : (quote.favorites || quote.likesCount || 0);
     
             // Аватар - используем общий метод как в renderSpotlightSection
             const avatarHtml = this.getUserAvatarHtml(owner);
@@ -1680,7 +1746,7 @@ async refreshSpotlight() {
                                     data-quote-text="${this.escapeHtml(quoteText)}"
                                     data-quote-author="${this.escapeHtml(quoteAuthor)}"
                                     data-favorites="${likesCount}"
-                                    data-normalized-key="${this._computeLikeKey(quoteText, quoteAuthor)}"
+                                    data-normalized-key="${normalizedKey}"
                                     aria-label="Лайк">
                             </button>
                         </div>
@@ -1898,7 +1964,12 @@ async refreshSpotlight() {
             const owner = quote.owner || quote.user;
             const userAvatarHtml = this.getUserAvatarHtml(owner);
             const userName = owner?.name || 'Пользователь';
-            const favoritesCount = quote.favorites || 0;
+            
+            // ✅ FIX A/D: Apply like state from _likeStore first (unified data-attributes)
+            const normalizedKey = this._computeLikeKey(quote.text, quote.author);
+            const storeEntry = this._likeStore.get(normalizedKey);
+            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
+            const favoritesCount = storeEntry ? storeEntry.count : (quote.favorites || 0);
             
             return `
                 <div class="quote-card" data-quote-id="${quote.id || ''}">
@@ -1913,11 +1984,11 @@ async refreshSpotlight() {
                     <div class="quote-card__footer">
                         <div class="quote-card__likes">❤ ${favoritesCount}</div>
                         <div class="quote-card__actions">
-                            <button type="button" class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}"
+                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}"
                                     data-quote-text="${this.escapeHtml(quote.text)}"
                                     data-quote-author="${this.escapeHtml(quote.author || '')}"
                                     data-favorites="${favoritesCount}"
-                                    data-normalized-key="${this._computeLikeKey(quote.text, quote.author)}"
+                                    data-normalized-key="${normalizedKey}"
                                     aria-label="Лайк"></button>
                         </div>
                     </div>
@@ -1958,8 +2029,11 @@ async refreshSpotlight() {
             const quoteText = quote.text || quote.content || '';
             const quoteAuthor = quote.author || 'Неизвестный автор';
             const normalizedKey = this._computeLikeKey(quoteText, quoteAuthor);
-            const favoritesCount = quote.favorites || quote.count || 0;
-            const isLiked = !!quote.likedByMe;
+            
+            // ✅ FIX A/D: Apply like state from _likeStore first (unified data-attributes)
+            const storeEntry = this._likeStore.get(normalizedKey);
+            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
+            const favoritesCount = storeEntry ? storeEntry.count : (quote.favorites || quote.count || 0);
             const heartIcon = isLiked ? '❤' : '♡';
             const favoritedClass = isLiked ? ' favorited' : '';
             
@@ -2300,7 +2374,11 @@ async refreshSpotlight() {
     
         // TOP 3 quotes with Spotlight-style design and working buttons
         const quotesCards = quotes.slice(0, 3).map((quote, _index) => {
-            const favorites = quote.favorites || quote.count || 0;
+            // ✅ FIX A/D: Apply like state from _likeStore first (unified data-attributes)
+            const normalizedKey = this._computeLikeKey(quote.text || '', quote.author || '');
+            const storeEntry = this._likeStore.get(normalizedKey);
+            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
+            const favorites = storeEntry ? storeEntry.count : (quote.favorites || quote.count || 0);
             
             // Получаем ВЛАДЕЛЬЦА (original uploader) - используем owner, не user
             const owner = quote.owner || quote.user;
@@ -2344,12 +2422,12 @@ async refreshSpotlight() {
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
                                     aria-label="Добавить цитату в дневник">+</button>` : ''}
-                            <button type="button" class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}" 
+                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}" 
                                     data-quote-id="${quote.id || ''}"
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
                                     data-favorites="${favorites}"
-                                    data-normalized-key="${this._computeLikeKey(quote.text || '', quote.author || '')}"
+                                    data-normalized-key="${normalizedKey}"
                                     aria-label="Добавить в избранное"></button>
                         </div>
                     </div>
