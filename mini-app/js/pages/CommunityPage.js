@@ -1572,9 +1572,9 @@ async refreshSpotlight() {
                             </div>
                             <div class="quote-card__actions">
                                 ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
-                                <button class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
+                                <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
                                         data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
-                                            aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
+                                        aria-label="${this.followStatusCache.get(owner.userId) ? 'Отписаться' : 'Подписаться'}">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
                                             <circle cx="9" cy="7" r="4"/>
@@ -1583,12 +1583,12 @@ async refreshSpotlight() {
                                         </svg>
                                     </button>
                                 ` : ''}
-                                ${COMMUNITY_SHOW_ADD_BUTTON ? `<button class="quote-card__add-btn" 
+                                ${COMMUNITY_SHOW_ADD_BUTTON ? `<button type="button" class="quote-card__add-btn" 
                                         data-quote-id="${item.id || ''}"
                                         data-quote-text="${this.escapeHtml(item.text)}"
                                         data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
                                         aria-label="Добавить цитату в дневник">+</button>` : ''}
-                                <button class="quote-card__heart-btn${item.likedByMe ? ' favorited' : ''}" 
+                                <button type="button" class="quote-card__heart-btn${item.likedByMe ? ' favorited' : ''}" 
                                         data-quote-id="${item.id || ''}"
                                         data-quote-text="${this.escapeHtml(item.text)}"
                                         data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
@@ -1616,7 +1616,6 @@ async refreshSpotlight() {
             </div>
         `;
     }
-
     /**
      * ✨ Рендер секции "Сейчас в сообществе" для ленты ПОДПИСОК
      * @returns {string} HTML секции spotlight с цитатами от подписок
@@ -1645,18 +1644,17 @@ async refreshSpotlight() {
             const owner = quote.owner || quote.user || {};
             const userName = owner.name || owner.firstName || 'Читатель';
             const visibleName = userName.length > 20 ? userName.substring(0, 17) + '...' : userName;
-            const avatarUrl = owner.avatarUrl || null;
             const likesCount = quote.favorites || quote.likesCount || 0;
             const quoteId = quote.id || quote._id || '';
             const quoteText = quote.text || '';
             const quoteAuthor = quote.author || 'Неизвестный автор';
-
-            // ✅ ИСПРАВЛЕНО: Используем likedByMe (не isLikedByMe) для консистентности
-            const isLiked = !!quote.likedByMe;  
-
+    
+            // Используем likedByMe для консистентности
+            const isLiked = !!quote.likedByMe;
+    
             // Аватар - используем общий метод как в renderSpotlightSection
             const avatarHtml = this.getUserAvatarHtml(owner);
-            
+    
             return `
                 <div class="quote-card spotlight-card" data-quote-id="${quoteId}">
                     <div class="spotlight-badge spotlight-badge--following">От подписки</div>
@@ -1674,7 +1672,7 @@ async refreshSpotlight() {
                             <span class="favorites-count">${likesCount}</span>
                         </div>
                         <div class="quote-card__actions">
-                            <button class="quote-card__heart-btn${quote.likedByMe ? ' favorited' : ''}"
+                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}"
                                     data-quote-text="${this.escapeHtml(quoteText)}"
                                     data-quote-author="${this.escapeHtml(quoteAuthor)}"
                                     data-favorites="${likesCount}"
@@ -1699,39 +1697,39 @@ async refreshSpotlight() {
             </section>
         `;
     }
+        
+        /**
+         * Форматирование даты для spotlight (сегодня/вчера/ч назад)
+         */
+        formatSpotlightDate(date) {
+            if (!date) return '';
+            
+            const d = new Date(date);
+            const now = new Date();
+            const diffTime = Math.abs(now - d);
+            const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) return 'сегодня';
+            if (diffDays === 1) return 'вчера';
+            if (diffHours <= 24) return `${diffHours}ч назад`;
+            
+            return d.toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'short'
+            });
+        }
     
-    /**
-     * Форматирование даты для spotlight (сегодня/вчера/ч назад)
-     */
-    formatSpotlightDate(date) {
-        if (!date) return '';
+        /**
+         * Экранирование HTML для безопасности
+         */
+        escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         
-        const d = new Date(date);
-        const now = new Date();
-        const diffTime = Math.abs(now - d);
-        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 0) return 'сегодня';
-        if (diffDays === 1) return 'вчера';
-        if (diffHours <= 24) return `${diffHours}ч назад`;
-        
-        return d.toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'short'
-        });
-    }
-
-    /**
-     * Экранирование HTML для безопасности
-     */
-    escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
     /**
      * 🖼️ Построение HTML для аватара пользователя с фоллбэком на инициалы
      * @param {Object} user - объект пользователя с полями userId, name, avatarUrl
@@ -3191,6 +3189,22 @@ renderAchievementsSection() {
         // Создаём новый обработчик с проверкой активности страницы
         this._quoteChangeHandler = (event) => {
             console.log('👥 CommunityPage: Получено событие quotes:changed:', event.detail);
+
+            // ЛАЙК: точечная синхронизация и ВЫХОД без общего rerender
+            if (d.origin === 'favoriteToggle' && typeof d.normalizedKey === 'string') {
+                try {
+                  // Обновить все кнопки сердечка по ключу (Spotlight + Weekly Top)
+                  this._updateAllLikeButtonsForKey(d.normalizedKey);
+                  // Синхронизировать локальные коллекции карточек
+                  this._syncCollectionsForKey(d.normalizedKey, (item, entry) => {
+                    item.likedByMe = entry.liked;
+                    item.favorites = entry.count;
+                  });
+                } catch (e) {
+                  console.warn('CommunityPage: favoriteToggle sync failed', e);
+                }
+                return; // Важно: НЕ инвалидировать spotlight и НЕ вызывать _scheduleRerender()
+              }
             
             // Проверяем, активна ли страница Сообщества
             const isActive = this.app?.router?.currentRoute === '/community' || 
@@ -3582,26 +3596,35 @@ renderAchievementsSection() {
 
                 // >>> ВСТАВИТЬ ЗДЕСЬ БЛОК MERGE В appState <<<
                 try {
-                    const favorite = response.favorite || response.result?.favorite || null;
-                    if (favorite && window.appState) {
-                        if (typeof window.appState.updateQuoteById === 'function') {
-                            window.appState.updateQuoteById(favorite);
-                        } else if (typeof window.appState.set === 'function') {
-                            const cur = window.appState.get('quotes.items') || [];
-                            const merged = [favorite, ...cur.filter(q =>
-                                ((q.id||q._id||q.text) !== (favorite.id||favorite._id||favorite.text))
-                            )];
-                            window.appState.set('quotes.items', merged);
-                        }
-                        // уведомление подписчиков
-                        if (typeof document !== 'undefined') {
-                            document.dispatchEvent(new CustomEvent('quotes:changed', {
-                                detail: { type: 'edited', quote: favorite }
-                            }));
-                        }
+                  const favorite = response.favorite || response.result?.favorite || null;
+                  if (favorite && window.appState) {
+                    if (typeof window.appState.updateQuoteById === 'function') {
+                      window.appState.updateQuoteById(favorite);
+                    } else if (typeof window.appState.set === 'function') {
+                      const cur = window.appState.get('quotes.items') || [];
+                      const merged = [favorite, ...cur.filter(q =>
+                        ((q.id||q._id||q.text) !== (favorite.id||favorite._id||favorite.text))
+                      )];
+                      window.appState.set('quotes.items', merged);
                     }
+                    // уведомление подписчиков — МЕТИМ как toggle лайка и передаём normalizedKey
+                    if (typeof document !== 'undefined') {
+                      const nk = this._computeLikeKey(
+                        favorite.text || quoteText,
+                        favorite.author || quoteAuthor
+                      );
+                      document.dispatchEvent(new CustomEvent('quotes:changed', {
+                        detail: {
+                          type: 'edited',
+                          origin: 'favoriteToggle',   // ВАЖНО: лайковый toggle
+                          normalizedKey: nk,          // ключ для точечного обновления
+                          quote: favorite
+                        }
+                      }));
+                    }
+                  }
                 } catch (mergeErr) {
-                    console.warn('CommunityPage: failed to merge favorite into appState', mergeErr);
+                  console.warn('CommunityPage: failed to merge favorite into appState', mergeErr);
                 }
                 
                 // Reconcile with server count if available
