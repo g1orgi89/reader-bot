@@ -23,6 +23,9 @@ const COMMUNITY_LIKE_STORE_KEY = 'community_like_store_v1';
 const COMMUNITY_LIKE_VERSION_KEY = 'community_like_version';
 const CURRENT_LIKE_VERSION = '2.0.0';
 
+// ⏱️ FLICKER MITIGATION: Delay before warmupInitialStats to avoid UI flipping at first paint
+const WARMUP_STATS_DELAY_MS = 2000;
+
 class CommunityPage {
     constructor(app) {
         this.app = app;
@@ -1122,27 +1125,31 @@ async refreshSpotlight() {
     const key = this._computeLikeKey(item.text, item.author);
     const storeEntry = this._likeStore.get(key);
     
-    // ✅ КРИТИЧНО: Приоритет данным с API если они есть
-    const apiHasData = item.likedByMe !== undefined;
+    // ✅ КРИТИЧНО: Приоритет данным из _likeStore (localStorage) над API
+    // Rationale: localStorage-backed _likeStore captures optimistic toggles and is reconciled
+    // to server counts; UI should not revert to false when backend omits likedByMe.
     
-    if (apiHasData) {
-        // Если API вернул данные - используем их
-        item.isLiked = item.likedByMe;
-        item.likeCount = item.favorites ?? 0;
-        
-        // И обновляем _likeStore с актуальными данными
-        this._likeStore.set(key, {
-            liked: item.likedByMe,
-            count: item.favorites ?? 0,
-            pending: 0,
-            lastServerCount: item.favorites ?? 0
-        });
-    } else if (storeEntry) {
-        // Нет данных с API - используем localStorage
+    if (storeEntry) {
+        // Локальное хранилище имеет приоритет - применяем сохранённое состояние
         item.likedByMe = storeEntry.liked;
         item.favorites = storeEntry.count;
         item.isLiked = storeEntry.liked;
         item.likeCount = storeEntry.count;
+    } else {
+        // Нет записи в localStorage - инициализируем из API данных
+        const apiLiked = !!item.likedByMe;
+        const apiCount = item.favorites ?? 0;
+        
+        item.isLiked = apiLiked;
+        item.likeCount = apiCount;
+        
+        // Сохраняем в _likeStore для будущей синхронизации
+        this._likeStore.set(key, {
+            liked: apiLiked,
+            count: apiCount,
+            pending: 0,
+            lastServerCount: apiCount
+        });
     }
 }
 
@@ -3308,14 +3315,18 @@ renderAchievementsSection() {
         this._reconcileAllLikeData();
         this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
         
-        // ✅ НОВОЕ: Вызов warmupInitialStats при входе на экран
+        // ✅ FLICKER MITIGATION: Отложенный вызов warmupInitialStats на 2 секунды
+        // Это не меняет API behavior, а только откладывает non-like-related updates
+        // чтобы избежать UI flipping при первой отрисовке
         if (this.statisticsService && typeof this.statisticsService.warmupInitialStats === 'function') {
-            try {
-                await this.statisticsService.warmupInitialStats();
-                console.log('✅ CommunityPage: warmupInitialStats completed');
-            } catch (error) {
-                console.warn('⚠️ CommunityPage: warmupInitialStats failed:', error);
-            }
+            setTimeout(async () => {
+                try {
+                    await this.statisticsService.warmupInitialStats();
+                    console.log('✅ CommunityPage: warmupInitialStats completed (deferred)');
+                } catch (error) {
+                    console.warn('⚠️ CommunityPage: warmupInitialStats failed:', error);
+                }
+            }, WARMUP_STATS_DELAY_MS);
         }
         
         // SWR: можно тихо перезагрузить что-то в фоне (не меняя UI) по таймауту/критерию устаревания
