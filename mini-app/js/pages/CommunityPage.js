@@ -142,9 +142,6 @@ class CommunityPage {
 
         console.log('🔄 CommunityPage: Запуск prefetch - включаем fast-first-paint');
 
-        // 💾 Load like store from localStorage before any data loads
-        this._loadLikeStoreFromStorage();
-
         // ✅ FAST-FIRST-PAINT: Set isHydrated immediately so UI shows right away
         this.isHydrated = true;
 
@@ -3188,17 +3185,15 @@ renderAchievementsSection() {
             this._quoteChangeHandler = null;
         }
     
-        // Создаём новый обработчик с проверкой активности страницы
+        // Создаём новый обработчик
         this._quoteChangeHandler = (event) => {
             console.log('👥 CommunityPage: Получено событие quotes:changed:', event.detail);
-            const d = event?.detail || {}; // ОБЯЗАТЕЛЬНО: объявляем d
+            const d = event?.detail || {};
     
             // ЛАЙК: точечная синхронизация и ВЫХОД без общего rerender
             if (d.origin === 'favoriteToggle' && typeof d.normalizedKey === 'string') {
                 try {
-                    // Обновить все кнопки сердечка по ключу (Spotlight + Weekly Top)
                     this._updateAllLikeButtonsForKey(d.normalizedKey);
-                    // Синхронизировать локальные коллекции карточек
                     this._syncCollectionsForKey(d.normalizedKey, (item, entry) => {
                         item.likedByMe = entry.liked;
                         item.favorites = entry.count;
@@ -3206,30 +3201,40 @@ renderAchievementsSection() {
                 } catch (e) {
                     console.warn('CommunityPage: favoriteToggle sync failed', e);
                 }
-                return; // Важно: НЕ инвалидировать spotlight и НЕ вызывать _scheduleRerender()
+                return; // НЕ инвалидируем spotlight, НЕ вызываем _scheduleRerender()
             }
-            
+    
+            // Общий rerender — только при изменении состава цитат
+            const type = d.type;
+            const shouldRerender =
+                type === 'added' || type === 'deleted' || type === 'removed' || type === 'created';
+    
+            if (!shouldRerender) {
+                // edited без смены состава — точечная синхронизация (если пришёл quote)
+                if (d.quote && d.quote.text) {
+                    const key = this._computeLikeKey(d.quote.text, d.quote.author);
+                    this._syncCollectionsForKey(key, (item) => Object.assign(item, d.quote));
+                    this._updateAllLikeButtonsForKey(key);
+                }
+                return;
+            }
+    
             // Проверяем, активна ли страница Сообщества
-            const isActive = this.app?.router?.currentRoute === '/community' || 
-                           document.querySelector('.nav-item.active')?.dataset.route === 'community' ||
-                           document.querySelector('.nav-item.active')?.dataset.page === 'community';
-            
+            const isActive = this.app?.router?.currentRoute === '/community' ||
+                document.querySelector('.nav-item.active')?.dataset.route === 'community' ||
+                document.querySelector('.nav-item.active')?.dataset.page === 'community';
+    
             if (!isActive) {
                 console.log('👥 CommunityPage: Страница неактивна, пропускаем rerender');
                 return;
             }
-            
-            // Invalidate spotlight cache to fetch fresh data on next render
+    
+            // Инвалидация spotlight и единичный rerender
             this._spotlightCache.ts = 0;
             this._spotlightCache.items = [];
-            
-            // Refresh top analyses when quotes change
-            this.loadTopAnalyses().then(() => {
-                this._scheduleRerender();
-            });
+            this.loadTopAnalyses().then(() => this._scheduleRerender());
         };
-        
-        // Добавляем новый обработчик
+    
         document.addEventListener('quotes:changed', this._quoteChangeHandler);
     }
     
