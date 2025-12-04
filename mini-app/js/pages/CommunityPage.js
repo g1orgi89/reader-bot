@@ -659,7 +659,7 @@ class CommunityPage {
                 if (spotlightSection) {
                     spotlightSection.innerHTML = `
                         <div class="spotlight-header">
-                            <h3 class="spotlight-title">✨ От ваших подписок</h3>
+                            <h3 class="spotlight-title">✨ Подписки</h3>
                         </div>
                         <div class="loading-indicator" style="text-align: center; padding: 40px;">
                             <div class="spinner"></div>
@@ -1694,7 +1694,7 @@ async refreshSpotlight() {
             return `
                 <section id="spotlightSection" class="community-spotlight">
                     <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ От ваших подписок</h3>
+                        <h3 class="spotlight-title">✨ Подписки</h3>
                     </div>
                     <div class="empty-state" style="text-align: center; padding: 40px 20px;">
                         <div style="font-size: 48px; margin-bottom: 16px;">👥</div>
@@ -1727,7 +1727,7 @@ async refreshSpotlight() {
     
             return `
                 <div class="quote-card spotlight-card" data-quote-id="${quoteId}">
-                    <div class="spotlight-badge spotlight-badge--following">От подписки</div>
+                    <div class="spotlight-badge spotlight-badge--following">Подписка</div>
                     <div class="quote-card__header">
                         ${avatarHtml}
                         <div class="quote-card__user">
@@ -1758,7 +1758,7 @@ async refreshSpotlight() {
         return `
             <section id="spotlightSection" class="community-spotlight">
                 <div class="spotlight-header">
-                    <h3 class="spotlight-title">✨ От ваших подписок</h3>
+                    <h3 class="spotlight-title">✨ Подписки</h3>
                     <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" aria-label="Обновить">↻</button>
                 </div>
                 <div class="spotlight-grid">
@@ -1906,7 +1906,7 @@ async refreshSpotlight() {
                 <button class="feed-filter-btn ${this.feedFilter === 'all' ? 'active' : ''}"
                         data-filter="all">Все</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
-                        data-filter="following">От подписок</button>
+                        data-filter="following">Подписки</button>
             </div>
         `;
 
