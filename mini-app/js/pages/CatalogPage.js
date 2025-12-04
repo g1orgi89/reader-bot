@@ -342,7 +342,7 @@ class CatalogPage {
             description: apiBook.description,
             coverClass: `cover-${(parseInt(apiBook.id) % 6) + 1}`,
             // removed meta (rating/duration/match) per redesign
-            price: this.formatPrice(apiBook.priceRub, apiBook.priceByn, apiBook.price),
+            price: this.formatPriceUI(apiBook.priceByn, apiBook.title),
             oldPrice: null,
             category: this.mapApiCategoryToFilter(apiBook.categories),
             hasDiscount: false,
@@ -354,20 +354,34 @@ class CatalogPage {
     }
     
     /**
-     * 💰 Форматирование цены с поддержкой RUB/BYN
+     * 💰 Форматирование цены для UI (Mini App)
+     * Использует утилиты из utils/price.js
+     * Формат: "{BYN} BYN / {RUB} ₽"
+     * @param {number} priceByn - Цена в BYN
+     * @param {string} titleOrSlug - Название или slug книги
+     * @returns {string} Отформатированная строка цены
      */
-    formatPrice(priceRub, priceByn, legacyPrice) {
-        // Приоритет: RUB > BYN > legacy price
-        if (priceRub && priceRub > 0) {
-            return `${priceRub}₽`;
-        } else if (priceByn && priceByn > 0) {
-            return `${priceByn} BYN`;
-        } else if (legacyPrice) {
-            // Конвертируем $X в рубли (примерно)
-            const dollarAmount = parseInt(legacyPrice.replace('$', ''));
-            return `${dollarAmount * 80}₽`; // Примерный курс доллара
+    formatPriceUI(priceByn, titleOrSlug) {
+        // Используем глобальную утилиту если доступна, иначе встроенную логику
+        if (window.formatPriceUI) {
+            return window.formatPriceUI(priceByn, titleOrSlug);
         }
-        return '800₽'; // Fallback цена
+        
+        // Fallback: встроенная логика
+        if (!priceByn || priceByn <= 0) {
+            return '80 BYN / 2400 ₽';
+        }
+        
+        const bynToRubMap = { 80: 2400, 90: 2700, 100: 3000, 120: 3600, 150: 4500, 200: 6000 };
+        let normalizedByn = priceByn === 60 ? 80 : priceByn;
+        
+        // Специальный случай: "Тело помнит всё"
+        if (priceByn === 80 && /тело помнит всё/i.test(String(titleOrSlug || ''))) {
+            normalizedByn = 90;
+        }
+        
+        const rub = bynToRubMap[normalizedByn];
+        return rub ? `${normalizedByn} BYN / ${rub} ₽` : `${normalizedByn} BYN`;
     }
     
     /**

@@ -1488,6 +1488,37 @@ class ReportsPage {
     }
 
     /**
+     * 💰 Форматирование цены для отчётов (Reports)
+     * Использует утилиты из utils/price.js
+     * Формат: "{BYN} BYN / {RUB} RUB" (используем код RUB вместо ₽ для экспорта)
+     * @param {number} priceByn - Цена в BYN
+     * @param {string} titleOrSlug - Название или slug книги
+     * @returns {string} Отформатированная строка цены
+     */
+    formatPriceReport(priceByn, titleOrSlug) {
+        // Используем глобальную утилиту если доступна, иначе встроенную логику
+        if (window.formatPriceReport) {
+            return window.formatPriceReport(priceByn, titleOrSlug);
+        }
+        
+        // Fallback: встроенная логика
+        if (!priceByn || priceByn <= 0) {
+            return '80 BYN / 2400 RUB';
+        }
+        
+        const bynToRubMap = { 80: 2400, 90: 2700, 100: 3000, 120: 3600, 150: 4500, 200: 6000 };
+        let normalizedByn = priceByn === 60 ? 80 : priceByn;
+        
+        // Специальный случай: "Тело помнит всё"
+        if (priceByn === 80 && /тело помнит всё/i.test(String(titleOrSlug || ''))) {
+            normalizedByn = 90;
+        }
+        
+        const rub = bynToRubMap[normalizedByn];
+        return rub ? `${normalizedByn} BYN / ${rub} RUB` : `${normalizedByn} BYN`;
+    }
+
+    /**
      * 📝 Format AI text into paragraphs
      * @param {string} text - AI text to format
      * @param {number} groupSize - Number of sentences/lines per paragraph (default 3)
@@ -1614,6 +1645,7 @@ class ReportsPage {
     
     /**
      * 🎯 РЕКОМЕНДАЦИИ (ТОЧНО ИЗ КОНЦЕПТА!)
+     * ✅ ОБНОВЛЕНО: Используем формат "{BYN} BYN / {RUB} RUB" для отчётов
      */
     renderRecommendations() {
         // ✅ ИСПРАВЛЕНО: Если нет weeklyReport - не рендерим ничего
@@ -1634,13 +1666,16 @@ class ReportsPage {
                                 rec.reasoning.trim() !== rec.description?.trim() &&
                                 rec.reasoning.trim() !== rec.title?.trim();
 
+                            // ✅ НОВОЕ: Форматируем цену с BYN и RUB для отчётов
+                            const priceDisplay = rec.priceByn ? this.formatPriceReport(rec.priceByn, rec.title) : '';
+
                             return `
                                 <div class="promo-book">
                                     <div class="promo-book-title">${window.escapeHtml ? window.escapeHtml(rec.title) : rec.title}</div>
                                     ${rec.author ? `<div class="promo-book-author">${window.escapeHtml ? window.escapeHtml(rec.author) : rec.author}</div>` : ""}
                                     <div class="promo-book-desc">${window.escapeHtml ? window.escapeHtml(rec.description) : rec.description}</div>
                                     ${showReasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(rec.reasoning) : rec.reasoning}</div>` : ""}
-                                    ${rec.priceByn ? `<div class="promo-book-price">Цена: <b>${rec.priceByn} BYN</b></div>` : ""}
+                                    ${priceDisplay ? `<div class="promo-book-price">Цена: <b>${priceDisplay}</b></div>` : ""}
                                     <a class="promo-book-link" href="#/catalog?highlight=${rec.bookSlug}">Подробнее</a>
                                 </div>
                             `;
