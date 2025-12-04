@@ -342,7 +342,7 @@ class CatalogPage {
             description: apiBook.description,
             coverClass: `cover-${(parseInt(apiBook.id) % 6) + 1}`,
             // removed meta (rating/duration/match) per redesign
-            price: this.formatPrice(apiBook.priceRub, apiBook.priceByn, apiBook.price),
+            price: this.formatPriceUI(apiBook.priceByn, apiBook.title),
             oldPrice: null,
             category: this.mapApiCategoryToFilter(apiBook.categories),
             hasDiscount: false,
@@ -354,20 +354,63 @@ class CatalogPage {
     }
     
     /**
-     * 💰 Форматирование цены с поддержкой RUB/BYN
+     * 💰 Нормализация BYN цены согласно новым правилам
+     * - 60 BYN → 80 BYN
+     * - Книга "Тело помнит всё" 80 BYN → 90 BYN
+     * - Остальные тиры (100/120/150/200) без изменений
+     * @param {number} byn - Исходная цена в BYN
+     * @param {string} titleOrSlug - Название или slug книги для определения исключений
+     * @returns {number} Нормализованная цена в BYN
      */
-    formatPrice(priceRub, priceByn, legacyPrice) {
-        // Приоритет: RUB > BYN > legacy price
-        if (priceRub && priceRub > 0) {
-            return `${priceRub}₽`;
-        } else if (priceByn && priceByn > 0) {
-            return `${priceByn} BYN`;
-        } else if (legacyPrice) {
-            // Конвертируем $X в рубли (примерно)
-            const dollarAmount = parseInt(legacyPrice.replace('$', ''));
-            return `${dollarAmount * 80}₽`; // Примерный курс доллара
+    normalizeByn(byn, titleOrSlug) {
+        // 60 BYN → 80 BYN
+        if (byn === 60) return 80;
+        
+        // Специальный случай: "Тело помнит всё" 80 BYN → 90 BYN
+        const isBodyKeepsScore = /тело помнит всё/i.test(String(titleOrSlug || ''));
+        if (byn === 80 && isBodyKeepsScore) return 90;
+        
+        // Остальные тиры без изменений
+        return byn;
+    }
+    
+    /**
+     * 💱 Маппинг BYN в RUB по фиксированной таблице
+     * @param {number} byn - Цена в BYN
+     * @returns {number|null} Цена в RUB или null если нет маппинга
+     */
+    mapBynToRub(byn) {
+        const map = {
+            80: 2400,
+            90: 2700,
+            100: 3000,
+            120: 3600,
+            150: 4500,
+            200: 6000
+        };
+        return map[byn] ?? null;
+    }
+    
+    /**
+     * 💰 Форматирование цены для UI (Mini App)
+     * Формат: "{BYN} BYN / {RUB} ₽"
+     * @param {number} priceByn - Цена в BYN
+     * @param {string} titleOrSlug - Название или slug книги
+     * @returns {string} Отформатированная строка цены
+     */
+    formatPriceUI(priceByn, titleOrSlug) {
+        if (!priceByn || priceByn <= 0) {
+            return '80 BYN / 2400 ₽'; // Fallback цена
         }
-        return '800₽'; // Fallback цена
+        
+        const normalizedByn = this.normalizeByn(priceByn, titleOrSlug);
+        const rub = this.mapBynToRub(normalizedByn);
+        
+        if (rub) {
+            return `${normalizedByn} BYN / ${rub} ₽`;
+        }
+        
+        return `${normalizedByn} BYN`;
     }
     
     /**

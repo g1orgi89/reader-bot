@@ -1488,6 +1488,66 @@ class ReportsPage {
     }
 
     /**
+     * 💰 Нормализация BYN цены согласно новым правилам
+     * - 60 BYN → 80 BYN
+     * - Книга "Тело помнит всё" 80 BYN → 90 BYN
+     * - Остальные тиры (100/120/150/200) без изменений
+     * @param {number} byn - Исходная цена в BYN
+     * @param {string} titleOrSlug - Название или slug книги для определения исключений
+     * @returns {number} Нормализованная цена в BYN
+     */
+    normalizeByn(byn, titleOrSlug) {
+        // 60 BYN → 80 BYN
+        if (byn === 60) return 80;
+        
+        // Специальный случай: "Тело помнит всё" 80 BYN → 90 BYN
+        const isBodyKeepsScore = /тело помнит всё/i.test(String(titleOrSlug || ''));
+        if (byn === 80 && isBodyKeepsScore) return 90;
+        
+        // Остальные тиры без изменений
+        return byn;
+    }
+    
+    /**
+     * 💱 Маппинг BYN в RUB по фиксированной таблице
+     * @param {number} byn - Цена в BYN
+     * @returns {number|null} Цена в RUB или null если нет маппинга
+     */
+    mapBynToRub(byn) {
+        const map = {
+            80: 2400,
+            90: 2700,
+            100: 3000,
+            120: 3600,
+            150: 4500,
+            200: 6000
+        };
+        return map[byn] ?? null;
+    }
+    
+    /**
+     * 💰 Форматирование цены для отчётов (Reports)
+     * Формат: "{BYN} BYN / {RUB} RUB" (используем код RUB вместо ₽ для экспорта)
+     * @param {number} priceByn - Цена в BYN
+     * @param {string} titleOrSlug - Название или slug книги
+     * @returns {string} Отформатированная строка цены
+     */
+    formatPriceReport(priceByn, titleOrSlug) {
+        if (!priceByn || priceByn <= 0) {
+            return '80 BYN / 2400 RUB'; // Fallback цена
+        }
+        
+        const normalizedByn = this.normalizeByn(priceByn, titleOrSlug);
+        const rub = this.mapBynToRub(normalizedByn);
+        
+        if (rub) {
+            return `${normalizedByn} BYN / ${rub} RUB`;
+        }
+        
+        return `${normalizedByn} BYN`;
+    }
+
+    /**
      * 📝 Format AI text into paragraphs
      * @param {string} text - AI text to format
      * @param {number} groupSize - Number of sentences/lines per paragraph (default 3)
@@ -1614,6 +1674,7 @@ class ReportsPage {
     
     /**
      * 🎯 РЕКОМЕНДАЦИИ (ТОЧНО ИЗ КОНЦЕПТА!)
+     * ✅ ОБНОВЛЕНО: Используем формат "{BYN} BYN / {RUB} RUB" для отчётов
      */
     renderRecommendations() {
         // ✅ ИСПРАВЛЕНО: Если нет weeklyReport - не рендерим ничего
@@ -1634,13 +1695,16 @@ class ReportsPage {
                                 rec.reasoning.trim() !== rec.description?.trim() &&
                                 rec.reasoning.trim() !== rec.title?.trim();
 
+                            // ✅ НОВОЕ: Форматируем цену с BYN и RUB для отчётов
+                            const priceDisplay = rec.priceByn ? this.formatPriceReport(rec.priceByn, rec.title) : '';
+
                             return `
                                 <div class="promo-book">
                                     <div class="promo-book-title">${window.escapeHtml ? window.escapeHtml(rec.title) : rec.title}</div>
                                     ${rec.author ? `<div class="promo-book-author">${window.escapeHtml ? window.escapeHtml(rec.author) : rec.author}</div>` : ""}
                                     <div class="promo-book-desc">${window.escapeHtml ? window.escapeHtml(rec.description) : rec.description}</div>
                                     ${showReasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(rec.reasoning) : rec.reasoning}</div>` : ""}
-                                    ${rec.priceByn ? `<div class="promo-book-price">Цена: <b>${rec.priceByn} BYN</b></div>` : ""}
+                                    ${priceDisplay ? `<div class="promo-book-price">Цена: <b>${priceDisplay}</b></div>` : ""}
                                     <a class="promo-book-link" href="#/catalog?highlight=${rec.bookSlug}">Подробнее</a>
                                 </div>
                             `;
