@@ -344,26 +344,30 @@ All heart buttons now have unified attributes:
 
 **Исправления:**
 
-### A) CatalogPage.js - UI форматирование цен
-1. Добавлены новые методы:
+### A) Новый модуль utils/price.js - Общие утилиты для цен
+1. Создан новый файл `mini-app/js/utils/price.js` с функциями:
    - `normalizeByn(byn, titleOrSlug)` - нормализация цен (60→80, исключение для "Тело помнит всё")
    - `mapBynToRub(byn)` - маппинг BYN в RUB по фиксированной таблице
    - `formatPriceUI(priceByn, titleOrSlug)` - форматирование для UI с символом ₽
+   - `formatPriceReport(priceByn, titleOrSlug)` - форматирование для отчётов с кодом RUB
+2. Добавлен в `mini-app/index.html` для загрузки
+
+### B) CatalogPage.js - UI форматирование цен
+1. Добавлен метод `formatPriceUI()` с fallback логикой (использует глобальную утилиту если доступна)
 2. Обновлен `convertApiBookToDisplayFormat` для использования `formatPriceUI`
 3. Удалён старый метод `formatPrice` (заменён на `formatPriceUI`)
 
-### B) ReportsPage.js - Форматирование цен для отчётов
-1. Добавлены аналогичные методы:
-   - `normalizeByn(byn, titleOrSlug)` - нормализация цен
-   - `mapBynToRub(byn)` - маппинг BYN в RUB
-   - `formatPriceReport(priceByn, titleOrSlug)` - форматирование для отчётов с кодом RUB
+### C) ReportsPage.js - Форматирование цен для отчётов
+1. Добавлен метод `formatPriceReport()` с fallback логикой
 2. Обновлен `renderRecommendations()` для использования `formatPriceReport`
 
-### C) data/bookCatalog.import.json - Обновление источника данных
+### D) data/bookCatalog.import.json - Обновление источника данных
 1. Все записи с `priceByn: 60` обновлены до `priceByn: 80` (23 записи)
 2. Все записи с `price: 60` обновлены до `price: 80` (23 записи)
 
 **Файлы изменены:**
+- `mini-app/js/utils/price.js` - НОВЫЙ: общие утилиты для работы с ценами
+- `mini-app/index.html` - добавлена загрузка price.js
 - `mini-app/js/pages/CatalogPage.js` - новое форматирование цен для UI
 - `mini-app/js/pages/ReportsPage.js` - новое форматирование цен для отчётов
 - `data/bookCatalog.import.json` - обновлены цены с 60 на 80 BYN
@@ -375,6 +379,8 @@ All heart buttons now have unified attributes:
 4. Специальный случай "Тело помнит всё" будет показывать "90 BYN / 2700 ₽" (или RUB в отчётах)
 
 **План отката:**
+- Удалить `mini-app/js/utils/price.js`
+- Удалить строку загрузки из `mini-app/index.html`
 - Revert изменений в `CatalogPage.js` (восстановить старый `formatPrice`)
 - Revert изменений в `ReportsPage.js` (убрать методы форматирования цен)
 - Revert `data/bookCatalog.import.json` (вернуть priceByn=60)
@@ -383,6 +389,7 @@ All heart buttons now have unified attributes:
 - Книга "Тело помнит всё" не найдена в текущем каталоге, но логика исключения добавлена для будущей совместимости
 - Серверный код не изменялся - форматирование происходит на клиенте
 - Цены тиров 30 BYN (Игрок, Смерть Ивана Ильича) остаются без изменений и без маппинга RUB
+- Утилиты централизованы в price.js для избежания дублирования кода (DRY principle)
 
 ---
 

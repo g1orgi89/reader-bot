@@ -1488,63 +1488,34 @@ class ReportsPage {
     }
 
     /**
-     * 💰 Нормализация BYN цены согласно новым правилам
-     * - 60 BYN → 80 BYN
-     * - Книга "Тело помнит всё" 80 BYN → 90 BYN
-     * - Остальные тиры (100/120/150/200) без изменений
-     * @param {number} byn - Исходная цена в BYN
-     * @param {string} titleOrSlug - Название или slug книги для определения исключений
-     * @returns {number} Нормализованная цена в BYN
-     */
-    normalizeByn(byn, titleOrSlug) {
-        // 60 BYN → 80 BYN
-        if (byn === 60) return 80;
-        
-        // Специальный случай: "Тело помнит всё" 80 BYN → 90 BYN
-        const isBodyKeepsScore = /тело помнит всё/i.test(String(titleOrSlug || ''));
-        if (byn === 80 && isBodyKeepsScore) return 90;
-        
-        // Остальные тиры без изменений
-        return byn;
-    }
-    
-    /**
-     * 💱 Маппинг BYN в RUB по фиксированной таблице
-     * @param {number} byn - Цена в BYN
-     * @returns {number|null} Цена в RUB или null если нет маппинга
-     */
-    mapBynToRub(byn) {
-        const map = {
-            80: 2400,
-            90: 2700,
-            100: 3000,
-            120: 3600,
-            150: 4500,
-            200: 6000
-        };
-        return map[byn] ?? null;
-    }
-    
-    /**
      * 💰 Форматирование цены для отчётов (Reports)
+     * Использует утилиты из utils/price.js
      * Формат: "{BYN} BYN / {RUB} RUB" (используем код RUB вместо ₽ для экспорта)
      * @param {number} priceByn - Цена в BYN
      * @param {string} titleOrSlug - Название или slug книги
      * @returns {string} Отформатированная строка цены
      */
     formatPriceReport(priceByn, titleOrSlug) {
+        // Используем глобальную утилиту если доступна, иначе встроенную логику
+        if (window.formatPriceReport) {
+            return window.formatPriceReport(priceByn, titleOrSlug);
+        }
+        
+        // Fallback: встроенная логика
         if (!priceByn || priceByn <= 0) {
-            return '80 BYN / 2400 RUB'; // Fallback цена
+            return '80 BYN / 2400 RUB';
         }
         
-        const normalizedByn = this.normalizeByn(priceByn, titleOrSlug);
-        const rub = this.mapBynToRub(normalizedByn);
+        const bynToRubMap = { 80: 2400, 90: 2700, 100: 3000, 120: 3600, 150: 4500, 200: 6000 };
+        let normalizedByn = priceByn === 60 ? 80 : priceByn;
         
-        if (rub) {
-            return `${normalizedByn} BYN / ${rub} RUB`;
+        // Специальный случай: "Тело помнит всё"
+        if (priceByn === 80 && /тело помнит всё/i.test(String(titleOrSlug || ''))) {
+            normalizedByn = 90;
         }
         
-        return `${normalizedByn} BYN`;
+        const rub = bynToRubMap[normalizedByn];
+        return rub ? `${normalizedByn} BYN / ${rub} RUB` : `${normalizedByn} BYN`;
     }
 
     /**
