@@ -93,8 +93,8 @@ describe('Feedback Model and API', () => {
       await expect(invalidFeedback.save()).rejects.toThrow();
     });
 
-    it('should truncate text to 300 characters', async () => {
-      const longText = 'a'.repeat(400);
+    it('should truncate text to 4096 characters', async () => {
+      const longText = 'a'.repeat(5000);
       const feedback = new Feedback({
         telegramId: '444555666',
         rating: 4,
@@ -103,7 +103,7 @@ describe('Feedback Model and API', () => {
 
       await feedback.save();
 
-      expect(feedback.text.length).toBe(300);
+      expect(feedback.text.length).toBe(4096);
     });
 
     it('should sanitize tags (trim, lowercase, remove empty)', async () => {
@@ -271,8 +271,8 @@ describe('Feedback Model and API', () => {
       expect(feedback.tags).toEqual(['helpful', 'ui']);
     });
 
-    it('should reject text longer than 300 characters', async () => {
-      const longText = 'a'.repeat(301);
+    it('should reject text longer than 4096 characters', async () => {
+      const longText = 'a'.repeat(4097);
       const response = await request(app)
         .post('/api/reader/feedback')
         .send({
@@ -284,7 +284,7 @@ describe('Feedback Model and API', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('300 characters');
+      expect(response.body.error).toContain('4096 characters');
     });
 
     it('should default to monthly_report context and telegram source', async () => {
