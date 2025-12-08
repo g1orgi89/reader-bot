@@ -88,7 +88,7 @@ function registerFeedbackHandlers(bot) {
       // Lookup userId by telegramId (optional)
       let userId = null;
       try {
-        const userProfile = await UserProfile.findOne({ telegramId }).select('_id').lean();
+        const userProfile = await UserProfile.findOne({ userId: telegramId }).select('_id').lean();
         if (userProfile) {
           userId = userProfile._id;
         }
