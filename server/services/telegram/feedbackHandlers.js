@@ -54,32 +54,55 @@ function registerFeedbackHandlers(bot) {
       // Answer callback query immediately
       await ctx.answerCbQuery();
 
-      // Store state for potential follow-up
+      // Visual star representations
+      const starDisplay = ['★☆☆☆☆', '★★☆☆☆', '★★★☆☆', '★★★★☆', '★★★★★'][rating - 1];
+
+      // Edit the original message to remove keyboard and show selected rating
+      try {
+        await ctx.editMessageText(
+          `Ваша оценка: ${starDisplay}\n\nСпасибо!`,
+          { reply_markup: { inline_keyboard: [] } }
+        );
+      } catch (editError) {
+        // If edit fails, it's not critical, continue
+        logger.warn('⚠️ Could not edit message:', editError.message);
+      }
+
+      // Save rating to database immediately
+      await saveFeedback(userId, rating, '', 'monthly_report');
+
+      // Store state for comment follow-up
       feedbackStates.set(userId, {
         rating,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        messageId: ctx.callbackQuery.message.message_id
       });
 
-      // If rating is low (≤3), ask for comment
+      // Prompt for comment with ForceReply
       if (rating <= 3) {
+        // For low ratings, enforce minimum length
         await ctx.reply(
-          `Спасибо за оценку ${rating} ⭐\n\n` +
-          `Пожалуйста, расскажите, что можно улучшить?\n` +
-          `(Максимум 300 символов)\n\n` +
-          `Или отправьте /skip чтобы пропустить.`,
-          { parse_mode: 'Markdown' }
+          `Пожалуйста, расскажите, что можно улучшить в приложении «Читатель»?\n` +
+          `(Минимум 10 символов, максимум 300)`,
+          {
+            reply_markup: {
+              force_reply: true,
+              selective: true
+            }
+          }
         );
       } else {
-        // For high ratings, save immediately without comment
-        await saveFeedback(userId, rating, '');
+        // For high ratings, comment is optional
         await ctx.reply(
-          `Спасибо за отличную оценку ${rating} ⭐!\n\n` +
-          `Рады, что вам нравится Reader Bot! 📚✨`,
-          { parse_mode: 'Markdown' }
+          `Рады, что вам нравится приложение «Читатель»! 📚✨\n\n` +
+          `Если хотите что-то добавить, напишите комментарий (необязательно, до 300 символов):`,
+          {
+            reply_markup: {
+              force_reply: true,
+              selective: true
+            }
+          }
         );
-        
-        // Clean up state
-        feedbackStates.delete(userId);
       }
     } catch (error) {
       logger.error('❌ Error handling feedback rating callback:', error);
@@ -88,63 +111,84 @@ function registerFeedbackHandlers(bot) {
   });
 
   /**
-   * Handle /skip command to skip feedback comment
-   */
-  bot.command('skip', async (ctx) => {
-    try {
-      const userId = ctx.from.id.toString();
-      const state = feedbackStates.get(userId);
-
-      if (!state || !state.rating) {
-        await ctx.reply('Нет активного запроса на обратную связь.');
-        return;
-      }
-
-      // Save feedback without comment
-      await saveFeedback(userId, state.rating, '');
-      await ctx.reply(
-        `Спасибо за вашу оценку ${state.rating} ⭐!\n\n` +
-        `Мы продолжаем работать над улучшением бота. 💪`,
-        { parse_mode: 'Markdown' }
-      );
-
-      // Clean up state
-      feedbackStates.delete(userId);
-    } catch (error) {
-      logger.error('❌ Error handling skip command:', error);
-      await ctx.reply('Произошла ошибка. Попробуйте позже.');
-    }
-  });
-
-  /**
    * Handle text messages as potential feedback comments
-   * Only processes if user is in feedback state
+   * Only processes if user is in feedback state and message is a reply to our ForceReply
    */
   bot.on('text', async (ctx, next) => {
     try {
       const userId = ctx.from.id.toString();
       const state = feedbackStates.get(userId);
 
+      // Check if this is a reply to our ForceReply prompt
+      const isReplyToBot = ctx.message.reply_to_message && 
+                          ctx.message.reply_to_message.from.is_bot;
+
       // Check if this text is a feedback comment
-      if (state && state.rating && !ctx.message.text.startsWith('/')) {
+      if (state && state.rating && isReplyToBot && !ctx.message.text.startsWith('/')) {
         const text = ctx.message.text.trim();
 
-        // Validate text length
-        if (text.length > 300) {
+        // For low ratings (≤3), enforce minimum length of 10 characters
+        if (state.rating <= 3 && text.length < 10) {
           await ctx.reply(
-            `Пожалуйста, сократите комментарий до 300 символов.\n` +
-            `Текущая длина: ${text.length} символов.`
+            `Пожалуйста, напишите чуть подробнее (минимум 10 символов).\n` +
+            `Это поможет нам лучше понять, что улучшить в приложении «Читатель».`,
+            {
+              reply_markup: {
+                force_reply: true,
+                selective: true
+              }
+            }
           );
           return;
         }
 
-        // Save feedback with comment
-        await saveFeedback(userId, state.rating, text);
-        await ctx.reply(
-          `Спасибо за отзыв! Мы обязательно учтём ваши пожелания. 🙏\n\n` +
-          `Ваша оценка: ${state.rating} ⭐`,
-          { parse_mode: 'Markdown' }
-        );
+        // Validate text length (max 300 characters)
+        if (text.length > 300) {
+          await ctx.reply(
+            `Пожалуйста, сократите комментарий до 300 символов.\n` +
+            `Текущая длина: ${text.length} символов.`,
+            {
+              reply_markup: {
+                force_reply: true,
+                selective: true
+              }
+            }
+          );
+          return;
+        }
+
+        // Update the existing feedback record with the comment
+        try {
+          // Find the most recent feedback for this user and update it
+          const feedback = await Feedback.findOneAndUpdate(
+            { 
+              telegramId: userId,
+              rating: state.rating,
+              text: '' // Find the one without comment (just saved)
+            },
+            { 
+              text: text.substring(0, 300),
+              updatedAt: new Date()
+            },
+            { 
+              sort: { createdAt: -1 },
+              new: true
+            }
+          );
+
+          if (feedback) {
+            logger.info(`✅ Feedback updated with comment: ${feedback._id}`);
+          } else {
+            // If not found, create new feedback with comment
+            await saveFeedback(userId, state.rating, text);
+          }
+        } catch (dbError) {
+          logger.error('❌ Error updating feedback with comment:', dbError);
+          // Fallback: save as new feedback
+          await saveFeedback(userId, state.rating, text);
+        }
+
+        await ctx.reply('Спасибо! Ваш комментарий сохранён 💬');
 
         // Clean up state
         feedbackStates.delete(userId);
@@ -170,22 +214,20 @@ async function sendFeedbackPrompt(ctx) {
   const keyboard = {
     inline_keyboard: [
       [
-        { text: '⭐', callback_data: 'fb:rate:1' },
-        { text: '⭐⭐', callback_data: 'fb:rate:2' },
-        { text: '⭐⭐⭐', callback_data: 'fb:rate:3' }
+        { text: '★☆☆☆☆', callback_data: 'fb:rate:1' },
+        { text: '★★☆☆☆', callback_data: 'fb:rate:2' },
+        { text: '★★★☆☆', callback_data: 'fb:rate:3' }
       ],
       [
-        { text: '⭐⭐⭐⭐', callback_data: 'fb:rate:4' },
-        { text: '⭐⭐⭐⭐⭐', callback_data: 'fb:rate:5' }
+        { text: '★★★★☆', callback_data: 'fb:rate:4' },
+        { text: '★★★★★', callback_data: 'fb:rate:5' }
       ]
     ]
   };
 
   await ctx.reply(
-    `📋 *Как вам Reader Bot в этом месяце?*\n\n` +
-    `Пожалуйста, оцените ваш опыт работы с ботом:`,
+    `Как вам приложение «Читатель» в этом месяце?`,
     {
-      parse_mode: 'Markdown',
       reply_markup: keyboard
     }
   );
@@ -241,23 +283,21 @@ async function sendMonthlyFeedbackRequest(bot, userIds = []) {
       const keyboard = {
         inline_keyboard: [
           [
-            { text: '⭐', callback_data: 'fb:rate:1' },
-            { text: '⭐⭐', callback_data: 'fb:rate:2' },
-            { text: '⭐⭐⭐', callback_data: 'fb:rate:3' }
+            { text: '★☆☆☆☆', callback_data: 'fb:rate:1' },
+            { text: '★★☆☆☆', callback_data: 'fb:rate:2' },
+            { text: '★★★☆☆', callback_data: 'fb:rate:3' }
           ],
           [
-            { text: '⭐⭐⭐⭐', callback_data: 'fb:rate:4' },
-            { text: '⭐⭐⭐⭐⭐', callback_data: 'fb:rate:5' }
+            { text: '★★★★☆', callback_data: 'fb:rate:4' },
+            { text: '★★★★★', callback_data: 'fb:rate:5' }
           ]
         ]
       };
 
       await bot.telegram.sendMessage(
         userId,
-        `📋 *Как вам Reader Bot в этом месяце?*\n\n` +
-        `Пожалуйста, оцените ваш опыт работы с ботом:`,
+        `Как вам приложение «Читатель» в этом месяце?`,
         {
-          parse_mode: 'Markdown',
           reply_markup: keyboard
         }
       );
