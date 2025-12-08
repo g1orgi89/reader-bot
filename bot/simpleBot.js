@@ -155,32 +155,22 @@ class SimpleTelegramBot {
     });
 
     // /help command - brief help
-    this.bot.on('text', async (ctx, next) => {
+    this.bot.command('help', async (ctx) => {
       try {
-        // Skip if it's a command — но передай дальше, чтобы /feedback обработался командным хендлером
-        if (ctx.message?.text?.startsWith('/')) {
-          return next();
-        }
-  
-        // Skip if this is a reply to a ForceReply prompt (feedback flow) — передай дальше, чтобы feedbackHandlers поймал комментарий
-        if (ctx.message?.reply_to_message) {
-          return next();
-        }
-  
         const responseMessage = `🤖 Этот бот служит точкой входа в приложение «Читатель».
-  
-  Для работы с цитатами, поиска и анализа используйте приложение.
-  
-  Нажмите /start чтобы открыть приложение.`;
-  
+
+Для работы с цитатами, поиска и анализа используйте приложение.
+
+Нажмите /start чтобы открыть приложение.`;
+
         const keyboard = Markup.inlineKeyboard([
           Markup.button.webApp('📱 Открыть приложение', this.config.appWebAppUrl)
         ]);
-  
+
         await ctx.reply(responseMessage, keyboard);
-        logger.info(`🤖 Text message handled for user ${ctx.from.id}`);
+        logger.info(`🤖 /help command handled for user ${ctx.from.id}`);
       } catch (error) {
-        logger.error(`❌ Error handling text message: ${error.message}`);
+        logger.error(`❌ Error handling /help command: ${error.message}`);
         await ctx.reply('🤖 Используйте /start для входа в приложение.');
       }
     });
@@ -191,17 +181,17 @@ class SimpleTelegramBot {
    * @private
    */
   _setupMessageHandlers() {
-    // Handle all text messages
-    this.bot.on('text', async (ctx) => {
+    // Handle all text messages (global fallback)
+    this.bot.on('text', async (ctx, next) => {
       try {
-        // Skip if it's a command
-        if (ctx.message.text.startsWith('/')) {
-          return;
+        // Forward commands to command handlers
+        if (ctx.message?.text?.startsWith('/')) {
+          return next();
         }
 
-        // Skip if this is a reply to a ForceReply prompt (feedback flow)
-        if (ctx.message.reply_to_message) {
-          return;
+        // Forward ForceReply responses to feedback handlers
+        if (ctx.message?.reply_to_message) {
+          return next();
         }
 
         const responseMessage = `🤖 Этот бот служит точкой входа в приложение «Читатель».
