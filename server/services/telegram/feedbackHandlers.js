@@ -57,6 +57,18 @@ function registerFeedbackHandlers(bot) {
   });
 
   /**
+   * Handle feedback text trigger as fallback (feedback/отзыв)
+   */
+  bot.hears(/^(feedback|отзыв)$/i, async (ctx) => {
+    try {
+      await sendFeedbackPrompt(ctx);
+    } catch (error) {
+      logger.error('❌ Error handling feedback text trigger:', error);
+      await ctx.reply('Произошла ошибка. Попробуйте позже.');
+    }
+  });
+
+  /**
    * Handle feedback rating callbacks (fb:rate:<rating>)
    */
   bot.action(/^fb:rate:(\d)$/, async (ctx) => {
