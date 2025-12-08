@@ -2497,44 +2497,28 @@ async refreshSpotlight() {
      * ОБНОВЛЕНО: Использует composeCommunityFeed с вставками и Load More
      */
     renderLatestQuotesSection() {
-        // Если данные загружены, но список пуст - показываем empty state
-        if (this.loaded.latestQuotes && (!this.latestQuotes || this.latestQuotes.length === 0)) {
-            return `
-                <div class="empty-state">
-                    <div class="empty-icon">📝</div>
-                    <div class="empty-title">Пока нет цитат</div>
-                    <div class="empty-description">Станьте первым, кто поделится мудростью!</div>
-                </div>
-            `;
+        // Пустое состояние
+        if (!Array.isArray(this.latestQuotes) || this.latestQuotes.length === 0) {
+            return this.renderEmptyLatest?.() || '';
         }
-
-        // Если данные ещё не загружены — ничего не показываем (без заглушек)
-        if (!this.latestQuotes || this.latestQuotes.length === 0) {
-            return '';
-        }
-
-        // Используем новую композицию с вставками
+    
+        // Компоновка ленты с вставками
         const feedHtml = this.composeCommunityFeed(this.latestQuotes);
-        
+    
+        // Управляемость через конфиг
         const config = window.ConfigManager?.get('feeds.community.feed') || { initialCount: 12 };
-        const showLoadMore = this.latestQuotes.length >= (config.initialCount || 12);
-
+        const showLoadMore = (this.latestQuotes.length >= (config.initialCount || 12));
+    
+        // Возвращаем разметку
         return `
             <div class="latest-quotes-section">
                 <div class="mvp-community-title">💫 Последние цитаты сообщества</div>
                 ${feedHtml}
                 ${showLoadMore ? `
                     <div class="feed-load-more">
-                        <button class="feed-load-more__btn js-feed-load-more">
-                            Показать ещё
-                        </button>
+                        <button class="feed-load-more__btn js-feed-load-more">Показать ещё</button>
                     </div>
                 ` : ''}
-            </div>
-        `;
-    }>
-                    ${quotesCards}
-                </div>
             </div>
         `;
     }
