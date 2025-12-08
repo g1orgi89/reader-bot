@@ -144,6 +144,7 @@ const BookCatalog = require('../models/BookCatalog');
 const UTMClick = require('../models/analytics').UTMClick;
 const PromoCodeUsage = require('../models/analytics').PromoCodeUsage;
 const Follow = require('../models/Follow');
+const Feedback = require('../models/Feedback');
 
 // Импорт сервисов
 const QuoteHandler = require('../services/quoteHandler');
@@ -5028,6 +5029,131 @@ router.get('/community/feed/following', telegramAuth, async (req, res) => {
   } catch (error) {
     console.error('❌ Following feed error:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description POST /api/reader/feedback - Submit user feedback
+ * @route POST /api/reader/feedback
+ * @access Protected (requires telegramAuth or userId in body for telegram source)
+ */
+router.post('/feedback', async (req, res) => {
+  try {
+    // Extract userId/telegramId based on source
+    let telegramId = null;
+    let userId = null;
+    
+    const { rating, text, context, source, tags } = req.body;
+    
+    // Validate required fields
+    if (!rating || typeof rating !== 'number') {
+      return res.status(400).json({
+        success: false,
+        error: 'Rating is required and must be a number'
+      });
+    }
+    
+    // Validate rating range
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        error: 'Rating must be between 1 and 5'
+      });
+    }
+    
+    // Get telegramId based on source
+    if (source === 'telegram') {
+      // For telegram source, allow telegramId in body
+      telegramId = req.body.telegramId || safeExtractUserId(req);
+    } else {
+      // For mini_app source, use auth middleware
+      telegramId = safeExtractUserId(req);
+    }
+    
+    if (!telegramId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required: telegramId not found'
+      });
+    }
+    
+    // Try to find userId from UserProfile
+    try {
+      const userProfile = await UserProfile.findOne({ userId: telegramId });
+      if (userProfile && userProfile._id) {
+        userId = userProfile._id;
+      }
+    } catch (err) {
+      console.warn('Could not resolve userId from telegramId:', err.message);
+    }
+    
+    // Validate text for low ratings from mini_app
+    const feedbackText = text ? String(text).trim() : '';
+    if (source === 'mini_app' && rating <= 3 && feedbackText.length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'For ratings of 3 or below, please provide at least 10 characters of feedback'
+      });
+    }
+    
+    // Validate text length (max 300 chars)
+    if (feedbackText.length > 300) {
+      return res.status(400).json({
+        success: false,
+        error: 'Feedback text must be 300 characters or less'
+      });
+    }
+    
+    // Sanitize and validate context
+    const validContexts = ['monthly_report', 'general', 'bot'];
+    const feedbackContext = context && validContexts.includes(context) 
+      ? context 
+      : 'monthly_report';
+    
+    // Sanitize and validate source
+    const validSources = ['telegram', 'mini_app'];
+    const feedbackSource = source && validSources.includes(source)
+      ? source
+      : 'telegram';
+    
+    // Sanitize tags (trim, lowercase, remove empty)
+    const feedbackTags = Array.isArray(tags)
+      ? tags.map(tag => String(tag).trim().toLowerCase()).filter(tag => tag.length > 0)
+      : [];
+    
+    // Create feedback document
+    const feedback = new Feedback({
+      userId,
+      telegramId,
+      rating,
+      text: feedbackText,
+      context: feedbackContext,
+      source: feedbackSource,
+      tags: feedbackTags
+    });
+    
+    // Save to database
+    await feedback.save();
+    
+    console.log(`✅ Feedback saved: ${feedback._id} from user ${telegramId}, rating: ${rating}`);
+    
+    // Return success response
+    res.json({
+      success: true,
+      data: {
+        id: feedback._id,
+        rating: feedback.rating,
+        context: feedback.context,
+        createdAt: feedback.createdAt
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Feedback submission error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to submit feedback'
+    });
   }
 });
 

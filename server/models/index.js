@@ -12,6 +12,7 @@ const MonthlyReport = require('./monthlyReport');
 const Prompt = require('./prompt');
 const Favorite = require('./Favorite');
 const Follow = require('./Follow');
+const Feedback = require('./Feedback');
 
 // Import analytics models
 const { UTMClick, PromoCodeUsage, UserAction } = require('./analytics');
@@ -40,6 +41,7 @@ async function initializeModels() {
       Prompt.ensureIndexes(),
       Favorite.ensureIndexes(),
       Follow.ensureIndexes(),
+      Feedback.ensureIndexes(),
       
       // Analytics models
       UTMClick.ensureIndexes(),
@@ -168,7 +170,7 @@ async function getDatabaseStats() {
  */
 async function getReaderStats() {
   try {
-    const [totalUsers, activeUsers, totalQuotes, weeklyReports, monthlyReports, totalFollows] = await Promise.all([
+    const [totalUsers, activeUsers, totalQuotes, weeklyReports, monthlyReports, totalFollows, totalFeedback] = await Promise.all([
       UserProfile.countDocuments({ isOnboardingComplete: true }),
       UserProfile.countDocuments({ 
         isOnboardingComplete: true,
@@ -177,7 +179,8 @@ async function getReaderStats() {
       Quote.countDocuments(),
       WeeklyReport.countDocuments(),
       MonthlyReport.countDocuments(),
-      Follow.countDocuments()
+      Follow.countDocuments(),
+      Feedback.countDocuments()
     ]);
 
     return {
@@ -187,6 +190,7 @@ async function getReaderStats() {
       weeklyReports,
       monthlyReports,
       totalFollows,
+      totalFeedback,
       averageQuotesPerUser: totalUsers > 0 ? Math.round(totalQuotes / totalUsers * 10) / 10 : 0
     };
   } catch (error) {
@@ -198,6 +202,7 @@ async function getReaderStats() {
       weeklyReports: 0,
       monthlyReports: 0,
       totalFollows: 0,
+      totalFeedback: 0,
       averageQuotesPerUser: 0,
       error: error.message
     };
@@ -215,6 +220,7 @@ module.exports = {
   Prompt,
   Favorite,
   Follow,
+  Feedback,
   
   // Analytics models
   UTMClick,

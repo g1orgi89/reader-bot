@@ -107,6 +107,10 @@ class SimpleTelegramBot {
    * @private
    */
   _setupCommands() {
+    // Register feedback handlers first
+    const { registerFeedbackHandlers } = require('../server/services/telegram/feedbackHandlers');
+    registerFeedbackHandlers(this.bot, this.config.appWebAppUrl);
+    
     // /start: после приветствия BotFather отправляем только «Как пользоваться...»
     this.bot.start(async (ctx) => {
       // 🔍 DIAGNOSTIC: Enhanced /start command logging
