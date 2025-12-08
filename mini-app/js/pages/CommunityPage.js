@@ -728,6 +728,7 @@ class CommunityPage {
 /**
  * 🔄 Обновить spotlight с учетом текущего фильтра
  * ОБНОВЛЕНО: Проверяет feedFilter и обновляет соответствующую ленту
+ * ОБНОВЛЕНО: Обновляет только .spotlight-grid без полной замены секции (no flicker)
  */
 async refreshSpotlight() {
     try {
@@ -749,32 +750,45 @@ async refreshSpotlight() {
         } else {
             console.log('🔄 Обновление общей ленты...');
             
-            const spotlightContainer = document.getElementById('spotlight-container');
-            if (spotlightContainer) {
-                spotlightContainer.innerHTML = '<div class="loading-spinner">Загрузка...</div>';
-            }
-            
+            // Очищаем кэш
             this._spotlightCache = { ts: 0, items: [] };
             
-            await Promise.allSettled([
-                this.loadLatestQuotes(5)
-            ]);
+            // Загружаем новые данные с forceReload
+            const items = await this.buildSpotlightMix(null, true);
             
-            await this.getSpotlightItems();
+            // Применяем состояние лайков
+            this._initializeLikeStoreFromItems(items);
+            this._applyLikeStateToArray(items);
             
-            const newSpotlightHTML = this.renderSpotlightSection();
-            
+            // Обновляем только grid, не всю секцию
             requestAnimationFrame(() => {
                 const spotlightSection = document.getElementById('spotlightSection');
-                if (spotlightSection) {
-                    spotlightSection.outerHTML = newSpotlightHTML;
+                const gridElement = spotlightSection?.querySelector('.spotlight-grid');
+                
+                if (gridElement) {
+                    // Рендерим только карточки
+                    gridElement.innerHTML = this._renderSpotlightCards(items);
+                    
+                    // Reconcile like data and update buttons
+                    this._reconcileAllLikeData();
+                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                    
+                    // Reattach listeners only to new cards
+                    this.attachQuoteCardListeners();
+                    this.attachCommunityCardListeners();
+                } else {
+                    // Fallback: full section replace if grid not found
+                    console.warn('spotlight-grid not found, falling back to full section replace');
+                    if (spotlightSection) {
+                        const newSpotlightHTML = this.renderSpotlightSection();
+                        spotlightSection.outerHTML = newSpotlightHTML;
+                        
+                        this._reconcileAllLikeData();
+                        this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                        this.attachQuoteCardListeners();
+                        this.attachCommunityCardListeners();
+                    }
                 }
-                
-                this._reconcileAllLikeData();
-                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
-                
-                this.attachQuoteCardListeners();
-                this.attachCommunityCardListeners();
             });
         }
         
@@ -1325,10 +1339,177 @@ async refreshSpotlight() {
     }
 
     /**
-     * Построение микса spotlight: 1 свежая + 2 недавние избранные с round-robin ротацией
-     * ОБНОВЛЕНО: Реализована логика ротации, anti-repeat и fairness constraint
+     * Построение микса spotlight: 12 карточек с чередованием L↔F (50/50)
+     * ОБНОВЛЕНО: Конфигурируемое количество, соотношение и фоллбэки
+     * @param {number|null} targetCount - Целевое количество (из конфига если null)
+     * @param {boolean} forceReload - Принудительная перезагрузка без кеша
      */
-    async buildSpotlightMix() {
+    async buildSpotlightMix(targetCount = null, forceReload = false) {
+        // Читаем конфигурацию
+        const config = window.ConfigManager?.get('feeds.community.spotlight') || {
+            targetCount: 12,
+            ratio: { latest: 1, favorites: 1 },
+            fallback: ['popularFavorites', 'popular'],
+            ttlMs: 10 * 60 * 1000
+        };
+        
+        const count = targetCount || config.targetCount || 12;
+        const ratio = config.ratio || { latest: 1, favorites: 1 };
+        const ttlMs = config.ttlMs || 10 * 60 * 1000;
+        
+        // Проверяем свежесть кеша
+        if (!forceReload && this.isSpotlightFresh(ttlMs) && this._spotlightCache.items.length >= count) {
+            console.log('✅ Используем кеш spotlight (свежий и достаточно элементов)');
+            return this._spotlightCache.items.slice(0, count);
+        }
+        
+        // Вычисляем нужное количество latest и favorites
+        const totalRatio = ratio.latest + ratio.favorites;
+        const needLatest = Math.ceil((count * ratio.latest) / totalRatio);
+        const needFavs = Math.ceil((count * ratio.favorites) / totalRatio);
+        
+        // Добавляем buffer для overfetch (чтобы было из чего выбрать после дедупликации)
+        const bufferLatest = needLatest + 3;
+        const bufferFavs = needFavs + 5;
+        
+        console.log(`🔄 Загружаем spotlight: target=${count}, latest=${needLatest}(+3), favs=${needFavs}(+5)`);
+        
+        // Загружаем данные параллельно
+        const [latestResp, favsResp] = await Promise.allSettled([
+            this.api.getCommunityLatestQuotes({ limit: bufferLatest, noCache: forceReload }),
+            this.api.getCommunityRecentFavorites({ limit: bufferFavs, noCache: forceReload })
+        ]);
+        
+        let latestQuotes = [];
+        let favQuotes = [];
+        
+        if (latestResp.status === 'fulfilled' && latestResp.value?.success) {
+            latestQuotes = (latestResp.value.data || []).map(q => this._normalizeOwner(q));
+        }
+        
+        if (favsResp.status === 'fulfilled' && favsResp.value?.success) {
+            favQuotes = (favsResp.value.data || []).map(q => this._normalizeOwner(q));
+        }
+        
+        // Дедупликация внутри каждой группы
+        latestQuotes = this._deduplicateQuotes(latestQuotes);
+        favQuotes = this._deduplicateQuotes(favQuotes);
+        
+        // Применяем состояние лайков
+        this._applyLikeStateToArray(latestQuotes);
+        this._applyLikeStateToArray(favQuotes);
+        
+        // Собираем итоговый список с чередованием L↔F
+        const items = [];
+        const seenKeys = new Set();
+        let latestIdx = 0;
+        let favsIdx = 0;
+        
+        for (let i = 0; i < count; i++) {
+            // Определяем, какую группу использовать для текущего слота
+            const useLatest = (i % 2 === 0); // Четные - latest, нечетные - favorites
+            
+            let quote = null;
+            
+            if (useLatest && latestIdx < latestQuotes.length) {
+                quote = latestQuotes[latestIdx++];
+            } else if (!useLatest && favsIdx < favQuotes.length) {
+                quote = favQuotes[favsIdx++];
+            } else if (latestIdx < latestQuotes.length) {
+                // Fallback: берем из latest если favorites закончились
+                quote = latestQuotes[latestIdx++];
+            } else if (favsIdx < favQuotes.length) {
+                // Fallback: берем из favorites если latest закончились
+                quote = favQuotes[favsIdx++];
+            }
+            
+            if (!quote) break; // Закончились оба источника
+            
+            const key = this._computeLikeKey(quote.text, quote.author);
+            if (seenKeys.has(key)) {
+                i--; // Повторяем итерацию если встретили дубликат
+                continue;
+            }
+            
+            seenKeys.add(key);
+            items.push({
+                kind: useLatest ? 'latest' : 'favorite',
+                id: quote.id || quote._id,
+                text: quote.text,
+                author: quote.author,
+                createdAt: quote.createdAt,
+                favorites: quote.favorites || 0,
+                owner: quote.owner,
+                user: quote.user || quote.owner || null,
+                likedByMe: !!quote.likedByMe
+            });
+        }
+        
+        // Если все еще не хватает - используем fallback
+        if (items.length < count && config.fallback) {
+            console.log(`⚠️ Не хватает элементов (${items.length}/${count}), используем fallback`);
+            
+            for (const fallbackMethod of config.fallback) {
+                if (items.length >= count) break;
+                
+                try {
+                    let fallbackData = [];
+                    const needed = count - items.length;
+                    
+                    if (fallbackMethod === 'popularFavorites') {
+                        const resp = await this.api.getCommunityPopularFavorites({ limit: needed + 5, noCache: forceReload });
+                        if (resp?.success) fallbackData = resp.data || [];
+                    } else if (fallbackMethod === 'popular') {
+                        const resp = await this.api.getCommunityPopularQuotes({ limit: needed + 5, noCache: forceReload });
+                        if (resp?.success) fallbackData = resp.data || [];
+                    }
+                    
+                    fallbackData = this._deduplicateQuotes(fallbackData.map(q => this._normalizeOwner(q)));
+                    this._applyLikeStateToArray(fallbackData);
+                    
+                    for (const quote of fallbackData) {
+                        if (items.length >= count) break;
+                        
+                        const key = this._computeLikeKey(quote.text, quote.author);
+                        if (seenKeys.has(key)) continue;
+                        
+                        seenKeys.add(key);
+                        items.push({
+                            kind: 'fallback',
+                            id: quote.id || quote._id,
+                            text: quote.text,
+                            author: quote.author,
+                            createdAt: quote.createdAt,
+                            favorites: quote.favorites || 0,
+                            owner: quote.owner,
+                            user: quote.user || quote.owner || null,
+                            likedByMe: !!quote.likedByMe
+                        });
+                    }
+                } catch (err) {
+                    console.warn(`Fallback ${fallbackMethod} failed:`, err);
+                }
+            }
+        }
+        
+        // Обрезаем до нужного количества
+        const finalItems = items.slice(0, count);
+        
+        // Сохраняем в кеш
+        this._spotlightCache = {
+            items: finalItems,
+            ts: Date.now()
+        };
+        
+        console.log(`✅ Spotlight собран: ${finalItems.length} элементов`);
+        return finalItems;
+    }
+    
+    /**
+     * LEGACY: Старый метод для обратной совместимости (удалить после миграции)
+     * @deprecated Use buildSpotlightMix() instead
+     */
+    async _legacyBuildSpotlightMix_OLD() {
         const items = [];
         
         // 1. Slot #1: Добавляем 1 самую свежую цитату (latest by createdAt)
@@ -1498,25 +1679,27 @@ async refreshSpotlight() {
 
     /**
      * Получение spotlight элементов с учетом кэша
+     * ОБНОВЛЕНО: Использует новый buildSpotlightMix с конфигурацией
      */
     async getSpotlightItems() {
-        if (this.isSpotlightFresh()) {
+        const config = window.ConfigManager?.get('feeds.community.spotlight') || { ttlMs: 10 * 60 * 1000 };
+        
+        if (this.isSpotlightFresh(config.ttlMs)) {
             // Apply stored like state even to cached items
             this._applyLikeStateToArray(this._spotlightCache.items);
             return this._spotlightCache.items;
         }
         
-        // Обновляем кэш
-        this._spotlightCache.items = await this.buildSpotlightMix();
-        this._spotlightCache.ts = Date.now();
+        // Обновляем кэш используя новый метод
+        const items = await this.buildSpotlightMix(null, false);
         
         // Initialize likeStore from server data in spotlight items
-        this._initializeLikeStoreFromItems(this._spotlightCache.items);
+        this._initializeLikeStoreFromItems(items);
         
         // Apply stored like state to new items (for pending actions)
-        this._applyLikeStateToArray(this._spotlightCache.items);
+        this._applyLikeStateToArray(items);
         
-        return this._spotlightCache.items;
+        return items;
     }
 
     /**
