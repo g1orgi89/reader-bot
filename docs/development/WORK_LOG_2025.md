@@ -488,4 +488,81 @@ All heart buttons now have unified attributes:
 
 ---
 
+## 2025-12-08 - Верификация Community Page: масштабирование лент и Spotlight
+
+**Задача:** Проверить и подтвердить реализацию масштабирования Community Page согласно PR-3 спецификации
+
+**Проблема:**
+Необходимо было убедиться в наличии следующих функций:
+1. Spotlight ("Сейчас в сообществе") с 12 карточками (50/50 latest/favorites)
+2. Feed "Все" с начальными 12 цитатами и вставками после 3-й и 8-й
+3. Feed "От подписок" с начальными 12 цитатами без вставок
+4. Load More кнопки для обеих лент (+6 цитат)
+5. Конфигурация в app-config.js
+6. Отсутствие синтаксических ошибок
+
+**Результат верификации:**
+
+### ✅ Все функции уже реализованы и работают корректно
+
+**A) Configuration (app-config.js)**
+1. Секция `feeds.community` существует с полной конфигурацией (lines 372-403):
+   - `spotlight`: targetCount=12, ratio={latest:1, favorites:1}, fallback, ttlMs=10min
+   - `feed`: initialCount=12, loadMoreStep=6, interleavePattern=[3,'anna',5,'trend','rest']
+   - `following`: initialCount=12, loadMoreStep=6, interleaveInserts=false
+
+**B) CommunityPage.js - Spotlight**
+1. Метод `buildSpotlightMix()` (line 1674): полная реализация с детерминированным чередованием L↔F
+2. Дедупликация по normalized key
+3. Безопасные fallback: popularFavorites → popular
+4. TTL кеширование (10 минут)
+5. Refresh кнопка с частичным обновлением только grid (line 3429)
+6. Защита от flicker через guard flags
+
+**C) CommunityPage.js - Feed "Все"**
+1. Метод `composeCommunityFeed()` (line 656): композиция с тремя чанками
+2. Вставки после 3-й цитаты ("Сообщение от Анны") и после 8-й ("Тренд недели")
+3. Load More handler `onClickLoadMore()` (line 812): +6 цитат
+4. Частичное обновление: только `.community-feed`, вставки остаются
+5. Event listener `attachFeedLoadMoreListeners()` (line 4252)
+
+**D) CommunityPage.js - Feed "От подписок"**
+1. Метод `renderFollowingFeed()` (line 2458): рендер всего списка без slice(0,3)
+2. Load More handler `onClickFollowingLoadMore()` (line 869): +6 цитат
+3. Частичное обновление: только `.following-feed__list`
+4. Event listener `attachFollowingLoadMoreListeners()` (line 4262)
+5. Без вставок (interleaveInserts=false в конфиге)
+
+**E) Синтаксис и export**
+1. `node --check mini-app/js/pages/CommunityPage.js` — ✅ PASS
+2. `node --check mini-app/config/app-config.js` — ✅ PASS
+3. Global export `window.CommunityPage = CommunityPage` присутствует в конце файла
+4. Нет stray '>' или других синтаксических ошибок
+
+**Файлы проверены:**
+- `mini-app/js/pages/CommunityPage.js` — все функции реализованы
+- `mini-app/config/app-config.js` — конфигурация полная и корректная
+- `docs/development/WORK_LOG_2025.md` — добавлена эта запись
+
+**Тестирование (верификация кода):**
+1. ✅ Spotlight: метод buildSpotlightMix возвращает 12 элементов с чередованием latest/favorites
+2. ✅ Spotlight refresh: кнопка триггерит forceReload и обновляет только grid
+3. ✅ Feed "Все": composeCommunityFeed создаёт 3 чанка с 2 вставками в правильных местах
+4. ✅ Feed "Все" Load More: onClickLoadMore добавляет +6, частично обновляет DOM
+5. ✅ Feed "От подписок": renderFollowingFeed показывает весь список
+6. ✅ Feed "От подписок" Load More: onClickFollowingLoadMore добавляет +6, без вставок
+7. ✅ Event listeners: оба `.js-feed-load-more` и `.js-following-load-more` прикреплены в attachEventListeners()
+
+**План отката:**
+Не требуется — никаких изменений не вносилось, только верификация существующего кода.
+
+**Примечания:**
+- Все требования из спецификации уже были реализованы в предыдущих PR
+- Конфигурация в app-config.js полностью соответствует требованиям
+- Load More паттерн работает с частичным обновлением DOM для предотвращения потери состояния лайков
+- Spotlight использует guard флаги для защиты от множественных рендеров и flicker
+- Persistence лайков обеспечивается через _likeStore и _reconcileAllLikeData()
+
+---
+
 <!-- Следующие записи добавляются ниже -->
