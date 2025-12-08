@@ -120,11 +120,11 @@ function registerFeedbackHandlers(bot) {
 
       // Prompt for comment with ForceReply
       await ctx.reply(
-        `Напишите, что улучшить в приложении «Читатель»:`,
+        `Поделитесь своим мнением о приложении «Читатель»:`,
         {
           reply_markup: {
             force_reply: true,
-            input_field_placeholder: 'Напишите, что улучшить…',
+            input_field_placeholder: 'Ваши мысли и предложения…',
             selective: true
           }
         }
