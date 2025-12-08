@@ -22,13 +22,13 @@ function starsRowKeyboard() {
   return {
     inline_keyboard: [
       [
-        { text: '★', callback_data: 'fb:rate:1' },
-        { text: '★★', callback_data: 'fb:rate:2' },
-        { text: '★★★', callback_data: 'fb:rate:3' }
+        { text: '⭐️', callback_data: 'fb:rate:1' },
+        { text: '⭐️⭐️', callback_data: 'fb:rate:2' },
+        { text: '⭐️⭐️⭐️', callback_data: 'fb:rate:3' }
       ],
       [
-        { text: '★★★★', callback_data: 'fb:rate:4' },
-        { text: '★★★★★', callback_data: 'fb:rate:5' }
+        { text: '⭐️⭐️⭐️⭐️', callback_data: 'fb:rate:4' },
+        { text: '⭐️⭐️⭐️⭐️⭐️', callback_data: 'fb:rate:5' }
       ]
     ]
   };
