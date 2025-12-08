@@ -2002,7 +2002,306 @@ async refreshSpotlight() {
         }
         
         return items.slice(0, 3); // Гарантируем максимум 3 элемента
+    }(targetCount = null, forceReload = false) {
+    const cfg = window.ConfigManager?.get('feeds.community.spotlight') || {
+        targetCount: 12,
+        ratio: { latest: 1, favorites: 1 },
+        fallback: ['popularFavorites', 'popular'],
+        ttlMs: 10 * 60 * 1000
+    };
+
+    const count = targetCount || cfg.targetCount || 12;
+    const ratio = cfg.ratio || { latest: 1, favorites: 1 };
+    const ttlMs = cfg.ttlMs || 10 * 60 * 1000;
+
+    if (!forceReload && this.isSpotlightFresh(ttlMs) && (this._spotlightCache.items?.length || 0) >= count) {
+        this._applyLikeStateToArray(this._spotlightCache.items);
+        return this._spotlightCache.items.slice(0, count);
     }
+
+    const total = Math.max(1, (ratio.latest || 1) + (ratio.favorites || 1));
+    const needLatest = Math.ceil(count * (ratio.latest || 1) / total);
+    const needFavs = count - needLatest;
+
+    const latestLimit = needLatest + 3;
+    const favsLimit = needFavs + 5;
+
+    const [latestResp, favsResp] = await Promise.allSettled([
+        this.api.getCommunityLatestQuotes({ limit: latestLimit, noCache: !!forceReload }),
+        this.api.getCommunityRecentFavorites({ limit: favsLimit, noCache: !!forceReload })
+    ]);
+
+    const normalizeOwner = (q) => this._normalizeOwner(q);
+    const normKey = (q) => this._computeLikeKey(q.text || q.content || '', q.author || q.authorName || '');
+
+    let latest = [];
+    let favs = [];
+
+    if (latestResp.status === 'fulfilled' && latestResp.value?.success) {
+        const arr = latestResp.value.data || latestResp.value.quotes || latestResp.value.data?.quotes || [];
+        latest = arr.map(normalizeOwner);
+    }
+    if (favsResp.status === 'fulfilled' && favsResp.value?.success) {
+        const arr = favsResp.value.data || favsResp.value.quotes || favsResp.value.data?.quotes || [];
+        favs = arr.map(normalizeOwner);
+    }
+
+    latest = this._deduplicateQuotes(latest);
+    favs = this._deduplicateQuotes(favs);
+
+    const favKeys = new Set(favs.map(normKey));
+    const filteredLatest = latest.filter(q => !favKeys.has(normKey(q)));
+    latest = filteredLatest.length ? filteredLatest : latest;
+
+    this._applyLikeStateToArray(latest);
+    this._applyLikeStateToArray(favs);
+
+    const items = [];
+    const seen = new Set();
+    let li = 0, fi = 0;
+
+    for (let i = 0; i < count; i++) {
+        const useLatest = (i % 2 === 0);
+        let q = null;
+
+        if (useLatest && li < latest.length) q = latest[li++];
+        else if (!useLatest && fi < favs.length) q = favs[fi++];
+        else if (li < latest.length) q = latest[li++];
+        else if (fi < favs.length) q = favs[fi++];
+
+        if (!q) break;
+
+        const key = normKey(q);
+        if (seen.has(key)) { i--; continue; }
+        seen.add(key);
+
+        items.push({
+            kind: useLatest ? 'latest' : 'favorite',
+            id: q.id || q._id,
+            text: q.text || q.content || '',
+            author: q.author || q.authorName || '',
+            createdAt: q.createdAt,
+            favorites: q.favorites || q.count || q.likes || 0,
+            owner: q.owner,
+            user: q.user || q.owner || null,
+            likedByMe: !!q.likedByMe
+        });
+    }
+
+    const fillFrom = async (method, need) => {
+        if (need <= 0) return;
+        let resp;
+        try {
+            if (method === 'popularFavorites') {
+                resp = await this.api.getCommunityPopularFavorites({ limit: need + 5, noCache: !!forceReload });
+            } else if (method === 'popular') {
+                resp = await this.api.getCommunityPopularQuotes({ limit: need + 5, noCache: !!forceReload });
+            }
+            if (resp?.success) {
+                let arr = (resp.data || resp.quotes || resp.data?.quotes || []).map(normalizeOwner);
+                arr = this._deduplicateQuotes(arr);
+                this._applyLikeStateToArray(arr);
+                for (const q of arr) {
+                    if (items.length >= count) break;
+                    const key = normKey(q);
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    items.push({
+                        kind: 'fallback',
+                        id: q.id || q._id,
+                        text: q.text || q.content || '',
+                        author: q.author || q.authorName || '',
+                        createdAt: q.createdAt,
+                        favorites: q.favorites || q.count || q.likes || 0,
+                        owner: q.owner,
+                        user: q.user || q.owner || null,
+                        likedByMe: !!q.likedByMe
+                    });
+                }
+            }
+        } catch {}
+    };
+
+    if (items.length < count && Array.isArray(cfg.fallback)) {
+        const need = count - items.length;
+        for (const m of cfg.fallback) {
+            if (items.length >= count) break;
+            await fillFrom(m, need);
+        }
+    }
+
+    const finalItems = items.slice(0, count);
+    this._spotlightCache = { items: finalItems, ts: Date.now() };
+    this._initializeLikeStoreFromItems(finalItems);
+    this._applyLikeStateToArray(finalItems);
+    return finalItems;
+}
+
+async refreshSpotlight() {
+    try {
+        this.triggerHapticFeedback('medium');
+        const refreshBtn = document.getElementById('spotlightRefreshBtn');
+        if (refreshBtn) {
+            refreshBtn.innerHTML = '↻';
+            refreshBtn.disabled = true;
+            refreshBtn.setAttribute('aria-disabled', 'true');
+            refreshBtn.style.animation = 'spin 1s linear infinite';
+        }
+
+        if (this.feedFilter === 'following') {
+            const cfg = window.ConfigManager?.get('feeds.community.following') || { initialCount: 12 };
+            const current = this.followingFeed?.length || 0;
+            const useLimit = Math.max(current, cfg.initialCount || 12);
+            await this.loadFollowingFeed(useLimit);
+            requestAnimationFrame(() => {
+                const list = document.querySelector('.following-feed__list');
+                if (list) {
+                    list.innerHTML = this._renderFollowingQuotes(this.followingFeed || []);
+                    this._reconcileAllLikeData();
+                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                    this.attachQuoteCardListeners();
+                    this.attachFollowingLoadMoreListeners();
+                }
+            });
+        } else {
+            this._spotlightCache = { ts: 0, items: [] };
+            await this.buildSpotlightMix(null, true);
+            requestAnimationFrame(() => {
+                const spotlightSection = document.getElementById('spotlightSection');
+                const grid = spotlightSection?.querySelector('.spotlight-grid');
+                if (grid) {
+                    grid.innerHTML = this._renderSpotlightCards();
+                } else if (spotlightSection) {
+                    spotlightSection.outerHTML = this.renderSpotlightSection();
+                }
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                this.attachQuoteCardListeners();
+                this.attachCommunityCardListeners();
+            });
+        }
+
+        if (refreshBtn) {
+            refreshBtn.innerHTML = '↻';
+            refreshBtn.disabled = false;
+            refreshBtn.removeAttribute('aria-disabled');
+            refreshBtn.style.animation = '';
+        }
+        this.triggerHapticFeedback('light');
+    } catch (error) {
+        console.error('Error refreshing spotlight:', error);
+        this.showNotification('Ошибка обновления', 'error');
+        const btn = document.getElementById('spotlightRefreshBtn');
+        if (btn) {
+            btn.innerHTML = '↻';
+            btn.disabled = false;
+            btn.removeAttribute('aria-disabled');
+            btn.style.animation = '';
+        }
+    }
+}
+
+attachSpotlightRefreshButton() {
+    if (this._spotlightRefreshDelegated) return;
+    this._spotlightRefreshDelegated = true;
+
+    document.addEventListener('click', async (event) => {
+        const target = event.target;
+        if (target.id !== 'spotlightRefreshBtn' && !target.closest('#spotlightRefreshBtn')) return;
+
+        const refreshBtn = document.getElementById('spotlightRefreshBtn');
+        if (!refreshBtn || refreshBtn.disabled) return;
+
+        await this.refreshSpotlight();
+    });
+}
+
+async loadFollowingFeed(limit = null) {
+    const cfg = window.ConfigManager?.get('feeds.community.following') || { initialCount: 12 };
+    const useLimit = limit ?? (cfg.initialCount || 12);
+    try {
+        const response = await this.api.getFollowingFeed({ limit: useLimit });
+        if (response && response.success) {
+            const raw = response.data || response.quotes || response.data?.quotes || [];
+            this.followingFeed = this._deduplicateQuotes(raw.map(q => this._normalizeOwner(q)));
+            this._initializeLikeStoreFromItems(this.followingFeed);
+            this._applyLikeStateToArray(this.followingFeed);
+        } else {
+            this.followingFeed = [];
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки ленты от подписок:', error);
+        this.followingFeed = [];
+    }
+}
+
+renderFollowingFeed() {
+    if (!this.followingFeed || this.followingFeed.length === 0) {
+        return `
+            <div class="empty-following">
+                <div class="empty-following__icon">👥</div>
+                <div class="empty-following__title">Лента пуста</div>
+                <div class="empty-following__text">
+                    Подпишитесь на интересных читателей, чтобы видеть их цитаты здесь
+                </div>
+                <button class="empty-following__btn" onclick="window.communityPage.switchFeedFilter('all')">
+                    Посмотреть все цитаты
+                </button>
+            </div>
+        `;
+    }
+
+    const quotesHtml = this._renderFollowingQuotes(this.followingFeed);
+    const cfg = window.ConfigManager?.get('feeds.community.following') || { initialCount: 12 };
+    const showLoadMore = this.followingFeed.length >= (cfg.initialCount || 12);
+
+    return `
+        <div class="following-feed">
+            <div class="following-feed__list">
+                ${quotesHtml}
+            </div>
+            ${showLoadMore ? `
+                <div class="feed-load-more">
+                    <button class="feed-load-more__btn js-following-load-more">
+                        Показать ещё
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+async onClickFollowingLoadMore() {
+    try {
+        this.triggerHapticFeedback('light');
+        const cfg = window.ConfigManager?.get('feeds.community.following') || { loadMoreStep: 6 };
+        const step = cfg.loadMoreStep || 6;
+        const current = this.followingFeed?.length || 0;
+        const next = current + step;
+
+        const btn = document.querySelector('.js-following-load-more');
+        if (btn) { btn.disabled = true; btn.textContent = 'Загрузка...'; }
+
+        await this.loadFollowingFeed(next);
+
+        const list = document.querySelector('.following-feed__list');
+        if (list) {
+            list.innerHTML = this._renderFollowingQuotes(this.followingFeed);
+            this._reconcileAllLikeData();
+            this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+            this.attachQuoteCardListeners();
+            this.attachFollowingLoadMoreListeners();
+        }
+
+        if (btn) { btn.disabled = false; btn.textContent = 'Показать ещё'; }
+        this.triggerHapticFeedback('success');
+    } catch (e) {
+        console.error('Error loading more following quotes:', e);
+        this.showNotification('Ошибка загрузки', 'error');
+        const btn = document.querySelector('.js-following-load-more');
+        if (btn) { btn.disabled = false; btn.textContent = 'Показать ещё'; }
+    }
+}
 
     /**
      * Получение spotlight элементов с учетом кэша
