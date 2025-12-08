@@ -16,9 +16,8 @@ const feedbackStates = new Map();
 /**
  * Register feedback handlers with the bot
  * @param {Object} bot - Telegraf bot instance
- * @param {String} appWebAppUrl - URL of the Mini App (optional, for future deep linking)
  */
-function registerFeedbackHandlers(bot, appWebAppUrl = '') {
+function registerFeedbackHandlers(bot) {
   if (!bot) {
     logger.error('❌ Cannot register feedback handlers: bot is null or undefined');
     return;
