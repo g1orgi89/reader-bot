@@ -73,6 +73,16 @@ class CronService {
       });
       this.jobs.set('monthly_reports_notification', monthlyReportsNotificationJob);
 
+      // Monthly feedback request: 9th day of each month at 12:00 MSK
+      const monthlyFeedbackJob = cron.schedule('0 12 9 * *', async () => {
+        logger.info('📋 Sending monthly feedback requests...');
+        await this.sendMonthlyFeedbackRequests();
+      }, {
+        timezone: "Europe/Moscow",
+        scheduled: true
+      });
+      this.jobs.set('monthly_feedback_request', monthlyFeedbackJob);
+
       // Очистка старых данных: каждый день в 3:00 МСК
       const cleanupJob = cron.schedule('0 3 * * *', async () => {
         logger.info('📖 Running daily cleanup...');
@@ -692,6 +702,82 @@ class CronService {
     }
 
     return stats;
+  }
+
+  /**
+   * Send monthly feedback requests to active users
+   * Called by cron job on 9th of each month at 12:00 MSK
+   * @returns {Promise<void>}
+   */
+  async sendMonthlyFeedbackRequests() {
+    try {
+      logger.info('📋 Starting monthly feedback request...');
+
+      if (!this.bot) {
+        logger.error('📋 Bot not initialized, cannot send feedback requests');
+        return;
+      }
+
+      // Import feedback handler
+      const { sendMonthlyFeedbackRequest } = require('./telegram/feedbackHandlers');
+
+      // Get active users (users with at least one quote in the last 30 days)
+      const { UserProfile, Quote } = require('../models');
+      
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // Get users who have created quotes in the last 30 days
+      const activeQuoteUserIds = await Quote.distinct('userId', {
+        createdAt: { $gte: thirtyDaysAgo }
+      });
+
+      logger.info(`📋 Found ${activeQuoteUserIds.length} users with recent quotes`);
+
+      // Also get users who completed onboarding in the last 30 days
+      const recentUsers = await UserProfile.find({
+        isOnboardingComplete: true,
+        updatedAt: { $gte: thirtyDaysAgo }
+      }).select('userId').lean();
+
+      const recentUserIds = recentUsers.map(u => u.userId);
+
+      // Combine both lists and remove duplicates
+      const allActiveUserIds = [...new Set([...activeQuoteUserIds, ...recentUserIds])];
+
+      logger.info(`📋 Total active users to send feedback request: ${allActiveUserIds.length}`);
+
+      if (allActiveUserIds.length === 0) {
+        logger.info('📋 No active users found, skipping feedback requests');
+        return;
+      }
+
+      // Send feedback requests
+      const result = await sendMonthlyFeedbackRequest(this.bot, allActiveUserIds);
+
+      logger.info(`📋 Monthly feedback requests sent: ${result.sent} successful, ${result.failed} failed`);
+
+      // Notify admin if configured
+      if (process.env.ADMIN_TELEGRAM_ID && this.bot) {
+        const adminMessage = `📋 *Месячные запросы обратной связи отправлены*\n\n` +
+          `✅ Отправлено: ${result.sent}\n` +
+          `❌ Ошибки: ${result.failed}\n` +
+          `📊 Всего активных пользователей: ${allActiveUserIds.length}`;
+
+        try {
+          await this.bot.telegram.sendMessage(
+            process.env.ADMIN_TELEGRAM_ID,
+            adminMessage,
+            { parse_mode: 'Markdown' }
+          );
+        } catch (error) {
+          logger.error(`📋 Failed to send admin notification: ${error.message}`);
+        }
+      }
+
+    } catch (error) {
+      logger.error(`📋 Error sending monthly feedback requests: ${error.message}`, error);
+    }
   }
 }
 
