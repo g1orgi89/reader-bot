@@ -88,13 +88,12 @@ function registerFeedbackHandlers(bot) {
       // Lookup userId by telegramId (optional)
       let userId = null;
       try {
-        const userProfile = await UserProfile.findOne({ userId: telegramId }).lean();
+        const userProfile = await UserProfile.findOne({ telegramId }).select('_id').lean();
         if (userProfile) {
           userId = userProfile._id;
         }
       } catch (lookupError) {
-        logger.warn(`⚠️ Could not lookup userId for telegramId ${telegramId}:`, lookupError.message);
-        // Continue without userId - it's optional
+        logger.warn(`⚠️ Не удалось найти userId по telegramId ${telegramId}: ${lookupError.message}`);
       }
 
       // Create a single Feedback document
