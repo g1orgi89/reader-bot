@@ -5,13 +5,32 @@
  */
 
 const Feedback = require('../../models/Feedback');
+const { UserProfile } = require('../../models');
 const logger = require('../../utils/logger');
 
 /**
  * State management for feedback collection
- * Maps userId to current feedback state
+ * Maps telegramId to { feedbackId, timestamp } for awaiting comment on existing feedback
  */
-const feedbackStates = new Map();
+const awaitingOnce = new Map();
+
+/**
+ * Create keyboard with one-row golden star buttons
+ * @returns {Object} Inline keyboard markup with 5 star buttons in a single row
+ */
+function starsRowKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        { text: '⭐️☆☆☆☆', callback_data: 'fb:rate:1' },
+        { text: '⭐️⭐️☆☆☆', callback_data: 'fb:rate:2' },
+        { text: '⭐️⭐️⭐️☆☆', callback_data: 'fb:rate:3' },
+        { text: '⭐️⭐️⭐️⭐️☆', callback_data: 'fb:rate:4' },
+        { text: '⭐️⭐️⭐️⭐️⭐️', callback_data: 'fb:rate:5' }
+      ]
+    ]
+  };
+}
 
 /**
  * Register feedback handlers with the bot
@@ -43,7 +62,7 @@ function registerFeedbackHandlers(bot) {
   bot.action(/^fb:rate:(\d)$/, async (ctx) => {
     try {
       const rating = parseInt(ctx.match[1]);
-      const userId = ctx.from.id.toString();
+      const telegramId = ctx.from.id.toString();
 
       // Validate rating
       if (rating < 1 || rating > 5) {
@@ -54,13 +73,38 @@ function registerFeedbackHandlers(bot) {
       // Answer callback query immediately
       await ctx.answerCbQuery();
 
+      // Lookup userId by telegramId (optional)
+      let userId = null;
+      try {
+        const userProfile = await UserProfile.findOne({ userId: telegramId }).lean();
+        if (userProfile) {
+          userId = userProfile._id;
+        }
+      } catch (lookupError) {
+        logger.warn(`⚠️ Could not lookup userId for telegramId ${telegramId}:`, lookupError.message);
+        // Continue without userId - it's optional
+      }
+
+      // Create a single Feedback document
+      const feedback = new Feedback({
+        telegramId,
+        userId, // May be null
+        rating,
+        context: 'monthly_report',
+        source: 'telegram',
+        text: '' // Will be updated later if user sends comment
+      });
+
+      await feedback.save();
+      logger.info(`✅ Feedback created: ${feedback._id} from user ${telegramId}, rating: ${rating}`);
+
       // Visual star representations
-      const starDisplay = ['★☆☆☆☆', '★★☆☆☆', '★★★☆☆', '★★★★☆', '★★★★★'][rating - 1];
+      const starDisplay = ['⭐️☆☆☆☆', '⭐️⭐️☆☆☆', '⭐️⭐️⭐️☆☆', '⭐️⭐️⭐️⭐️☆', '⭐️⭐️⭐️⭐️⭐️'][rating - 1];
 
       // Edit the original message to remove keyboard and show selected rating
       try {
         await ctx.editMessageText(
-          `Ваша оценка: ${starDisplay}\n\nСпасибо!`,
+          `Ваша оценка: ${starDisplay}\n\nСпасибо за вашу оценку!`,
           { reply_markup: { inline_keyboard: [] } }
         );
       } catch (editError) {
@@ -68,42 +112,23 @@ function registerFeedbackHandlers(bot) {
         logger.warn('⚠️ Could not edit message:', editError.message);
       }
 
-      // Save rating to database immediately
-      await saveFeedback(userId, rating, '', 'monthly_report');
-
-      // Store state for comment follow-up
-      feedbackStates.set(userId, {
-        rating,
-        timestamp: Date.now(),
-        messageId: ctx.callbackQuery.message.message_id
+      // Store feedbackId in awaitingOnce state for comment follow-up
+      awaitingOnce.set(telegramId, {
+        feedbackId: feedback._id.toString(),
+        timestamp: Date.now()
       });
 
       // Prompt for comment with ForceReply
-      if (rating <= 3) {
-        // For low ratings, enforce minimum length
-        await ctx.reply(
-          `Пожалуйста, расскажите, что можно улучшить в приложении «Читатель»?\n` +
-          `(Минимум 10 символов, максимум 300)`,
-          {
-            reply_markup: {
-              force_reply: true,
-              selective: true
-            }
+      await ctx.reply(
+        `Поделитесь своим мнением о приложении «Читатель»:`,
+        {
+          reply_markup: {
+            force_reply: true,
+            input_field_placeholder: 'Ваши мысли и предложения…',
+            selective: true
           }
-        );
-      } else {
-        // For high ratings, comment is optional
-        await ctx.reply(
-          `Рады, что вам нравится приложение «Читатель»! 📚✨\n\n` +
-          `Если хотите что-то добавить, напишите комментарий (необязательно, до 300 символов):`,
-          {
-            reply_markup: {
-              force_reply: true,
-              selective: true
-            }
-          }
-        );
-      }
+        }
+      );
     } catch (error) {
       logger.error('❌ Error handling feedback rating callback:', error);
       await ctx.answerCbQuery('Ошибка при сохранении оценки');
@@ -112,86 +137,48 @@ function registerFeedbackHandlers(bot) {
 
   /**
    * Handle text messages as potential feedback comments
-   * Only processes if user is in feedback state and message is a reply to our ForceReply
+   * Only processes if user is in awaitingOnce state and message is a reply to our ForceReply
    */
   bot.on('text', async (ctx, next) => {
     try {
-      const userId = ctx.from.id.toString();
-      const state = feedbackStates.get(userId);
+      const telegramId = ctx.from.id.toString();
+      const state = awaitingOnce.get(telegramId);
 
       // Check if this is a reply to our ForceReply prompt
       const isReplyToBot = ctx.message.reply_to_message && 
                           ctx.message.reply_to_message.from.is_bot;
 
       // Check if this text is a feedback comment
-      if (state && state.rating && isReplyToBot && !ctx.message.text.startsWith('/')) {
+      if (state && state.feedbackId && isReplyToBot && !ctx.message.text.startsWith('/')) {
         const text = ctx.message.text.trim();
 
-        // For low ratings (≤3), enforce minimum length of 10 characters
-        if (state.rating <= 3 && text.length < 10) {
-          await ctx.reply(
-            `Пожалуйста, напишите чуть подробнее (минимум 10 символов).\n` +
-            `Это поможет нам лучше понять, что улучшить в приложении «Читатель».`,
-            {
-              reply_markup: {
-                force_reply: true,
-                selective: true
-              }
-            }
-          );
-          return;
-        }
-
-        // Validate text length (max 300 characters)
-        if (text.length > 300) {
-          await ctx.reply(
-            `Пожалуйста, сократите комментарий до 300 символов.\n` +
-            `Текущая длина: ${text.length} символов.`,
-            {
-              reply_markup: {
-                force_reply: true,
-                selective: true
-              }
-            }
-          );
-          return;
-        }
-
-        // Update the existing feedback record with the comment
+        // Update the existing feedback document by _id with the comment text
         try {
-          // Find the most recent feedback for this user and update it
-          const feedback = await Feedback.findOneAndUpdate(
+          const feedback = await Feedback.findByIdAndUpdate(
+            state.feedbackId,
             { 
-              telegramId: userId,
-              rating: state.rating,
-              text: '' // Find the one without comment (just saved)
-            },
-            { 
-              text: text.substring(0, 300),
+              text: text,
               updatedAt: new Date()
             },
             { 
-              sort: { createdAt: -1 },
               new: true
             }
           );
 
           if (feedback) {
-            logger.info(`✅ Feedback updated with comment: ${feedback._id}`);
+            logger.info(`✅ Feedback ${feedback._id} updated with comment`);
+            await ctx.reply('Спасибо! Ваш комментарий сохранён 💬');
           } else {
-            // If not found, create new feedback with comment
-            await saveFeedback(userId, state.rating, text);
+            logger.error(`❌ Feedback ${state.feedbackId} not found for update`);
+            await ctx.reply('Спасибо за ваш отзыв!');
           }
         } catch (dbError) {
           logger.error('❌ Error updating feedback with comment:', dbError);
-          // Fallback: save as new feedback
-          await saveFeedback(userId, state.rating, text);
+          await ctx.reply('Спасибо за ваш отзыв!');
         }
 
-        await ctx.reply('Спасибо! Ваш комментарий сохранён 💬');
-
         // Clean up state
-        feedbackStates.delete(userId);
+        awaitingOnce.delete(telegramId);
         return;
       }
 
@@ -211,54 +198,12 @@ function registerFeedbackHandlers(bot) {
  * @param {Object} ctx - Telegraf context
  */
 async function sendFeedbackPrompt(ctx) {
-  const keyboard = {
-    inline_keyboard: [
-      [
-        { text: '★☆☆☆☆', callback_data: 'fb:rate:1' },
-        { text: '★★☆☆☆', callback_data: 'fb:rate:2' },
-        { text: '★★★☆☆', callback_data: 'fb:rate:3' }
-      ],
-      [
-        { text: '★★★★☆', callback_data: 'fb:rate:4' },
-        { text: '★★★★★', callback_data: 'fb:rate:5' }
-      ]
-    ]
-  };
-
   await ctx.reply(
     `Как вам приложение «Читатель» в этом месяце?`,
     {
-      reply_markup: keyboard
+      reply_markup: starsRowKeyboard()
     }
   );
-}
-
-/**
- * Save feedback to database
- * @param {String} telegramId - User's Telegram ID
- * @param {Number} rating - Rating (1-5)
- * @param {String} text - Feedback text (optional)
- * @param {String} context - Feedback context (default: 'monthly_report')
- */
-async function saveFeedback(telegramId, rating, text = '', context = 'monthly_report') {
-  try {
-    const feedback = new Feedback({
-      telegramId,
-      rating,
-      text: text.trim().substring(0, 300), // Ensure max 300 chars
-      context,
-      source: 'telegram'
-    });
-
-    await feedback.save();
-    
-    logger.info(`✅ Feedback saved: ${feedback._id} from user ${telegramId}, rating: ${rating}`);
-    
-    return feedback;
-  } catch (error) {
-    logger.error('❌ Error saving feedback:', error);
-    throw error;
-  }
 }
 
 /**
@@ -280,25 +225,11 @@ async function sendMonthlyFeedbackRequest(bot, userIds = []) {
 
   for (const userId of userIds) {
     try {
-      const keyboard = {
-        inline_keyboard: [
-          [
-            { text: '★☆☆☆☆', callback_data: 'fb:rate:1' },
-            { text: '★★☆☆☆', callback_data: 'fb:rate:2' },
-            { text: '★★★☆☆', callback_data: 'fb:rate:3' }
-          ],
-          [
-            { text: '★★★★☆', callback_data: 'fb:rate:4' },
-            { text: '★★★★★', callback_data: 'fb:rate:5' }
-          ]
-        ]
-      };
-
       await bot.telegram.sendMessage(
         userId,
         `Как вам приложение «Читатель» в этом месяце?`,
         {
-          reply_markup: keyboard
+          reply_markup: starsRowKeyboard()
         }
       );
 
@@ -325,9 +256,9 @@ function cleanupOldStates() {
   const oneHourAgo = Date.now() - (60 * 60 * 1000);
   let cleaned = 0;
 
-  for (const [userId, state] of feedbackStates.entries()) {
+  for (const [telegramId, state] of awaitingOnce.entries()) {
     if (state.timestamp < oneHourAgo) {
-      feedbackStates.delete(userId);
+      awaitingOnce.delete(telegramId);
       cleaned++;
     }
   }
@@ -344,5 +275,5 @@ module.exports = {
   registerFeedbackHandlers,
   sendFeedbackPrompt,
   sendMonthlyFeedbackRequest,
-  saveFeedback
+  starsRowKeyboard
 };

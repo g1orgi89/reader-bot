@@ -32,10 +32,10 @@ const feedbackSchema = new mongoose.Schema({
   },
   text: {
     type: String,
-    maxlength: 300,
+    maxlength: 4096,
     trim: true,
     default: ''
-    // Optional feedback comment (max 300 characters)
+    // Optional feedback comment (up to 4096 characters, no hard limit communicated to users)
   },
   context: {
     type: String,
@@ -145,9 +145,9 @@ feedbackSchema.virtual('ratingStars').get(function() {
  * Pre-save hook to sanitize text input
  */
 feedbackSchema.pre('save', function(next) {
-  // Trim and limit text to 300 characters
+  // Trim and limit text to 4096 characters
   if (this.text) {
-    this.text = this.text.trim().substring(0, 300);
+    this.text = this.text.trim().substring(0, 4096);
   }
   
   // Ensure tags are trimmed and lowercase

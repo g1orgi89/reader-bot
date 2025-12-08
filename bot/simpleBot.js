@@ -40,6 +40,11 @@ class SimpleTelegramBot {
       this._setupGlobalMiddleware();
       this._setupCommands();
       this._setupMessageHandlers();
+      
+      // Register feedback handlers after message handlers
+      const { registerFeedbackHandlers } = require('../server/services/telegram/feedbackHandlers');
+      registerFeedbackHandlers(this.bot);
+      
       this._setupErrorHandling();
       
       this.isInitialized = true;
@@ -107,10 +112,6 @@ class SimpleTelegramBot {
    * @private
    */
   _setupCommands() {
-    // Register feedback handlers first
-    const { registerFeedbackHandlers } = require('../server/services/telegram/feedbackHandlers');
-    registerFeedbackHandlers(this.bot);
-    
     // /start: после приветствия BotFather отправляем только «Как пользоваться...»
     this.bot.start(async (ctx) => {
       // 🔍 DIAGNOSTIC: Enhanced /start command logging

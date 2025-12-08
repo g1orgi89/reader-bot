@@ -5096,11 +5096,11 @@ router.post('/feedback', async (req, res) => {
       });
     }
     
-    // Validate text length (max 300 chars)
-    if (feedbackText.length > 300) {
+    // Validate text length (max 4096 chars - no hard limit communicated to users)
+    if (feedbackText.length > 4096) {
       return res.status(400).json({
         success: false,
-        error: 'Feedback text must be 300 characters or less'
+        error: 'Feedback text must be 4096 characters or less'
       });
     }
     
