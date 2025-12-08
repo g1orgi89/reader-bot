@@ -155,29 +155,33 @@ class SimpleTelegramBot {
     });
 
     // /help command - brief help
-    this.bot.help(async (ctx) => {
+    this.bot.on('text', async (ctx, next) => {
       try {
-        const helpMessage = `📖 *Приложение «Читатель» - Помощь*
-
-Этот бот является точкой входа в приложение «Читатель».
-
-*Основные возможности:*
-• Открытие Mini App для работы с цитатами
-• Получение уведомлений от приложения
-
-*Команды:*
-/start - Главное меню с кнопкой входа в приложение
-/help - Эта справка
-
-Для полноценной работы используйте кнопку "📱 Открыть приложение".`;
-
-        await ctx.reply(helpMessage, { parse_mode: 'Markdown' });
-        
-        logger.info(`🤖 /help command handled for user ${ctx.from.id}`);
-        
+        // Skip if it's a command — но передай дальше, чтобы /feedback обработался командным хендлером
+        if (ctx.message?.text?.startsWith('/')) {
+          return next();
+        }
+  
+        // Skip if this is a reply to a ForceReply prompt (feedback flow) — передай дальше, чтобы feedbackHandlers поймал комментарий
+        if (ctx.message?.reply_to_message) {
+          return next();
+        }
+  
+        const responseMessage = `🤖 Этот бот служит точкой входа в приложение «Читатель».
+  
+  Для работы с цитатами, поиска и анализа используйте приложение.
+  
+  Нажмите /start чтобы открыть приложение.`;
+  
+        const keyboard = Markup.inlineKeyboard([
+          Markup.button.webApp('📱 Открыть приложение', this.config.appWebAppUrl)
+        ]);
+  
+        await ctx.reply(responseMessage, keyboard);
+        logger.info(`🤖 Text message handled for user ${ctx.from.id}`);
       } catch (error) {
-        logger.error(`❌ Error in /help command: ${error.message}`);
-        await ctx.reply('📖 Используйте /start для входа в приложение или кнопку меню для навигации.');
+        logger.error(`❌ Error handling text message: ${error.message}`);
+        await ctx.reply('🤖 Используйте /start для входа в приложение.');
       }
     });
   }
