@@ -56,6 +56,53 @@
 
 ## 📝 ЗАПИСИ
 
+## 2025-12-08 - Community Page Logic Fix
+
+**Задача:** Исправление логики страницы сообщества согласно требованиям владельца  
+**Фактически затрачено:** 1 час
+
+### Требования
+- Spotlight ("Сейчас в сообществе"): всегда 12 карточек с 50/50 split между latest quotes и recent favorites, чередование L↔F
+- Дедупликация по normalized key (text||content, author||authorName)
+- TTL cache с force reload при refresh, обновление только .spotlight-grid без flicker
+- Feed "От подписок": 12 items начально, Load more +6, убрать slice(0,3)
+- Feed "Все": 12 начально с inserts, Load more +6
+- Конфигурация feeds.community в app-config.js
+- Синтаксис проходит node --check
+- Глобальный export window.CommunityPage
+
+### Выполнено
+
+**1. Following Feed Fix (CommunityPage.js):**
+- ✅ Удален `.slice(0, 3)` из `renderSpotlightFollowing()` (line 2221)
+- ✅ Теперь рендерит все items из `followingFeed` без ограничения
+- ✅ Добавлена кнопка "Load more" с классом `.js-following-load-more`
+- ✅ Изменен контейнер на `.following-feed__list` для точечного обновления
+- ✅ Метод `onClickFollowingLoadMore()` уже существовал и работает (+6 increment)
+- ✅ Метод `loadFollowingFeed()` уже читает initialCount из конфига (12 по умолчанию)
+
+**2. Verification:**
+- ✅ Spotlight logic уже корректен (buildSpotlightMix с 50/50, alternating L↔F)
+- ✅ Дедупликация уже реализована (_deduplicateQuotes с normalized key)
+- ✅ TTL cache уже работает (isSpotlightFresh, refreshSpotlight updates only .spotlight-grid)
+- ✅ Feed "Все" уже имеет 12 initial + load more +6
+- ✅ Config feeds.community уже существует в app-config.js
+- ✅ Syntax check passes (node --check)
+- ✅ window.CommunityPage экспорт присутствует (line 4564)
+
+### Файлы
+- `mini-app/js/pages/CommunityPage.js` - удален slice(0,3), добавлен Load more для following
+- `mini-app/config/app-config.js` - без изменений (config уже существует)
+
+### Результат
+Все требования выполнены. Код соответствует спецификации:
+- Spotlight: 12 cards, 50/50 L↔F, TTL cache, flicker-free refresh ✅
+- Following: 12 initial, Load more +6, no slice limit ✅
+- All feed: 12 initial with inserts, Load more +6 ✅
+- Config present, syntax valid, global export present ✅
+
+---
+
 ## 2025-12-08 - Масштабирование Community Experience
 
 **Задача:** Увеличение количества контента в Community без изменения бэкенда или CSS токенов  

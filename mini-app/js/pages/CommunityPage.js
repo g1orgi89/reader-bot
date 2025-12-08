@@ -2217,8 +2217,8 @@ async refreshSpotlight() {
             `;
         }
     
-        // Берём до 3 цитат от подписок
-        const cards = this.followingFeed.slice(0, 3).map((quote, _index) => {
+        // Render all items from followingFeed (no slice limit)
+        const cards = this.followingFeed.map((quote, _index) => {
             const owner = quote.owner || quote.user || {};
             const userName = owner.name || owner.firstName || 'Читатель';
             const visibleName = userName.length > 20 ? userName.substring(0, 17) + '...' : userName;
@@ -2265,15 +2265,25 @@ async refreshSpotlight() {
             `;
         }).join('');
     
+        // Load more button - show if we have data loaded
+        const loadMoreBtn = this.followingFeed && this.followingFeed.length > 0 
+            ? `<div class="feed-load-more-container">
+                <button class="feed-load-more-btn js-following-load-more" aria-label="Показать ещё цитаты">
+                    Показать ещё
+                </button>
+            </div>`
+            : '';
+    
         return `
             <section id="spotlightSection" class="community-spotlight">
                 <div class="spotlight-header">
                     <h3 class="spotlight-title">✨ Подписки</h3>
                     <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" aria-label="Обновить">↻</button>
                 </div>
-                <div class="spotlight-grid">
+                <div class="following-feed__list">
                     ${cards}
                 </div>
+                ${loadMoreBtn}
             </section>
         `;
     }
