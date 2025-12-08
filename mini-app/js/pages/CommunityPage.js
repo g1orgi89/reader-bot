@@ -1672,164 +1672,211 @@ async refreshSpotlight() {
      * @param {boolean} forceReload - Принудительная перезагрузка без кеша
      */
     async buildSpotlightMix(targetCount = null, forceReload = false) {
-        // Читаем конфигурацию
-        const config = window.ConfigManager?.get('feeds.community.spotlight') || {
-            targetCount: 12,
-            ratio: { latest: 1, favorites: 1 },
-            fallback: ['popularFavorites', 'popular'],
-            ttlMs: 10 * 60 * 1000
-        };
-        
-        const count = targetCount || config.targetCount || 12;
-        const ratio = config.ratio || { latest: 1, favorites: 1 };
-        const ttlMs = config.ttlMs || 10 * 60 * 1000;
-        
-        // Проверяем свежесть кеша
-        if (!forceReload && this.isSpotlightFresh(ttlMs) && this._spotlightCache.items.length >= count) {
-            console.log('✅ Используем кеш spotlight (свежий и достаточно элементов)');
-            return this._spotlightCache.items.slice(0, count);
-        }
-        
-        // Вычисляем нужное количество latest и favorites
-        const totalRatio = ratio.latest + ratio.favorites;
-        const needLatest = Math.ceil((count * ratio.latest) / totalRatio);
-        const needFavs = Math.ceil((count * ratio.favorites) / totalRatio);
-        
-        // Добавляем buffer для overfetch (чтобы было из чего выбрать после дедупликации)
-        const bufferLatest = needLatest + 3;
-        const bufferFavs = needFavs + 5;
-        
-        console.log(`🔄 Загружаем spotlight: target=${count}, latest=${needLatest}(+3), favs=${needFavs}(+5)`);
-        
-        // Загружаем данные параллельно
-        const [latestResp, favsResp] = await Promise.allSettled([
-            this.api.getCommunityLatestQuotes({ limit: bufferLatest, noCache: forceReload }),
-            this.api.getCommunityRecentFavorites({ limit: bufferFavs, noCache: forceReload })
-        ]);
-        
-        let latestQuotes = [];
-        let favQuotes = [];
-        
-        if (latestResp.status === 'fulfilled' && latestResp.value?.success) {
-            latestQuotes = (latestResp.value.data || []).map(q => this._normalizeOwner(q));
-        }
-        
-        if (favsResp.status === 'fulfilled' && favsResp.value?.success) {
-            favQuotes = (favsResp.value.data || []).map(q => this._normalizeOwner(q));
-        }
-        
-        // Дедупликация внутри каждой группы
-        latestQuotes = this._deduplicateQuotes(latestQuotes);
-        favQuotes = this._deduplicateQuotes(favQuotes);
-        
-        // Применяем состояние лайков
-        this._applyLikeStateToArray(latestQuotes);
-        this._applyLikeStateToArray(favQuotes);
-        
-        // Собираем итоговый список с чередованием L↔F
-        const items = [];
-        const seenKeys = new Set();
-        let latestIdx = 0;
-        let favsIdx = 0;
-        
-        for (let i = 0; i < count; i++) {
-            // Определяем, какую группу использовать для текущего слота
-            const useLatest = (i % 2 === 0); // Четные - latest, нечетные - favorites
-            
-            let quote = null;
-            
-            if (useLatest && latestIdx < latestQuotes.length) {
-                quote = latestQuotes[latestIdx++];
-            } else if (!useLatest && favsIdx < favQuotes.length) {
-                quote = favQuotes[favsIdx++];
-            } else if (latestIdx < latestQuotes.length) {
-                // Fallback: берем из latest если favorites закончились
-                quote = latestQuotes[latestIdx++];
-            } else if (favsIdx < favQuotes.length) {
-                // Fallback: берем из favorites если latest закончились
-                quote = favQuotes[favsIdx++];
-            }
-            
-            if (!quote) break; // Закончились оба источника
-            
-            const key = this._computeLikeKey(quote.text, quote.author);
-            if (seenKeys.has(key)) {
-                i--; // Повторяем итерацию если встретили дубликат
-                continue;
-            }
-            
-            seenKeys.add(key);
+      const cfg = window.ConfigManager?.get('feeds.community.spotlight') || {
+        targetCount: 12,
+        ratio: { latest: 1, favorites: 1 },
+        fallback: ['popularFavorites','popular'],
+        ttlMs: 10 * 60 * 1000
+      };
+      const count = targetCount || cfg.targetCount || 12;
+      const ttlMs = cfg.ttlMs || 10 * 60 * 1000;
+    
+      // Кэш, если свежий и достаточный
+      if (!forceReload && this.isSpotlightFresh(ttlMs) && (this._spotlightCache?.items?.length || 0) >= count) {
+        this._applyLikeStateToArray(this._spotlightCache.items);
+        return this._spotlightCache.items.slice(0, count);
+      }
+    
+      const ratio = cfg.ratio || { latest: 1, favorites: 1 };
+      const total = Math.max(1, (ratio.latest || 1) + (ratio.favorites || 1));
+      const needLatest = Math.ceil(count * (ratio.latest || 1) / total);
+      const needFavs   = count - needLatest;
+    
+      // Параллельно грузим источники (по логам latest есть, favs часто 0)
+      const [latestResp, favsResp] = await Promise.allSettled([
+        this.api.getCommunityLatestQuotes({ limit: needLatest + 3, noCache: !!forceReload }),
+        this.api.getCommunityRecentFavorites({ limit: needFavs + 5, noCache: !!forceReload })
+      ]);
+    
+      const normalize = (q) => this._normalizeOwner(q);
+      const normKey   = (q) => this._computeLikeKey(q.text || q.content || '', q.author || q.authorName || '');
+    
+      let latest = [];
+      let favs   = [];
+    
+      // Надежный парсинг: data | quotes | data.quotes
+      if (latestResp.status === 'fulfilled' && latestResp.value?.success) {
+        const arr = latestResp.value.data || latestResp.value.quotes || latestResp.value.data?.quotes || [];
+        latest = arr.map(normalize);
+      }
+      if (favsResp.status === 'fulfilled' && favsResp.value?.success) {
+        const arr = favsResp.value.data || favsResp.value.quotes || favsResp.value.data?.quotes || [];
+        favs = arr.map(normalize);
+      }
+    
+      // Дедуп внутри
+      latest = this._deduplicateQuotes(latest);
+      favs   = this._deduplicateQuotes(favs);
+    
+      // Мягкий дедуп latest против favs — не обнулять latest целиком
+      const favKeys = new Set(favs.map(normKey));
+      const filteredLatest = latest.filter(q => !favKeys.has(normKey(q)));
+      latest = filteredLatest.length ? filteredLatest : latest;
+    
+      // Применить лайки
+      this._applyLikeStateToArray(latest);
+      this._applyLikeStateToArray(favs);
+    
+      // Сборка: L↔F, затем ДОБОР из latest, если favs мало/нет, потом fallback
+      const items = [];
+      const seen = new Set();
+      let li = 0, fi = 0;
+    
+      // Основной интерлив
+      for (let i = 0; i < count; i++) {
+        const useLatest = (i % 2 === 0);
+        let q = null;
+    
+        if (useLatest && li < latest.length) q = latest[li++];
+        else if (!useLatest && fi < favs.length) q = favs[fi++];
+        else if (li < latest.length) q = latest[li++];
+        else if (fi < favs.length) q = favs[fi++];
+    
+        if (!q) break;
+    
+        const key = normKey(q);
+        if (seen.has(key)) { i--; continue; }
+        seen.add(key);
+    
+        items.push({
+          // Если избранных нет (fi==0 и favs пуст), помечаем как latest
+          kind: useLatest ? 'latest' : (favs.length === 0 ? 'latest' : 'favorite'),
+          id: q.id || q._id,
+          text: q.text || q.content || '',
+          author: q.author || q.authorName || '',
+          createdAt: q.createdAt,
+          favorites: q.favorites || q.count || q.likes || 0,
+          owner: q.owner,
+          user: q.user || q.owner || null,
+          likedByMe: !!q.likedByMe
+        });
+      }
+    
+      // Дополнительный добор из latest, если favs пустые или мало — доводим до count
+      while (items.length < count && li < latest.length) {
+        const q = latest[li++];
+        const key = normKey(q);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        items.push({
+          kind: 'latest',
+          id: q.id || q._id,
+          text: q.text || q.content || '',
+          author: q.author || q.authorName || '',
+          createdAt: q.createdAt,
+          favorites: q.favorites || q.count || q.likes || 0,
+          owner: q.owner,
+          user: q.user || q.owner || null,
+          likedByMe: !!q.likedByMe
+        });
+      }
+    
+      // Fallback из популярных до достижения count
+      const fillFrom = async (method) => {
+        if (items.length >= count) return;
+        let resp;
+        try {
+          if (method === 'popularFavorites') {
+            resp = await this.api.getCommunityPopularFavorites({ limit: (count - items.length) + 5, noCache: !!forceReload });
+          } else if (method === 'popular') {
+            resp = await this.api.getCommunityPopularQuotes({ limit: (count - items.length) + 5, noCache: !!forceReload });
+          }
+        } catch { resp = null; }
+    
+        if (resp?.success) {
+          let arr = (resp.data || resp.quotes || resp.data?.quotes || []).map(normalize);
+          arr = this._deduplicateQuotes(arr);
+          this._applyLikeStateToArray(arr);
+          for (const q of arr) {
+            if (items.length >= count) break;
+            const key = normKey(q);
+            if (seen.has(key)) continue;
+            seen.add(key);
             items.push({
-                kind: useLatest ? 'latest' : 'favorite',
-                id: quote.id || quote._id,
-                text: quote.text,
-                author: quote.author,
-                createdAt: quote.createdAt,
-                favorites: quote.favorites || 0,
-                owner: quote.owner,
-                user: quote.user || quote.owner || null,
-                likedByMe: !!quote.likedByMe
+              kind: 'fallback',
+              id: q.id || q._id,
+              text: q.text || q.content || '',
+              author: q.author || q.authorName || '',
+              createdAt: q.createdAt,
+              favorites: q.favorites || q.count || q.likes || 0,
+              owner: q.owner,
+              user: q.user || q.owner || null,
+              likedByMe: !!q.likedByMe
             });
+          }
         }
-        
-        // Если все еще не хватает - используем fallback
-        if (items.length < count && config.fallback) {
-            console.log(`⚠️ Не хватает элементов (${items.length}/${count}), используем fallback`);
-            
-            for (const fallbackMethod of config.fallback) {
-                if (items.length >= count) break;
-                
-                try {
-                    let fallbackData = [];
-                    const needed = count - items.length;
-                    
-                    if (fallbackMethod === 'popularFavorites') {
-                        const resp = await this.api.getCommunityPopularFavorites({ limit: needed + 5, noCache: forceReload });
-                        if (resp?.success) fallbackData = resp.data || [];
-                    } else if (fallbackMethod === 'popular') {
-                        const resp = await this.api.getCommunityPopularQuotes({ limit: needed + 5, noCache: forceReload });
-                        if (resp?.success) fallbackData = resp.data || [];
-                    }
-                    
-                    fallbackData = this._deduplicateQuotes(fallbackData.map(q => this._normalizeOwner(q)));
-                    this._applyLikeStateToArray(fallbackData);
-                    
-                    for (const quote of fallbackData) {
-                        if (items.length >= count) break;
-                        
-                        const key = this._computeLikeKey(quote.text, quote.author);
-                        if (seenKeys.has(key)) continue;
-                        
-                        seenKeys.add(key);
-                        items.push({
-                            kind: 'fallback',
-                            id: quote.id || quote._id,
-                            text: quote.text,
-                            author: quote.author,
-                            createdAt: quote.createdAt,
-                            favorites: quote.favorites || 0,
-                            owner: quote.owner,
-                            user: quote.user || quote.owner || null,
-                            likedByMe: !!quote.likedByMe
-                        });
-                    }
-                } catch (err) {
-                    console.warn(`Fallback ${fallbackMethod} failed:`, err);
-                }
-            }
+      };
+    
+      if (items.length < count) {
+        for (const m of (cfg.fallback || [])) {
+          if (items.length >= count) break;
+          await fillFrom(m);
         }
-        
-        // Обрезаем до нужного количества
-        const finalItems = items.slice(0, count);
-        
-        // Сохраняем в кеш
-        this._spotlightCache = {
-            items: finalItems,
-            ts: Date.now()
-        };
-        
-        console.log(`✅ Spotlight собран: ${finalItems.length} элементов`);
-        return finalItems;
+      }
+    
+      const finalItems = items.slice(0, count);
+      this._spotlightCache = { items: finalItems, ts: Date.now() };
+      this._initializeLikeStoreFromItems(finalItems);
+      this._applyLikeStateToArray(finalItems);
+      return finalItems;
+    }
+    
+    // ЗАМЕНИТЬ текущую реализацию этой функции полностью
+    async onClickFollowingLoadMore() {
+      try {
+        this.triggerHapticFeedback('light');
+        const cfg = window.ConfigManager?.get('feeds.community.following') || { loadMoreStep: 6 };
+        const step = cfg.loadMoreStep || 6;
+        const before = this.followingFeed?.length || 0;
+        const next = before + step;
+    
+        const btn = document.querySelector('.js-following-load-more');
+        if (btn) { btn.disabled = true; btn.textContent = 'Загрузка...'; }
+    
+        // Важно: запрос без кэша, чтобы реально пытаться получить больше
+        await this.loadFollowingFeed(next);
+    
+        const list = document.querySelector('.following-feed__list');
+        const after = this.followingFeed?.length || 0;
+    
+        if (list) {
+          list.innerHTML = this._renderFollowingQuotes(this.followingFeed);
+          this._reconcileAllLikeData();
+          this._likeStore?.forEach?.((_, key) => this._updateAllLikeButtonsForKey(key));
+          this.attachQuoteCardListeners();
+          this.attachFollowingLoadMoreListeners();
+        }
+    
+        // Если длина не выросла (сервер ограничивает до 10) — отключить кнопку
+        if (btn) {
+          if (after > before) {
+            btn.disabled = false;
+            btn.textContent = 'Показать ещё';
+          } else {
+            btn.textContent = 'Больше нет';
+            btn.disabled = true;
+            btn.setAttribute('aria-disabled', 'true');
+            btn.classList.add('is-disabled');
+          }
+        }
+    
+        this.triggerHapticFeedback('success');
+      } catch (e) {
+        console.error('Error loading more following quotes:', e);
+        this.showNotification('Ошибка загрузки', 'error');
+        const btn = document.querySelector('.js-following-load-more');
+        if (btn) { btn.disabled = false; btn.textContent = 'Показать ещё'; }
+      }
     }
 
     /**
