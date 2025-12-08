@@ -253,16 +253,23 @@ class CommunityPage {
 
     /**
      * 📰 ЗАГРУЗКА ПОСЛЕДНИХ ЦИТАТ СООБЩЕСТВА (PR-3)
+     * ОБНОВЛЕНО: Поддержка config-driven initial count и load more
      */
-    async loadLatestQuotes(limit = 5) {
+    async loadLatestQuotes(limit = null) {
         if (this.loadingStates.latestQuotes) return;
+        
+        // Читаем лимит из конфига если не передан
+        if (limit === null) {
+            const config = window.ConfigManager?.get('feeds.community.feed') || { initialCount: 12 };
+            limit = config.initialCount || 12;
+        }
         
         try {
             this.loadingStates.latestQuotes = true;
             this.errorStates.latestQuotes = null;
-            console.log('📰 CommunityPage: Загружаем последние цитаты...');
+            console.log(`📰 CommunityPage: Загружаем последние цитаты (limit=${limit})...`);
             
-            const response = await this.api.getCommunityLatestQuotes({ limit });
+            const response = await this.api.getCommunityLatestQuotes({ limit, noCache: true });
             if (response && response.success) {
                 // Нормализация: читаем из resp.data, если нет - из resp.quotes/resp.data.quotes/resp
                 const rawQuotes = response.data || response.quotes || response.data?.quotes || [];
@@ -610,10 +617,17 @@ class CommunityPage {
 
     /**
      * 👥 ЗАГРУЗКА ЛЕНТЫ ОТ ПОДПИСОК
+     * ОБНОВЛЕНО: Поддержка config-driven initial count и load more
      */
-    async loadFollowingFeed(limit = 10) {
+    async loadFollowingFeed(limit = null) {
+        // Читаем лимит из конфига если не передан
+        if (limit === null) {
+            const config = window.ConfigManager?.get('feeds.community.following') || { initialCount: 12 };
+            limit = config.initialCount || 12;
+        }
+        
         try {
-            console.log('👥 CommunityPage: Загружаем ленту от подписок...');
+            console.log(`👥 CommunityPage: Загружаем ленту от подписок (limit=${limit})...`);
             const response = await this.api.getFollowingFeed({ limit });
             if (response && response.success) {
                 this.followingFeed = this._deduplicateQuotes(response.data || []);
@@ -631,6 +645,319 @@ class CommunityPage {
             console.error('❌ Ошибка загрузки ленты от подписок:', error);
             this.followingFeed = [];
         }
+    }
+    
+    /**
+     * 🔄 COMPOSE COMMUNITY FEED - Компоновка ленты "Все" с вставками
+     * Создает структуру с тремя чанками цитат и двумя статическими вставками
+     * @param {Array} quotes - Массив цитат для отображения
+     * @returns {string} HTML с композицией
+     */
+    composeCommunityFeed(quotes) {
+        const config = window.ConfigManager?.get('feeds.community.feed') || {
+            interleavePattern: [3, 'anna', 5, 'trend', 'rest']
+        };
+        
+        const pattern = config.interleavePattern || [3, 'anna', 5, 'trend', 'rest'];
+        
+        // Разбиваем цитаты на чанки согласно паттерну
+        // pattern: [3, 'anna', 5, 'trend', 'rest']
+        // chunk1: 0-2 (3 цитаты)
+        // anna insert
+        // chunk2: 3-7 (5 цитат)
+        // trend insert  
+        // chunk3: 8-end (остальные)
+        
+        const chunk1Size = typeof pattern[0] === 'number' ? pattern[0] : 3;
+        const chunk2Size = typeof pattern[2] === 'number' ? pattern[2] : 5;
+        
+        const chunk1 = quotes.slice(0, chunk1Size);
+        const chunk2 = quotes.slice(chunk1Size, chunk1Size + chunk2Size);
+        const chunk3 = quotes.slice(chunk1Size + chunk2Size);
+        
+        // Рендерим чанки
+        const chunk1Html = this._renderQuoteChunk(chunk1, 'chunk1');
+        const chunk2Html = this._renderQuoteChunk(chunk2, 'chunk2');
+        const chunk3Html = this._renderQuoteChunk(chunk3, 'chunk3');
+        
+        // Статические вставки
+        const annaInsert = this._renderAnnaMessageInsert();
+        const trendInsert = this._renderTrendInsert();
+        
+        return `
+            <div class="community-feed">
+                <div class="feed-chunk" data-chunk="chunk1">
+                    ${chunk1Html}
+                </div>
+                
+                ${annaInsert}
+                
+                <div class="feed-chunk" data-chunk="chunk2">
+                    ${chunk2Html}
+                </div>
+                
+                ${trendInsert}
+                
+                <div class="feed-chunk" data-chunk="chunk3">
+                    ${chunk3Html}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🔄 Рендер чанка цитат
+     * @param {Array} quotes - Цитаты для чанка
+     * @param {string} chunkId - ID чанка
+     * @returns {string} HTML
+     */
+    _renderQuoteChunk(quotes, chunkId) {
+        if (!quotes || quotes.length === 0) {
+            return '';
+        }
+        
+        return quotes.map((quote, index) => {
+            const quoteText = quote.text || quote.content || '';
+            const quoteAuthor = quote.author || 'Неизвестный автор';
+            const normalizedKey = this._computeLikeKey(quoteText, quoteAuthor);
+            
+            // Apply like state from _likeStore
+            const storeEntry = this._likeStore.get(normalizedKey);
+            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
+            const favoritesCount = storeEntry ? storeEntry.count : (quote.favorites || quote.count || 0);
+            const heartIcon = isLiked ? '❤' : '♡';
+            const favoritedClass = isLiked ? ' favorited' : '';
+            
+            return `
+                <div class="quote-card" data-quote-id="${quote.id || `${chunkId}-${index}`}">
+                    <div class="quote-card__content">
+                        <div class="quote-card__text">"${this.escapeHtml(quoteText)}"</div>
+                        <div class="quote-card__author">— ${this.escapeHtml(quoteAuthor)}</div>
+                        <div class="quote-card__meta">
+                            <span class="quote-card__date">${this.formatDate(quote.createdAt || quote.date)}</span>
+                            <div class="quote-card__actions">
+                                <button class="quote-card__fav-btn${favoritedClass}" data-quote-id="${quote.id || `${chunkId}-${index}`}"
+                                        data-quote-text="${this.escapeHtml(quoteText)}"
+                                        data-quote-author="${this.escapeHtml(quoteAuthor)}"
+                                        data-normalized-key="${normalizedKey}"
+                                        data-favorites="${favoritesCount}"
+                                        style="min-height: var(--touch-target-min);" aria-label="Добавить в избранное">${heartIcon}</button>
+                                <button class="quote-card__add-btn" data-quote-id="${quote.id || `${chunkId}-${index}`}"
+                                        data-quote-text="${this.escapeHtml(quoteText)}"
+                                        data-quote-author="${this.escapeHtml(quoteAuthor)}"
+                                        style="min-height: var(--touch-target-min);" aria-label="Добавить цитату в дневник">
+                                  <span class="add-icon">+</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    /**
+     * 💬 Рендер вставки "Сообщение от Анны"
+     * @returns {string} HTML
+     */
+    _renderAnnaMessageInsert() {
+        const message = this.communityMessage || {
+            text: "Дорогие читатели! Ваша активность на этой неделе впечатляет. Продолжайте собирать мудрость каждый день!",
+            time: "2 часа назад"
+        };
+        
+        return `
+            <div class="feed-insert feed-insert--anna">
+                <div class="feed-insert__header">
+                    <div class="feed-insert__avatar">👩‍🏫</div>
+                    <div class="feed-insert__meta">
+                        <div class="feed-insert__title">Сообщение от Анны</div>
+                        <div class="feed-insert__time">${this.escapeHtml(message.time)}</div>
+                    </div>
+                </div>
+                <div class="feed-insert__content">
+                    ${this.escapeHtml(message.text)}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 📈 Рендер вставки "Тренд недели"
+     * @returns {string} HTML
+     */
+    _renderTrendInsert() {
+        const trend = this.communityTrend || {
+            title: "Тренд недели",
+            text: 'Тема "Психология отношений" набирает популярность',
+            buttonText: "Изучить разборы"
+        };
+        
+        return `
+            <div class="feed-insert feed-insert--trend">
+                <div class="feed-insert__header">
+                    <div class="feed-insert__icon">📈</div>
+                    <div class="feed-insert__title">${this.escapeHtml(trend.title)}</div>
+                </div>
+                <div class="feed-insert__content">
+                    ${this.escapeHtml(trend.text)}
+                </div>
+                <button class="feed-insert__button" id="exploreTrendBtn">
+                    ${this.escapeHtml(trend.buttonText || "Изучить")}
+                </button>
+            </div>
+        `;
+    }
+    
+    /**
+     * 📄 LOAD MORE: Обработчик для ленты "Все"
+     */
+    async onClickLoadMore() {
+        try {
+            this.triggerHapticFeedback('light');
+            
+            const config = window.ConfigManager?.get('feeds.community.feed') || { loadMoreStep: 6 };
+            const step = config.loadMoreStep || 6;
+            
+            const currentCount = this.latestQuotes?.length || 0;
+            const newLimit = currentCount + step;
+            
+            console.log(`📄 Load More: Загружаем еще цитат (${currentCount} → ${newLimit})`);
+            
+            // Показываем индикатор загрузки
+            const loadMoreBtn = document.querySelector('.js-feed-load-more');
+            if (loadMoreBtn) {
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.textContent = 'Загрузка...';
+            }
+            
+            // Загружаем больше цитат
+            await this.loadLatestQuotes(newLimit);
+            
+            // Обновляем только контейнер ленты
+            const feedContainer = document.querySelector('.community-feed');
+            if (feedContainer) {
+                feedContainer.outerHTML = this.composeCommunityFeed(this.latestQuotes);
+                
+                // Reconcile like data
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                
+                // Reattach listeners
+                this.attachQuoteCardListeners();
+                this.attachFeedLoadMoreListeners();
+            }
+            
+            this.triggerHapticFeedback('success');
+            console.log(`✅ Load More: Загружено ${this.latestQuotes.length} цитат`);
+            
+        } catch (error) {
+            console.error('❌ Error loading more quotes:', error);
+            this.showNotification('Ошибка загрузки', 'error');
+            
+            const loadMoreBtn = document.querySelector('.js-feed-load-more');
+            if (loadMoreBtn) {
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.textContent = 'Показать ещё';
+            }
+        }
+    }
+    
+    /**
+     * 👥 LOAD MORE: Обработчик для ленты "От подписок"
+     */
+    async onClickFollowingLoadMore() {
+        try {
+            this.triggerHapticFeedback('light');
+            
+            const config = window.ConfigManager?.get('feeds.community.following') || { loadMoreStep: 6 };
+            const step = config.loadMoreStep || 6;
+            
+            const currentCount = this.followingFeed?.length || 0;
+            const newLimit = currentCount + step;
+            
+            console.log(`👥 Load More Following: Загружаем еще цитат (${currentCount} → ${newLimit})`);
+            
+            // Показываем индикатор загрузки
+            const loadMoreBtn = document.querySelector('.js-following-load-more');
+            if (loadMoreBtn) {
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.textContent = 'Загрузка...';
+            }
+            
+            // Загружаем больше цитат
+            await this.loadFollowingFeed(newLimit);
+            
+            // Обновляем только список
+            const followingContainer = document.querySelector('.following-feed__list');
+            if (followingContainer && this.followingFeed) {
+                const quotesHtml = this._renderFollowingQuotes(this.followingFeed);
+                followingContainer.innerHTML = quotesHtml;
+                
+                // Reconcile like data
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                
+                // Reattach listeners
+                this.attachQuoteCardListeners();
+                this.attachFollowingLoadMoreListeners();
+            }
+            
+            this.triggerHapticFeedback('success');
+            console.log(`✅ Load More Following: Загружено ${this.followingFeed.length} цитат`);
+            
+        } catch (error) {
+            console.error('❌ Error loading more following quotes:', error);
+            this.showNotification('Ошибка загрузки', 'error');
+            
+            const loadMoreBtn = document.querySelector('.js-following-load-more');
+            if (loadMoreBtn) {
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.textContent = 'Показать ещё';
+            }
+        }
+    }
+    
+    /**
+     * 👥 Рендер цитат подписок (helper)
+     * @param {Array} quotes - Массив цитат
+     * @returns {string} HTML
+     */
+    _renderFollowingQuotes(quotes) {
+        return quotes.map(quote => {
+            const owner = quote.owner || quote.user;
+            const userAvatarHtml = this.getUserAvatarHtml(owner);
+            const userName = owner?.name || 'Пользователь';
+            
+            const normalizedKey = this._computeLikeKey(quote.text, quote.author);
+            const storeEntry = this._likeStore.get(normalizedKey);
+            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
+            const favoritesCount = storeEntry ? storeEntry.count : (quote.favorites || 0);
+            
+            return `
+                <div class="quote-card" data-quote-id="${quote.id || ''}">
+                    <div class="quote-card__header">
+                        ${userAvatarHtml}
+                        <div class="quote-card__user">
+                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                        </div>
+                    </div>
+                    <div class="quote-card__text">"${this.escapeHtml(quote.text)}"</div>
+                    <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
+                    <div class="quote-card__footer">
+                        <div class="quote-card__likes">❤ ${favoritesCount}</div>
+                        <div class="quote-card__actions">
+                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}"
+                                    data-quote-text="${this.escapeHtml(quote.text)}"
+                                    data-quote-author="${this.escapeHtml(quote.author || '')}"
+                                    data-favorites="${favoritesCount}"
+                                    data-normalized-key="${normalizedKey}"
+                                    aria-label="Лайк"></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
     
     /**
@@ -2126,9 +2453,10 @@ async refreshSpotlight() {
     
     /**
      * 👥 РЕНДЕР ЛЕНТЫ ОТ ПОДПИСОК
+     * ОБНОВЛЕНО: Добавлена кнопка Load More
      */
     renderFollowingFeed() {
-        if (this.followingFeed.length === 0) {
+        if (!this.followingFeed || this.followingFeed.length === 0) {
             return `
                 <div class="empty-following">
                     <div class="empty-following__icon">👥</div>
@@ -2143,53 +2471,30 @@ async refreshSpotlight() {
             `;
         }
     
-        const quotesHtml = this.followingFeed.map(quote => {
-            const owner = quote.owner || quote.user;
-            const userAvatarHtml = this.getUserAvatarHtml(owner);
-            const userName = owner?.name || 'Пользователь';
-            
-            // ✅ FIX A/D: Apply like state from _likeStore first (unified data-attributes)
-            const normalizedKey = this._computeLikeKey(quote.text, quote.author);
-            const storeEntry = this._likeStore.get(normalizedKey);
-            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
-            const favoritesCount = storeEntry ? storeEntry.count : (quote.favorites || 0);
-            
-            return `
-                <div class="quote-card" data-quote-id="${quote.id || ''}">
-                    <div class="quote-card__header">
-                        ${userAvatarHtml}
-                        <div class="quote-card__user">
-                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
-                        </div>
-                    </div>
-                    <div class="quote-card__text">"${this.escapeHtml(quote.text)}"</div>
-                    <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
-                    <div class="quote-card__footer">
-                        <div class="quote-card__likes">❤ ${favoritesCount}</div>
-                        <div class="quote-card__actions">
-                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}"
-                                    data-quote-text="${this.escapeHtml(quote.text)}"
-                                    data-quote-author="${this.escapeHtml(quote.author || '')}"
-                                    data-favorites="${favoritesCount}"
-                                    data-normalized-key="${normalizedKey}"
-                                    aria-label="Лайк"></button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        const quotesHtml = this._renderFollowingQuotes(this.followingFeed);
+        
+        const config = window.ConfigManager?.get('feeds.community.following') || { initialCount: 12 };
+        const showLoadMore = this.followingFeed.length >= (config.initialCount || 12);
     
         return `
             <div class="following-feed">
                 <div class="following-feed__list">
                     ${quotesHtml}
                 </div>
+                ${showLoadMore ? `
+                    <div class="feed-load-more">
+                        <button class="feed-load-more__btn js-following-load-more">
+                            Показать ещё
+                        </button>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
     
     /**
      * 📰 СЕКЦИЯ ПОСЛЕДНИХ ЦИТАТ СООБЩЕСТВА (ОБНОВЛЕНО ДЛЯ PR-3)
+     * ОБНОВЛЕНО: Использует composeCommunityFeed с вставками и Load More
      */
     renderLatestQuotesSection() {
         // Если данные загружены, но список пуст - показываем empty state
@@ -2208,49 +2513,26 @@ async refreshSpotlight() {
             return '';
         }
 
-        const quotesCards = this.latestQuotes.slice(0, 3).map((quote, index) => {
-            const quoteText = quote.text || quote.content || '';
-            const quoteAuthor = quote.author || 'Неизвестный автор';
-            const normalizedKey = this._computeLikeKey(quoteText, quoteAuthor);
-            
-            // ✅ FIX A/D: Apply like state from _likeStore first (unified data-attributes)
-            const storeEntry = this._likeStore.get(normalizedKey);
-            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
-            const favoritesCount = storeEntry ? storeEntry.count : (quote.favorites || quote.count || 0);
-            const heartIcon = isLiked ? '❤' : '♡';
-            const favoritedClass = isLiked ? ' favorited' : '';
-            
-            return `
-                <div class="quote-card" data-quote-id="${quote.id || index}">
-                    <div class="quote-card__content">
-                        <div class="quote-card__text">"${quoteText}"</div>
-                        <div class="quote-card__author">— ${quoteAuthor}</div>
-                        <div class="quote-card__meta">
-                            <span class="quote-card__date">${this.formatDate(quote.createdAt || quote.date)}</span>
-                            <div class="quote-card__actions">
-                                <button class="quote-card__fav-btn${favoritedClass}" data-quote-id="${quote.id || index}"
-                                        data-quote-text="${quoteText.replace(/"/g, '&quot;')}"
-                                        data-quote-author="${quoteAuthor.replace(/"/g, '&quot;')}"
-                                        data-normalized-key="${normalizedKey}"
-                                        data-favorites="${favoritesCount}"
-                                        style="min-height: var(--touch-target-min);" aria-label="Добавить в избранное">${heartIcon}</button>
-                                <button class="quote-card__add-btn" data-quote-id="${quote.id || index}"
-                                        data-quote-text="${quoteText.replace(/"/g, '&quot;')}"
-                                        data-quote-author="${quoteAuthor.replace(/"/g, '&quot;')}"
-                                        style="min-height: var(--touch-target-min);" aria-label="Добавить цитату в дневник">
-                                  <span class="add-icon">+</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        // Используем новую композицию с вставками
+        const feedHtml = this.composeCommunityFeed(this.latestQuotes);
+        
+        const config = window.ConfigManager?.get('feeds.community.feed') || { initialCount: 12 };
+        const showLoadMore = this.latestQuotes.length >= (config.initialCount || 12);
 
         return `
             <div class="latest-quotes-section">
                 <div class="mvp-community-title">💫 Последние цитаты сообщества</div>
-                <div class="quotes-grid">
+                ${feedHtml}
+                ${showLoadMore ? `
+                    <div class="feed-load-more">
+                        <button class="feed-load-more__btn js-feed-load-more">
+                            Показать ещё
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }>
                     ${quotesCards}
                 </div>
             </div>
@@ -3003,6 +3285,8 @@ renderAchievementsSection() {
         this.attachQuoteCardListeners(); // ✅ НОВОЕ: Обработчики для карточек цитат
         this.attachSpotlightRefreshButton(); // ✅ НОВОЕ: Кнопка обновления spotlight
         this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели (теперь обновляет и лидерборд)
+        this.attachFeedLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "Все"
+        this.attachFollowingLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "От подписок"
         // attachLeaderboardRefreshButton() удален - кнопка лидерборда больше не существует
         this.setupQuoteChangeListeners();
     }
@@ -3976,6 +4260,26 @@ renderAchievementsSection() {
         // Здесь можно добавить логику перехода к изучению тренда
         console.log('🎯 Изучение тренда недели');
         this.showNotification('Функция в разработке', 'info');
+    }
+    
+    /**
+     * 🔗 Attach Load More button listeners for feed
+     */
+    attachFeedLoadMoreListeners() {
+        const loadMoreBtn = document.querySelector('.js-feed-load-more');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => this.onClickLoadMore());
+        }
+    }
+    
+    /**
+     * 🔗 Attach Load More button listeners for following feed
+     */
+    attachFollowingLoadMoreListeners() {
+        const loadMoreBtn = document.querySelector('.js-following-load-more');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => this.onClickFollowingLoadMore());
+        }
     }
 
     /**
