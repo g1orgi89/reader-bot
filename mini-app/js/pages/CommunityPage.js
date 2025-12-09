@@ -3315,47 +3315,39 @@ renderAchievementsSection() {
                 refreshBtn.setAttribute('aria-disabled', 'true');
                 refreshBtn.style.animation = 'spin 1s linear infinite';
                 
-                // Очищаем кэш
+                // Очищаем кэш, чтобы buildSpotlightMix брала только свежее!
                 this._spotlightCache = { ts: 0, items: [] };
                 
-                // Параллельно перезагружаем только необходимые данные для spotlight
+                // Параллельно форсим загрузку ЛЕНТЫ и ИЗБРАННОГО с noCache/fresh
                 await Promise.allSettled([
-                    this.loadLatestQuotes(5)
-                    // НЕ загружаем популярные избранные - spotlight использует только recent favorites
+                    this.api.getCommunityRecentFavorites({ limit: 8, noCache: true }), // лимит аналогичен buildSpotlightMix (или чуть больше)
+                    this.loadLatestQuotes(8) // лимит — сколько нужно latest (можешь задать свой по конфигу)
                 ]);
                 
-                // Пересобираем подборку
-                await this.getSpotlightItems();
-                
+                // Пересобираем подборку с форсом: buildSpotlightMix(forceReload=true)
+                await this.getSpotlightItems(true); // <- прокидывается forceReload
+    
                 // Генерируем свежий HTML для spotlight секции
                 const newSpotlightHTML = this.renderSpotlightSection();
                 
-                // Заменяем только spotlight контейнер в DOM в одном requestAnimationFrame
                 requestAnimationFrame(() => {
                     const spotlightSection = document.getElementById('spotlightSection');
-                    
                     if (spotlightSection) {
                         spotlightSection.outerHTML = newSpotlightHTML;
                     }
-                    
                     // 🔄 Reconcile like data and update all buttons after DOM replacement
                     this._reconcileAllLikeData();
                     this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
-                    
                     // Перепривязываем обработчики для обновленных карточек
-                    // Delegated listener still works, only need to reattach other listeners
                     this.attachQuoteCardListeners();
                     this.attachCommunityCardListeners();
                 });
-                
+    
                 // Haptic feedback на успех
                 this.triggerHapticFeedback('light');
-                
             } catch (error) {
                 console.error('❌ Ошибка обновления spotlight:', error);
                 this.showNotification('Ошибка обновления', 'error');
-                
-                // Восстанавливаем кнопку при ошибке
                 const btn = document.getElementById('spotlightRefreshBtn');
                 if (btn) {
                     btn.innerHTML = '↻';
