@@ -945,7 +945,9 @@ class CommunityPage {
                     <div class="quote-card__text">"${this.escapeHtml(quote.text)}"</div>
                     <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
                     <div class="quote-card__footer">
-                        <div class="quote-card__likes">❤ ${favoritesCount}</div>
+                        <div class="quote-card__likes">
+                          ❤ <span class="favorites-count">${favoritesCount}</span>
+                        </div>
                         <div class="quote-card__actions">
                             <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}"
                                     data-quote-text="${this.escapeHtml(quote.text)}"
