@@ -1008,7 +1008,7 @@ class CommunityPage {
             const spotlightContainer = document.getElementById('spotlightSection');
             if (spotlightContainer) {
                 const newSpotlightHTML = filter === 'following' 
-                    ? this.renderSpotlightFollowing()
+                    ? this.renderFollowingFeed()
                     : this.renderSpotlightSection();
                 
                 spotlightContainer.outerHTML = newSpotlightHTML;
@@ -1076,16 +1076,26 @@ async refreshSpotlight() {
             this.followingFeed = null;
             const spotlightSection = document.getElementById('spotlightSection');
             if (spotlightSection) {
-                spotlightSection.outerHTML = this.renderSpotlightFollowing();
+                spotlightSection.outerHTML = this.renderFollowingFeed();
             }
             
             // Load following feed
             await this.loadFollowingFeed();
             
+            // Initialize like store from loaded followingFeed
+            if (this.followingFeed && this.followingFeed.length > 0) {
+                this._initializeLikeStoreFromItems(this.followingFeed);
+                this._applyLikeStateToArray(this.followingFeed);
+            }
+            
             // Replace section with data
             const updatedSection = document.getElementById('spotlightSection');
             if (updatedSection) {
-                updatedSection.outerHTML = this.renderSpotlightFollowing();
+                updatedSection.outerHTML = this.renderFollowingFeed();
+                
+                // Reconcile like data and update buttons
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
                 
                 // Re-attach listeners
                 this.attachSpotlightListeners();
@@ -2104,66 +2114,11 @@ async refreshSpotlight() {
     
     /**
      * ✨ Рендер секции "Сейчас в сообществе" для ленты ПОДПИСОК
+     * COMPATIBILITY PROXY: Redirects to renderFollowingFeed()
      * @returns {string} HTML секции spotlight с цитатами от подписок
      */
     renderSpotlightFollowing() {
-        // Handle three states: loading (null), empty ([]), data
-        if (this.followingFeed === null) {
-            // Loading state
-            return `
-                <div id="spotlightSection" class="community-spotlight">
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ Подписки</h3>
-                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                                aria-label="Обновить подборку">↻</button>
-                    </div>
-                    <div class="spotlight-grid">
-                        <div class="loading-indicator" style="text-align: center; padding: 40px;">
-                            <div class="spinner"></div>
-                            <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        if (!this.followingFeed || this.followingFeed.length === 0) {
-            // Empty state
-            return `
-                <div id="spotlightSection" class="community-spotlight">
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ Подписки</h3>
-                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                                aria-label="Обновить подборку">↻</button>
-                    </div>
-                    <div class="spotlight-grid">
-                        <div class="empty-following">
-                            <div class="empty-following__icon">👥</div>
-                            <div class="empty-following__title">Лента пуста</div>
-                            <div class="empty-following__text">
-                                Подпишитесь на интересных читателей, чтобы видеть их цитаты здесь
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Data state - render quotes
-        const quotesHtml = this._renderFollowingQuotes(this.followingFeed);
-        
-        return `
-            <div id="spotlightSection" class="community-spotlight">
-                <div class="spotlight-header">
-                    <h3 class="spotlight-title">✨ Подписки</h3>
-                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                            aria-label="Обновить подборку">↻</button>
-                </div>
-                <div class="spotlight-grid">
-                    ${quotesHtml}
-                </div>
-            </div>
-        `;
+        return this.renderFollowingFeed();
     }
         
         /**
@@ -2310,7 +2265,7 @@ async refreshSpotlight() {
 
         // Spotlight секция меняется в зависимости от фильтра
         const spotlightSection = this.feedFilter === 'following' 
-            ? this.renderSpotlightFollowing()
+            ? this.renderFollowingFeed()
             : this.renderSpotlightSection();
                 
         // "Сейчас изучают" секция с последними кликами по каталогу
@@ -2341,30 +2296,63 @@ async refreshSpotlight() {
     
     /**
      * 👥 РЕНДЕР ЛЕНТЫ ОТ ПОДПИСОК
-     * ОБНОВЛЕНО: Убрана кнопка "Показать ещё" согласно требованиям
+     * ОБНОВЛЕНО: Handles three states (loading/empty/data) and wraps in section#spotlightSection
      */
     renderFollowingFeed() {
-        if (!this.followingFeed || this.followingFeed.length === 0) {
+        // Handle three states: loading (null), empty ([]), data
+        if (this.followingFeed === null) {
+            // Loading state
             return `
-                <div class="empty-following">
-                    <div class="empty-following__icon">👥</div>
-                    <div class="empty-following__title">Лента пуста</div>
-                    <div class="empty-following__text">
-                        Подпишитесь на интересных читателей, чтобы видеть их цитаты здесь
+                <div id="spotlightSection" class="community-spotlight">
+                    <div class="spotlight-header">
+                        <h3 class="spotlight-title">✨ Подписки</h3>
+                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                                aria-label="Обновить подборку">↻</button>
                     </div>
-                    <button class="empty-following__btn" onclick="window.communityPage.switchFeedFilter('all')">
-                        Посмотреть все цитаты
-                    </button>
+                    <div class="spotlight-grid">
+                        <div class="loading-indicator" style="text-align: center; padding: 40px;">
+                            <div class="spinner"></div>
+                            <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (!this.followingFeed || this.followingFeed.length === 0) {
+            // Empty state - NO "Показать ещё" button
+            return `
+                <div id="spotlightSection" class="community-spotlight">
+                    <div class="spotlight-header">
+                        <h3 class="spotlight-title">✨ Подписки</h3>
+                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                                aria-label="Обновить подборку">↻</button>
+                    </div>
+                    <div class="spotlight-grid">
+                        <div class="empty-following">
+                            <div class="empty-following__icon">👥</div>
+                            <div class="empty-following__title">Лента пуста</div>
+                            <div class="empty-following__text">
+                                Подпишитесь на интересных читателей, чтобы видеть их цитаты здесь
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
         }
     
+        // Data state - render quotes via _renderFollowingQuotes
         const quotesHtml = this._renderFollowingQuotes(this.followingFeed);
     
         // NO "Показать ещё" button for Following feed
         return `
-            <div class="following-feed">
-                <div class="following-feed__list">
+            <div id="spotlightSection" class="community-spotlight">
+                <div class="spotlight-header">
+                    <h3 class="spotlight-title">✨ Подписки</h3>
+                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                            aria-label="Обновить подборку">↻</button>
+                </div>
+                <div class="spotlight-grid">
                     ${quotesHtml}
                 </div>
             </div>
