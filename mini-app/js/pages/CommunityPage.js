@@ -4059,6 +4059,13 @@ renderAchievementsSection() {
                         item.favorites = entry.count;
                     });
                 }
+
+
+                // ↓↓↓ ВСТАВЬ эти две строки СРАЗУ ПОСЛЕ успешного ответа (и до set key в _likeState)
+                if (this.feedFilter === 'following') {
+                    this._applyLikeStateToArray(this.followingFeed);
+                    this._updateAllLikeButtonsForKey(key);
+                }
                 
                 // Update legacy likeState for backward compatibility
                 this._likeState.set(key, storeEntry.liked);
