@@ -1062,7 +1062,7 @@ class CommunityPage {
 async refreshSpotlight() {
     try {
         this.triggerHapticFeedback('medium');
-        
+
         const refreshBtn = document.getElementById('spotlightRefreshBtn');
         if (refreshBtn) {
             refreshBtn.innerHTML = '↻';
@@ -1070,94 +1070,88 @@ async refreshSpotlight() {
             refreshBtn.setAttribute('aria-disabled', 'true');
             refreshBtn.style.animation = 'spin 1s linear infinite';
         }
-        
-        if (this.feedFilter === 'following') {
+
+        // Запоминаем фильтр в начале метода
+        const currentFilter = this.feedFilter;
+
+        if (currentFilter === 'following') {
             console.log('🔄 Обновление ленты подписок...');
-            
-            // Set followingFeed to null and immediately re-render to show loader
+
+            // Показываем лоадер сразу
             this.followingFeed = null;
-            const spotlightSection = document.getElementById('spotlightSection');
-            if (spotlightSection) {
-                spotlightSection.outerHTML = this.renderFollowingFeed();
-            }
-            
-            // Load following feed
+            const s1 = document.getElementById('spotlightSection');
+            if (s1) s1.outerHTML = this.renderFollowingFeed();
+
+            // Ждём свежие данные
             await this.loadFollowingFeed();
-            
-            // Initialize like store from loaded followingFeed
+
+            // Possible: юзер успел сменить фильтр — НЕ ТРОГАЕМ DOM
+            if (this.feedFilter !== 'following') return;
+
+            // Мутируем лайкстор и applyLikeState для loaded данных (избыточно, но безопасно)
             if (this.followingFeed && this.followingFeed.length > 0) {
                 this._initializeLikeStoreFromItems(this.followingFeed);
                 this._applyLikeStateToArray(this.followingFeed);
             }
-            
-            // Replace section with data
-            const updatedSection = document.getElementById('spotlightSection');
-            if (updatedSection) {
-                updatedSection.outerHTML = this.renderFollowingFeed();
-                
-                // Reconcile like data and update buttons
+
+            // Еще раз шашкой рендерим только если фильтр всё ещё "following"
+            const s2 = document.getElementById('spotlightSection');
+            if (s2 && this.feedFilter === 'following') {
+                s2.outerHTML = this.renderFollowingFeed();
                 this._reconcileAllLikeData();
                 this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
-                
-                // Re-attach listeners
                 this.attachSpotlightListeners();
                 this.attachQuoteCardListeners();
                 this.attachCommunityCardListeners();
             }
-            
-        } else {
-            console.log('🔄 Обновление общей ленты...');
-            
-            // Reset spotlight cache
-            this._spotlightCache = { ts: 0, items: [] };
-            
-            // Load new data with forceReload
-            const items = await this.buildSpotlightMix(null, true);
-            
-            // Initialize like store and apply like state
-            this._initializeLikeStoreFromItems(items);
-            this._applyLikeStateToArray(items);
-            
-            // Try partial replace: find .spotlight-grid and set innerHTML
-            requestAnimationFrame(() => {
-                const spotlightSection = document.getElementById('spotlightSection');
-                const gridElement = spotlightSection?.querySelector('.spotlight-grid');
-                
-                if (gridElement) {
-                    // Partial replace: update only grid content
-                    gridElement.innerHTML = this._renderSpotlightCards(items);
-                    
-                    // Reconcile like data and update buttons
-                    this._reconcileAllLikeData();
-                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
-                    
-                    // Reattach listeners only to new cards
-                    this.attachQuoteCardListeners();
-                    this.attachCommunityCardListeners();
-                } else {
-                    // Fallback: full section replace if grid not found
-                    console.warn('spotlight-grid not found, falling back to full section replace');
-                    if (spotlightSection) {
-                        spotlightSection.outerHTML = this.renderSpotlightSection();
-                        
-                        this._reconcileAllLikeData();
-                        this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
-                        this.attachSpotlightListeners();
-                        this.attachQuoteCardListeners();
-                        this.attachCommunityCardListeners();
-                    }
-                }
-            });
+
+            this.triggerHapticFeedback('light');
+            console.log('✅ Подписки обновлены');
+            return;
         }
-        
+
+        // === Блок "Все" ===
+        console.log('🔄 Обновление общей ленты...');
+        this._spotlightCache = { ts: 0, items: [] };
+
+        // Получаем свежий микс (forceReload)
+        const items = await this.buildSpotlightMix(null, true);
+
+        // Применяем лайкстор
+        this._initializeLikeStoreFromItems(items);
+        this._applyLikeStateToArray(items);
+
+        // После await также проверяем что фильтр не сменился
+        if (this.feedFilter !== 'all') return;
+
+        // PARTIAL обновление только grid — если элемент всё ещё актуален!
+        requestAnimationFrame(() => {
+            const section = document.getElementById('spotlightSection');
+            const grid = section?.querySelector('.spotlight-grid');
+
+            if (grid) {
+                grid.innerHTML = this._renderSpotlightCards(items);
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                this.attachQuoteCardListeners();
+                this.attachCommunityCardListeners();
+            } else if (section) {
+                section.outerHTML = this.renderSpotlightSection();
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                this.attachSpotlightListeners();
+                this.attachQuoteCardListeners();
+                this.attachCommunityCardListeners();
+            }
+        });
+
         this.triggerHapticFeedback('light');
         console.log('✅ Spotlight refreshed successfully');
-        
+
     } catch (error) {
         console.error('❌ Error refreshing spotlight:', error);
         this.showNotification('Ошибка обновления', 'error');
     } finally {
-        // Restore button state in finally block
         const btn = document.getElementById('spotlightRefreshBtn');
         if (btn) {
             btn.innerHTML = '↻';
@@ -1167,6 +1161,7 @@ async refreshSpotlight() {
         }
     }
 }
+    
     /**
      * ➕ Подписаться на пользователя
      */
