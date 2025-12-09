@@ -1071,29 +1071,48 @@ async refreshSpotlight() {
         
         if (this.feedFilter === 'following') {
             console.log('🔄 Обновление ленты подписок...');
+            
+            // Set followingFeed to null and immediately re-render to show loader
             this.followingFeed = null;
+            const spotlightSection = document.getElementById('spotlightSection');
+            if (spotlightSection) {
+                spotlightSection.outerHTML = this.renderSpotlightFollowing();
+            }
+            
+            // Load following feed
             await this.loadFollowingFeed();
+            
+            // Replace section with data
+            const updatedSection = document.getElementById('spotlightSection');
+            if (updatedSection) {
+                updatedSection.outerHTML = this.renderSpotlightFollowing();
+                
+                // Re-attach listeners
+                this.attachSpotlightListeners();
+                this.attachQuoteCardListeners();
+                this.attachCommunityCardListeners();
+            }
             
         } else {
             console.log('🔄 Обновление общей ленты...');
             
-            // Очищаем кэш
+            // Reset spotlight cache
             this._spotlightCache = { ts: 0, items: [] };
             
-            // Загружаем новые данные с forceReload
+            // Load new data with forceReload
             const items = await this.buildSpotlightMix(null, true);
             
-            // Применяем состояние лайков
+            // Initialize like store and apply like state
             this._initializeLikeStoreFromItems(items);
             this._applyLikeStateToArray(items);
             
-            // Обновляем только grid, не всю секцию
+            // Try partial replace: find .spotlight-grid and set innerHTML
             requestAnimationFrame(() => {
                 const spotlightSection = document.getElementById('spotlightSection');
                 const gridElement = spotlightSection?.querySelector('.spotlight-grid');
                 
                 if (gridElement) {
-                    // Рендерим только карточки
+                    // Partial replace: update only grid content
                     gridElement.innerHTML = this._renderSpotlightCards(items);
                     
                     // Reconcile like data and update buttons
@@ -1107,11 +1126,11 @@ async refreshSpotlight() {
                     // Fallback: full section replace if grid not found
                     console.warn('spotlight-grid not found, falling back to full section replace');
                     if (spotlightSection) {
-                        const newSpotlightHTML = this.renderSpotlightSection();
-                        spotlightSection.outerHTML = newSpotlightHTML;
+                        spotlightSection.outerHTML = this.renderSpotlightSection();
                         
                         this._reconcileAllLikeData();
                         this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                        this.attachSpotlightListeners();
                         this.attachQuoteCardListeners();
                         this.attachCommunityCardListeners();
                     }
@@ -1125,7 +1144,8 @@ async refreshSpotlight() {
     } catch (error) {
         console.error('❌ Error refreshing spotlight:', error);
         this.showNotification('Ошибка обновления', 'error');
-        
+    } finally {
+        // Restore button state in finally block
         const btn = document.getElementById('spotlightRefreshBtn');
         if (btn) {
             btn.innerHTML = '↻';
@@ -1994,31 +2014,44 @@ async refreshSpotlight() {
     }
 
     /**
-     * ✅ FIX C: Helper method to render spotlight cards HTML (extracted for inner updates)
+     * ✅ UNIFIED: Helper method to render spotlight cards HTML (supports both cached and passed items)
+     * @param {Array|null} items - Optional array of items to render. If null, uses cached items.
      * @returns {string} HTML string of spotlight cards
      * @private
      */
-    _renderSpotlightCards() {
-        const items = this._spotlightCache.items || [];
+    _renderSpotlightCards(items = null) {
+        // Use provided items if Array.isArray(items), otherwise use cached items
+        const sourceItems = Array.isArray(items) ? items : (this._spotlightCache.items || []);
         
-        return items.map(item => {
-            const badge = item.kind === 'fresh' ? 'Новое' : 'Избранное';
-            const badgeClass = item.kind === 'fresh' ? 'spotlight-card--fresh' : 'spotlight-card--fav';
+        return sourceItems.map(item => {
+            // Render badges strictly by item.kind: 'latest' => Новое, 'favorite' => Избранное, 'fallback' => Популярное
+            let badge = '';
+            let badgeClass = '';
+            if (item.kind === 'latest') {
+                badge = 'Новое';
+                badgeClass = 'spotlight-card--fresh';
+            } else if (item.kind === 'favorite') {
+                badge = 'Избранное';
+                badgeClass = 'spotlight-card--fav';
+            } else if (item.kind === 'fallback') {
+                badge = 'Популярное';
+                badgeClass = 'spotlight-card--fallback';
+            }
             
-            // Получаем ВЛАДЕЛЬЦА (original uploader) - используем owner, не user
+            // Derive owner = item.owner || item.user
             const owner = item.owner || item.user;
             const userAvatarHtml = this.getUserAvatarHtml(owner);
             const userName = owner?.name || 'Пользователь';
             
-            // ✅ FIX A: Apply like state from _likeStore first
+            // Apply like state by normalized key via _likeStore with _computeLikeKey()
             const normalizedKey = this._computeLikeKey(item.text, item.author);
             const storeEntry = this._likeStore.get(normalizedKey);
             const isLiked = storeEntry ? storeEntry.liked : !!item.likedByMe;
             const likesCount = storeEntry ? storeEntry.count : (item.favorites || 0);
             
             return `
-                <div class="quote-card ${badgeClass}" data-quote-id="${item.id || ''}">
-                    <div class="spotlight-badge">${badge}</div>
+                <div class="quote-card ${badgeClass}" data-kind="${item.kind || ''}" data-quote-id="${item.id || ''}">
+                    ${badge ? `<div class="spotlight-badge">${badge}</div>` : ''}
                     
                     <!-- Header с аватаром и именем пользователя -->
                     <div class="quote-card__header">
@@ -2073,80 +2106,64 @@ async refreshSpotlight() {
      * ✨ Рендер секции "Сейчас в сообществе" для ленты ПОДПИСОК
      * @returns {string} HTML секции spotlight с цитатами от подписок
      */
-    _renderSpotlightCards() {
-        const items = this._spotlightCache.items || [];
-    
-        return items.map(item => {
-            // Бейдж строго по kind
-            let badge = '';
-            let badgeClass = '';
-            if (item.kind === 'latest') {
-                badge = 'Новое';
-                badgeClass = 'spotlight-card--fresh';
-            } else if (item.kind === 'favorite') {
-                badge = 'Избранное';
-                badgeClass = 'spotlight-card--fav';
-            } else if (item.kind === 'fallback') {
-                badge = 'Популярное';
-                badgeClass = 'spotlight-card--fallback';
-            }
-    
-            // Получаем владельца (original uploader)
-            const owner = item.owner || item.user;
-            const userAvatarHtml = this.getUserAvatarHtml(owner);
-            const userName = owner?.name || 'Пользователь';
-    
-            // Лайки
-            const normalizedKey = this._computeLikeKey(item.text, item.author);
-            const storeEntry = this._likeStore.get(normalizedKey);
-            const isLiked = storeEntry ? storeEntry.liked : !!item.likedByMe;
-            const likesCount = storeEntry ? storeEntry.count : (item.favorites || 0);
-    
+    renderSpotlightFollowing() {
+        // Handle three states: loading (null), empty ([]), data
+        if (this.followingFeed === null) {
+            // Loading state
             return `
-                <div class="quote-card ${badgeClass}" data-kind="${item.kind}" data-quote-id="${item.id || ''}">
-                    ${badge ? `<div class="spotlight-badge">${badge}</div>` : ''}
-                    <div class="quote-card__header">
-                        ${userAvatarHtml}
-                        <div class="quote-card__user">
-                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
-                        </div>
+                <div id="spotlightSection" class="community-spotlight">
+                    <div class="spotlight-header">
+                        <h3 class="spotlight-title">✨ Подписки</h3>
+                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                                aria-label="Обновить подборку">↻</button>
                     </div>
-                    <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
-                    <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
-                    <div class="quote-card__footer">
-                        <div class="quote-card__likes">
-                            ❤ <span class="favorites-count">${likesCount}</span>
-                        </div>
-                        <div class="quote-card__actions">
-                            ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
-                                <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
-                                        data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
-                                        aria-label="${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'Отписаться' : 'Подписаться'}">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                                        <circle cx="9" cy="7" r="4"/>
-                                        <line x1="19" y1="8" x2="19" y2="14"/>
-                                        <line x1="16" y1="11" x2="22" y2="11"/>
-                                    </svg>
-                                </button>
-                            ` : ''}
-                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button type="button" class="quote-card__add-btn" 
-                                    data-quote-id="${item.id || ''}"
-                                    data-quote-text="${this.escapeHtml(item.text)}"
-                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    aria-label="Добавить цитату в дневник">+</button>` : ''}
-                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}" 
-                                    data-quote-id="${item.id || ''}"
-                                    data-quote-text="${this.escapeHtml(item.text)}"
-                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    data-favorites="${likesCount}"
-                                    data-normalized-key="${normalizedKey}"
-                                    aria-label="Добавить в избранное"></button>
+                    <div class="spotlight-grid">
+                        <div class="loading-indicator" style="text-align: center; padding: 40px;">
+                            <div class="spinner"></div>
+                            <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
                         </div>
                     </div>
                 </div>
             `;
-        }).join('');
+        }
+        
+        if (!this.followingFeed || this.followingFeed.length === 0) {
+            // Empty state
+            return `
+                <div id="spotlightSection" class="community-spotlight">
+                    <div class="spotlight-header">
+                        <h3 class="spotlight-title">✨ Подписки</h3>
+                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                                aria-label="Обновить подборку">↻</button>
+                    </div>
+                    <div class="spotlight-grid">
+                        <div class="empty-following">
+                            <div class="empty-following__icon">👥</div>
+                            <div class="empty-following__title">Лента пуста</div>
+                            <div class="empty-following__text">
+                                Подпишитесь на интересных читателей, чтобы видеть их цитаты здесь
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Data state - render quotes
+        const quotesHtml = this._renderFollowingQuotes(this.followingFeed);
+        
+        return `
+            <div id="spotlightSection" class="community-spotlight">
+                <div class="spotlight-header">
+                    <h3 class="spotlight-title">✨ Подписки</h3>
+                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
+                            aria-label="Обновить подборку">↻</button>
+                </div>
+                <div class="spotlight-grid">
+                    ${quotesHtml}
+                </div>
+            </div>
+        `;
     }
         
         /**
@@ -2324,7 +2341,7 @@ async refreshSpotlight() {
     
     /**
      * 👥 РЕНДЕР ЛЕНТЫ ОТ ПОДПИСОК
-     * ОБНОВЛЕНО: Добавлена кнопка Load More
+     * ОБНОВЛЕНО: Убрана кнопка "Показать ещё" согласно требованиям
      */
     renderFollowingFeed() {
         if (!this.followingFeed || this.followingFeed.length === 0) {
@@ -2343,22 +2360,13 @@ async refreshSpotlight() {
         }
     
         const quotesHtml = this._renderFollowingQuotes(this.followingFeed);
-        
-        const config = window.ConfigManager?.get('feeds.community.following') || { initialCount: 12 };
-        const showLoadMore = this.followingFeed.length >= (config.initialCount || 12);
     
+        // NO "Показать ещё" button for Following feed
         return `
             <div class="following-feed">
                 <div class="following-feed__list">
                     ${quotesHtml}
                 </div>
-                ${showLoadMore ? `
-                    <div class="feed-load-more">
-                        <button class="feed-load-more__btn js-following-load-more">
-                            Показать ещё
-                        </button>
-                    </div>
-                ` : ''}
             </div>
         `;
     }
