@@ -1732,25 +1732,25 @@ async refreshSpotlight() {
       const seen = new Set();
       let li = 0, fi = 0;
     
-      // Основной интерлив
+      // Основной интерлив (чередование latest <-> favorite)
       for (let i = 0; i < count; i++) {
         const useLatest = (i % 2 === 0);
         let q = null;
-    
-        if (useLatest && li < latest.length) q = latest[li++];
-        else if (!useLatest && fi < favs.length) q = favs[fi++];
-        else if (li < latest.length) q = latest[li++];
-        else if (fi < favs.length) q = favs[fi++];
-    
+        let kind = null;
+        
+        if (useLatest && li < latest.length) { q = latest[li++]; kind = 'latest'; }
+        else if (!useLatest && fi < favs.length) { q = favs[fi++]; kind = 'favorite'; }
+        else if (li < latest.length) { q = latest[li++]; kind = 'latest'; }
+        else if (fi < favs.length) { q = favs[fi++]; kind = 'favorite'; }
+        
         if (!q) break;
-    
+        
         const key = normKey(q);
         if (seen.has(key)) { i--; continue; }
         seen.add(key);
-    
+        
         items.push({
-          // Если избранных нет (fi==0 и favs пуст), помечаем как latest
-          kind: useLatest ? 'latest' : (favs.length === 0 ? 'latest' : 'favorite'),
+          kind,
           id: q.id || q._id,
           text: q.text || q.content || '',
           author: q.author || q.authorName || '',
@@ -1760,9 +1760,9 @@ async refreshSpotlight() {
           user: q.user || q.owner || null,
           likedByMe: !!q.likedByMe
         });
-      }
-    
-      // Дополнительный добор из latest, если favs пустые или мало — доводим до count
+      } 
+        
+      // Потом обычный добор из latest, если favs закончились, уже ВНЕ основного цикла!
       while (items.length < count && li < latest.length) {
         const q = latest[li++];
         const key = normKey(q);
@@ -2073,72 +2073,86 @@ async refreshSpotlight() {
      * ✨ Рендер секции "Сейчас в сообществе" для ленты ПОДПИСОК
      * @returns {string} HTML секции spotlight с цитатами от подписок
      */
-    renderSpotlightFollowing() {
-        // Empty state если нет подписок или данных
-        if (!this.followingFeed || this.followingFeed.length === 0) {
-            return `
-                <section id="spotlightSection" class="community-spotlight">
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ Подписки</h3>
-                    </div>
-                    <div class="empty-state" style="text-align: center; padding: 40px 20px;">
-                        <div style="font-size: 48px; margin-bottom: 16px;">👥</div>
-                        <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Пока пусто</div>
-                        <div style="color: var(--text-secondary); font-size: 14px;">
-                            Подпишитесь на читателей в лидерборде,<br>чтобы видеть их цитаты здесь
-                        </div>
-                    </div>
-                </section>
-            `;
-        }
+    _renderSpotlightCards() {
+        const items = this._spotlightCache.items || [];
     
-        // Render all items from followingFeed (no slice limit)
-        const cards = this.followingFeed.map((quote, _index) => {
-            const owner = quote.owner || quote.user || {};
-            const userName = owner.name || owner.firstName || 'Читатель';
-            const visibleName = userName.length > 20 ? userName.substring(0, 17) + '...' : userName;
-            const quoteId = quote.id || quote._id || '';
-            const quoteText = quote.text || '';
-            const quoteAuthor = quote.author || 'Неизвестный автор';
+        return items.map(item => {
+            // Бейдж строго по kind
+            let badge = '';
+            let badgeClass = '';
     
-            // ✅ FIX A: Apply like state from _likeStore first (unified data-attributes)
-            const normalizedKey = this._computeLikeKey(quoteText, quoteAuthor);
+            if (item.kind === 'latest') {
+                badge = 'Новое';
+                badgeClass = 'spotlight-card--fresh';
+            } else if (item.kind === 'favorite') {
+                badge = 'Избранное';
+                badgeClass = 'spotlight-card--fav';
+            } else if (item.kind === 'fallback') {
+                badge = 'Популярное';
+                badgeClass = 'spotlight-card--fallback';
+            } else {
+                badge = '';
+                badgeClass = '';
+            }
+    
+            // Получаем владельца (original uploader)
+            const owner = item.owner || item.user;
+            const userAvatarHtml = this.getUserAvatarHtml(owner);
+            const userName = owner?.name || 'Пользователь';
+    
+            // Лайки
+            const normalizedKey = this._computeLikeKey(item.text, item.author);
             const storeEntry = this._likeStore.get(normalizedKey);
-            const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
-            const likesCount = storeEntry ? storeEntry.count : (quote.favorites || quote.likesCount || 0);
-    
-            // Аватар - используем общий метод как в renderSpotlightSection
-            const avatarHtml = this.getUserAvatarHtml(owner);
+            const isLiked = storeEntry ? storeEntry.liked : !!item.likedByMe;
+            const likesCount = storeEntry ? storeEntry.count : (item.favorites || 0);
     
             return `
-                <div class="quote-card spotlight-card" data-quote-id="${quoteId}">
-                    <div class="spotlight-badge spotlight-badge--following">Подписка</div>
+                <div class="quote-card ${badgeClass}" data-kind="${item.kind}" data-quote-id="${item.id || ''}">
+                    ${badge ? `<div class="spotlight-badge">${badge}</div>` : ''}
+    
                     <div class="quote-card__header">
-                        ${avatarHtml}
+                        ${userAvatarHtml}
                         <div class="quote-card__user">
-                            <span class="quote-card__user-name">${this.escapeHtml(visibleName)}</span>
+                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
                         </div>
                     </div>
-                    <div class="quote-card__text">"${this.escapeHtml(quoteText)}"</div>
-                    <div class="quote-card__author">— ${this.escapeHtml(quoteAuthor)}</div>
+                    <div class="quote-card__text">"${this.escapeHtml(item.text)}"</div>
+                    <div class="quote-card__author">— ${this.escapeHtml(item.author || 'Неизвестный автор')}</div>
                     <div class="quote-card__footer">
                         <div class="quote-card__likes">
-                            <span class="likes-icon">❤</span>
-                            <span class="favorites-count">${likesCount}</span>
+                            ❤ <span class="favorites-count">${likesCount}</span>
                         </div>
                         <div class="quote-card__actions">
-                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}"
-                                    data-quote-text="${this.escapeHtml(quoteText)}"
-                                    data-quote-author="${this.escapeHtml(quoteAuthor)}"
+                            ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
+                                <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
+                                        data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
+                                        aria-label="${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'Отписаться' : 'Подписаться'}">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <line x1="19" y1="8" x2="19" y2="14"/>
+                                        <line x1="16" y1="11" x2="22" y2="11"/>
+                                    </svg>
+                                </button>
+                            ` : ''}
+                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button type="button" class="quote-card__add-btn" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                    aria-label="Добавить цитату в дневник">+</button>` : ''}
+                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
                                     data-favorites="${likesCount}"
                                     data-normalized-key="${normalizedKey}"
-                                    aria-label="Лайк">
-                            </button>
+                                    aria-label="Добавить в избранное"></button>
                         </div>
                     </div>
                 </div>
             `;
         }).join('');
+    }
     
         // Load more button - show if we have data loaded
         const loadMoreBtn = this.followingFeed && this.followingFeed.length > 0 
