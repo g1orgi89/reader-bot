@@ -2080,7 +2080,6 @@ async refreshSpotlight() {
             // Бейдж строго по kind
             let badge = '';
             let badgeClass = '';
-    
             if (item.kind === 'latest') {
                 badge = 'Новое';
                 badgeClass = 'spotlight-card--fresh';
@@ -2090,9 +2089,6 @@ async refreshSpotlight() {
             } else if (item.kind === 'fallback') {
                 badge = 'Популярное';
                 badgeClass = 'spotlight-card--fallback';
-            } else {
-                badge = '';
-                badgeClass = '';
             }
     
             // Получаем владельца (original uploader)
@@ -2109,7 +2105,6 @@ async refreshSpotlight() {
             return `
                 <div class="quote-card ${badgeClass}" data-kind="${item.kind}" data-quote-id="${item.id || ''}">
                     ${badge ? `<div class="spotlight-badge">${badge}</div>` : ''}
-    
                     <div class="quote-card__header">
                         ${userAvatarHtml}
                         <div class="quote-card__user">
@@ -2152,29 +2147,6 @@ async refreshSpotlight() {
                 </div>
             `;
         }).join('');
-    }
-    
-        // Load more button - show if we have data loaded
-        const loadMoreBtn = this.followingFeed && this.followingFeed.length > 0;
-            ? `<div class="feed-load-more-container">
-                <button class="feed-load-more-btn js-following-load-more" aria-label="Показать ещё цитаты">
-                    Показать ещё
-                </button>
-            </div>`
-            : '';
-    
-        return `
-            <section id="spotlightSection" class="community-spotlight">
-                <div class="spotlight-header">
-                    <h3 class="spotlight-title">✨ Подписки</h3>
-                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" aria-label="Обновить">↻</button>
-                </div>
-                <div class="following-feed__list">
-                    ${cards}
-                </div>
-                ${loadMoreBtn}
-            </section>
-        `;
     }
         
         /**
