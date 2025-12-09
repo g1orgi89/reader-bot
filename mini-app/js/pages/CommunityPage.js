@@ -2155,7 +2155,7 @@ async refreshSpotlight() {
     }
     
         // Load more button - show if we have data loaded
-        const loadMoreBtn = this.followingFeed && this.followingFeed.length > 0 
+        const loadMoreBtn = this.followingFeed && this.followingFeed.length > 0;
             ? `<div class="feed-load-more-container">
                 <button class="feed-load-more-btn js-following-load-more" aria-label="Показать ещё цитаты">
                     Показать ещё
