@@ -2303,8 +2303,6 @@ async refreshSpotlight() {
                 <div id="spotlightSection" class="community-spotlight">
                     <div class="spotlight-header">
                         <h3 class="spotlight-title">✨ Подписки</h3>
-                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                                aria-label="Обновить подборку">↻</button>
                     </div>
                     <div class="spotlight-grid">
                         <div class="loading-indicator" style="text-align: center; padding: 40px;">
@@ -2322,8 +2320,6 @@ async refreshSpotlight() {
                 <div id="spotlightSection" class="community-spotlight">
                     <div class="spotlight-header">
                         <h3 class="spotlight-title">✨ Подписки</h3>
-                        <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                                aria-label="Обновить подборку">↻</button>
                     </div>
                     <div class="spotlight-grid">
                         <div class="empty-following">
@@ -2346,8 +2342,6 @@ async refreshSpotlight() {
             <div id="spotlightSection" class="community-spotlight">
                 <div class="spotlight-header">
                     <h3 class="spotlight-title">✨ Подписки</h3>
-                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                            aria-label="Обновить подборку">↻</button>
                 </div>
                 <div class="spotlight-grid">
                     ${quotesHtml}
