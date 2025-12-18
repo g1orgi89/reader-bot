@@ -2241,29 +2241,34 @@ router.get('/catalog', async (req, res) => {
     const books = await BookCatalog.find(query)
       .sort({ priority: -1, createdAt: -1 })
       .limit(parseInt(limit))
-      .skip(parseInt(offset));
-
+      .skip(parseInt(offset))
+      .lean(); // <- важно, plain JS objects
+    
     const total = await BookCatalog.countDocuments(query);
-
+    
     res.json({
       success: true,
       books: books.map(b => ({
-        id: b._id,
-        title: b.title,
-        author: b.author,
-        description: b.description,
-        price: b.price,
-        priceRub: b.priceRub,
-        priceByn: b.priceByn,
-        categories: b.categories,
-        bookSlug: b.bookSlug,
-        utmLink: b.utmLink,
-        // --- Критичные для пакетов поля: ---
-        type: b.type,
-        booksInPackage: b.booksInPackage,
-        purchaseUrl: b.purchaseUrl,
-        packageSlug: b.packageSlug,
-        // Можно добавить еще и imageCover, discount, badges и т.д., если используются.
+        // id: предпочитаем явный b.id (slug) если он есть, иначе _id.toString()
+        id: (b.id && String(b.id)) || (b._id ? String(b._id) : null),
+        title: b.title || null,
+        author: b.author || null,
+        description: b.description || null,
+        price: b.price || null,
+        priceRub: b.priceRub || null,
+        priceByn: b.priceByn || null,
+        categories: b.categories || [],
+        bookSlug: b.bookSlug || b.packageSlug || null, // если bookSlug отсутствует, оставим packageSlug
+        utmLink: b.utmLink || null,
+    
+        // ПОЛЯ ДЛЯ ПАКЕТОВ (явно и безопасно)
+        type: typeof b.type === 'string' ? b.type.trim() : (b.type ? String(b.type) : null),
+        booksInPackage: Array.isArray(b.booksInPackage) ? b.booksInPackage : (b.booksInPackage ? [b.booksInPackage] : []),
+        purchaseUrl: b.purchaseUrl || null,
+        packageSlug: b.packageSlug || null,
+    
+        priority: b.priority || 0,
+        createdAt: b.createdAt || null
       })),
       pagination: {
         total,
