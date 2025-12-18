@@ -640,8 +640,8 @@ class CatalogPage {
      * 🏷️ ФИЛЬТРЫ (ТОЧНО ИЗ КОНЦЕПТА!)
      */
     renderFilterTabs() {
-        const tabs = ['ВСЕ', ...CATALOG_CATEGORIES];
-        const active = this.activeFilter || 'ВСЕ';
+        const tabs = ['ПАКЕТЫ', 'ВСЕ', ...CATALOG_CATEGORIES];
+        const active = this.activeFilter || 'ПАКЕТЫ';
         return `
             <div class="filter-tabs">
                 ${tabs.map(tab => `
@@ -670,9 +670,9 @@ class CatalogPage {
      * 🔍 РЕЗУЛЬТАТЫ ПОИСКА (ИЗ КОНЦЕПТА)
      */
     renderSearchResults() {
-        const results = this.books.filter(book => 
+        const results = this.getFilteredBooks().filter(book => 
             book.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-            book.author.toLowerCase().includes(this.searchQuery.toLowerCase())
+            (book.author && book.author.toLowerCase().includes(this.searchQuery.toLowerCase()))
         );
         
         return `
@@ -684,17 +684,55 @@ class CatalogPage {
     }
     
     /**
-     * 📖 КАРТОЧКА КНИГИ (ТОЧНО ИЗ КОНЦЕПТА!)
+     * 📖 КАРТОЧКА КНИГИ ИЛИ ПАКЕТА (ТОЧНО ИЗ КОНЦЕПТА!)
+     * Для type: "package" рендерит спецблок с составом и кнопкой "Купить пакет".
      */
     renderBookCard(book) {
+        // Спец. рендер для пакета (type === "package")
+        if (book.type === 'package') {
+            // Получаем объекты обычных книг для построения состава пакета
+            const allBooks = this.books || [];
+            const items = Array.isArray(book.booksInPackage)
+                ? book.booksInPackage.map(slug => {
+                    const b = allBooks.find(x => x.bookSlug === slug);
+                    return b ? (b.title || b.bookSlug) : slug;
+                  }).filter(Boolean)
+                : [];
+            // BYN/₽ формирование
+            const price = book.priceByn ? `${book.priceByn} BYN` : '';
+            const priceRub = book.priceRub ? `${book.priceRub} ₽` : '';
+    
+            return `
+                <div class="book-card package-card" data-book-id="${book.id}" data-book-slug="${book.packageSlug || ''}">
+                    <div class="book-main">
+                        <div class="book-cover cover-package">
+                            <span class="package-label">ПАКЕТ</span>
+                        </div>
+                        <div class="book-info">
+                            <div class="book-title package-title">${book.title}</div>
+                            <div class="book-description">${book.description || ''}</div>
+                            ${items.length ? `<ul class="package-books">${items.map(title => `<li>${title}</li>`).join('')}</ul>` : ''}
+                        </div>
+                    </div>
+                    <div class="book-footer">
+                        <div class="book-pricing">
+                            <div class="book-price">${[price, priceRub].filter(Boolean).join(' / ')}</div>
+                        </div>
+                        <button class="buy-button" data-book-id="${book.id}" data-package="true">
+                            Купить пакет
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    
+        // Обычная карточка книги/разбора
         const discountClass = book.hasDiscount ? 'discount-card' : '';
-        
-        // HTML escaping if available
         const escapeHtml = window.escapeHtml || ((text) => text);
         const safeTitle = escapeHtml(book.title || '');
         const safeAuthor = escapeHtml(book.author || '');
         const safeDescription = escapeHtml(book.description || '');
-        
+    
         // Multiple badges support
         const badges = book.badgeList || (book.badge ? [book.badge] : []);
         const badgesHtml = badges.length > 1 
@@ -704,7 +742,7 @@ class CatalogPage {
             : badges.length === 1
             ? `<div class="book-badge ${badges[0].type}">${escapeHtml(badges[0].text)}</div>`
             : '';
-        
+    
         return `
             <div class="book-card ${discountClass}" data-book-id="${book.id}" data-book-slug="${book.bookSlug || ''}">
                 ${book.hasDiscount ? `
@@ -784,10 +822,14 @@ class CatalogPage {
      * 🔧 ФИЛЬТРАЦИЯ КНИГ
      */
     getFilteredBooks() {
-        const active = this.activeFilter || 'ВСЕ';
-        if (active === 'ВСЕ') return this.books || [];
-        return (this.books || []).filter(b => b.category === active);
-    }
+      const active = this.activeFilter || 'ПАКЕТЫ';
+      if (active === 'ПАКЕТЫ') {
+          return (this.books || []).filter(b => b.type === 'package');
+      } else if (active === 'ВСЕ') {
+          return (this.books || []).filter(b => !b.type || b.type !== 'package');
+      }
+      return (this.books || []).filter(b => b.category === active && (!b.type || b.type !== 'package'));
+  }
     
     /**
      * 🎯 ОБРАБОТЧИКИ СОБЫТИЙ
