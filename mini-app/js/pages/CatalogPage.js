@@ -833,7 +833,7 @@ class CatalogPage {
       const active = this.activeFilter || 'ПАКЕТЫ';
       if (active === 'ПАКЕТЫ') {
           return (this.books || []).filter(b => b.type === 'package');
-      } else if (active === 'ПАКЕТЫ') {
+      } else if (active === 'ВСЕ') {
           return (this.books || []).filter(b => !b.type || b.type !== 'package');
       }
       return (this.books || []).filter(b => b.category === active && (!b.type || b.type !== 'package'));
