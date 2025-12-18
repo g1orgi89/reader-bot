@@ -90,62 +90,89 @@ class CatalogPage {
     }
     
     async loadCatalogData() {
-        // ✅ ИСПРАВЛЕНО: Предотвращаем дублирующиеся вызовы
+        // Защита от повторных вызовов
         if (this.catalogLoading) {
             console.log('🔄 CatalogPage: Каталог уже загружается, пропускаем');
             return;
         }
-        
+    
         try {
             this.catalogLoading = true;
-            console.log('📚 CatalogPage: Загружаем данные каталога...');
-            
-            // Include category filter if specified in query
-            const apiOptions = { limit: 100 };
-            if (this.query.category) {
-                apiOptions.category = this.query.category;
-            }
-            
-            // Загружаем реальные данные каталога через API
-            const response = await this.api.getCatalog(apiOptions);
-            
-            if (response && response.success && response.books) {
-                // Конвертируем API данные в формат для отображения
-                this.books = response.books.map(book => this.convertApiBookToDisplayFormat(book));
-                
-                // ✅ СОРТИРОВКА: Топ-3 недели отображаются первыми
-                this.books.sort((a, b) => {
-                    const aIsTopWeek = a.badgeList?.some(badge => badge.type === 'top-week') || false;
-                    const bIsTopWeek = b.badgeList?.some(badge => badge.type === 'top-week') || false;
-                    
-                    if (aIsTopWeek && !bIsTopWeek) return -1; // a идет первым
-                    if (!aIsTopWeek && bIsTopWeek) return 1;  // b идет первым
-                    return 0; // сохраняем исходный порядок
-                });
-                
-                console.log('✅ CatalogPage: Загружено книг из API:', this.books.length);
+            console.log('📚 CatalogPage: Загружаем данные каталога (main + packages)...');
+    
+            // Основные опции для общего запроса
+            const mainOptions = { limit: 100 };
+            if (this.query.category) mainOptions.category = this.query.category;
+    
+            // Явный пакетный запрос, чтобы гарантированно получить пакеты
+            const packageOptions = { limit: 100, type: 'package' };
+    
+            // Параллельно делаем оба запроса. Если сервер не поддерживает type, второй вернёт пустой набор.
+            const [mainSettled, packagesSettled] = await Promise.allSettled([
+                this.api.getCatalog ? this.api.getCatalog(mainOptions) : this.api.getBookCatalog(mainOptions),
+                this.api.getCatalog ? this.api.getCatalog(packageOptions) : this.api.getBookCatalog(packageOptions)
+            ]);
+    
+            let mainBooks = [];
+            let packageBooks = [];
+    
+            if (mainSettled.status === 'fulfilled' && mainSettled.value) {
+                const r = mainSettled.value;
+                if (r.success && Array.isArray(r.books)) mainBooks = r.books;
+                else if (Array.isArray(r.data?.books)) mainBooks = r.data.books;
             } else {
-                console.warn('⚠️ CatalogPage: Некорректный ответ API, используем заглушки');
-                // Fallback на статичные данные
-                this.books = [];
+                console.warn('⚠️ CatalogPage: Ошибка загрузки основной выдачи:', mainSettled.reason);
             }
-            
+    
+            if (packagesSettled.status === 'fulfilled' && packagesSettled.value) {
+                const r = packagesSettled.value;
+                if (r.success && Array.isArray(r.books)) packageBooks = r.books;
+                else if (Array.isArray(r.data?.books)) packageBooks = r.data.books;
+                else if (Array.isArray(r.data)) packageBooks = r.data;
+            } else {
+                console.warn('⚠️ CatalogPage: Ошибка загрузки пакетов:', packagesSettled.reason);
+            }
+    
+            // Merge + dedupe по id / _id / bookSlug / packageSlug
+            const merged = [];
+            const seen = new Set();
+            const pushUnique = (item) => {
+                const key = String(item.id || item._id || item.bookSlug || item.packageSlug || '').trim();
+                if (!key) return;
+                if (seen.has(key)) return;
+                seen.add(key);
+                merged.push(item);
+            };
+    
+            // Сохраняем порядок mainBooks (priority), затем дополняем пакетами, чтобы гарантировать их присутствие
+            for (const b of mainBooks) pushUnique(b);
+            for (const b of packageBooks) pushUnique(b);
+    
+            // Конвертируем API объекты в UI формат
+            this.books = merged.map(book => this.convertApiBookToDisplayFormat(book));
+    
+            // СОРТИРОВКА: Топ-3 недели отображаются первыми (как было)
+            this.books.sort((a, b) => {
+                const aIsTopWeek = a.badgeList?.some(x => x.type === 'top-week') || false;
+                const bIsTopWeek = b.badgeList?.some(x => x.type === 'top-week') || false;
+                if (aIsTopWeek && !bIsTopWeek) return -1;
+                if (!aIsTopWeek && bIsTopWeek) return 1;
+                return 0;
+            });
+    
+            console.log('✅ CatalogPage: Загружено элементов (merged):', this.books.length);
             this.catalogLoaded = true;
             this.state.set('catalog.lastUpdate', Date.now());
-            console.log('✅ CatalogPage: Данные каталога загружены');
-            
+    
         } catch (error) {
             console.error('❌ Ошибка загрузки данных каталога:', error);
-            // Fallback на статичные данные при ошибке
             this.books = [];
-            console.log('📚 CatalogPage: Каталог пуст из-за ошибки.');
         } finally {
             this.catalogLoading = false;
             this.rerender();
-            
-            // ✅ НОВОЕ: Применяем отложенный highlight после загрузки данных
+    
+            // Применяем отложенный highlight, если есть
             if (this.pendingHighlight && !this.highlightApplied) {
-                console.log('🎯 CatalogPage: Применяем отложенный highlight:', this.pendingHighlight);
                 setTimeout(() => this.applyHighlight(this.pendingHighlight), 500);
             }
         }
