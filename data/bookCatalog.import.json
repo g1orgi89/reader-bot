@@ -984,5 +984,106 @@
       "priority": 5,
       "reasoning": "БИОГРАФИЯ Льва Толстого"
     }
+    {
+    "id": "facult-dostoevsky",
+    "type": "package",
+    "title": "ФАКУЛЬТАТИВ «Федор Достоевский»",
+    "description": "Входит:\n— Братья Карамазовы\n— Бесы\n— Бедные люди",
+    "booksInPackage": [
+      "bratya_karamazovy",
+      "besy",
+      "bednye_lyudi"
+    ],
+    "priceByn": 280,
+    "priceRub": 8400,
+    "purchaseUrl": "https://bebusel.info/facult-dostoevskiy",
+    "packageSlug": "facultativ_dostoevsky",
+    "isActive": true
+  },
+  {
+    "id": "facult-nabokov",
+    "type": "package",
+    "title": "ФАКУЛЬТАТИВ «Владимир Набоков»",
+    "description": "Входит:\n— Ада, или Отрада\n— Защита Лужина\n— Дар\n— биография Набокова",
+    "booksInPackage": [
+      "ada_ili_otrada",
+      "zaschita_luzhina",
+      "dar",
+      "biografiya_vladimira_nabokova"
+    ],
+    "priceByn": 280,
+    "priceRub": 8400,
+    "purchaseUrl": "https://bebusel.info/facult-nabokov",
+    "packageSlug": "facultativ_nabokov",
+    "isActive": true
+  },
+  {
+    "id": "facult-children",
+    "type": "package",
+    "title": "ФАКУЛЬТАТИВ «Детская классика»",
+    "description": "Входит:\n— Михаил Булгаков «Собачье сердце»\n— А. С. Пушкин «Сказка о рыбаке и рыбке»\n— Ханс Кристиан Андерсен «Русалочка»\n— Сестрица Аленушка и братец Иванушка\n— Сказка о мертвой царевне и семи богатырях",
+    "booksInPackage": [
+      "sobache_serdtse",
+      "skazka_o_rybake_i_rybke",
+      "rusalochka",
+      "alenushka_ivanushka",
+      "skazka_o_mertvoy_tsarivne"
+    ],
+    "priceByn": 280,
+    "priceRub": 8400,
+    "purchaseUrl": "https://bebusel.info/facult-children",
+    "packageSlug": "facultativ_children",
+    "isActive": true
+  },
+  {
+    "id": "facult-tolstoy",
+    "type": "package",
+    "title": "ФАКУЛЬТАТИВ «Лев Толстой»",
+    "description": "Входит:\n— Анна Каренина\n— Война и мир\n— биография Толстого",
+    "booksInPackage": [
+      "anna_karenina",
+      "voyna_i_mir",
+      "biografiya_lva_tolstogo"
+    ],
+    "priceByn": 280,
+    "priceRub": 8400,
+    "purchaseUrl": "https://bebusel.info/facult-tolstoy",
+    "packageSlug": "facultativ_tolstoy",
+    "isActive": true
+  },
+  {
+    "id": "facult-foreign",
+    "type": "package",
+    "title": "ФАКУЛЬТАТИВ «Зарубежная классика»",
+    "description": "Входит:\n— Фауст (Гёте)\n— Процесс (Кафка)\n— Гроздья гнева (Стейнбек)\n— Сто лет одиночества (Габриэль Гарсиа Маркес)",
+    "booksInPackage": [
+      "faust",
+      "protsess",
+      "grozdya_gneva",
+      "sto_let_odinochestva"
+    ],
+    "priceByn": 280,
+    "priceRub": 8400,
+    "purchaseUrl": "https://bebusel.info/facult-foreign",
+    "packageSlug": "facultativ_foreign",
+    "isActive": true
+  },
+  {
+    "id": "facult-russian",
+    "type": "package",
+    "title": "ФАКУЛЬТАТИВ «Русская классика»",
+    "description": "Входит:\n— Мертвые души (Гоголь)\n— Горе от ума (Грибоедов)\n— Отцы и дети (Тургенев)\n— Вишнёвый сад (Чехов)",
+    "booksInPackage": [
+      "myortvye_dushi",
+      "gore_ot_uma",
+      "ottsy_i_deti",
+      "vishnyovyy_sad"
+    ],
+    "priceByn": 280,
+    "priceRub": 8400,
+    "purchaseUrl": "https://bebusel.info/facult-russian",
+    "packageSlug": "facultativ_russian",
+    "isActive": true
+  }
   ]
 }
