@@ -1071,6 +1071,7 @@ class ApiService {
         const params = new URLSearchParams();
         
         if (options.category) params.append('category', options.category);
+        if (options.type) params.append('type', options.type);
         if (options.limit) params.append('limit', options.limit);
         if (options.offset) params.append('offset', options.offset);
 
