@@ -46,7 +46,7 @@ class CatalogPage {
         
         // Состояние фильтров (14 категорий + ВСЕ)
         // Set initial filter from query parameters
-        this.activeFilter = this.query.category ? this.mapQueryCategoryToFilter(this.query.category) : 'ВСЕ';
+        this.activeFilter = this.query.category ? this.mapQueryCategoryToFilter(this.query.category) : 'ПАКЕТЫ';
         this.searchQuery = '';
         this.showSearch = false;
         
@@ -349,7 +349,15 @@ class CatalogPage {
             badge: existingBadge, // Keep for backward compatibility
             badgeList: badgeList, // New multiple badges support
             utmLink: apiBook.utmLink,
-            bookSlug: apiBook.bookSlug // ← обязательно
+            bookSlug: apiBook.bookSlug, // ← обязательно
+        
+            // СПЕЦИАЛЬНО ДЛЯ ПАКЕТОВ:
+            type: apiBook.type || null,
+            booksInPackage: apiBook.booksInPackage || null,
+            priceByn: apiBook.priceByn,
+            priceRub: apiBook.priceRub,
+            packageSlug: apiBook.packageSlug,
+            purchaseUrl: apiBook.purchaseUrl,
         };
     }
     
