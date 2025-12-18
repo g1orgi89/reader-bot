@@ -352,7 +352,7 @@ class CatalogPage {
             bookSlug: apiBook.bookSlug, // ← обязательно
         
             // СПЕЦИАЛЬНО ДЛЯ ПАКЕТОВ:
-            type: apiBook.type || null,
+            type: typeof apiBook.type === 'string' ? apiBook.type.trim().toLowerCase() : null,
             booksInPackage: apiBook.booksInPackage || null,
             priceByn: apiBook.priceByn,
             priceRub: apiBook.priceRub,
