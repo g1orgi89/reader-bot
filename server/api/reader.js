@@ -2226,16 +2226,18 @@ router.get('/reports/monthly', telegramAuth, async (req, res) => {
 // ===========================================
 
 /**
- * @description Получение каталога книг
+ * @description Получение каталога книг и пакетов
  * @route GET /api/reader/catalog
  */
 router.get('/catalog', async (req, res) => {
   try {
     const { category, limit = 20, offset = 0 } = req.query;
 
+    // Базовый фильтр — все "isActive: true"
     const query = { isActive: true };
     if (category) query.categories = category;
 
+    // Берём всё из коллекции BookCatalog
     const books = await BookCatalog.find(query)
       .sort({ priority: -1, createdAt: -1 })
       .limit(parseInt(limit))
@@ -2255,7 +2257,13 @@ router.get('/catalog', async (req, res) => {
         priceByn: b.priceByn,
         categories: b.categories,
         bookSlug: b.bookSlug,
-        utmLink: b.utmLink
+        utmLink: b.utmLink,
+        // --- Критичные для пакетов поля: ---
+        type: b.type,
+        booksInPackage: b.booksInPackage,
+        purchaseUrl: b.purchaseUrl,
+        packageSlug: b.packageSlug,
+        // Можно добавить еще и imageCover, discount, badges и т.д., если используются.
       })),
       pagination: {
         total,
