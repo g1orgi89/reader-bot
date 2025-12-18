@@ -880,21 +880,26 @@ class CatalogPage {
     }
     
     /**
-     * 💳 ПОКУПКА КНИГИ
+     * 💳 ПОКУПКА КНИГИ ИЛИ ПАКЕТА
      */
     handleBuyBook(bookId) {
         const book = this.books.find(b => b.id === bookId);
         if (!book) return;
-        
+    
         this.telegram.hapticFeedback('success');
-
-        // Fire-and-forget tracking; не блокируем переход
+    
+        // Для пакета — всегда используем purchaseUrl (строго!)
+        if (book.type === 'package' && book.purchaseUrl) {
+            this.telegram.openLink(book.purchaseUrl);
+            this.showSuccess(`📦 Переходим к покупке пакета "${book.title}"`);
+            return;
+        }
+    
+        // Для книги/разбора — старый алгоритм
         this.api.trackCatalogClick({ bookSlug: book.bookSlug, bookId: book.id }).catch(() => {});
-      
-        // Используем реальную UTM ссылку из API если доступна
         const buyUrl = book.utmLink || `https://anna-busel.com/books?utm_source=telegram_bot&utm_medium=mini_app&utm_campaign=catalog&utm_content=${book.id}`;
         this.telegram.openLink(buyUrl);
-        
+    
         this.showSuccess(`📚 Переходим к покупке "${book.title}"`);
     }
     
