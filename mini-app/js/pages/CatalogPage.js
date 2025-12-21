@@ -795,129 +795,131 @@ class CatalogPage {
         `;
     }
     
-    /**
-     * 📖 КАРТОЧКА КНИГИ ИЛИ ПАКЕТА (ТОЧНО ИЗ КОНЦЕПТА!)
-     * Для type: "package" рендерит спецблок с составом и кнопкой "Купить пакет".
-     */
     renderBookCard(book) {
-        // === ЗАМЕНИТЬ ВНУТРИ renderBookCard(book) ВСЮ ВЕТКУ if (book.type === 'package') ===
-        if (book.type === 'package') {
-          // Быстрый резолв состава пакета: приоритет — resolvePackageItems -> this.bookIndex/this.books -> humanizeSlug
-          const resolved = (this.resolvePackageItems && this.resolvePackageItems(book)) || [];
-          let items = [];
-        
-          if (resolved && resolved.length) {
-            items = resolved.map(i => {
-              if (i.title && i.title.trim()) return i.title;
-              if (i.bookSlug && this.bookIndex && this.bookIndex[i.bookSlug] && this.bookIndex[i.bookSlug].title) return this.bookIndex[i.bookSlug].title;
-              return (i.bookSlug && this.humanizeSlug) ? this.humanizeSlug(i.bookSlug) : (i.bookSlug || '');
-            }).filter(Boolean);
-          } else if (Array.isArray(book.booksInPackage) && book.booksInPackage.length) {
-            items = book.booksInPackage.map(s => {
-              const slug = String(s || '').trim();
-              if (!slug) return null;
-              const found = (this.bookIndex && this.bookIndex[slug]) || (this.books || []).find(b => (b.bookSlug || b.id || '').toString() === slug);
-              if (found && found.title) return found.title;
-              return (this.humanizeSlug ? this.humanizeSlug(slug) : slug);
-            }).filter(Boolean);
-          } else {
-            items = [];
-          }
-        
-          // BYN/₽ формирование
-          const price = book.priceByn ? `${book.priceByn} BYN` : '';
-          const priceRub = book.priceRub ? `${book.priceRub} ₽` : '';
-          const escapeHtml = window.escapeHtml || (t => String(t || ''));
-        
-          const itemsHtml = items.length
-            ? `<ul class="package-books">${items.map(title => `<li>${escapeHtml(title)}</li>`).join('')}</ul>`
-            : '';
-        
-          return `
-            <div class="book-card package-card" data-book-id="${book.id}" data-book-slug="${book.packageSlug || ''}">
-              <div class="book-main">
-                <div class="book-cover cover-package">
-                  <img class="book-cover-img"
-                       src="${this.coverSrcFor(book)}"
-                       alt="${escapeHtml(book.title || '')}"
-                       onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
-                  <span class="package-label">ПАКЕТ</span>
-                  <div class="cover-fallback-text">${escapeHtml(book.title || '')}</div>
+    // === ЗАМЕНИТЬ ВНУТРИ renderBookCard(book) ВСЮ ВЕТКУ if (book.type === 'package') ===
+    if (book.type === 'package') {
+      // Быстрый резолв состава пакета: приоритет — resolvePackageItems -> this.bookIndex/this.books -> humanizeSlug
+      const resolved = (this.resolvePackageItems && this.resolvePackageItems(book)) || [];
+      let items = [];
+
+      if (resolved && resolved.length) {
+        items = resolved.map(i => {
+          if (i.title && i.title.trim()) return i.title;
+          if (i.bookSlug && this.bookIndex && this.bookIndex[i.bookSlug] && this.bookIndex[i.bookSlug].title) return this.bookIndex[i.bookSlug].title;
+          return (i.bookSlug && this.humanizeSlug) ? this.humanizeSlug(i.bookSlug) : (i.bookSlug || '');
+        }).filter(Boolean);
+      } else if (Array.isArray(book.booksInPackage) && book.booksInPackage.length) {
+        items = book.booksInPackage.map(s => {
+          const slug = String(s || '').trim();
+          if (!slug) return null;
+          const found = (this.bookIndex && this.bookIndex[slug]) || (this.books || []).find(b => (b.bookSlug || b.id || '').toString() === slug);
+          if (found && found.title) return found.title;
+          return (this.humanizeSlug ? this.humanizeSlug(slug) : slug);
+        }).filter(Boolean);
+      } else {
+        items = [];
+      }
+
+      // BYN/₽ формирование
+      const price = book.priceByn ? `${book.priceByn} BYN` : '';
+      const priceRub = book.priceRub ? `${book.priceRub} ₽` : '';
+      const escapeHtml = window.escapeHtml || (t => String(t || ''));
+
+      const itemsHtml = items.length
+        ? `<ul class="package-books">${items.map(title => `<li>${escapeHtml(title)}</li>`).join('')}</ul>`
+        : '';
+
+      // Compute package-specific cover src (prefer packageSlug, fallback to bookSlug/book.image via helper)
+      const pkgSlugRaw = String(book.packageSlug || book.bookSlug || '').trim().toLowerCase();
+      const pkgSlug = pkgSlugRaw ? encodeURIComponent(pkgSlugRaw) : '';
+      const pkgCoverSrc = pkgSlug ? `/mini-app/assets/book-covers/${pkgSlug}.png` : '';
+      const coverSrc = pkgCoverSrc || this.coverSrcFor(book);
+
+      return `
+        <div class="book-card package-card" data-book-id="${book.id}" data-book-slug="${book.packageSlug || ''}">
+          <div class="book-main">
+            <div class="book-cover cover-package" data-cover-src="${coverSrc}">
+              <img class="book-cover-img"
+                   src="${coverSrc}"
+                   alt="${escapeHtml(book.title || '')}"
+                   onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
+              <span class="package-label">ПАКЕТ</span>
+              <div class="cover-fallback-text">${escapeHtml(book.title || '')}</div>
+            </div>
+            <div class="book-info">
+              <div class="book-title package-title">${escapeHtml(book.title || '')}</div>
+              <div class="book-description">${escapeHtml(book.description || '')}</div>
+              ${itemsHtml}
+            </div>
+          </div>
+          <div class="book-footer">
+            <div class="book-pricing">
+              <div class="book-price">${[price, priceRub].filter(Boolean).join(' / ')}</div>
+            </div>
+            <button class="buy-button" data-book-id="${book.id}" data-package="true">Купить пакет</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Обычная карточка книги/разбора (без изменений)
+    const discountClass = book.hasDiscount ? 'discount-card' : '';
+    const escapeHtml = window.escapeHtml || ((text) => text);
+    const safeTitle = escapeHtml(book.title || '');
+    const safeAuthor = escapeHtml(book.author || '');
+    const safeDescription = escapeHtml(book.description || '');
+
+    // Multiple badges support
+    const badges = book.badgeList || (book.badge ? [book.badge] : []);
+    const badgesHtml = badges.length > 1 
+        ? `<div class="book-badges">${badges.map(badge => 
+            `<div class="book-badge ${badge.type}">${escapeHtml(badge.text)}</div>`
+          ).join('')}</div>`
+        : badges.length === 1
+        ? `<div class="book-badge ${badges[0].type}">${escapeHtml(badges[0].text)}</div>`
+        : '';
+
+    return `
+        <div class="book-card ${discountClass}" data-book-id="${book.id}" data-book-slug="${book.bookSlug || ''}">
+            ${book.hasDiscount ? `
+                <div class="discount-badge">${book.discount}</div>
+            ` : ''}
+            
+            <div class="book-main">
+                <div class="book-cover ${book.coverClass}">
+                    <img class="book-cover-img" 
+                         src="/mini-app/assets/book-covers/${book.bookSlug}.png" 
+                         alt="${safeTitle}"
+                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
+                    <div class="cover-fallback-text">${safeTitle}</div>
                 </div>
                 <div class="book-info">
-                  <div class="book-title package-title">${escapeHtml(book.title || '')}</div>
-                  <div class="book-description">${escapeHtml(book.description || '')}</div>
-                  ${itemsHtml}
-                </div>
-              </div>
-              <div class="book-footer">
-                <div class="book-pricing">
-                  <div class="book-price">${[price, priceRub].filter(Boolean).join(' / ')}</div>
-                </div>
-                <button class="buy-button" data-book-id="${book.id}" data-package="true">Купить пакет</button>
-              </div>
-            </div>
-          `;
-        }
-    
-        // Обычная карточка книги/разбора
-        const discountClass = book.hasDiscount ? 'discount-card' : '';
-        const escapeHtml = window.escapeHtml || ((text) => text);
-        const safeTitle = escapeHtml(book.title || '');
-        const safeAuthor = escapeHtml(book.author || '');
-        const safeDescription = escapeHtml(book.description || '');
-    
-        // Multiple badges support
-        const badges = book.badgeList || (book.badge ? [book.badge] : []);
-        const badgesHtml = badges.length > 1 
-            ? `<div class="book-badges">${badges.map(badge => 
-                `<div class="book-badge ${badge.type}">${escapeHtml(badge.text)}</div>`
-              ).join('')}</div>`
-            : badges.length === 1
-            ? `<div class="book-badge ${badges[0].type}">${escapeHtml(badges[0].text)}</div>`
-            : '';
-    
-        return `
-            <div class="book-card ${discountClass}" data-book-id="${book.id}" data-book-slug="${book.bookSlug || ''}">
-                ${book.hasDiscount ? `
-                    <div class="discount-badge">${book.discount}</div>
-                ` : ''}
-                
-                <div class="book-main">
-                    <div class="book-cover ${book.coverClass}">
-                        <img class="book-cover-img" 
-                             src="/mini-app/assets/book-covers/${book.bookSlug}.png" 
-                             alt="${safeTitle}"
-                             onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
-                        <div class="cover-fallback-text">${safeTitle}</div>
-                    </div>
-                    <div class="book-info">
-                        <div class="book-header">
-                            <div>
-                                <div class="book-title">${safeTitle}</div>
-                                ${book.author ? `<div class="book-author">${safeAuthor}</div>` : ''}
-                            </div>
-                            ${badgesHtml}
+                    <div class="book-header">
+                        <div>
+                            <div class="book-title">${safeTitle}</div>
+                            ${book.author ? `<div class="book-author">${safeAuthor}</div>` : ''}
                         </div>
-                        <div class="book-description">${safeDescription}</div>
+                        ${badgesHtml}
                     </div>
-                </div>
-                
-                <div class="book-footer">
-                    <div class="book-pricing">
-                        ${book.oldPrice ? `
-                            <div class="book-old-price">${book.oldPrice}</div>
-                        ` : ''}
-                        <div class="book-price">${book.price}</div>
-                    </div>
-                    <button class="buy-button ${book.hasDiscount ? 'discount-button' : ''}" 
-                            data-book-id="${book.id}">
-                        Купить разбор
-                    </button>
+                    <div class="book-description">${safeDescription}</div>
                 </div>
             </div>
-        `;
-    }
+            
+            <div class="book-footer">
+                <div class="book-pricing">
+                    ${book.oldPrice ? `
+                        <div class="book-old-price">${book.oldPrice}</div>
+                    ` : ''}
+                    <div class="book-price">${book.price}</div>
+                </div>
+                <button class="buy-button ${book.hasDiscount ? 'discount-button' : ''}" 
+                        data-book-id="${book.id}">
+                    Купить разбор
+                </button>
+            </div>
+        </div>
+    `;
+}
     
     /**
      * 🎁 ПРОМО СЕКЦИЯ (ИЗ КОНЦЕПТА)
