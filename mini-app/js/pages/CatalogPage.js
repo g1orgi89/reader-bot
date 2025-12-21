@@ -837,7 +837,12 @@ class CatalogPage {
             <div class="book-card package-card" data-book-id="${book.id}" data-book-slug="${book.packageSlug || ''}">
               <div class="book-main">
                 <div class="book-cover cover-package">
+                  <img class="book-cover-img"
+                       src="${this.coverSrcFor(book)}"
+                       alt="${escapeHtml(book.title || '')}"
+                       onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
                   <span class="package-label">ПАКЕТ</span>
+                  <div class="cover-fallback-text">${escapeHtml(book.title || '')}</div>
                 </div>
                 <div class="book-info">
                   <div class="book-title package-title">${escapeHtml(book.title || '')}</div>
