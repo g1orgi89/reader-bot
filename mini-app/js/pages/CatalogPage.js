@@ -159,7 +159,11 @@ class CatalogPage {
                 if (!aIsTopWeek && bIsTopWeek) return 1;
                 return 0;
             });
-    
+            
+            // НОВОЕ: индекс для быстрого lookup bookSlug -> doc
+            this.bookIndex = this.buildBookIndex(this.books);
+            
+            // Лог и флаги состояния
             console.log('✅ CatalogPage: Загружено элементов (merged):', this.books.length);
             this.catalogLoaded = true;
             this.state.set('catalog.lastUpdate', Date.now());
@@ -177,7 +181,8 @@ class CatalogPage {
             }
         }
     }
-    
+
+  
     /**
      * 🔥 Ensure top week IDs are available
      */
@@ -775,18 +780,26 @@ class CatalogPage {
     renderBookCard(book) {
         // Спец. рендер для пакета (type === "package")
         if (book.type === 'package') {
-            // Получаем объекты обычных книг для построения состава пакета
-            const allBooks = this.books || [];
-            const items = Array.isArray(book.booksInPackage)
-                ? book.booksInPackage.map(slug => {
-                    const b = allBooks.find(x => x.bookSlug === slug);
-                    return b ? (b.title || b.bookSlug) : slug;
-                  }).filter(Boolean)
-                : [];
+            // Резолвим элементы пакета в объекты { bookSlug, title, author, coverUrl }
+            const resolved = this.resolvePackageItems(book) || [];
+        
+            // Формируем массив для рендера (title + автор)
+            const items = resolved.map(i => ({
+                title: i.title || this.humanizeSlug(i.bookSlug),
+                author: i.author || ''
+            })).filter(Boolean);
+        
             // BYN/₽ формирование
             const price = book.priceByn ? `${book.priceByn} BYN` : '';
             const priceRub = book.priceRub ? `${book.priceRub} ₽` : '';
-    
+        
+            // escape helper (в проекте может быть window.escapeHtml)
+            const escapeHtml = window.escapeHtml || (t => String(t || ''));
+        
+            const itemsHtml = items.length
+                ? `<ul class="package-books">${items.map(it => `<li>${escapeHtml(it.title)}${it.author ? ` <span class="package-book-author">— ${escapeHtml(it.author)}</span>` : ''}</li>`).join('')}</ul>`
+                : '';
+        
             return `
                 <div class="book-card package-card" data-book-id="${book.id}" data-book-slug="${book.packageSlug || ''}">
                     <div class="book-main">
@@ -794,9 +807,9 @@ class CatalogPage {
                             <span class="package-label">ПАКЕТ</span>
                         </div>
                         <div class="book-info">
-                            <div class="book-title package-title">${book.title}</div>
-                            <div class="book-description">${book.description || ''}</div>
-                            ${items.length ? `<ul class="package-books">${items.map(title => `<li>${title}</li>`).join('')}</ul>` : ''}
+                            <div class="book-title package-title">${escapeHtml(book.title)}</div>
+                            <div class="book-description">${escapeHtml(book.description || '')}</div>
+                            ${itemsHtml}
                         </div>
                     </div>
                     <div class="book-footer">
