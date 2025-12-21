@@ -778,50 +778,59 @@ class CatalogPage {
      * Для type: "package" рендерит спецблок с составом и кнопкой "Купить пакет".
      */
     renderBookCard(book) {
-        // Спец. рендер для пакета (type === "package")
+        // === ЗАМЕНИТЬ ВНУТРИ renderBookCard(book) ВСЮ ВЕТКУ if (book.type === 'package') ===
         if (book.type === 'package') {
-            // Резолвим элементы пакета в объекты { bookSlug, title, author, coverUrl }
-            const resolved = this.resolvePackageItems(book) || [];
+          // Быстрый резолв состава пакета: приоритет — resolvePackageItems -> this.bookIndex/this.books -> humanizeSlug
+          const resolved = (this.resolvePackageItems && this.resolvePackageItems(book)) || [];
+          let items = [];
         
-            // Формируем массив для рендера (title + автор)
-            const items = resolved.map(i => ({
-                title: i.title || this.humanizeSlug(i.bookSlug),
-                author: i.author || ''
-            })).filter(Boolean);
+          if (resolved && resolved.length) {
+            items = resolved.map(i => {
+              if (i.title && i.title.trim()) return i.title;
+              if (i.bookSlug && this.bookIndex && this.bookIndex[i.bookSlug] && this.bookIndex[i.bookSlug].title) return this.bookIndex[i.bookSlug].title;
+              return (i.bookSlug && this.humanizeSlug) ? this.humanizeSlug(i.bookSlug) : (i.bookSlug || '');
+            }).filter(Boolean);
+          } else if (Array.isArray(book.booksInPackage) && book.booksInPackage.length) {
+            items = book.booksInPackage.map(s => {
+              const slug = String(s || '').trim();
+              if (!slug) return null;
+              const found = (this.bookIndex && this.bookIndex[slug]) || (this.books || []).find(b => (b.bookSlug || b.id || '').toString() === slug);
+              if (found && found.title) return found.title;
+              return (this.humanizeSlug ? this.humanizeSlug(slug) : slug);
+            }).filter(Boolean);
+          } else {
+            items = [];
+          }
         
-            // BYN/₽ формирование
-            const price = book.priceByn ? `${book.priceByn} BYN` : '';
-            const priceRub = book.priceRub ? `${book.priceRub} ₽` : '';
+          // BYN/₽ формирование
+          const price = book.priceByn ? `${book.priceByn} BYN` : '';
+          const priceRub = book.priceRub ? `${book.priceRub} ₽` : '';
+          const escapeHtml = window.escapeHtml || (t => String(t || ''));
         
-            // escape helper (в проекте может быть window.escapeHtml)
-            const escapeHtml = window.escapeHtml || (t => String(t || ''));
+          const itemsHtml = items.length
+            ? `<ul class="package-books">${items.map(title => `<li>${escapeHtml(title)}</li>`).join('')}</ul>`
+            : '';
         
-            const itemsHtml = items.length
-                ? `<ul class="package-books">${items.map(it => `<li>${escapeHtml(it.title)}${it.author ? ` <span class="package-book-author">— ${escapeHtml(it.author)}</span>` : ''}</li>`).join('')}</ul>`
-                : '';
-        
-            return `
-                <div class="book-card package-card" data-book-id="${book.id}" data-book-slug="${book.packageSlug || ''}">
-                    <div class="book-main">
-                        <div class="book-cover cover-package">
-                            <span class="package-label">ПАКЕТ</span>
-                        </div>
-                        <div class="book-info">
-                            <div class="book-title package-title">${escapeHtml(book.title)}</div>
-                            <div class="book-description">${escapeHtml(book.description || '')}</div>
-                            ${itemsHtml}
-                        </div>
-                    </div>
-                    <div class="book-footer">
-                        <div class="book-pricing">
-                            <div class="book-price">${[price, priceRub].filter(Boolean).join(' / ')}</div>
-                        </div>
-                        <button class="buy-button" data-book-id="${book.id}" data-package="true">
-                            Купить пакет
-                        </button>
-                    </div>
+          return `
+            <div class="book-card package-card" data-book-id="${book.id}" data-book-slug="${book.packageSlug || ''}">
+              <div class="book-main">
+                <div class="book-cover cover-package">
+                  <span class="package-label">ПАКЕТ</span>
                 </div>
-            `;
+                <div class="book-info">
+                  <div class="book-title package-title">${escapeHtml(book.title || '')}</div>
+                  <div class="book-description">${escapeHtml(book.description || '')}</div>
+                  ${itemsHtml}
+                </div>
+              </div>
+              <div class="book-footer">
+                <div class="book-pricing">
+                  <div class="book-price">${[price, priceRub].filter(Boolean).join(' / ')}</div>
+                </div>
+                <button class="buy-button" data-book-id="${book.id}" data-package="true">Купить пакет</button>
+              </div>
+            </div>
+          `;
         }
     
         // Обычная карточка книги/разбора
