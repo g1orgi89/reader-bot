@@ -387,7 +387,57 @@ class CatalogPage {
             purchaseUrl: apiBook.purchaseUrl,
         };
     }
+
+    /**
+     * Преобразовать slug в читаемое название:
+     * "ya_u_sebya_odna_ili_vereteno_vasilisy" -> "Я У Себя Одна Или Веретено Василисы"
+     */
+    humanizeSlug(slug) {
+      if (!slug || typeof slug !== 'string') return '';
+      const cleaned = String(slug).replace(/\.(jpg|png|webp|jpeg)$/i, '').trim();
+      return cleaned
+        .replace(/[_\-]+/g, ' ')
+        .split(/\s+/)
+        .map(w => w ? (w[0].toUpperCase() + w.slice(1).toLowerCase()) : '')
+        .join(' ')
+        .trim();
+    }
     
+    /**
+     * Построить индекс bookSlug -> doc для быстрого поиска в this.books
+     */
+    buildBookIndex(booksArray) {
+      if (!Array.isArray(booksArray)) return {};
+      return booksArray.reduce((acc, b) => {
+        const key = String(b.bookSlug || b.id || '').trim();
+        if (key) acc[key] = b;
+        return acc;
+      }, {});
+    }
+    
+    /**
+     * Резолв элементов пакета — возвращает массив объектов { bookSlug, title, author, coverUrl }
+     * Использует this.bookIndex (если есть) либо this.books как fallback, и humanizeSlug для отсутствующих.
+     */
+    resolvePackageItems(apiBook) {
+      const slugs = Array.isArray(apiBook.booksInPackage) ? apiBook.booksInPackage : [];
+      const index = this.bookIndex || this.buildBookIndex(this.books || []);
+      return slugs.map(slug => {
+        const s = String(slug || '').trim();
+        if (!s) return null;
+        const doc = index[s] || (this.books || []).find(b => (b.bookSlug || b.id || '').toString() === s);
+        if (doc) {
+          return {
+            bookSlug: s,
+            title: doc.title || this.humanizeSlug(s),
+            author: doc.author || null,
+            coverUrl: doc.coverUrl || doc.imageCover || null
+          };
+        }
+        return { bookSlug: s, title: this.humanizeSlug(s), author: null, coverUrl: null };
+      }).filter(Boolean);
+    }
+  
     /**
      * 💰 Форматирование цены для UI (Mini App)
      * Использует утилиты из utils/price.js
