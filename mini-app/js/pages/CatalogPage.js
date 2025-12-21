@@ -419,6 +419,28 @@ class CatalogPage {
         return acc;
       }, {});
     }
+
+    /**
+     * Получить src для обложки (приоритет):
+     * 1) book.image (если задано)
+     * 2) book.bookSlug -> /mini-app/assets/book-covers/{bookSlug}.png
+     * 3) book.packageSlug -> /mini-app/assets/book-covers/{packageSlug}.png
+     * Возвращает строку (путь) или пустую строку — тогда onerror в <img> сработает.
+     * (не делает сетевых запросов — только формирует путь)
+     */
+    coverSrcFor(book) {
+      if (!book) return '';
+      // если в API/БД задали абсолютный URL — используем его напрямую
+      if (book.image && String(book.image).trim()) {
+        return String(book.image).trim();
+      }
+      // prefer bookSlug, fallback to packageSlug
+      const slug = encodeURIComponent(String(book.bookSlug || book.packageSlug || '').trim());
+      if (slug) {
+        return `/mini-app/assets/book-covers/${slug}.png`;
+      }
+      return '';
+    }
     
     /**
      * Резолв элементов пакета — возвращает массив объектов { bookSlug, title, author, coverUrl }
