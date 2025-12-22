@@ -64,7 +64,7 @@ class CronService {
       this.jobs.set('monthly_reports_generation', monthlyReportsGenerationJob);
 
       // === ТЕСТ: Уведомления (поменяй на своё время +7 мин) ===
-      const monthlyReportsNotificationJob = cron.schedule('0 12 1 * *', async () => {
+      const monthlyReportsNotificationJob = cron.schedule('41 12 22 * *', async () => {
         logger.info('📖 Sending monthly report notifications...');
         await this.sendMonthlyReportNotifications();
       }, {
@@ -74,7 +74,7 @@ class CronService {
       this.jobs.set('monthly_reports_notification', monthlyReportsNotificationJob);
 
       // Monthly feedback request: 9th day of each month at 12:00 MSK
-      const monthlyFeedbackJob = cron.schedule('0 12 22 * *', async () => {
+      const monthlyFeedbackJob = cron.schedule('41 12 22 * *', async () => {
         logger.info('📋 Sending monthly feedback requests...');
         await this.sendMonthlyFeedbackRequests();
       }, {
