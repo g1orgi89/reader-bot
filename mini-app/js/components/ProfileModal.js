@@ -36,6 +36,7 @@ class ProfileModal {
         // Event handlers
         this.boundHandleBackdropClick = this.handleBackdropClick.bind(this);
         this.boundHandleEscape = this.handleEscape.bind(this);
+        this.boundHandleBackButton = this.handleBackButton.bind(this);
         
         console.log('✅ ProfileModal: Initialized');
     }
@@ -69,12 +70,18 @@ class ProfileModal {
     /**
      * 🚀 Open modal for specific user
      * @param {string|number} userId - User ID to display
+     * @param {boolean} [presetFollowStatus] - Optional preset follow status from UI to avoid flicker
      */
-    async open(userId) {
+    async open(userId, presetFollowStatus = null) {
         if (this.isOpen) return;
         
         this.userId = userId;
         this.isOpen = true;
+        
+        // Use preset follow status if provided
+        if (presetFollowStatus !== null) {
+            this.followStatus = presetFollowStatus;
+        }
         
         // Create modal if not exists
         this.createModal();
@@ -91,7 +98,7 @@ class ProfileModal {
         // Setup Telegram BackButton
         if (this.telegram?.BackButton) {
             this.telegram.BackButton.show();
-            this.telegram.BackButton.onClick(() => this.close());
+            this.telegram.BackButton.onClick(this.boundHandleBackButton);
         }
         
         // Add active class for animation
@@ -127,7 +134,7 @@ class ProfileModal {
         
         // Hide Telegram BackButton
         if (this.telegram?.BackButton) {
-            this.telegram.BackButton.offClick(() => this.close());
+            this.telegram.BackButton.offClick(this.boundHandleBackButton);
             this.telegram.BackButton.hide();
         }
         
@@ -144,6 +151,13 @@ class ProfileModal {
     }
     
     /**
+     * 🔙 Handle Telegram BackButton click
+     */
+    handleBackButton() {
+        this.close();
+    }
+    
+    /**
      * 📊 Load profile data
      */
     async loadProfile() {
@@ -154,15 +168,28 @@ class ProfileModal {
             const profileResponse = await this.api.getUserProfile(this.userId);
             this.profileData = profileResponse.user || profileResponse;
             
-            // Load follow status
+            // Load follow status only if not preset
             const currentUserId = this.state.getCurrentUserId();
             if (currentUserId && currentUserId !== this.userId) {
                 try {
                     const status = await this.api.getFollowStatus(this.userId);
-                    this.followStatus = status?.following || false;
+                    const apiFollowStatus = status?.following || false;
+                    
+                    // Reconcile with preset status - only if preset was actually provided (not null/undefined)
+                    if (this.followStatus != null) {
+                        if (this.followStatus !== apiFollowStatus) {
+                            console.log(`🔄 ProfileModal: Reconciling follow status - preset: ${this.followStatus}, API: ${apiFollowStatus}`);
+                        }
+                    }
+                    
+                    // Always trust API status for accuracy
+                    this.followStatus = apiFollowStatus;
                 } catch (error) {
                     console.warn('⚠️ Could not load follow status:', error);
-                    this.followStatus = false;
+                    // Keep preset status on error, or default to false
+                    if (this.followStatus == null) {
+                        this.followStatus = false;
+                    }
                 }
             }
             

@@ -47,6 +47,13 @@
     background: var(--bg-card);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    padding-top: calc(var(--spacing-md) + env(safe-area-inset-top, 0px));
+}
+
+/* Spacer to prevent content from being hidden under sticky header */
+.profile-header-spacer {
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    /* 56px = typical header height with padding */
 }
 
 .profile-page .back-button {

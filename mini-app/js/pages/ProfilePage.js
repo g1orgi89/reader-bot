@@ -50,6 +50,7 @@ class ProfilePage {
             // Get query parameters
             const query = this.app.initialState?.query || {};
             const userParam = query.user || 'me';
+            const tabParam = query.tab || 'quotes';
             
             // Determine user ID
             if (userParam === 'me') {
@@ -58,6 +59,11 @@ class ProfilePage {
             } else {
                 this.userId = userParam;
                 this.isOwnProfile = false;
+            }
+            
+            // Set active tab from URL parameter
+            if (['quotes', 'followers', 'following'].includes(tabParam)) {
+                this.activeTab = tabParam;
             }
             
             console.log(`🔍 ProfilePage: Loading profile for ${this.isOwnProfile ? 'own profile' : 'user ' + this.userId}`);
@@ -191,6 +197,7 @@ class ProfilePage {
         return `
             <div class="content profile-page" id="profilePageRoot">
                 ${this.renderHeader()}
+                <div class="profile-header-spacer"></div>
                 ${this.renderProfileCard()}
                 ${this.renderStatistics()}
                 ${this.renderTabContent()}
@@ -231,7 +238,17 @@ class ProfilePage {
         const profile = this.profileData || {};
         const name = profile.name || profile.firstName || 'Пользователь';
         const bio = profile.bio || '';
-        const username = profile.telegramUsername ? `@${profile.telegramUsername}` : '';
+        
+        // Get username from backend or fallback to Telegram initDataUnsafe
+        let username = profile.telegramUsername;
+        if (!username && this.isOwnProfile) {
+            // Try telegram service user property first, then fall back to webApp
+            username = this.telegram?.user?.username || 
+                      this.telegram?.webApp?.initDataUnsafe?.user?.username ||
+                      window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+        }
+        const formattedUsername = username ? `@${username}` : '';
+        
         const avatarUrl = this.resolveAvatarUrl();
         const initials = this.getInitials(name);
         
@@ -246,7 +263,7 @@ class ProfilePage {
                 </div>
                 
                 <h2 class="profile-name">${name}</h2>
-                ${username ? `<p class="profile-username">${username}</p>` : ''}
+                ${formattedUsername ? `<p class="profile-username">${formattedUsername}</p>` : ''}
                 
                 ${bio ? `<p class="profile-bio">${bio}</p>` : ''}
                 
@@ -652,6 +669,12 @@ class ProfilePage {
         
         // Update active tab
         this.activeTab = newTab;
+        
+        // Update URL query parameter
+        if (this.router && typeof this.router.navigate === 'function') {
+            const userParam = this.isOwnProfile ? 'me' : this.userId;
+            this.router.navigate(`/profile?user=${userParam}&tab=${newTab}`, { replace: true });
+        }
         
         // Load data for the tab if not loaded yet
         if (newTab === 'followers' && this.followersData.length === 0) {

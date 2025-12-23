@@ -930,8 +930,12 @@ class CommunityPage {
     _renderFollowingQuotes(quotes) {
         return quotes.map(quote => {
             const owner = quote.owner || quote.user;
-            const userAvatarHtml = this.getUserAvatarHtml(owner);
             const userName = owner?.name || 'Пользователь';
+            const userId = owner?.userId || owner?.id || owner?._id || '';
+            const isFollowing = this.followStatusCache?.get(userId) || false;
+            
+            // Get avatar HTML
+            const avatarHtml = this.getUserAvatarHtml(owner, userId, isFollowing);
             
             const normalizedKey = this._computeLikeKey(quote.text, quote.author);
             const storeEntry = this._likeStore.get(normalizedKey);
@@ -941,9 +945,12 @@ class CommunityPage {
             return `
                 <div class="quote-card" data-quote-id="${quote.id || ''}">
                     <div class="quote-card__header">
-                        ${userAvatarHtml}
+                        ${avatarHtml}
                         <div class="quote-card__user">
-                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                            <span class="quote-card__user-name" 
+                                  data-user-id="${userId}" 
+                                  data-is-following="${isFollowing}"
+                                  style="cursor: pointer;">${this.escapeHtml(userName)}</span>
                         </div>
                     </div>
                     <div class="quote-card__text">"${this.escapeHtml(quote.text)}"</div>
@@ -2051,7 +2058,9 @@ async refreshSpotlight() {
             
             // Derive owner = item.owner || item.user
             const owner = item.owner || item.user;
-            const userAvatarHtml = this.getUserAvatarHtml(owner);
+            const userId = owner?.userId || owner?.id || owner?._id || owner?.telegramId || '';
+            const isFollowing = this.followStatusCache?.get(userId) || false;
+            const userAvatarHtml = this.getUserAvatarHtml(owner, userId, isFollowing);
             const userName = owner?.name || 'Пользователь';
             
             // Apply like state by normalized key via _likeStore with _computeLikeKey()
@@ -2065,10 +2074,13 @@ async refreshSpotlight() {
                     ${badge ? `<div class="spotlight-badge">${badge}</div>` : ''}
                     
                     <!-- Header с аватаром и именем пользователя -->
-                    <div class="quote-card__header user-card-clickable" data-user-id="${owner?.userId || owner?.id || owner?._id || owner?.telegramId || ''}" style="cursor: pointer;">
+                    <div class="quote-card__header" style="cursor: pointer;">
                         ${userAvatarHtml}
                         <div class="quote-card__user">
-                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                            <span class="quote-card__user-name" 
+                                  data-user-id="${userId}" 
+                                  data-is-following="${isFollowing}"
+                                  style="cursor: pointer;">${this.escapeHtml(userName)}</span>
                         </div>
                     </div>
                     
@@ -2159,10 +2171,14 @@ async refreshSpotlight() {
      * @param {Object} user - объект пользователя с полями userId, name, avatarUrl
      * @returns {string} HTML строка с аватаром или инициалами
      */
-    getUserAvatarHtml(user) {
+    getUserAvatarHtml(user, userId = '', isFollowing = false) {
+        // Validate userId is safe for data attribute (alphanumeric, dash, underscore only)
+        const safeUserId = userId && /^[a-zA-Z0-9_-]+$/.test(userId) ? userId : '';
+        const dataAttrs = safeUserId ? `data-user-id="${safeUserId}" data-is-following="${isFollowing}" style="cursor: pointer;"` : '';
+        
         if (!user) {
             // Фоллбэк если пользователь отсутствует
-            return `<div class="quote-card__user-avatar">
+            return `<div class="quote-card__user-avatar" ${dataAttrs}>
                 <div class="avatar-initials">?</div>
             </div>`;
         }
@@ -2172,7 +2188,7 @@ async refreshSpotlight() {
         
         if (user.avatarUrl) {
             // Есть аватар - показываем изображение с фоллбэком на инициалы
-            return `<div class="quote-card__user-avatar">
+            return `<div class="quote-card__user-avatar" ${dataAttrs}>
                 <img src="${this.escapeHtml(user.avatarUrl)}" 
                      alt="${this.escapeHtml(name)}" 
                      class="avatar-image"
@@ -2181,7 +2197,7 @@ async refreshSpotlight() {
             </div>`;
         } else {
             // Нет аватара - показываем инициалы
-            return `<div class="quote-card__user-avatar">
+            return `<div class="quote-card__user-avatar" ${dataAttrs}>
                 <div class="avatar-initials">${initials}</div>
             </div>`;
         }
@@ -2693,7 +2709,9 @@ async refreshSpotlight() {
             
             // Получаем ВЛАДЕЛЬЦА (original uploader) - используем owner, не user
             const owner = quote.owner || quote.user;
-            const userAvatarHtml = this.getUserAvatarHtml(owner);
+            const userId = owner?.userId || owner?.id || owner?._id || '';
+            const isFollowing = this.followStatusCache?.get(userId) || false;
+            const userAvatarHtml = this.getUserAvatarHtml(owner, userId, isFollowing);
             const userName = owner?.name || 'Пользователь';
             
             return `
@@ -2702,7 +2720,10 @@ async refreshSpotlight() {
                     <div class="quote-card__header">
                         ${userAvatarHtml}
                         <div class="quote-card__user">
-                            <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
+                            <span class="quote-card__user-name"
+                                  data-user-id="${userId}" 
+                                  data-is-following="${isFollowing}"
+                                  style="cursor: pointer;">${this.escapeHtml(userName)}</span>
                         </div>
                     </div>
                     
@@ -3130,6 +3151,7 @@ renderAchievementsSection() {
         this.attachRetryButtons(); // ✅ НОВОЕ PR-3
         this.attachQuoteCardListeners(); // ✅ НОВОЕ: Обработчики для карточек цитат
         this.attachUserCardListeners(); // ✅ НОВОЕ: Обработчики для кликов по пользователям
+        this.attachProfileModalDelegatedHandler(); // ✅ HOTFIX: Delegated handler for profile modal
         this.attachSpotlightRefreshButton(); // ✅ НОВОЕ: Кнопка обновления spotlight
         this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели (теперь обновляет и лидерборд)
         this.attachFeedLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "Все"
@@ -3251,6 +3273,66 @@ renderAchievementsSection() {
         });
         
         console.log(`✅ Attached ${userCards.length} user card listeners`);
+    }
+    
+    /**
+     * 🎯 DELEGATED PROFILE MODAL HANDLER (HOTFIX)
+     * Handles clicks on avatars and names with data-user-id to open ProfileModal
+     * Works across Community and Following feeds
+     */
+    attachProfileModalDelegatedHandler() {
+        const pageContent = document.getElementById('page-content');
+        if (!pageContent) {
+            console.warn('⚠️ #page-content not found for delegated handler');
+            return;
+        }
+        
+        // Define allowed click targets
+        const ALLOWED_CLICK_CLASSES = ['quote-card__user-avatar', 'quote-card__user-name'];
+        
+        // Use delegated event listener for better performance and dynamic content
+        pageContent.addEventListener('click', (event) => {
+            // Check if clicked element or its parent has data-user-id
+            const clickedElement = event.target.closest('[data-user-id]');
+            
+            if (!clickedElement) return;
+            
+            // Don't open modal if clicking on buttons
+            if (event.target.closest('button') || event.target.closest('.follow-btn')) {
+                return;
+            }
+            
+            // Check if the actual clicked target or the element with data-user-id has allowed classes
+            const hasAllowedClass = ALLOWED_CLICK_CLASSES.some(className => 
+                event.target.classList.contains(className) || 
+                clickedElement.classList.contains(className)
+            );
+            
+            if (!hasAllowedClass) {
+                return;
+            }
+            
+            const userId = clickedElement.dataset.userId;
+            const isFollowing = clickedElement.dataset.isFollowing === 'true';
+            
+            if (!userId) {
+                console.warn('⚠️ Element clicked with data-user-id but no userId value');
+                return;
+            }
+            
+            // Open profile modal with preset follow status
+            console.log('👤 Opening profile modal for user:', userId, 'isFollowing:', isFollowing);
+            if (this.profileModal) {
+                this.profileModal.open(userId, isFollowing);
+            }
+            
+            // Haptic feedback
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('light');
+            }
+        });
+        
+        console.log('✅ Attached delegated profile modal handler on #page-content');
     }
     
     /**
