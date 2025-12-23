@@ -485,6 +485,44 @@ class ApiService {
     }
 
     /**
+     * 👤 Получить профиль пользователя по ID (публичный эндпоинт)
+     * Используется для просмотра профилей других пользователей
+     * @param {string} userId - ID пользователя
+     * @returns {Promise<Object>} Профиль пользователя с статистикой
+     */
+    async getUserProfile(userId) {
+        const currentUserId = this.resolveUserId();
+        
+        // Если запрашиваем свой профиль, используем getProfile
+        if (userId === currentUserId || userId === 'me') {
+            return this.getProfile(currentUserId);
+        }
+        
+        // Для других пользователей используем публичный эндпоинт
+        return this.request('GET', `/users/${userId}`);
+    }
+
+    /**
+     * 📚 Получить цитаты пользователя
+     * @param {string} userId - ID пользователя
+     * @param {Object} options - Опции запроса (limit)
+     * @returns {Promise<Array>} Список цитат пользователя
+     */
+    async getUserQuotes(userId, options = {}) {
+        const limit = options.limit || 10;
+        const currentUserId = this.resolveUserId();
+        
+        // Если запрашиваем свои цитаты, используем getRecentQuotes
+        if (userId === currentUserId || userId === 'me') {
+            return this.getRecentQuotes(limit, currentUserId);
+        }
+        
+        // Для других пользователей используем публичный эндпоинт
+        const result = await this.request('GET', `/users/${userId}/quotes?limit=${limit}`);
+        return result.quotes || [];
+    }
+
+    /**
      * ✏️ Обновить профиль пользователя
      */
     async updateProfile(profileData, userId = 'demo-user') {

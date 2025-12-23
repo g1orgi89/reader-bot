@@ -73,36 +73,47 @@ class ProfilePage {
      */
     async loadProfileData() {
         try {
+            // Load profile data
+            const profileResponse = await this.api.getUserProfile(this.userId);
+            this.profileData = profileResponse.user || profileResponse;
+            
+            // If own profile, also try to update state
             if (this.isOwnProfile) {
-                // Load own profile from state
-                this.profileData = this.state.get('user.profile') || {};
-                
-                // Try to fetch updated data from server
-                try {
-                    const updatedProfile = await this.api.getUserProfile(this.userId);
-                    if (updatedProfile) {
-                        this.profileData = updatedProfile;
-                        this.state.set('user.profile', updatedProfile);
-                    }
-                } catch (apiError) {
-                    console.warn('⚠️ Could not fetch updated profile from server');
-                }
-            } else {
-                // Load other user's profile
-                this.profileData = await this.api.getUserProfile(this.userId);
+                this.state.set('user.profile', this.profileData);
             }
             
             // Load user's quotes
             await this.loadUserQuotes();
             
-            // Load follow status
+            // Load follow status for other users
             if (!this.isOwnProfile) {
                 await this.loadFollowStatus();
+            } else {
+                // Load follow counts for own profile
+                await this.loadFollowCounts();
             }
             
         } catch (error) {
             console.error('❌ ProfilePage: Error loading profile data:', error);
             throw error;
+        }
+    }
+    
+    /**
+     * 📊 Load follow counts for own profile
+     */
+    async loadFollowCounts() {
+        try {
+            const counts = await this.api.getFollowCounts();
+            if (this.profileData) {
+                this.profileData.stats = {
+                    ...this.profileData.stats,
+                    followers: counts.followers || 0,
+                    following: counts.following || 0
+                };
+            }
+        } catch (error) {
+            console.warn('⚠️ Could not load follow counts:', error);
         }
     }
     
@@ -124,8 +135,7 @@ class ProfilePage {
      */
     async loadFollowStatus() {
         try {
-            const currentUserId = this.state.getCurrentUserId();
-            const status = await this.api.getFollowStatus(currentUserId, this.userId);
+            const status = await this.api.getFollowStatus(this.userId);
             this.followStatus = status?.following || false;
         } catch (error) {
             console.warn('⚠️ Could not load follow status:', error);
@@ -380,17 +390,15 @@ class ProfilePage {
         button.disabled = true;
         
         try {
-            const currentUserId = this.state.getCurrentUserId();
-            
             if (this.followStatus) {
                 // Unfollow
-                await this.api.unfollowUser(currentUserId, this.userId);
+                await this.api.unfollowUser(this.userId);
                 this.followStatus = false;
                 button.textContent = 'Подписаться';
                 button.classList.remove('following');
             } else {
                 // Follow
-                await this.api.followUser(currentUserId, this.userId);
+                await this.api.followUser(this.userId);
                 this.followStatus = true;
                 button.textContent = 'Отписаться';
                 button.classList.add('following');

@@ -1282,6 +1282,83 @@ router.patch('/profile', telegramAuth, async (req, res) => {
 });
 
 /**
+ * @description Get public user profile by ID
+ * @route GET /api/reader/users/:id
+ * Public endpoint - returns limited user info with stats
+ */
+router.get('/users/:id', telegramAuth, async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    
+    // Get user profile
+    const user = await UserProfile.findOne({ userId: targetUserId });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    // Get user's quote count
+    const totalQuotes = await Quote.countDocuments({ userId: targetUserId });
+    
+    // Get follow counts
+    const followCounts = await Follow.getCounts(targetUserId);
+    
+    // Return public profile data
+    res.json({
+      success: true,
+      user: {
+        userId: user.userId,
+        name: user.name,
+        firstName: user.firstName || user.name,
+        bio: user.bio || '',
+        avatarUrl: user.avatarUrl,
+        photoUrl: user.photoUrl,
+        registeredAt: user.registeredAt,
+        stats: {
+          totalQuotes,
+          followers: followCounts.followers || 0,
+          following: followCounts.following || 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get user profile error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @description Get user's quotes
+ * @route GET /api/reader/users/:id/quotes
+ * Returns recent quotes for a specific user
+ */
+router.get('/users/:id/quotes', telegramAuth, async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    
+    // Get user's recent quotes
+    const quotes = await Quote.find({ userId: targetUserId })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('text author source createdAt tags')
+      .lean();
+    
+    res.json({
+      success: true,
+      quotes,
+      total: quotes.length
+    });
+  } catch (error) {
+    console.error('❌ Get user quotes error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * @deprecated This endpoint is deprecated and will be removed in a future release.
  * @description Legacy base64 avatar upload endpoint - DEPRECATED
  * @route POST /api/reader/profile/avatar
