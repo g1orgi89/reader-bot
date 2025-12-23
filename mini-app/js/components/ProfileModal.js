@@ -176,7 +176,7 @@ class ProfileModal {
                     const apiFollowStatus = status?.following || false;
                     
                     // Reconcile with preset status - only if preset was actually provided (not null/undefined)
-                    if (this.followStatus !== null && this.followStatus !== undefined) {
+                    if (this.followStatus != null) {
                         if (this.followStatus !== apiFollowStatus) {
                             console.log(`🔄 ProfileModal: Reconciling follow status - preset: ${this.followStatus}, API: ${apiFollowStatus}`);
                         }
@@ -187,7 +187,7 @@ class ProfileModal {
                 } catch (error) {
                     console.warn('⚠️ Could not load follow status:', error);
                     // Keep preset status on error, or default to false
-                    if (this.followStatus === null || this.followStatus === undefined) {
+                    if (this.followStatus == null) {
                         this.followStatus = false;
                     }
                 }

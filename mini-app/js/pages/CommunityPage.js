@@ -3302,8 +3302,9 @@ renderAchievementsSection() {
                 return;
             }
             
-            // Only handle clicks on avatars and user names
+            // Check if the actual clicked target or the element with data-user-id has allowed classes
             const hasAllowedClass = ALLOWED_CLICK_CLASSES.some(className => 
+                event.target.classList.contains(className) || 
                 clickedElement.classList.contains(className)
             );
             
