@@ -175,15 +175,18 @@ class ProfileModal {
                     const status = await this.api.getFollowStatus(this.userId);
                     const apiFollowStatus = status?.following || false;
                     
-                    // Reconcile with preset status - log warning if mismatch
-                    if (this.followStatus !== apiFollowStatus) {
-                        console.log(`🔄 ProfileModal: Reconciling follow status - preset: ${this.followStatus}, API: ${apiFollowStatus}`);
-                        // Trust API status for accuracy
-                        this.followStatus = apiFollowStatus;
+                    // Reconcile with preset status - only if preset was actually provided (not null/undefined)
+                    if (this.followStatus !== null && this.followStatus !== undefined) {
+                        if (this.followStatus !== apiFollowStatus) {
+                            console.log(`🔄 ProfileModal: Reconciling follow status - preset: ${this.followStatus}, API: ${apiFollowStatus}`);
+                        }
                     }
+                    
+                    // Always trust API status for accuracy
+                    this.followStatus = apiFollowStatus;
                 } catch (error) {
                     console.warn('⚠️ Could not load follow status:', error);
-                    // Keep preset status on error
+                    // Keep preset status on error, or default to false
                     if (this.followStatus === null || this.followStatus === undefined) {
                         this.followStatus = false;
                     }

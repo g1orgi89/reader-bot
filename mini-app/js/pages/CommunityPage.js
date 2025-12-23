@@ -2172,8 +2172,9 @@ async refreshSpotlight() {
      * @returns {string} HTML строка с аватаром или инициалами
      */
     getUserAvatarHtml(user, userId = '', isFollowing = false) {
-        const escapedUserId = this.escapeHtml(userId);
-        const dataAttrs = userId ? `data-user-id="${escapedUserId}" data-is-following="${isFollowing}" style="cursor: pointer;"` : '';
+        // Validate userId is safe for data attribute (alphanumeric, dash, underscore only)
+        const safeUserId = userId && /^[a-zA-Z0-9_-]+$/.test(userId) ? userId : '';
+        const dataAttrs = safeUserId ? `data-user-id="${safeUserId}" data-is-following="${isFollowing}" style="cursor: pointer;"` : '';
         
         if (!user) {
             // Фоллбэк если пользователь отсутствует

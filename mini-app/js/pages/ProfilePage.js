@@ -241,8 +241,11 @@ class ProfilePage {
         
         // Get username from backend or fallback to Telegram initDataUnsafe
         let username = profile.telegramUsername;
-        if (!username && this.isOwnProfile && this.telegram?.initDataUnsafe?.user?.username) {
-            username = this.telegram.initDataUnsafe.user.username;
+        if (!username && this.isOwnProfile) {
+            // Try telegram service user property first, then fall back to webApp
+            username = this.telegram?.user?.username || 
+                      this.telegram?.webApp?.initDataUnsafe?.user?.username ||
+                      window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
         }
         const formattedUsername = username ? `@${username}` : '';
         
