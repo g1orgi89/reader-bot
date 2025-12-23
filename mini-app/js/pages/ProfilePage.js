@@ -153,9 +153,9 @@ class ProfilePage {
     /**
      * 📚 Load user's recent quotes
      */
-    async loadUserQuotes() {
+    async loadUserQuotes(limit = 10) {
         try {
-            const quotes = await this.api.getUserQuotes(this.userId, { limit: 10 });
+            const quotes = await this.api.getUserQuotes(this.userId, { limit });
             this.userQuotes = quotes || [];
         } catch (error) {
             console.warn('⚠️ Could not load user quotes:', error);
@@ -202,10 +202,10 @@ class ProfilePage {
      * 📋 Render page header
      */
     renderHeader() {
-        const title = this.isOwnProfile ? 'Мой профиль' : 'Профиль';
+        const title = this.isOwnProfile ? '👤 Мой профиль' : '👤 Профиль';
         
         return `
-            <div class="page-header">
+            <div class="page-header profile-header-sticky">
                 <button class="back-button" data-action="back">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -231,6 +231,7 @@ class ProfilePage {
         const profile = this.profileData || {};
         const name = profile.name || profile.firstName || 'Пользователь';
         const bio = profile.bio || '';
+        const username = profile.telegramUsername ? `@${profile.telegramUsername}` : '';
         const avatarUrl = this.resolveAvatarUrl();
         const initials = this.getInitials(name);
         
@@ -245,6 +246,7 @@ class ProfilePage {
                 </div>
                 
                 <h2 class="profile-name">${name}</h2>
+                ${username ? `<p class="profile-username">${username}</p>` : ''}
                 
                 ${bio ? `<p class="profile-bio">${bio}</p>` : ''}
                 
@@ -433,11 +435,15 @@ class ProfilePage {
      * 💬 Render single quote card
      */
     renderQuoteCard(quote) {
+        // Filter out technical sources
+        const technicalSources = ['mini_app', 'test_script', 'test_sctript', 'web', 'api'];
+        const shouldShowSource = quote.source && !technicalSources.includes(quote.source.toLowerCase().trim());
+        
         return `
             <div class="quote-card" data-quote-id="${quote.id}">
                 <blockquote class="quote-text">${quote.text}</blockquote>
                 ${quote.author ? `<cite class="quote-author">— ${quote.author}</cite>` : ''}
-                ${quote.source ? `<div class="quote-source">${quote.source}</div>` : ''}
+                ${shouldShowSource ? `<div class="quote-source">${quote.source}</div>` : ''}
             </div>
         `;
     }
@@ -571,6 +577,9 @@ class ProfilePage {
                 this.telegram.hapticFeedback('light');
             }
             
+            // Broadcast follow state change to other components
+            this.broadcastFollowStateChange(this.userId, this.followStatus);
+            
         } catch (error) {
             console.error('❌ ProfilePage: Error toggling follow status:', error);
             if (this.telegram?.showAlert) {
@@ -578,6 +587,27 @@ class ProfilePage {
             }
         } finally {
             button.disabled = false;
+        }
+    }
+    
+    /**
+     * 📢 Broadcast follow state change to other components
+     */
+    broadcastFollowStateChange(userId, following) {
+        // Dispatch custom event for follow state change
+        const event = new CustomEvent('followStateChanged', {
+            detail: { userId, following }
+        });
+        window.dispatchEvent(event);
+        
+        // Also update ProfileModal if available
+        if (this.app?.profileModal) {
+            this.app.profileModal.updateFollowStatus(userId, following);
+        }
+        
+        // Also update CommunityPage if available
+        if (window.communityPage && typeof window.communityPage.refreshFollowStatus === 'function') {
+            window.communityPage.refreshFollowStatus(userId, following);
         }
     }
     
@@ -628,15 +658,53 @@ class ProfilePage {
             await this.loadFollowers();
         } else if (newTab === 'following' && this.followingData.length === 0) {
             await this.loadFollowing();
+        } else if (newTab === 'quotes' && this.userQuotes.length <= 10) {
+            // Load all quotes when switching to quotes tab
+            await this.loadUserQuotes(50);
         }
         
-        // Re-render the page
+        // Update UI efficiently - only update the changed parts
         const root = document.getElementById('profilePageRoot');
         if (root) {
-            const container = root.parentElement;
-            if (container) {
-                container.innerHTML = this.render();
-                this.attachEventListeners();
+            // Update active state on stat items
+            const statItems = root.querySelectorAll('.stat-item');
+            statItems.forEach(item => {
+                const tab = item.dataset.tab;
+                if (tab === newTab) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            
+            // Update tab content with fade transition
+            const tabContent = root.querySelector('.profile-tab-content');
+            if (tabContent) {
+                // Fade out
+                tabContent.style.opacity = '0';
+                tabContent.style.transition = 'opacity 0.2s ease-out';
+                
+                setTimeout(() => {
+                    // Update content
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = this.renderTabContent();
+                    const newContent = tempDiv.firstElementChild;
+                    
+                    if (newContent && tabContent.parentNode) {
+                        tabContent.parentNode.replaceChild(newContent, tabContent);
+                        
+                        // Re-attach event listeners for new user cards
+                        const userCards = newContent.querySelectorAll('.user-card');
+                        userCards.forEach(card => {
+                            card.addEventListener('click', (e) => this.handleUserCardClick(e));
+                        });
+                        
+                        // Fade in
+                        requestAnimationFrame(() => {
+                            newContent.style.opacity = '1';
+                        });
+                    }
+                }, 200);
             }
         }
     }
@@ -697,6 +765,16 @@ class ProfilePage {
         if (this.telegram?.BackButton) {
             this.telegram.BackButton.show();
         }
+        
+        // Listen for follow state changes from other components
+        this.followStateChangeHandler = (event) => {
+            const { userId, following } = event.detail;
+            if (userId === this.userId) {
+                this.followStatus = following;
+                this.updateFollowButton(following);
+            }
+        };
+        window.addEventListener('followStateChanged', this.followStateChangeHandler);
     }
     
     /**
@@ -708,6 +786,27 @@ class ProfilePage {
         // Hide Telegram BackButton
         if (this.telegram?.BackButton) {
             this.telegram.BackButton.hide();
+        }
+        
+        // Remove follow state change listener
+        if (this.followStateChangeHandler) {
+            window.removeEventListener('followStateChanged', this.followStateChangeHandler);
+            this.followStateChangeHandler = null;
+        }
+    }
+    
+    /**
+     * 🔄 Update follow button UI
+     */
+    updateFollowButton(following) {
+        const followBtn = document.querySelector('[data-action="toggle-follow"]');
+        if (followBtn) {
+            followBtn.textContent = following ? 'Отписаться' : 'Подписаться';
+            if (following) {
+                followBtn.classList.add('following');
+            } else {
+                followBtn.classList.remove('following');
+            }
         }
     }
     

@@ -1213,6 +1213,7 @@ router.get('/profile',telegramAuth, async (req, res) => {
         name: user.name,
         email: user.email,
         avatarUrl: user.avatarUrl,
+        telegramUsername: user.telegramUsername,
         isOnboardingComplete: user.isOnboardingComplete,
         registeredAt: user.registeredAt,
         source: user.source,
@@ -1316,6 +1317,7 @@ router.get('/users/:id', telegramAuth, async (req, res) => {
         bio: user.bio || '',
         avatarUrl: user.avatarUrl,
         photoUrl: user.photoUrl,
+        telegramUsername: user.telegramUsername,
         registeredAt: user.registeredAt,
         stats: {
           totalQuotes,

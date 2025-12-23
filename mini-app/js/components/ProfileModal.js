@@ -88,6 +88,12 @@ class ProfileModal {
         this.backdrop.addEventListener('click', this.boundHandleBackdropClick);
         document.addEventListener('keydown', this.boundHandleEscape);
         
+        // Setup Telegram BackButton
+        if (this.telegram?.BackButton) {
+            this.telegram.BackButton.show();
+            this.telegram.BackButton.onClick(() => this.close());
+        }
+        
         // Add active class for animation
         requestAnimationFrame(() => {
             this.modal.classList.add('active');
@@ -118,6 +124,12 @@ class ProfileModal {
         // Remove event listeners
         this.backdrop.removeEventListener('click', this.boundHandleBackdropClick);
         document.removeEventListener('keydown', this.boundHandleEscape);
+        
+        // Hide Telegram BackButton
+        if (this.telegram?.BackButton) {
+            this.telegram.BackButton.offClick(() => this.close());
+            this.telegram.BackButton.hide();
+        }
         
         // Hide modal after animation
         setTimeout(() => {
@@ -349,10 +361,8 @@ class ProfileModal {
                 this.telegram.hapticFeedback('light');
             }
             
-            // Notify CommunityPage to refresh if available
-            if (window.communityPage && typeof window.communityPage.refreshFollowStatus === 'function') {
-                window.communityPage.refreshFollowStatus(this.userId, this.followStatus);
-            }
+            // Broadcast follow state change
+            this.broadcastFollowStateChange(this.userId, this.followStatus);
             
         } catch (error) {
             console.error('❌ ProfileModal: Error toggling follow:', error);
@@ -361,6 +371,40 @@ class ProfileModal {
             }
         } finally {
             followBtn.disabled = false;
+        }
+    }
+    
+    /**
+     * 📢 Broadcast follow state change to other components
+     */
+    broadcastFollowStateChange(userId, following) {
+        // Dispatch custom event for follow state change
+        const event = new CustomEvent('followStateChanged', {
+            detail: { userId, following }
+        });
+        window.dispatchEvent(event);
+        
+        // Also update CommunityPage if available
+        if (window.communityPage && typeof window.communityPage.refreshFollowStatus === 'function') {
+            window.communityPage.refreshFollowStatus(userId, following);
+        }
+    }
+    
+    /**
+     * 🔄 Update follow status from external source
+     */
+    updateFollowStatus(userId, following) {
+        if (this.userId === userId && this.isOpen) {
+            this.followStatus = following;
+            const followBtn = this.modal?.querySelector('[data-action="toggle-follow"]');
+            if (followBtn) {
+                followBtn.textContent = following ? 'Отписаться' : 'Подписаться';
+                if (following) {
+                    followBtn.classList.add('following');
+                } else {
+                    followBtn.classList.remove('following');
+                }
+            }
         }
     }
     
