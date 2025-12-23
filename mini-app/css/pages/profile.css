@@ -1,0 +1,418 @@
+/**
+ * 👤 PROFILE PAGE STYLES
+ * 
+ * Styles for the full-page user profile view
+ * Uses existing CSS variables from variables.css
+ * Maintains consistent design with the rest of the app
+ */
+
+/* ============================================================================
+   📄 PROFILE PAGE CONTAINER
+   ============================================================================ */
+
+.profile-page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    padding-bottom: var(--spacing-2xl);
+}
+
+.profile-page.loading,
+.profile-page.error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+/* ============================================================================
+   📋 PAGE HEADER
+   ============================================================================ */
+
+.profile-page .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.profile-page .back-button {
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-round);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.profile-page .back-button:hover {
+    background: var(--bg-secondary);
+}
+
+.profile-page .back-button svg {
+    width: 24px;
+    height: 24px;
+}
+
+.profile-page .page-title {
+    flex: 1;
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0;
+    text-align: center;
+}
+
+.profile-page .edit-profile-button {
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-round);
+    color: var(--primary-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.profile-page .edit-profile-button:hover {
+    background: var(--bg-overlay);
+}
+
+.profile-page .edit-profile-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* ============================================================================
+   👤 PROFILE CARD
+   ============================================================================ */
+
+.profile-card {
+    background: var(--bg-card);
+    padding: var(--spacing-2xl) var(--spacing-lg);
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.profile-avatar-container {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto var(--spacing-lg);
+    position: relative;
+    border-radius: var(--radius-round);
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(210, 69, 44, 0.2);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+}
+
+.profile-avatar-fallback {
+    font-size: 48px;
+    font-weight: var(--font-weight-bold);
+    color: var(--text-inverse);
+    text-transform: uppercase;
+    z-index: 1;
+}
+
+.profile-avatar-container.fallback .profile-avatar-img {
+    display: none;
+}
+
+.profile-name {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin: 0 0 var(--spacing-sm);
+}
+
+.profile-bio {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    line-height: var(--line-height-normal);
+    margin: 0 0 var(--spacing-lg);
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.follow-btn-large {
+    width: 100%;
+    max-width: 300px;
+    height: var(--button-height);
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--spacing-md);
+}
+
+.follow-btn-large:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-primary);
+}
+
+.follow-btn-large:active {
+    transform: translateY(0);
+}
+
+.follow-btn-large.following {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+.follow-btn-large.following:hover {
+    background: var(--bg-primary);
+    border-color: var(--primary-color);
+}
+
+.follow-btn-large:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ============================================================================
+   📊 STATISTICS SECTION
+   ============================================================================ */
+
+.profile-statistics {
+    display: flex;
+    justify-content: space-around;
+    padding: var(--spacing-lg);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+}
+
+.stat-item {
+    text-align: center;
+    flex: 1;
+}
+
+.stat-value {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ============================================================================
+   📚 RECENT QUOTES SECTION
+   ============================================================================ */
+
+.recent-quotes-section {
+    padding: var(--spacing-lg);
+}
+
+.recent-quotes-section .section-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0 0 var(--spacing-lg);
+}
+
+.quotes-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.quotes-list .quote-card {
+    background: var(--bg-card);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.quotes-list .quote-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.quote-text {
+    font-family: var(--font-family-secondary);
+    font-size: var(--font-size-lg);
+    font-style: italic;
+    color: var(--text-primary);
+    line-height: var(--line-height-loose);
+    margin: 0 0 var(--spacing-md);
+}
+
+.quote-author {
+    display: block;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.quote-source {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+/* ============================================================================
+   🌟 EMPTY STATE
+   ============================================================================ */
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--text-muted);
+}
+
+.empty-state p {
+    font-size: var(--font-size-base);
+    margin: 0;
+}
+
+/* ============================================================================
+   ⏳ LOADING STATE
+   ============================================================================ */
+
+.loading-spinner-container {
+    text-align: center;
+    padding: var(--spacing-2xl);
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary-color);
+    border-radius: var(--radius-round);
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-spinner-container p {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ============================================================================
+   ❌ ERROR STATE
+   ============================================================================ */
+
+.error-container {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    max-width: 400px;
+}
+
+.error-container h2 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--error-color);
+    margin: 0 0 var(--spacing-md);
+}
+
+.error-container p {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin: 0 0 var(--spacing-lg);
+    line-height: var(--line-height-normal);
+}
+
+.error-container .btn-primary {
+    width: 100%;
+    height: var(--button-height);
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.error-container .btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+/* ============================================================================
+   📱 MOBILE RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .profile-card {
+        padding: var(--spacing-xl) var(--spacing-md);
+    }
+    
+    .profile-avatar-container {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .profile-avatar-fallback {
+        font-size: 40px;
+    }
+    
+    .profile-name {
+        font-size: var(--font-size-xl);
+    }
+    
+    .profile-statistics {
+        padding: var(--spacing-md);
+    }
+    
+    .stat-value {
+        font-size: var(--font-size-xl);
+    }
+    
+    .recent-quotes-section {
+        padding: var(--spacing-md);
+    }
+    
+    .quote-text {
+        font-size: var(--font-size-base);
+    }
+}

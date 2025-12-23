@@ -217,6 +217,15 @@ class AppRouter {
             requiresAuth: true,
             showBottomNav: false
         });
+        
+        // Profile page
+        this.routes.set('/profile', {
+            path: '/profile',
+            component: ProfilePage,
+            title: 'Профиль',
+            requiresAuth: true,
+            showBottomNav: false
+        });
 
         console.log(`✅ Router: Зарегистрировано ${this.routes.size} маршрутов`);
     }
@@ -266,12 +275,6 @@ class AppRouter {
     async navigate(path, options = {}) {
         const normalizedPath = this.normalizePath(path);
         const query = this.parseQuery(path);
-        
-        // Redirect /profile to /settings as profile functionality is now in settings
-        if (normalizedPath === '/profile') {
-            console.log('🔄 Router: Redirecting /profile to /settings');
-            return this.navigate('/settings', options);
-        }
         
         console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`, query);
 
