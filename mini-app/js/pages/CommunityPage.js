@@ -2172,7 +2172,8 @@ async refreshSpotlight() {
      * @returns {string} HTML строка с аватаром или инициалами
      */
     getUserAvatarHtml(user, userId = '', isFollowing = false) {
-        const dataAttrs = userId ? `data-user-id="${userId}" data-is-following="${isFollowing}" style="cursor: pointer;"` : '';
+        const escapedUserId = this.escapeHtml(userId);
+        const dataAttrs = userId ? `data-user-id="${escapedUserId}" data-is-following="${isFollowing}" style="cursor: pointer;"` : '';
         
         if (!user) {
             // Фоллбэк если пользователь отсутствует
@@ -3285,6 +3286,9 @@ renderAchievementsSection() {
             return;
         }
         
+        // Define allowed click targets
+        const ALLOWED_CLICK_CLASSES = ['quote-card__user-avatar', 'quote-card__user-name'];
+        
         // Use delegated event listener for better performance and dynamic content
         pageContent.addEventListener('click', (event) => {
             // Check if clicked element or its parent has data-user-id
@@ -3298,8 +3302,11 @@ renderAchievementsSection() {
             }
             
             // Only handle clicks on avatars and user names
-            if (!clickedElement.classList.contains('quote-card__user-avatar') && 
-                !clickedElement.classList.contains('quote-card__user-name')) {
+            const hasAllowedClass = ALLOWED_CLICK_CLASSES.some(className => 
+                clickedElement.classList.contains(className)
+            );
+            
+            if (!hasAllowedClass) {
                 return;
             }
             
