@@ -407,15 +407,6 @@ class ProfileModal {
             }
         }
     }
-        } catch (error) {
-            console.error('❌ ProfileModal: Error toggling follow:', error);
-            if (this.telegram?.showAlert) {
-                this.telegram.showAlert('Ошибка при изменении подписки');
-            }
-        } finally {
-            followBtn.disabled = false;
-        }
-    }
     
     /**
      * 🔍 Handle open full profile

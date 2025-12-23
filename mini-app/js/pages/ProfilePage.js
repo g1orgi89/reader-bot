@@ -610,9 +610,6 @@ class ProfilePage {
             window.communityPage.refreshFollowStatus(userId, following);
         }
     }
-            button.disabled = false;
-        }
-    }
     
     /**
      * 🔄 Handle retry
@@ -810,9 +807,6 @@ class ProfilePage {
             } else {
                 followBtn.classList.remove('following');
             }
-        }
-    }
-            this.telegram.BackButton.hide();
         }
     }
     
