@@ -139,13 +139,19 @@ class ProfileModal {
         
         try {
             // Load profile data from API
-            this.profileData = await this.api.getUserProfile(this.userId);
+            const profileResponse = await this.api.getUserProfile(this.userId);
+            this.profileData = profileResponse.user || profileResponse;
             
             // Load follow status
             const currentUserId = this.state.getCurrentUserId();
             if (currentUserId && currentUserId !== this.userId) {
-                const status = await this.api.getFollowStatus(currentUserId, this.userId);
-                this.followStatus = status?.following || false;
+                try {
+                    const status = await this.api.getFollowStatus(this.userId);
+                    this.followStatus = status?.following || false;
+                } catch (error) {
+                    console.warn('⚠️ Could not load follow status:', error);
+                    this.followStatus = false;
+                }
             }
             
             // Render with loaded data
@@ -324,17 +330,15 @@ class ProfileModal {
         followBtn.disabled = true;
         
         try {
-            const currentUserId = this.state.getCurrentUserId();
-            
             if (this.followStatus) {
                 // Unfollow
-                await this.api.unfollowUser(currentUserId, this.userId);
+                await this.api.unfollowUser(this.userId);
                 this.followStatus = false;
                 followBtn.textContent = 'Подписаться';
                 followBtn.classList.remove('following');
             } else {
                 // Follow
-                await this.api.followUser(currentUserId, this.userId);
+                await this.api.followUser(this.userId);
                 this.followStatus = true;
                 followBtn.textContent = 'Отписаться';
                 followBtn.classList.add('following');
