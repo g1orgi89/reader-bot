@@ -147,7 +147,7 @@ class ProfilePage {
     extractUserId(user, f = null) {
         if (!user && !f) return null;
         const u = user || f;
-        return u.userId || (f && f.userId) || u.id || u._id || u.telegramId || null;
+        return u.userId || u.id || u._id || u.telegramId || null;
     }
     
     /**
