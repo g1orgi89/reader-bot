@@ -1341,10 +1341,12 @@ router.get('/users/:id/quotes', telegramAuth, async (req, res) => {
   try {
     const targetUserId = req.params.id;
     const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const offset = parseInt(req.query.offset) || 0;
     
-    // Get user's recent quotes
+    // Get user's quotes with pagination
     const quotes = await Quote.find({ userId: targetUserId })
       .sort({ createdAt: -1 })
+      .skip(offset)
       .limit(limit)
       .select('text author source createdAt tags')
       .lean();
@@ -1352,7 +1354,9 @@ router.get('/users/:id/quotes', telegramAuth, async (req, res) => {
     res.json({
       success: true,
       quotes,
-      total: quotes.length
+      total: quotes.length,
+      offset,
+      limit
     });
   } catch (error) {
     console.error('❌ Get user quotes error:', error);
