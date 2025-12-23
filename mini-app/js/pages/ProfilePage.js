@@ -139,6 +139,18 @@ class ProfilePage {
     }
     
     /**
+     * 🆔 Extract userId from user object with comprehensive fallback chain
+     * @param {Object} user - User object (may be nested in f.user or direct)
+     * @param {Object} [f] - Parent object containing user
+     * @returns {string|null} userId or null
+     */
+    extractUserId(user, f = null) {
+        if (!user && !f) return null;
+        const u = user || f;
+        return u.userId || (f && f.userId) || u.id || u._id || u.telegramId || null;
+    }
+    
+    /**
      * 📊 Load follow counts for own profile
      */
     async loadFollowCounts() {
@@ -168,10 +180,8 @@ class ProfilePage {
             // Extract user data from followers with comprehensive userId normalization
             this.followersData = followers.map(f => {
                 const user = f.user || f;
-                // Ensure userId via comprehensive fallback chain
-                const userId = user.userId || f.userId || user.id || user._id || user.telegramId;
                 return {
-                    userId: userId,
+                    userId: this.extractUserId(user, f),
                     name: user.name || user.firstName || 'Читатель',
                     avatarUrl: user.avatarUrl || user.photoUrl,
                     bio: user.bio || '',
@@ -199,10 +209,8 @@ class ProfilePage {
             // Extract user data from following with comprehensive userId normalization
             this.followingData = following.map(f => {
                 const user = f.user || f;
-                // Ensure userId via comprehensive fallback chain
-                const userId = user.userId || f.userId || user.id || user._id || user.telegramId;
                 return {
-                    userId: userId,
+                    userId: this.extractUserId(user, f),
                     name: user.name || user.firstName || 'Читатель',
                     avatarUrl: user.avatarUrl || user.photoUrl,
                     bio: user.bio || '',
@@ -488,8 +496,7 @@ class ProfilePage {
         const bio = user.bio || '';
         const username = user.telegramUsername || user.username;
         const formattedUsername = username ? `@${username}` : '';
-        // Ensure userId via comprehensive fallback chain
-        const userId = user.userId || user.id || user._id || user.telegramId;
+        const userId = this.extractUserId(user);
         
         // Get follow status for this user (we'll need to track this)
         const isFollowing = this.followStatusCache?.[userId] || false;

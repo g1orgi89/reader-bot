@@ -33,6 +33,9 @@ class ProfileModal {
         this.modal = null;
         this.backdrop = null;
         
+        // Constants
+        this.MODAL_CLOSE_DELAY = 100; // ms delay before navigation to ensure modal closes
+        
         // Event handlers
         this.boundHandleBackdropClick = this.handleBackdropClick.bind(this);
         this.boundHandleEscape = this.handleEscape.bind(this);
@@ -488,7 +491,7 @@ class ProfileModal {
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('light');
             }
-        }, 100);
+        }, this.MODAL_CLOSE_DELAY);
     }
     
     /**

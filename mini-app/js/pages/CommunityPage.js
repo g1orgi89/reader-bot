@@ -3283,6 +3283,18 @@ renderAchievementsSection() {
     }
     
     /**
+     * 🔍 Get follow status from element (data attribute or class)
+     * @param {HTMLElement} element - Element to extract follow status from
+     * @returns {boolean} Follow status
+     */
+    getFollowStatusFromElement(element) {
+        if (!element) return false;
+        const isFollowingFromData = element.dataset.isFollowing === 'true';
+        const isFollowingFromClass = element.classList.contains('following');
+        return isFollowingFromData || isFollowingFromClass;
+    }
+    
+    /**
      * 🎯 DELEGATED PROFILE MODAL HANDLER (HOTFIX)
      * Handles clicks on avatars and names with data-user-id to open ProfileModal
      * Works across Community and Following feeds
@@ -3312,10 +3324,7 @@ renderAchievementsSection() {
             }
             
             const userId = clickedElement.dataset.userId;
-            // Get preset follow status from data attribute or class
-            const isFollowingFromData = clickedElement.dataset.isFollowing === 'true';
-            const isFollowingFromClass = clickedElement.classList.contains('following');
-            const isFollowing = isFollowingFromData || isFollowingFromClass;
+            const isFollowing = this.getFollowStatusFromElement(clickedElement);
             
             if (!userId) {
                 console.warn('⚠️ Element clicked with data-user-id but no userId value');
