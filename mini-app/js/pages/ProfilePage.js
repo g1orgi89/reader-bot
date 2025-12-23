@@ -32,6 +32,11 @@ class ProfilePage {
         this.followStatus = false;
         this.subscriptions = [];
         
+        // Tab state for Variant 1
+        this.activeTab = 'quotes'; // 'quotes' | 'followers' | 'following'
+        this.followersData = [];
+        this.followingData = [];
+        
         console.log('✅ ProfilePage: Initialized');
     }
     
@@ -118,6 +123,34 @@ class ProfilePage {
     }
     
     /**
+     * 👥 Load followers list
+     */
+    async loadFollowers() {
+        try {
+            const response = await this.api.getFollowers({ limit: 50 });
+            this.followersData = response.followers || response || [];
+            console.log(`✅ ProfilePage: Loaded ${this.followersData.length} followers`);
+        } catch (error) {
+            console.warn('⚠️ Could not load followers:', error);
+            this.followersData = [];
+        }
+    }
+    
+    /**
+     * 👤 Load following list
+     */
+    async loadFollowing() {
+        try {
+            const response = await this.api.getFollowing({ limit: 50 });
+            this.followingData = response.following || response || [];
+            console.log(`✅ ProfilePage: Loaded ${this.followingData.length} following`);
+        } catch (error) {
+            console.warn('⚠️ Could not load following:', error);
+            this.followingData = [];
+        }
+    }
+    
+    /**
      * 📚 Load user's recent quotes
      */
     async loadUserQuotes() {
@@ -160,7 +193,7 @@ class ProfilePage {
                 ${this.renderHeader()}
                 ${this.renderProfileCard()}
                 ${this.renderStatistics()}
-                ${this.renderRecentQuotes()}
+                ${this.renderTabContent()}
             </div>
         `;
     }
@@ -236,15 +269,15 @@ class ProfilePage {
         
         return `
             <div class="profile-statistics">
-                <div class="stat-item">
+                <div class="stat-item ${this.activeTab === 'quotes' ? 'active' : ''}" data-action="switch-tab" data-tab="quotes">
                     <div class="stat-value">${totalQuotes}</div>
                     <div class="stat-label">Цитат</div>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item ${this.activeTab === 'followers' ? 'active' : ''}" data-action="switch-tab" data-tab="followers">
                     <div class="stat-value">${followers}</div>
                     <div class="stat-label">Подписчиков</div>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item ${this.activeTab === 'following' ? 'active' : ''}" data-action="switch-tab" data-tab="following">
                     <div class="stat-value">${following}</div>
                     <div class="stat-label">Подписок</div>
                 </div>
@@ -253,7 +286,124 @@ class ProfilePage {
     }
     
     /**
-     * 📚 Render recent quotes section
+     * 📑 Render tab content based on active tab
+     */
+    renderTabContent() {
+        switch (this.activeTab) {
+            case 'quotes':
+                return this.renderQuotesTab();
+            case 'followers':
+                return this.renderFollowersTab();
+            case 'following':
+                return this.renderFollowingTab();
+            default:
+                return this.renderQuotesTab();
+        }
+    }
+    
+    /**
+     * 📚 Render quotes tab
+     */
+    renderQuotesTab() {
+        if (!this.userQuotes || this.userQuotes.length === 0) {
+            return `
+                <div class="profile-tab-content">
+                    <div class="empty-state">
+                        <p>Пока нет цитат</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const quotesHTML = this.userQuotes.map(quote => this.renderQuoteCard(quote)).join('');
+        
+        return `
+            <div class="profile-tab-content">
+                <div class="quotes-list">
+                    ${quotesHTML}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 👥 Render followers tab
+     */
+    renderFollowersTab() {
+        if (!this.followersData || this.followersData.length === 0) {
+            return `
+                <div class="profile-tab-content">
+                    <div class="empty-state">
+                        <p>Пока нет подписчиков</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const followersHTML = this.followersData.map(user => this.renderUserCard(user)).join('');
+        
+        return `
+            <div class="profile-tab-content">
+                <div class="users-list">
+                    ${followersHTML}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 👤 Render following tab
+     */
+    renderFollowingTab() {
+        if (!this.followingData || this.followingData.length === 0) {
+            return `
+                <div class="profile-tab-content">
+                    <div class="empty-state">
+                        <p>Пока нет подписок</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const followingHTML = this.followingData.map(user => this.renderUserCard(user)).join('');
+        
+        return `
+            <div class="profile-tab-content">
+                <div class="users-list">
+                    ${followingHTML}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 👤 Render user card for followers/following lists
+     */
+    renderUserCard(user) {
+        const name = user.name || user.firstName || 'Пользователь';
+        const avatarUrl = user.avatarUrl || user.photoUrl || null;
+        const initials = this.getInitials(name);
+        const bio = user.bio || '';
+        
+        return `
+            <div class="user-card" data-user-id="${user.userId || user.id}">
+                <div class="user-avatar-container">
+                    ${avatarUrl ? `
+                        <img class="user-avatar-img" src="${avatarUrl}" alt="${name}" 
+                             onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                    ` : ''}
+                    <div class="user-avatar-fallback">${initials}</div>
+                </div>
+                <div class="user-info">
+                    <div class="user-name">${name}</div>
+                    ${bio ? `<div class="user-bio">${bio}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 📚 Render recent quotes section (LEGACY - kept for compatibility)
      */
     renderRecentQuotes() {
         if (!this.userQuotes || this.userQuotes.length === 0) {
@@ -354,6 +504,18 @@ class ProfilePage {
             retryButton.addEventListener('click', () => this.handleRetry());
         }
         
+        // Tab switching buttons
+        const tabButtons = root.querySelectorAll('[data-action="switch-tab"]');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', (e) => this.handleTabSwitch(e));
+        });
+        
+        // User card clicks (for followers/following)
+        const userCards = root.querySelectorAll('.user-card');
+        userCards.forEach(card => {
+            card.addEventListener('click', (e) => this.handleUserCardClick(e));
+        });
+        
         console.log('✅ ProfilePage: Event listeners attached');
     }
     
@@ -439,6 +601,65 @@ class ProfilePage {
         if (root) {
             root.innerHTML = this.render();
             this.attachEventListeners();
+        }
+    }
+    
+    /**
+     * 🔄 Handle tab switch
+     */
+    async handleTabSwitch(event) {
+        const button = event.currentTarget;
+        const newTab = button.dataset.tab;
+        
+        if (this.activeTab === newTab) {
+            return; // Already on this tab
+        }
+        
+        // Haptic feedback
+        if (this.telegram?.hapticFeedback) {
+            this.telegram.hapticFeedback('light');
+        }
+        
+        // Update active tab
+        this.activeTab = newTab;
+        
+        // Load data for the tab if not loaded yet
+        if (newTab === 'followers' && this.followersData.length === 0) {
+            await this.loadFollowers();
+        } else if (newTab === 'following' && this.followingData.length === 0) {
+            await this.loadFollowing();
+        }
+        
+        // Re-render the page
+        const root = document.getElementById('profilePageRoot');
+        if (root) {
+            const container = root.parentElement;
+            if (container) {
+                container.innerHTML = this.render();
+                this.attachEventListeners();
+            }
+        }
+    }
+    
+    /**
+     * 👤 Handle user card click
+     */
+    handleUserCardClick(event) {
+        const card = event.currentTarget;
+        const userId = card.dataset.userId;
+        
+        if (!userId) return;
+        
+        // Haptic feedback
+        if (this.telegram?.hapticFeedback) {
+            this.telegram.hapticFeedback('light');
+        }
+        
+        // Navigate to user's profile
+        if (this.router && typeof this.router.navigate === 'function') {
+            this.router.navigate(`/profile?user=${userId}`);
+        } else {
+            window.location.hash = `/profile?user=${userId}`;
         }
     }
     
