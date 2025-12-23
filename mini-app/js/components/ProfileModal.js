@@ -169,9 +169,36 @@ class ProfileModal {
             const profileResponse = await this.api.getUserProfile(this.userId);
             this.profileData = profileResponse.user || profileResponse;
             
-            // Load follow status only if not preset or reconcile preset with API
+            // Get current user ID for comparison
             const currentUserId = this.state.getCurrentUserId();
-            if (currentUserId && currentUserId !== this.userId) {
+            const isOwnProfile = currentUserId === this.userId;
+            
+            // For own profile, load stats and follow counts
+            if (isOwnProfile) {
+                try {
+                    // Load stats if not already present
+                    const stats = await this.api.getStats(this.userId);
+                    if (stats) {
+                        this.profileData.stats = {
+                            ...this.profileData.stats,
+                            ...stats
+                        };
+                    }
+                    
+                    // Load follow counts
+                    const counts = await this.api.getFollowCounts();
+                    if (counts) {
+                        this.profileData.stats = {
+                            ...this.profileData.stats,
+                            followers: counts.followers || 0,
+                            following: counts.following || 0
+                        };
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Could not load stats for own profile:', error);
+                }
+            } else {
+                // Load follow status for other users
                 try {
                     const status = await this.api.getFollowStatus(this.userId);
                     // Support both .isFollowing and .following response formats
@@ -324,13 +351,13 @@ class ProfileModal {
     attachEventListeners() {
         if (!this.modal) return;
         
-        // Close button with stopPropagation and once option
+        // Close button with stopPropagation (remove once: true since modal is re-rendered on each open)
         const closeBtn = this.modal.querySelector('.modal-close');
         if (closeBtn) {
             closeBtn.addEventListener('click', (e) => {
                 e.stopPropagation(); // Prevent event bubbling
                 this.close();
-            }, { once: true }); // Remove after first click
+            });
         }
         
         // Follow/Unfollow button
@@ -444,22 +471,24 @@ class ProfileModal {
      * 🔍 Handle open full profile
      */
     handleOpenFullProfile() {
-        // Close modal
-        this.close();
-        
-        // Navigate to full profile page
         const profileUrl = `/profile?user=${this.userId}`;
         
-        if (this.router && typeof this.router.navigate === 'function') {
-            this.router.navigate(profileUrl);
-        } else {
-            window.location.hash = profileUrl;
-        }
+        // Close modal first, then navigate
+        this.close();
         
-        // Haptic feedback
-        if (this.telegram?.hapticFeedback) {
-            this.telegram.hapticFeedback('light');
-        }
+        // Small delay to ensure modal closes before navigation
+        setTimeout(() => {
+            if (this.router && typeof this.router.navigate === 'function') {
+                this.router.navigate(profileUrl);
+            } else {
+                window.location.hash = profileUrl;
+            }
+            
+            // Haptic feedback
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('light');
+            }
+        }, 100);
     }
     
     /**

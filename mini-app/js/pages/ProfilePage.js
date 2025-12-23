@@ -165,11 +165,13 @@ class ProfilePage {
             // Backend returns { success: true, data: [...], total, limit, skip }
             const followers = response.data || response.followers || response || [];
             
-            // Extract user data from followers
+            // Extract user data from followers with comprehensive userId normalization
             this.followersData = followers.map(f => {
                 const user = f.user || f;
+                // Ensure userId via comprehensive fallback chain
+                const userId = user.userId || f.userId || user.id || user._id || user.telegramId;
                 return {
-                    userId: user.userId || f.userId,
+                    userId: userId,
                     name: user.name || user.firstName || 'Читатель',
                     avatarUrl: user.avatarUrl || user.photoUrl,
                     bio: user.bio || '',
@@ -194,11 +196,13 @@ class ProfilePage {
             // Backend returns { success: true, data: [...], total, limit, skip }
             const following = response.data || response.following || response || [];
             
-            // Extract user data from following
+            // Extract user data from following with comprehensive userId normalization
             this.followingData = following.map(f => {
                 const user = f.user || f;
+                // Ensure userId via comprehensive fallback chain
+                const userId = user.userId || f.userId || user.id || user._id || user.telegramId;
                 return {
-                    userId: user.userId || f.userId,
+                    userId: userId,
                     name: user.name || user.firstName || 'Читатель',
                     avatarUrl: user.avatarUrl || user.photoUrl,
                     bio: user.bio || '',
@@ -235,13 +239,7 @@ class ProfilePage {
                 paginationInfo = response.pagination;
             }
             
-            // Filter out technical sources (don't remove quotes, just filter display)
-            const technicalSources = ['mini_app', 'test_script', 'test_sctript', 'web', 'api'];
-            quotes = quotes.filter(quote => {
-                const source = (quote.source || '').toLowerCase().trim();
-                return !technicalSources.includes(source);
-            });
-            
+            // DON'T filter out quotes - keep all quotes, technical source labels are suppressed in renderQuoteCard
             // Update quotes array
             if (append) {
                 this.userQuotes = [...this.userQuotes, ...quotes];
@@ -490,7 +488,8 @@ class ProfilePage {
         const bio = user.bio || '';
         const username = user.telegramUsername || user.username;
         const formattedUsername = username ? `@${username}` : '';
-        const userId = user.userId || user.id;
+        // Ensure userId via comprehensive fallback chain
+        const userId = user.userId || user.id || user._id || user.telegramId;
         
         // Get follow status for this user (we'll need to track this)
         const isFollowing = this.followStatusCache?.[userId] || false;

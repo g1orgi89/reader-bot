@@ -3294,9 +3294,6 @@ renderAchievementsSection() {
             return;
         }
         
-        // Define allowed click targets
-        const ALLOWED_CLICK_CLASSES = ['quote-card__user-avatar', 'quote-card__user-name'];
-        
         // Use delegated event listener for better performance and dynamic content
         pageContent.addEventListener('click', (event) => {
             // Check if clicked element or its parent has data-user-id
@@ -3304,23 +3301,21 @@ renderAchievementsSection() {
             
             if (!clickedElement) return;
             
-            // Don't open modal if clicking on buttons
+            // Don't open modal if clicking on buttons (follow buttons, action buttons, etc.)
             if (event.target.closest('button') || event.target.closest('.follow-btn')) {
                 return;
             }
             
-            // Check if the actual clicked target or the element with data-user-id has allowed classes
-            const hasAllowedClass = ALLOWED_CLICK_CLASSES.some(className => 
-                event.target.classList.contains(className) || 
-                clickedElement.classList.contains(className)
-            );
-            
-            if (!hasAllowedClass) {
+            // Don't open modal if clicking on interactive elements that aren't user cards
+            if (event.target.closest('.quote-actions') || event.target.closest('[data-action]')) {
                 return;
             }
             
             const userId = clickedElement.dataset.userId;
-            const isFollowing = clickedElement.dataset.isFollowing === 'true';
+            // Get preset follow status from data attribute or class
+            const isFollowingFromData = clickedElement.dataset.isFollowing === 'true';
+            const isFollowingFromClass = clickedElement.classList.contains('following');
+            const isFollowing = isFollowingFromData || isFollowingFromClass;
             
             if (!userId) {
                 console.warn('⚠️ Element clicked with data-user-id but no userId value');
