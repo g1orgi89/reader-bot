@@ -505,20 +505,26 @@ class ApiService {
     /**
      * 📚 Получить цитаты пользователя
      * @param {string} userId - ID пользователя
-     * @param {Object} options - Опции запроса (limit)
+     * @param {Object} options - Опции запроса (limit, offset)
      * @returns {Promise<Array>} Список цитат пользователя
      */
     async getUserQuotes(userId, options = {}) {
         const limit = options.limit || 10;
+        const offset = options.offset || 0;
         const currentUserId = this.resolveUserId();
         
-        // Если запрашиваем свои цитаты, используем getRecentQuotes
+        // Если запрашиваем свои цитаты, используем getQuotes с offset
         if (userId === currentUserId || userId === 'me') {
-            return this.getRecentQuotes(limit, currentUserId);
+            const response = await this.getQuotes({ limit, offset }, currentUserId);
+            return response.quotes || response || [];
         }
         
-        // Для других пользователей используем публичный эндпоинт
-        const result = await this.request('GET', `/users/${userId}/quotes?limit=${limit}`);
+        // Для других пользователей используем публичный эндпоинт с offset
+        const params = new URLSearchParams();
+        params.append('limit', limit);
+        if (offset) params.append('offset', offset);
+        
+        const result = await this.request('GET', `/users/${userId}/quotes?${params.toString()}`);
         return result.quotes || [];
     }
 

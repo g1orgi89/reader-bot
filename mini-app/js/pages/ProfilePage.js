@@ -37,6 +37,14 @@ class ProfilePage {
         this.followersData = [];
         this.followingData = [];
         
+        // Pagination state for quotes
+        this.quotesOffset = 0;
+        this.quotesLimit = 20;
+        this.hasMoreQuotes = true;
+        
+        // Persistent username cache to prevent disappearing
+        this.cachedUsername = null;
+        
         console.log('✅ ProfilePage: Initialized');
     }
     
@@ -88,13 +96,21 @@ class ProfilePage {
             const profileResponse = await this.api.getUserProfile(this.userId);
             this.profileData = profileResponse.user || profileResponse;
             
+            // Cache username from backend or Telegram to prevent disappearing
+            if (!this.cachedUsername) {
+                this.cachedUsername = this.profileData?.telegramUsername || 
+                                     this.telegram?.user?.username || 
+                                     this.telegram?.webApp?.initDataUnsafe?.user?.username ||
+                                     window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+            }
+            
             // If own profile, also try to update state
             if (this.isOwnProfile) {
                 this.state.set('user.profile', this.profileData);
             }
             
-            // Load user's quotes
-            await this.loadUserQuotes();
+            // Load user's quotes with pagination
+            await this.loadUserQuotes(this.quotesLimit, this.quotesOffset);
             
             // Load follow status for other users
             if (!this.isOwnProfile) {
@@ -134,7 +150,22 @@ class ProfilePage {
     async loadFollowers() {
         try {
             const response = await this.api.getFollowers({ limit: 50 });
-            this.followersData = response.followers || response || [];
+            // Backend returns { success: true, data: [...], total, limit, skip }
+            const followers = response.data || response.followers || response || [];
+            
+            // Extract user data from followers
+            this.followersData = followers.map(f => {
+                const user = f.user || f;
+                return {
+                    userId: user.userId || f.userId,
+                    name: user.name || user.firstName || 'Читатель',
+                    avatarUrl: user.avatarUrl || user.photoUrl,
+                    bio: user.bio || '',
+                    telegramUsername: user.telegramUsername || user.username,
+                    ...user
+                };
+            });
+            
             console.log(`✅ ProfilePage: Loaded ${this.followersData.length} followers`);
         } catch (error) {
             console.warn('⚠️ Could not load followers:', error);
@@ -148,7 +179,22 @@ class ProfilePage {
     async loadFollowing() {
         try {
             const response = await this.api.getFollowing({ limit: 50 });
-            this.followingData = response.following || response || [];
+            // Backend returns { success: true, data: [...], total, limit, skip }
+            const following = response.data || response.following || response || [];
+            
+            // Extract user data from following
+            this.followingData = following.map(f => {
+                const user = f.user || f;
+                return {
+                    userId: user.userId || f.userId,
+                    name: user.name || user.firstName || 'Читатель',
+                    avatarUrl: user.avatarUrl || user.photoUrl,
+                    bio: user.bio || '',
+                    telegramUsername: user.telegramUsername || user.username,
+                    ...user
+                };
+            });
+            
             console.log(`✅ ProfilePage: Loaded ${this.followingData.length} following`);
         } catch (error) {
             console.warn('⚠️ Could not load following:', error);
@@ -157,15 +203,45 @@ class ProfilePage {
     }
     
     /**
-     * 📚 Load user's recent quotes
+     * 📚 Load user's quotes with pagination
      */
-    async loadUserQuotes(limit = 10) {
+    async loadUserQuotes(limit = 20, offset = 0, append = false) {
         try {
-            const quotes = await this.api.getUserQuotes(this.userId, { limit });
-            this.userQuotes = quotes || [];
+            let quotes = [];
+            
+            if (this.isOwnProfile) {
+                // For own profile, use getQuotes with pagination
+                const response = await this.api.getQuotes({ limit, offset });
+                quotes = response.quotes || response || [];
+            } else {
+                // For other users, use public endpoint
+                const response = await this.api.getUserQuotes(this.userId, { limit, offset });
+                quotes = response || [];
+            }
+            
+            // Filter out technical sources
+            const technicalSources = ['mini_app', 'test_script', 'test_sctript', 'web', 'api'];
+            quotes = quotes.filter(quote => {
+                const source = (quote.source || '').toLowerCase().trim();
+                return !technicalSources.includes(source);
+            });
+            
+            // Update quotes array
+            if (append) {
+                this.userQuotes = [...this.userQuotes, ...quotes];
+            } else {
+                this.userQuotes = quotes;
+            }
+            
+            // Update pagination state
+            this.hasMoreQuotes = quotes.length === limit;
+            
+            console.log(`✅ ProfilePage: Loaded ${quotes.length} quotes (offset: ${offset})`);
         } catch (error) {
             console.warn('⚠️ Could not load user quotes:', error);
-            this.userQuotes = [];
+            if (!append) {
+                this.userQuotes = [];
+            }
         }
     }
     
@@ -239,13 +315,17 @@ class ProfilePage {
         const name = profile.name || profile.firstName || 'Пользователь';
         const bio = profile.bio || '';
         
-        // Get username from backend or fallback to Telegram initDataUnsafe
-        let username = profile.telegramUsername;
+        // Get username from cached value first, then backend, then Telegram initDataUnsafe
+        let username = this.cachedUsername || profile.telegramUsername;
         if (!username && this.isOwnProfile) {
             // Try telegram service user property first, then fall back to webApp
             username = this.telegram?.user?.username || 
                       this.telegram?.webApp?.initDataUnsafe?.user?.username ||
                       window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+            // Cache it for future renders
+            if (username) {
+                this.cachedUsername = username;
+            }
         }
         const formattedUsername = username ? `@${username}` : '';
         
@@ -341,6 +421,13 @@ class ProfilePage {
                 <div class="quotes-list">
                     ${quotesHTML}
                 </div>
+                ${this.hasMoreQuotes ? `
+                    <div class="load-more-container">
+                        <button class="btn-secondary load-more-btn" data-action="load-more-quotes">
+                            Загрузить ещё
+                        </button>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
@@ -403,9 +490,11 @@ class ProfilePage {
         const avatarUrl = user.avatarUrl || user.photoUrl || null;
         const initials = this.getInitials(name);
         const bio = user.bio || '';
+        const username = user.telegramUsername || user.username;
+        const formattedUsername = username ? `@${username}` : '';
         
         return `
-            <div class="user-card" data-user-id="${user.userId || user.id}">
+            <div class="user-card" data-user-id="${user.userId || user.id}" data-action="navigate-to-profile">
                 <div class="user-avatar-container">
                     ${avatarUrl ? `
                         <img class="user-avatar-img" src="${avatarUrl}" alt="${name}" 
@@ -415,6 +504,7 @@ class ProfilePage {
                 </div>
                 <div class="user-info">
                     <div class="user-name">${name}</div>
+                    ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
                     ${bio ? `<div class="user-bio">${bio}</div>` : ''}
                 </div>
             </div>
@@ -533,8 +623,14 @@ class ProfilePage {
             button.addEventListener('click', (e) => this.handleTabSwitch(e));
         });
         
+        // Load more quotes button
+        const loadMoreBtn = root.querySelector('[data-action="load-more-quotes"]');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', (e) => this.handleLoadMoreQuotes(e));
+        }
+        
         // User card clicks (for followers/following)
-        const userCards = root.querySelectorAll('.user-card');
+        const userCards = root.querySelectorAll('[data-action="navigate-to-profile"]');
         userCards.forEach(card => {
             card.addEventListener('click', (e) => this.handleUserCardClick(e));
         });
@@ -681,10 +777,8 @@ class ProfilePage {
             await this.loadFollowers();
         } else if (newTab === 'following' && this.followingData.length === 0) {
             await this.loadFollowing();
-        } else if (newTab === 'quotes' && this.userQuotes.length <= 10) {
-            // Load all quotes when switching to quotes tab
-            await this.loadUserQuotes(50);
         }
+        // Note: Don't reload quotes when switching to quotes tab - use existing data
         
         // Update UI efficiently - only update the changed parts
         const root = document.getElementById('profilePageRoot');
@@ -716,11 +810,8 @@ class ProfilePage {
                     if (newContent && tabContent.parentNode) {
                         tabContent.parentNode.replaceChild(newContent, tabContent);
                         
-                        // Re-attach event listeners for new user cards
-                        const userCards = newContent.querySelectorAll('.user-card');
-                        userCards.forEach(card => {
-                            card.addEventListener('click', (e) => this.handleUserCardClick(e));
-                        });
+                        // Re-attach event listeners for new elements
+                        this.attachTabContentEventListeners(newContent);
                         
                         // Fade in
                         requestAnimationFrame(() => {
@@ -729,6 +820,76 @@ class ProfilePage {
                     }
                 }, 200);
             }
+        }
+    }
+    
+    /**
+     * 🔗 Attach event listeners for tab content
+     */
+    attachTabContentEventListeners(container) {
+        // Re-attach event listeners for user cards
+        const userCards = container.querySelectorAll('[data-action="navigate-to-profile"]');
+        userCards.forEach(card => {
+            card.addEventListener('click', (e) => this.handleUserCardClick(e));
+        });
+        
+        // Re-attach load more button
+        const loadMoreBtn = container.querySelector('[data-action="load-more-quotes"]');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', (e) => this.handleLoadMoreQuotes(e));
+        }
+    }
+    
+    /**
+     * 📚 Handle load more quotes
+     */
+    async handleLoadMoreQuotes(event) {
+        const button = event.currentTarget;
+        if (button.disabled) return;
+        
+        button.disabled = true;
+        button.textContent = 'Загрузка...';
+        
+        try {
+            // Increment offset
+            this.quotesOffset += this.quotesLimit;
+            
+            // Load more quotes
+            await this.loadUserQuotes(this.quotesLimit, this.quotesOffset, true);
+            
+            // Re-render the quotes tab
+            const root = document.getElementById('profilePageRoot');
+            if (root) {
+                const tabContent = root.querySelector('.profile-tab-content');
+                if (tabContent) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = this.renderTabContent();
+                    const newContent = tempDiv.firstElementChild;
+                    
+                    if (newContent && tabContent.parentNode) {
+                        tabContent.parentNode.replaceChild(newContent, tabContent);
+                        
+                        // Re-attach event listeners
+                        this.attachTabContentEventListeners(newContent);
+                    }
+                }
+            }
+            
+            // Haptic feedback
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('light');
+            }
+            
+        } catch (error) {
+            console.error('❌ ProfilePage: Error loading more quotes:', error);
+            if (this.telegram?.showAlert) {
+                this.telegram.showAlert('Ошибка при загрузке цитат');
+            }
+            
+            // Restore button state
+            button.textContent = 'Загрузить ещё';
+        } finally {
+            button.disabled = false;
         }
     }
     
@@ -783,6 +944,24 @@ class ProfilePage {
      */
     async onShow() {
         console.log('👁️ ProfilePage: onShow');
+        
+        // Refresh username from Telegram on every show to prevent disappearing
+        if (this.isOwnProfile && !this.cachedUsername) {
+            const username = this.telegram?.user?.username || 
+                           this.telegram?.webApp?.initDataUnsafe?.user?.username ||
+                           window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+            if (username) {
+                this.cachedUsername = username;
+                // Re-render profile card if username was found
+                const root = document.getElementById('profilePageRoot');
+                if (root) {
+                    const profileCard = root.querySelector('.profile-card');
+                    if (profileCard) {
+                        profileCard.outerHTML = this.renderProfileCard();
+                    }
+                }
+            }
+        }
         
         // Update Telegram BackButton visibility
         if (this.telegram?.BackButton) {
