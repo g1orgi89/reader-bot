@@ -219,6 +219,29 @@
 .stat-item {
     text-align: center;
     flex: 1;
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    transition: all var(--duration-fast) var(--ease-out);
+    position: relative;
+}
+
+.stat-item:hover {
+    background: var(--bg-overlay);
+}
+
+.stat-item.active {
+    background: var(--bg-overlay);
+}
+
+.stat-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-color);
 }
 
 .stat-value {
@@ -250,6 +273,15 @@
     margin: 0 0 var(--spacing-lg);
 }
 
+/* ============================================================================
+   📑 TAB CONTENT SECTION
+   ============================================================================ */
+
+.profile-tab-content {
+    padding: var(--spacing-lg);
+    min-height: 300px;
+}
+
 .quotes-list {
     display: flex;
     flex-direction: column;
@@ -267,6 +299,92 @@
 .quotes-list .quote-card:hover {
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
+}
+
+/* ============================================================================
+   👥 USERS LIST (Followers/Following)
+   ============================================================================ */
+
+.users-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.user-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    background: var(--bg-card);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.user-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    background: var(--bg-overlay);
+}
+
+.user-avatar-container {
+    width: 48px;
+    height: 48px;
+    position: relative;
+    border-radius: var(--radius-round);
+    overflow: hidden;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+}
+
+.user-avatar-fallback {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-inverse);
+    text-transform: uppercase;
+    z-index: 1;
+}
+
+.user-avatar-container.fallback .user-avatar-img {
+    display: none;
+}
+
+.user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-2xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-bio {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .quote-text {
@@ -404,8 +522,16 @@
         padding: var(--spacing-md);
     }
     
+    .stat-item {
+        padding: var(--spacing-xs);
+    }
+    
     .stat-value {
         font-size: var(--font-size-xl);
+    }
+    
+    .profile-tab-content {
+        padding: var(--spacing-md);
     }
     
     .recent-quotes-section {
@@ -413,6 +539,15 @@
     }
     
     .quote-text {
+        font-size: var(--font-size-base);
+    }
+    
+    .user-avatar-container {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .user-avatar-fallback {
         font-size: var(--font-size-base);
     }
 }
