@@ -2095,6 +2095,24 @@
     margin-bottom: var(--spacing-sm);
 }
 
+/* Make user card clickable */
+.user-card-clickable {
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    padding: 4px;
+    margin: -4px -4px var(--spacing-sm) -4px;
+    transition: background-color 0.2s ease;
+}
+
+.user-card-clickable:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.user-card-clickable:active {
+    background-color: rgba(0, 0, 0, 0.1);
+    transform: scale(0.98);
+}
+
 .quote-card__user-avatar {
     width: 32px;
     height: 32px;

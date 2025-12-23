@@ -37,6 +37,10 @@ class CommunityPage {
         this.telegram = app.telegram;
         this.statisticsService = app.statistics || window.statisticsService;
         window.communityPage = this;
+        
+        // Initialize ProfileModal
+        this.profileModal = new ProfileModal(app);
+        
         // Стейт
         this.activeTab = 'feed';
         this.isHydrated = false; // ← первый показ только после префетча
@@ -2061,7 +2065,7 @@ async refreshSpotlight() {
                     ${badge ? `<div class="spotlight-badge">${badge}</div>` : ''}
                     
                     <!-- Header с аватаром и именем пользователя -->
-                    <div class="quote-card__header">
+                    <div class="quote-card__header user-card-clickable" data-user-id="${owner?.userId || owner?.id || owner?._id || owner?.telegramId || ''}" style="cursor: pointer;">
                         ${userAvatarHtml}
                         <div class="quote-card__user">
                             <span class="quote-card__user-name">${this.escapeHtml(userName)}</span>
@@ -3125,6 +3129,7 @@ renderAchievementsSection() {
         this.attachCommunityCardListeners(); // ✅ НОВОЕ: Haptic feedback для карточек
         this.attachRetryButtons(); // ✅ НОВОЕ PR-3
         this.attachQuoteCardListeners(); // ✅ НОВОЕ: Обработчики для карточек цитат
+        this.attachUserCardListeners(); // ✅ НОВОЕ: Обработчики для кликов по пользователям
         this.attachSpotlightRefreshButton(); // ✅ НОВОЕ: Кнопка обновления spotlight
         this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели (теперь обновляет и лидерборд)
         this.attachFeedLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "Все"
@@ -3212,6 +3217,79 @@ renderAchievementsSection() {
             });
         });
     }   
+    
+    /**
+     * 👥 ОБРАБОТЧИКИ ДЛЯ КЛИКОВ ПО ПОЛЬЗОВАТЕЛЯМ (НОВОЕ)
+     * Открывает ProfileModal при клике на карточку пользователя
+     */
+    attachUserCardListeners() {
+        const userCards = document.querySelectorAll('.user-card-clickable');
+        userCards.forEach(card => {
+            card.addEventListener('click', (event) => {
+                // Don't open modal if clicking on follow button
+                if (event.target.closest('.follow-btn')) {
+                    return;
+                }
+                
+                const userId = card.dataset.userId;
+                if (!userId) {
+                    console.warn('⚠️ User card clicked but no user ID found');
+                    return;
+                }
+                
+                // Open profile modal
+                console.log('👤 Opening profile modal for user:', userId);
+                if (this.profileModal) {
+                    this.profileModal.open(userId);
+                }
+                
+                // Haptic feedback
+                if (this.telegram?.hapticFeedback) {
+                    this.telegram.hapticFeedback('light');
+                }
+            });
+        });
+        
+        console.log(`✅ Attached ${userCards.length} user card listeners`);
+    }
+    
+    /**
+     * 🔄 REFRESH FOLLOW STATUS (для синхронизации после изменения в ProfileModal)
+     * @param {string} userId - ID пользователя
+     * @param {boolean} isFollowing - Новый статус подписки
+     */
+    refreshFollowStatus(userId, isFollowing) {
+        console.log(`🔄 Refreshing follow status for user ${userId}: ${isFollowing}`);
+        
+        // Update cache
+        this.followStatusCache.set(userId, isFollowing);
+        this._saveFollowStatusToStorage();
+        
+        // Update all follow buttons for this user
+        const followButtons = document.querySelectorAll(`.follow-btn[data-user-id="${userId}"]`);
+        followButtons.forEach(button => {
+            if (isFollowing) {
+                button.classList.add('following');
+                button.setAttribute('aria-label', 'Отписаться');
+                button.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                `;
+            } else {
+                button.classList.remove('following');
+                button.setAttribute('aria-label', 'Подписаться');
+                button.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <line x1="19" y1="8" x2="19" y2="14"/>
+                        <line x1="16" y1="11" x2="22" y2="11"/>
+                    </svg>
+                `;
+            }
+        });
+    }
     
     /**
      * 📳 ЕДИНЫЙ МЕТОД ДЛЯ HAPTIC FEEDBACK
