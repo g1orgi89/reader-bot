@@ -1335,13 +1335,16 @@ router.get('/users/:id', telegramAuth, async (req, res) => {
 /**
  * @description Get user's quotes
  * @route GET /api/reader/users/:id/quotes
- * Returns recent quotes for a specific user
+ * Returns recent quotes for a specific user with pagination
  */
 router.get('/users/:id/quotes', telegramAuth, async (req, res) => {
   try {
     const targetUserId = req.params.id;
     const limit = Math.min(parseInt(req.query.limit) || 10, 50);
     const offset = parseInt(req.query.offset) || 0;
+    
+    // Get total count for pagination
+    const total = await Quote.countDocuments({ userId: targetUserId });
     
     // Get user's quotes with pagination
     const quotes = await Quote.find({ userId: targetUserId })
@@ -1353,10 +1356,12 @@ router.get('/users/:id/quotes', telegramAuth, async (req, res) => {
     
     res.json({
       success: true,
-      quotes,
-      total: quotes.length,
-      offset,
-      limit
+      items: quotes,
+      pagination: {
+        total: total,
+        limit: limit,
+        offset: offset
+      }
     });
   } catch (error) {
     console.error('❌ Get user quotes error:', error);
@@ -5249,6 +5254,41 @@ router.post('/feedback', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to submit feedback'
+    });
+  }
+});
+
+/**
+ * @description POST /api/reader/errors - Client error logging endpoint
+ * @route POST /api/reader/errors
+ * @access Public (no auth required - used for error telemetry)
+ */
+router.post('/errors', async (req, res) => {
+  try {
+    const { error, stack, context, userAgent, timestamp } = req.body;
+    
+    // Log the client error for monitoring
+    console.error('📱 Client Error:', {
+      error: error || 'Unknown error',
+      stack: stack || 'No stack trace',
+      context: context || {},
+      userAgent: userAgent || req.headers['user-agent'],
+      timestamp: timestamp || new Date().toISOString(),
+      ip: req.ip
+    });
+    
+    // Return success to prevent retry loops
+    res.json({
+      success: true,
+      message: 'Error logged successfully'
+    });
+    
+  } catch (err) {
+    console.error('❌ Error logging endpoint failed:', err);
+    // Still return 200 to prevent retry loops
+    res.json({
+      success: true,
+      message: 'Error logging completed with warnings'
     });
   }
 });

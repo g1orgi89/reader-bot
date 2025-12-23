@@ -78,9 +78,10 @@ class ProfileModal {
         this.userId = userId;
         this.isOpen = true;
         
-        // Use preset follow status if provided
-        if (presetFollowStatus !== null) {
-            this.followStatus = presetFollowStatus;
+        // Use preset follow status if provided (truthy check to handle false explicitly)
+        if (presetFollowStatus !== null && presetFollowStatus !== undefined) {
+            this.followStatus = Boolean(presetFollowStatus);
+            console.log(`✅ ProfileModal: Using preset follow status: ${this.followStatus} for user ${userId}`);
         }
         
         // Create modal if not exists
@@ -95,7 +96,7 @@ class ProfileModal {
         this.backdrop.addEventListener('click', this.boundHandleBackdropClick);
         document.addEventListener('keydown', this.boundHandleEscape);
         
-        // Setup Telegram BackButton
+        // Setup Telegram BackButton with single handler
         if (this.telegram?.BackButton) {
             this.telegram.BackButton.show();
             this.telegram.BackButton.onClick(this.boundHandleBackButton);
@@ -168,26 +169,27 @@ class ProfileModal {
             const profileResponse = await this.api.getUserProfile(this.userId);
             this.profileData = profileResponse.user || profileResponse;
             
-            // Load follow status only if not preset
+            // Load follow status only if not preset or reconcile preset with API
             const currentUserId = this.state.getCurrentUserId();
             if (currentUserId && currentUserId !== this.userId) {
                 try {
                     const status = await this.api.getFollowStatus(this.userId);
-                    const apiFollowStatus = status?.following || false;
+                    // Support both .isFollowing and .following response formats
+                    const apiFollowStatus = status?.isFollowing ?? status?.following ?? false;
                     
                     // Reconcile with preset status - only if preset was actually provided (not null/undefined)
-                    if (this.followStatus != null) {
+                    if (this.followStatus !== null && this.followStatus !== undefined) {
                         if (this.followStatus !== apiFollowStatus) {
                             console.log(`🔄 ProfileModal: Reconciling follow status - preset: ${this.followStatus}, API: ${apiFollowStatus}`);
                         }
                     }
                     
-                    // Always trust API status for accuracy
+                    // Always use API status for accuracy after reconciliation
                     this.followStatus = apiFollowStatus;
                 } catch (error) {
                     console.warn('⚠️ Could not load follow status:', error);
                     // Keep preset status on error, or default to false
-                    if (this.followStatus == null) {
+                    if (this.followStatus === null || this.followStatus === undefined) {
                         this.followStatus = false;
                     }
                 }
@@ -322,10 +324,13 @@ class ProfileModal {
     attachEventListeners() {
         if (!this.modal) return;
         
-        // Close button
+        // Close button with stopPropagation and once option
         const closeBtn = this.modal.querySelector('.modal-close');
         if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.close());
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                this.close();
+            }, { once: true }); // Remove after first click
         }
         
         // Follow/Unfollow button

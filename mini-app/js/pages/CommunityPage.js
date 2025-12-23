@@ -222,7 +222,14 @@ class CommunityPage {
     }
     
     setupSubscriptions() {
-        // Подписки на изменения состояния, если необходимо
+        // Listen for follow state changes from ProfileModal and ProfilePage
+        window.addEventListener('followStateChanged', (event) => {
+            const { userId, following } = event.detail;
+            console.log(`🔄 CommunityPage: Received followStateChanged event for user ${userId}: ${following}`);
+            this.refreshFollowStatus(userId, following);
+        });
+        
+        console.log('✅ CommunityPage: Subscriptions set up');
     }
     
     async loadCommunityData() {

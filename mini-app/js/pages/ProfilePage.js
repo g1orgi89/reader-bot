@@ -45,6 +45,9 @@ class ProfilePage {
         // Persistent username cache to prevent disappearing
         this.cachedUsername = null;
         
+        // Follow status cache for user cards (userId -> boolean)
+        this.followStatusCache = {};
+        
         console.log('✅ ProfilePage: Initialized');
     }
     
@@ -96,17 +99,26 @@ class ProfilePage {
             const profileResponse = await this.api.getUserProfile(this.userId);
             this.profileData = profileResponse.user || profileResponse;
             
-            // Cache username from backend or Telegram to prevent disappearing
-            if (!this.cachedUsername) {
-                this.cachedUsername = this.profileData?.telegramUsername || 
-                                     this.telegram?.user?.username || 
-                                     this.telegram?.webApp?.initDataUnsafe?.user?.username ||
-                                     window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+            // Cache username with strict priority: backend telegramUsername → state → Telegram initData
+            // Never overwrite a non-empty cached username with an empty one
+            const backendUsername = this.profileData?.telegramUsername;
+            const stateUsername = this.state?.get?.('user.profile.username');
+            const telegramUsername = this.telegram?.user?.username || 
+                                   this.telegram?.webApp?.initDataUnsafe?.user?.username ||
+                                   window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+            
+            // Priority: backend → state → telegram, but never overwrite non-empty with empty
+            if (backendUsername) {
+                this.cachedUsername = backendUsername;
+            } else if (!this.cachedUsername && stateUsername) {
+                this.cachedUsername = stateUsername;
+            } else if (!this.cachedUsername && telegramUsername) {
+                this.cachedUsername = telegramUsername;
             }
             
-            // If own profile, also try to update state
-            if (this.isOwnProfile) {
-                this.state.set('user.profile', this.profileData);
+            // If own profile, update state with username
+            if (this.isOwnProfile && this.cachedUsername) {
+                this.state.set('user.profile.username', this.cachedUsername);
             }
             
             // Load user's quotes with pagination
@@ -207,19 +219,23 @@ class ProfilePage {
      */
     async loadUserQuotes(limit = 20, offset = 0, append = false) {
         try {
+            let response;
             let quotes = [];
+            let paginationInfo = null;
             
             if (this.isOwnProfile) {
                 // For own profile, use getQuotes with pagination
-                const response = await this.api.getQuotes({ limit, offset });
-                quotes = response.quotes || response || [];
+                response = await this.api.getQuotes({ limit, offset });
+                quotes = response.quotes || [];
+                paginationInfo = response.pagination;
             } else {
                 // For other users, use public endpoint
-                const response = await this.api.getUserQuotes(this.userId, { limit, offset });
-                quotes = response || [];
+                response = await this.api.getUserQuotes(this.userId, { limit, offset });
+                quotes = response.items || response.quotes || response || [];
+                paginationInfo = response.pagination;
             }
             
-            // Filter out technical sources
+            // Filter out technical sources (don't remove quotes, just filter display)
             const technicalSources = ['mini_app', 'test_script', 'test_sctript', 'web', 'api'];
             quotes = quotes.filter(quote => {
                 const source = (quote.source || '').toLowerCase().trim();
@@ -233,10 +249,16 @@ class ProfilePage {
                 this.userQuotes = quotes;
             }
             
-            // Update pagination state
-            this.hasMoreQuotes = quotes.length === limit;
+            // Update pagination state using API response
+            if (paginationInfo && typeof paginationInfo.total === 'number') {
+                // Use pagination.total from API response
+                this.hasMoreQuotes = (offset + limit) < paginationInfo.total;
+            } else {
+                // Fallback to length heuristic if pagination info not available
+                this.hasMoreQuotes = quotes.length === limit;
+            }
             
-            console.log(`✅ ProfilePage: Loaded ${quotes.length} quotes (offset: ${offset})`);
+            console.log(`✅ ProfilePage: Loaded ${quotes.length} quotes (offset: ${offset}, hasMore: ${this.hasMoreQuotes})`);
         } catch (error) {
             console.warn('⚠️ Could not load user quotes:', error);
             if (!append) {
@@ -272,37 +294,9 @@ class ProfilePage {
         
         return `
             <div class="content profile-page" id="profilePageRoot">
-                ${this.renderHeader()}
-                <div class="profile-header-spacer"></div>
                 ${this.renderProfileCard()}
                 ${this.renderStatistics()}
                 ${this.renderTabContent()}
-            </div>
-        `;
-    }
-    
-    /**
-     * 📋 Render page header
-     */
-    renderHeader() {
-        const title = this.isOwnProfile ? '👤 Мой профиль' : '👤 Профиль';
-        
-        return `
-            <div class="page-header profile-header-sticky">
-                <button class="back-button" data-action="back">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 12H5M12 19l-7-7 7-7"/>
-                    </svg>
-                </button>
-                <h1 class="page-title">${title}</h1>
-                ${this.isOwnProfile ? `
-                    <button class="edit-profile-button" data-action="edit-profile">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                    </button>
-                ` : ''}
             </div>
         `;
     }
@@ -315,15 +309,19 @@ class ProfilePage {
         const name = profile.name || profile.firstName || 'Пользователь';
         const bio = profile.bio || '';
         
-        // Get username from cached value first, then backend, then Telegram initDataUnsafe
+        // Get username with strict priority: cachedUsername → backend → state → Telegram initData
+        // Never display empty username, always use the cached non-empty value
         let username = this.cachedUsername || profile.telegramUsername;
         if (!username && this.isOwnProfile) {
-            // Try telegram service user property first, then fall back to webApp
-            username = this.telegram?.user?.username || 
-                      this.telegram?.webApp?.initDataUnsafe?.user?.username ||
-                      window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
-            // Cache it for future renders
-            if (username) {
+            // Try state first, then Telegram initData as fallback
+            const stateUsername = this.state?.get?.('user.profile.username');
+            const telegramUsername = this.telegram?.user?.username || 
+                                   this.telegram?.webApp?.initDataUnsafe?.user?.username ||
+                                   window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+            username = stateUsername || telegramUsername;
+            
+            // Cache it for future renders if found
+            if (username && !this.cachedUsername) {
                 this.cachedUsername = username;
             }
         }
@@ -492,10 +490,17 @@ class ProfilePage {
         const bio = user.bio || '';
         const username = user.telegramUsername || user.username;
         const formattedUsername = username ? `@${username}` : '';
+        const userId = user.userId || user.id;
+        
+        // Get follow status for this user (we'll need to track this)
+        const isFollowing = this.followStatusCache?.[userId] || false;
         
         return `
-            <div class="user-card" data-user-id="${user.userId || user.id}" data-action="navigate-to-profile">
-                <div class="user-avatar-container">
+            <div class="user-card" 
+                 data-user-id="${userId}" 
+                 data-is-following="${isFollowing}"
+                 data-action="navigate-to-profile">
+                <div class="user-avatar-container" data-user-id="${userId}">
                     ${avatarUrl ? `
                         <img class="user-avatar-img" src="${avatarUrl}" alt="${name}" 
                              onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
@@ -503,7 +508,7 @@ class ProfilePage {
                     <div class="user-avatar-fallback">${initials}</div>
                 </div>
                 <div class="user-info">
-                    <div class="user-name">${name}</div>
+                    <div class="user-name" data-user-id="${userId}">${name}</div>
                     ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
                     ${bio ? `<div class="user-bio">${bio}</div>` : ''}
                 </div>
@@ -945,14 +950,28 @@ class ProfilePage {
     async onShow() {
         console.log('👁️ ProfilePage: onShow');
         
-        // Refresh username from Telegram on every show to prevent disappearing
-        if (this.isOwnProfile && !this.cachedUsername) {
-            const username = this.telegram?.user?.username || 
-                           this.telegram?.webApp?.initDataUnsafe?.user?.username ||
-                           window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
-            if (username) {
-                this.cachedUsername = username;
-                // Re-render profile card if username was found
+        // Refresh username from all sources on every show to prevent disappearing
+        if (this.isOwnProfile) {
+            const backendUsername = this.profileData?.telegramUsername;
+            const stateUsername = this.state?.get?.('user.profile.username');
+            const telegramUsername = this.telegram?.user?.username || 
+                                   this.telegram?.webApp?.initDataUnsafe?.user?.username ||
+                                   window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+            
+            // Update cached username with priority: backend → state → telegram
+            // Only update if we find a non-empty value
+            const newUsername = backendUsername || stateUsername || telegramUsername;
+            
+            if (newUsername && newUsername !== this.cachedUsername) {
+                console.log(`🔄 ProfilePage: Username updated: ${this.cachedUsername} → ${newUsername}`);
+                this.cachedUsername = newUsername;
+                
+                // Update state for consistency
+                if (this.cachedUsername) {
+                    this.state.set('user.profile.username', this.cachedUsername);
+                }
+                
+                // Re-render profile card to show the username
                 const root = document.getElementById('profilePageRoot');
                 if (root) {
                     const profileCard = root.querySelector('.profile-card');
