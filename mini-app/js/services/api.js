@@ -515,8 +515,7 @@ class ApiService {
         
         // Если запрашиваем свои цитаты, используем getQuotes с offset
         if (userId === currentUserId || userId === 'me') {
-            const response = await this.getQuotes({ limit, offset }, currentUserId);
-            return response.quotes || response || [];
+            return await this.getQuotes({ limit, offset }, currentUserId);
         }
         
         // Для других пользователей используем публичный эндпоинт с offset
@@ -524,8 +523,8 @@ class ApiService {
         params.append('limit', limit);
         if (offset) params.append('offset', offset);
         
-        const result = await this.request('GET', `/users/${userId}/quotes?${params.toString()}`);
-        return result.quotes || [];
+        // Return full response to preserve pagination info
+        return await this.request('GET', `/users/${userId}/quotes?${params.toString()}`);
     }
 
     /**

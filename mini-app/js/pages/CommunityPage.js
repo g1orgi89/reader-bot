@@ -3283,6 +3283,18 @@ renderAchievementsSection() {
     }
     
     /**
+     * 🔍 Get follow status from element (data attribute or class)
+     * @param {HTMLElement} element - Element to extract follow status from
+     * @returns {boolean} Follow status
+     */
+    getFollowStatusFromElement(element) {
+        if (!element) return false;
+        const isFollowingFromData = element.dataset.isFollowing === 'true';
+        const isFollowingFromClass = element.classList.contains('following');
+        return isFollowingFromData || isFollowingFromClass;
+    }
+    
+    /**
      * 🎯 DELEGATED PROFILE MODAL HANDLER (HOTFIX)
      * Handles clicks on avatars and names with data-user-id to open ProfileModal
      * Works across Community and Following feeds
@@ -3294,9 +3306,6 @@ renderAchievementsSection() {
             return;
         }
         
-        // Define allowed click targets
-        const ALLOWED_CLICK_CLASSES = ['quote-card__user-avatar', 'quote-card__user-name'];
-        
         // Use delegated event listener for better performance and dynamic content
         pageContent.addEventListener('click', (event) => {
             // Check if clicked element or its parent has data-user-id
@@ -3304,23 +3313,18 @@ renderAchievementsSection() {
             
             if (!clickedElement) return;
             
-            // Don't open modal if clicking on buttons
+            // Don't open modal if clicking on buttons (follow buttons, action buttons, etc.)
             if (event.target.closest('button') || event.target.closest('.follow-btn')) {
                 return;
             }
             
-            // Check if the actual clicked target or the element with data-user-id has allowed classes
-            const hasAllowedClass = ALLOWED_CLICK_CLASSES.some(className => 
-                event.target.classList.contains(className) || 
-                clickedElement.classList.contains(className)
-            );
-            
-            if (!hasAllowedClass) {
+            // Don't open modal if clicking on interactive elements that aren't user cards
+            if (event.target.closest('.quote-actions') || event.target.closest('[data-action]')) {
                 return;
             }
             
             const userId = clickedElement.dataset.userId;
-            const isFollowing = clickedElement.dataset.isFollowing === 'true';
+            const isFollowing = this.getFollowStatusFromElement(clickedElement);
             
             if (!userId) {
                 console.warn('⚠️ Element clicked with data-user-id but no userId value');
