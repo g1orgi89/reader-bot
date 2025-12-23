@@ -28,6 +28,7 @@ class TopMenu {
         this._navBusy = false; // защита от повторного быстрого клика
 
         this.menuItems = [
+            { id: 'profile',       label: 'Мой профиль', icon: this.getProfileIcon(),      action: 'profile' },
             { id: 'settings',      label: 'Настройки',    icon: this.getSettingsIcon(),      action: 'settings' },
             //{ id: 'achievements',  label: 'Достижения',   icon: this.getAchievementsIcon(),  action: 'achievements' },
             { id: 'divider1',      isDivider: true },
@@ -195,6 +196,7 @@ class TopMenu {
      */
     navigateToRoute(action) {
         const routes = {
+            profile: '/profile?user=me',
             achievements: '/achievements',
             settings: '/settings',
             help: '/help',
