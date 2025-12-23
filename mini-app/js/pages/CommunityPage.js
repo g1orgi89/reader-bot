@@ -80,7 +80,7 @@ class CommunityPage {
         this._likeStore = new Map();
         this._likeStoreLoaded = false; // Flag to track if like store was loaded from localStorage
 
-        // ✅ ДОБАВИТЬ ЭТУ СТРОКУ:
+        // Load persisted like store from localStorage
         this._loadLikeStoreFromStorage();
      
         // 🔄 RERENDER SCHEDULER (batching sequential rerenders into single rAF)
@@ -3951,7 +3951,7 @@ renderAchievementsSection() {
     }
 
     /**
-     * ➕ ДОБАВИТЬ ЦИТАТУ В ДНЕВНИК (НОВОЕ ДЛЯ PR-3)
+     * ➕ Add quote to diary from community feed
      */
     async addQuoteToJournal(event) {
         event.preventDefault();
@@ -4152,7 +4152,7 @@ renderAchievementsSection() {
                     willLike ? 'success' : 'info'
                 );
 
-                // >>> ВСТАВИТЬ ЗДЕСЬ БЛОК MERGE В appState <<<
+                // Merge favorite into appState
                 try {
                   const favorite = response.favorite || response.result?.favorite || null;
                   if (favorite && window.appState) {
@@ -4203,8 +4203,7 @@ renderAchievementsSection() {
                     });
                 }
 
-
-                // ↓↓↓ ВСТАВЬ эти две строки СРАЗУ ПОСЛЕ успешного ответа (и до set key в _likeState)
+                // Apply like state to following feed if active
                 if (this.feedFilter === 'following') {
                     this._applyLikeStateToArray(this.followingFeed);
                     this._updateAllLikeButtonsForKey(key);
@@ -4444,138 +4443,7 @@ renderAchievementsSection() {
     }
 }
 
-// 🐛 DEBUG HELPER (disabled by default, call window.__DUMP_LIKES() in console to inspect like store)
-if (typeof window !== 'undefined') {
-    window.__DUMP_LIKES = function() {
-        const page = window.App?.currentPage;
-        if (page && page._likeStore) {
-            const entries = Array.from(page._likeStore.entries()).map(([key, value]) => ({
-                key: key,
-                liked: value.liked,
-                count: value.count,
-                pending: value.pending,
-                lastServerCount: value.lastServerCount
-            }));
-            console.table(entries);
-            return entries;
-        } else {
-            console.warn('CommunityPage or _likeStore not found. Make sure you are on the Community page.');
-            return [];
-        }
-    };
-}
 
-(function initLikeDebug(){
-  if (window.__LIKE_DEBUG_INSTALLED) return;
-  window.__LIKE_DEBUG_INSTALLED = true;
-
-  // Лог клика по сердцу
-  document.addEventListener('click', e => {
-    const b = e.target.closest('.quote-card__heart-btn, .quote-card__fav-btn');
-    if (!b) return;
-    const card = b.closest('.quote-card');
-    const dt = b.dataset.quoteText;
-    const da = b.dataset.quoteAuthor;
-    const nk = b.dataset.normalizedKey || b.dataset.normalizedkey;
-    const domAuthor = card?.querySelector('.quote-card__author')?.textContent?.replace(/^—\s*/,'');
-    const ownerName = card?.querySelector('.quote-card__user-name')?.textContent;
-    console.log('%c[HEART CLICK]', 'color:#D2452C;font-weight:bold', {
-      datasetText: dt,
-      datasetAuthor: da,
-      datasetKey: nk,
-      domAuthor,
-      ownerName,
-      classFavorited: b.classList.contains('favorited')
-    });
-  }, true);
-
-  // Перехват API like/unlike
-  const api = window.app?.api || window.App?.api;
-  if (!api) { console.warn('API not ready for debug'); return; }
-
-  const wrap = (fnName) => {
-    if (!api[fnName] || api[fnName].__wrapped) return;
-    const orig = api[fnName].bind(api);
-    api[fnName] = async (p) => {
-      console.log('%c['+fnName.toUpperCase()+'_OUT]', 'color:#0a84ff', p);
-      try {
-        const res = await orig(p);
-        console.log('%c['+fnName.toUpperCase()+'_IN ]', 'color:#0a84ff', res);
-        return res;
-      } catch(e) {
-        console.log('%c['+fnName.toUpperCase()+'_ERR]', 'color:#ff3b30', e);
-        throw e;
-      }
-    };
-    api[fnName].__wrapped = true;
-  };
-  wrap('likeQuote');
-  wrap('unlikeQuote');
-
-  // Dump store
-  window.dumpLikes = () => {
-    const cp = window.communityPage || window.CommunityPageInstance;
-    if (!cp || !cp._likeStore) { console.log('No _likeStore'); return; }
-    console.table(
-      Array.from(cp._likeStore.entries())
-        .map(([k,v])=>({key:k, liked:v.liked, count:v.count, pending:v.pending}))
-    );
-  };
-})();
-
-// ==== COMMUNITY DEBUG TOOLS (UNIFIED) ====
-if (typeof window !== 'undefined') {
-  window.dumpLikes = function() {
-    const cp = window.communityPage;
-    if (!cp || !cp._likeStore) { console.log('No _likeStore'); return []; }
-    const entries = Array.from(cp._likeStore.entries()).map(([key, value]) => ({
-      key,
-      liked: value.liked,
-      count: value.count,
-      pending: value.pending,
-      lastServerCount: value.lastServerCount
-    }));
-    console.table(entries);
-    return entries;
-  };
-  window.__DUMP_LIKES_EXT = function() {
-    const cp = window.communityPage;
-    if (!cp || !cp._likeStore) { console.log('No _likeStore'); return []; }
-    const entries = Array.from(cp._likeStore.entries()).map(([key, value]) => ({
-      key,
-      liked: value.liked,
-      count: value.count,
-      pending: value.pending,
-      lastServerCount: value.lastServerCount
-    }));
-    console.group('%c[EXTENDED _likeStore]', 'color:#0a84ff;font-weight:bold;');
-    console.table(entries);
-    console.groupEnd();
-    return entries;
-  };
-  window.__DUMP_COLLECTIONS = function() {
-    const cp = window.communityPage;
-    if (!cp) { console.log('No CommunityPage'); return; }
-    console.group('%c[COLLECTIONS]', 'color:#D2452C;font-weight:bold;');
-    console.log('[latestQuotes]', cp.latestQuotes);
-    console.log('[popularFavorites]', cp.popularFavorites);
-    console.log('[spotlightCache]', cp._spotlightCache?.items);
-    console.groupEnd();
-  };
-  window.__DUMP_ALL = function() {
-    window.__DUMP_LIKES_EXT();
-    window.__DUMP_COLLECTIONS();
-  };
-  const origApply = window.CommunityPage?.prototype?._applyLikeStateToArray;
-  if (origApply && !origApply.__wrapped) {
-    window.CommunityPage.prototype._applyLikeStateToArray = function(items) {
-      const result = origApply.call(this, items);
-      console.log('%c[APPLY LIKE STATE]', 'color:#0a84ff', items);
-      return result;
-    };
-    window.CommunityPage.prototype._applyLikeStateToArray.__wrapped = true;
-  }
-}
 
 // 📤 Экспорт класса
 window.CommunityPage = CommunityPage;
