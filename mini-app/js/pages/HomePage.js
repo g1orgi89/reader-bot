@@ -1066,7 +1066,7 @@ class HomePage {
         }
 
         // Update username
-        const username = profile.username ? `@${profile.username}` : '';
+        const username = profile.telegramUsername ? `@${profile.telegramUsername}` : '';
         if (homeHeaderUsername) {
             homeHeaderUsername.textContent = username;
         } else if (username) {
