@@ -51,6 +51,20 @@ class ProfilePage {
          */
         this._followingByUserId = {};
         
+        /**
+         * Loading flag for followers data
+         * Prevents flickering by showing spinner during load
+         * @type {boolean}
+         */
+        this.loadingFollowers = false;
+        
+        /**
+         * Loading flag for following data
+         * Prevents flickering by showing spinner during load
+         * @type {boolean}
+         */
+        this.loadingFollowing = false;
+        
         // Pagination state for quotes
         this.quotesOffset = 0;
         this.quotesLimit = 20;
@@ -205,10 +219,17 @@ class ProfilePage {
     
     /**
      * 👥 Load followers list
-     * UPDATED: Теперь явно передаёт userId профиля в API запрос
+     * UPDATED: Теперь явно передаёт userId профиля в API запрос с loading флагами
      */
     async loadFollowers() {
         try {
+            // Set loading flag and clear current data before API call
+            this.loadingFollowers = true;
+            this.followersData = [];
+            
+            // Force render to show spinner immediately
+            this.renderFollowersTabIfActive();
+            
             // ВАЖНО: Передаём userId профиля, который сейчас открыт
             console.log(`👥 ProfilePage.loadFollowers: загружаем подписчиков для userId: ${this.userId}`);
             
@@ -246,15 +267,28 @@ class ProfilePage {
             console.warn('⚠️ Could not load followers:', error);
             // Keep cached data if available, otherwise empty array
             this.followersData = this._followersByUserId[this.userId] || [];
+        } finally {
+            // Always reset loading flag
+            this.loadingFollowers = false;
+            
+            // Force render to show data or empty state
+            this.renderFollowersTabIfActive();
         }
     }
     
     /**
      * 👤 Load following list
-     * UPDATED: Теперь явно передаёт userId профиля в API запрос
+     * UPDATED: Теперь явно передаёт userId профиля в API запрос с loading флагами
      */
     async loadFollowing() {
         try {
+            // Set loading flag and clear current data before API call
+            this.loadingFollowing = true;
+            this.followingData = [];
+            
+            // Force render to show spinner immediately
+            this.renderFollowingTabIfActive();
+            
             // ВАЖНО: Передаём userId профиля, который сейчас открыт
             console.log(`👤 ProfilePage.loadFollowing: загружаем подписки для userId: ${this.userId}`);
             
@@ -292,6 +326,12 @@ class ProfilePage {
             console.warn('⚠️ Could not load following:', error);
             // Keep cached data if available, otherwise empty array
             this.followingData = this._followingByUserId[this.userId] || [];
+        } finally {
+            // Always reset loading flag
+            this.loadingFollowing = false;
+            
+            // Force render to show data or empty state
+            this.renderFollowingTabIfActive();
         }
     }
     
@@ -509,6 +549,19 @@ class ProfilePage {
      * 👥 Render followers tab
      */
     renderFollowersTab() {
+        // Show spinner during loading
+        if (this.loadingFollowers) {
+            return `
+                <div class="profile-tab-content">
+                    <div class="loading-spinner-container">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка подписчиков...</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show empty state if no data and not loading
         if (!this.followersData || this.followersData.length === 0) {
             return `
                 <div class="profile-tab-content">
@@ -519,6 +572,7 @@ class ProfilePage {
             `;
         }
         
+        // Render user cards
         const followersHTML = this.followersData.map(user => this.renderUserCard(user)).join('');
         
         return `
@@ -534,6 +588,19 @@ class ProfilePage {
      * 👤 Render following tab
      */
     renderFollowingTab() {
+        // Show spinner during loading
+        if (this.loadingFollowing) {
+            return `
+                <div class="profile-tab-content">
+                    <div class="loading-spinner-container">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка подписок...</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show empty state if no data and not loading
         if (!this.followingData || this.followingData.length === 0) {
             return `
                 <div class="profile-tab-content">
@@ -544,6 +611,7 @@ class ProfilePage {
             `;
         }
         
+        // Render user cards
         const followingHTML = this.followingData.map(user => this.renderUserCard(user)).join('');
         
         return `
@@ -1031,6 +1099,58 @@ class ProfilePage {
         if (words.length === 0) return '?';
         if (words.length === 1) return (words[0][0] || '?').toUpperCase();
         return `${(words[0][0] || '').toUpperCase()}${(words[1][0] || '').toUpperCase()}`;
+    }
+    
+    /**
+     * 🔄 Force render followers tab if it's currently active
+     * Helper method to update UI immediately during loading
+     */
+    renderFollowersTabIfActive() {
+        if (this.activeTab !== 'followers') return;
+        
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        const tabContent = root.querySelector('.profile-tab-content');
+        if (!tabContent) return;
+        
+        // Update content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = this.renderTabContent();
+        const newContent = tempDiv.firstElementChild;
+        
+        if (newContent && tabContent.parentNode) {
+            tabContent.parentNode.replaceChild(newContent, tabContent);
+            
+            // Re-attach event listeners for new elements
+            this.attachTabContentEventListeners(newContent);
+        }
+    }
+    
+    /**
+     * 🔄 Force render following tab if it's currently active
+     * Helper method to update UI immediately during loading
+     */
+    renderFollowingTabIfActive() {
+        if (this.activeTab !== 'following') return;
+        
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        const tabContent = root.querySelector('.profile-tab-content');
+        if (!tabContent) return;
+        
+        // Update content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = this.renderTabContent();
+        const newContent = tempDiv.firstElementChild;
+        
+        if (newContent && tabContent.parentNode) {
+            tabContent.parentNode.replaceChild(newContent, tabContent);
+            
+            // Re-attach event listeners for new elements
+            this.attachTabContentEventListeners(newContent);
+        }
     }
     
     /**
