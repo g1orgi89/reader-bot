@@ -766,7 +766,6 @@ class ProfilePage {
             </div>
         `;
     }
-    }
     
     /**
      * 📚 Render recent quotes section (LEGACY - kept for compatibility)
