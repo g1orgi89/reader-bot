@@ -37,6 +37,20 @@ class ProfilePage {
         this.followersData = [];
         this.followingData = [];
         
+        /**
+         * Cache for followers data indexed by userId
+         * Prevents flickering/disappearing when switching between profiles
+         * @type {Object<string, Array>}
+         */
+        this._followersByUserId = {};
+        
+        /**
+         * Cache for following data indexed by userId
+         * Prevents flickering/disappearing when switching between profiles
+         * @type {Object<string, Array>}
+         */
+        this._followingByUserId = {};
+        
         // Pagination state for quotes
         this.quotesOffset = 0;
         this.quotesLimit = 20;
@@ -78,6 +92,10 @@ class ProfilePage {
             }
             
             console.log(`🔍 ProfilePage: Loading profile for ${this.isOwnProfile ? 'own profile' : 'user ' + this.userId}`);
+            
+            // Restore cached followers/following data for current userId before loading
+            this.followersData = this._followersByUserId[this.userId] || [];
+            this.followingData = this._followingByUserId[this.userId] || [];
             
             // Load profile data
             await this.loadProfileData();
@@ -169,6 +187,23 @@ class ProfilePage {
     }
     
     /**
+     * 🗑️ Clear followers/following cache
+     * Called on logout or when profile data is no longer valid
+     * @param {string} [specificUserId] - Optional userId to clear cache for, if not provided clears all
+     */
+    clearFollowersCache(specificUserId = null) {
+        if (specificUserId) {
+            delete this._followersByUserId[specificUserId];
+            delete this._followingByUserId[specificUserId];
+            console.log(`🗑️ ProfilePage: Cleared cache for userId: ${specificUserId}`);
+        } else {
+            this._followersByUserId = {};
+            this._followingByUserId = {};
+            console.log('🗑️ ProfilePage: Cleared all followers/following cache');
+        }
+    }
+    
+    /**
      * 👥 Load followers list
      */
     async loadFollowers() {
@@ -178,7 +213,7 @@ class ProfilePage {
             const followers = response.data || response.followers || response || [];
             
             // Extract user data from followers with comprehensive userId normalization
-            this.followersData = followers.map(f => {
+            const processedFollowers = followers.map(f => {
                 const user = f.user || f;
                 return {
                     userId: this.extractUserId(user, f),
@@ -190,10 +225,17 @@ class ProfilePage {
                 };
             });
             
-            console.log(`✅ ProfilePage: Loaded ${this.followersData.length} followers`);
+            // Store in cache indexed by userId
+            this._followersByUserId[this.userId] = processedFollowers;
+            
+            // Update current display data from cache
+            this.followersData = this._followersByUserId[this.userId] || [];
+            
+            console.log(`✅ ProfilePage: Loaded ${this.followersData.length} followers for userId: ${this.userId}`);
         } catch (error) {
             console.warn('⚠️ Could not load followers:', error);
-            this.followersData = [];
+            // Keep cached data if available, otherwise empty array
+            this.followersData = this._followersByUserId[this.userId] || [];
         }
     }
     
@@ -207,7 +249,7 @@ class ProfilePage {
             const following = response.data || response.following || response || [];
             
             // Extract user data from following with comprehensive userId normalization
-            this.followingData = following.map(f => {
+            const processedFollowing = following.map(f => {
                 const user = f.user || f;
                 return {
                     userId: this.extractUserId(user, f),
@@ -219,10 +261,17 @@ class ProfilePage {
                 };
             });
             
-            console.log(`✅ ProfilePage: Loaded ${this.followingData.length} following`);
+            // Store in cache indexed by userId
+            this._followingByUserId[this.userId] = processedFollowing;
+            
+            // Update current display data from cache
+            this.followingData = this._followingByUserId[this.userId] || [];
+            
+            console.log(`✅ ProfilePage: Loaded ${this.followingData.length} following for userId: ${this.userId}`);
         } catch (error) {
             console.warn('⚠️ Could not load following:', error);
-            this.followingData = [];
+            // Keep cached data if available, otherwise empty array
+            this.followingData = this._followingByUserId[this.userId] || [];
         }
     }
     
@@ -783,11 +832,25 @@ class ProfilePage {
             this.router.navigate(`/profile?user=${userParam}&tab=${newTab}`, { replace: true });
         }
         
-        // Load data for the tab if not loaded yet
-        if (newTab === 'followers' && this.followersData.length === 0) {
-            await this.loadFollowers();
-        } else if (newTab === 'following' && this.followingData.length === 0) {
-            await this.loadFollowing();
+        // Load data for the tab if not cached yet
+        if (newTab === 'followers') {
+            // Check cache first, only load if not cached
+            if (!this._followersByUserId[this.userId] || this._followersByUserId[this.userId].length === 0) {
+                await this.loadFollowers();
+            } else {
+                // Use cached data
+                this.followersData = this._followersByUserId[this.userId];
+                console.log(`📦 ProfilePage: Using cached followers (${this.followersData.length}) for userId: ${this.userId}`);
+            }
+        } else if (newTab === 'following') {
+            // Check cache first, only load if not cached
+            if (!this._followingByUserId[this.userId] || this._followingByUserId[this.userId].length === 0) {
+                await this.loadFollowing();
+            } else {
+                // Use cached data
+                this.followingData = this._followingByUserId[this.userId];
+                console.log(`📦 ProfilePage: Using cached following (${this.followingData.length}) for userId: ${this.userId}`);
+            }
         }
         // Note: Don't reload quotes when switching to quotes tab - use existing data
         
