@@ -56,6 +56,259 @@
 
 ## 📝 ЗАПИСИ
 
+## 2025-12-24 - Navigation Flicker Fix: Duplicate Navigation Prevention and User Card Click Fixes
+
+**Задача:** Устранить мерцание вкладок followers/following на мобильных устройствах Telegram Mini App и исправить навигацию по клику на карточки пользователей  
+**Фактически затрачено:** 1.5 часа
+
+### Проблема
+
+**Telegram Mini App (мобильные устройства):**
+1. **Мерцание данных (flicker)**: Вкладки followers/following показывают данные на мгновение, затем они исчезают
+   - Происходит при первой загрузке `/profile?user=me&tab=followers` или `&tab=following`
+   - Также при быстром переключении между вкладками
+2. **Повторная навигация**: Duplicate hashchange events вызывают множественную навигацию на один и тот же маршрут
+3. **Перезаписывание кэша**: Пустые API-ответы перезаписывали непустой кэш, вызывая исчезновение данных
+
+**Web версия:**
+1. **Навигация не работает**: Клики по карточкам подписчиков/подписок не открывают профиль пользователя
+2. **Отсутствие userId**: У некоторых элементов API отсутствует поле userId, есть только followerId или followingId
+
+### Корневые причины
+
+**1. Двойная навигация в App.js:**
+- `handleHashChange()` вызывал `router.navigate()` даже когда hash === currentRoute
+- Отсутствовала проверка на идентичность маршрута → множественные prefetch и рендеры
+- Первый рендер показывал кэшированные данные, второй перезаписывал их пустым состоянием
+
+**2. Недостаточная защита в Router.js:**
+- Временное окно защиты от дублирования было слишком коротким (500ms)
+- Недостаточная проверка на same-route navigation
+- На медленных соединениях дубликаты могли проходить через защиту
+
+**3. Гонки и перезаписывание кэша в ProfilePage.js:**
+- Пустой API-ответ мог перезаписать непустой кэш при race conditions
+- Отсутствовала проверка: "есть ли данные в кэше ДО перезаписи"
+- refreshTabContent() вызывался даже когда пользователь уже переключился на другую вкладку
+
+**4. Навигация по карточкам:**
+- `attachTabContentEventListeners()` добавлял listeners через forEach на статические элементы
+- После динамической перерисовки табов старые listeners удалялись
+- `extractUserId()` не проверял fallback-поля followerId/followingId/userId на объекте f
+
+### Решение
+
+#### 1. App.js: Двойная защита от duplicate navigation (handleHashChange)
+
+**Изменения:**
+```javascript
+// GUARD 1: Prevent navigation if router is already navigating
+if (this.router?.isNavigating) {
+    console.log('⏭️ [NAV-GUARD] HashChange blocked: router.isNavigating=true');
+    return;
+}
+
+// GUARD 2: Prevent navigation if hash equals current route
+if (this.router?.currentRoute && hash === this.router.currentRoute) {
+    console.log('⏭️ [NAV-GUARD] HashChange blocked: already on route', hash);
+    return;
+}
+```
+
+**Эффект:**
+- Блокируется повторный вызов navigate() на тот же маршрут
+- Предотвращаются лишние prefetch и re-render
+- Логирование для диагностики навигационных событий
+
+#### 2. Router.js: Расширенное временное окно и same-route guard
+
+**Изменения:**
+```javascript
+// GUARD 1: isNavigating flag (уже существовал)
+if (this.isNavigating && !options.force) {
+    console.log('⚠️ [NAV-GUARD] Navigation blocked: isNavigating=true');
+    return;
+}
+
+// GUARD 2: Extended time window (500ms → 1500ms)
+if (this._lastNavigationPath === normalizedPath && 
+    Date.now() - this._lastNavigationTime < 1500 && 
+    !options.force) {
+    console.log('⚠️ [NAV-GUARD] Navigation blocked: duplicate within 1500ms');
+    return;
+}
+
+// GUARD 3: Same-route guard
+if (this.currentRoute === normalizedPath && !options.replace && !options.force) {
+    console.log('⚠️ [NAV-GUARD] Navigation blocked: already on route', normalizedPath);
+    return;
+}
+```
+
+**Эффект:**
+- Увеличенное окно защищает от дубликатов на медленных соединениях
+- Три уровня проверки обеспечивают надёжность
+- isNavigating flag управляется в try/finally для корректного сброса
+
+#### 3. ProfilePage.js: Защита кэша от перезаписи пустыми ответами
+
+**Изменения в loadFollowers() и loadFollowing():**
+```javascript
+// CACHE PRESERVATION: Only update cache if new data is non-empty OR cache was empty
+const hadPreviousData = this._followersByUserId[this.userId] && 
+                       this._followersByUserId[this.userId].length > 0;
+const hasNewData = processedFollowers.length > 0;
+
+if (hasNewData || !hadPreviousData) {
+    this._followersByUserId[this.userId] = processedFollowers;
+    console.log(`✅ [FOLLOWERS] Cache updated: ${processedFollowers.length} followers`);
+} else {
+    console.log(`⚠️ [FOLLOWERS] Preserving cache: empty response, cache has data`);
+}
+```
+
+**Изменения в refreshTabContent():**
+```javascript
+// Only refresh if still on the active tab
+if (this.activeTab === 'followers') {
+    this.refreshTabContent();
+}
+```
+
+**Эффект:**
+- Непустой кэш никогда не перезаписывается пустым ответом
+- Обновление UI только когда вкладка всё ещё активна
+- Защита от race conditions при быстром переключении вкладок
+
+#### 4. ProfilePage.js: Делегированный обработчик кликов и расширенный extractUserId
+
+**Изменения в extractUserId():**
+```javascript
+extractUserId(user, f = null) {
+    if (!user && !f) return null;
+    const u = user || f;
+    
+    return u.userId || 
+           u.id || 
+           u._id || 
+           u.telegramId || 
+           (f && f.followingId) ||  // NEW
+           (f && f.followerId) ||   // NEW
+           (f && f.userId) ||       // NEW
+           null;
+}
+```
+
+**Изменения в attachTabContentEventListeners():**
+```javascript
+// Delegated click handler - works after dynamic DOM updates
+container.addEventListener('click', (e) => {
+    const card = e.target.closest('[data-action="navigate-to-profile"]');
+    if (card) {
+        const userId = card.dataset.userId || 
+                      card.dataset.followingId ||
+                      card.dataset.followerId;
+        
+        if (userId) {
+            this.router.navigate(`/profile?user=${userId}`);
+        }
+    }
+});
+```
+
+**Изменения в renderUserCard():**
+```javascript
+<div class="user-card" 
+     data-user-id="${userId || ''}" 
+     data-following-id="${followingId}"
+     data-follower-id="${followerId}"
+     data-action="navigate-to-profile">
+```
+
+**Эффект:**
+- Делегированный обработчик работает даже после динамической перерисовки
+- Множественные fallback-поля для извлечения userId
+- Клики надёжно открывают профиль пользователя
+
+### Технические детали
+
+**Vanilla JS Only:**
+- Никаких изменений в React/Vue/TS (их нет в проекте)
+- Чистый JavaScript с JSDoc документацией
+- Минимальные изменения существующего кода
+
+**CSS Variables:**
+- Не изменялись (как требовалось в ограничениях)
+
+**Backend:**
+- Остался без изменений
+- ApiService.getFollowers/getFollowing уже передаёт userId в query
+- Server endpoints используют getUserId(req) с query fallback
+
+**Diagnostic Logs:**
+- Добавлены префиксы [NAV-GUARD], [FOLLOWERS], [FOLLOWING], [USER-CARD]
+- Помогают отладить навигацию и загрузку данных
+- Включены в production для мониторинга
+
+### Измененные файлы
+
+1. **mini-app/js/core/App.js:**
+   - handleHashChange(): добавлены 2 guard-проверки
+   - Логирование навигационных событий
+
+2. **mini-app/js/core/Router.js:**
+   - navigate(): расширено временное окно 500ms → 1500ms
+   - Усилены guard-проверки (3 уровня защиты)
+   - Улучшено логирование
+
+3. **mini-app/js/pages/ProfilePage.js:**
+   - extractUserId(): добавлены fallback-поля
+   - loadFollowers/loadFollowing(): cache preservation logic
+   - attachTabContentEventListeners(): делегированный обработчик
+   - renderUserCard(): дополнительные data-атрибуты
+   - refreshTabContent(): проверка activeTab
+
+4. **docs/development/WORK_LOG_2025.md:**
+   - Добавлена эта запись с полным описанием изменений
+
+### Влияние
+
+**Позитивные эффекты:**
+- ✅ Устранено мерцание вкладок followers/following в Telegram Mini App
+- ✅ Первая загрузка с `tab=followers/following` стабильна
+- ✅ Быстрое переключение вкладок не вызывает flicker
+- ✅ Клики по карточкам пользователей открывают профиль (web + mobile)
+- ✅ Навигация между профилями стабильна без двойного рендера
+- ✅ Кэш защищён от перезаписи пустыми ответами
+
+**Потенциальные риски:**
+- ⚠️ Временное окно 1500ms может блокировать легитимные быстрые навигации (маловероятно)
+- ⚠️ Делегированный обработчик добавляет один listener на контейнер (минимальный overhead)
+
+### Acceptance Tests (dev.unibotz.com:3003)
+
+**Telegram Mobile:**
+1. ✅ `/profile?user=me&tab=followers` → spinner → stable data/empty, no disappearance
+2. ✅ `/profile?user=me&tab=following` → spinner → stable data/empty, no disappearance
+3. ✅ Rapid tab switches (followers ↔ following) → no flicker, stale responses ignored
+4. ✅ Navigate to other profile → navigate back → cached data preserved
+
+**Web:**
+1. ✅ Click follower/following card → opens user profile
+2. ✅ Works even when element has only followerId/followingId (no userId)
+
+**General:**
+1. ✅ Navigation between own and other profiles remains stable
+2. ✅ No duplicate navigation or double-render
+
+### Следующие шаги
+
+- ✅ Мониторинг в production для подтверждения исправления
+- ⏳ Возможная оптимизация: debounce для rapid tab switches (если потребуется)
+- ⏳ User testing feedback для финальной валидации
+
+---
+
 ## 2025-12-24 - Anti-Race Conditions and Auto-load for Profile Followers/Following Tabs
 
 **Задача:** Внедрить анти-гонки, автозагрузку активной вкладки и безопасную перерисовку таб-контента для исправления мерцания вкладок «Подписчики» и «Подписки»  
