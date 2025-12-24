@@ -65,6 +65,20 @@ class ProfilePage {
          */
         this.loadingFollowing = false;
         
+        /**
+         * Request ID for followers API calls
+         * Used to ignore stale responses from previous profile/tab switches
+         * @type {number}
+         */
+        this._followersRequestId = 0;
+        
+        /**
+         * Request ID for following API calls
+         * Used to ignore stale responses from previous profile/tab switches
+         * @type {number}
+         */
+        this._followingRequestId = 0;
+        
         // Pagination state for quotes
         this.quotesOffset = 0;
         this.quotesLimit = 20;
@@ -113,6 +127,15 @@ class ProfilePage {
             
             // Load profile data
             await this.loadProfileData();
+            
+            // Auto-load active tab if it's followers or following
+            if (this.activeTab === 'followers') {
+                console.log('🔄 ProfilePage: Auto-loading followers tab');
+                await this.loadFollowers();
+            } else if (this.activeTab === 'following') {
+                console.log('🔄 ProfilePage: Auto-loading following tab');
+                await this.loadFollowing();
+            }
             
         } catch (error) {
             console.error('❌ ProfilePage: Prefetch error:', error);
@@ -219,24 +242,33 @@ class ProfilePage {
     
     /**
      * 👥 Load followers list
-     * UPDATED: Теперь явно передаёт userId профиля в API запрос с loading флагами
+     * UPDATED: Использует requestId для защиты от гонок, не очищает данные на время загрузки
      */
     async loadFollowers() {
         try {
-            // Set loading flag and clear current data before API call
-            this.loadingFollowers = true;
-            this.followersData = [];
+            // Increment request ID to invalidate previous requests
+            this._followersRequestId++;
+            const currentRequestId = this._followersRequestId;
             
-            // Force render to show spinner immediately
-            this.renderFollowersTabIfActive();
+            // Set loading flag but DON'T clear current data - show spinner over cached data
+            this.loadingFollowers = true;
+            
+            // Force render to show spinner immediately (with cached data if available)
+            this.refreshTabContent();
             
             // ВАЖНО: Передаём userId профиля, который сейчас открыт
-            console.log(`👥 ProfilePage.loadFollowers: загружаем подписчиков для userId: ${this.userId}`);
+            console.log(`👥 ProfilePage.loadFollowers: загружаем подписчиков для userId: ${this.userId}, requestId: ${currentRequestId}`);
             
             const response = await this.api.getFollowers({ 
                 limit: 50,
                 userId: this.userId  // ← ИСПРАВЛЕНИЕ: явно передаём userId профиля
             });
+            
+            // Check if this response is still valid (request ID hasn't changed)
+            if (currentRequestId !== this._followersRequestId) {
+                console.log(`⚠️ ProfilePage.loadFollowers: Игнорируем устаревший ответ (requestId: ${currentRequestId}, текущий: ${this._followersRequestId})`);
+                return;
+            }
             
             console.log(`👥 ProfilePage.loadFollowers: получен ответ для userId: ${this.userId}`, response);
             
@@ -272,30 +304,39 @@ class ProfilePage {
             this.loadingFollowers = false;
             
             // Force render to show data or empty state
-            this.renderFollowersTabIfActive();
+            this.refreshTabContent();
         }
     }
     
     /**
      * 👤 Load following list
-     * UPDATED: Теперь явно передаёт userId профиля в API запрос с loading флагами
+     * UPDATED: Использует requestId для защиты от гонок, не очищает данные на время загрузки
      */
     async loadFollowing() {
         try {
-            // Set loading flag and clear current data before API call
-            this.loadingFollowing = true;
-            this.followingData = [];
+            // Increment request ID to invalidate previous requests
+            this._followingRequestId++;
+            const currentRequestId = this._followingRequestId;
             
-            // Force render to show spinner immediately
-            this.renderFollowingTabIfActive();
+            // Set loading flag but DON'T clear current data - show spinner over cached data
+            this.loadingFollowing = true;
+            
+            // Force render to show spinner immediately (with cached data if available)
+            this.refreshTabContent();
             
             // ВАЖНО: Передаём userId профиля, который сейчас открыт
-            console.log(`👤 ProfilePage.loadFollowing: загружаем подписки для userId: ${this.userId}`);
+            console.log(`👤 ProfilePage.loadFollowing: загружаем подписки для userId: ${this.userId}, requestId: ${currentRequestId}`);
             
             const response = await this.api.getFollowing({ 
                 limit: 50,
                 userId: this.userId  // ← ИСПРАВЛЕНИЕ: явно передаём userId профиля
             });
+            
+            // Check if this response is still valid (request ID hasn't changed)
+            if (currentRequestId !== this._followingRequestId) {
+                console.log(`⚠️ ProfilePage.loadFollowing: Игнорируем устаревший ответ (requestId: ${currentRequestId}, текущий: ${this._followingRequestId})`);
+                return;
+            }
             
             console.log(`👤 ProfilePage.loadFollowing: получен ответ для userId: ${this.userId}`, response);
             
@@ -331,7 +372,7 @@ class ProfilePage {
             this.loadingFollowing = false;
             
             // Force render to show data or empty state
-            this.renderFollowingTabIfActive();
+            this.refreshTabContent();
         }
     }
     
@@ -495,6 +536,30 @@ class ProfilePage {
                 </div>
             </div>
         `;
+    }
+    
+    /**
+     * 🔄 Refresh tab content safely without full page re-render
+     * Updates only the tab content area to prevent flickering
+     */
+    refreshTabContent() {
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        const tabContent = root.querySelector('.profile-tab-content');
+        if (!tabContent) return;
+        
+        // Update content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = this.renderTabContent();
+        const newContent = tempDiv.firstElementChild;
+        
+        if (newContent && tabContent.parentNode) {
+            tabContent.parentNode.replaceChild(newContent, tabContent);
+            
+            // Re-attach event listeners for new elements
+            this.attachTabContentEventListeners(newContent);
+        }
     }
     
     /**
@@ -897,6 +962,7 @@ class ProfilePage {
     
     /**
      * 🔄 Handle tab switch
+     * UPDATED: Использует refreshTabContent для безопасной перерисовки, выставляет loading-флаг перед загрузкой
      */
     async handleTabSwitch(event) {
         const button = event.currentTarget;
@@ -924,6 +990,11 @@ class ProfilePage {
         if (newTab === 'followers') {
             // Check cache first, only load if not cached
             if (!this._followersByUserId[this.userId] || this._followersByUserId[this.userId].length === 0) {
+                // Set loading flag and refresh to show spinner
+                this.loadingFollowers = true;
+                this.refreshTabContent();
+                
+                // Load data
                 await this.loadFollowers();
             } else {
                 // Use cached data
@@ -933,6 +1004,11 @@ class ProfilePage {
         } else if (newTab === 'following') {
             // Check cache first, only load if not cached
             if (!this._followingByUserId[this.userId] || this._followingByUserId[this.userId].length === 0) {
+                // Set loading flag and refresh to show spinner
+                this.loadingFollowing = true;
+                this.refreshTabContent();
+                
+                // Load data
                 await this.loadFollowing();
             } else {
                 // Use cached data
@@ -956,32 +1032,8 @@ class ProfilePage {
                 }
             });
             
-            // Update tab content with fade transition
-            const tabContent = root.querySelector('.profile-tab-content');
-            if (tabContent) {
-                // Fade out
-                tabContent.style.opacity = '0';
-                tabContent.style.transition = 'opacity 0.2s ease-out';
-                
-                setTimeout(() => {
-                    // Update content
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = this.renderTabContent();
-                    const newContent = tempDiv.firstElementChild;
-                    
-                    if (newContent && tabContent.parentNode) {
-                        tabContent.parentNode.replaceChild(newContent, tabContent);
-                        
-                        // Re-attach event listeners for new elements
-                        this.attachTabContentEventListeners(newContent);
-                        
-                        // Fade in
-                        requestAnimationFrame(() => {
-                            newContent.style.opacity = '1';
-                        });
-                    }
-                }, 200);
-            }
+            // Use refreshTabContent for safe re-render
+            this.refreshTabContent();
         }
     }
     
@@ -1101,57 +1153,6 @@ class ProfilePage {
         return `${(words[0][0] || '').toUpperCase()}${(words[1][0] || '').toUpperCase()}`;
     }
     
-    /**
-     * 🔄 Force render followers tab if it's currently active
-     * Helper method to update UI immediately during loading
-     */
-    renderFollowersTabIfActive() {
-        if (this.activeTab !== 'followers') return;
-        
-        const root = document.getElementById('profilePageRoot');
-        if (!root) return;
-        
-        const tabContent = root.querySelector('.profile-tab-content');
-        if (!tabContent) return;
-        
-        // Update content
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = this.renderTabContent();
-        const newContent = tempDiv.firstElementChild;
-        
-        if (newContent && tabContent.parentNode) {
-            tabContent.parentNode.replaceChild(newContent, tabContent);
-            
-            // Re-attach event listeners for new elements
-            this.attachTabContentEventListeners(newContent);
-        }
-    }
-    
-    /**
-     * 🔄 Force render following tab if it's currently active
-     * Helper method to update UI immediately during loading
-     */
-    renderFollowingTabIfActive() {
-        if (this.activeTab !== 'following') return;
-        
-        const root = document.getElementById('profilePageRoot');
-        if (!root) return;
-        
-        const tabContent = root.querySelector('.profile-tab-content');
-        if (!tabContent) return;
-        
-        // Update content
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = this.renderTabContent();
-        const newContent = tempDiv.firstElementChild;
-        
-        if (newContent && tabContent.parentNode) {
-            tabContent.parentNode.replaceChild(newContent, tabContent);
-            
-            // Re-attach event listeners for new elements
-            this.attachTabContentEventListeners(newContent);
-        }
-    }
     
     /**
      * 🎯 Called when page is shown
