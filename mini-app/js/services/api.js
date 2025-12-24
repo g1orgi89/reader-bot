@@ -1621,25 +1621,55 @@ class ApiService {
 
     /**
      * 📋 Получить список подписок (на кого подписан)
-     * @param {Object} options - { limit, skip }
+     * UPDATED: Теперь принимает userId для просмотра подписок любого пользователя
+     * @param {Object} options - { limit, skip, userId }
+     * @param {string} [options.userId] - ID пользователя, чьи подписки нужно получить (если не указан, используется текущий пользователь)
      */
     async getFollowing(options = {}) {
+        console.log('📡 ApiService.getFollowing called with options:', options);
+        
         const params = new URLSearchParams();
+        
+        // НОВАЯ ЛОГИКА: Явно передаём userId в query параметрах
+        // Приоритет: options.userId > resolveUserId()
+        const targetUserId = options.userId || this.resolveUserId();
+        if (targetUserId) {
+            params.append('userId', targetUserId);
+            console.log('📡 ApiService.getFollowing - передаём userId в запрос:', targetUserId);
+        }
+        
         if (options.limit) params.append('limit', options.limit);
         if (options.skip) params.append('skip', options.skip);
         const qs = params.toString();
+        
+        console.log('📡 ApiService.getFollowing - итоговый query string:', qs);
         return this.request('GET', qs ? `/following?${qs}` : '/following');
     }
 
     /**
      * 📋 Получить список подписчиков
-     * @param {Object} options - { limit, skip }
+     * UPDATED: Теперь принимает userId для просмотра подписчиков любого пользователя
+     * @param {Object} options - { limit, skip, userId }
+     * @param {string} [options.userId] - ID пользователя, чьих подписчиков нужно получить (если не указан, используется текущий пользователь)
      */
     async getFollowers(options = {}) {
+        console.log('📡 ApiService.getFollowers called with options:', options);
+        
         const params = new URLSearchParams();
+        
+        // НОВАЯ ЛОГИКА: Явно передаём userId в query параметрах
+        // Приоритет: options.userId > resolveUserId()
+        const targetUserId = options.userId || this.resolveUserId();
+        if (targetUserId) {
+            params.append('userId', targetUserId);
+            console.log('📡 ApiService.getFollowers - передаём userId в запрос:', targetUserId);
+        }
+        
         if (options.limit) params.append('limit', options.limit);
         if (options.skip) params.append('skip', options.skip);
         const qs = params.toString();
+        
+        console.log('📡 ApiService.getFollowers - итоговый query string:', qs);
         return this.request('GET', qs ? `/followers?${qs}` : '/followers');
     }
 

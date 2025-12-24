@@ -205,10 +205,20 @@ class ProfilePage {
     
     /**
      * 👥 Load followers list
+     * UPDATED: Теперь явно передаёт userId профиля в API запрос
      */
     async loadFollowers() {
         try {
-            const response = await this.api.getFollowers({ limit: 50 });
+            // ВАЖНО: Передаём userId профиля, который сейчас открыт
+            console.log(`👥 ProfilePage.loadFollowers: загружаем подписчиков для userId: ${this.userId}`);
+            
+            const response = await this.api.getFollowers({ 
+                limit: 50,
+                userId: this.userId  // ← ИСПРАВЛЕНИЕ: явно передаём userId профиля
+            });
+            
+            console.log(`👥 ProfilePage.loadFollowers: получен ответ для userId: ${this.userId}`, response);
+            
             // Backend returns { success: true, data: [...], total, limit, skip }
             const followers = response.data || response.followers || response || [];
             
@@ -241,10 +251,20 @@ class ProfilePage {
     
     /**
      * 👤 Load following list
+     * UPDATED: Теперь явно передаёт userId профиля в API запрос
      */
     async loadFollowing() {
         try {
-            const response = await this.api.getFollowing({ limit: 50 });
+            // ВАЖНО: Передаём userId профиля, который сейчас открыт
+            console.log(`👤 ProfilePage.loadFollowing: загружаем подписки для userId: ${this.userId}`);
+            
+            const response = await this.api.getFollowing({ 
+                limit: 50,
+                userId: this.userId  // ← ИСПРАВЛЕНИЕ: явно передаём userId профиля
+            });
+            
+            console.log(`👤 ProfilePage.loadFollowing: получен ответ для userId: ${this.userId}`, response);
+            
             // Backend returns { success: true, data: [...], total, limit, skip }
             const following = response.data || response.following || response || [];
             
