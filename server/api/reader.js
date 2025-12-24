@@ -4882,16 +4882,26 @@ router.post('/follow/status/batch', telegramAuth, async (req, res) => {
 });
 
 /**
- * @description Получить список моих подписок
+ * @description Получить список подписок (публичный просмотр)
  * @route GET /api/reader/following
+ * UPDATED: Поддержка query параметра userId для просмотра подписок любого пользователя
+ * - Если userId указан в query: возвращает подписки этого пользователя
+ * - Если userId не указан: возвращает подписки текущего пользователя (из токена)
  */
 router.get('/following', telegramAuth, async (req, res) => {
   try {
-    const userId = req.userId;
+    // ИСПРАВЛЕНИЕ: Поддержка userId из query параметров
+    // Приоритет: req.query.userId > req.userId (из токена)
+    const targetUserId = req.query.userId || req.userId;
+    
+    console.log('👤 GET /following - req.userId (from token):', req.userId);
+    console.log('👤 GET /following - req.query.userId:', req.query.userId);
+    console.log('👤 GET /following - targetUserId (final):', targetUserId);
+    
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const skip = parseInt(req.query.skip) || 0;
     
-    const follows = await Follow.getFollowing(userId, limit, skip);
+    const follows = await Follow.getFollowing(targetUserId, limit, skip);
     const userIds = follows.map(f => f.followingId);
     
     // Получаем информацию о пользователях
@@ -4910,7 +4920,9 @@ router.get('/following', telegramAuth, async (req, res) => {
     }));
     
     // Получаем общее количество подписок
-    const total = await Follow.countFollowing(userId);
+    const total = await Follow.countFollowing(targetUserId);
+    
+    console.log(`✅ GET /following - возвращаем ${data.length} подписок для userId: ${targetUserId}`);
     
     res.json({ success: true, data, total, limit, skip });
   } catch (error) {
@@ -4920,16 +4932,26 @@ router.get('/following', telegramAuth, async (req, res) => {
 });
 
 /**
- * @description Получить список моих подписчиков
+ * @description Получить список подписчиков (публичный просмотр)
  * @route GET /api/reader/followers
+ * UPDATED: Поддержка query параметра userId для просмотра подписчиков любого пользователя
+ * - Если userId указан в query: возвращает подписчиков этого пользователя
+ * - Если userId не указан: возвращает подписчиков текущего пользователя (из токена)
  */
 router.get('/followers', telegramAuth, async (req, res) => {
   try {
-    const userId = req.userId;
+    // ИСПРАВЛЕНИЕ: Поддержка userId из query параметров
+    // Приоритет: req.query.userId > req.userId (из токена)
+    const targetUserId = req.query.userId || req.userId;
+    
+    console.log('👥 GET /followers - req.userId (from token):', req.userId);
+    console.log('👥 GET /followers - req.query.userId:', req.query.userId);
+    console.log('👥 GET /followers - targetUserId (final):', targetUserId);
+    
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const skip = parseInt(req.query.skip) || 0;
     
-    const followers = await Follow.getFollowers(userId, limit, skip);
+    const followers = await Follow.getFollowers(targetUserId, limit, skip);
     const userIds = followers.map(f => f.followerId);
     
     // Получаем информацию о пользователях
@@ -4948,7 +4970,9 @@ router.get('/followers', telegramAuth, async (req, res) => {
     }));
     
     // Получаем общее количество подписчиков
-    const total = await Follow.countFollowers(userId);
+    const total = await Follow.countFollowers(targetUserId);
+    
+    console.log(`✅ GET /followers - возвращаем ${data.length} подписчиков для userId: ${targetUserId}`);
     
     res.json({ success: true, data, total, limit, skip });
   } catch (error) {
