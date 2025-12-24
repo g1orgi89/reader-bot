@@ -278,23 +278,25 @@ class AppRouter {
         
         console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`, query);
 
-        // Усиленная защита от дублирования навигации
+        // GUARD 1: Усиленная защита от дублирования навигации через isNavigating flag
         if (this.isNavigating && !options.force) {
-            console.log('⚠️ Router: Навигация уже выполняется, игнорируем повторный вызов');
+            console.log('⚠️ [NAV-GUARD] Navigation blocked: isNavigating=true (re-entrant call)');
             return;
         }
         
-        // Проверяем на избыточные переходы на тот же путь
+        // GUARD 2: Расширенное временное окно для защиты от дублирования (1500ms)
+        // Увеличено с 500ms до 1500ms для надёжности на медленных соединениях
         if (this._lastNavigationPath === normalizedPath && 
-            Date.now() - this._lastNavigationTime < 500 && 
+            Date.now() - this._lastNavigationTime < 1500 && 
             !options.force) {
-            console.log('⚠️ Router: Игнорируем дублированный переход на тот же путь');
+            console.log('⚠️ [NAV-GUARD] Navigation blocked: duplicate within 1500ms window');
             return;
         }
 
-        // Не переходим на ту же страницу (если не force)
+        // GUARD 3: Защита от перехода на тот же маршрут (same-route guard)
+        // Блокируем если уже на этой странице и это не replace и не force
         if (this.currentRoute === normalizedPath && !options.replace && !options.force) {
-            console.log('⚠️ Router: Уже на этой странице, игнорируем');
+            console.log('⚠️ [NAV-GUARD] Navigation blocked: already on route', normalizedPath);
             return;
         }
 
