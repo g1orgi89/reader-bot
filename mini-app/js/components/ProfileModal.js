@@ -99,8 +99,10 @@ class ProfileModal {
         this.backdrop.addEventListener('click', this.boundHandleBackdropClick);
         document.addEventListener('keydown', this.boundHandleEscape);
         
-        // Setup Telegram BackButton with single handler
+        // Setup Telegram BackButton with single handler (guard against duplicates)
         if (this.telegram?.BackButton) {
+            // First remove any existing handler to prevent duplicates
+            this.telegram.BackButton.offClick(this.boundHandleBackButton);
             this.telegram.BackButton.show();
             this.telegram.BackButton.onClick(this.boundHandleBackButton);
         }
@@ -121,37 +123,46 @@ class ProfileModal {
     }
     
     /**
-     * ❌ Close modal
+     * ❌ Close modal (idempotent with force option)
+     * @param {Object} options - Close options
+     * @param {boolean} options.force - Force immediate close without animation
      */
-    close() {
+    close(options = {}) {
         if (!this.isOpen) return;
         
         this.isOpen = false;
         
         // Remove active class for animation
-        this.modal.classList.remove('active');
-        this.backdrop.classList.remove('active');
+        if (this.modal) this.modal.classList.remove('active');
+        if (this.backdrop) this.backdrop.classList.remove('active');
         
-        // Remove event listeners
-        this.backdrop.removeEventListener('click', this.boundHandleBackdropClick);
+        // Remove event listeners (idempotent - safe to call multiple times)
+        if (this.backdrop) {
+            this.backdrop.removeEventListener('click', this.boundHandleBackdropClick);
+        }
         document.removeEventListener('keydown', this.boundHandleEscape);
         
-        // Hide Telegram BackButton
+        // Hide Telegram BackButton and remove handler (guard against duplicates)
         if (this.telegram?.BackButton) {
             this.telegram.BackButton.offClick(this.boundHandleBackButton);
             this.telegram.BackButton.hide();
         }
         
-        // Hide modal after animation
-        setTimeout(() => {
+        // Hide modal immediately if force, otherwise after animation
+        if (options.force) {
             if (this.modal) this.modal.style.display = 'none';
             if (this.backdrop) this.backdrop.style.display = 'none';
-        }, 250);
+        } else {
+            setTimeout(() => {
+                if (this.modal) this.modal.style.display = 'none';
+                if (this.backdrop) this.backdrop.style.display = 'none';
+            }, 250);
+        }
         
         // Re-enable body scroll
         document.body.classList.remove('modal-open');
         
-        console.log('✅ ProfileModal: Closed');
+        console.log('✅ ProfileModal: Closed', options.force ? '(forced)' : '');
     }
     
     /**
@@ -172,19 +183,30 @@ class ProfileModal {
             const profileResponse = await this.api.getUserProfile(this.userId);
             this.profileData = profileResponse.user || profileResponse;
             
-            // Get current user ID for comparison
+            // Get current user ID for comparison (normalize types to handle number vs string)
             const currentUserId = this.state.getCurrentUserId();
-            const isOwnProfile = currentUserId === this.userId;
+            const isOwnProfile = String(currentUserId) === String(this.userId);
             
             // For own profile, load stats and follow counts
             if (isOwnProfile) {
                 try {
-                    // Load stats if not already present
-                    const stats = await this.api.getStats(this.userId);
-                    if (stats) {
+                    // Load stats - normalize response structure (stats may be nested in resp.stats)
+                    const statsResp = await this.api.getStats(this.userId);
+                    if (statsResp) {
+                        // Extract flat stats fields from resp.stats or resp itself
+                        const statsData = statsResp.stats || statsResp;
+                        const normalizedStats = {
+                            totalQuotes: statsData.totalQuotes || 0,
+                            currentStreak: statsData.currentStreak || 0,
+                            longestStreak: statsData.longestStreak || 0,
+                            weeklyQuotes: statsData.weeklyQuotes || statsData.thisWeek || 0,
+                            thisWeek: statsData.thisWeek || statsData.weeklyQuotes || 0,
+                            daysInApp: statsData.daysSinceRegistration || statsData.daysInApp || 0
+                        };
+                        
                         this.profileData.stats = {
                             ...this.profileData.stats,
-                            ...stats
+                            ...normalizedStats
                         };
                     }
                     
@@ -254,7 +276,7 @@ class ProfileModal {
         const following = stats.following || 0;
         
         const currentUserId = this.state.getCurrentUserId();
-        const isOwnProfile = currentUserId === this.userId;
+        const isOwnProfile = String(currentUserId) === String(this.userId);
         
         this.modal.innerHTML = `
             <div class="modal-content profile-modal-content">
@@ -269,7 +291,7 @@ class ProfileModal {
                     <div class="profile-modal-avatar-container">
                         ${avatarUrl ? `
                             <img class="profile-modal-avatar-img" src="${avatarUrl}" alt="${name}" 
-                                 onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                                 onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
                         ` : ''}
                         <div class="profile-modal-avatar-fallback">${initials}</div>
                     </div>
@@ -476,8 +498,8 @@ class ProfileModal {
     handleOpenFullProfile() {
         const profileUrl = `/profile?user=${this.userId}`;
         
-        // Close modal first, then navigate
-        this.close();
+        // Force close modal immediately to prevent hanging
+        this.close({ force: true });
         
         // Small delay to ensure modal closes before navigation
         setTimeout(() => {

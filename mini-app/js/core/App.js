@@ -81,6 +81,34 @@ class ReaderApp {
         console.log('✅ Global image error handler initialized: window.RBImageErrorHandler');
     }
 
+    /**
+     * 🚪 Close all active modals
+     * Called before navigation to prevent modals hanging over new pages
+     */
+    closeActiveModals() {
+        console.log('🚪 Closing all active modals');
+        
+        try {
+            // Close ProfileModal via CommunityPage if it exists and is open
+            if (window.communityPage?.profileModal?.isOpen) {
+                console.log('🚪 Closing ProfileModal from CommunityPage');
+                window.communityPage.profileModal.close({ force: true });
+            }
+            
+            // Close ProfileModal directly if it exists on app instance
+            if (this.profileModal && this.profileModal.isOpen) {
+                console.log('🚪 Closing ProfileModal from App');
+                this.profileModal.close({ force: true });
+            }
+            
+            // Close any other global modals from state/ui if they exist
+            // Add here when implementing other modals
+            
+        } catch (error) {
+            console.warn('⚠️ Error closing active modals:', error);
+        }
+    }
+
     persistTelegramAuth() {
         try {
             const tg = window.Telegram?.WebApp;
