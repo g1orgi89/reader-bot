@@ -43,6 +43,42 @@ class ReaderApp {
         console.log('🔍 Global debug references set: window.App and window.ReaderAppInstance');
 
         console.log('✅ Reader App: Конструктор завершен - ИСПРАВЛЕНА ПЕРЕДАЧА APP В ROUTER!');
+        
+        // === GLOBAL SAFE IMAGE ERROR HANDLER ===
+        // Initialize global safe image error handler to prevent uncaught exceptions
+        this.initializeImageErrorHandler();
+    }
+
+    /**
+     * 🖼️ Initialize global safe image error handler
+     * Prevents uncaught TypeError from inline onerror on <img> elements
+     * Safely hides failed images and shows fallback initials
+     */
+    initializeImageErrorHandler() {
+        window.RBImageErrorHandler = function(img) {
+            try {
+                // Validate that img is an HTMLImageElement
+                if (!img || !(img instanceof HTMLImageElement)) {
+                    console.warn('⚠️ RBImageErrorHandler: Invalid image element', img);
+                    return;
+                }
+                
+                // Safely hide the image
+                img.style.display = 'none';
+                
+                // Add fallback class to parent container if it exists
+                if (img.parentElement) {
+                    img.parentElement.classList.add('fallback');
+                }
+                
+                console.log('🖼️ Image load failed, fallback applied:', img.src);
+            } catch (e) {
+                // Catch any errors to prevent them from bubbling up
+                console.warn('⚠️ RBImageErrorHandler: Error handling image failure:', e);
+            }
+        };
+        
+        console.log('✅ Global image error handler initialized: window.RBImageErrorHandler');
     }
 
     persistTelegramAuth() {

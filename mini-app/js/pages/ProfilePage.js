@@ -527,7 +527,7 @@ class ProfilePage {
                 <div class="profile-avatar-container">
                     ${avatarUrl ? `
                         <img class="profile-avatar-img" src="${avatarUrl}" alt="${name}" 
-                             onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                             onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
                     ` : ''}
                     <div class="profile-avatar-fallback">${initials}</div>
                 </div>
@@ -579,6 +579,17 @@ class ProfilePage {
      * Updates only the tab content area to prevent flickering
      */
     refreshTabContent() {
+        // Diagnostic logging to track unnecessary re-renders
+        console.log('🔄 [REFRESH] refreshTabContent called:', {
+            activeTab: this.activeTab,
+            followersLength: this.followersData?.length || 0,
+            followingLength: this.followingData?.length || 0,
+            quotesLength: this.userQuotes?.length || 0,
+            loadingFollowers: this.loadingFollowers,
+            loadingFollowing: this.loadingFollowing,
+            userId: this.userId
+        });
+        
         const root = document.getElementById('profilePageRoot');
         if (!root) return;
         
@@ -754,7 +765,7 @@ class ProfilePage {
                 <div class="user-avatar-container">
                     ${avatarUrl ? `
                         <img class="user-avatar-img" src="${avatarUrl}" alt="${name}" 
-                             onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
+                             onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
                     ` : ''}
                     <div class="user-avatar-fallback">${initials}</div>
                 </div>
