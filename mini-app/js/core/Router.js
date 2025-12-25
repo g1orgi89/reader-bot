@@ -300,6 +300,11 @@ class AppRouter {
             return;
         }
 
+        // Close all active modals before navigation to prevent hanging
+        if (this.app && typeof this.app.closeActiveModals === 'function') {
+            this.app.closeActiveModals();
+        }
+
         // Сохраняем информацию о последней навигации
         this._lastNavigationPath = normalizedPath;
         this._lastNavigationTime = Date.now();
