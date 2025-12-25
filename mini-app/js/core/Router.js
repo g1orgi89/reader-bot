@@ -321,6 +321,11 @@ class AppRouter {
             // Устанавливаем флаг навигации
             this.isNavigating = true;
             
+            // Close all active modals before navigation to prevent them from hanging
+            if (this.app && typeof this.app.closeActiveModals === 'function') {
+                this.app.closeActiveModals();
+            }
+            
             // Создаем новый компонент для проверки prefetch (НЕ рендерим еще!)
             const componentState = {
                 ...options.state,
