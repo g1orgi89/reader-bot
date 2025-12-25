@@ -624,8 +624,15 @@ class ReaderApp {
         const hash = this.normalizeRoute(rawHash);
         console.log('🧭 Hash changed to:', hash);
 
+        // GUARD 1: Prevent navigation if router is already navigating
         if (this.router?.isNavigating) {
-            console.log('⏭️ HashChange пропущен (router.isNavigating=true)');
+            console.log('⏭️ [NAV-GUARD] HashChange blocked: router.isNavigating=true');
+            return;
+        }
+
+        // GUARD 2: Prevent navigation if hash equals current route (duplicate hashchange)
+        if (this.router?.currentRoute && hash === this.router.currentRoute) {
+            console.log('⏭️ [NAV-GUARD] HashChange blocked: already on route', hash);
             return;
         }
 
@@ -635,7 +642,9 @@ class ReaderApp {
             this.topMenu = null;
         }
 
+        // Only navigate when hash differs from current route
         if (this.router?.navigate) {
+            console.log('✅ [NAV-GUARD] Proceeding with navigation to', hash);
             this.router.navigate(hash);
         }
 

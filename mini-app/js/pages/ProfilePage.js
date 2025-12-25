@@ -195,14 +195,24 @@ class ProfilePage {
     
     /**
      * 🆔 Extract userId from user object with comprehensive fallback chain
+     * UPDATED: Extended with fallbacks to followingId, followerId, and userId fields
      * @param {Object} user - User object (may be nested in f.user or direct)
-     * @param {Object} [f] - Parent object containing user
+     * @param {Object} [f] - Parent object containing user (fallback source)
      * @returns {string|null} userId or null
      */
     extractUserId(user, f = null) {
         if (!user && !f) return null;
         const u = user || f;
-        return u.userId || u.id || u._id || u.telegramId || null;
+        
+        // Priority: userId → id → _id → telegramId → followingId → followerId → f.userId
+        return u.userId || 
+               u.id || 
+               u._id || 
+               u.telegramId || 
+               (f && f.followingId) || 
+               (f && f.followerId) || 
+               (f && f.userId) || 
+               null;
     }
     
     /**
@@ -242,7 +252,7 @@ class ProfilePage {
     
     /**
      * 👥 Load followers list
-     * UPDATED: Использует requestId для защиты от гонок, не очищает данные на время загрузки
+     * UPDATED: Защита от гонок через requestId, не перезаписывает кэш пустыми ответами
      */
     async loadFollowers() {
         try {
@@ -254,23 +264,25 @@ class ProfilePage {
             this.loadingFollowers = true;
             
             // Force render to show spinner immediately (with cached data if available)
-            this.refreshTabContent();
+            if (this.activeTab === 'followers') {
+                this.refreshTabContent();
+            }
             
             // ВАЖНО: Передаём userId профиля, который сейчас открыт
-            console.log(`👥 ProfilePage.loadFollowers: загружаем подписчиков для userId: ${this.userId}, requestId: ${currentRequestId}`);
+            console.log(`👥 [FOLLOWERS] Loading for userId: ${this.userId}, requestId: ${currentRequestId}`);
             
             const response = await this.api.getFollowers({ 
                 limit: 50,
                 userId: this.userId  // ← ИСПРАВЛЕНИЕ: явно передаём userId профиля
             });
             
-            // Check if this response is still valid (request ID hasn't changed)
+            // ANTI-RACE: Check if this response is still valid (request ID hasn't changed)
             if (currentRequestId !== this._followersRequestId) {
-                console.log(`⚠️ ProfilePage.loadFollowers: Игнорируем устаревший ответ (requestId: ${currentRequestId}, текущий: ${this._followersRequestId})`);
+                console.log(`⚠️ [FOLLOWERS] Ignoring stale response (requestId: ${currentRequestId}, current: ${this._followersRequestId})`);
                 return;
             }
             
-            console.log(`👥 ProfilePage.loadFollowers: получен ответ для userId: ${this.userId}`, response);
+            console.log(`👥 [FOLLOWERS] Response received for userId: ${this.userId}`, response);
             
             // Backend returns { success: true, data: [...], total, limit, skip }
             const followers = response.data || response.followers || response || [];
@@ -288,13 +300,22 @@ class ProfilePage {
                 };
             });
             
-            // Store in cache indexed by userId
-            this._followersByUserId[this.userId] = processedFollowers;
+            // CACHE PRESERVATION: Only update cache if new data is non-empty OR cache was empty
+            const hadPreviousData = this._followersByUserId[this.userId] && this._followersByUserId[this.userId].length > 0;
+            const hasNewData = processedFollowers.length > 0;
+            
+            if (hasNewData || !hadPreviousData) {
+                // Update cache: either we got new data, or cache was empty anyway
+                this._followersByUserId[this.userId] = processedFollowers;
+                console.log(`✅ [FOLLOWERS] Cache updated: ${processedFollowers.length} followers for userId: ${this.userId}`);
+            } else {
+                // Don't overwrite non-empty cache with empty response
+                console.log(`⚠️ [FOLLOWERS] Preserving cache: got empty response but cache has ${this._followersByUserId[this.userId].length} items`);
+            }
             
             // Update current display data from cache
             this.followersData = this._followersByUserId[this.userId] || [];
             
-            console.log(`✅ ProfilePage: Loaded ${this.followersData.length} followers for userId: ${this.userId}`);
         } catch (error) {
             console.warn('⚠️ Could not load followers:', error);
             // Keep cached data if available, otherwise empty array
@@ -303,14 +324,16 @@ class ProfilePage {
             // Always reset loading flag
             this.loadingFollowers = false;
             
-            // Force render to show data or empty state
-            this.refreshTabContent();
+            // Force render to show data or empty state ONLY if still on followers tab
+            if (this.activeTab === 'followers') {
+                this.refreshTabContent();
+            }
         }
     }
     
     /**
      * 👤 Load following list
-     * UPDATED: Использует requestId для защиты от гонок, не очищает данные на время загрузки
+     * UPDATED: Защита от гонок через requestId, не перезаписывает кэш пустыми ответами
      */
     async loadFollowing() {
         try {
@@ -322,23 +345,25 @@ class ProfilePage {
             this.loadingFollowing = true;
             
             // Force render to show spinner immediately (with cached data if available)
-            this.refreshTabContent();
+            if (this.activeTab === 'following') {
+                this.refreshTabContent();
+            }
             
             // ВАЖНО: Передаём userId профиля, который сейчас открыт
-            console.log(`👤 ProfilePage.loadFollowing: загружаем подписки для userId: ${this.userId}, requestId: ${currentRequestId}`);
+            console.log(`👤 [FOLLOWING] Loading for userId: ${this.userId}, requestId: ${currentRequestId}`);
             
             const response = await this.api.getFollowing({ 
                 limit: 50,
                 userId: this.userId  // ← ИСПРАВЛЕНИЕ: явно передаём userId профиля
             });
             
-            // Check if this response is still valid (request ID hasn't changed)
+            // ANTI-RACE: Check if this response is still valid (request ID hasn't changed)
             if (currentRequestId !== this._followingRequestId) {
-                console.log(`⚠️ ProfilePage.loadFollowing: Игнорируем устаревший ответ (requestId: ${currentRequestId}, текущий: ${this._followingRequestId})`);
+                console.log(`⚠️ [FOLLOWING] Ignoring stale response (requestId: ${currentRequestId}, current: ${this._followingRequestId})`);
                 return;
             }
             
-            console.log(`👤 ProfilePage.loadFollowing: получен ответ для userId: ${this.userId}`, response);
+            console.log(`👤 [FOLLOWING] Response received for userId: ${this.userId}`, response);
             
             // Backend returns { success: true, data: [...], total, limit, skip }
             const following = response.data || response.following || response || [];
@@ -356,13 +381,22 @@ class ProfilePage {
                 };
             });
             
-            // Store in cache indexed by userId
-            this._followingByUserId[this.userId] = processedFollowing;
+            // CACHE PRESERVATION: Only update cache if new data is non-empty OR cache was empty
+            const hadPreviousData = this._followingByUserId[this.userId] && this._followingByUserId[this.userId].length > 0;
+            const hasNewData = processedFollowing.length > 0;
+            
+            if (hasNewData || !hadPreviousData) {
+                // Update cache: either we got new data, or cache was empty anyway
+                this._followingByUserId[this.userId] = processedFollowing;
+                console.log(`✅ [FOLLOWING] Cache updated: ${processedFollowing.length} following for userId: ${this.userId}`);
+            } else {
+                // Don't overwrite non-empty cache with empty response
+                console.log(`⚠️ [FOLLOWING] Preserving cache: got empty response but cache has ${this._followingByUserId[this.userId].length} items`);
+            }
             
             // Update current display data from cache
             this.followingData = this._followingByUserId[this.userId] || [];
             
-            console.log(`✅ ProfilePage: Loaded ${this.followingData.length} following for userId: ${this.userId}`);
         } catch (error) {
             console.warn('⚠️ Could not load following:', error);
             // Keep cached data if available, otherwise empty array
@@ -371,8 +405,10 @@ class ProfilePage {
             // Always reset loading flag
             this.loadingFollowing = false;
             
-            // Force render to show data or empty state
-            this.refreshTabContent();
+            // Force render to show data or empty state ONLY if still on following tab
+            if (this.activeTab === 'following') {
+                this.refreshTabContent();
+            }
         }
     }
     
@@ -690,6 +726,7 @@ class ProfilePage {
     
     /**
      * 👤 Render user card for followers/following lists
+     * UPDATED: Includes fallback data attributes for reliable userId extraction
      */
     renderUserCard(user) {
         const name = user.name || user.firstName || 'Пользователь';
@@ -700,15 +737,21 @@ class ProfilePage {
         const formattedUsername = username ? `@${username}` : '';
         const userId = this.extractUserId(user);
         
+        // Extract additional fallback IDs for navigation reliability
+        const followingId = user.followingId || '';
+        const followerId = user.followerId || '';
+        
         // Get follow status for this user (we'll need to track this)
         const isFollowing = this.followStatusCache?.[userId] || false;
         
         return `
             <div class="user-card" 
-                 data-user-id="${userId}" 
+                 data-user-id="${userId || ''}" 
+                 data-following-id="${followingId}"
+                 data-follower-id="${followerId}"
                  data-is-following="${isFollowing}"
                  data-action="navigate-to-profile">
-                <div class="user-avatar-container" data-user-id="${userId}">
+                <div class="user-avatar-container">
                     ${avatarUrl ? `
                         <img class="user-avatar-img" src="${avatarUrl}" alt="${name}" 
                              onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
@@ -716,7 +759,7 @@ class ProfilePage {
                     <div class="user-avatar-fallback">${initials}</div>
                 </div>
                 <div class="user-info">
-                    <div class="user-name" data-user-id="${userId}">${name}</div>
+                    <div class="user-name">${name}</div>
                     ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
                     ${bio ? `<div class="user-bio">${bio}</div>` : ''}
                 </div>
@@ -1039,12 +1082,43 @@ class ProfilePage {
     
     /**
      * 🔗 Attach event listeners for tab content
+     * UPDATED: Implements delegated click handler for reliable user card navigation
      */
     attachTabContentEventListeners(container) {
-        // Re-attach event listeners for user cards
-        const userCards = container.querySelectorAll('[data-action="navigate-to-profile"]');
-        userCards.forEach(card => {
-            card.addEventListener('click', (e) => this.handleUserCardClick(e));
+        // Delegated click handler for user cards - handles dynamic DOM updates
+        // This ensures clicks work even after tab re-renders
+        container.addEventListener('click', (e) => {
+            // Find closest user-card element
+            const card = e.target.closest('[data-action="navigate-to-profile"]');
+            if (card) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Extract userId with comprehensive fallback chain
+                const userId = card.dataset.userId || 
+                              card.getAttribute('data-user-id') ||
+                              card.dataset.followingId ||
+                              card.dataset.followerId;
+                
+                if (!userId) {
+                    console.warn('⚠️ [USER-CARD] No userId found on card', card);
+                    return;
+                }
+                
+                console.log(`🔗 [USER-CARD] Navigating to profile: ${userId}`);
+                
+                // Haptic feedback
+                if (this.telegram?.hapticFeedback) {
+                    this.telegram.hapticFeedback('light');
+                }
+                
+                // Navigate to user's profile
+                if (this.router && typeof this.router.navigate === 'function') {
+                    this.router.navigate(`/profile?user=${userId}`);
+                } else {
+                    window.location.hash = `/profile?user=${userId}`;
+                }
+            }
         });
         
         // Re-attach load more button
