@@ -401,6 +401,15 @@
     text-overflow: ellipsis;
 }
 
+.user-username {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-2xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .user-bio {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
